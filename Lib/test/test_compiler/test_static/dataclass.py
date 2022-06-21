@@ -15,24 +15,12 @@ from .common import StaticTestBase
 
 
 class DataclassTests(StaticTestBase):
-    def test_dataclasses_dataclass_is_dynamic(self) -> None:
-        codestr = """
-        from dataclasses import dataclass
-
-        @dataclass
-        class C:
-            x: str
-
-        reveal_type(C)
-        """
-        self.revealed_type(codestr, "Type[dynamic]")
-
     def test_static_dataclass_is_not_dynamic(self) -> None:
         for call in [True, False]:
             with self.subTest(call=call):
                 insert = "(init=True)" if call else ""
                 codestr = f"""
-                from __static__ import dataclass
+                from dataclasses import dataclass
 
                 @dataclass{insert}
                 class C:
@@ -47,7 +35,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_basic(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -62,7 +50,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_init_by_name(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -77,7 +65,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_no_fields(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -90,7 +78,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_too_few_args(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -103,7 +91,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_too_many_args(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -116,7 +104,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_incorrect_arg_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -131,7 +119,7 @@ class DataclassTests(StaticTestBase):
 
     def test_default_value(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         def generate_str() -> str:
             return "foo"
@@ -147,7 +135,7 @@ class DataclassTests(StaticTestBase):
 
     def test_default_replaced_by_value(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         def generate_str() -> str:
             return "foo"
@@ -164,7 +152,7 @@ class DataclassTests(StaticTestBase):
 
     def test_nondefault_after_default(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -177,7 +165,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_positional_arg(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(1)
         class C:
@@ -189,7 +177,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_non_constant(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         def thunk() -> bool:
             return True
@@ -206,7 +194,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_non_bool(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(init=1)
         class C:
@@ -220,7 +208,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_unexpected_kwarg(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(foo=True)
         class C:
@@ -234,7 +222,7 @@ class DataclassTests(StaticTestBase):
 
     def test_nondefault_after_default_with_init_false(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
         from typing import Optional
 
         @dataclass(init=False)
@@ -257,7 +245,7 @@ class DataclassTests(StaticTestBase):
 
     def test_field_named_self(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -270,7 +258,7 @@ class DataclassTests(StaticTestBase):
 
     def test_post_init_checks_args(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -289,7 +277,7 @@ class DataclassTests(StaticTestBase):
 
     def test_post_init_called(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -305,7 +293,7 @@ class DataclassTests(StaticTestBase):
 
     def test_unannotated_not_a_field(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -319,7 +307,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_eq_static(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -350,7 +338,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_eq_nonstatic(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -377,7 +365,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_eq_does_not_overwrite(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -394,7 +382,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_eq_false_does_not_generate_dunder_eq(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(eq=False)
         class C:
@@ -410,7 +398,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_eq_with_different_type_delegates_to_other(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -428,7 +416,7 @@ class DataclassTests(StaticTestBase):
         for method in methods:
             with self.subTest(method=method):
                 codestr = f"""
-                from __static__ import dataclass
+                from dataclasses import dataclass
 
                 @dataclass(order=True)
                 class C:
@@ -447,7 +435,7 @@ class DataclassTests(StaticTestBase):
 
     def test_comparison_subclass_returns_not_implemented(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(order=True)
         class C:
@@ -471,7 +459,7 @@ class DataclassTests(StaticTestBase):
 
     def test_order_uses_tuple_order(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(order=True)
         class C:
@@ -501,7 +489,7 @@ class DataclassTests(StaticTestBase):
 
     def test_assign_to_non_frozen_field(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -530,7 +518,7 @@ class DataclassTests(StaticTestBase):
             args = "self, name" if delete else "self, name, args"
             with self.subTest(method=method):
                 codestr = f"""
-                from __static__ import dataclass
+                from dataclasses import dataclass
 
                 @dataclass(frozen=True)
                 class C:
@@ -548,7 +536,7 @@ class DataclassTests(StaticTestBase):
 
     def test_assign_to_non_field_on_frozen_dataclass(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -568,7 +556,7 @@ class DataclassTests(StaticTestBase):
 
     def test_cannot_assign_incorrect_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -585,7 +573,7 @@ class DataclassTests(StaticTestBase):
 
     def test_cannot_assign_incorrect_type_setattr(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -604,7 +592,7 @@ class DataclassTests(StaticTestBase):
 
     def test_cannot_assign_to_frozen_dataclass_field(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -621,7 +609,7 @@ class DataclassTests(StaticTestBase):
 
     def test_cannot_delete_frozen_dataclass_field(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -638,7 +626,7 @@ class DataclassTests(StaticTestBase):
 
     def test_frozen_field_subclass(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -665,7 +653,7 @@ class DataclassTests(StaticTestBase):
 
     def test_frozen_no_fields(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -692,7 +680,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dunder_setattr_raises_frozen_instance_error(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -711,7 +699,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dunder_delattr_raises_frozen_instance_error(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -729,7 +717,7 @@ class DataclassTests(StaticTestBase):
 
     def test_set_frozen_fields_with_object_setattr(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -743,7 +731,7 @@ class DataclassTests(StaticTestBase):
 
     def test_delete_frozen_fields_with_object_setattr(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -757,7 +745,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_empty(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -770,7 +758,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_one_field(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -783,7 +771,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_multiple_fields(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -797,7 +785,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_recursive(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
         from typing import Optional
 
         @dataclass
@@ -813,7 +801,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_subclass(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -832,7 +820,7 @@ class DataclassTests(StaticTestBase):
 
     def test_default_dataclass_has_none_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -845,7 +833,7 @@ class DataclassTests(StaticTestBase):
 
     def test_explicit_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -862,7 +850,7 @@ class DataclassTests(StaticTestBase):
 
     def test_frozen_dataclass_generates_dunder_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -877,7 +865,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_hash_no_fields(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -891,7 +879,7 @@ class DataclassTests(StaticTestBase):
 
     def test_frozen_dataclass_without_eq_does_not_generate_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(eq=False, frozen=True)
         class C:
@@ -903,7 +891,7 @@ class DataclassTests(StaticTestBase):
 
     def test_unsafe_hash_cannot_overwrite_explicit_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(unsafe_hash=True)
         class C:
@@ -919,7 +907,7 @@ class DataclassTests(StaticTestBase):
 
     def test_unsafe_hash_uses_tuple_hash(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(unsafe_hash=True)
         class C:
@@ -937,7 +925,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_order_requires_eq(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(eq=False, order=True)
         class C:
@@ -948,7 +936,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_has_params_attribute(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -967,7 +955,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_subclass_dynamic_is_dynamic(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -975,7 +963,7 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
             codestr = f"""
-            from __static__ import dataclass
+            from dataclasses import dataclass
             from {nonstatic_mod.__name__} import C
 
             @dataclass
@@ -1008,8 +996,7 @@ class DataclassTests(StaticTestBase):
         """
         with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
             codestr = f"""
-            from __static__ import dataclass
-            from dataclasses import field
+            from dataclasses import dataclass, field
             from {nonstatic_mod.__name__} import C
 
             @dataclass
@@ -1024,8 +1011,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_takes_no_positional_arguments(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1039,8 +1025,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_checks_flags_for_bool_constant(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1054,8 +1039,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_checks_hash_for_bool_constant_or_none(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1069,8 +1053,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_unexpected_keyword(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1084,8 +1067,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_without_default(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1103,8 +1085,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_with_default(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1120,8 +1101,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_with_incorrect_default_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1135,8 +1115,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_with_default_factory(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1151,8 +1130,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_with_incorrect_default_factory_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1163,8 +1141,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_field_cannot_set_both_default_and_default_factory(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1176,8 +1153,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_has_fields_attribute(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar
+        from dataclasses import dataclass, InitVar
         from typing import ClassVar
 
         class SomeField:
@@ -1216,7 +1192,7 @@ class DataclassTests(StaticTestBase):
 
     def test_nonstatic_dataclass_picks_up_static_fields(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1238,8 +1214,7 @@ class DataclassTests(StaticTestBase):
 
     def test_classvar_cannot_have_default_factory(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
         from typing import ClassVar
 
         @dataclass
@@ -1254,8 +1229,7 @@ class DataclassTests(StaticTestBase):
 
     def test_initvar_cannot_have_default_factory(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar, field
+        from dataclasses import dataclass, field, InitVar
 
         @dataclass
         class C:
@@ -1271,7 +1245,7 @@ class DataclassTests(StaticTestBase):
         for type, default in (("list", "[]"), ("dict", "{}"), ("set", "set()")):
             with self.subTest(type=type, default=default):
                 codestr = f"""
-                from __static__ import dataclass
+                from dataclasses import dataclass
 
                 @dataclass
                 class C:
@@ -1285,8 +1259,7 @@ class DataclassTests(StaticTestBase):
 
     def test_initvar_cannot_have_init_false(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar, field
+        from dataclasses import dataclass, field, InitVar
 
         @dataclass
         class C:
@@ -1300,8 +1273,7 @@ class DataclassTests(StaticTestBase):
 
     def test_classvar_and_init_false_not_dunder_init_args(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar, field
+        from dataclasses import dataclass, field, InitVar
         from typing import ClassVar
 
         @dataclass
@@ -1322,8 +1294,7 @@ class DataclassTests(StaticTestBase):
 
     def test_initvar_passed_to_post_init(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar, field
+        from dataclasses import dataclass, field, InitVar
 
         @dataclass
         class C:
@@ -1343,8 +1314,7 @@ class DataclassTests(StaticTestBase):
 
     def test_init_false_still_calls_default_factory(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import InitVar, field
+        from dataclasses import dataclass, field, InitVar
 
         def foo() -> int:
             return 42
@@ -1360,8 +1330,7 @@ class DataclassTests(StaticTestBase):
 
     def test_comparisons_and_hash_with_field_compare_false(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass(frozen=True, order=True)
         class C:
@@ -1384,8 +1353,7 @@ class DataclassTests(StaticTestBase):
 
     def test_hash_with_field_hash_false(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass(frozen=True)
         class C:
@@ -1400,8 +1368,7 @@ class DataclassTests(StaticTestBase):
 
     def test_repr_with_field_repr_false(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1416,8 +1383,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_subclass_non_default_after_default_disallowed(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1436,8 +1402,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_subclass_default_after_default_allowed(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1462,7 +1427,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_dataclass_subclass(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1482,7 +1447,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_inheritance_chain(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1507,7 +1472,7 @@ class DataclassTests(StaticTestBase):
 
     def test_non_frozen_dataclass_cannot_subclass_frozen(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass(frozen=True)
         class C:
@@ -1526,8 +1491,7 @@ class DataclassTests(StaticTestBase):
 
     def test_frozen_dataclass_cannot_subclass_non_frozen(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1546,7 +1510,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_no_assignment_inherits_default(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1565,8 +1529,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_can_load_inherited_defaults(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1586,8 +1549,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_with_field_overrides_default(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1603,8 +1565,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_cannot_change_field_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1623,8 +1584,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_cannot_narrow_field_type(self) -> None:
         codestr = """
-        from __static__ import dataclass
-        from dataclasses import field
+        from dataclasses import dataclass, field
 
         @dataclass
         class C:
@@ -1646,8 +1606,7 @@ class DataclassTests(StaticTestBase):
         for psuedo_field in annotations:
             with self.subTest(override=psuedo_field):
                 codestr = f"""
-                from __static__ import dataclass
-                from dataclasses import InitVar
+                from dataclasses import dataclass, InitVar
                 from typing import ClassVar
 
                 @dataclass
@@ -1673,8 +1632,7 @@ class DataclassTests(StaticTestBase):
             for override in overrides:
                 with self.subTest(base=base, override=override):
                     codestr = f"""
-                    from __static__ import dataclass
-                    from dataclasses import InitVar
+                    from dataclasses import dataclass, InitVar
                     from typing import ClassVar
 
                     @dataclass
@@ -1693,7 +1651,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_override_must_be_consistent(self) -> None:
         codestr = f"""
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1716,7 +1674,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_does_not_allow_multiple_inheritance(self) -> None:
         codestr = f"""
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1739,7 +1697,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_can_call_init_on_subclass(self) -> None:
         codestr = f"""
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1756,7 +1714,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dataclass_method_call(self) -> None:
         codestr = f"""
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         @dataclass
         class C:
@@ -1773,7 +1731,7 @@ class DataclassTests(StaticTestBase):
 
     def test_dynamic_dataclass_type_bind_visits_arguments(self) -> None:
         codestr = """
-        from __static__ import dataclass
+        from dataclasses import dataclass
 
         def foo():
             @dataclass(frozen=True)

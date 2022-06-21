@@ -327,7 +327,7 @@ class PerfLintTests(StaticTestBase):
         """
         with self.in_module(codestr, code_gen=PythonCodeGenerator) as nonstatic_mod:
             codestr = f"""
-            from __static__ import dataclass
+            from dataclasses import dataclass
             from {nonstatic_mod.__name__} import SuperClass
 
             @dataclass

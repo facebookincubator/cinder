@@ -368,7 +368,6 @@ class Compiler:
                 "size_t": self.type_env.uint64.exact_type(),
                 "ssize_t": self.type_env.int64.exact_type(),
                 "cbool": self.type_env.cbool.exact_type(),
-                "dataclass": self.type_env.dataclass,
                 "inline": self.type_env.inline,
                 # This is a way to disable the static compiler for
                 # individual functions/methods
@@ -413,6 +412,7 @@ class Compiler:
             {
                 "Field": self.type_env.dataclass_field,
                 "InitVar": self.type_env.initvar,
+                "dataclass": self.type_env.dataclass,
                 "field": self.type_env.dataclass_field_function,
             },
         )
