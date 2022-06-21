@@ -33,7 +33,7 @@ from _strictmodule import (
 
 from ..errors import TypedSyntaxError
 from ..pycodegen import compile as python_compile
-from ..readonly import readonly_compile
+from ..readonly import is_readonly_compiler_used, readonly_compile
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
 from . import strict_compile
 from .class_conflict_checker import check_class_conflict
@@ -184,7 +184,7 @@ class Compiler(StaticCompiler):
                 mod.errors.append((e.msg, e.filename, e.lineno, e.col))
 
         if not is_valid_strict:
-            code = self._compile_basic(mod.ast, filename, optimize)
+            code = self._compile_basic(name, mod.ast, filename, optimize)
         elif mod.module_kind == STATIC_MODULE_KIND:
             code = self._compile_static(
                 mod, filename, name, optimize, track_import_call
@@ -206,8 +206,10 @@ class Compiler(StaticCompiler):
         return readonly_compile(name, filename, root, flags=0, optimize=optimize)
 
     def _compile_basic(
-        self, root: ast.Module, filename: str, optimize: int
+        self, name: str, root: ast.Module, filename: str, optimize: int
     ) -> CodeType:
+        if is_readonly_compiler_used():
+            return self._compile_readonly(name, root, filename, optimize)
         compile_method = python_compile if self.use_py_compiler else compile
         return compile_method(
             root,

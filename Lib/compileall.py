@@ -15,7 +15,8 @@ import sys
 import importlib.util
 import py_compile
 import struct
-from compiler.pysourceloader import PySourceFileLoader
+from compiler.pysourceloader import PySourceFileLoader, ReadonlySourceFileLoader
+from compiler.readonly import is_readonly_compiler_used
 
 from functools import partial
 
@@ -318,6 +319,8 @@ def main(loader_override=None):
     loader_type = None
     if loader_override is not None:
         loader_type = loader_override
+    elif args.use_py_loader and is_readonly_compiler_used():
+        loader_type = ReadonlySourceFileLoader
     elif args.use_py_loader:
         loader_type = PySourceFileLoader
     if loader_type is not None:

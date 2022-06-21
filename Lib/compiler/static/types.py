@@ -165,6 +165,12 @@ GenericTypeIndex = Tuple["Class", ...]
 GenericTypesDict = Dict["Class", Dict[GenericTypeIndex, "Class"]]
 
 
+def disable_inline() -> bool:
+    from ..readonly import is_readonly_compiler_used
+
+    return is_readonly_compiler_used()
+
+
 class TypeEnvironment:
     def __init__(self) -> None:
         self._generic_types: GenericTypesDict = {}
@@ -4648,8 +4654,8 @@ class InlineFunctionDecorator(Class):
             raise TypedSyntaxError(
                 "@inline only supported on functions with simple return", real_fn.node
             )
-
-        real_fn.inline = True
+        if not disable_inline():
+            real_fn.inline = True
         return TransparentDecoratedMethod(self.type_env.function, fn, decorator)
 
 

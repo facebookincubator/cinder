@@ -17,6 +17,7 @@ from ..pycodegen import (
 from ..symbols import CinderSymbolVisitor, ClassScope, ModuleScope, SymbolVisitor
 from .type_binder import ReadonlyTypeBinder
 from .types import FunctionValue, READONLY
+from .util import is_readonly_compile_forced
 
 
 class ReadonlyCodeGenerator(CinderCodeGenerator):
@@ -359,6 +360,8 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         # Technically this can go higher, but at 50 separate readonly arguments
         # the python code being compiled should be refactored instead.
         if len(args) >= 50:
+            if is_readonly_compile_forced():
+                return mask
             raise SyntaxError(
                 "Cannot define more than 50 arguments on a readonly function.",
                 self.syntax_error_position(node),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from ast import AST, Name
 from typing import Dict, final, List, Optional, Tuple
 
@@ -19,6 +20,7 @@ from ..visitor import ASTVisitor
 from .types import FunctionValue, MUTABLE, READONLY, Value
 from .util import (
     is_readonly_closure,
+    is_readonly_compile_forced,
     is_readonly_func,
     is_readonly_wrapped,
     is_tuple_wrapped,
@@ -259,6 +261,7 @@ class ReadonlyTypeBinder(ASTVisitor):
         bind_types: Optional[TReadonlyTypes] = None,
     ) -> None:
         super().__init__()
+        self.force_readonly: bool = is_readonly_compile_forced()
         self.input = node
         self.symbols = symbols
         self.filename = filename
@@ -334,7 +337,12 @@ class ReadonlyTypeBinder(ASTVisitor):
 
     def is_readonly(self, node: AST) -> bool:
         """node is readonly"""
-        return self.bind_types[node].is_readonly
+        try:
+            return self.bind_types[node].is_readonly
+        except KeyError:
+            if is_readonly_compile_forced():
+                return False
+            raise
 
     def get_name_readonly(self, name: str, is_local: bool = False) -> Optional[Value]:
         """
@@ -997,6 +1005,8 @@ class ReadonlyTypeBinder(ASTVisitor):
             return
 
         readonly_func = any(is_readonly_func(dec) for dec in node.decorator_list)
+        if self.force_readonly:
+            readonly_func = True
         readonly_closure = any(is_readonly_closure(dec) for dec in node.decorator_list)
         node.decorator_list = [
             x
