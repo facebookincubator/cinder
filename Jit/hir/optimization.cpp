@@ -297,14 +297,19 @@ void DynamicComparisonElimination::Run(Function& irfunc) {
   reflowTypes(irfunc);
 }
 
+static Register* chaseAssignOperand(Register* value) {
+  while (value->instr()->IsAssign()) {
+    value = value->instr()->GetOperand(0);
+  }
+  return value;
+}
+
 void CopyPropagation::Run(Function& irfunc) {
   std::vector<Instr*> assigns;
   for (auto block : irfunc.cfg.GetRPOTraversal()) {
     for (auto& instr : *block) {
       instr.visitUses([](Register*& reg) {
-        while (reg->instr()->IsAssign()) {
-          reg = reg->instr()->GetOperand(0);
-        }
+        reg = chaseAssignOperand(reg);
         return true;
       });
 
@@ -338,10 +343,7 @@ void PhiElimination::Run(Function& func) {
         if (auto value = static_cast<Phi&>(instr).isTrivial()) {
           // If a trivial Phi references itself then it can never be
           // initialized, and we can use a LoadConst<Bottom> to signify that.
-          Register* model_value = value;
-          while (model_value->instr()->IsAssign()) {
-            model_value = model_value->instr()->GetOperand(0);
-          }
+          Register* model_value = chaseAssignOperand(value);
           Instr* new_instr;
           if (model_value == instr.GetOutput()) {
             new_instr = LoadConst::create(instr.GetOutput(), TBottom);
