@@ -6910,7 +6910,7 @@ UNIVERSAL_ARCH_FLAGS=
 case $GCC in
 yes)
     CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
-    CXXFLAGS_NODIST="$CXXFLAGS_NODIST -std=c++17"
+    CXXFLAGS_NODIST="$CXXFLAGS_NODIST -std=c++20"
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wextra" >&5
 $as_echo_n "checking for -Wextra... " >&6; }

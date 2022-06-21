@@ -2446,7 +2446,7 @@ $(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_DIR)/%.o: pyembed_includes $(STRICTM_TEST
 
 runtime_tests: ${GTEST_DIR}/libgtest.a platform $(RUNTIME_TESTS_OBJS) $(JIT_HEADERS) $(BUILDPYTHON)
 	$(eval PYEMBED_LIBS := $$(shell ./$(BUILDPYTHON) python-config.py --libs | sed -e "s/-lpython[^ ]*//"))
-	$(V)$(CXX) -std=c++17 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
+	$(V)$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
 		$(RUNTIME_TESTS_OBJS) \
 		${GTEST_DIR}/libgtest.a $(BLDLIBRARY) $(PY3LIBRARY) $(LINKFORSHARED) \
 		$(PY_DYNLISTFLAG) \
@@ -2465,7 +2465,7 @@ testruntime_serial: runtime_tests
 
 strict_module_tests: ${GTEST_DIR}/libgtest.a platform $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS) $(BUILDPYTHON)
 	$(eval PYEMBED_LIBS := $$(shell ./$(BUILDPYTHON) python-config.py --libs | sed -e "s/-lpython[^ ]*//"))
-	$(V)$(CXX) -std=c++17 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
+	$(V)$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
 		$(STRICTM_TESTS_OBJS) \
 		${GTEST_DIR}/libgtest.a $(BLDLIBRARY) $(PY3LIBRARY) $(LINKFORSHARED) \
 		$(PY_DYNLISTFLAG) \
