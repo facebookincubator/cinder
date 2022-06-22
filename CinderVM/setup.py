@@ -24,6 +24,14 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    ext_modules=[
+        setuptools.Extension(
+            "cindervm",
+            sources=["src/cindervm/cinder.cpp"],
+            extra_compile_args=["-std=c++11", "-Wall", "-Wextra"],
+            language="c++",
+        )
+    ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires="==3.8.*",

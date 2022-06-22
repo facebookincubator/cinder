@@ -1659,6 +1659,13 @@ testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
 	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDER_REFLEAK_OPTS)
 
+testcinder_extension: @DEF_MAKE_RULE@ platform
+	$(abs_builddir)/$(BUILDPYTHON) -m ensurepip
+	$(abs_builddir)/$(BUILDPYTHON) -m pip install setuptools
+	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) setup.py build
+	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) setup.py install --user
+	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) test/test_main.py
+
 # SSL tests
 .PHONY: multisslcompile multissltest
 multisslcompile: build_all
