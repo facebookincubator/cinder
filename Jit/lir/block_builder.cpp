@@ -70,6 +70,35 @@ void BasicBlockBuilder::AppendLabel(const std::string& s) {
   bbs_.push_back(cur_bb_);
 }
 
+// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
+// a limited set of inputs.
+static int multiplierFromSize(int num_bytes) {
+  switch (num_bytes) {
+    case 1:
+      return 0;
+    case 2:
+      return 1;
+    case 4:
+      return 2;
+    case 8:
+      return 3;
+    default:
+      break;
+  }
+  JIT_CHECK(false, "unexpected num_bytes %d", num_bytes);
+}
+
+void BasicBlockBuilder::AppendLoad(
+    hir::Register* dst,
+    hir::Register* base,
+    hir::Register* index,
+    int offset) {
+  Instruction* instr = createInstr(Instruction::Opcode::kMove);
+  CreateInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
+  int multiplier = multiplierFromSize(dst->type().sizeInBytes());
+  CreateInstrIndirect(instr, base->name(), index->name(), multiplier, offset);
+}
+
 std::vector<std::string> BasicBlockBuilder::Tokenize(std::string_view s) {
   std::vector<std::string> tokens;
 
@@ -717,6 +746,32 @@ void BasicBlockBuilder::CreateInstrIndirectFromStr(
     JIT_DCHECK(
         ind_opnd->isLinked(), "Should not have generated unlinked operand.");
     env_->operand_to_fix[name].push_back(static_cast<LinkedOperand*>(ind_opnd));
+  }
+}
+
+void BasicBlockBuilder::CreateInstrIndirect(
+    Instruction* instr,
+    const std::string& base,
+    const std::string& index,
+    int multiplier,
+    int offset) {
+  JIT_CHECK(multiplier >= 0 && multiplier <= 3, "bad multiplier");
+  auto base_instr = getDefInstr(base);
+  auto index_instr = getDefInstr(index);
+  auto indirect = instr->allocateMemoryIndirectInput(
+      base_instr, index_instr, multiplier, offset);
+  if (base_instr == nullptr) {
+    auto ind_opnd = indirect->getMemoryIndirect()->getBaseRegOperand();
+    JIT_DCHECK(
+        ind_opnd->isLinked(), "Should not have generated unlinked operand.");
+    env_->operand_to_fix[base].push_back(static_cast<LinkedOperand*>(ind_opnd));
+  }
+  if (index_instr == nullptr) {
+    auto ind_opnd = indirect->getMemoryIndirect()->getIndexRegOperand();
+    JIT_DCHECK(
+        ind_opnd->isLinked(), "Should not have generated unlinked operand.");
+    env_->operand_to_fix[index].push_back(
+        static_cast<LinkedOperand*>(ind_opnd));
   }
 }
 

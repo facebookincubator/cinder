@@ -2001,15 +2001,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadArrayItem: {
         auto instr = static_cast<const LoadArrayItem*>(&i);
-        auto type = instr->type();
-        unsigned int scale = type.sizeInBytes();
         if (instr->idx()->type().hasIntSpec()) {
           // Fast path: index known at compile-time.
-          // TODO: We could support more array types here, or in general
-          // attempt to support more array types w/ register inputs w/o
-          // calling to a helper.
           const size_t item_offset =
-              instr->idx()->type().intSpec() * scale + instr->offset();
+              instr->idx()->type().intSpec() * instr->type().sizeInBytes() +
+              instr->offset();
           bbb.AppendCode(
               "Load {} {} {}",
               instr->GetOutput(),
@@ -2017,16 +2013,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               item_offset);
           break;
         }
-        // TODO(T120848876): Use Load instead of Mul+Add+Load.
-        std::string scaled = instr->idx()->name();
-        if (scale != 1) {
-          scaled = GetSafeTempName();
-          bbb.AppendCode("Mul {} {} {}", scaled, instr->idx(), scale);
-        }
-        std::string plus_index = GetSafeTempName();
-        bbb.AppendCode("Add {} {} {}", plus_index, instr->ob_item(), scaled);
-        bbb.AppendCode(
-            "Load {} {} {}", instr->GetOutput(), plus_index, instr->offset());
+        bbb.AppendLoad(
+            instr->GetOutput(),
+            instr->ob_item(),
+            instr->idx(),
+            instr->offset());
         break;
       }
       case Opcode::kStoreArrayItem: {

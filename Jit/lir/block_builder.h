@@ -108,6 +108,12 @@ class BasicBlockBuilder {
     AppendCallInternal(nullptr, func, std::forward<AppendArgs>(args)...);
   }
 
+  void AppendLoad(
+      hir::Register* dst,
+      hir::Register* base,
+      hir::Register* index,
+      int offset);
+
   Instruction* createInstr(Instruction::Opcode opcode);
 
   Instruction* getDefInstr(const std::string& name);
@@ -127,6 +133,12 @@ class BasicBlockBuilder {
       Instruction* instr,
       const std::string& name_size);
 
+  void CreateInstrIndirect(
+      Instruction* instr,
+      const std::string& base,
+      const std::string& index,
+      int multiplier, // log2(scale)
+      int offset);
   void CreateInstrIndirectFromStr(
       Instruction* instr,
       const std::string& name_size,
