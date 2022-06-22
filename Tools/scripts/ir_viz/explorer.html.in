@@ -196,12 +196,15 @@ def test():
           <select id="passes" name="passes" multiple>
             <option>Source</option>
             <option>Bytecode</option>
+            <option>Initial HIR</option>
             <option>SSAify</option>
             <option>Simplify</option>
             <option>DynamicComparisonElimination</option>
             <option>GuardTypeRemoval</option>
             <option>PhiElimination</option>
             <option>InlineFunctionCalls</option>
+            <option>Simplify</option>
+            <option>BeginInlinedFunctionElimination</option>
             <option>DeadCodeElimination</option>
             <option>RefcountInsertion</option>
             <option>Initial LIR</option>

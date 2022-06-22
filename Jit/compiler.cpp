@@ -153,7 +153,9 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     compilation_phase_timer->start("Lowering into HIR");
   }
 
+  PassTimer hir_build_timer;
   std::unique_ptr<jit::hir::Function> irfunc(jit::hir::buildHIR(preloader));
+  std::size_t hir_build_time_ns = hir_build_timer.finish();
   if (nullptr != compilation_phase_timer) {
     compilation_phase_timer->end();
   }
@@ -184,6 +186,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
             hir::Function& func, const char* pass_name, std::size_t time_ns) {
           hir_printer.Print(passes, func, pass_name, time_ns);
         };
+    dump(*irfunc, "Initial HIR", hir_build_time_ns);
     COMPILE_TIMER(
         irfunc->compilation_phase_timer,
         "HIR transformations",
