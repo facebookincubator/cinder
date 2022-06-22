@@ -222,6 +222,10 @@ static std::string write_profile_file;
 static int jit_profile_interp = 0;
 static std::string jl_fn;
 
+static void warnJITOff(const char* flag) {
+  JIT_LOG("Warning: JIT disabled; %s has no effect", flag);
+}
+
 void initFlagProcessor() {
   use_jit = 0;
   write_profile_file = "";
@@ -237,9 +241,8 @@ void initFlagProcessor() {
         "jit-auto",
         "PYTHONJITAUTO",
         [](unsigned int threshold) {
-          if (use_jit) {
-            jit_config.auto_jit_threshold = threshold;
-          }
+          use_jit = 1;
+          jit_config.auto_jit_threshold = threshold;
         },
         "Enable auto-JIT mode, which compiles functions after the given "
         "threshold");
@@ -449,6 +452,8 @@ void initFlagProcessor() {
         [](int val) {
           if (use_jit) {
             jit_config.frame_mode = val ? SHADOW_FRAME : PY_FRAME;
+          } else {
+            warnJITOff("jit-shadow-frame");
           }
         },
         "enable shadow frame mode");
@@ -459,6 +464,8 @@ void initFlagProcessor() {
         [](int val) {
           if (use_jit) {
             jit_config.are_type_slots_enabled = !val;
+          } else {
+            warnJITOff("jit-no-type-slots");
           }
         },
         "turn off type slots");
@@ -478,6 +485,8 @@ void initFlagProcessor() {
             [](int val) {
               if (use_jit) {
                 jit_config.multithreaded_compile_test = val;
+              } else {
+                warnJITOff("jit-multithreaded-compile-test ");
               }
             },
             "JIT multithreaded compile test")
@@ -489,6 +498,8 @@ void initFlagProcessor() {
         [](int val) {
           if (use_jit) {
             jitlist_match_line_numbers(val);
+          } else {
+            warnJITOff("jit-list-match-line-numbers");
           }
         },
         "JIT list match line numbers");
@@ -514,6 +525,8 @@ void initFlagProcessor() {
         [](int val) {
           if (use_jit && val) {
             _PyJIT_EnableHIRInliner();
+          } else {
+            warnJITOff("jit-enable-hir-inliner");
           }
         },
         "Enable the JIT's HIR inliner");
@@ -536,6 +549,8 @@ void initFlagProcessor() {
         [](int val) {
           if (use_jit) {
             jit_config.multiple_code_sections = val;
+          } else {
+            warnJITOff("jit-multiple-code-sections");
           }
         },
         "Enable emitting code into multiple code sections.");
@@ -546,6 +561,8 @@ void initFlagProcessor() {
         [](size_t val) {
           if (use_jit) {
             jit_config.hot_code_section_size = val;
+          } else {
+            warnJITOff("jit-hot-code-section-size");
           }
         },
         "Enable emitting code into multiple code sections.");
@@ -556,6 +573,8 @@ void initFlagProcessor() {
         [](size_t val) {
           if (use_jit) {
             jit_config.cold_code_section_size = val;
+          } else {
+            warnJITOff("jit-cold-code-section-size");
           }
         },
         "Enable emitting code into multiple code sections.");
@@ -580,6 +599,13 @@ void initFlagProcessor() {
   }
 
   xarg_flag_processor.setFlags(PySys_GetXOptions());
+
+  if (jit_config.auto_jit_threshold > 0 && jl_fn != "") {
+    JIT_LOG(
+        "Warning: jit-auto and jit-list-file are both enabled; only functions "
+        "on the jit-list will be compiled, and only after %u calls.",
+        jit_config.auto_jit_threshold);
+  }
 }
 
 // Compile the given compilation unit, returning the result code.
