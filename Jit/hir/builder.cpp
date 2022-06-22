@@ -756,13 +756,15 @@ InlineResult HIRBuilder::inlineHIR(
   Register* return_val = caller->env.AllocateRegister();
   BasicBlock* exit_block = caller->cfg.AllocateBlock();
   // Enum types are always unboxed in the JIT despite the preloader's type
-  // descr being an enum.
+  // descr being an enum, and we don't type Return opcodes for boxed values.
   // TODO(emacs): Find a better place for this branch, since we do it in two
   // places in the builder.
   if (preloader_.returnType() <= TCEnum) {
     exit_block->append<Return>(return_val, TCInt64);
-  } else {
+  } else if (preloader_.returnType() <= TPrimitive) {
     exit_block->append<Return>(return_val, preloader_.returnType());
+  } else {
+    exit_block->append<Return>(return_val);
   }
   for (auto block : caller->cfg.GetRPOTraversal(entry_block)) {
     auto instr = block->GetTerminator();
