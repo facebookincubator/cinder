@@ -100,6 +100,10 @@ _PyType_VTable *_PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclas
 int _PyClassLoader_ClearVtables(void);
 void _PyClassLoader_ClearGenericTypes(void);
 
+int
+_PyClassLoader_IsPatchedThunk(PyObject *obj);
+
+
 /* Gets an indirect pointer for a function.  This should be used if
 * the given container is mutable, and the indirect pointer will
 * track changes to the object.  If changes are unable to be tracked
@@ -356,6 +360,7 @@ typedef struct {
 PyAPI_DATA(PyTypeObject) _PyTypedArgsInfo_Type;
 
 _PyTypedArgsInfo *_PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives);
+_PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyObject *container, int only_primitives);
 int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
 static inline int
