@@ -6985,7 +6985,7 @@ def common_sequence_emit_forloop(
         fast_len_oparg = FAST_LEN_LIST
     else:
         fast_len_oparg = FAST_LEN_ARRAY
-    descr = ("__static__", "int64")
+    descr = ("__static__", "int64", "#")
     start = code_gen.newBlock(f"seq_forloop_start")
     anchor = code_gen.newBlock(f"seq_forloop_anchor")
     after = code_gen.newBlock(f"seq_forloop_after")
@@ -8922,6 +8922,10 @@ class CEnumType(CType):
 
         self.values: Dict[str, CEnumInstance] = {}
 
+    @property
+    def type_descr(self) -> TypeDescr:
+        return self.type_name.type_descr + ("#",)
+
     @cached_property
     def boxed(self) -> BoxedEnumClass:
         return BoxedEnumClass(self.type_name, self.type_env, self.bases)
@@ -9442,6 +9446,10 @@ class CIntType(CType):
         )
 
     @property
+    def type_descr(self) -> TypeDescr:
+        return self.type_name.type_descr + ("#",)
+
+    @property
     def boxed(self) -> Class:
         return self.type_env.int
 
@@ -9678,6 +9686,10 @@ class CDoubleType(CType):
             type_env,
             instance=CDoubleInstance(self),
         )
+
+    @property
+    def type_descr(self) -> TypeDescr:
+        return self.type_name.type_descr + ("#",)
 
     @property
     def boxed(self) -> Class:

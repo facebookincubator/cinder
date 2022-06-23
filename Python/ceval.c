@@ -8525,14 +8525,23 @@ _PyEntry_StaticEntryEnum(PyFunctionObject *func,
 static vectorcallfunc
 _PyStaticEntry_MaybeEnum(PyCodeObject *co, void *entry, void *enum_entry) {
     PyObject *type_descr = _PyClassLoader_GetCodeReturnTypeDescr(co);
-    int optional, exact;
-    PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
-    if (type == NULL) {
-        PyErr_Clear();
-        return (vectorcallfunc)PyEntry_LazyInit;
+    int is_enum = 0;
+    if (PyTuple_Check(type_descr) && PyTuple_GET_SIZE(type_descr) >= 2) {
+        PyObject *last_elem = PyTuple_GetItem(type_descr, PyTuple_GET_SIZE(type_descr) - 1);
+        if (PyUnicode_CheckExact(last_elem) &&
+            PyUnicode_CompareWithASCIIString(last_elem, "#") == 0) {
+                int optional, exact;
+                PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+                if (type == NULL) {
+                    PyErr_Clear();
+                    return (vectorcallfunc)PyEntry_LazyInit;
+                }
+                is_enum = _PyClassLoader_IsEnum(type);
+
+                Py_DECREF(type);
+            }
     }
-    int is_enum = _PyClassLoader_IsEnum(type);
-    Py_DECREF(type);
+
     return is_enum ? (vectorcallfunc)enum_entry : (vectorcallfunc)entry;
 }
 
