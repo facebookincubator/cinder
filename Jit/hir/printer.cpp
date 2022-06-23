@@ -241,7 +241,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kEndInlinedFunction:
-    case Opcode::kGetIter:
     case Opcode::kGetTuple:
     case Opcode::kGuard:
     case Opcode::kIncref:
@@ -287,6 +286,14 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kUnicodeRepeat:
     case Opcode::kYieldValue: {
       return "";
+    }
+    case Opcode::kGetIter: {
+      const auto& get_iter = static_cast<const GetIter&>(instr);
+      if (get_iter.readonly_flags() != 0) {
+        return fmt::format("{}", get_iter.readonly_flags());
+      } else {
+        return "";
+      }
     }
     case Opcode::kBeginInlinedFunction:
       return static_cast<const BeginInlinedFunction&>(instr).fullname();

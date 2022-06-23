@@ -265,6 +265,11 @@ PyObject* JITRT_ReadonlyTernaryOp(
     ternaryfunc operation_ptr,
     int readonly_mask);
 
+/**
+ * Wraps PyObject_GetIter with readonly checks
+ */
+PyObject* JITRT_GetIter(PyObject* iterable, int readonly_mask);
+
 /*
  * Invokes a function stored within the method table for the object.
  * The method table lives off tp_cache in the type object

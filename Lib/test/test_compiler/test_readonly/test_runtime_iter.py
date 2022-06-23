@@ -130,3 +130,19 @@ class RuntimeIterTests(ReadonlyTestBase):
         ):
             c = self.compile_and_call(code, "f")
             self.assertEqual(c, [1, 2])
+
+    @unittest.skipUnlessReadonly()
+    def test_for_loop_iter_builtin(self) -> None:
+        code = """
+        @readonly_func
+        def f():
+            l = []
+            i = readonly([1, 2])
+
+            for x in i:
+                l.append(x)
+            return l
+        """
+        with self.assertNoImmutableErrors():
+            c = self.compile_and_call(code, "f")
+            self.assertEqual(c, [1, 2])

@@ -3412,7 +3412,26 @@ class INSTR_CLASS(
 };
 
 // Return a new iterator for the object, or return it if it's an iterator
-DEFINE_SIMPLE_INSTR(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase);
+class INSTR_CLASS(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase) {
+ public:
+  GetIter(
+      Register* dst,
+      Register* iterable,
+      uint8_t readonly_flags,
+      const FrameState& frame)
+      : InstrT(dst, iterable, frame), readonly_flags_(readonly_flags) {}
+
+  uint8_t readonly_flags() const {
+    return readonly_flags_;
+  }
+
+  Register* iterable() const {
+    return GetOperand(0);
+  }
+
+ private:
+  uint8_t readonly_flags_;
+};
 
 // Invoke next() on the iterator.
 //
@@ -3421,12 +3440,31 @@ DEFINE_SIMPLE_INSTR(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase);
 //   1. A sentinel value that indicates the iterator is exhausted.
 //   2. NULL to indicate an error has occurred.
 //   3. Any other value is the output of the iterator.
-DEFINE_SIMPLE_INSTR(
+class INSTR_CLASS(
     InvokeIterNext,
     (TObject),
     HasOutput,
     Operands<1>,
-    DeoptBase);
+    DeoptBase) {
+ public:
+  InvokeIterNext(
+      Register* dst,
+      Register* iter,
+      uint8_t readonly_flags,
+      const FrameState& frame)
+      : InstrT(dst, iter, frame), readonly_flags_(readonly_flags) {}
+
+  uint8_t readonly_flags() const {
+    return readonly_flags_;
+  }
+
+  Register* iterator() const {
+    return GetOperand(0);
+  }
+
+ private:
+  uint8_t readonly_flags_;
+};
 
 // Returns a non-zero value if we need to release the GIL or run pending calls
 // (e.g. signal handlers).  Returns 0 otherwise. This is intended to be

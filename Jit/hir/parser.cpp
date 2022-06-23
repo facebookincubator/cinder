@@ -438,8 +438,14 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
   } else if (strcmp(opcode, "InitialYield") == 0) {
     instruction = newInstr<InitialYield>(dst);
   } else if (strcmp(opcode, "GetIter") == 0) {
+    uint8_t readonly_flags = 0;
+    if (strcmp(peekNextToken(), "<") == 0) {
+      GetNextToken();
+      readonly_flags = GetNextInteger();
+      expect(">");
+    }
     auto iterable = ParseRegister();
-    instruction = newInstr<GetIter>(dst, iterable);
+    instruction = newInstr<GetIter>(dst, iterable, readonly_flags);
   } else if (strcmp(opcode, "GetLoadMethodInstance") == 0) {
     expect("<");
     int num_args = GetNextInteger();

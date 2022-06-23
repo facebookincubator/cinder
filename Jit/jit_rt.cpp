@@ -886,12 +886,11 @@ PyObject* JITRT_ReadonlyUnaryOp(
     return NULL;
   }
 
-  PyObject* ret = operation_func(a);
+  Ref<> ret = Ref<>::steal(operation_func(a));
   if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
-    Py_DECREF(ret);
     return NULL;
   }
-  return ret;
+  return ret.release();
 }
 
 PyObject* JITRT_ReadonlyBinaryOp(
@@ -903,12 +902,23 @@ PyObject* JITRT_ReadonlyBinaryOp(
     return NULL;
   }
 
-  PyObject* ret = operation_func(a, b);
+  Ref<> ret = Ref<>::steal(operation_func(a, b));
   if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
-    Py_DECREF(ret);
     return NULL;
   }
-  return ret;
+  return ret.release();
+}
+
+PyObject* JITRT_GetIter(PyObject* iterable, int readonly_mask) {
+  if (PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+    return NULL;
+  }
+
+  Ref<> ret = Ref<>::steal(PyObject_GetIter(iterable));
+  if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+    return NULL;
+  }
+  return ret.release();
 }
 
 PyObject* JITRT_ReadonlyTernaryOp(

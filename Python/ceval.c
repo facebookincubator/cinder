@@ -3423,7 +3423,7 @@ main_loop:
                     goto error;
                 }
                 PyObject *next = (*iter->ob_type->tp_iternext)(iter);
-                if (PyReadonly_CheckReadonlyOperation(0, 0) != 0) {
+                if (PyReadonly_CheckReadonlyOperation(PYREADONLY_BUILD_FUNCMASK1(1), 0) != 0) {
                     next = NULL;
                 }
                 if (PyReadonly_VerifyReadonlyOperationCompleted() != 0) {

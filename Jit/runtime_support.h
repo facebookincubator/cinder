@@ -10,7 +10,7 @@ namespace jit {
 extern PyObject g_iterDoneSentinel;
 
 // Invoke __next__ on iterator
-PyObject* invokeIterNext(PyObject* iterator);
+PyObject* invokeIterNext(PyObject* iterator, int readonly_mask);
 
 // Run periodic tasks and give other threads a chance to run.
 //

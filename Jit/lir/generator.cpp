@@ -2211,9 +2211,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kGetIter: {
         auto instr = static_cast<const GetIter*>(&i);
-
-        bbb.AppendCall(
-            instr->GetOutput(), PyObject_GetIter, instr->GetOperand(0));
+        if (instr->readonly_flags() != 0) {
+          bbb.AppendCall(
+              instr->GetOutput(),
+              JITRT_GetIter,
+              instr->GetOperand(0),
+              static_cast<int>(instr->readonly_flags()));
+        } else {
+          bbb.AppendCall(
+              instr->GetOutput(), PyObject_GetIter, instr->GetOperand(0));
+        }
 
         break;
       }
@@ -2301,7 +2308,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kInvokeIterNext: {
         auto instr = static_cast<const InvokeIterNext*>(&i);
         bbb.AppendCall(
-            instr->GetOutput(), jit::invokeIterNext, instr->GetOperand(0));
+            instr->GetOutput(),
+            jit::invokeIterNext,
+            instr->GetOperand(0),
+            static_cast<int>(instr->readonly_flags()));
         break;
       }
       case Opcode::kLoadEvalBreaker: {

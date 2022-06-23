@@ -215,6 +215,7 @@ const std::unordered_set<int> kSupportedReadonlyOperations = {
     READONLY_BINARY_XOR,         READONLY_BINARY_AND,
     READONLY_UNARY_INVERT,       READONLY_UNARY_NEGATIVE,
     READONLY_UNARY_POSITIVE,     READONLY_UNARY_NOT,
+    READONLY_GET_ITER,           READONLY_FOR_ITER,
 };
 
 #define NAMES(op, value) {value, #op},
@@ -483,6 +484,14 @@ static bool should_snapshot(
     // In an async-for header block YIELD_FROM controls whether we end the loop
     case YIELD_FROM: {
       return !is_in_async_for_header_block;
+    }
+    case READONLY_OPERATION: {
+      switch (bci.ReadonlyOpcode()) {
+        case READONLY_FOR_ITER:
+          return false;
+        default:
+          return true;
+      };
     }
     // Take a snapshot after translating all other bytecode instructions. This
     // may generate unnecessary deoptimization metadata but will always be
@@ -1187,7 +1196,7 @@ void HIRBuilder::translate(
           break;
         }
         case GET_ITER: {
-          emitGetIter(tc);
+          emitGetIter(tc, 0);
           break;
         }
         case GET_YIELD_FROM_ITER: {
@@ -1250,7 +1259,7 @@ void HIRBuilder::translate(
           break;
         }
         case FOR_ITER: {
-          emitForIter(tc, bc_instr);
+          emitForIter(tc, bc_instr, 0);
           break;
         }
         case LOAD_FIELD: {
@@ -1433,6 +1442,24 @@ void HIRBuilder::translate(
         new_frame.stack.pop();
         queue.emplace_back(condbr->true_bb(), tc.frame);
         queue.emplace_back(condbr->false_bb(), new_frame);
+        break;
+      }
+      case READONLY_OPERATION: {
+        switch (last_bc_instr.ReadonlyOpcode()) {
+          case READONLY_FOR_ITER: {
+            auto condbr = static_cast<CondBranchIterNotDone*>(last_instr);
+            auto new_frame = tc.frame;
+            // Sentinel value signaling iteration is complete and the iterator
+            // itself
+            new_frame.stack.discard(2);
+            queue.emplace_back(condbr->true_bb(), tc.frame);
+            queue.emplace_back(condbr->false_bb(), new_frame);
+            break;
+          }
+          default: {
+            break;
+          }
+        }
         break;
       }
       default: {
@@ -2989,13 +3016,25 @@ void HIRBuilder::emitReadonlyOperation(
 
     case READONLY_COMPARE_OP: {
       PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      assert(mask != nullptr);
+      JIT_CHECK(mask != nullptr, "mask is nullptr");
       PyObject* compareOp = PyTuple_GET_ITEM(op_tuple, 2);
-      assert(compareOp != nullptr);
+      JIT_CHECK(compareOp != nullptr, "compare op is nullptr");
       emitCompareOp(
           tc,
           PyLong_AsUnsignedLongLong(compareOp),
           PyLong_AsUnsignedLongLong(mask));
+      break;
+    }
+    case READONLY_GET_ITER: {
+      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
+      JIT_CHECK(mask != nullptr, "mask is nullptr");
+      emitGetIter(tc, PyLong_AsUnsignedLongLong(mask));
+      break;
+    }
+    case READONLY_FOR_ITER: {
+      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
+      JIT_CHECK(mask != nullptr, "mask is nullptr");
+      emitForIter(tc, bc_instr, PyLong_AsUnsignedLongLong(mask));
       break;
     }
   }
@@ -3513,19 +3552,20 @@ void HIRBuilder::emitStoreSubscr(TranslationContext& tc) {
   tc.emit<StoreSubscr>(result, container, sub, value, tc.frame);
 }
 
-void HIRBuilder::emitGetIter(TranslationContext& tc) {
+void HIRBuilder::emitGetIter(TranslationContext& tc, uint8_t readonly_mask) {
   Register* iterable = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<GetIter>(result, iterable, tc.frame);
+  tc.emit<GetIter>(result, iterable, readonly_mask, tc.frame);
   tc.frame.stack.push(result);
 }
 
 void HIRBuilder::emitForIter(
     TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
+    const jit::BytecodeInstruction& bc_instr,
+    uint8_t readonly_mask) {
   Register* iterator = tc.frame.stack.top();
   Register* next_val = temps_.AllocateStack();
-  tc.emit<InvokeIterNext>(next_val, iterator, tc.frame);
+  tc.emit<InvokeIterNext>(next_val, iterator, readonly_mask, tc.frame);
   tc.frame.stack.push(next_val);
   BasicBlock* footer = getBlockAtOff(bc_instr.GetJumpTarget());
   BasicBlock* body = getBlockAtOff(bc_instr.NextInstrOffset());
@@ -3560,7 +3600,7 @@ void HIRBuilder::emitGetYieldFromIter(CFG& cfg, TranslationContext& tc) {
   tc.emit<CondBranchCheckType>(iter_in, TGen, nop_block, slow_path);
 
   tc.block = slow_path;
-  tc.emit<GetIter>(iter_out, iter_in, tc.frame);
+  tc.emit<GetIter>(iter_out, iter_in, 0, tc.frame);
   tc.emit<Branch>(done_block);
 
   tc.block = nop_block;

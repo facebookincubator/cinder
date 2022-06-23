@@ -292,14 +292,15 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
       bool is_awaited);
-  void emitGetIter(TranslationContext& tc);
+  void emitGetIter(TranslationContext& tc, uint8_t readonly_mask);
   void emitGetYieldFromIter(CFG& cfg, TranslationContext& tc);
   void emitListAppend(
       TranslationContext& tc,
       const BytecodeInstruction& bc_instr);
   void emitForIter(
       TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr);
+      const jit::BytecodeInstruction& bc_instr,
+      uint8_t readonly_mask);
   bool emitInvokeMethod(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,

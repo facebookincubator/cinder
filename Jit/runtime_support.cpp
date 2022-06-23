@@ -5,6 +5,7 @@
 #include "internal/pycore_ceval.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
+#include "pyreadonly.h"
 
 extern "C" {
 void take_gil(struct _ceval_runtime_state*, PyThreadState*);
@@ -20,8 +21,17 @@ PyObject g_iterDoneSentinel = {
     _PyObject_EXTRA_INIT kImmortalInitialCount,
     nullptr};
 
-PyObject* invokeIterNext(PyObject* iterator) {
+PyObject* invokeIterNext(PyObject* iterator, int readonly_mask) {
+  if (readonly_mask && PyReadonly_BeginReadonlyOperation(readonly_mask) != 0) {
+    return nullptr;
+  }
   PyObject* val = (*iterator->ob_type->tp_iternext)(iterator);
+  if (readonly_mask && PyReadonly_CheckReadonlyOperation(0, 0) != 0) {
+    return nullptr;
+  }
+  if (readonly_mask && PyReadonly_VerifyReadonlyOperationCompleted() != 0) {
+    return nullptr;
+  }
   if (val != nullptr) {
     return val;
   }
