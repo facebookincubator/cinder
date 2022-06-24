@@ -443,3 +443,40 @@ class RefineFieldsTests(StaticTestBase):
             self.assertEqual(c.x, 21)
             self.assertEqual(c.f(42), 42)
             self.assertEqual(c.x, 42)
+
+    def test_refined_field_at_source_codegen(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+                    self.y: int | None = None
+
+                def f(self) -> int:
+                   if self.x is None or self.y is None:
+                      return 2
+                   return 3
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(None)
+            self.assertEqual(c.f(), 2)
+            # Ensure that we don't emit a store for the refined field since there's no use.
+            self.assertNotInBytecode(mod.C.f, "STORE_FAST")
+
+    def test_refined_field_at_source_used_codegen(self) -> None:
+        codestr = """
+            class C:
+                def __init__(self, x: int | None) -> None:
+                    self.x: int | None = x
+                    self.y: int | None = None
+
+                def f(self) -> int:
+                   if self.x is not None and self.y is None:
+                      return self.x
+                   return 3
+        """
+        with self.in_module(codestr) as mod:
+            c = mod.C(42)
+            self.assertEqual(c.f(), 42)
+            # Ensure that we don't emit a store for the refined field since there's no use.
+            self.assertInBytecode(mod.C.f, "STORE_FAST")
+            self.assertInBytecode(mod.C.f, "LOAD_FAST")

@@ -541,7 +541,12 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
             self.get_type(node.value).emit_attr(node, self)
 
-            if isinstance(node.ctx, ast.Load) and data is not None and data.is_source:
+            if (
+                isinstance(node.ctx, ast.Load)
+                and data is not None
+                and data.is_source
+                and data.is_used
+            ):
                 self.emit("DUP_TOP")
                 self.emit("STORE_FAST", data.name)
 

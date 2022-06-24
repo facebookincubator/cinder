@@ -118,6 +118,9 @@ class UsedRefinementField:
         self.is_source = is_source
         self.is_used = is_used
 
+    def __repr__(self) -> str:
+        return f"UsedRefinementField(name={self.name}, is_source={self.is_source}, is_used={self.is_used})"
+
 
 PRESERVE_REFINED_FIELDS = PreserveRefinedFields()
 
@@ -1494,16 +1497,18 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 self.set_type(node, typ)
                 temp_name = self._refined_field_name(idx)
                 for source_node in source_nodes:
+                    is_used = node != source_node
                     self.set_node_data(
                         source_node,
                         UsedRefinementField,
-                        UsedRefinementField(temp_name, True, True),
+                        UsedRefinementField(temp_name, True, is_used),
                     )
-                self.set_node_data(
-                    node,
-                    UsedRefinementField,
-                    UsedRefinementField(temp_name, False, True),
-                )
+                if node not in source_nodes:
+                    self.set_node_data(
+                        node,
+                        UsedRefinementField,
+                        UsedRefinementField(temp_name, False, True),
+                    )
             else:
                 if node.attr in self.type_state.refined_fields[value.id]:
                     # Ensure we don't keep stale refinement information around when setting/deleting an
