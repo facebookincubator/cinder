@@ -2096,3 +2096,48 @@ class StaticPatchTests(StaticTestBase):
             self.assertEqual(
                 str(ctx.exception), "Cannot modify __code__ of Static Python function"
             )
+
+    def test_patch_fn_with_primitive_args(self):
+        codestr = """
+        import __static__
+        from __static__ import int64, cbool, box
+
+        def fn(i: int64) -> cbool:
+            return i + 1 == 2
+
+        def call_fn():
+            r = fn(int64(4))
+        """
+
+        with self.in_strict_module(codestr, freeze=False, enable_patching=True) as mod:
+
+            def fn2(i: int):
+                return i == 0
+
+            mod.patch("fn", fn2)
+            mod.call_fn()
+
+    def test_patch_property_with_primitive_ret(self):
+        codestr = """
+        import __static__
+        from __static__ import int64, cbool, box
+
+        class C:
+            @property
+            def p(self) -> int64:
+                return 2
+
+            @property
+            def q(self) -> int64:
+                return 42
+
+        def call_prop() -> int:
+            c = C()
+            r = c.p
+            return box(r)
+        """
+
+        with self.in_strict_module(codestr, freeze=False, enable_patching=True) as mod:
+            mod.C.p = mod.C.q
+
+            self.assertEqual(mod.call_prop(), 42)

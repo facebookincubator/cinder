@@ -2069,9 +2069,9 @@ std::vector<Register*> HIRBuilder::setupStaticArgs(
     arg_regs[i] = tc.frame.stack.pop();
   }
 
-  // If we have a static func but we couldn't emit a direct x64 call, we
-  // have to box any primitive args
-  if (target.is_statically_typed) {
+  // If we have patched a function that accepts/returns primitives,
+  // but we couldn't emit a direct x64 call, we have to box any primitive args
+  if (!target.primitive_arg_types.empty()) {
     for (auto [argnum, type] : target.primitive_arg_types) {
       Register* reg = arg_regs.at(argnum);
       auto boxed_primitive_tmp = temps_.AllocateStack();

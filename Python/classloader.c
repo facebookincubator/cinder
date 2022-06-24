@@ -1249,6 +1249,12 @@ classloader_maybe_unwrap_callable(PyObject *func) {
             res = _PyClassMethod_GetFunc(func);
             Py_INCREF(res);
             return res;
+        } else if (Py_TYPE(func) == &PyProperty_Type) {
+            propertyobject* prop = (propertyobject*)func;
+            // A "callable" usually refers to the read path
+            res = prop->prop_get;
+            Py_INCREF(res);
+            return res;
         }
     }
     return NULL;
@@ -1843,6 +1849,10 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
         if (res == NULL) {
             return NULL;
         }
+    } else if (Py_TYPE(func) == &_PyType_StaticThunk) {
+        _Py_StaticThunk* sthunk = (_Py_StaticThunk*)func;
+        res = sthunk->thunk_tcs.tcs_rt.rt_expected;
+        Py_INCREF(res);
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
         *optional = 0;
@@ -1943,6 +1953,15 @@ get_func_or_special_callable(PyTypeObject *type, PyObject *name, PyObject **resu
     }
     *result = PyDict_GetItem(dict, name);
     Py_XINCREF(*result);
+    return 0;
+}
+
+int
+_PyClassLoader_IsPatchedThunk(PyObject *obj)
+{
+    if (obj != NULL && Py_TYPE(obj) == &_PyType_StaticThunk) {
+        return 1;
+    }
     return 0;
 }
 
@@ -4525,6 +4544,36 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
         checki++;
     }
     return arg_checks;
+}
+
+_PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyObject *container, int only_primitives) {
+    if (!_PyClassLoader_IsPatchedThunk(thunk)) {
+        return NULL;
+    }
+    PyObject *originals = NULL;
+    if (PyType_Check(container)) {
+        PyObject *vtable = ((PyTypeObject*)container)->tp_cache;
+        originals = ((_PyType_VTable*)vtable)->vt_original;
+    } else if (PyStrictModule_Check(container)) {
+        originals = ((PyStrictModuleObject*)container)->originals;
+    }
+    if (!originals) {
+        return NULL;
+    }
+    PyObject *original =
+        PyDict_GetItem(originals, ((_Py_StaticThunk*)thunk)->thunk_tcs.tcs_rt.rt_name);
+    if (original == NULL) {
+        return NULL;
+    }
+    PyObject *unwrapped = classloader_maybe_unwrap_callable(original);
+    if (unwrapped != NULL) {
+        original = unwrapped;
+    }
+    PyObject *code = PyFunction_GetCode(original);
+    if (code == NULL) {
+        return NULL;
+    }
+    return _PyClassLoader_GetTypedArgsInfo((PyCodeObject*)code, only_primitives);
 }
 
 int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code) {
