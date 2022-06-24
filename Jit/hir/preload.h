@@ -31,7 +31,6 @@ struct FieldInfo {
 // The target of an INVOKE_FUNCTION or INVOKE_METHOD
 struct InvokeTarget {
   BorrowedRef<PyFunctionObject> func() const;
-  BorrowedRef<PyObject> thunk() const;
 
   // Vector-callable Python object
   Ref<> callable;

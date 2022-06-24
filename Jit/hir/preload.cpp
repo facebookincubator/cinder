@@ -89,9 +89,13 @@ static FieldInfo resolve_field_descr(BorrowedRef<PyTupleObject> descr) {
       PyTuple_GET_ITEM(descr, PyTuple_GET_SIZE(descr) - 1)};
 }
 
-static void _fill_primitive_arg_types_helper(
-    BorrowedRef<_PyTypedArgsInfo> prim_args_info,
+static void fill_primitive_arg_types_func(
+    BorrowedRef<PyFunctionObject> func,
     ArgToType& map) {
+  auto prim_args_info =
+      Ref<_PyTypedArgsInfo>::steal(_PyClassLoader_GetTypedArgsInfo(
+          reinterpret_cast<PyCodeObject*>(func->func_code), 1));
+
   for (Py_ssize_t i = 0; i < Py_SIZE(prim_args_info.get()); i++) {
     BorrowedRef<PyTypeObject> type = prim_args_info->tai_args[i].tai_type;
     map.emplace(
@@ -101,25 +105,6 @@ static void _fill_primitive_arg_types_helper(
             : prim_type_to_type(
                   prim_args_info->tai_args[i].tai_primitive_type));
   }
-}
-
-static void fill_primitive_arg_types_func(
-    BorrowedRef<PyFunctionObject> func,
-    ArgToType& map) {
-  auto prim_args_info =
-      Ref<_PyTypedArgsInfo>::steal(_PyClassLoader_GetTypedArgsInfo(
-          reinterpret_cast<PyCodeObject*>(func->func_code), 1));
-  _fill_primitive_arg_types_helper(prim_args_info, map);
-}
-
-static void fill_primitive_arg_types_thunk(
-    BorrowedRef<PyObject> thunk,
-    ArgToType& map,
-    PyObject* container) {
-  auto prim_args_info = Ref<_PyTypedArgsInfo>::steal(
-      _PyClassLoader_GetTypedArgsInfoFromThunk(thunk, container, 1));
-
-  _fill_primitive_arg_types_helper(prim_args_info, map);
 }
 
 static void fill_primitive_arg_types_builtin(
@@ -164,11 +149,8 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   target->is_statically_typed = _PyClassLoader_IsStaticCallable(callable);
   PyMethodDef* def;
   _PyTypedMethodDef* tmd;
-  bool is_thunk = false;
   if (PyFunction_Check(callable)) {
     target->is_function = true;
-  } else if (_PyClassLoader_IsPatchedThunk(callable)) {
-    is_thunk = true;
   } else if ((def = _PyClassLoader_GetMethodDef(callable)) != nullptr) {
     target->is_builtin = true;
     target->builtin_c_func = reinterpret_cast<void*>(def->ml_meth);
@@ -206,11 +188,6 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
       fill_primitive_arg_types_builtin(
           target->callable, target->primitive_arg_types);
     }
-  }
-
-  if (is_thunk) {
-    fill_primitive_arg_types_thunk(
-        target->callable.get(), target->primitive_arg_types, container);
   }
 
   return target;
