@@ -3260,7 +3260,7 @@ class FunctionContainer(Object[Class]):
         if isinstance(cur_scope, ClassDef) and node.args.args:
             # Handle type of "self"
             self_type = visitor.type_env.DYNAMIC
-            if node.name == "__new__":
+            if node.name in ("__new__", "__init_subclass__"):
                 # __new__ is special and isn't a normal method, so we expect a
                 # type for cls
                 self_type = visitor.type_env.type.instance
@@ -3954,7 +3954,7 @@ class Function(Callable[Class], FunctionContainer):
         if annotation:
             ref = TypeRef(module, annotation)
         elif idx == 0:
-            if self.node.name == "__new__":
+            if self.node.name in ("__new__", "__init_subclass__"):
                 ref = ResolvedTypeRef(self.klass.type_env.type)
             else:
                 ref = ContainerTypeRef(self)

@@ -129,6 +129,17 @@ class SubclassTests(StaticTestBase):
             class D(Array):
                 pass
 
+    def test_init_subclass(self):
+        codestr = """
+            class B:
+                def __init_subclass__(cls):
+                    pass
+        """
+        with self.in_module(codestr) as mod:
+
+            class D(mod.B):
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()
