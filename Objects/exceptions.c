@@ -1612,6 +1612,13 @@ MiddlingExtendsException(PyExc_ImportError, ModuleNotFoundError, ImportError,
                          "Module not found.");
 
 /*
+ *    LazyImportError extends ImportError
+ */
+
+MiddlingExtendsException(PyExc_ImportError, LazyImportError, ImportError,
+                         "Module import errors when enabling Lazy Imports.");
+
+/*
  *    OSError extends Exception
  */
 
@@ -3533,6 +3540,7 @@ static struct static_exception static_exceptions[] = {
     ITEM(IndexError),  // base: LookupError(Exception)
     ITEM(KeyError),  // base: LookupError(Exception)
     ITEM(ModuleNotFoundError), // base: ImportError(Exception)
+    ITEM(LazyImportError), // base: ImportError(Exception)
     ITEM(NotImplementedError),  // base: RuntimeError(Exception)
     ITEM(RecursionError),  // base: RuntimeError(Exception)
     ITEM(UnboundLocalError), // base: NameError(Exception)

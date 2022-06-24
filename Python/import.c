@@ -2230,8 +2230,17 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
     PyObject *obj = lz->lz_obj;
     if (obj == NULL) {
         obj = _imp_load_lazy_import_impl(lz);
-        if (obj != NULL)
+        if (obj != NULL) {
             lz->lz_obj = obj;
+        }
+        else {
+            PyObject *exc, *val, *tb;
+            PyErr_Fetch(&exc, &val, &tb);
+            PyErr_Format(PyExc_LazyImportError,
+                         "Improper Module import causes this error "
+                         "when enabling Lazy Imports.");
+            _PyErr_ChainExceptions(exc, val, tb);
+        }
     }
     return obj;
 }
