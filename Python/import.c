@@ -1972,7 +1972,9 @@ _PyImport_LazyImportModuleLevelObject(
         // store the original import filename and line for LazyImportError
         PyFrameObject *frame = PyThreadState_GetFrame(tstate);
         PyCodeObject *code = PyFrame_GetCode(frame);
-        ((PyLazyImport *)lazy_module)->lz_filename = code->co_filename;
+        PyObject *filename = code->co_filename;
+        Py_INCREF(filename);
+        ((PyLazyImport *)lazy_module)->lz_filename = filename;
         ((PyLazyImport *)lazy_module)->lz_lineno = PyFrame_GetLineNumber(frame);
 
         /* Crazy side-effects! */
