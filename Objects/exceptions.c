@@ -1616,7 +1616,7 @@ MiddlingExtendsException(PyExc_ImportError, ModuleNotFoundError, ImportError,
  */
 
 MiddlingExtendsException(PyExc_ImportError, LazyImportError, ImportError,
-                         "Module import errors when enabling Lazy Imports.");
+                         "Errors raised when loading a lazy import.");
 
 /*
  *    OSError extends Exception

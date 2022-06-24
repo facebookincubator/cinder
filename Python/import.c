@@ -2226,6 +2226,8 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
 {
     assert(lazy_import != NULL);
     assert(PyLazyImport_CheckExact(lazy_import));
+    PyThreadState *tstate = _PyThreadState_GET();
+
     PyLazyImport *lz = (PyLazyImport *)lazy_import;
     PyObject *obj = lz->lz_obj;
     if (obj == NULL) {
@@ -2234,9 +2236,19 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
             lz->lz_obj = obj;
         }
         else {
-            _PyErr_FormatFromCause(PyExc_LazyImportError,
-                                   "Improper Module import causes this error "
-                                   "when enabling Lazy Imports.");
+            PyFrameObject* frame = PyThreadState_GetFrame(tstate);
+            PyCodeObject *code = PyFrame_GetCode(frame);
+            PyObject *filename = PyUnicode_AsUTF8(code->co_filename);
+            int line = PyFrame_GetLineNumber(frame);
+
+            // only preserve the most recent (innermost) occured LazyImportError
+            if (tstate->curexc_type != PyExc_LazyImportError) {
+                _PyErr_FormatFromCause(PyExc_LazyImportError,
+                                    "Error occurred when loading a lazy import. "
+                                    "Original import was at file %s, line %d",
+                                    filename,
+                                    line);
+            }
         }
     }
     return obj;
