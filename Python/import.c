@@ -2234,8 +2234,6 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
 {
     assert(lazy_import != NULL);
     assert(PyLazyImport_CheckExact(lazy_import));
-    PyThreadState *tstate = _PyThreadState_GET();
-
     PyLazyImport *lz = (PyLazyImport *)lazy_import;
     PyObject *obj = lz->lz_obj;
     if (obj == NULL) {
