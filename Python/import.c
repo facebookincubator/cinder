@@ -2238,7 +2238,7 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
         else {
             PyFrameObject* frame = PyThreadState_GetFrame(tstate);
             PyCodeObject *code = PyFrame_GetCode(frame);
-            PyObject *filename = PyUnicode_AsUTF8(code->co_filename);
+            const char *filename = PyUnicode_AsUTF8(code->co_filename);
             int line = PyFrame_GetLineNumber(frame);
 
             // only preserve the most recent (innermost) occured LazyImportError
