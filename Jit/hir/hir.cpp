@@ -187,6 +187,7 @@ bool Instr::isReplayable() const {
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
+    case Opcode::kDictSubscr:
     case Opcode::kEndInlinedFunction:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:

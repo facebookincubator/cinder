@@ -381,6 +381,9 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
             instr->readonly_flags(), 2)) {
       return nullptr;
     }
+    if (lhs->isA(TDictExact) && rhs->isA(TUnicodeExact)) {
+      return env.emit<DictSubscr>(lhs, rhs, *instr->frameState());
+    }
     if (!rhs->isA(TLongExact)) {
       return nullptr;
     }

@@ -69,6 +69,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckSequenceBounds:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
+    case Opcode::kDictSubscr:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kFormatValue:

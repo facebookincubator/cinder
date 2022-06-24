@@ -137,6 +137,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     // Instructions that return nullptr or a borrowed reference to a singleton
     // (usually None or True), and can invoke user code.
+    case Opcode::kDictSubscr:
     case Opcode::kRunPeriodicTasks:
     case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:

@@ -240,6 +240,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
+    case Opcode::kDictSubscr:
     case Opcode::kEndInlinedFunction:
     case Opcode::kGetTuple:
     case Opcode::kGuard:

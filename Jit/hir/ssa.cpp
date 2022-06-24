@@ -280,6 +280,7 @@ Type outputType(
     case Opcode::kCallExKw:
     case Opcode::kCallMethod:
     case Opcode::kCompare:
+    case Opcode::kDictSubscr:
     case Opcode::kBinaryOp:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:

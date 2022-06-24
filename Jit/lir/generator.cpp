@@ -2155,6 +2155,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         break;
       }
+      case Opcode::kDictSubscr: {
+        auto instr = static_cast<const DictSubscr*>(&i);
+        bbb.AppendCall(
+            instr->GetOutput(),
+            PyDict_Type.tp_as_mapping->mp_subscript,
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kInPlaceOp: {
         auto instr = static_cast<const InPlaceOp*>(&i);
 

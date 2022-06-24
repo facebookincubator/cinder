@@ -298,6 +298,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto container = ParseRegister();
     auto sub = ParseRegister();
     newInstr<DeleteSubscr>(container, sub);
+  } else if (strcmp(opcode, "DictSubscr") == 0) {
+    auto dict = ParseRegister();
+    auto key = ParseRegister();
+    NEW_INSTR(DictSubscr, dst, dict, key, FrameState{});
   } else if (strcmp(opcode, "StoreSubscr") == 0) {
     auto receiver = ParseRegister();
     auto index = ParseRegister();

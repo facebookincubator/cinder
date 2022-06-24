@@ -314,6 +314,7 @@ struct FrameState {
   V(DeleteSubscr)                      \
   V(Deopt)                             \
   V(DeoptPatchpoint)                   \
+  V(DictSubscr)                        \
   V(DoubleBinaryOp)                    \
   V(EndInlinedFunction)                \
   V(FillTypeAttrCache)                 \
@@ -3409,6 +3410,21 @@ class INSTR_CLASS(
   void set_value(Register* value) {
     SetOperand(2, value);
   }
+};
+
+class INSTR_CLASS(
+    DictSubscr,
+    (TDictExact, TUnicodeExact),
+    HasOutput,
+    Operands<2>,
+    DeoptBase) {
+ public:
+  DictSubscr(
+      Register* dst,
+      Register* left,
+      Register* right,
+      const FrameState& frame)
+      : InstrT(dst, left, right, frame) {}
 };
 
 // Return a new iterator for the object, or return it if it's an iterator

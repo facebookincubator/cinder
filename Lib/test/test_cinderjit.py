@@ -2970,6 +2970,25 @@ class DeleteFastTests(unittest.TestCase):
             self.assertEqual(self._del_ex_raise(), 42)
 
 
+class DictSubscrTests(unittest.TestCase):
+    def test_custom_class(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __eq__(self, other):
+                raise RuntimeError("no way!!")
+
+            def __hash__(self):
+                return hash(self.value)
+
+        c = C("x")
+        d = {}
+        d[c] = 1
+        with self.assertRaises(RuntimeError):
+            d["x"]
+
+
 class KeywordOnlyArgTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def f1(self, *, val=10):

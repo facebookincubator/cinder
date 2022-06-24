@@ -1509,3 +1509,61 @@ fun test {
   }
 }
 ---
+BinarySubscrWithDictExactAndUnicodeExactEmitsDictSubscr
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<DictExact> v1
+    v4 = RefineType<UnicodeExact> v2
+    v5 = BinaryOp<Subscript> v3 v4
+    Return v5
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:DictExact = RefineType<DictExact> v1
+    v4:UnicodeExact = RefineType<UnicodeExact> v2
+    v6:Object = DictSubscr v3 v4 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v6
+  }
+}
+---
+BinarySubscrWithDictExactAndLongExactDoesNotEmitDictSubscr
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<DictExact> v1
+    v4 = RefineType<LongExact> v2
+    v5 = BinaryOp<Subscript> v3 v4
+    Return v5
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:DictExact = RefineType<DictExact> v1
+    v4:LongExact = RefineType<LongExact> v2
+    v5:Object = BinaryOp<Subscript> v3 v4 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v5
+  }
+}
+---
