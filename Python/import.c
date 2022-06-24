@@ -2244,10 +2244,10 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
             // only preserve the most recent (innermost) occured LazyImportError
             if (tstate->curexc_type != PyExc_LazyImportError) {
                 _PyErr_FormatFromCause(PyExc_LazyImportError,
-                                    "Error occurred when loading a lazy import. "
-                                    "Original import was at file %s, line %d",
-                                    filename,
-                                    line);
+                                       "Error occurred when loading a lazy import. "
+                                       "Original import was at file %s, line %d",
+                                       filename,
+                                       line);
             }
         }
     }
