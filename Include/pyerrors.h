@@ -90,6 +90,7 @@ PyAPI_DATA(PyObject *) PyExc_ImportError;
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03060000
 PyAPI_DATA(PyObject *) PyExc_ModuleNotFoundError;
 #endif
+PyAPI_DATA(PyObject *) PyExc_LazyImportError;
 PyAPI_DATA(PyObject *) PyExc_IndexError;
 PyAPI_DATA(PyObject *) PyExc_KeyError;
 PyAPI_DATA(PyObject *) PyExc_KeyboardInterrupt;

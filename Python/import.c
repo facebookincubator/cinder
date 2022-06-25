@@ -1968,6 +1968,14 @@ _PyImport_LazyImportModuleLevelObject(
             if (!interp->lazy_loaded)
                 goto error;
         }
+
+        // store the original import filename and line for LazyImportError
+        PyFrameObject *frame = PyThreadState_GetFrame(tstate);
+        PyCodeObject *code = PyFrame_GetCode(frame);
+        Py_INCREF(code->co_filename);
+        ((PyLazyImport *)lazy_module)->lz_filename = code->co_filename;
+        ((PyLazyImport *)lazy_module)->lz_lineno = PyFrame_GetLineNumber(frame);
+
         /* Crazy side-effects! */
         PyObject *type, *value, *traceback;
         PyErr_Fetch(&type, &value, &traceback);
@@ -2230,8 +2238,21 @@ PyImport_LoadLazyImport(PyObject *lazy_import)  // was PyImport_ImportDeferred(P
     PyObject *obj = lz->lz_obj;
     if (obj == NULL) {
         obj = _imp_load_lazy_import_impl(lz);
-        if (obj != NULL)
+        if (obj != NULL) {
             lz->lz_obj = obj;
+        }
+        else {
+            PyThreadState *tstate = _PyThreadState_GET();
+            // only preserve the most recent (innermost) occured LazyImportError
+            if (tstate->curexc_type != PyExc_LazyImportError) {
+                _PyErr_FormatFromCauseTstate(tstate,
+                                             PyExc_LazyImportError,
+                                             "Error occurred when loading a lazy import. "
+                                             "Original import was at file %s, line %d",
+                                             PyUnicode_AsUTF8(lz->lz_filename),
+                                             lz->lz_lineno);
+            }
+        }
     }
     return obj;
 }

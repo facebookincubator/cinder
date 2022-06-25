@@ -1023,6 +1023,8 @@ PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
+    m->lz_filename = NULL;
+    m->lz_lineno = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1066,6 +1068,8 @@ PyLazyImportObject_NewObject(PyObject *from, PyObject *name)
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
+    m->lz_filename = NULL;
+    m->lz_lineno = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1081,6 +1085,7 @@ lazy_import_dealloc(PyLazyImport *m)
     Py_XDECREF(m->lz_level);
     Py_XDECREF(m->lz_obj);
     Py_XDECREF(m->lz_next);
+    Py_XDECREF(m->lz_filename);
     Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
@@ -1125,6 +1130,7 @@ lazy_import_traverse(PyLazyImport *m, visitproc visit, void *arg)
     Py_VISIT(m->lz_level);
     Py_VISIT(m->lz_obj);
     Py_VISIT(m->lz_next);
+    Py_VISIT(m->lz_filename);
     return 0;
 }
 
@@ -1139,6 +1145,7 @@ lazy_import_clear(PyLazyImport *m)
     Py_CLEAR(m->lz_level);
     Py_CLEAR(m->lz_obj);
     Py_CLEAR(m->lz_next);
+    Py_CLEAR(m->lz_filename);
     return 0;
 }
 
