@@ -41,7 +41,7 @@ static const wchar_t *opt_ptr = L"";
 
 /* Python command line short and long options */
 
-#define SHORT_OPTS L"bBc:dEhiIJm:OqRsStuvVW:xX:?"
+#define SHORT_OPTS L"bBc:dEhiIJm:OqLRsStuvVW:xX:?"
 
 static const _PyOS_LongOption longopts[] = {
     {L"check-hash-based-pycs", 1, 0},
@@ -172,4 +172,3 @@ int _PyOS_GetOpt(Py_ssize_t argc, wchar_t * const *argv, int *longindex)
 #ifdef __cplusplus
 }
 #endif
-
