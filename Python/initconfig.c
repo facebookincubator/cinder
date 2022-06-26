@@ -132,7 +132,8 @@ static const char usage_6[] =
 "   debugger. It can be set to the callable of your debugger of choice.\n"
 "PYTHONDEVMODE: enable the development mode.\n"
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
-"PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n";
+"PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
+"PYTHONLAZYIMPORTS: enable lazy imports by default.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -931,6 +932,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_WSTR_ATTR(filesystem_errors);
     COPY_WSTR_ATTR(stdio_encoding);
     COPY_WSTR_ATTR(stdio_errors);
+    COPY_ATTR(lazy_imports);
 #ifdef MS_WINDOWS
     COPY_ATTR(legacy_windows_stdio);
 #endif
@@ -1032,6 +1034,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(buffered_stdio);
     SET_ITEM_WSTR(stdio_encoding);
     SET_ITEM_WSTR(stdio_errors);
+    SET_ITEM_INT(lazy_imports);
 #ifdef MS_WINDOWS
     SET_ITEM_INT(legacy_windows_stdio);
 #endif
@@ -1411,6 +1414,7 @@ config_get_global_vars(PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1449,6 +1453,7 @@ config_set_global_vars(const PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1667,6 +1672,7 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->verbose, "PYTHONVERBOSE");
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
+    _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTS");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");

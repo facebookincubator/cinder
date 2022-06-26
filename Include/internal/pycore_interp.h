@@ -240,6 +240,7 @@ struct _is {
     PyObject *builtins;
     // importlib module
     PyObject *importlib;
+    PyObject *lazy_loaded;
 
     /* Used in Modules/_threadmodule.c. */
     long num_threads;
