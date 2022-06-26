@@ -7,15 +7,15 @@
 extern "C" {
 #endif
 
-PyAPI_DATA(PyTypeObject) PyDeferred_Type;
+PyAPI_DATA(PyTypeObject) PyLazyImport_Type;
 PyAPI_DATA(PyTypeObject) PyModule_Type;
 
-#define PyDeferred_CheckExact(op) (Py_TYPE(op) == &PyDeferred_Type)
+#define PyLazyImport_CheckExact(op) (Py_TYPE(op) == &PyLazyImport_Type)
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
 
-PyAPI_FUNC(PyObject *) PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
-PyAPI_FUNC(PyObject *) PyDeferred_NewObject(PyObject *deferred, PyObject *name);
+PyAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -97,19 +97,19 @@ extern int _PyModule_IsExtension(PyObject *obj);
 
 typedef struct {
     PyObject_HEAD
-    PyObject *df_deferred;
-    PyObject *df_name;
-    PyObject *df_globals;
-    PyObject *df_locals;
-    PyObject *df_fromlist;
-    PyObject *df_level;
-    PyObject *df_obj;
-    PyObject *df_next;
-    int df_resolving;
-    int df_skip_warmup;
-} PyDeferredObject;
+    PyObject *lz_lazy_import;
+    PyObject *lz_name;
+    PyObject *lz_globals;
+    PyObject *lz_locals;
+    PyObject *lz_fromlist;
+    PyObject *lz_level;
+    PyObject *lz_obj;
+    PyObject *lz_next;
+    int lz_resolving;
+    int lz_skip_warmup;
+} PyLazyImport;
 
-int PyDeferred_Match(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name);
+int PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name);
 
 #ifdef __cplusplus
 }

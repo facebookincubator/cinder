@@ -23,7 +23,7 @@ static PyMemberDef module_members[] = {
     {0}
 };
 
-static PyObject *deferred_name(PyDeferredObject *m);
+static PyObject *lazy_import_name(PyLazyImport *m);
 
 
 PyTypeObject PyModuleDef_Type = {
@@ -726,14 +726,14 @@ _PyModuleSpec_IsInitializing(PyObject *spec)
 }
 
 int
-PyDeferred_Match(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name)
+PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name)
 {
     PyObject *mod_name = _PyDict_GetItemIdWithError(mod_dict, &PyId___name__);
     if (mod_name == NULL || !PyUnicode_Check(mod_name)) {
         return 0;
     }
     PyObject *fqn = PyUnicode_FromFormat("%U.%U", mod_name, name);
-    PyObject *deferred_fqn = deferred_name(deferred);
+    PyObject *deferred_fqn = lazy_import_name(deferred);
     int match = PyUnicode_Tailmatch(deferred_fqn, fqn, 0, PyUnicode_GET_LENGTH(fqn), -1);
     Py_DECREF(fqn);
     Py_DECREF(deferred_fqn);
@@ -975,166 +975,166 @@ PyTypeObject PyModule_Type = {
 };
 
 PyObject *
-PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
+PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
 {
-    PyDeferredObject *m;
+    PyLazyImport *m;
     if (!name || !PyUnicode_Check(name) ||
         !globals || !locals ||
         !fromlist || !level) {
         PyErr_BadArgument();
         return NULL;
     }
-    m = PyObject_GC_New(PyDeferredObject, &PyDeferred_Type);
+    m = PyObject_GC_New(PyLazyImport, &PyLazyImport_Type);
     if (m == NULL) {
         return NULL;
     }
-    m->df_deferred = NULL;
+    m->lz_lazy_import = NULL;
     Py_INCREF(name);
-    m->df_name = name;
+    m->lz_name = name;
     Py_INCREF(globals);
-    m->df_globals = globals;
+    m->lz_globals = globals;
     Py_INCREF(locals);
-    m->df_locals = locals;
+    m->lz_locals = locals;
     Py_INCREF(fromlist);
-    m->df_fromlist = fromlist;
+    m->lz_fromlist = fromlist;
     Py_INCREF(level);
-    m->df_level = level;
-    m->df_obj = NULL;
-    m->df_next = NULL;
-    m->df_resolving = 0;
-    m->df_skip_warmup = 0;
+    m->lz_level = level;
+    m->lz_obj = NULL;
+    m->lz_next = NULL;
+    m->lz_resolving = 0;
+    m->lz_skip_warmup = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
 
 PyObject *
-PyDeferred_NewObject(PyObject *deferred, PyObject *name)
+PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name)
 {
-    PyDeferredObject *m;
-    if (!deferred || !PyDeferred_CheckExact(deferred) ||
+    PyLazyImport *m;
+    if (!deferred || !PyLazyImport_CheckExact(deferred) ||
         !name || !PyUnicode_Check(name)) {
         PyErr_BadArgument();
         return NULL;
     }
-    m = PyObject_GC_New(PyDeferredObject, &PyDeferred_Type);
+    m = PyObject_GC_New(PyLazyImport, &PyLazyImport_Type);
     if (m == NULL) {
         return NULL;
     }
-    PyDeferredObject *d = (PyDeferredObject *)deferred;
-    if (d->df_fromlist != NULL && d->df_fromlist != Py_None) {
+    PyLazyImport *d = (PyLazyImport *)deferred;
+    if (d->lz_fromlist != NULL && d->lz_fromlist != Py_None) {
         PyObject *frmlst = PyList_New(0);
         if (frmlst == NULL) {
             return NULL;
         }
         PyList_Append(frmlst, name);
-        PyObject *frm = PyDeferredModule_NewObject(d->df_name, d->df_globals, d->df_locals, frmlst, d->df_level);
+        PyObject *frm = PyLazyImportModule_NewObject(d->lz_name, d->lz_globals, d->lz_locals, frmlst, d->lz_level);
         Py_DECREF(frmlst);
         if (frm == NULL) {
             return NULL;
         }
-        m->df_deferred = frm;
+        m->lz_lazy_import = frm;
     } else {
         Py_INCREF(deferred);
-        m->df_deferred = deferred;
+        m->lz_lazy_import = deferred;
     }
     Py_INCREF(name);
-    m->df_name = name;
-    m->df_globals = NULL;
-    m->df_locals = NULL;
-    m->df_fromlist = NULL;
-    m->df_level = NULL;
-    m->df_obj = NULL;
-    m->df_next = NULL;
-    m->df_resolving = 0;
-    m->df_skip_warmup = 0;
+    m->lz_name = name;
+    m->lz_globals = NULL;
+    m->lz_locals = NULL;
+    m->lz_fromlist = NULL;
+    m->lz_level = NULL;
+    m->lz_obj = NULL;
+    m->lz_next = NULL;
+    m->lz_resolving = 0;
+    m->lz_skip_warmup = 0;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
 
 static void
-deferred_dealloc(PyDeferredObject *m)
+lazy_import_dealloc(PyLazyImport *m)
 {
-    Py_XDECREF(m->df_deferred);
-    Py_XDECREF(m->df_name);
-    Py_XDECREF(m->df_globals);
-    Py_XDECREF(m->df_locals);
-    Py_XDECREF(m->df_fromlist);
-    Py_XDECREF(m->df_level);
-    Py_XDECREF(m->df_obj);
-    Py_XDECREF(m->df_next);
+    Py_XDECREF(m->lz_lazy_import);
+    Py_XDECREF(m->lz_name);
+    Py_XDECREF(m->lz_globals);
+    Py_XDECREF(m->lz_locals);
+    Py_XDECREF(m->lz_fromlist);
+    Py_XDECREF(m->lz_level);
+    Py_XDECREF(m->lz_obj);
+    Py_XDECREF(m->lz_next);
     Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
 static PyObject *
-deferred_name(PyDeferredObject *m)
+lazy_import_name(PyLazyImport *m)
 {
-    if (m->df_deferred != NULL) {
-        PyObject *name = deferred_name((PyDeferredObject *)m->df_deferred);
-        PyObject *res = PyUnicode_FromFormat("%U.%U", name, m->df_name);
+    if (m->lz_lazy_import != NULL) {
+        PyObject *name = lazy_import_name((PyLazyImport *)m->lz_lazy_import);
+        PyObject *res = PyUnicode_FromFormat("%U.%U", name, m->lz_name);
         Py_DECREF(name);
         return res;
     }
-    if (m->df_fromlist == NULL ||
-        m->df_fromlist == Py_None ||
-        !PyObject_IsTrue(m->df_fromlist)) {
-        Py_ssize_t dot = PyUnicode_FindChar(m->df_name, '.', 0, PyUnicode_GET_LENGTH(m->df_name), 1);
+    if (m->lz_fromlist == NULL ||
+        m->lz_fromlist == Py_None ||
+        !PyObject_IsTrue(m->lz_fromlist)) {
+        Py_ssize_t dot = PyUnicode_FindChar(m->lz_name, '.', 0, PyUnicode_GET_LENGTH(m->lz_name), 1);
         if (dot >= 0) {
-            return PyUnicode_Substring(m->df_name, 0, dot);
+            return PyUnicode_Substring(m->lz_name, 0, dot);
         }
     }
-    Py_INCREF(m->df_name);
-    return m->df_name;
+    Py_INCREF(m->lz_name);
+    return m->lz_name;
 }
 
 static PyObject *
-deferred_repr(PyDeferredObject *m)
+lazy_import_repr(PyLazyImport *m)
 {
-    PyObject *name = deferred_name(m);
+    PyObject *name = lazy_import_name(m);
     PyObject *res = PyUnicode_FromFormat("<deferred '%U'>", name);
     Py_DECREF(name);
     return res;
 }
 
 static int
-deferred_traverse(PyDeferredObject *m, visitproc visit, void *arg)
+lazy_import_traverse(PyLazyImport *m, visitproc visit, void *arg)
 {
-    Py_VISIT(m->df_deferred);
-    Py_VISIT(m->df_name);
-    Py_VISIT(m->df_globals);
-    Py_VISIT(m->df_locals);
-    Py_VISIT(m->df_fromlist);
-    Py_VISIT(m->df_level);
-    Py_VISIT(m->df_obj);
-    Py_VISIT(m->df_next);
+    Py_VISIT(m->lz_lazy_import);
+    Py_VISIT(m->lz_name);
+    Py_VISIT(m->lz_globals);
+    Py_VISIT(m->lz_locals);
+    Py_VISIT(m->lz_fromlist);
+    Py_VISIT(m->lz_level);
+    Py_VISIT(m->lz_obj);
+    Py_VISIT(m->lz_next);
     return 0;
 }
 
 static int
-deferred_clear(PyDeferredObject *m)
+lazy_import_clear(PyLazyImport *m)
 {
-    Py_CLEAR(m->df_deferred);
-    Py_CLEAR(m->df_name);
-    Py_CLEAR(m->df_globals);
-    Py_CLEAR(m->df_locals);
-    Py_CLEAR(m->df_fromlist);
-    Py_CLEAR(m->df_level);
-    Py_CLEAR(m->df_obj);
-    Py_CLEAR(m->df_next);
+    Py_CLEAR(m->lz_lazy_import);
+    Py_CLEAR(m->lz_name);
+    Py_CLEAR(m->lz_globals);
+    Py_CLEAR(m->lz_locals);
+    Py_CLEAR(m->lz_fromlist);
+    Py_CLEAR(m->lz_level);
+    Py_CLEAR(m->lz_obj);
+    Py_CLEAR(m->lz_next);
     return 0;
 }
 
 
-PyTypeObject PyDeferred_Type = {
+PyTypeObject PyLazyImport_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "deferred",                                 /* tp_name */
-    sizeof(PyDeferredObject),                   /* tp_basicsize */
+    "lazy_import",                              /* tp_name */
+    sizeof(PyLazyImport),                       /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    (destructor)deferred_dealloc,               /* tp_dealloc */
+    (destructor)lazy_import_dealloc,            /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     0,                                          /* tp_reserved */
-    (reprfunc)deferred_repr,                    /* tp_repr */
+    (reprfunc)lazy_import_repr,                 /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -1147,8 +1147,8 @@ PyTypeObject PyDeferred_Type = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
         Py_TPFLAGS_BASETYPE,                    /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)deferred_traverse,            /* tp_traverse */
-    (inquiry)deferred_clear,                    /* tp_clear */
+    (traverseproc)lazy_import_traverse,         /* tp_traverse */
+    (inquiry)lazy_import_clear,                 /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
