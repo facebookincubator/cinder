@@ -61,6 +61,14 @@ import warnings
 
 from ._bootstrap import __import__
 
+def is_lazy_import(dict, key):
+    """Check if `name` is a lazy import object in `dict`
+
+    Returns 1 if `name` in `dict` contains a lazy import object.
+    Returns 0 if `name` in `dict` is not a lazy import object.
+    Returns -1 if `name` doesn't exist in `dict`, or an error occurred.
+    """
+    return _imp.is_lazy_import(dict, key)
 
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in
