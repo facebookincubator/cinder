@@ -70,9 +70,25 @@ def is_lazy_import(dict, key):
     """
     return _imp.is_lazy_import(dict, key)
 
+
 def set_lazy_imports():
     """Programmatic API for enabling lazy imports at runtime."""
     _imp.set_lazy_imports()
+
+
+class eager_imports:
+    """A context manager that forces imports executed within to be
+       executed eagerly even if lazy imports are enabled.
+
+    Note that the implementation is intentionally trivial,
+    since imports inside a with block are *always* executed eagerly.
+    """
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        pass
+
 
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in
