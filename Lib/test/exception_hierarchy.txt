@@ -14,7 +14,8 @@ BaseException
       ├── EOFError
       ├── ExceptionGroup [BaseExceptionGroup]
       ├── ImportError
-      │    └── ModuleNotFoundError
+      │    ├── ModuleNotFoundError
+      │    └── LazyImportError
       ├── LookupError
       │    ├── IndexError
       │    └── KeyError

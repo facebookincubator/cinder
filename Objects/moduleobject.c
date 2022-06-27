@@ -995,6 +995,18 @@ PyTypeObject PyModule_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
+static void
+store_lazyimporterror_info(PyLazyImport *lazy_module)
+{
+    // store the original import filename and line for LazyImportError
+    PyThreadState *tstate = _PyThreadState_GET();
+    PyFrameObject *frame = PyThreadState_GetFrame(tstate);
+    PyCodeObject *code = PyFrame_GetCode(frame);
+    Py_INCREF(code->co_filename);
+    lazy_module->lz_filename = code->co_filename;
+    lazy_module->lz_lineno = PyFrame_GetLineNumber(frame);
+}
+
 PyObject *
 PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
 {
@@ -1023,8 +1035,7 @@ PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
-    m->lz_filename = NULL;
-    m->lz_lineno = 0;
+    store_lazyimporterror_info(m);
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1068,8 +1079,7 @@ PyLazyImportObject_NewObject(PyObject *from, PyObject *name)
     m->lz_obj = NULL;
     m->lz_next = NULL;
     m->lz_resolving = 0;
-    m->lz_filename = NULL;
-    m->lz_lineno = 0;
+    store_lazyimporterror_info(m);
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
