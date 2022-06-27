@@ -70,6 +70,10 @@ def is_lazy_import(dict, key):
     """
     return _imp.is_lazy_import(dict, key)
 
+def set_lazy_imports():
+    """Programmatic API for enabling lazy imports at runtime."""
+    _imp.set_lazy_imports()
+
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in
     sys.meta_path (where implemented)."""

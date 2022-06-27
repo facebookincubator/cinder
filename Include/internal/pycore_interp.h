@@ -306,6 +306,9 @@ struct _is {
 
     struct ast_state ast;
     struct type_cache type_cache;
+
+    /* whether lazy imports was enabled at runtime */
+    int lazy_imports_enabled;
 };
 
 extern void _PyInterpreterState_ClearModules(PyInterpreterState *interp);
