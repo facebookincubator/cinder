@@ -1,24 +1,26 @@
+import dis
 import os
 import sys
-import unittest
 import types
+import unittest
 from compiler import compile
 from compiler import opcode_static as op
 from inspect import cleandoc
 from typing import List, Tuple
-import dis
-sys.path.append(os.path.join(sys.path[0],'..','fuzzer'))
+
+sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
 
 import cfgutil
 import verifier
-from verifier import Verifier, VerificationError
 from cfgutil import BytecodeOp
+from verifier import VerificationError, Verifier
+
 
 class VerifierTests(unittest.TestCase):
     def convert_bytecodes_to_byte_representation(self, bytecodes: List[Tuple]) -> bytes:
         b_list = []
         if len(bytecodes) == 0:
-            return b''
+            return b""
         for i in bytecodes:
             if isinstance(i, tuple) and len(i) == 2:
                 b_list.append(i[0])
@@ -59,41 +61,91 @@ class VerifierTests(unittest.TestCase):
 
 
 class VerifierBasicsTest(VerifierTests):
-
     def test_length_cannot_be_odd(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 57), (op.opcode.POP_TOP)])
-        self.assertRaisesRegex(VerificationError, "Bytecode length cannot be odd", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "", [(op.opcode.LOAD_CONST, 57), (op.opcode.POP_TOP)]
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "Bytecode length cannot be odd",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_length_cannot_be_zero(self):
         code = self.compile_helper("", [])
-        self.assertRaisesRegex(VerificationError, "Bytecode length cannot be zero or negative", Verifier.validate_code, code)
+        self.assertRaisesRegex(
+            VerificationError,
+            "Bytecode length cannot be zero or negative",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_op_name_must_exist(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (32, 68)]) # 32 is not a valid opcode id
-        self.assertRaisesRegex(VerificationError, "Operation 32 at offset 2 does not exist", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "", [(op.opcode.LOAD_CONST, 0), (32, 68)]
+        )  # 32 is not a valid opcode id
+        self.assertRaisesRegex(
+            VerificationError,
+            "Operation 32 at offset 2 does not exist",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_cannot_jump_to_odd_index(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 1)])
-        self.assertRaisesRegex(VerificationError, "can not jump in the middle of an instruction$", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 1)]
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "can not jump in the middle of an instruction$",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_cannot_jump_outside_of_file(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 153)])
-        self.assertRaisesRegex(VerificationError, "can not jump out of bounds$", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 153)]
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "can not jump out of bounds$",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_error_in_nested_code_object(self):
         # nested code object has an invalid jump which should be caught
-        code = self.compile_helper("", bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.POP_TOP, 0)], \
-         consts=((self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 153)]),)))
-        self.assertRaisesRegex(VerificationError, "can not jump out of bounds$", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "",
+            bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.POP_TOP, 0)],
+            consts=(
+                (
+                    self.compile_helper(
+                        "", [(op.opcode.LOAD_CONST, 0), (op.opcode.JUMP_ABSOLUTE, 153)]
+                    ),
+                )
+            ),
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "can not jump out of bounds$",
+            Verifier.validate_code,
+            code,
+        )
+
 
 class VerifierCFGTests(VerifierTests):
     def test_cfg_with_single_block(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
             x = 3
-            x += 1""")
+            x += 1"""
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        assert str(block_map) == cleandoc("""
+        assert str(block_map) == cleandoc(
+            """
         bb0:
           LOAD_CONST : 0
           STORE_NAME : 0
@@ -102,20 +154,26 @@ class VerifierCFGTests(VerifierTests):
           INPLACE_ADD : 0
           STORE_NAME : 0
           LOAD_CONST : 2
-          RETURN_VALUE : 0""")
+          RETURN_VALUE : 0"""
+        )
 
     def test_cfg_with_conditional(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
             x, y = 3, 0
             if x > 0:
                 y += 1
             elif x == 0:
                 y += 3
             else:
-                y += 2""")
+                y += 2"""
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           LOAD_CONST : 0
           UNPACK_SEQUENCE : 2
@@ -149,18 +207,25 @@ class VerifierCFGTests(VerifierTests):
           STORE_NAME : 1
         bb5:
           LOAD_CONST : 5
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
 
     def test_cfg_with_loop(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
             arr = []
             i = 0
             while i < 10:
               arr.append(i)
-              i+=1""")
+              i+=1"""
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           BUILD_LIST : 0
           STORE_NAME : 0
@@ -184,16 +249,23 @@ class VerifierCFGTests(VerifierTests):
           JUMP_ABSOLUTE bb1
         bb3:
           LOAD_CONST : 3
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
 
     def test_cfg_with_function_call(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
             arr = []
             for i in range(10):
-              arr.append(i)""")
+              arr.append(i)"""
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           BUILD_LIST : 0
           STORE_NAME : 0
@@ -213,20 +285,27 @@ class VerifierCFGTests(VerifierTests):
           JUMP_ABSOLUTE bb1
         bb3:
           LOAD_CONST : 1
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
 
     def test_cfg_try_except(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 9
         a = 3
         try:
             c = y+a
         except:
             raise
-        """)
+        """
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           LOAD_CONST : 0
           STORE_NAME : 0
@@ -251,10 +330,13 @@ class VerifierCFGTests(VerifierTests):
           END_FINALLY : 0
         bb4:
           LOAD_CONST : 2
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
 
     def test_cfg_try_except_else_finally(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 9
         a = "b"
         try:
@@ -265,10 +347,14 @@ class VerifierCFGTests(VerifierTests):
             y+=1
         finally:
             y+=3
-        """)
+        """
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           LOAD_CONST : 0
           STORE_NAME : 0
@@ -306,10 +392,13 @@ class VerifierCFGTests(VerifierTests):
           STORE_NAME : 0
           END_FINALLY : 0
           LOAD_CONST : 4
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
 
     def test_cfg_continue_statement_in_try(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         for i in range(10):
             x = 0
             z = 2
@@ -320,10 +409,14 @@ class VerifierCFGTests(VerifierTests):
                 raise
             finally:
                 x+=1
-        """)
+        """
+        )
         code = self.compile_helper(source)
         block_map = Verifier.create_blocks(Verifier.parse_bytecode(code.co_code))
-        self.assertEqual(str(block_map), cleandoc("""
+        self.assertEqual(
+            str(block_map),
+            cleandoc(
+                """
         bb0:
           LOAD_NAME : 0
           LOAD_CONST : 0
@@ -371,94 +464,176 @@ class VerifierCFGTests(VerifierTests):
           JUMP_ABSOLUTE bb1
         bb8:
           LOAD_CONST : 4
-          RETURN_VALUE : 0"""))
+          RETURN_VALUE : 0"""
+            ),
+        )
+
 
 class VerifierStackDepthTests(VerifierTests):
     def test_cannot_pop_from_empty_stack(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (op.opcode.POP_TOP, 0), (op.opcode.POP_TOP, 0)])
-        self.assertRaisesRegex(VerificationError, "Stack depth -1 dips below minimum of 0 for operation POP_TOP @ offset 4", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "",
+            [(op.opcode.LOAD_CONST, 0), (op.opcode.POP_TOP, 0), (op.opcode.POP_TOP, 0)],
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "Stack depth -1 dips below minimum of 0 for operation POP_TOP @ offset 4",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_stack_depth_cannot_exceed_max(self):
-        code = self.compile_helper("", [(op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 0)], stacksize=1)
-        self.assertRaisesRegex(VerificationError, "Stack depth 2 exceeds maximum of 1 for operation LOAD_CONST @ offset 2", Verifier.validate_code, code)
+        code = self.compile_helper(
+            "",
+            [
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 0),
+            ],
+            stacksize=1,
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "Stack depth 2 exceeds maximum of 1 for operation LOAD_CONST @ offset 2",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_branch(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         x, y = 0, 0
         if x: y += 1
-        else: y += 3""")
+        else: y += 3"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_for_loop(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         x = 0
         for i in range(10):
-          x += 1""")
+          x += 1"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_while_loop(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         i = 0
         while i < 10:
-          i+=1""")
+          i+=1"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_cannot_pop_from_empty_stack_during_loop(self):
-        bytecodes = [(op.opcode.LOAD_CONST, 0), (op.opcode.UNPACK_SEQUENCE, 2), (op.opcode.STORE_NAME, 0), \
-        (op.opcode.STORE_NAME, 1), (op.opcode.LOAD_NAME, 0), (op.opcode.POP_JUMP_IF_FALSE, 22), \
-        (op.opcode.LOAD_NAME, 1), (op.opcode.LOAD_CONST, 1), (op.opcode.POP_TOP, 0), (op.opcode.INPLACE_ADD, 0), \
-        (op.opcode.STORE_NAME, 1), (op.opcode.JUMP_FORWARD, 8), (op.opcode.LOAD_NAME, 1), \
-        (op.opcode.LOAD_CONST, 2), (op.opcode.INPLACE_ADD, 0), (op.opcode.STORE_NAME, 1), \
-        (op.opcode.LOAD_CONST, 3), (op.opcode.RETURN_VALUE, 0)]
-        code = self.compile_helper("", bytecodes, consts = (1, 2, 3, 4), names = ("e", "e", "e"), stacksize=10)
-        self.assertRaisesRegex(VerificationError, "Stack depth -1 dips below minimum of 0 for operation STORE_NAME @ offset 20", Verifier.validate_code, code)
+        bytecodes = [
+            (op.opcode.LOAD_CONST, 0),
+            (op.opcode.UNPACK_SEQUENCE, 2),
+            (op.opcode.STORE_NAME, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.LOAD_NAME, 0),
+            (op.opcode.POP_JUMP_IF_FALSE, 22),
+            (op.opcode.LOAD_NAME, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.POP_TOP, 0),
+            (op.opcode.INPLACE_ADD, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.JUMP_FORWARD, 8),
+            (op.opcode.LOAD_NAME, 1),
+            (op.opcode.LOAD_CONST, 2),
+            (op.opcode.INPLACE_ADD, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.LOAD_CONST, 3),
+            (op.opcode.RETURN_VALUE, 0),
+        ]
+        code = self.compile_helper(
+            "", bytecodes, consts=(1, 2, 3, 4), names=("e", "e", "e"), stacksize=10
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "Stack depth -1 dips below minimum of 0 for operation STORE_NAME @ offset 20",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_stack_depth_should_not_exceed_max_while_looping(self):
-        bytecodes = [(op.opcode.LOAD_CONST, 0), (op.opcode.UNPACK_SEQUENCE, 2), (op.opcode.STORE_NAME, 0), \
-        (op.opcode.STORE_NAME, 1), (op.opcode.LOAD_NAME, 0), (op.opcode.POP_JUMP_IF_FALSE, 22), \
-        (op.opcode.LOAD_NAME, 1), (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 1), \
-        (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 1), (op.opcode.POP_TOP, 0), \
-        (op.opcode.INPLACE_ADD, 0), (op.opcode.STORE_NAME, 1), (op.opcode.JUMP_FORWARD, 8), \
-        (op.opcode.LOAD_NAME, 1), (op.opcode.LOAD_CONST, 2), (op.opcode.INPLACE_ADD, 0), \
-        (op.opcode.STORE_NAME, 1), (op.opcode.LOAD_CONST, 3), (op.opcode.RETURN_VALUE, 0)]
-        code = self.compile_helper("", bytecodes, consts = (1, 2, 3, 4), names = ("e", "e", "e"))
-        self.assertRaisesRegex(VerificationError, "Stack depth 2 exceeds maximum of 1 for operation UNPACK_SEQUENCE @ offset 2", Verifier.validate_code, code)
+        bytecodes = [
+            (op.opcode.LOAD_CONST, 0),
+            (op.opcode.UNPACK_SEQUENCE, 2),
+            (op.opcode.STORE_NAME, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.LOAD_NAME, 0),
+            (op.opcode.POP_JUMP_IF_FALSE, 22),
+            (op.opcode.LOAD_NAME, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.LOAD_CONST, 1),
+            (op.opcode.POP_TOP, 0),
+            (op.opcode.INPLACE_ADD, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.JUMP_FORWARD, 8),
+            (op.opcode.LOAD_NAME, 1),
+            (op.opcode.LOAD_CONST, 2),
+            (op.opcode.INPLACE_ADD, 0),
+            (op.opcode.STORE_NAME, 1),
+            (op.opcode.LOAD_CONST, 3),
+            (op.opcode.RETURN_VALUE, 0),
+        ]
+        code = self.compile_helper(
+            "", bytecodes, consts=(1, 2, 3, 4), names=("e", "e", "e")
+        )
+        self.assertRaisesRegex(
+            VerificationError,
+            "Stack depth 2 exceeds maximum of 1 for operation UNPACK_SEQUENCE @ offset 2",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_branch_with_nested_conditions(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         x, y, arr = 0, 0, []
         if x:
           y = 5 if x > 3 else 3
         else:
           arr.append(x)
-        arr.append(y)""")
+        arr.append(y)"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_nested_loop(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         x, arr = 0, []
         for i in range(10):
           for j in range(12):
             x+=3
-            arr.append(x)""")
+            arr.append(x)"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_while_loop_with_multiple_conditions(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         i, stack = 0, [1, 2, 3, 4]
         while stack and i < 10:
           stack.pop()
-          i+=3""")
+          i+=3"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_recursive_function_maintains_stack_depth(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 7
         def f(x):
           if x == 0:
@@ -466,24 +641,28 @@ class VerifierStackDepthTests(VerifierTests):
           if x == 1:
             return 1
           return f(x-1) + f(x-2)
-        print(f(y))""")
+        print(f(y))"""
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_try_except_maintains_stack_depth(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 9
         a = 3
         try:
             c = y+a
         except:
             raise
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_try_except_else_finally_maintains_stack_depth(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 9
         a = "b"
         try:
@@ -494,12 +673,14 @@ class VerifierStackDepthTests(VerifierTests):
             y+=1
         finally:
             y+=3
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_try_except_not_handled_by_except(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         y = 9
         a = "b"
         try:
@@ -508,12 +689,14 @@ class VerifierStackDepthTests(VerifierTests):
             raise
         finally:
             y+=3
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_try_except_with_continue_statement_in_try(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         for i in range(10):
             x = 0
             z = 2
@@ -524,13 +707,14 @@ class VerifierStackDepthTests(VerifierTests):
                 raise
             finally:
                 x+=1
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
-
     def test_try_except_with_break_statement_in_finally(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         for i in range(10):
             x = 0
             z = 2
@@ -541,12 +725,14 @@ class VerifierStackDepthTests(VerifierTests):
                 raise
             finally:
                 break
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
     def test_try_except_with_return_statements(self):
-        source = cleandoc("""
+        source = cleandoc(
+            """
         def f(x, y):
             try:
                 x += y
@@ -555,7 +741,8 @@ class VerifierStackDepthTests(VerifierTests):
                 raise
             finally:
                 return y
-        """)
+        """
+        )
         code = self.compile_helper(source)
         self.assertTrue(Verifier.validate_code(code))
 
@@ -572,7 +759,14 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_LOAD_CONST_oparg_type_can_be_any_object(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 2)], consts=(3, None, "hello"), stacksize=4
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 1),
+                (op.opcode.LOAD_CONST, 2),
+            ],
+            consts=(3, None, "hello"),
+            stacksize=4,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -610,8 +804,8 @@ class VerifierOpArgTests(VerifierTests):
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation LOAD_CLASS @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_LOAD_CLASS_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -647,8 +841,8 @@ class VerifierOpArgTests(VerifierTests):
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation LOAD_FIELD @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_LOAD_FIELD_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -666,26 +860,49 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_FIELD_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 1), (op.opcode.STORE_FIELD, 1)], consts=(3, (1, 3)), stacksize=4
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 1),
+                (op.opcode.STORE_FIELD, 1),
+            ],
+            consts=(3, (1, 3)),
+            stacksize=4,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_FIELD_oparg_type_can_be_any_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 2), (op.opcode.STORE_FIELD, 3)], consts=(3, 2, 1, tuple()), stacksize=4
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 1),
+                (op.opcode.LOAD_CONST, 2),
+                (op.opcode.STORE_FIELD, 3),
+            ],
+            consts=(3, 2, 1, tuple()),
+            stacksize=4,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_FIELD_oparg_type_cannot_be_non_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.LOAD_CONST, 1), (op.opcode.LOAD_CONST, 2), (op.opcode.STORE_FIELD, 3)], consts=(3, 2, 1, object()), stacksize=4
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_CONST, 0),
+                (op.opcode.LOAD_CONST, 1),
+                (op.opcode.LOAD_CONST, 2),
+                (op.opcode.STORE_FIELD, 3),
+            ],
+            consts=(3, 2, 1, object()),
+            stacksize=4,
         )
         self.assertRaisesRegex(
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation STORE_FIELD @ offset 6",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_STORE_FIELD_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -721,8 +938,8 @@ class VerifierOpArgTests(VerifierTests):
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation CAST @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_CAST_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -752,14 +969,17 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_PRIMITIVE_BOX_oparg_type_cannot_be_non_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_BOX, 0)], consts=(object(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_BOX, 0)],
+            consts=(object(),),
+            stacksize=1,
         )
         self.assertRaisesRegex(
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation PRIMITIVE_BOX @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_PRIMITIVE_BOX_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -777,26 +997,35 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_PRIMITIVE_UNBOX_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)], consts=((1, 3),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)],
+            consts=((1, 3),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_PRIMITIVE_UNBOX_oparg_type_can_be_any_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)], consts=(tuple(),), stacksize=4
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)],
+            consts=(tuple(),),
+            stacksize=4,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_PRIMITIVE_UNBOX_oparg_type_cannot_be_non_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)], consts=(object(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_UNBOX, 0)],
+            consts=(object(),),
+            stacksize=1,
         )
         self.assertRaisesRegex(
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation PRIMITIVE_UNBOX @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_PRIMITIVE_UNBOX_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -832,8 +1061,8 @@ class VerifierOpArgTests(VerifierTests):
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation TP_ALLOC @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_TP_ALLOC_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -869,8 +1098,8 @@ class VerifierOpArgTests(VerifierTests):
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation CHECK_ARGS @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_CHECK_ARGS_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -888,21 +1117,35 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_PRIMITIVE_LOAD_CONST_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)], consts=(3,), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)],
+            consts=(3,),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_PRIMITIVE_LOAD_CONST_oparg_type_can_be_any_int(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)], consts=(1,), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)],
+            consts=(1,),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_PRIMITIVE_LOAD_CONST_oparg_type_cannot_be_non_int(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)], consts=("h",), stacksize=1
+            "",
+            bytecodes=[(op.opcode.PRIMITIVE_LOAD_CONST, 0)],
+            consts=("h",),
+            stacksize=1,
         )
-        self.assertRaisesRegex(VerificationError, "Incorrect oparg type of str, expected int for operation PRIMITIVE_LOAD_CONST @ offset 0", Verifier.validate_code, code)
+        self.assertRaisesRegex(
+            VerificationError,
+            "Incorrect oparg type of str, expected int for operation PRIMITIVE_LOAD_CONST @ offset 0",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_PRIMITIVE_LOAD_CONST_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -920,13 +1163,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_REFINE_TYPE_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.REFINE_TYPE, 0)], consts=(('a', 'b'),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.REFINE_TYPE, 0)],
+            consts=(("a", "b"),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_REFINE_TYPE_oparg_type_can_be_any_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.REFINE_TYPE, 0)], consts=(('s', 'str', 's'),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.REFINE_TYPE, 0)],
+            consts=(("s", "str", "s"),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -934,7 +1183,12 @@ class VerifierOpArgTests(VerifierTests):
         code = self.compile_helper(
             "", bytecodes=[(op.opcode.REFINE_TYPE, 0)], consts=("h",), stacksize=1
         )
-        self.assertRaisesRegex(VerificationError, "Incorrect oparg type of str, expected tuple for operation REFINE_TYPE @ offset 0", Verifier.validate_code, code)
+        self.assertRaisesRegex(
+            VerificationError,
+            "Incorrect oparg type of str, expected tuple for operation REFINE_TYPE @ offset 0",
+            Verifier.validate_code,
+            code,
+        )
 
     def test_REFINE_TYPE_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -952,26 +1206,35 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_FUNC_CREDENTIAL_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)], consts=((1, 3),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)],
+            consts=((1, 3),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_FUNC_CREDENTIAL_oparg_type_can_be_any_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)], consts=(tuple(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)],
+            consts=(tuple(),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_FUNC_CREDENTIAL_oparg_type_cannot_be_non_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)], consts=(object(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.FUNC_CREDENTIAL, 0)],
+            consts=(object(),),
+            stacksize=1,
         )
         self.assertRaisesRegex(
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation FUNC_CREDENTIAL @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_FUNC_CREDENTIAL_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -989,26 +1252,35 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_READONLY_OPERATION_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.READONLY_OPERATION, 0)], consts=((1, 2, 3),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.READONLY_OPERATION, 0)],
+            consts=((1, 2, 3),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_READONLY_OPERATION_oparg_type_can_be_any_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.READONLY_OPERATION, 0)], consts=((1, 2, 3),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.READONLY_OPERATION, 0)],
+            consts=((1, 2, 3),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_READONLY_OPERATION_oparg_type_cannot_be_non_tuple(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.READONLY_OPERATION, 0)], consts=(object(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.READONLY_OPERATION, 0)],
+            consts=(object(),),
+            stacksize=1,
         )
         self.assertRaisesRegex(
             VerificationError,
             "Incorrect oparg type of object, expected tuple for operation READONLY_OPERATION @ offset 0",
             Verifier.validate_code,
-            code
-            )
+            code,
+        )
 
     def test_READONLY_OPERATION_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper(
@@ -1052,13 +1324,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_FAST_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_FAST, 0), (op.opcode.STORE_FAST, 1)], varnames=("h", "h"), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_FAST, 0), (op.opcode.STORE_FAST, 1)],
+            varnames=("h", "h"),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_FAST_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_FAST, 0), (op.opcode.STORE_FAST, 1)], varnames=("h", str()), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_FAST, 0), (op.opcode.STORE_FAST, 1)],
+            varnames=("h", str()),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1156,13 +1434,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_GLOBAL_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_GLOBAL, 1)], names=("h", "h"), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_GLOBAL, 1)],
+            names=("h", "h"),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_GLOBAL_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_GLOBAL, 1)], names=("h", str()), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_GLOBAL, 1)],
+            names=("h", str()),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1208,13 +1492,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_NAME_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_NAME, 1)], names=("h", "h"), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_NAME, 1)],
+            names=("h", "h"),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_NAME_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_NAME, 1)], names=("h", str()), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.STORE_NAME, 1)],
+            names=("h", str()),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1260,13 +1550,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_IMPORT_NAME_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.IMPORT_NAME, 1)], names=("h", "h"), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.IMPORT_NAME, 1)],
+            names=("h", "h"),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_IMPORT_NAME_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.IMPORT_NAME, 1)], names=("h", str()), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.IMPORT_NAME, 1)],
+            names=("h", str()),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1312,13 +1608,27 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_ATTR_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.LOAD_NAME, 1), (op.opcode.STORE_ATTR, 2)], names=("h", "h", "h"), stacksize=3
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_NAME, 0),
+                (op.opcode.LOAD_NAME, 1),
+                (op.opcode.STORE_ATTR, 2),
+            ],
+            names=("h", "h", "h"),
+            stacksize=3,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_ATTR_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.LOAD_NAME, 1), (op.opcode.STORE_ATTR, 2)], names=("h", "h", str()), stacksize=3
+            "",
+            bytecodes=[
+                (op.opcode.LOAD_NAME, 0),
+                (op.opcode.LOAD_NAME, 1),
+                (op.opcode.STORE_ATTR, 2),
+            ],
+            names=("h", "h", str()),
+            stacksize=3,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1364,13 +1674,19 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_DELETE_ATTR_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.DELETE_ATTR, 1)], names=("h", "h"), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.DELETE_ATTR, 1)],
+            names=("h", "h"),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_DELETE_ATTR_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.DELETE_ATTR, 1)], names=("h", str()), stacksize=2
+            "",
+            bytecodes=[(op.opcode.LOAD_NAME, 0), (op.opcode.DELETE_ATTR, 1)],
+            names=("h", str()),
+            stacksize=2,
         )
         self.assertTrue(Verifier.validate_code(code))
 
@@ -1432,7 +1748,6 @@ class VerifierOpArgTests(VerifierTests):
         )
         self.assertTrue(Verifier.validate_code(code))
 
-
     def test_LOAD_DEREF_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper("", bytecodes=[(op.opcode.LOAD_DEREF, 0)])
         self.assertRaisesRegex(
@@ -1444,22 +1759,28 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_STORE_DEREF_with_valid_oparg_index_in_freevars_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 1)], freevars=("h", "h")
+            "",
+            bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 1)],
+            freevars=("h", "h"),
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_DEREF_with_valid_oparg_index_in_closure_is_successful(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 1)], cellvars=("h", "h")
+            "",
+            bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 1)],
+            cellvars=("h", "h"),
         )
         self.assertTrue(Verifier.validate_code(code))
 
     def test_STORE_DEREF_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 0)], freevars=(str(), str()), stacksize=1
+            "",
+            bytecodes=[(op.opcode.LOAD_DEREF, 0), (op.opcode.STORE_DEREF, 0)],
+            freevars=(str(), str()),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
-
 
     def test_STORE_DEREF_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper("", bytecodes=[(op.opcode.STORE_DEREF, 0)])
@@ -1488,7 +1809,6 @@ class VerifierOpArgTests(VerifierTests):
         )
         self.assertTrue(Verifier.validate_code(code))
 
-
     def test_DELETE_DEREF_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper("", bytecodes=[(op.opcode.DELETE_DEREF, 0)])
         self.assertRaisesRegex(
@@ -1512,10 +1832,12 @@ class VerifierOpArgTests(VerifierTests):
 
     def test_LOAD_CLASSDEREF_oparg_type_can_be_any_str(self):
         code = self.compile_helper(
-            "", bytecodes=[(op.opcode.LOAD_CLASSDEREF, 0)], freevars=(str(),), stacksize=1
+            "",
+            bytecodes=[(op.opcode.LOAD_CLASSDEREF, 0)],
+            freevars=(str(),),
+            stacksize=1,
         )
         self.assertTrue(Verifier.validate_code(code))
-
 
     def test_LOAD_CLASSDEREF_with_invalid_oparg_index_raises_exception(self):
         code = self.compile_helper("", bytecodes=[(op.opcode.LOAD_CLASSDEREF, 0)])
@@ -1570,6 +1892,7 @@ class VerifierOpArgTests(VerifierTests):
             Verifier.validate_code,
             code,
         )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ from typing import Dict, Iterator, List, Optional
 
 CODEUNIT_SIZE = 2
 
+
 class BytecodeOp:
     def __init__(self, op: int, arg: int, idx: int, name: str) -> None:
         self.op = op
@@ -30,7 +31,7 @@ class BytecodeOp:
             opcodes.opcode.RETURN_VALUE,
             opcodes.opcode.RAISE_VARARGS,
             opcodes.opcode.JUMP_ABSOLUTE,
-            opcodes.opcode.JUMP_FORWARD
+            opcodes.opcode.JUMP_FORWARD,
         }
 
     def is_relative_branch(self) -> bool:
@@ -56,6 +57,7 @@ class BytecodeOp:
     def jump_target_idx(self) -> int:
         return self.jump_target() // CODEUNIT_SIZE
 
+
 class Block:
     def __init__(self, id: int, bytecodes: List[BytecodeOp]) -> None:
         self.id: int = id
@@ -66,6 +68,7 @@ class Block:
 
     def __str__(self) -> str:
         return f"ID: {self.id}, Slice: {self.bytecode}, startDepth: {self.start_depth}"
+
 
 class BlockMap:
     def __init__(self) -> None:

@@ -9,6 +9,7 @@ from cfgutil import Block, BlockMap, BytecodeOp
 
 CODEUNIT_SIZE = 2
 
+
 class VerificationError(Exception):
     def __init__(self, reason: str, bytecode_op: BytecodeOp = None):
         super().__init__(reason, bytecode_op)
@@ -114,15 +115,24 @@ class Verifier:
             last_instr = i.bytecode[-1]
             if last_instr.is_branch():
                 i.jump_to = block_map.idx_to_block[last_instr.jump_target_idx()]
-            if last_instr.next_instr_idx() in block_map.idx_to_block and not last_instr.is_uncond_transfer():
+            if (
+                last_instr.next_instr_idx() in block_map.idx_to_block
+                and not last_instr.is_uncond_transfer()
+            ):
                 i.fall_through = block_map.idx_to_block[last_instr.next_instr_idx()]
 
     @staticmethod
-    def assert_depth_within_bounds(depth: int, min_: int = 0, max_ : int = inf, op : BytecodeOp = None):
+    def assert_depth_within_bounds(
+        depth: int, min_: int = 0, max_: int = inf, op: BytecodeOp = None
+    ):
         if not min_ <= depth:
-            raise VerificationError(f"Stack depth {depth} dips below minimum of {min_}", op)
+            raise VerificationError(
+                f"Stack depth {depth} dips below minimum of {min_}", op
+            )
         if not max_ >= depth:
-            raise VerificationError(f"Stack depth {depth} exceeds maximum of {max_}", op)
+            raise VerificationError(
+                f"Stack depth {depth} exceeds maximum of {max_}", op
+            )
 
     @staticmethod
     def push_block(worklist: List[Block], block: Block, depth: int) -> bool:
@@ -157,9 +167,7 @@ class Verifier:
                 Verifier.push_block(worklist, block.fall_through, depth)
 
     @staticmethod
-    def get_stack_effect(
-        source: types.CodeType, op: BytecodeOp, jump: bool
-    ) -> int:
+    def get_stack_effect(source: types.CodeType, op: BytecodeOp, jump: bool) -> int:
         # returns the stack effect for a particular operation
         effect = opcodes.opcode.stack_effects.get(op.name)
         if isinstance(effect, int):
@@ -208,8 +216,7 @@ class Verifier:
 
     @staticmethod
     def check_oparg_location(
-        oparg_location: Union[List, Tuple],
-        op: BytecodeOp
+        oparg_location: Union[List, Tuple], op: BytecodeOp
     ) -> None:
         if type(oparg_location) == tuple:
             Verifier.check_oparg_index_and_type(oparg_location, op)
@@ -217,36 +224,38 @@ class Verifier:
             Verifier.check_oparg_index_and_type_deref_case(oparg_location, op)
 
     @staticmethod
-    def check_oparg_index_and_type(
-        oparg_location: tuple,
-        op: BytecodeOp
-    ) -> None:
+    def check_oparg_index_and_type(oparg_location: tuple, op: BytecodeOp) -> None:
         expected_type = Verifier.resolve_expected_oparg_type(op.op)
         if not 0 <= op.arg < len(oparg_location):
-            raise VerificationError(f"Argument index {op.arg} out of bounds for size {len(oparg_location)}", op)
-        if not isinstance(
-            oparg_location[op.arg], expected_type
-        ):
-            raise VerificationError(f"Incorrect oparg type of {type(oparg_location[op.arg]).__name__}, expected {expected_type.__name__}", op)
+            raise VerificationError(
+                f"Argument index {op.arg} out of bounds for size {len(oparg_location)}",
+                op,
+            )
+        if not isinstance(oparg_location[op.arg], expected_type):
+            raise VerificationError(
+                f"Incorrect oparg type of {type(oparg_location[op.arg]).__name__}, expected {expected_type.__name__}",
+                op,
+            )
 
     @staticmethod
     def check_oparg_index_and_type_deref_case(
-        oparg_locations: list,
-        op: BytecodeOp
+        oparg_locations: list, op: BytecodeOp
     ) -> None:
         expected_type = Verifier.resolve_expected_oparg_type(op.op)
         freevars = oparg_locations[0]
         closure = oparg_locations[1]
         if not 0 <= op.arg < len(freevars) and not 0 <= op.arg < len(closure):
-            raise VerificationError(f"Argument index {op.arg} out of bounds for size {len(closure)}", op)
+            raise VerificationError(
+                f"Argument index {op.arg} out of bounds for size {len(closure)}", op
+            )
         if not (
-            0 <= op.arg < len(freevars)
-            and isinstance(freevars[op.arg], expected_type)
+            0 <= op.arg < len(freevars) and isinstance(freevars[op.arg], expected_type)
         ) and not (
-            0 <= op.arg < len(closure)
-            and isinstance(closure[op.arg], expected_type)
+            0 <= op.arg < len(closure) and isinstance(closure[op.arg], expected_type)
         ):
-            raise VerificationError(f"Incorrect oparg type, expected {expected_type.__name__}", op)
+            raise VerificationError(
+                f"Incorrect oparg type, expected {expected_type.__name__}", op
+            )
 
     INSTRS_WITH_OPARG_IN_CONSTS = {
         opcodes.opcode.LOAD_CONST,
