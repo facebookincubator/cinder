@@ -1,14 +1,26 @@
 import dis
 import types
-from compiler import compile, opcodes
-from typing import List
+from compiler import compile
+from compiler import opcode_static as opcodes
+from math import inf
+from typing import List, Tuple, Union
 
 from cfgutil import Block, BlockMap, BytecodeOp
 
 CODEUNIT_SIZE = 2
 
 class VerificationError(Exception):
-    pass
+    def __init__(self, reason: str, bytecode_op: BytecodeOp = None):
+        super().__init__(reason, bytecode_op)
+        self.reason = reason
+        self.bytecode_op = bytecode_op
+
+    def __str__(self):
+        if self.bytecode_op is not None:
+            return f"{self.reason} for operation {self.bytecode_op.name} @ offset {self.bytecode_op.idx * CODEUNIT_SIZE}"
+        else:
+            return f"{self.reason}"
+
 
 class Verifier:
     @staticmethod
@@ -25,21 +37,20 @@ class Verifier:
     @staticmethod
     def visit_code(source: types.CodeType) -> None:
         bytecode = source.co_code
-        Verifier.check_length_and_first_index(bytecode)
+        Verifier.check_length(bytecode)
         bytecode_list = Verifier.parse_bytecode(bytecode)
+        Verifier.check_opargs(source, bytecode_list)
         block_map = Verifier.create_blocks(bytecode_list)
         Verifier.add_successors(block_map)
         Verifier.check_stack_depth(source, block_map.idx_to_block[0])
 
     @staticmethod
-    def check_length_and_first_index(bytecode: bytes) -> None:
-        # length cannot be zero or odd, value at first index must be 0
+    def check_length(bytecode: bytes) -> None:
+        # length cannot be zero or odd
         if len(bytecode) <= 0:
             raise VerificationError("Bytecode length cannot be zero or negative")
         if len(bytecode) % CODEUNIT_SIZE != 0:
             raise VerificationError("Bytecode length cannot be odd")
-        if bytecode[1] != 0:
-            raise VerificationError("Bytecode value at first index must be zero")
 
     @staticmethod
     def parse_bytecode(bytecode: bytes) -> List[BytecodeOp]:
@@ -48,19 +59,26 @@ class Verifier:
         result = [None] * num_instrs
         i, idx = 0, 0
         while i < len(bytecode):
+            op = bytecode[i]
             try:
-                name = dis.opname[bytecode[i]]
-                if name[0] == "<":
-                    # if the opcode doesn't bind to a legitimate instruction, it will just be the number inside "<>"
-                    raise VerificationError("Operation does not exist")
-                result[idx] = BytecodeOp(bytecode[i], bytecode[i+1], idx, name)
-                if result[idx].is_branch() and (result[idx].jump_target_idx() >= num_instrs or result[idx].jump_target() % 2 != 0):
-                    raise VerificationError("Can not jump out of bounds or to odd index")
-                i += CODEUNIT_SIZE
-                idx += 1
+                name = dis.opname[op]
             except IndexError:
-                # indexerror if op index does not exist in dis.opname
-                raise VerificationError("Operation does not exist")
+                raise VerificationError(f"Operation {op} at offset {i} out of bounds")
+            if name[0] == "<":
+                # if the opcode doesn't bind to a legitimate instruction, it will just be the number inside "<>"
+                raise VerificationError(f"Operation {op} at offset {i} does not exist")
+            result[idx] = BytecodeOp(op, bytecode[i + 1], idx, name)
+            if result[idx].is_branch():
+                if result[idx].jump_target_idx() >= num_instrs:
+                    raise VerificationError(
+                        f"Operation {name} can not jump out of bounds"
+                    )
+                if result[idx].jump_target() % CODEUNIT_SIZE != 0:
+                    raise VerificationError(
+                        f"Operation {name} can not jump in the middle of an instruction"
+                    )
+            i += CODEUNIT_SIZE
+            idx += 1
         return result
 
     @staticmethod
@@ -100,6 +118,13 @@ class Verifier:
                 i.fall_through = block_map.idx_to_block[last_instr.next_instr_idx()]
 
     @staticmethod
+    def assert_depth_within_bounds(depth: int, min_: int = 0, max_ : int = inf, op : BytecodeOp = None):
+        if not min_ <= depth:
+            raise VerificationError(f"Stack depth {depth} dips below minimum of {min_}", op)
+        if not max_ >= depth:
+            raise VerificationError(f"Stack depth {depth} exceeds maximum of {max_}", op)
+
+    @staticmethod
     def push_block(worklist: List[Block], block: Block, depth: int) -> bool:
         # push_block ensures that we only ever re-analyze a block if we visit it when the stack depth has increased
         # this way loops can be analyzed properly
@@ -119,28 +144,204 @@ class Verifier:
         while worklist:
             block = worklist.pop()
             depth = block.start_depth
-            if depth < 0:
-                raise VerificationError("Stack depth either dips below zero or goes above max size")
             for op in block.bytecode:
-                if depth < 0 or depth > max_depth:
-                    raise VerificationError("Stack depth either dips below zero or goes above max size")
-                new_depth = depth + Verifier.get_stack_effect(op.name, op.arg, False)
+                Verifier.assert_depth_within_bounds(depth, 0, max_depth, op)
+                new_depth = depth + Verifier.get_stack_effect(source, op, False)
                 if op.is_branch():
-                    target_depth = depth + Verifier.get_stack_effect(op.name, op.arg, True)
-                    if target_depth < 0 or target_depth > max_depth:
-                        raise VerificationError("Stack depth either dips below zero or goes above max size")
+                    target_depth = depth + Verifier.get_stack_effect(source, op, True)
+                    Verifier.assert_depth_within_bounds(target_depth, 0, max_depth, op)
                     Verifier.push_block(worklist, block.jump_to, target_depth)
                 depth = new_depth
-                if depth < 0 or depth > max_depth:
-                    raise VerificationError("Stack depth either dips below zero or goes above max size")
+                Verifier.assert_depth_within_bounds(depth, 0, max_depth, op)
             if block.fall_through:
                 Verifier.push_block(worklist, block.fall_through, depth)
 
     @staticmethod
-    def get_stack_effect(opname: str, oparg: int, jump: bool) -> int:
+    def get_stack_effect(
+        source: types.CodeType, op: BytecodeOp, jump: bool
+    ) -> int:
         # returns the stack effect for a particular operation
-        effect = opcodes.opcode.stack_effects.get(opname)
+        effect = opcodes.opcode.stack_effects.get(op.name)
         if isinstance(effect, int):
             return effect
         else:
-            return effect(oparg, jump)
+            # if real oparg is stored in one of the code object's tuples, use that instead
+            oparg_location = Verifier.resolve_oparg_location(source, op.op)
+            if oparg_location is not None:
+                return effect(oparg_location[op.arg], jump)
+            return effect(op.arg, jump)
+
+    @staticmethod
+    def check_opargs(source: types.CodeType, ops: List[BytecodeOp]) -> None:
+        for op in ops:
+            oparg_location = Verifier.resolve_oparg_location(source, op.op)
+            if oparg_location is not None:
+                Verifier.check_oparg_location(oparg_location, op)
+
+    @staticmethod
+    def resolve_oparg_location(source: types.CodeType, op: int) -> Union[List, Tuple]:
+        if op in Verifier.INSTRS_WITH_OPARG_IN_CONSTS:
+            return source.co_consts
+        elif op in Verifier.INSTRS_WITH_OPARG_IN_VARNAMES:
+            return source.co_varnames
+        elif op in Verifier.INSTRS_WITH_OPARG_IN_NAMES:
+            return source.co_names
+        elif op in Verifier.DEREF_INSTRS:
+            return [source.co_freevars, source.co_cellvars + source.co_freevars]
+        elif op == opcodes.opcode.LOAD_CLOSURE:
+            return source.co_cellvars + source.co_freevars
+        elif op == opcodes.opcode.COMPARE_OP:
+            return opcodes.opcode.CMP_OP
+        return None
+
+    @staticmethod
+    def resolve_expected_oparg_type(op: int) -> type:
+        if op == opcodes.opcode.LOAD_CONST:
+            return object
+        elif op == opcodes.opcode.PRIMITIVE_LOAD_CONST:
+            return int
+        elif op in Verifier.INSTRS_WITH_OPARG_TYPE_STRING:
+            return str
+        elif op in Verifier.INSTRS_WITH_OPARG_TYPE_TUPLE:
+            return tuple
+        return None
+
+    @staticmethod
+    def check_oparg_location(
+        oparg_location: Union[List, Tuple],
+        op: BytecodeOp
+    ) -> None:
+        if type(oparg_location) == tuple:
+            Verifier.check_oparg_index_and_type(oparg_location, op)
+        else:  # deref case which has to check both freevars and closure (cellvars + freevars)
+            Verifier.check_oparg_index_and_type_deref_case(oparg_location, op)
+
+    @staticmethod
+    def check_oparg_index_and_type(
+        oparg_location: tuple,
+        op: BytecodeOp
+    ) -> None:
+        expected_type = Verifier.resolve_expected_oparg_type(op.op)
+        if not 0 <= op.arg < len(oparg_location):
+            raise VerificationError(f"Argument index {op.arg} out of bounds for size {len(oparg_location)}", op)
+        if not isinstance(
+            oparg_location[op.arg], expected_type
+        ):
+            raise VerificationError(f"Incorrect oparg type of {type(oparg_location[op.arg]).__name__}, expected {expected_type.__name__}", op)
+
+    @staticmethod
+    def check_oparg_index_and_type_deref_case(
+        oparg_locations: list,
+        op: BytecodeOp
+    ) -> None:
+        expected_type = Verifier.resolve_expected_oparg_type(op.op)
+        freevars = oparg_locations[0]
+        closure = oparg_locations[1]
+        if not 0 <= op.arg < len(freevars) and not 0 <= op.arg < len(closure):
+            raise VerificationError(f"Argument index {op.arg} out of bounds for size {len(closure)}", op)
+        if not (
+            0 <= op.arg < len(freevars)
+            and isinstance(freevars[op.arg], expected_type)
+        ) and not (
+            0 <= op.arg < len(closure)
+            and isinstance(closure[op.arg], expected_type)
+        ):
+            raise VerificationError(f"Incorrect oparg type, expected {expected_type.__name__}", op)
+
+    INSTRS_WITH_OPARG_IN_CONSTS = {
+        opcodes.opcode.LOAD_CONST,
+        opcodes.opcode.LOAD_CLASS,
+        opcodes.opcode.INVOKE_FUNCTION,
+        opcodes.opcode.INVOKE_METHOD,
+        opcodes.opcode.LOAD_FIELD,
+        opcodes.opcode.STORE_FIELD,
+        opcodes.opcode.CAST,
+        opcodes.opcode.PRIMITIVE_BOX,
+        opcodes.opcode.PRIMITIVE_UNBOX,
+        opcodes.opcode.TP_ALLOC,
+        opcodes.opcode.CHECK_ARGS,
+        opcodes.opcode.BUILD_CHECKED_MAP,
+        opcodes.opcode.BUILD_CHECKED_LIST,
+        opcodes.opcode.PRIMITIVE_LOAD_CONST,
+        opcodes.opcode.LOAD_LOCAL,
+        opcodes.opcode.STORE_LOCAL,
+        opcodes.opcode.REFINE_TYPE,
+        opcodes.opcode.LOAD_METHOD_SUPER,
+        opcodes.opcode.LOAD_ATTR_SUPER,
+        opcodes.opcode.FUNC_CREDENTIAL,
+        opcodes.opcode.READONLY_OPERATION,
+    }
+
+    INSTRS_WITH_OPARG_IN_VARNAMES = {
+        opcodes.opcode.LOAD_FAST,
+        opcodes.opcode.STORE_FAST,
+        opcodes.opcode.DELETE_FAST,
+    }
+
+    INSTRS_WITH_OPARG_IN_NAMES = {
+        opcodes.opcode.LOAD_NAME,
+        opcodes.opcode.LOAD_GLOBAL,
+        opcodes.opcode.STORE_GLOBAL,
+        opcodes.opcode.DELETE_GLOBAL,
+        opcodes.opcode.STORE_NAME,
+        opcodes.opcode.DELETE_NAME,
+        opcodes.opcode.IMPORT_NAME,
+        opcodes.opcode.IMPORT_FROM,
+        opcodes.opcode.STORE_ATTR,
+        opcodes.opcode.LOAD_ATTR,
+        opcodes.opcode.DELETE_ATTR,
+        opcodes.opcode.LOAD_METHOD,
+    }
+
+    DEREF_INSTRS = {
+        opcodes.opcode.LOAD_DEREF,
+        opcodes.opcode.STORE_DEREF,
+        opcodes.opcode.DELETE_DEREF,
+        opcodes.opcode.LOAD_CLASSDEREF,
+    }
+
+    INSTRS_WITH_OPARG_TYPE_STRING = {
+        opcodes.opcode.LOAD_FAST,
+        opcodes.opcode.STORE_FAST,
+        opcodes.opcode.DELETE_FAST,
+        opcodes.opcode.LOAD_NAME,
+        opcodes.opcode.LOAD_CLOSURE,
+        opcodes.opcode.COMPARE_OP,
+        opcodes.opcode.LOAD_GLOBAL,
+        opcodes.opcode.STORE_GLOBAL,
+        opcodes.opcode.DELETE_GLOBAL,
+        opcodes.opcode.STORE_NAME,
+        opcodes.opcode.DELETE_NAME,
+        opcodes.opcode.IMPORT_NAME,
+        opcodes.opcode.IMPORT_FROM,
+        opcodes.opcode.STORE_ATTR,
+        opcodes.opcode.LOAD_ATTR,
+        opcodes.opcode.DELETE_ATTR,
+        opcodes.opcode.LOAD_METHOD,
+        opcodes.opcode.LOAD_DEREF,
+        opcodes.opcode.STORE_DEREF,
+        opcodes.opcode.DELETE_DEREF,
+        opcodes.opcode.LOAD_CLASSDEREF,
+    }
+
+    INSTRS_WITH_OPARG_TYPE_TUPLE = {
+        opcodes.opcode.INVOKE_FUNCTION,
+        opcodes.opcode.INVOKE_METHOD,
+        opcodes.opcode.BUILD_CHECKED_MAP,
+        opcodes.opcode.BUILD_CHECKED_LIST,
+        opcodes.opcode.LOAD_LOCAL,
+        opcodes.opcode.STORE_LOCAL,
+        opcodes.opcode.LOAD_METHOD_SUPER,
+        opcodes.opcode.LOAD_ATTR_SUPER,
+        opcodes.opcode.READONLY_OPERATION,
+        opcodes.opcode.TP_ALLOC,
+        opcodes.opcode.CHECK_ARGS,
+        opcodes.opcode.PRIMITIVE_BOX,
+        opcodes.opcode.PRIMITIVE_UNBOX,
+        opcodes.opcode.LOAD_CLASS,
+        opcodes.opcode.LOAD_FIELD,
+        opcodes.opcode.STORE_FIELD,
+        opcodes.opcode.CAST,
+        opcodes.opcode.FUNC_CREDENTIAL,
+        opcodes.opcode.REFINE_TYPE,
+    }

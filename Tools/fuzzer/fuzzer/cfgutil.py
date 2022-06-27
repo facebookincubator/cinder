@@ -1,5 +1,5 @@
 import dis
-from compiler import opcodes
+from compiler import opcode_static as opcodes
 from typing import Dict, Iterator, List, Optional
 
 CODEUNIT_SIZE = 2
@@ -65,7 +65,7 @@ class Block:
         self.fall_through: Block = None
 
     def __str__(self) -> str:
-        return f"ID: {self.id}, Slice: {self.bytecode}, startDepth: {self.startDepth}"
+        return f"ID: {self.id}, Slice: {self.bytecode}, startDepth: {self.start_depth}"
 
 class BlockMap:
     def __init__(self) -> None:
