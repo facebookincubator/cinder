@@ -202,7 +202,7 @@ class Compiler:
             "sorted": SortedFunction(self.type_env.function),
             "staticmethod": self.type_env.static_method,
             "str": self.type_env.str.exact_type(),
-            "super": self.type_env.DYNAMIC,
+            "super": self.type_env.super,
             "tuple": self.type_env.tuple.exact_type(),
             "type": self.type_env.type.exact_type(),
             "<mutable>": IdentityDecorator(

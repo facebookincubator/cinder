@@ -530,7 +530,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if data is not None and not data.is_source:
             self.emit("LOAD_FAST", data.name)
             return
-        if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
+        if (
+            isinstance(node.ctx, ast.Load)
+            and self._is_super_call(node.value)
+            and self.get_type(node.value) is self.compiler.type_env.DYNAMIC
+        ):
             self.emit("LOAD_GLOBAL", "super")
             load_arg = self._emit_args_for_super(node.value, node.attr)
             self.emit("LOAD_ATTR_SUPER", load_arg)

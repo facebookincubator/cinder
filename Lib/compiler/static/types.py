@@ -337,6 +337,7 @@ class TypeEnvironment:
             TypeName("types", "MemberDescriptorType"), self, is_exact=True
         )
         self.slice = Class(TypeName("builtins", "slice"), self, is_exact=True)
+        self.super = SuperClass(self, is_exact=True)
         self.char = CIntType(TYPED_INT8, self, name_override="char")
         self.module = ModuleType(self)
         self.double = CDoubleType(self)
@@ -7185,6 +7186,71 @@ class FrozenSetClass(Class):
 
     def _create_readonly_type(self) -> Class:
         return type(self)(self.type_env, is_exact=self.is_exact, is_readonly=True)
+
+
+class SuperClass(Class):
+    def __init__(self, type_env: TypeEnvironment, is_exact: bool = True) -> None:
+        super().__init__(
+            type_name=TypeName("builtins", "super"),
+            type_env=type_env,
+            instance=SuperInstance(self),
+            is_exact=is_exact,
+            pytype=super,
+        )
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        super().bind_call(node, visitor, type_ctx)
+        if len(node.args):
+            visitor.set_type(node, visitor.type_env.DYNAMIC)
+        else:
+            visitor.set_type(node, self.instance)
+        return NO_EFFECT
+
+
+class SuperInstance(Object[SuperClass]):
+    def bind_attr(
+        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> None:
+        klass = visitor.maybe_get_current_enclosing_class()
+        if klass is not None and not isinstance(klass, DynamicClass):
+            for base in klass.mro[1:]:
+                if isinstance(base, DynamicClass):
+                    break
+                member = base.members.get(node.attr)
+                if isinstance(member, Function):
+                    # Injecting an AST node here to represent the method that
+                    # we are puling in from the parent class to replace the
+                    # call to super
+                    load = ast.Name(member.args[0].name, ast.Load())
+                    copy_location(load, node.value)
+                    method_type = SuperMethodType(base, load, member)
+                    visitor.set_type(node, method_type)
+                    return
+        super().bind_attr(node, visitor, type_ctx)
+        visitor.set_type(node, visitor.type_env.DYNAMIC)
+
+
+class SuperMethodType(MethodType):
+    def __init__(
+        self,
+        bound_type: Class,
+        target: ast.expr,
+        function: Function,
+    ) -> None:
+        super().__init__(bound_type.type_name, function.node, target, function)
+        self.bound_type: Class = bound_type.exact_type()
+
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        # In order to statically set the type, we must create a specialized
+        # MethodType such that we can explicitly set the type to an exact type
+        # instance after the general bind_call logic
+        result = super().bind_call(node, visitor, type_ctx)
+        visitor.set_type(self.target, self.bound_type.instance)
+        return result
 
 
 class SetClass(Class):

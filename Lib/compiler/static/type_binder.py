@@ -355,6 +355,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             assert isinstance(res, Class)
             return res
 
+    def maybe_get_current_enclosing_class(self) -> Optional[Class]:
+        for scope in reversed(self.scopes):
+            node = scope.node
+            if isinstance(node, ClassDef):
+                res = self.get_type(node)
+                return res if isinstance(res, Class) else None
+
     def visit(
         self, node: Union[AST, Sequence[AST]], *args: object
     ) -> Optional[NarrowingEffect]:
