@@ -524,7 +524,8 @@ Type outputType(
     }
 
     case Opcode::kGuardIs: {
-      return Type::fromObject(static_cast<const GuardIs&>(instr).target());
+      auto type = Type::fromObject(static_cast<const GuardIs&>(instr).target());
+      return get_op_type(0) & type;
     }
 
     case Opcode::kCast: {
