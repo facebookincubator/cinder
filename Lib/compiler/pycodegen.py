@@ -724,6 +724,7 @@ class CodeGenerator(ASTVisitor):
         self.setups.pop()
 
         self.nextBlock(except_)
+        self.set_lineno(node)
         self.emit("END_ASYNC_FOR")
         if node.orelse:
             self.visit(node.orelse)
@@ -1318,6 +1319,8 @@ class CodeGenerator(ASTVisitor):
         self.emit("CALL_FUNCTION", 3)
 
     def visitWith_(self, node, kind, pos=0):
+        self.set_lineno(node)
+
         item = node.items[pos]
 
         block = self.newBlock("with_block")
@@ -1348,6 +1351,7 @@ class CodeGenerator(ASTVisitor):
         self.setups.pop()
         self.emit("POP_BLOCK")
 
+        self.set_lineno(node)
         self.call_exit_with_nones()
 
         if kind == ASYNC_WITH:
