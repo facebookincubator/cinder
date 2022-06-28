@@ -216,6 +216,7 @@ const std::unordered_set<int> kSupportedReadonlyOperations = {
     READONLY_UNARY_INVERT,       READONLY_UNARY_NEGATIVE,
     READONLY_UNARY_POSITIVE,     READONLY_UNARY_NOT,
     READONLY_GET_ITER,           READONLY_FOR_ITER,
+    READONLY_COMPARE_OP,
 };
 
 #define NAMES(op, value) {value, #op},
