@@ -265,7 +265,7 @@ fun test {
   bb 0 {
     v0 = LoadConst<CInt16[0]>
     v1 = LoadConst<CInt8[1]>
-    v2 = PrimitiveCompareOp<LessThan> v0 v1
+    v2 = PrimitiveCompare<LessThan> v0 v1
     Deopt
   }
 }
@@ -283,7 +283,7 @@ fun test {
   bb 0 {
     v0 = LoadConst<CInt8[5]>
     v1 = LoadConst<CInt8[1]>
-    v2 = PrimitiveCompareOp<LessThan> v0 v1
+    v2 = PrimitiveCompare<LessThan> v0 v1
     Deopt
   }
 }
@@ -297,7 +297,7 @@ fun test {
   bb 0 {
     v0 = LoadArg<0>
     v1 = LoadArg<1>
-    v2 = PrimitiveCompareOp<LessThan> v0 v1
+    v2 = PrimitiveCompare<LessThan> v0 v1
     Deopt
   }
 }

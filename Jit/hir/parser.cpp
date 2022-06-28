@@ -369,7 +369,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeRepeat, dst, left, right, FrameState{});
-  } else if (strcmp(opcode, "PrimitiveCompareOp") == 0) {
+  } else if (strcmp(opcode, "PrimitiveCompare") == 0) {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
     expect(">");
