@@ -24,6 +24,10 @@ other imports. Comments can also precede the ``__strict__`` marker.
 If your module is marked as strict but violates the strict-mode rules, you
 will get detailed errors when you try to import the module.
 
+> Note: The "launcher" module (the `__main__` in Python terms) cannot be marked
+> strict, because by default, it must have one side-effect (of launching the
+> application).
+
 What are the risks?
 -------------------
 
