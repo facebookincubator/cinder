@@ -526,6 +526,8 @@ class PyFlowGraph(FlowGraph):
         self.duplicate_exits_without_lineno()
         self.trim_unused_consts()
         self.propagate_line_numbers()
+        self.firstline = self.firstline or self.first_inst_lineno or 1
+        self.guarantee_lineno_for_exits()
         self.stage = FINAL
 
     def getCode(self):
@@ -796,7 +798,7 @@ class PyFlowGraph(FlowGraph):
     def makeByteCode(self):
         assert self.stage == FLAT, self.stage
         self.lnotab = lnotab = LineAddrTable(self.opcode)
-        lnotab.setFirstLine(self.firstline or self.first_inst_lineno or 1)
+        lnotab.setFirstLine(self.firstline)
 
         prev_lineno = lnotab.prev_line
         for t in self.insts:
@@ -897,6 +899,21 @@ class PyFlowGraph(FlowGraph):
                     next_instr = target.insts[0]
                     if next_instr.lineno < 0:
                         next_instr.lineno = prev_lineno
+
+    def guarantee_lineno_for_exits(self):
+        lineno = self.firstline
+        assert lineno > 0
+        for block in self.ordered_blocks:
+            if not block.insts:
+                continue
+            last_instr = block.insts[-1]
+            if last_instr.lineno < 0:
+                if last_instr.opname == "RETURN_VALUE":
+                    for instr in block.insts:
+                        assert instr.lineno < 0
+                        instr.lineno = lineno
+            else:
+                lineno = last_instr.lineno
 
     def duplicate_exits_without_lineno(self):
         """
