@@ -381,6 +381,16 @@ Type Type::parse(Environment* env, std::string str) {
     return TBottom;
   }
 
+  if (base <= TBool) {
+    if (spec_string == "True") {
+      return Type::fromObject(Py_True);
+    }
+    if (spec_string == "False") {
+      return Type::fromObject(Py_False);
+    }
+    return TBottom;
+  }
+
   intptr_t spec_value;
   if (base <= TLong) {
     JIT_CHECK(

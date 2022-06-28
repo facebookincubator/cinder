@@ -365,6 +365,9 @@ TEST_F(HIRTypeTest, Parse) {
   EXPECT_EQ(typeParseSimple("CBool[true]"), Type::fromCBool(true));
   EXPECT_EQ(typeParseSimple("CBool[false]"), Type::fromCBool(false));
   EXPECT_EQ(typeParseSimple("CBool[banana]"), TBottom);
+  EXPECT_EQ(typeParseSimple("Bool[True]"), Type::fromObject(Py_True));
+  EXPECT_EQ(typeParseSimple("Bool[False]"), Type::fromObject(Py_False));
+  EXPECT_EQ(typeParseSimple("Bool[banana]"), TBottom);
 
   // Unknown types or unsupported specializations parse to Bottom
   EXPECT_EQ(typeParseSimple("Bootom"), TBottom);

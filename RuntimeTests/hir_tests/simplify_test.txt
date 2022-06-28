@@ -738,12 +738,12 @@ fun test {
   }
 
   bb 2 (preds 0) {
-    v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v7:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v7
   }
 
   bb 1 (preds 0) {
-    v6:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v6:MortalBool[True] = LoadConst<MortalBool[True]>
     Return v6
   }
 }
@@ -801,12 +801,12 @@ fun test {
   }
 
   bb 2 (preds 0) {
-    v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v7:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v7
   }
 
   bb 1 (preds 0) {
-    v6:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v6:MortalBool[True] = LoadConst<MortalBool[True]>
     Return v6
   }
 }
