@@ -1175,6 +1175,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode("Assign {}, {}", instr->dst(), instr->reg());
         break;
       }
+      case Opcode::kBitCast: {
+        // BitCasts are purely informative
+        break;
+      }
       case Opcode::kCondBranch:
       case Opcode::kCondBranchIterNotDone: {
         auto instr = static_cast<const CondBranchBase*>(&i);

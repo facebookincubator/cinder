@@ -33,6 +33,7 @@ std::ostream& operator<<(std::ostream& os, const RegisterSet& regs) {
 bool isPassthrough(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
+    case Opcode::kBitCast:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
     case Opcode::kCheckFreevar:

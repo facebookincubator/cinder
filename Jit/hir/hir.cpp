@@ -114,6 +114,7 @@ bool Instr::IsTerminator() const {
 bool Instr::isReplayable() const {
   switch (opcode()) {
     case Opcode::kAssign:
+    case Opcode::kBitCast:
     case Opcode::kBuildString:
     case Opcode::kCast:
     case Opcode::kCheckExc:

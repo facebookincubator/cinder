@@ -440,6 +440,8 @@ Type outputType(
     }
     case Opcode::kAssign:
       return get_op_type(0);
+    case Opcode::kBitCast:
+      return static_cast<const BitCast&>(instr).type();
     case Opcode::kLoadConst: {
       return static_cast<const LoadConst&>(instr).type();
     }

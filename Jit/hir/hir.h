@@ -288,6 +288,7 @@ struct FrameState {
   V(BatchDecref)                       \
   V(BeginInlinedFunction)              \
   V(BinaryOp)                          \
+  V(BitCast)                           \
   V(Branch)                            \
   V(BuildSlice)                        \
   V(BuildString)                       \
@@ -3056,6 +3057,20 @@ class INSTR_CLASS(UseType, (), Operands<1>) {
 
 // Assign one register to another
 DEFINE_SIMPLE_INSTR(Assign, (TTop), HasOutput, Operands<1>);
+
+// Assign one register to another with a new type (unchecked!)
+class INSTR_CLASS(BitCast, (TTop), HasOutput, Operands<1>) {
+ public:
+  BitCast(Register* dst, Register* src, Type type)
+      : InstrT(dst, src), type_(type) {}
+
+  Type type() const {
+    return type_;
+  }
+
+ private:
+  Type type_;
+};
 
 // Load the value of an argument to the current function. Reads from implicit
 // state set up by the function prologue and must not appear after any

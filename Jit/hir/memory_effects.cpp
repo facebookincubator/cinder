@@ -29,6 +29,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     // Instructions that don't produce a borrowed reference, don't steal any
     // inputs, and don't write to heap locations that we track.
     case Opcode::kAssign:
+    case Opcode::kBitCast:
     case Opcode::kBuildSlice:
     case Opcode::kBuildString:
     case Opcode::kCast:
