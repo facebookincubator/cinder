@@ -911,7 +911,7 @@ class PyFlowGraph(FlowGraph):
         """
         # Copy all exit blocks without line number that are targets of a jump.
         append_after = {}
-        for block in self.ordered_blocks:
+        for block in reversed(self.ordered_blocks):
             if block.insts and (last := block.insts[-1]).is_jump():
                 if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
                     continue
@@ -931,7 +931,7 @@ class PyFlowGraph(FlowGraph):
                     append_after.setdefault(target, []).append(new_target)
         for after, to_append in append_after.items():
             idx = self.ordered_blocks.index(after) + 1
-            self.ordered_blocks[idx:idx] = to_append
+            self.ordered_blocks[idx:idx] = reversed(to_append)
 
     def optimizeCFG(self):
         """Optimize a well-formed CFG."""
