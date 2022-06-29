@@ -1,0 +1,13 @@
+test___static__
+test_asyncio
+test_cinder
+test_cinderjit
+test_compiler
+test_jitlist
+test_lazyimports
+test_memoize
+test_shadow_stack_walk
+test_shadowcode
+test_strictmodule
+test_grp
+test_tools

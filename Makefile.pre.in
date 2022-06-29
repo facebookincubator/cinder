@@ -1256,6 +1256,18 @@ QUICKTESTOPTS=	$(TESTOPTS) -x test_subprocess test_io test_lib2to3 \
 quicktest:	@DEF_MAKE_RULE@ platform
 		$(TESTRUNNER) $(QUICKTESTOPTS)
 
+# Exclude tests that will not pass on devservers because of environmental restrictions
+# (e.g. lack of outbound network access).
+DEV_SKIP_TESTS = $(srcdir)/Tools/scripts/devserver_skip_tests.txt
+
+# Exclude tests that depend on Cinder features that haven't been ported yet.
+CINDER_310_SKIP_TESTS = $(srcdir)/Tools/scripts/cinder_310_skip_tests.txt
+
+TESTCINDEROPTS = $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(CINDER_310_SKIP_TESTS))
+
+testcinder: @DEF_MAKE_RULE@ platform
+	$(TESTRUNNER) $(TESTCINDEROPTS)
+
 # SSL tests
 .PHONY: multisslcompile multissltest
 multisslcompile: build_all

@@ -7,3 +7,4 @@ test_ssl
 test_smtpnet
 test_urllib2net
 test_normalization
+test_unicodedata
