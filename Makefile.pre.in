@@ -1666,6 +1666,12 @@ cleantest: all
 test:		@DEF_MAKE_RULE@ platform
 		$(TESTRUNNER) $(TESTOPTS)
 
+# Run the basic set of regression tests with Lazy Imports.
+# The covered tests is the same as `make test`.
+TESTRUNNERLZ= $(TESTPYTHON) -L $(srcdir)/Tools/scripts/run_tests.py
+test_with_lazy_imports: all platform
+	$(TESTRUNNERLZ) $(TESTOPTS)
+
 # Run the full test suite twice - once without .pyc files, and once with.
 # In the past, we've had problems where bugs in the marshalling or
 # elsewhere caused bytecode read from .pyc files to behave differently

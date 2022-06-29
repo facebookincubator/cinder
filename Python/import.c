@@ -2792,6 +2792,15 @@ _imp_set_lazy_imports_impl(PyObject *module)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+_imp_is_lazy_imports_enabled_impl(PyObject *module)
+{
+    if (_PyImport_IsLazyImportsEnabled()) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 
 PyDoc_STRVAR(doc_imp,
 "(Extremely) low-level import machinery bits as used by importlib and imp.");
@@ -2817,6 +2826,7 @@ static PyMethodDef imp_methods[] = {
     _IMP_SOURCE_HASH_METHODDEF
     _IMP_IS_LAZY_IMPORT_METHODDEF
     _IMP_SET_LAZY_IMPORTS_METHODDEF
+    _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 

@@ -76,6 +76,15 @@ def set_lazy_imports():
     _imp.set_lazy_imports()
 
 
+def is_lazy_imports_enabled():
+    """Check if Lazy Imports is enabled
+
+    Return true if Lazy Imports is enabled.
+    Return false if Lazy Imports is not enabled.
+    """
+    return _imp.is_lazy_imports_enabled()
+
+
 class eager_imports:
     def __enter__(self):
         pass

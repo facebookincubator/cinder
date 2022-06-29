@@ -623,6 +623,25 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_imp_is_lazy_imports_enabled__doc__,
+"is_lazy_imports_enabled($module, /)\n"
+"--\n"
+"\n"
+"Check lazy imports is enabled or not.");
+
+#define _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF    \
+    {"is_lazy_imports_enabled", (PyCFunction)_imp_is_lazy_imports_enabled, METH_NOARGS, _imp_is_lazy_imports_enabled__doc__},
+
+static PyObject *
+_imp_is_lazy_imports_enabled_impl(PyObject *module);
+
+static PyObject *
+_imp_is_lazy_imports_enabled(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _imp_is_lazy_imports_enabled_impl(module);
+}
+
+
 #ifndef _IMP_CREATE_DYNAMIC_METHODDEF
     #define _IMP_CREATE_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_CREATE_DYNAMIC_METHODDEF) */
