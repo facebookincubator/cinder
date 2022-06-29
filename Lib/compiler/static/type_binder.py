@@ -187,7 +187,6 @@ class ModuleBindingScope(BindingScope):
         if is_inferred:
             typ = typ.nonliteral().inexact()
             is_inferred = False
-        self.module.children[name] = typ
         return super().declare(name, typ, is_final=is_final, is_inferred=is_inferred)
 
 
@@ -1574,6 +1573,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.set_type(node, var_type)
         else:
             typ, descr = self.module.resolve_name_with_descr(node.id)
+            if typ is None and len(self.scopes) > 0:
+                # We might be dealing with a context decorated method, in which case we mint
+                # temporary decorator names. These won't be exposed in the module table, but
+                # will be declared at the module scope for internal use. Search it for this name.
+                decl = self.scopes[0].decl_types.get(node.id)
+                if decl is not None:
+                    typ = decl.type
             self.set_type(node, typ or self.type_env.DYNAMIC)
             if descr is not None:
                 self.set_node_data(node, TypeDescr, descr)
@@ -1710,7 +1716,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 name = alias.name
                 if name == "*":
                     self.syntax_error("from __static__ import * is disallowed", node)
-                elif name not in self.compiler.statics.children:
+                elif self.compiler.statics.get_child(name) is None:
                     self.syntax_error(f"unsupported static import {name}", node)
         # Unknown module, let's add a local dynamic type to ensure we don't try to infer too much.
         if mod_name not in self.compiler.modules:

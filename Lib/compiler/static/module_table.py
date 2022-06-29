@@ -61,6 +61,10 @@ class ModuleFlag(Enum):
     CHECKED_LISTS = 3
 
 
+class ModuleTableException(Exception):
+    pass
+
+
 class ReferenceVisitor(GenericVisitor[Optional[Value]]):
     def __init__(self, module: ModuleTable) -> None:
         super().__init__(module)
@@ -205,14 +209,15 @@ class ModuleTable:
     ) -> None:
         self.name = name
         self.filename = filename
-        self.children: Dict[str, Value | DeferredValue] = {}
+        self._children: Dict[str, Value | DeferredValue] = {}
         if members is not None:
-            self.children.update(members)
+            self._children.update(members)
         self.compiler = compiler
         self.types: Dict[AST, Value] = {}
         self.node_data: Dict[Tuple[AST, object], object] = {}
         self.flags: Set[ModuleFlag] = set()
         self.decls: List[Tuple[AST, Optional[str], Optional[Value]]] = []
+        self.implicit_decl_names: Set[str] = set()
         self.compile_non_static: Set[AST] = set()
         # (source module, source name) for every name this module imports-from
         # another static module at top level
@@ -232,9 +237,9 @@ class ModuleTable:
         ...
 
     def get_child(self, name: str, default: Optional[Value] = None) -> Optional[Value]:
-        res = self.children.get(name, default)
+        res = self._children.get(name, default)
         if isinstance(res, DeferredValue):
-            self.children[name] = res = res.resolve()
+            self._children[name] = res = res.resolve()
         return res
 
     def syntax_error(self, msg: str, node: AST) -> None:
@@ -246,11 +251,19 @@ class ModuleTable:
         return self.compiler.error_sink.error_context(self.filename, node)
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
+        if self.first_pass_done:
+            raise ModuleTableException(
+                "Attempted to declare a class after the declaration visit"
+            )
         self.decls.append((node, node.name, klass))
-        self.children[node.name] = klass
+        self._children[node.name] = klass
 
     def declare_function(self, func: Function) -> None:
-        existing = self.children.get(func.func_name)
+        if self.first_pass_done:
+            raise ModuleTableException(
+                "Attempted to declare a function after the declaration visit"
+            )
+        existing = self._children.get(func.func_name)
         new_member = func
         if existing is not None:
             if isinstance(existing, Function):
@@ -264,7 +277,7 @@ class ModuleTable:
                 )
 
         self.decls.append((func.node, func.func_name, new_member))
-        self.children[func.func_name] = new_member
+        self._children[func.func_name] = new_member
 
     def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
         if not isinstance(value, ast.Name):
@@ -282,35 +295,34 @@ class ModuleTable:
                         # We still need to maintain a name for unknown decorated methods since they
                         # will bind to some name, and we want to avoid throwing unknown name errors.
                         if isinstance(self.types[node], UnknownDecoratedMethod):
-                            self.children[name] = self.compiler.type_env.DYNAMIC
+                            self._children[name] = self.compiler.type_env.DYNAMIC
                         else:
-                            del self.children[name]
+                            del self._children[name]
                     elif new_value is not value:
-                        self.children[name] = new_value
+                        self._children[name] = new_value
 
                 if isinstance(node, ast.AnnAssign):
                     typ = self.resolve_annotation(node.annotation, is_declaration=True)
-                    is_final_dynamic = False
                     if typ is not None:
                         # Special case Final[dynamic] to use inferred type.
                         target = node.target
                         instance = typ.instance
                         value = node.value
+                        is_final_dynamic = False
                         if (
                             value is not None
                             and isinstance(typ, FinalClass)
                             and isinstance(typ.unwrap(), DynamicClass)
                         ):
                             is_final_dynamic = True
-                            instance = self._get_inferred_type(value) or instance
+                            instance = (
+                                self._get_inferred_type(value) or typ.unwrap().instance
+                            )
 
-                        # We keep track of annotated finals in the named_finals field - we can
-                        # safely remove that information here to ensure that the rest of the type
-                        # system can safely ignore it.
                         if isinstance(target, ast.Name):
-                            if not is_final_dynamic and isinstance(typ, FinalClass):
+                            if (not is_final_dynamic) and isinstance(typ, FinalClass):
                                 instance = typ.unwrap().instance
-                            self.children[target.id] = instance
+                            self._children[target.id] = instance
 
                     if isinstance(typ, FinalClass):
                         target = node.target
@@ -326,8 +338,12 @@ class ModuleTable:
                         ):
                             self.named_finals[target.id] = value
 
+        for name in self.implicit_decl_names:
+            if name not in self._children:
+                self._children[name] = self.compiler.type_env.DYNAMIC
         # We don't need these anymore...
         self.decls.clear()
+        self.implicit_decl_names.clear()
 
     def resolve_type(self, node: ast.AST) -> Optional[Class]:
         typ = self.ann_visitor.visit(node)
@@ -398,7 +414,11 @@ class ModuleTable:
         top-level module import, `source` should be `None`.
 
         """
-        self.children[name] = val
+        if self.first_pass_done:
+            raise ModuleTableException(
+                "Attempted to declare an import after the declaration visit"
+            )
+        self._children[name] = val
         if source is not None:
             self.imported_from[name] = source
 
@@ -406,4 +426,7 @@ class ModuleTable:
         self.decls.append((node, None, None))
 
     def declare_variables(self, node: ast.Assign, module: ModuleTable) -> None:
-        pass
+        targets = node.targets
+        for target in targets:
+            if isinstance(target, ast.Name):
+                self.implicit_decl_names.add(target.id)

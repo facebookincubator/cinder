@@ -38,7 +38,7 @@ class SubclassTests(StaticTestBase):
 
     def test_issubclass_with_awaitable_covariant(self):
         mod, comp = self.bind_module("class Num(int): pass", 0)
-        num = comp.modules["foo"].children["Num"]
+        num = comp.modules["foo"].get_child("Num")
         awaitable_bool = comp.type_env.get_generic_type(
             comp.type_env.awaitable,
             (comp.type_env.bool,),

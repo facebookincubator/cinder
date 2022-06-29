@@ -23,11 +23,11 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(a=acode, b=bcode)
 
         self.assertIn("b", compiler.modules)
-        self.assertIn("a", compiler.modules["b"].children)
+        self.assertIsNotNone(compiler.modules["b"].get_child("a"))
         self.assertEqual(
-            compiler.modules["b"].children["a"].klass, compiler.type_env.module
+            compiler.modules["b"].get_child("a").klass, compiler.type_env.module
         )
-        self.assertEqual(compiler.modules["b"].children["a"].module_name, "a")
+        self.assertEqual(compiler.modules["b"].get_child("a").module_name, "a")
 
     def test_import_name_as(self) -> None:
         acode = """
@@ -39,11 +39,10 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(a=acode, b=bcode)
 
-        self.assertIn("foo", compiler.modules["b"].children)
-        self.assertEqual(
-            compiler.modules["b"].children["foo"].klass, compiler.type_env.module
-        )
-        self.assertEqual(compiler.modules["b"].children["foo"].module_name, "a")
+        foo = compiler.modules["b"].get_child("foo")
+        self.assertIsNotNone(foo)
+        self.assertEqual(foo.klass, compiler.type_env.module)
+        self.assertEqual(foo.module_name, "a")
 
     def test_import_module_within_directory(self) -> None:
         abcode = """
@@ -55,11 +54,10 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
-        self.assertIn("a", compiler.modules["c"].children)
-        self.assertEqual(
-            compiler.modules["c"].children["a"].klass, compiler.type_env.module
-        )
-        self.assertEqual(compiler.modules["c"].children["a"].module_name, "a")
+        a = compiler.modules["c"].get_child("a")
+        self.assertIsNotNone(a)
+        self.assertEqual(a.klass, compiler.type_env.module)
+        self.assertEqual(a.module_name, "a")
 
     def test_import_module_within_directory_as(self) -> None:
         abcode = """
@@ -71,11 +69,10 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
-        self.assertIn("m", compiler.modules["c"].children)
-        self.assertEqual(
-            compiler.modules["c"].children["m"].klass, compiler.type_env.module
-        )
-        self.assertEqual(compiler.modules["c"].children["m"].module_name, "a.b")
+        m = compiler.modules["c"].get_child("m")
+        self.assertIsNotNone(m)
+        self.assertEqual(m.klass, compiler.type_env.module)
+        self.assertEqual(m.module_name, "a.b")
 
     def test_import_module_within_directory_from(self) -> None:
         acode = """
@@ -90,11 +87,9 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        self.assertIn("b", compiler.modules["c"].children)
-        self.assertEqual(
-            compiler.modules["c"].children["b"].klass, compiler.type_env.module
-        )
-        self.assertEqual(compiler.modules["c"].children["b"].module_name, "a.b")
+        b = compiler.modules["c"].get_child("b")
+        self.assertEqual(b.klass, compiler.type_env.module)
+        self.assertEqual(b.module_name, "a.b")
 
     def test_import_module_within_directory_from_as(self) -> None:
         acode = """
@@ -109,11 +104,10 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        self.assertIn("zoidberg", compiler.modules["c"].children)
-        self.assertEqual(
-            compiler.modules["c"].children["zoidberg"].klass, compiler.type_env.module
-        )
-        self.assertEqual(compiler.modules["c"].children["zoidberg"].module_name, "a.b")
+        zoidberg = compiler.modules["c"].get_child("zoidberg")
+        self.assertIsNotNone(zoidberg)
+        self.assertEqual(zoidberg.klass, compiler.type_env.module)
+        self.assertEqual(zoidberg.module_name, "a.b")
 
     def test_import_module_within_directory_from_where_value_exists(self) -> None:
         acode = """
@@ -128,10 +122,9 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        self.assertIn("b", compiler.modules["c"].children)
-        self.assertEqual(
-            compiler.modules["c"].children["b"].klass, compiler.type_env.int
-        )
+        b = compiler.modules["c"].get_child("b")
+        self.assertIsNotNone(b)
+        self.assertEqual(b.klass, compiler.type_env.int)
 
     def test_import_module_within_directory_from_where_untyped_value_exists(
         self,
@@ -148,13 +141,10 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        self.assertIn("b", compiler.modules["c"].children)
-        # Note that since the declaration visitor doesn't distinguish between
-        # untyped values and missing ones, we resolve to the module type where that might
-        # not have been the intention.
-        self.assertEqual(
-            compiler.modules["c"].children["b"].klass, compiler.type_env.module
-        )
+        b = compiler.modules["c"].get_child("b")
+        # Matching the runtime, the b name in a will be the int, taking precedence over
+        # the module.
+        self.assertEqual(b.klass, compiler.type_env.dynamic)
 
     def test_import_chaining(self) -> None:
         acode = """

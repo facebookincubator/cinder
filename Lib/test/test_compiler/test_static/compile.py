@@ -788,7 +788,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         )
         modtable = comp.modules["foo"]
-        self.assertTrue(isinstance(modtable.children["f"], Function))
+        self.assertTrue(isinstance(modtable.get_child("f"), Function))
 
     def test_strict_module(self) -> None:
         code = """
@@ -2966,7 +2966,7 @@ class StaticCompilationTests(StaticTestBase):
                     return 0
                 reveal_type(G)
         """
-        with self.assertRaisesRegex(TypedSyntaxError, r"Optional\[int\]"):
+        with self.assertRaisesRegex(TypedSyntaxError, "dynamic"):
             self.compile(codestr)
 
     def test_narrow_conditional_widened(self):

@@ -77,10 +77,10 @@ def test() -> double:
 ---
 fun jittestmodule:test {
   bb 0 {
-    v3:Nullptr = LoadConst<Nullptr>
-    v4:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
-    v8:CDouble[1.23] = LoadConst<CDouble[1.23]>
-    Return<CDouble> v8
+    v4:Nullptr = LoadConst<Nullptr>
+    v5:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
+    v9:CDouble[1.23] = LoadConst<CDouble[1.23]>
+    Return<CDouble> v9
   }
 }
 ---
