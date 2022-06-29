@@ -1852,6 +1852,8 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
     } else if (Py_TYPE(func) == &_PyType_StaticThunk) {
         _Py_StaticThunk* sthunk = (_Py_StaticThunk*)func;
         res = sthunk->thunk_tcs.tcs_rt.rt_expected;
+        *optional = sthunk->thunk_tcs.tcs_rt.rt_optional;
+        *exact = sthunk->thunk_tcs.tcs_rt.rt_exact;
         Py_INCREF(res);
     } else {
         _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);

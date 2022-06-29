@@ -144,6 +144,11 @@ class TestCompiler(Compiler):
         else:
             raise Exception(f"No module named '{modname}' found")
 
+    def compile_modules_in_order(
+        self, module_names: List[str], optimize: int = 0
+    ) -> Dict[str, CodeType]:
+        return {name: self.compile_module(name, optimize) for name in module_names}
+
     def gen_modules(self, optimize: int = 0) -> Generator[Any, None, None]:
         names = self.source_by_name.keys()
         compiled = [self.compile_module(name, optimize) for name in names]
