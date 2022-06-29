@@ -3471,11 +3471,11 @@ main_loop:
               Py_DECREF(cond);
               if (result > 0) {
                 if (op_val == READONLY_POP_JUMP_IF_TRUE) {
-                  JUMPTO(next);
+                  JUMPBY(next);
                 }
               } else if (result == 0) {
                 if (op_val == READONLY_POP_JUMP_IF_FALSE) {
-                  JUMPTO(next);
+                  JUMPBY(next);
                 }
               } else {
                 goto error;

@@ -5,11 +5,37 @@ from .common import ReadonlyTestBase
 
 class JumpIfTests(ReadonlyTestBase):
     @unittest.skipUnlessReadonly()
-    def test_readonly_bool_error(self) -> None:
+    def test_readonly_bool_true(self) -> None:
         code = """
 class A:
     def __bool__(self):
         return True
+
+@readonly_func
+def f():
+    abcdef = readonly(A())
+
+    if abcdef:
+        pass
+    return 0
+        """
+        with self.assertImmutableErrors(
+            [
+                (
+                    13,
+                    "Attempted to pass a readonly arguments to an operation that expects mutable parameters.",
+                    (),
+                )
+            ]
+        ):
+            self._compile_and_run(code, "f")
+
+    @unittest.skipUnlessReadonly()
+    def test_readonly_bool_false(self) -> None:
+        code = """
+class A:
+    def __bool__(self):
+        return False
 
 @readonly_func
 def f():
