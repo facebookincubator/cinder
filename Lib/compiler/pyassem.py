@@ -674,18 +674,17 @@ class PyFlowGraph(FlowGraph):
                     # special case for readonly operations with branch
                     # offset for the target block becomes part of the const
                     target = inst.target
-                    if target is None:
-                        continue
-                    offset = target.offset - pc
+                    assert target is not None, f"{inst} has None target"
+                    if oparg[0] in self.opcode.hasreadonlyjrel:
+                        offset = target.offset - pc
                     offset *= 2
                     # readonly_op, mask, offset
                     new_oparg = (*oparg, offset)
                     ioparg = self._convert_LOAD_CONST(new_oparg)
                     inst.ioparg = ioparg
-                    inst.target = None
+
                     if instrsize(orig_ioparg) != instrsize(ioparg):
                         extended_arg_recompile = True
-
         self.stage = FLAT
 
     def sort_cellvars(self):

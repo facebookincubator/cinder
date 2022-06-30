@@ -31,6 +31,8 @@ class Opcode:
         self.opname: list[str] = ["<%r>" % (op,) for op in range(256)]
         self.stack_effects: dict[str, object] = {}
         self.readonlyop: dict[str, int] = {}
+        self.hasreadonlyjrel: set[int] = set()
+        self.hasreadonlyjabs: set[int] = set()
 
     def stack_effect(self, opcode: int, oparg, jump: int) -> int:  # pyre-ignore[2]
         oparg_int = 0
@@ -103,6 +105,14 @@ class Opcode:
     def readonly_op(self, name: str, op: int) -> None:
         self.readonlyop[name] = op
 
+    def readonly_jrel(self, name: str, op: int) -> None:
+        self.readonly_op(name, op)
+        self.hasreadonlyjrel.add(op)
+
+    def readonly_jabs(self, name: str, op: int) -> None:
+        self.readonly_op(name, op)
+        self.hasreadonlyjabs.add(op)
+
     def copy(self) -> "Opcode":
         result = Opcode()
         result.hasconst = self.hasconst.copy()
@@ -117,6 +127,8 @@ class Opcode:
         result.opname = self.opname.copy()
         result.stack_effects = self.stack_effects.copy()
         result.readonlyop = self.readonlyop.copy()
+        result.hasreadonlyjabs = self.hasreadonlyjabs.copy()
+        result.hasreadonlyjrel = self.hasreadonlyjrel.copy()
         for name, op in self.opmap.items():
             setattr(result, name, op)
         return result

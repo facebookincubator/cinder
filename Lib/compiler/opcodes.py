@@ -139,9 +139,9 @@ opcode.readonly_op("COMPARE_OP", 19)
 opcode.readonly_op("CHECK_LOAD_ATTR", 20)
 opcode.readonly_op("CHECK_STORE_ATTR", 21)
 opcode.readonly_op("GET_ITER", 22)
-opcode.readonly_op("FOR_ITER", 23)
-opcode.readonly_op("POP_JUMP_IF_TRUE", 24)
-opcode.readonly_op("POP_JUMP_IF_FALSE", 25)
+opcode.readonly_jrel("FOR_ITER", 23)
+opcode.readonly_jabs("POP_JUMP_IF_TRUE", 24)
+opcode.readonly_jabs("POP_JUMP_IF_FALSE", 25)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)

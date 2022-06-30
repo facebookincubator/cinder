@@ -670,10 +670,26 @@ class Optimizer:
                 op_start = i
                 continue
             if opcode in self.opcode.hasjabs:
-                oparg = blocks[oparg // self.CODEUNIT_SIZE] * self.CODEUNIT_SIZE
+                oparg = self.abs_jump_from_block(blocks, oparg)
             elif opcode in self.opcode.hasjrel:
-                oparg = blocks[oparg // self.CODEUNIT_SIZE + i + 1] - blocks[i] - 1
-                oparg *= self.CODEUNIT_SIZE
+                oparg = self.rel_jump_from_block(blocks, oparg, i)
+            elif opcode == self.opcode.READONLY_OPERATION:
+                # readonly operations is a "load const" opcode
+                # the sub-opcode is the first member of the tuple
+                # for all jump opcodes, the jump offset is the last tuple element
+                ro_arg = self.consts[oparg]
+                ro_opcode = ro_arg[0]
+                ro_offset = None
+                if ro_opcode in self.opcode.hasreadonlyjabs:
+                    ro_offset = self.abs_jump_from_block(blocks, ro_arg[-1])
+                elif ro_opcode in self.opcode.hasreadonlyjrel:
+                    ro_offset = self.rel_jump_from_block(blocks, ro_arg[-1], i)
+                if ro_offset is not None:
+                    # create a new const based on the new offset
+                    new_ro_arg = (*ro_arg[:-1], ro_offset)
+                    self.consts.append(new_ro_arg)
+                    oparg = len(self.consts) - 1
+
             nexti = i - op_start + 1
 
             if instrsize(oparg) > nexti:
@@ -688,3 +704,11 @@ class Optimizer:
 
         del codestr[last_instr_index * self.CODEUNIT_SIZE :]
         return codestr
+
+    def abs_jump_from_block(self, blocks, offset):
+        return blocks[offset // self.CODEUNIT_SIZE] * self.CODEUNIT_SIZE
+
+    def rel_jump_from_block(self, blocks, offset, i):
+        offset = blocks[offset // self.CODEUNIT_SIZE + i + 1] - blocks[i] - 1
+        offset *= self.CODEUNIT_SIZE
+        return offset

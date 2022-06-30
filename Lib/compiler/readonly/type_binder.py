@@ -929,6 +929,7 @@ class ReadonlyTypeBinder(ASTVisitor):
                 f"Cannot use yield from on a readonly expression. Rewrite in terms of a normal yield",
                 node,
             )
+        self.store_mutable(node)
 
     def _visitWith(self, node: ast.With | ast.AsyncWith) -> None:
         for it in node.items:
