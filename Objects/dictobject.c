@@ -5126,6 +5126,7 @@ _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr,
             // always converts dict to combined form.
             if ((cached = CACHED_KEYS(tp)) != NULL) {
                 CACHED_KEYS(tp) = NULL;
+                PyType_Modified(tp);
                 dictkeys_decref(cached);
             }
         }
@@ -5155,6 +5156,7 @@ _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr,
                 else {
                     CACHED_KEYS(tp) = NULL;
                 }
+                PyType_Modified(tp);
                 dictkeys_decref(cached);
                 if (CACHED_KEYS(tp) == NULL && PyErr_Occurred())
                     return -1;
