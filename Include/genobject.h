@@ -58,6 +58,11 @@ PyAPI_DATA(PyTypeObject) _PyCoroWrapper_Type;
 PyObject *_PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
     PyObject *name, PyObject *qualname);
+PyAPI_FUNC(PyObject *) _PyCoro_NewTstate(
+    PyThreadState *tstate,
+    struct _frame *,
+    PyObject *name,
+    PyObject *qualname);
 
 /* Asynchronous Generators */
 
