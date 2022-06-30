@@ -5182,3 +5182,237 @@ _PyDictKeys_DecRef(PyDictKeysObject *keys)
 {
     dictkeys_decref(keys);
 }
+
+/* Cinder _PyDict_GetItem_* specializations. */
+
+/* Same as _PyDict_GetItem_KnownHash, but takes a array of objects to be
+ * compared as a tuple */
+PyObject *
+_PyDict_GetItem_StackKnownHash(PyObject *op,
+                               PyObject *const *stack,
+                               Py_ssize_t nargs,
+                               Py_hash_t hash)
+{
+    PyDictObject *mp = (PyDictObject *)op;
+    size_t i, mask, perturb;
+    PyDictKeysObject *dk;
+    PyDictKeyEntry *ep0;
+
+top:
+    dk = mp->ma_keys;
+    ep0 = DK_ENTRIES(dk);
+    mask = DK_MASK(dk);
+    perturb = hash;
+    i = (size_t)hash & mask;
+
+    for (;;) {
+        Py_ssize_t ix = dictkeys_get_index(dk, i);
+        if (ix == DKIX_EMPTY) {
+            return NULL;
+        }
+        if (ix >= 0) {
+            PyDictKeyEntry *ep = &ep0[ix];
+            assert(ep->me_key != NULL);
+
+            if (ep->me_hash == hash) {
+                PyObject *startkey = ep->me_key;
+                Py_INCREF(startkey);
+                if (PyTuple_Check(startkey) &&
+                    PyTuple_GET_SIZE(startkey) == nargs) {
+                    int differ = 0;
+                    for (Py_ssize_t tuple_index = 0; tuple_index < nargs;
+                         tuple_index++) {
+                        PyObject *l = PyTuple_GET_ITEM(startkey, tuple_index);
+                        PyObject *r = stack[tuple_index];
+                        if (l == r) {
+                            continue;
+                        }
+                        int cmp = PyObject_RichCompareBool(l, r, Py_EQ);
+                        if (cmp < 0) {
+                            Py_DECREF(startkey);
+                            return NULL;
+                        }
+                        if (cmp == 0) {
+                            differ = 1;
+                            break;
+                        }
+                    }
+                    if (dk == mp->ma_keys && ep->me_key == startkey) {
+                        if (!differ) {
+                            Py_DECREF(startkey);
+                            return ep->me_value;
+                        }
+                    } else {
+                        /* The dict was mutated, restart */
+                        goto top;
+                    }
+                }
+                Py_DECREF(startkey);
+            }
+        }
+        perturb >>= PERTURB_SHIFT;
+        i = (i * 5 + perturb + 1) & mask;
+    }
+    Py_UNREACHABLE();
+}
+
+PyObject *
+_PyDict_GetItem_String_KnownHash(PyObject *op,
+                                 const char *key,
+                                 Py_ssize_t len,
+                                 Py_hash_t hash)
+{
+    Py_ssize_t ix;
+    PyDictObject *mp = (PyDictObject *)op;
+    PyObject *value;
+
+    if (!PyDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    if (mp->ma_keys->dk_lookup == lookdict) {
+        PyObject *name_obj = PyUnicode_FromString(key);
+        ix = (mp->ma_keys->dk_lookup)(mp, name_obj, hash, &value);
+    } else {
+        assert(mp->ma_values == NULL);
+        PyDictKeyEntry *ep0 = DK_ENTRIES(mp->ma_keys);
+        size_t mask = DK_MASK(mp->ma_keys);
+        size_t perturb = (size_t)hash;
+        size_t i = (size_t)hash & mask;
+
+        for (;;) {
+            ix = dictkeys_get_index(mp->ma_keys, i);
+            if (ix == DKIX_EMPTY) {
+                value = NULL;
+                break;
+            }
+            if (ix >= 0) {
+                PyDictKeyEntry *ep = &ep0[ix];
+                assert(ep->me_key != NULL);
+                assert(PyUnicode_CheckExact(ep->me_key));
+                if (ep->me_hash == hash &&
+                    _PyUnicode_EqualToASCIIString(ep->me_key, key)) {
+                    if (mp->ma_keys->dk_lookup == lookdict_split) {
+                        value = mp->ma_values[ix];
+                    } else {
+                        value = ep->me_value;
+                    }
+                    break;
+                }
+            }
+            perturb >>= PERTURB_SHIFT;
+            i = mask & (i * 5 + perturb + 1);
+        }
+    }
+    if (ix < 0) {
+        return NULL;
+    }
+    return value;
+}
+
+/* Lookup unicode object in dict, optimizing for case when dict
+ * keys are also all unicode objects */
+PyObject *
+_PyDict_GetItem_Unicode(PyObject *op, PyObject *key)
+{
+    Py_ssize_t ix;
+    PyDictObject *mp = (PyDictObject *)op;
+    PyObject *value;
+
+    assert(PyDict_Check(op));
+
+    if (PyUnicode_CheckExact(key) && mp->ma_keys->dk_lookup != lookdict) {
+        Py_ssize_t hash = ((PyASCIIObject *)key)->hash;
+        if (hash == -1) {
+            hash = PyObject_Hash(key);
+        }
+        ix = (mp->ma_keys->dk_lookup)(mp, key, hash, &value);
+        if (ix < 0) {
+            return NULL;
+        }
+        return value;
+    }
+
+    return PyDict_GetItem(op, key);
+}
+
+
+PyObject *
+_PyDict_GetItem_UnicodeExact(PyObject *op, PyObject *key)
+{
+    Py_ssize_t ix;
+    PyDictObject *mp = (PyDictObject *)op;
+    PyObject *value;
+
+    assert(PyDict_Check(op));
+    assert(PyUnicode_CheckExact(key));
+
+    if (mp->ma_keys->dk_lookup == lookdict_unicode_nodummy) {
+        /* inline the common case, avoid all PyUnicode_CheckExact calls */
+        Py_ssize_t hash = ((PyASCIIObject *)key)->hash;
+        assert(hash != -1);
+        PyDictKeyEntry *ep0 = DK_ENTRIES(mp->ma_keys);
+        size_t mask = DK_MASK(mp->ma_keys);
+        size_t perturb = (size_t)hash;
+        size_t i = (size_t)hash & mask;
+
+        for (;;) {
+            Py_ssize_t ix = dictkeys_get_index(mp->ma_keys, i);
+            assert(ix != DKIX_DUMMY);
+            if (ix == DKIX_EMPTY) {
+                return NULL;
+            }
+            PyDictKeyEntry *ep = &ep0[ix];
+            assert(ep->me_key != NULL);
+            assert(PyUnicode_CheckExact(ep->me_key));
+            if (ep->me_key == key ||
+                (ep->me_hash == hash && unicode_eq(ep->me_key, key))) {
+                return ep->me_value;
+            }
+            perturb >>= PERTURB_SHIFT;
+            i = mask & (i * 5 + perturb + 1);
+        }
+        Py_UNREACHABLE();
+    } else if (mp->ma_keys->dk_lookup != lookdict) {
+        Py_ssize_t hash = ((PyASCIIObject *)key)->hash;
+        assert(hash != -1);
+        ix = (mp->ma_keys->dk_lookup)(mp, key, hash, &value);
+        if (ix < 0) {
+            return NULL;
+        }
+        return value;
+    }
+
+    return PyDict_GetItem(op, key);
+}
+
+Py_ssize_t
+_PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key) {
+    Py_hash_t hash;
+    if (!PyUnicode_CheckExact(key) ||
+        (hash = ((PyASCIIObject *) key)->hash) == -1) {
+        hash = PyObject_Hash(key);
+    }
+
+    PyDictKeyEntry *ep0 = DK_ENTRIES(keys);
+    size_t mask = DK_MASK(keys);
+    size_t perturb = (size_t)hash;
+    size_t i = (size_t)hash & mask;
+
+    for (;;) {
+        Py_ssize_t ix = dictkeys_get_index(keys, i);
+        assert (ix != DKIX_DUMMY);
+        if (ix == DKIX_EMPTY) {
+            return DKIX_EMPTY;
+        }
+        PyDictKeyEntry *ep = &ep0[ix];
+        assert(ep->me_key != NULL);
+        assert(PyUnicode_CheckExact(ep->me_key));
+        if (ep->me_key == key ||
+            (ep->me_hash == hash && unicode_eq(ep->me_key, key))) {
+            return ix;
+        }
+        perturb >>= PERTURB_SHIFT;
+        i = mask & (i*5 + perturb + 1);
+    }
+}

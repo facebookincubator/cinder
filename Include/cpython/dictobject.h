@@ -83,6 +83,19 @@ typedef struct {
 PyAPI_FUNC(PyObject *) _PyDictView_New(PyObject *, PyTypeObject *);
 PyAPI_FUNC(PyObject *) _PyDictView_Intersect(PyObject* self, PyObject *other);
 
+/* Cinder _PyDict_GetItem_* specializations. */
+
+PyObject *_PyDict_GetItem_Unicode(PyObject *op, PyObject *key);
+PyObject *_PyDict_GetItem_String_KnownHash(PyObject *op,
+                                           const char *key,
+                                           Py_ssize_t len,
+                                           Py_hash_t hash);
+PyObject *_PyDict_GetItem_UnicodeExact(PyObject *op, PyObject *key);
+PyObject *_PyDict_GetItem_StackKnownHash(PyObject *op,
+                                         PyObject *const *stack,
+                                         Py_ssize_t nargs,
+                                         Py_hash_t hash);
+
 /* Dict watchers */
 
 /* Return 1 if the given dict has unicode-only keys and can be watched, or 0
