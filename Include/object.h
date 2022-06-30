@@ -323,6 +323,10 @@ given type object has a specified feature.
 */
 
 #ifndef Py_LIMITED_API
+
+/* Set to warn on creation of a __dict__ for instances of this type. */
+#define Py_TPFLAGS_WARN_ON_SETATTR (1UL << 4)
+
 /* Set if instances of the type object are treated as sequences for pattern matching */
 #define Py_TPFLAGS_SEQUENCE (1 << 5)
 /* Set if instances of the type object are treated as mappings for pattern matching */

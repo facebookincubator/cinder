@@ -1803,6 +1803,34 @@ PyErr_ProgramTextObject(PyObject *filename, int lineno)
     return _PyErr_ProgramDecodedTextObject(filename, lineno, NULL);
 }
 
+PyObject * _PyErr_CinderWarnHandler = NULL;
+
+/* Raises a Cinder warning to the listener if one is configured, with up to two optional args */
+int _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg1) {
+    if (_PyErr_CinderWarnHandler != NULL) {
+        PyObject* msg = PyUnicode_FromString(warning);
+        if (msg == NULL) {
+            return -1;
+        }
+
+        PyObject* args[3] = {msg, arg0, arg1};
+        int arg_cnt = 1;
+        if (arg0 != NULL) {
+            arg_cnt += 1;
+        }
+        if (arg1 != NULL) {
+            arg_cnt += 1;
+        }
+        PyObject *result = _PyObject_FastCall(_PyErr_CinderWarnHandler, args, arg_cnt);
+        Py_DECREF(msg);
+        if (result == NULL) {
+            return -1;
+        }
+        Py_DECREF(result);
+    }
+    return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif
