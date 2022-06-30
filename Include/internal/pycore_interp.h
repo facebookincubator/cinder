@@ -109,7 +109,7 @@ struct _Py_tuple_state {
 
 /* Empty list reuse scheme to save calls to malloc and free */
 #ifndef PyList_MAXFREELIST
-#  define PyList_MAXFREELIST 80
+#  define PyList_MAXFREELIST 200
 #endif
 
 struct _Py_list_state {
@@ -118,7 +118,7 @@ struct _Py_list_state {
 };
 
 #ifndef PyDict_MAXFREELIST
-#  define PyDict_MAXFREELIST 80
+#  define PyDict_MAXFREELIST 512
 #endif
 
 struct _Py_dict_state {
