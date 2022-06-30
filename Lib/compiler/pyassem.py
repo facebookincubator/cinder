@@ -675,8 +675,9 @@ class PyFlowGraph(FlowGraph):
                     # offset for the target block becomes part of the const
                     target = inst.target
                     assert target is not None, f"{inst} has None target"
+                    offset = target.offset
                     if oparg[0] in self.opcode.hasreadonlyjrel:
-                        offset = target.offset - pc
+                        offset -= pc
                     offset *= 2
                     # readonly_op, mask, offset
                     new_oparg = (*oparg, offset)
