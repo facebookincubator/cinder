@@ -1,5 +1,5 @@
+from test import support
 from test.test_json import PyTest, CTest
-import unittest
 
 
 class JSONTestObject:
@@ -53,7 +53,7 @@ class TestRecursion:
                         return [JSONTestObject]
                     else:
                         return 'JSONTestObject'
-                return pyjson.JSONEncoder.default(o)
+                return self.json.JSONEncoder.default(o)
 
         enc = RecursiveJSONEncoder()
         self.assertEqual(enc.encode(JSONTestObject), '"JSONTestObject"')
@@ -65,29 +65,32 @@ class TestRecursion:
         else:
             self.fail("didn't raise ValueError on default recursion")
 
-    @unittest.hasInfiniteRecursion
+
     def test_highly_nested_objects_decoding(self):
         # test that loading highly-nested objects doesn't segfault when C
         # accelerations are used. See #12017
         with self.assertRaises(RecursionError):
-            self.loads('{"a":' * 100000 + '1' + '}' * 100000)
+            with support.infinite_recursion():
+                self.loads('{"a":' * 100000 + '1' + '}' * 100000)
         with self.assertRaises(RecursionError):
-            self.loads('{"a":' * 100000 + '[1]' + '}' * 100000)
+            with support.infinite_recursion():
+                self.loads('{"a":' * 100000 + '[1]' + '}' * 100000)
         with self.assertRaises(RecursionError):
-            self.loads('[' * 100000 + '1' + ']' * 100000)
+            with support.infinite_recursion():
+                self.loads('[' * 100000 + '1' + ']' * 100000)
 
-    @unittest.hasInfiniteRecursion
     def test_highly_nested_objects_encoding(self):
         # See #12051
         l, d = [], {}
         for x in range(100000):
             l, d = [l], {'k':d}
         with self.assertRaises(RecursionError):
-            self.dumps(l)
+            with support.infinite_recursion():
+                self.dumps(l)
         with self.assertRaises(RecursionError):
-            self.dumps(d)
+            with support.infinite_recursion():
+                self.dumps(d)
 
-    @unittest.hasInfiniteRecursion
     def test_endless_recursion(self):
         # See #12051
         class EndlessJSONEncoder(self.json.JSONEncoder):
@@ -96,7 +99,8 @@ class TestRecursion:
                 return [o]
 
         with self.assertRaises(RecursionError):
-            EndlessJSONEncoder(check_circular=False).encode(5j)
+            with support.infinite_recursion():
+                EndlessJSONEncoder(check_circular=False).encode(5j)
 
 
 class TestPyRecursion(TestRecursion, PyTest): pass

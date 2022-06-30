@@ -92,6 +92,8 @@ The :mod:`binascii` module defines the following functions:
    The string should contain a complete number of binary bytes, or (in case of the
    last portion of the binhex4 data) have the remaining bits zero.
 
+   .. deprecated:: 3.9
+
 
 .. function:: rledecode_hqx(data)
 
@@ -104,10 +106,14 @@ The :mod:`binascii` module defines the following functions:
    .. versionchanged:: 3.2
       Accept only bytestring or bytearray objects as input.
 
+   .. deprecated:: 3.9
+
 
 .. function:: rlecode_hqx(data)
 
    Perform binhex4 style RLE-compression on *data* and return the result.
+
+   .. deprecated:: 3.9
 
 
 .. function:: b2a_hqx(data)
@@ -115,6 +121,8 @@ The :mod:`binascii` module defines the following functions:
    Perform hexbin4 binary-to-ASCII translation and return the resulting string. The
    argument should already be RLE-coded, and have a length divisible by 3 (except
    possibly the last fragment).
+
+   .. deprecated:: 3.9
 
 
 .. function:: crc_hqx(data, value)
@@ -127,7 +135,7 @@ The :mod:`binascii` module defines the following functions:
 
 .. function:: crc32(data[, value])
 
-   Compute CRC-32, the 32-bit checksum of *data*, starting with an
+   Compute CRC-32, the unsigned 32-bit checksum of *data*, starting with an
    initial CRC of *value*.  The default initial CRC is zero.  The algorithm
    is consistent with the ZIP file checksum.  Since the algorithm is designed for
    use as a checksum algorithm, it is not suitable for use as a general hash
@@ -141,9 +149,8 @@ The :mod:`binascii` module defines the following functions:
 
    .. versionchanged:: 3.0
       The result is always unsigned.
-      To generate the same numeric value across all Python versions and
-      platforms, use ``crc32(data) & 0xffffffff``.
-
+      To generate the same numeric value when using Python 2 or earlier,
+      use ``crc32(data) & 0xffffffff``.
 
 .. function:: b2a_hex(data[, sep[, bytes_per_sep=1]])
               hexlify(data[, sep[, bytes_per_sep=1]])

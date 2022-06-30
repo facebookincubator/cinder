@@ -166,6 +166,9 @@ Functions
    Return the time of the specified clock *clk_id*.  Refer to
    :ref:`time-clock-id-constants` for a list of accepted values for *clk_id*.
 
+   Use :func:`clock_gettime_ns` to avoid the precision loss caused by the
+   :class:`float` type.
+
    .. availability:: Unix.
 
    .. versionadded:: 3.3
@@ -184,6 +187,9 @@ Functions
 
    Set the time of the specified clock *clk_id*.  Currently,
    :data:`CLOCK_REALTIME` is the only accepted value for *clk_id*.
+
+   Use :func:`clock_settime_ns` to avoid the precision loss caused by the
+   :class:`float` type.
 
    .. availability:: Unix.
 
@@ -253,6 +259,12 @@ Functions
    :const:`None`, the current time as returned by :func:`.time` is used.  The dst
    flag is set to ``1`` when DST applies to the given time.
 
+   :func:`localtime` may raise :exc:`OverflowError`, if the timestamp is
+   outside the range of values supported by the platform C :c:func:`localtime`
+   or :c:func:`gmtime` functions, and :exc:`OSError` on :c:func:`localtime` or
+   :c:func:`gmtime` failure. It's common for this to be restricted to years
+   between 1970 and 2038.
+
 
 .. function:: mktime(t)
 
@@ -271,11 +283,18 @@ Functions
    Return the value (in fractional seconds) of a monotonic clock, i.e. a clock
    that cannot go backwards.  The clock is not affected by system clock updates.
    The reference point of the returned value is undefined, so that only the
-   difference between the results of consecutive calls is valid.
+   difference between the results of two calls is valid.
+
+   Use :func:`monotonic_ns` to avoid the precision loss caused by the
+   :class:`float` type.
 
    .. versionadded:: 3.3
+
    .. versionchanged:: 3.5
       The function is now always available and always system-wide.
+
+   .. versionchanged:: 3.10
+      On macOS, the function is now system-wide.
 
 
 .. function:: monotonic_ns() -> int
@@ -293,9 +312,15 @@ Functions
    clock with the highest available resolution to measure a short duration.  It
    does include time elapsed during sleep and is system-wide.  The reference
    point of the returned value is undefined, so that only the difference between
-   the results of consecutive calls is valid.
+   the results of two calls is valid.
+
+   Use :func:`perf_counter_ns` to avoid the precision loss caused by the
+   :class:`float` type.
 
    .. versionadded:: 3.3
+
+   .. versionchanged:: 3.10
+      On Windows, the function is now system-wide.
 
 .. function:: perf_counter_ns() -> int
 
@@ -315,7 +340,10 @@ Functions
    CPU time of the current process.  It does not include time elapsed during
    sleep.  It is process-wide by definition.  The reference point of the
    returned value is undefined, so that only the difference between the results
-   of consecutive calls is valid.
+   of two calls is valid.
+
+   Use :func:`process_time_ns` to avoid the precision loss caused by the
+   :class:`float` type.
 
    .. versionadded:: 3.3
 
@@ -434,10 +462,10 @@ Functions
    |           | negative time difference from UTC/GMT of the   |       |
    |           | form +HHMM or -HHMM, where H represents decimal|       |
    |           | hour digits and M represents decimal minute    |       |
-   |           | digits [-23:59, +23:59].                       |       |
+   |           | digits [-23:59, +23:59]. [1]_                  |       |
    +-----------+------------------------------------------------+-------+
    | ``%Z``    | Time zone name (no characters if no time zone  |       |
-   |           | exists).                                       |       |
+   |           | exists). Deprecated. [1]_                      |       |
    +-----------+------------------------------------------------+-------+
    | ``%%``    | A literal ``'%'`` character.                   |       |
    +-----------+------------------------------------------------+-------+
@@ -458,7 +486,7 @@ Functions
       calculations when the day of the week and the year are specified.
 
    Here is an example, a format for dates compatible with that specified  in the
-   :rfc:`2822` Internet email standard.  [#]_ ::
+   :rfc:`2822` Internet email standard.  [1]_ ::
 
       >>> from time import gmtime, strftime
       >>> strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime())
@@ -581,6 +609,17 @@ Functions
    :class:`struct_time` object is returned, from which the components
    of the calendar date may be accessed as attributes.
 
+   Use :func:`time_ns` to avoid the precision loss caused by the :class:`float`
+   type.
+
+
+.. function:: time_ns() -> int
+
+   Similar to :func:`~time.time` but returns time as an integer number of nanoseconds
+   since the epoch_.
+
+   .. versionadded:: 3.7
+
 
 .. function:: thread_time() -> float
 
@@ -593,7 +632,10 @@ Functions
    CPU time of the current thread.  It does not include time elapsed during
    sleep.  It is thread-specific by definition.  The reference point of the
    returned value is undefined, so that only the difference between the results
-   of consecutive calls in the same thread is valid.
+   of two calls in the same thread is valid.
+
+   Use :func:`thread_time_ns` to avoid the precision loss caused by the
+   :class:`float` type.
 
    .. availability::  Windows, Linux, Unix systems supporting
       ``CLOCK_THREAD_CPUTIME_ID``.
@@ -607,13 +649,6 @@ Functions
 
    .. versionadded:: 3.7
 
-
-.. function:: time_ns() -> int
-
-   Similar to :func:`~time.time` but returns time as an integer number of nanoseconds
-   since the epoch_.
-
-   .. versionadded:: 3.7
 
 .. function:: tzset()
 
@@ -774,6 +809,16 @@ These constants are used as parameters for :func:`clock_getres` and
 
    .. versionadded:: 3.7
 
+.. data:: CLOCK_TAI
+
+   `International Atomic Time <https://www.nist.gov/pml/time-and-frequency-division/nist-time-frequently-asked-questions-faq#tai>`_
+
+   The system must have a current leap second table in order for this to give
+   the correct answer.  PTP or NTP software can maintain a leap second table.
+
+   .. availability:: Linux.
+
+   .. versionadded:: 3.9
 
 .. data:: CLOCK_THREAD_CPUTIME_ID
 
@@ -804,7 +849,6 @@ These constants are used as parameters for :func:`clock_getres` and
    .. availability:: macOS 10.12 and newer.
 
    .. versionadded:: 3.8
-
 
 The following constant is the only parameter that can be sent to
 :func:`clock_settime`.
@@ -870,10 +914,9 @@ Timezone Constants
 
 .. rubric:: Footnotes
 
-.. [#] The use of ``%Z`` is now deprecated, but the ``%z`` escape that expands to the
-   preferred  hour/minute offset is not supported by all ANSI C libraries. Also, a
+.. [1] The use of ``%Z`` is now deprecated, but the ``%z`` escape that expands to the
+   preferred hour/minute offset is not supported by all ANSI C libraries. Also, a
    strict reading of the original 1982 :rfc:`822` standard calls for a two-digit
-   year (%y rather than %Y), but practice moved to 4-digit years long before the
+   year (``%y`` rather than ``%Y``), but practice moved to 4-digit years long before the
    year 2000.  After that, :rfc:`822` became obsolete and the 4-digit year has
    been first recommended by :rfc:`1123` and then mandated by :rfc:`2822`.
-

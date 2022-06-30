@@ -38,6 +38,42 @@ float___trunc__(PyObject *self, PyObject *Py_UNUSED(ignored))
     return float___trunc___impl(self);
 }
 
+PyDoc_STRVAR(float___floor____doc__,
+"__floor__($self, /)\n"
+"--\n"
+"\n"
+"Return the floor as an Integral.");
+
+#define FLOAT___FLOOR___METHODDEF    \
+    {"__floor__", (PyCFunction)float___floor__, METH_NOARGS, float___floor____doc__},
+
+static PyObject *
+float___floor___impl(PyObject *self);
+
+static PyObject *
+float___floor__(PyObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return float___floor___impl(self);
+}
+
+PyDoc_STRVAR(float___ceil____doc__,
+"__ceil__($self, /)\n"
+"--\n"
+"\n"
+"Return the ceiling as an Integral.");
+
+#define FLOAT___CEIL___METHODDEF    \
+    {"__ceil__", (PyCFunction)float___ceil__, METH_NOARGS, float___ceil____doc__},
+
+static PyObject *
+float___ceil___impl(PyObject *self);
+
+static PyObject *
+float___ceil__(PyObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return float___ceil___impl(self);
+}
+
 PyDoc_STRVAR(float___round____doc__,
 "__round__($self, ndigits=None, /)\n"
 "--\n"
@@ -170,7 +206,7 @@ static PyObject *
 float_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {
     PyObject *return_value = NULL;
-    PyObject *x = _PyLong_Zero;
+    PyObject *x = NULL;
 
     if ((type == &PyFloat_Type) &&
         !_PyArg_NoKeywords("float", kwargs)) {
@@ -253,8 +289,8 @@ exit:
     return return_value;
 }
 
-PyDoc_STRVAR(float___set_format____doc__,
-"__set_format__($type, typestr, fmt, /)\n"
+PyDoc_STRVAR(float___setformat____doc__,
+"__setformat__($type, typestr, fmt, /)\n"
 "--\n"
 "\n"
 "You probably don\'t want to use this function.\n"
@@ -271,25 +307,25 @@ PyDoc_STRVAR(float___set_format____doc__,
 "Override the automatic determination of C-level floating point type.\n"
 "This affects how floats are converted to and from binary strings.");
 
-#define FLOAT___SET_FORMAT___METHODDEF    \
-    {"__set_format__", (PyCFunction)(void(*)(void))float___set_format__, METH_FASTCALL|METH_CLASS, float___set_format____doc__},
+#define FLOAT___SETFORMAT___METHODDEF    \
+    {"__setformat__", (PyCFunction)(void(*)(void))float___setformat__, METH_FASTCALL|METH_CLASS, float___setformat____doc__},
 
 static PyObject *
-float___set_format___impl(PyTypeObject *type, const char *typestr,
-                          const char *fmt);
+float___setformat___impl(PyTypeObject *type, const char *typestr,
+                         const char *fmt);
 
 static PyObject *
-float___set_format__(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs)
+float___setformat__(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
     const char *typestr;
     const char *fmt;
 
-    if (!_PyArg_CheckPositional("__set_format__", nargs, 2, 2)) {
+    if (!_PyArg_CheckPositional("__setformat__", nargs, 2, 2)) {
         goto exit;
     }
     if (!PyUnicode_Check(args[0])) {
-        _PyArg_BadArgument("__set_format__", "argument 1", "str", args[0]);
+        _PyArg_BadArgument("__setformat__", "argument 1", "str", args[0]);
         goto exit;
     }
     Py_ssize_t typestr_length;
@@ -302,7 +338,7 @@ float___set_format__(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs
         goto exit;
     }
     if (!PyUnicode_Check(args[1])) {
-        _PyArg_BadArgument("__set_format__", "argument 2", "str", args[1]);
+        _PyArg_BadArgument("__setformat__", "argument 2", "str", args[1]);
         goto exit;
     }
     Py_ssize_t fmt_length;
@@ -314,7 +350,7 @@ float___set_format__(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs
         PyErr_SetString(PyExc_ValueError, "embedded null character");
         goto exit;
     }
-    return_value = float___set_format___impl(type, typestr, fmt);
+    return_value = float___setformat___impl(type, typestr, fmt);
 
 exit:
     return return_value;
@@ -351,4 +387,4 @@ float___format__(PyObject *self, PyObject *arg)
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=1676433b9f04fbc9 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=f4aae29054273cb5 input=a9049054013a1b77]*/

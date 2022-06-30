@@ -21,19 +21,13 @@ def is_resource_use_flag(arg):
 
 
 def main(regrtest_args):
-    args = [sys.executable]
-    for i, flag in enumerate(regrtest_args):
-        if flag == "--jit":
-            args.extend(['-X', 'jit'])
-            del(regrtest_args[i])
-    args.extend(
-        [
+    args = [sys.executable,
             '-u',                 # Unbuffered stdout and stderr
             '-W', 'default',      # Warnings set to 'default'
             '-bb',                # Warnings about bytes/bytearray
             '-E',                 # Ignore environment variables
-        ],
-    )
+            ]
+
     # Allow user-specified interpreter options to override our defaults.
     args.extend(test.support.args_from_interpreter_flags())
 

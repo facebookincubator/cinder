@@ -29,7 +29,7 @@
      - If we DO have a Python Home: The relevant sub-directories (Lib,
        DLLs, etc) are based on the Python Home
      - If we DO NOT have a Python Home, the core Python Path is
-       loaded from the registry.  This is the main PythonPath key,
+       loaded from the registry.  (This is the main PythonPath key,
        and both HKLM and HKCU are combined to form the path)
 
    * Iff - we can not locate the Python Home, have not had a PYTHONPATH
@@ -80,9 +80,9 @@
 
 
 #include "Python.h"
-#include "pycore_initconfig.h"
-#include "pycore_pystate.h"
-#include "osdefs.h"
+#include "pycore_initconfig.h"    // PyStatus
+#include "pycore_pathconfig.h"    // _PyPathConfig
+#include "osdefs.h"               // SEP, ALTSEP
 #include <wchar.h>
 
 #ifndef MS_WINDOWS
@@ -90,7 +90,7 @@
 #endif
 
 #include <windows.h>
-#include <shlwapi.h>
+#include <pathcch.h>
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -249,42 +249,13 @@ ismodule(wchar_t *filename, int update_filename)
    stuff as fits will be appended.
 */
 
-static int _PathCchCombineEx_Initialized = 0;
-typedef HRESULT(__stdcall *PPathCchCombineEx) (PWSTR pszPathOut, size_t cchPathOut,
-                                               PCWSTR pszPathIn, PCWSTR pszMore,
-                                               unsigned long dwFlags);
-static PPathCchCombineEx _PathCchCombineEx;
-
 static void
 join(wchar_t *buffer, const wchar_t *stuff)
 {
-    if (_PathCchCombineEx_Initialized == 0) {
-        HMODULE pathapi = LoadLibraryExW(L"api-ms-win-core-path-l1-1-0.dll", NULL,
-                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
-        if (pathapi) {
-            _PathCchCombineEx = (PPathCchCombineEx)GetProcAddress(pathapi, "PathCchCombineEx");
-        }
-        else {
-            _PathCchCombineEx = NULL;
-        }
-        _PathCchCombineEx_Initialized = 1;
-    }
-
-    if (_PathCchCombineEx) {
-        if (FAILED(_PathCchCombineEx(buffer, MAXPATHLEN+1, buffer, stuff, 0))) {
-            Py_FatalError("buffer overflow in getpathp.c's join()");
-        }
-    } else {
-        if (!PathCombineW(buffer, buffer, stuff)) {
-            Py_FatalError("buffer overflow in getpathp.c's join()");
-        }
+    if (FAILED(PathCchCombineEx(buffer, MAXPATHLEN+1, buffer, stuff, 0))) {
+        Py_FatalError("buffer overflow in getpathp.c's join()");
     }
 }
-
-static int _PathCchCanonicalizeEx_Initialized = 0;
-typedef HRESULT(__stdcall *PPathCchCanonicalizeEx) (PWSTR pszPathOut, size_t cchPathOut,
-    PCWSTR pszPathIn, unsigned long dwFlags);
-static PPathCchCanonicalizeEx _PathCchCanonicalizeEx;
 
 /* Call PathCchCanonicalizeEx(path): remove navigation elements such as "."
    and ".." to produce a direct, well-formed path. */
@@ -295,27 +266,8 @@ canonicalize(wchar_t *buffer, const wchar_t *path)
         return _PyStatus_NO_MEMORY();
     }
 
-    if (_PathCchCanonicalizeEx_Initialized == 0) {
-        HMODULE pathapi = LoadLibraryExW(L"api-ms-win-core-path-l1-1-0.dll", NULL,
-                                         LOAD_LIBRARY_SEARCH_SYSTEM32);
-        if (pathapi) {
-            _PathCchCanonicalizeEx = (PPathCchCanonicalizeEx)GetProcAddress(pathapi, "PathCchCanonicalizeEx");
-        }
-        else {
-            _PathCchCanonicalizeEx = NULL;
-        }
-        _PathCchCanonicalizeEx_Initialized = 1;
-    }
-
-    if (_PathCchCanonicalizeEx) {
-        if (FAILED(_PathCchCanonicalizeEx(buffer, MAXPATHLEN + 1, path, 0))) {
-            return INIT_ERR_BUFFER_OVERFLOW();
-        }
-    }
-    else {
-        if (!PathCanonicalizeW(buffer, path)) {
-            return INIT_ERR_BUFFER_OVERFLOW();
-        }
+    if (FAILED(PathCchCanonicalizeEx(buffer, MAXPATHLEN + 1, path, 0))) {
+        return INIT_ERR_BUFFER_OVERFLOW();
     }
     return _PyStatus_OK();
 }
@@ -379,7 +331,7 @@ extern const char *PyWin_DLLVersionString;
    Returns NULL, or a pointer that should be freed.
 
    XXX - this code is pretty strange, as it used to also
-   work on Win16, where the buffer sizes werent available
+   work on Win16, where the buffer sizes were not available
    in advance.  It could be simplied now Win16/Win32s is dead!
 */
 static wchar_t *
@@ -437,11 +389,10 @@ getpythonregpath(HKEY keyBase, int skipcore)
     /* Allocate a temp array of char buffers, so we only need to loop
        reading the registry once
     */
-    ppPaths = PyMem_RawMalloc( sizeof(WCHAR *) * numKeys );
+    ppPaths = PyMem_RawCalloc(numKeys, sizeof(WCHAR *));
     if (ppPaths==NULL) {
         goto done;
     }
-    memset(ppPaths, 0, sizeof(WCHAR *) * numKeys);
     /* Loop over all subkeys, allocating a temp sub-buffer. */
     for(index=0;index<numKeys;index++) {
         WCHAR keyBuf[MAX_PATH+1];
@@ -751,7 +702,7 @@ calculate_pth_file(PyCalculatePath *calculate, _PyPathConfig *pathconfig,
    executable's directory and then in the parent directory.
    If found, open it for use when searching for prefixes.
 */
-static void
+static PyStatus
 calculate_pyvenv_file(PyCalculatePath *calculate,
                       wchar_t *argv0_path, size_t argv0_path_len)
 {
@@ -774,17 +725,23 @@ calculate_pyvenv_file(PyCalculatePath *calculate,
         env_file = _Py_wfopen(filename, L"r");
         if (env_file == NULL) {
             errno = 0;
-            return;
+            return _PyStatus_OK();
         }
     }
 
     /* Look for a 'home' variable and set argv0_path to it, if found */
-    wchar_t home[MAXPATHLEN+1];
-    if (_Py_FindEnvConfigValue(env_file, L"home",
-                               home, Py_ARRAY_LENGTH(home))) {
+    wchar_t *home = NULL;
+    PyStatus status = _Py_FindEnvConfigValue(env_file, L"home", &home);
+    if (_PyStatus_EXCEPTION(status)) {
+        fclose(env_file);
+        return status;
+    }
+    if (home) {
         wcscpy_s(argv0_path, argv0_path_len, home);
+        PyMem_RawFree(home);
     }
     fclose(env_file);
+    return _PyStatus_OK();
 }
 
 
@@ -822,8 +779,11 @@ calculate_module_search_path(PyCalculatePath *calculate,
 {
     int skiphome = calculate->home==NULL ? 0 : 1;
 #ifdef Py_ENABLE_SHARED
-    calculate->machine_path = getpythonregpath(HKEY_LOCAL_MACHINE, skiphome);
-    calculate->user_path = getpythonregpath(HKEY_CURRENT_USER, skiphome);
+    if (!Py_IgnoreEnvironmentFlag) {
+        calculate->machine_path = getpythonregpath(HKEY_LOCAL_MACHINE,
+                                                   skiphome);
+        calculate->user_path = getpythonregpath(HKEY_CURRENT_USER, skiphome);
+    }
 #endif
     /* We only use the default relative PYTHONPATH if we haven't
        anything better to use! */
@@ -1021,7 +981,11 @@ calculate_path(PyCalculatePath *calculate, _PyPathConfig *pathconfig)
         goto done;
     }
 
-    calculate_pyvenv_file(calculate, argv0_path, Py_ARRAY_LENGTH(argv0_path));
+    status = calculate_pyvenv_file(calculate,
+                                   argv0_path, Py_ARRAY_LENGTH(argv0_path));
+    if (_PyStatus_EXCEPTION(status)) {
+        return status;
+    }
 
     /* Calculate zip archive path from DLL or exe path */
     wchar_t zip_path[MAXPATHLEN+1];

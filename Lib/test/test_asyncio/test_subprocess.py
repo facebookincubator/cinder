@@ -1,3 +1,4 @@
+import os
 import signal
 import sys
 import unittest
@@ -9,6 +10,7 @@ from asyncio import base_subprocess
 from asyncio import subprocess
 from test.test_asyncio import utils as test_utils
 from test import support
+from test.support import os_helper
 
 if sys.platform != 'win32':
     from asyncio import unix_events
@@ -104,7 +106,6 @@ class SubprocessTransportTests(test_utils.TestCase):
 
 class SubprocessMixin:
 
-    @unittest.skipUnderUwsgi()
     def test_stdin_stdout(self):
         args = PROGRAM_CAT
 
@@ -131,7 +132,6 @@ class SubprocessMixin:
         self.assertEqual(exitcode, 0)
         self.assertEqual(stdout, b'some data')
 
-    @unittest.skipUnderUwsgi()
     def test_communicate(self):
         args = PROGRAM_CAT
 
@@ -145,7 +145,7 @@ class SubprocessMixin:
             return proc.returncode, stdout
 
         task = run(b'some data')
-        task = asyncio.wait_for(task, 60.0)
+        task = asyncio.wait_for(task, support.LONG_TIMEOUT)
         exitcode, stdout = self.loop.run_until_complete(task)
         self.assertEqual(exitcode, 0)
         self.assertEqual(stdout, b'some data')
@@ -195,7 +195,6 @@ class SubprocessMixin:
             self.assertEqual(-signal.SIGTERM, returncode)
 
     @unittest.skipIf(sys.platform == 'win32', "Don't have SIGHUP")
-    @unittest.skipUnderUwsgi()
     def test_send_signal(self):
         # bpo-31034: Make sure that we get the default signal handler (killing
         # the process). The parent process may have decided to ignore SIGHUP,
@@ -229,7 +228,7 @@ class SubprocessMixin:
         # buffer large enough to feed the whole pipe buffer
         large_data = b'x' * support.PIPE_MAX_SIZE
 
-        # the program ends before the stdin can be feeded
+        # the program ends before the stdin can be fed
         proc = self.loop.run_until_complete(
             asyncio.create_subprocess_exec(
                 sys.executable, '-c', 'pass',
@@ -262,7 +261,6 @@ class SubprocessMixin:
         self.loop.run_until_complete(proc.communicate(large_data))
         self.loop.run_until_complete(proc.wait())
 
-    @unittest.skipUnderUwsgi()
     def test_pause_reading(self):
         limit = 10
         size = (limit * 2 + 1)
@@ -307,7 +305,6 @@ class SubprocessMixin:
         self.assertTrue(transport.pause_reading.called)
         self.assertTrue(transport.resume_reading.called)
 
-    @unittest.skipUnderUwsgi()
     def test_stdin_not_inheritable(self):
         # asyncio issue #209: stdin must not be inheritable, otherwise
         # the Process.communicate() hangs
@@ -328,7 +325,6 @@ class SubprocessMixin:
         self.assertEqual(output.rstrip(), b'3')
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipUnderUwsgi()
     def test_empty_input(self):
 
         async def empty_input():
@@ -348,7 +344,6 @@ class SubprocessMixin:
         self.assertEqual(output.rstrip(), b'0')
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipUnderUwsgi()
     def test_devnull_input(self):
 
         async def empty_input():
@@ -368,7 +363,6 @@ class SubprocessMixin:
         self.assertEqual(output.rstrip(), b'0')
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipUnderUwsgi()
     def test_devnull_output(self):
 
         async def empty_output():
@@ -388,7 +382,6 @@ class SubprocessMixin:
         self.assertEqual(output, None)
         self.assertEqual(exitcode, 0)
 
-    @unittest.skipUnderUwsgi()
     def test_devnull_error(self):
 
         async def empty_error():
@@ -485,12 +478,19 @@ class SubprocessMixin:
             proc.kill = kill
             returncode = transport.get_returncode()
             transport.close()
-            await transport._wait()
+            await asyncio.wait_for(transport._wait(), 5)
             return (returncode, kill_called)
 
         # Ignore "Close running child process: kill ..." log
         with test_utils.disable_logger():
-            returncode, killed = self.loop.run_until_complete(kill_running())
+            try:
+                returncode, killed = self.loop.run_until_complete(
+                    kill_running()
+                )
+            except asyncio.TimeoutError:
+                self.skipTest(
+                    "Timeout failure on waiting for subprocess stopping"
+                )
         self.assertIsNone(returncode)
 
         # transport.close() must kill the process if it is still running
@@ -627,33 +627,13 @@ class SubprocessMixin:
     def test_create_subprocess_exec_with_path(self):
         async def execute():
             p = await subprocess.create_subprocess_exec(
-                support.FakePath(sys.executable), '-c', 'pass')
+                os_helper.FakePath(sys.executable), '-c', 'pass')
             await p.wait()
             p = await subprocess.create_subprocess_exec(
-                sys.executable, '-c', 'pass', support.FakePath('.'))
+                sys.executable, '-c', 'pass', os_helper.FakePath('.'))
             await p.wait()
 
         self.assertIsNone(self.loop.run_until_complete(execute()))
-
-    def test_exec_loop_deprecated(self):
-        async def go():
-            with self.assertWarns(DeprecationWarning):
-                proc = await asyncio.create_subprocess_exec(
-                    sys.executable, '-c', 'pass',
-                    loop=self.loop,
-                )
-            await proc.wait()
-        self.loop.run_until_complete(go())
-
-    def test_shell_loop_deprecated(self):
-        async def go():
-            with self.assertWarns(DeprecationWarning):
-                proc = await asyncio.create_subprocess_shell(
-                    "exit 0",
-                    loop=self.loop,
-                )
-            await proc.wait()
-        self.loop.run_until_complete(go())
 
 
 if sys.platform != 'win32':
@@ -680,20 +660,17 @@ if sys.platform != 'win32':
             watcher.attach_loop(None)
             watcher.close()
 
-# These variants of the asyncio subprocess tests seem to non-determinstically
-# fail fairly often which really messes with Cinder's CI/build pipelines. It's
-# not clear if Cinder has somehow made this worse but there at least already
-# some known problems here anyway: https://bugs.python.org/issue42110
-#
-#     class SubprocessThreadedWatcherTests(SubprocessWatcherMixin,
-#                                          test_utils.TestCase):
-#
-#         Watcher = unix_events.ThreadedChildWatcher
-#
-#     class SubprocessMultiLoopWatcherTests(SubprocessWatcherMixin,
-#                                           test_utils.TestCase):
-#
-#         Watcher = unix_events.MultiLoopChildWatcher
+    class SubprocessThreadedWatcherTests(SubprocessWatcherMixin,
+                                         test_utils.TestCase):
+
+        Watcher = unix_events.ThreadedChildWatcher
+
+    @unittest.skip("bpo-38323: MultiLoopChildWatcher has a race condition \
+                    and these tests can hang the test suite")
+    class SubprocessMultiLoopWatcherTests(SubprocessWatcherMixin,
+                                          test_utils.TestCase):
+
+        Watcher = unix_events.MultiLoopChildWatcher
 
     class SubprocessSafeWatcherTests(SubprocessWatcherMixin,
                                      test_utils.TestCase):
@@ -704,6 +681,23 @@ if sys.platform != 'win32':
                                      test_utils.TestCase):
 
         Watcher = unix_events.FastChildWatcher
+
+    def has_pidfd_support():
+        if not hasattr(os, 'pidfd_open'):
+            return False
+        try:
+            os.close(os.pidfd_open(os.getpid()))
+        except OSError:
+            return False
+        return True
+
+    @unittest.skipUnless(
+        has_pidfd_support(),
+        "operating system does not support pidfds",
+    )
+    class SubprocessPidfdWatcherTests(SubprocessWatcherMixin,
+                                      test_utils.TestCase):
+        Watcher = unix_events.PidfdChildWatcher
 
 else:
     # Windows
@@ -726,7 +720,7 @@ class GenericWatcherTests:
 
             with self.assertRaises(RuntimeError):
                 await subprocess.create_subprocess_exec(
-                    support.FakePath(sys.executable), '-c', 'pass')
+                    os_helper.FakePath(sys.executable), '-c', 'pass')
 
             watcher.add_child_handler.assert_not_called()
 

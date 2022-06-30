@@ -109,19 +109,17 @@ def formataddr(pair, charset='utf-8'):
 
 def getaddresses(fieldvalues):
     """Return a list of (REALNAME, EMAIL) for each fieldvalue."""
-    all = COMMASPACE.join(fieldvalues)
+    all = COMMASPACE.join(str(v) for v in fieldvalues)
     a = _AddressList(all)
     return a.addresslist
 
 
 def _format_timetuple_and_zone(timetuple, zone):
-    DAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
-    MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
     return '%s, %02d %s %04d %02d:%02d:%02d %s' % (
-        DAYS[timetuple[6]],
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][timetuple[6]],
         timetuple[2],
-        MONTHS[timetuple[1] - 1],
+        ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][timetuple[1] - 1],
         timetuple[0], timetuple[3], timetuple[4], timetuple[5],
         zone)
 
@@ -197,7 +195,10 @@ def make_msgid(idstring=None, domain=None):
 
 
 def parsedate_to_datetime(data):
-    *dtuple, tz = _parsedate_tz(data)
+    parsed_date_tz = _parsedate_tz(data)
+    if parsed_date_tz is None:
+        raise ValueError('Invalid date value or format "%s"' % str(data))
+    *dtuple, tz = parsed_date_tz
     if tz is None:
         return datetime.datetime(*dtuple[:6])
     return datetime.datetime(*dtuple[:6],
@@ -261,21 +262,13 @@ def decode_params(params):
 
     params is a sequence of 2-tuples containing (param name, string value).
     """
-    # Copy params so we don't mess with the original
-    params = params[:]
-    new_params = []
+    new_params = [params[0]]
     # Map parameter's name to a list of continuations.  The values are a
     # 3-tuple of the continuation number, the string value, and a flag
     # specifying whether a particular segment is %-encoded.
     rfc2231_params = {}
-    name, value = params.pop(0)
-    new_params.append((name, value))
-    while params:
-        name, value = params.pop(0)
-        if name.endswith('*'):
-            encoded = True
-        else:
-            encoded = False
+    for name, value in params[1:]:
+        encoded = name.endswith('*')
         value = unquote(value)
         mo = rfc2231_continuation.match(name)
         if mo:

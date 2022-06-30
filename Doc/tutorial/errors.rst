@@ -53,7 +53,7 @@ programs, however, and result in error messages as shown here::
    >>> '2' + 2
    Traceback (most recent call last):
      File "<stdin>", line 1, in <module>
-   TypeError: Can't convert 'int' object to str implicitly
+   TypeError: can only concatenate str (not "int") to str
 
 The last line of the error message indicates what happened. Exceptions come in
 different types, and the type is printed as part of the message: the types in
@@ -67,7 +67,7 @@ The rest of the line provides detail based on the type of exception and what
 caused it.
 
 The preceding part of the error message shows the context where the exception
-happened, in the form of a stack traceback. In general it contains a stack
+occurred, in the form of a stack traceback. In general it contains a stack
 traceback listing source lines; however, it will not display lines read from
 standard input.
 
@@ -101,29 +101,29 @@ The :keyword:`try` statement works as follows.
 * If no exception occurs, the *except clause* is skipped and execution of the
   :keyword:`try` statement is finished.
 
-* If an exception occurs during execution of the try clause, the rest of the
-  clause is skipped.  Then if its type matches the exception named after the
-  :keyword:`except` keyword, the except clause is executed, and then execution
-  continues after the :keyword:`try` statement.
+* If an exception occurs during execution of the :keyword:`try` clause, the rest of the
+  clause is skipped.  Then, if its type matches the exception named after the
+  :keyword:`except` keyword, the *except clause* is executed, and then execution
+  continues after the try/except block.
 
-* If an exception occurs which does not match the exception named in the except
-  clause, it is passed on to outer :keyword:`try` statements; if no handler is
+* If an exception occurs which does not match the exception named in the *except
+  clause*, it is passed on to outer :keyword:`try` statements; if no handler is
   found, it is an *unhandled exception* and execution stops with a message as
   shown above.
 
-A :keyword:`try` statement may have more than one except clause, to specify
+A :keyword:`try` statement may have more than one *except clause*, to specify
 handlers for different exceptions.  At most one handler will be executed.
-Handlers only handle exceptions that occur in the corresponding try clause, not
-in other handlers of the same :keyword:`!try` statement.  An except clause may
-name multiple exceptions as a parenthesized tuple, for example::
+Handlers only handle exceptions that occur in the corresponding *try clause*,
+not in other handlers of the same :keyword:`!try` statement.  An *except clause*
+may name multiple exceptions as a parenthesized tuple, for example::
 
    ... except (RuntimeError, TypeError, NameError):
    ...     pass
 
 A class in an :keyword:`except` clause is compatible with an exception if it is
 the same class or a base class thereof (but not the other way around --- an
-except clause listing a derived class is not compatible with a base class).  For
-example, the following code will print B, C, D in that order::
+*except clause* listing a derived class is not compatible with a base class).
+For example, the following code will print B, C, D in that order::
 
    class B(Exception):
        pass
@@ -144,13 +144,13 @@ example, the following code will print B, C, D in that order::
        except B:
            print("B")
 
-Note that if the except clauses were reversed (with ``except B`` first), it
-would have printed B, B, B --- the first matching except clause is triggered.
+Note that if the *except clauses* were reversed (with ``except B`` first), it
+would have printed B, B, B --- the first matching *except clause* is triggered.
 
-The last except clause may omit the exception name(s), to serve as a wildcard.
-Use this with extreme caution, since it is easy to mask a real programming error
-in this way!  It can also be used to print an error message and then re-raise
-the exception (allowing a caller to handle the exception as well)::
+All exceptions inherit from :exc:`BaseException`, and so it can be used to serve
+as a wildcard. Use this with extreme caution, since it is easy to mask a real
+programming error in this way!  It can also be used to print an error message and
+then re-raise the exception (allowing a caller to handle the exception as well)::
 
    import sys
 
@@ -162,14 +162,17 @@ the exception (allowing a caller to handle the exception as well)::
        print("OS error: {0}".format(err))
    except ValueError:
        print("Could not convert data to an integer.")
-   except:
-       print("Unexpected error:", sys.exc_info()[0])
+   except BaseException as err:
+       print(f"Unexpected {err=}, {type(err)=}")
        raise
 
+Alternatively the last except clause may omit the exception name(s), however the exception
+value must then be retrieved from ``sys.exc_info()[1]``.
+
 The :keyword:`try` ... :keyword:`except` statement has an optional *else
-clause*, which, when present, must follow all except clauses.  It is useful for
-code that must be executed if the try clause does not raise an exception.  For
-example::
+clause*, which, when present, must follow all *except clauses*.  It is useful
+for code that must be executed if the *try clause* does not raise an exception.
+For example::
 
    for arg in sys.argv[1:]:
        try:
@@ -189,7 +192,7 @@ When an exception occurs, it may have an associated value, also known as the
 exception's *argument*. The presence and type of the argument depend on the
 exception type.
 
-The except clause may specify a variable after the exception name.  The
+The *except clause* may specify a variable after the exception name.  The
 variable is bound to an exception instance with the arguments stored in
 ``instance.args``.  For convenience, the exception instance defines
 :meth:`__str__` so the arguments can be printed directly without having to
@@ -217,8 +220,8 @@ If an exception has arguments, they are printed as the last part ('detail') of
 the message for unhandled exceptions.
 
 Exception handlers don't just handle exceptions if they occur immediately in the
-try clause, but also if they occur inside functions that are called (even
-indirectly) in the try clause. For example::
+*try clause*, but also if they occur inside functions that are called (even
+indirectly) in the *try clause*. For example::
 
    >>> def this_fails():
    ...     x = 1/0
@@ -267,6 +270,54 @@ re-raise the exception::
    NameError: HiThere
 
 
+.. _tut-exception-chaining:
+
+Exception Chaining
+==================
+
+The :keyword:`raise` statement allows an optional :keyword:`from<raise>` which enables
+chaining exceptions. For example::
+
+    # exc must be exception instance or None.
+    raise RuntimeError from exc
+
+This can be useful when you are transforming exceptions. For example::
+
+    >>> def func():
+    ...     raise ConnectionError
+    ...
+    >>> try:
+    ...     func()
+    ... except ConnectionError as exc:
+    ...     raise RuntimeError('Failed to open database') from exc
+    ...
+    Traceback (most recent call last):
+      File "<stdin>", line 2, in <module>
+      File "<stdin>", line 2, in func
+    ConnectionError
+    <BLANKLINE>
+    The above exception was the direct cause of the following exception:
+    <BLANKLINE>
+    Traceback (most recent call last):
+      File "<stdin>", line 4, in <module>
+    RuntimeError: Failed to open database
+
+Exception chaining happens automatically when an exception is raised inside an
+:keyword:`except` or :keyword:`finally` section. This can be
+disabled by using ``from None`` idiom:
+
+    >>> try:
+    ...     open('database.sqlite')
+    ... except OSError:
+    ...     raise RuntimeError from None
+    ...
+    Traceback (most recent call last):
+      File "<stdin>", line 4, in <module>
+    RuntimeError
+
+For more information about chaining mechanics, see :ref:`bltin-exceptions`.
+
+
 .. _tut-userexceptions:
 
 User-defined Exceptions
@@ -278,41 +329,7 @@ be derived from the :exc:`Exception` class, either directly or indirectly.
 
 Exception classes can be defined which do anything any other class can do, but
 are usually kept simple, often only offering a number of attributes that allow
-information about the error to be extracted by handlers for the exception.  When
-creating a module that can raise several distinct errors, a common practice is
-to create a base class for exceptions defined by that module, and subclass that
-to create specific exception classes for different error conditions::
-
-   class Error(Exception):
-       """Base class for exceptions in this module."""
-       pass
-
-   class InputError(Error):
-       """Exception raised for errors in the input.
-
-       Attributes:
-           expression -- input expression in which the error occurred
-           message -- explanation of the error
-       """
-
-       def __init__(self, expression, message):
-           self.expression = expression
-           self.message = message
-
-   class TransitionError(Error):
-       """Raised when an operation attempts a state transition that's not
-       allowed.
-
-       Attributes:
-           previous -- state at beginning of transition
-           next -- attempted new state
-           message -- explanation of why the specific transition is not allowed
-       """
-
-       def __init__(self, previous, next, message):
-           self.previous = previous
-           self.next = next
-           self.message = message
+information about the error to be extracted by handlers for the exception.
 
 Most exceptions are defined with names that end in "Error", similar to the
 naming of the standard exceptions.
@@ -356,6 +373,10 @@ points discuss more complex cases when an exception occurs:
 * An exception could occur during execution of an :keyword:`!except`
   or :keyword:`!else` clause. Again, the exception is re-raised after
   the :keyword:`!finally` clause has been executed.
+
+* If the :keyword:`!finally` clause executes a :keyword:`break`,
+  :keyword:`continue` or :keyword:`return` statement, exceptions are not
+  re-raised.
 
 * If the :keyword:`!try` statement reaches a :keyword:`break`,
   :keyword:`continue` or :keyword:`return` statement, the
@@ -441,5 +462,3 @@ used in a way that ensures they are always cleaned up promptly and correctly. ::
 After the statement is executed, the file *f* is always closed, even if a
 problem was encountered while processing the lines. Objects which, like files,
 provide predefined clean-up actions will indicate this in their documentation.
-
-

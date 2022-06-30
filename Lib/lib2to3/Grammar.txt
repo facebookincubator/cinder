@@ -18,15 +18,55 @@ decorated: decorators (classdef | funcdef | async_funcdef)
 async_funcdef: ASYNC funcdef
 funcdef: 'def' NAME parameters ['->' test] ':' suite
 parameters: '(' [typedargslist] ')'
-typedargslist: ((tfpdef ['=' test] ',')*
-                ('*' [tname] (',' tname ['=' test])* [',' ['**' tname [',']]] | '**' tname [','])
-                | tfpdef ['=' test] (',' tfpdef ['=' test])* [','])
+
+# The following definition for typedarglist is equivalent to this set of rules:
+#
+#     arguments = argument (',' argument)*
+#     argument = tfpdef ['=' test]
+#     kwargs = '**' tname [',']
+#     args = '*' [tname]
+#     kwonly_kwargs = (',' argument)* [',' [kwargs]]
+#     args_kwonly_kwargs = args kwonly_kwargs | kwargs
+#     poskeyword_args_kwonly_kwargs = arguments [',' [args_kwonly_kwargs]]
+#     typedargslist_no_posonly  = poskeyword_args_kwonly_kwargs | args_kwonly_kwargs
+#     typedarglist = arguments ',' '/' [',' [typedargslist_no_posonly]])|(typedargslist_no_posonly)"
+#
+# It needs to be fully expanded to allow our LL(1) parser to work on it.
+
+typedargslist: tfpdef ['=' test] (',' tfpdef ['=' test])* ',' '/' [
+                     ',' [((tfpdef ['=' test] ',')* ('*' [tname] (',' tname ['=' test])*
+                            [',' ['**' tname [',']]] | '**' tname [','])
+                     | tfpdef ['=' test] (',' tfpdef ['=' test])* [','])]
+                ] | ((tfpdef ['=' test] ',')* ('*' [tname] (',' tname ['=' test])*
+                     [',' ['**' tname [',']]] | '**' tname [','])
+                     | tfpdef ['=' test] (',' tfpdef ['=' test])* [','])
+
 tname: NAME [':' test]
 tfpdef: tname | '(' tfplist ')'
 tfplist: tfpdef (',' tfpdef)* [',']
-varargslist: ((vfpdef ['=' test] ',')*
-              ('*' [vname] (',' vname ['=' test])*  [',' ['**' vname [',']]] | '**' vname [','])
-              | vfpdef ['=' test] (',' vfpdef ['=' test])* [','])
+
+# The following definition for varargslist is equivalent to this set of rules:
+#
+#     arguments = argument (',' argument )*
+#     argument = vfpdef ['=' test]
+#     kwargs = '**' vname [',']
+#     args = '*' [vname]
+#     kwonly_kwargs = (',' argument )* [',' [kwargs]]
+#     args_kwonly_kwargs = args kwonly_kwargs | kwargs
+#     poskeyword_args_kwonly_kwargs = arguments [',' [args_kwonly_kwargs]]
+#     vararglist_no_posonly = poskeyword_args_kwonly_kwargs | args_kwonly_kwargs
+#     varargslist = arguments ',' '/' [','[(vararglist_no_posonly)]] | (vararglist_no_posonly)
+#
+# It needs to be fully expanded to allow our LL(1) parser to work on it.
+
+varargslist: vfpdef ['=' test ](',' vfpdef ['=' test])* ',' '/' [',' [
+                     ((vfpdef ['=' test] ',')* ('*' [vname] (',' vname ['=' test])*
+                            [',' ['**' vname [',']]] | '**' vname [','])
+                            | vfpdef ['=' test] (',' vfpdef ['=' test])* [','])
+                     ]] | ((vfpdef ['=' test] ',')*
+                     ('*' [vname] (',' vname ['=' test])*  [',' ['**' vname [',']]]| '**' vname [','])
+                     | vfpdef ['=' test] (',' vfpdef ['=' test])* [','])
+
 vname: NAME
 vfpdef: vname | '(' vfplist ')'
 vfplist: vfpdef (',' vfpdef)* [',']
@@ -49,7 +89,7 @@ pass_stmt: 'pass'
 flow_stmt: break_stmt | continue_stmt | return_stmt | raise_stmt | yield_stmt
 break_stmt: 'break'
 continue_stmt: 'continue'
-return_stmt: 'return' [testlist]
+return_stmt: 'return' [testlist_star_expr]
 yield_stmt: yield_expr
 raise_stmt: 'raise' [test ['from' test | ',' test [',' test]]]
 import_stmt: import_name | import_from
@@ -153,4 +193,4 @@ testlist1: test (',' test)*
 encoding_decl: NAME
 
 yield_expr: 'yield' [yield_arg]
-yield_arg: 'from' test | testlist
+yield_arg: 'from' test | testlist_star_expr

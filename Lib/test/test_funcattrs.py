@@ -1,3 +1,4 @@
+import textwrap
 import types
 import unittest
 
@@ -33,9 +34,6 @@ class FuncAttrsTest(unittest.TestCase):
             pass
         else:
             self.fail("shouldn't be able to set %s to %r" % (name, value))
-        self.cannot_del_attr(obj, name, exceptions)
-
-    def cannot_del_attr(self, obj, name, exceptions):
         try:
             delattr(obj, name)
         except exceptions:
@@ -76,6 +74,37 @@ class FunctionPropertiesTest(FuncAttrsTest):
         self.cannot_set_attr(self.b, '__globals__', 2,
                              (AttributeError, TypeError))
 
+    def test___builtins__(self):
+        self.assertIs(self.b.__builtins__, __builtins__)
+        self.cannot_set_attr(self.b, '__builtins__', 2,
+                             (AttributeError, TypeError))
+
+        # bpo-42990: If globals is specified and has no "__builtins__" key,
+        # a function inherits the current builtins namespace.
+        def func(s): return len(s)
+        ns = {}
+        func2 = type(func)(func.__code__, ns)
+        self.assertIs(func2.__globals__, ns)
+        self.assertIs(func2.__builtins__, __builtins__)
+
+        # Make sure that the function actually works.
+        self.assertEqual(func2("abc"), 3)
+        self.assertEqual(ns, {})
+
+        # Define functions using exec() with different builtins,
+        # and test inheritance when globals has no "__builtins__" key
+        code = textwrap.dedent("""
+            def func3(s): pass
+            func4 = type(func3)(func3.__code__, {})
+        """)
+        safe_builtins = {'None': None}
+        ns = {'type': type, '__builtins__': safe_builtins}
+        exec(code, ns)
+        self.assertIs(ns['func3'].__builtins__, safe_builtins)
+        self.assertIs(ns['func4'].__builtins__, safe_builtins)
+        self.assertIs(ns['func3'].__globals__['__builtins__'], safe_builtins)
+        self.assertNotIn('__builtins__', ns['func4'].__globals__)
+
     def test___closure__(self):
         a = 12
         def f(): print(a)
@@ -84,36 +113,7 @@ class FunctionPropertiesTest(FuncAttrsTest):
         self.assertEqual(len(c), 1)
         # don't have a type object handy
         self.assertEqual(c[0].__class__.__name__, "cell")
-
-    def test_set___closure__(self):
-        def f(): print(a)
-        f.__closure__ = ()
-
-        self.cannot_set_attr(f, "__closure__", None, TypeError)
-
-        def g():
-            x = 1
-            def f():
-                return x
-            return f
-        f = g()
-
-        self.cannot_set_attr(f, "__closure__", (), (ValueError, TypeError))
-        self.cannot_set_attr(f, "__closure__", (None, ), (ValueError, TypeError))
-
-        def g2():
-            x = 2
-            y = 3
-            def f():
-                z = x + y
-                return z
-            return f
-
-        f2 = g2()
-        f.__closure__ = f2.__closure__
-        self.assertEqual(f(), 2)            
-
-        self.cannot_del_attr(f, "__closure__", TypeError)
+        self.cannot_set_attr(f, "__closure__", c, AttributeError)
 
     def test_cell_new(self):
         cell_obj = types.CellType(1)
@@ -212,18 +212,13 @@ class FunctionPropertiesTest(FuncAttrsTest):
         else:
             self.fail("__code__ with different numbers of free vars should "
                       "not be possible")
-        # We can set a code that references less free variables than are on
-        # the closure, but not more, as that could lead to crashes.
-        d_code = d.__code__
         try:
-            d.__code__ = e.__code__
+            e.__code__ = d.__code__
         except ValueError:
             pass
         else:
             self.fail("__code__ with different numbers of free vars should "
                       "not be possible")
-
-        e.__code__ = d_code
 
     def test_blank_func_defaults(self):
         self.assertEqual(self.b.__defaults__, None)

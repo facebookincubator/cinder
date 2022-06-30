@@ -69,9 +69,9 @@ class StringPtrTestCase(unittest.TestCase):
         r = strchr(buf, b"c")
         x = r[0], r[1], r[2], r[3], r[4]
         self.assertEqual(x, (b"c", b"d", b"e", b"f", b"\000"))
-
-        # XXX(T62694321): Keep the buffer alive past its indirect use through r.
-        self.assertIs(buf, buf)
+        del buf
+        # Because r is a pointer to memory that is freed after deleting buf,
+        # the pointer is hanging and using it would reference freed memory.
 
 if __name__ == '__main__':
     unittest.main()

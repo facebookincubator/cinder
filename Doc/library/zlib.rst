@@ -9,9 +9,9 @@
 
 For applications that require data compression, the functions in this module
 allow compression and decompression, using the zlib library. The zlib library
-has its own home page at http://www.zlib.net.   There are known
+has its own home page at https://www.zlib.net.   There are known
 incompatibilities between the Python module and versions of the zlib library
-earlier than 1.1.3; 1.1.3 has a security vulnerability, so we recommend using
+earlier than 1.1.3; 1.1.3 has a `security vulnerability <https://zlib.net/zlib_faq.html#faq33>`_, so we recommend using
 1.1.4 or later.
 
 zlib's functions have many options and often need to be used in a particular
@@ -42,12 +42,11 @@ The available exception and functions in this module are:
    for use as a general hash algorithm.
 
    .. versionchanged:: 3.0
-      Always returns an unsigned value.
-      To generate the same numeric value across all Python versions and
-      platforms, use ``adler32(data) & 0xffffffff``.
+      The result is always unsigned.
+      To generate the same numeric value when using Python 2 or earlier,
+      use ``adler32(data) & 0xffffffff``.
 
-
-.. function:: compress(data, level=-1)
+.. function:: compress(data, /, level=-1)
 
    Compresses the bytes in *data*, returning a bytes object containing compressed data.
    *level* is an integer from ``0`` to ``9`` or ``-1`` controlling the level of compression;
@@ -127,12 +126,11 @@ The available exception and functions in this module are:
    for use as a general hash algorithm.
 
    .. versionchanged:: 3.0
-      Always returns an unsigned value.
-      To generate the same numeric value across all Python versions and
-      platforms, use ``crc32(data) & 0xffffffff``.
+      The result is always unsigned.
+      To generate the same numeric value when using Python 2 or earlier,
+      use ``crc32(data) & 0xffffffff``.
 
-
-.. function:: decompress(data, wbits=MAX_WBITS, bufsize=DEF_BUF_SIZE)
+.. function:: decompress(data, /, wbits=MAX_WBITS, bufsize=DEF_BUF_SIZE)
 
    Decompresses the bytes in *data*, returning a bytes object containing the
    uncompressed data.  The *wbits* parameter depends on
@@ -337,4 +335,3 @@ the following constants:
    http://www.zlib.net/manual.html
       The zlib manual explains  the semantics and usage of the library's many
       functions.
-

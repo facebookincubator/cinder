@@ -13,7 +13,7 @@ import textwrap
 import unittest
 
 from test import support
-from test.support import run_unittest, findfile, python_is_optimized
+from test.support import findfile, python_is_optimized
 
 def get_gdb_version():
     try:
@@ -145,7 +145,8 @@ class DebuggerTests(unittest.TestCase):
     def get_stack_trace(self, source=None, script=None,
                         breakpoint=BREAKPOINT_FN,
                         cmds_after_breakpoint=None,
-                        import_site=False):
+                        import_site=False,
+                        ignore_stderr=False):
         '''
         Run 'python -c SOURCE' under gdb with a breakpoint.
 
@@ -224,8 +225,9 @@ class DebuggerTests(unittest.TestCase):
         # Use "args" to invoke gdb, capturing stdout, stderr:
         out, err = run_gdb(*args, PYTHONHASHSEED=PYTHONHASHSEED)
 
-        for line in err.splitlines():
-            print(line, file=sys.stderr)
+        if not ignore_stderr:
+            for line in err.splitlines():
+                print(line, file=sys.stderr)
 
         # bpo-34007: Sometimes some versions of the shared libraries that
         # are part of the traceback are compiled in optimised mode and the
@@ -371,7 +373,6 @@ class PrettyPrintTests(DebuggerTests):
         def check_repr(text):
             try:
                 text.encode(encoding)
-                printable = True
             except UnicodeEncodeError:
                 self.assertGdbRepr(text, ascii(text))
             else:
@@ -862,47 +863,72 @@ id(42)
                                           )
         self.assertIn('Garbage-collecting', gdb_output)
 
+
     @unittest.skipIf(python_is_optimized(),
                      "Python was compiled with optimizations")
     # Some older versions of gdb will fail with
     #  "Cannot find new threads: generic error"
     # unless we add LD_PRELOAD=PATH-TO-libpthread.so.1 as a workaround
+    #
+    # gdb will also generate many erroneous errors such as:
+    #     Function "meth_varargs" not defined.
+    # This is because we are calling functions from an "external" module
+    # (_testcapimodule) rather than compiled-in functions. It seems difficult
+    # to suppress these. See also the comment in DebuggerTests.get_stack_trace
     def test_pycfunction(self):
         'Verify that "py-bt" displays invocations of PyCFunction instances'
         # Various optimizations multiply the code paths by which these are
         # called, so test a variety of calling conventions.
-        for py_name, py_args, c_name, expected_frame_number in (
-            ('gmtime', '', 'time_gmtime', 1),  # METH_VARARGS
-            ('len', '[]', 'builtin_len', 1),  # METH_O
-            ('locals', '', 'builtin_locals', 1),  # METH_NOARGS
-            ('iter', '[]', 'builtin_iter', 1),  # METH_FASTCALL
-            ('sorted', '[]', 'builtin_sorted', 1),  # METH_FASTCALL|METH_KEYWORDS
+        for func_name, args, expected_frame in (
+            ('meth_varargs', '', 1),
+            ('meth_varargs_keywords', '', 1),
+            ('meth_o', '[]', 1),
+            ('meth_noargs', '', 1),
+            ('meth_fastcall', '', 1),
+            ('meth_fastcall_keywords', '', 1),
         ):
-            with self.subTest(c_name):
-                cmd = ('from time import gmtime\n'  # (not always needed)
-                    'def foo():\n'
-                    f'    {py_name}({py_args})\n'
-                    'def bar():\n'
-                    '    foo()\n'
-                    'bar()\n')
-                # Verify with "py-bt":
-                gdb_output = self.get_stack_trace(
-                    cmd,
-                    breakpoint=c_name,
-                    cmds_after_breakpoint=['bt', 'py-bt'],
-                )
-                self.assertIn(f'<built-in method {py_name}', gdb_output)
+            for obj in (
+                '_testcapi',
+                '_testcapi.MethClass',
+                '_testcapi.MethClass()',
+                '_testcapi.MethStatic()',
 
-                # Verify with "py-bt-full":
-                gdb_output = self.get_stack_trace(
-                    cmd,
-                    breakpoint=c_name,
-                    cmds_after_breakpoint=['py-bt-full'],
-                )
-                self.assertIn(
-                    f'#{expected_frame_number} <built-in method {py_name}',
-                    gdb_output,
-                )
+                # XXX: bound methods don't yet give nice tracebacks
+                # '_testcapi.MethInstance()',
+            ):
+                with self.subTest(f'{obj}.{func_name}'):
+                    cmd = textwrap.dedent(f'''
+                        import _testcapi
+                        def foo():
+                            {obj}.{func_name}({args})
+                        def bar():
+                            foo()
+                        bar()
+                    ''')
+                    # Verify with "py-bt":
+                    gdb_output = self.get_stack_trace(
+                        cmd,
+                        breakpoint=func_name,
+                        cmds_after_breakpoint=['bt', 'py-bt'],
+                        # bpo-45207: Ignore 'Function "meth_varargs" not
+                        # defined.' message in stderr.
+                        ignore_stderr=True,
+                    )
+                    self.assertIn(f'<built-in method {func_name}', gdb_output)
+
+                    # Verify with "py-bt-full":
+                    gdb_output = self.get_stack_trace(
+                        cmd,
+                        breakpoint=func_name,
+                        cmds_after_breakpoint=['py-bt-full'],
+                        # bpo-45207: Ignore 'Function "meth_varargs" not
+                        # defined.' message in stderr.
+                        ignore_stderr=True,
+                    )
+                    self.assertIn(
+                        f'#{expected_frame} <built-in method {func_name}',
+                        gdb_output,
+                    )
 
     @unittest.skipIf(python_is_optimized(),
                      "Python was compiled with optimizations")
@@ -915,7 +941,7 @@ id(42)
             id("first break point")
             l = MyList()
         ''')
-        cmds_after_breakpoint = ['break wrapper_vectorcall', 'continue']
+        cmds_after_breakpoint = ['break wrapper_call', 'continue']
         if CET_PROTECTION:
             # bpo-32962: same case as in get_stack_trace():
             # we need an additional 'next' command in order to read
@@ -983,18 +1009,13 @@ class PyLocalsTests(DebuggerTests):
         self.assertMultilineMatches(bt,
                                     r".*\na = 1\nb = 2\nc = 3\n.*")
 
-def test_main():
+
+def setUpModule():
     if support.verbose:
         print("GDB version %s.%s:" % (gdb_major_version, gdb_minor_version))
         for line in gdb_version.splitlines():
             print(" " * 4 + line)
-    run_unittest(PrettyPrintTests,
-                 PyListTests,
-                 StackNavigationTests,
-                 PyBtTests,
-                 PyPrintTests,
-                 PyLocalsTests
-                 )
+
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

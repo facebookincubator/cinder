@@ -22,7 +22,7 @@ import unittest
 from unittest import mock
 import weakref
 
-if sys.platform != 'win32':
+if sys.platform not in ('win32', 'vxworks'):
     import tty
 
 import asyncio
@@ -32,6 +32,9 @@ from asyncio import proactor_events
 from asyncio import selector_events
 from test.test_asyncio import utils as test_utils
 from test import support
+from test.support import socket_helper
+from test.support import threading_helper
+from test.support import ALWAYS_EQ, LARGEST, SMALLEST
 
 
 def tearDownModule():
@@ -84,23 +87,27 @@ class MyBaseProto(asyncio.Protocol):
             self.connected = loop.create_future()
             self.done = loop.create_future()
 
+    def _assert_state(self, *expected):
+        if self.state not in expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'CONNECTED'
         if self.connected:
             self.connected.set_result(None)
 
     def data_received(self, data):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.nbytes += len(data)
 
     def eof_received(self):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.state = 'EOF'
 
     def connection_lost(self, exc):
-        assert self.state in ('CONNECTED', 'EOF'), self.state
+        self._assert_state('CONNECTED', 'EOF')
         self.state = 'CLOSED'
         if self.done:
             self.done.set_result(None)
@@ -121,20 +128,24 @@ class MyDatagramProto(asyncio.DatagramProtocol):
         if loop is not None:
             self.done = loop.create_future()
 
+    def _assert_state(self, expected):
+        if self.state != expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'INITIALIZED'
 
     def datagram_received(self, data, addr):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
         self.nbytes += len(data)
 
     def error_received(self, exc):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
 
     def connection_lost(self, exc):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
         self.state = 'CLOSED'
         if self.done:
             self.done.set_result(None)
@@ -150,23 +161,27 @@ class MyReadPipeProto(asyncio.Protocol):
         if loop is not None:
             self.done = loop.create_future()
 
+    def _assert_state(self, expected):
+        if self.state != expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == ['INITIAL'], self.state
+        self._assert_state(['INITIAL'])
         self.state.append('CONNECTED')
 
     def data_received(self, data):
-        assert self.state == ['INITIAL', 'CONNECTED'], self.state
+        self._assert_state(['INITIAL', 'CONNECTED'])
         self.nbytes += len(data)
 
     def eof_received(self):
-        assert self.state == ['INITIAL', 'CONNECTED'], self.state
+        self._assert_state(['INITIAL', 'CONNECTED'])
         self.state.append('EOF')
 
     def connection_lost(self, exc):
         if 'EOF' not in self.state:
             self.state.append('EOF')  # It is okay if EOF is missed.
-        assert self.state == ['INITIAL', 'CONNECTED', 'EOF'], self.state
+        self._assert_state(['INITIAL', 'CONNECTED', 'EOF'])
         self.state.append('CLOSED')
         if self.done:
             self.done.set_result(None)
@@ -181,13 +196,17 @@ class MyWritePipeProto(asyncio.BaseProtocol):
         if loop is not None:
             self.done = loop.create_future()
 
+    def _assert_state(self, expected):
+        if self.state != expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'CONNECTED'
 
     def connection_lost(self, exc):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.state = 'CLOSED'
         if self.done:
             self.done.set_result(None)
@@ -203,34 +222,38 @@ class MySubprocessProtocol(asyncio.SubprocessProtocol):
         self.disconnects = {fd: loop.create_future() for fd in range(3)}
         self.data = {1: b'', 2: b''}
         self.returncode = None
-        self.got_data = {1: asyncio.Event(loop=loop),
-                         2: asyncio.Event(loop=loop)}
+        self.got_data = {1: asyncio.Event(),
+                         2: asyncio.Event()}
+
+    def _assert_state(self, expected):
+        if self.state != expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
 
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'CONNECTED'
         self.connected.set_result(None)
 
     def connection_lost(self, exc):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.state = 'CLOSED'
         self.completed.set_result(None)
 
     def pipe_data_received(self, fd, data):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.data[fd] += data
         self.got_data[fd].set()
 
     def pipe_connection_lost(self, fd, exc):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         if exc:
             self.disconnects[fd].set_exception(exc)
         else:
             self.disconnects[fd].set_result(exc)
 
     def process_exited(self):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.returncode = self.transport.get_returncode()
 
 
@@ -291,11 +314,8 @@ class EventLoopTestsMixin:
             self.loop.stop()
 
         self.loop.call_later(0.1, callback, 'hello world')
-        t0 = time.monotonic()
         self.loop.run_forever()
-        t1 = time.monotonic()
         self.assertEqual(results, ['hello world'])
-        self.assertTrue(0.08 <= t1-t0 <= 0.8, t1-t0)
 
     def test_call_soon(self):
         results = []
@@ -364,6 +384,8 @@ class EventLoopTestsMixin:
 
         f2 = self.loop.run_in_executor(None, run)
         f2.cancel()
+        self.loop.run_until_complete(
+                self.loop.shutdown_default_executor())
         self.loop.close()
         self.loop.call_soon = patched_call_soon
         self.loop.call_soon_threadsafe = patched_call_soon
@@ -463,6 +485,8 @@ class EventLoopTestsMixin:
         self.assertFalse(self.loop.remove_signal_handler(signal.SIGINT))
 
     @unittest.skipUnless(hasattr(signal, 'SIGALRM'), 'No SIGALRM')
+    @unittest.skipUnless(hasattr(signal, 'setitimer'),
+                         'need signal.setitimer()')
     def test_signal_handling_while_selecting(self):
         # Test with a signal actually arriving during a select() call.
         caught = 0
@@ -480,6 +504,8 @@ class EventLoopTestsMixin:
         self.assertEqual(caught, 1)
 
     @unittest.skipUnless(hasattr(signal, 'SIGALRM'), 'No SIGALRM')
+    @unittest.skipUnless(hasattr(signal, 'setitimer'),
+                         'need signal.setitimer()')
     def test_signal_handling_args(self):
         some_args = (42,)
         caught = 0
@@ -514,7 +540,7 @@ class EventLoopTestsMixin:
                 lambda: MyProto(loop=self.loop), *httpd.address)
             self._basetest_create_connection(conn_fut)
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     def test_create_unix_connection(self):
         # Issue #20682: On Mac OS X Tiger, getsockname() returns a
         # zero-length address for UNIX socket.
@@ -616,7 +642,7 @@ class EventLoopTestsMixin:
             self._test_create_ssl_connection(httpd, create_connection,
                                              peername=httpd.address)
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_ssl_unix_connection(self):
         # Issue #20682: On Mac OS X Tiger, getsockname() returns a
@@ -635,7 +661,7 @@ class EventLoopTestsMixin:
 
     def test_create_connection_local_addr(self):
         with test_utils.run_test_server() as httpd:
-            port = support.find_unused_port()
+            port = socket_helper.find_unused_port()
             f = self.loop.create_connection(
                 lambda: MyProto(loop=self.loop),
                 *httpd.address, local_addr=(httpd.address[0], port))
@@ -702,7 +728,7 @@ class EventLoopTestsMixin:
         proto.transport.close()
         lsock.close()
 
-        support.join_thread(thread, timeout=1)
+        threading_helper.join_thread(thread)
         self.assertFalse(thread.is_alive())
         self.assertEqual(proto.state, 'CLOSED')
         self.assertEqual(proto.nbytes, len(message))
@@ -727,7 +753,7 @@ class EventLoopTestsMixin:
         sock = socket.socket()
         self.addCleanup(sock.close)
         coro = self.loop.connect_accepted_socket(
-            MyProto, sock, ssl_handshake_timeout=1)
+            MyProto, sock, ssl_handshake_timeout=support.LOOPBACK_TIMEOUT)
         with self.assertRaisesRegex(
                 ValueError,
                 'ssl_handshake_timeout is only meaningful with ssl'):
@@ -840,7 +866,7 @@ class EventLoopTestsMixin:
 
         return server, path
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     def test_create_unix_server(self):
         proto = MyProto(loop=self.loop)
         server, path = self._make_unix_server(lambda: proto)
@@ -932,7 +958,7 @@ class EventLoopTestsMixin:
         # stop serving
         server.close()
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_unix_server_ssl(self):
         proto = MyProto(loop=self.loop)
@@ -992,7 +1018,7 @@ class EventLoopTestsMixin:
         self.assertIsNone(proto.transport)
         server.close()
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_unix_server_ssl_verify_failed(self):
         proto = MyProto(loop=self.loop)
@@ -1052,7 +1078,7 @@ class EventLoopTestsMixin:
         self.assertIsNone(proto.transport)
         server.close()
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     @unittest.skipIf(ssl is None, 'No ssl module')
     def test_create_unix_server_ssl_verified(self):
         proto = MyProto(loop=self.loop)
@@ -1071,6 +1097,7 @@ class EventLoopTestsMixin:
                                                ssl=sslcontext_client,
                                                server_hostname='localhost')
         client, pr = self.loop.run_until_complete(f_c)
+        self.loop.run_until_complete(proto.connected)
 
         # close connection
         proto.transport.close()
@@ -1096,6 +1123,7 @@ class EventLoopTestsMixin:
                                           ssl=sslcontext_client,
                                           server_hostname='localhost')
         client, pr = self.loop.run_until_complete(f_c)
+        self.loop.run_until_complete(proto.connected)
 
         # extra info is available
         self.check_ssl_extra_info(client, peername=(host, port),
@@ -1145,7 +1173,7 @@ class EventLoopTestsMixin:
 
         server.close()
 
-    @unittest.skipUnless(support.IPV6_ENABLED, 'IPv6 not supported or enabled')
+    @unittest.skipUnless(socket_helper.IPV6_ENABLED, 'IPv6 not supported or enabled')
     def test_create_server_dual_stack(self):
         f_proto = self.loop.create_future()
 
@@ -1157,7 +1185,7 @@ class EventLoopTestsMixin:
         try_count = 0
         while True:
             try:
-                port = support.find_unused_port()
+                port = socket_helper.find_unused_port()
                 f = self.loop.create_server(TestMyProto, host=None, port=port)
                 server = self.loop.run_until_complete(f)
             except OSError as ex:
@@ -1255,7 +1283,7 @@ class EventLoopTestsMixin:
     def test_create_datagram_endpoint(self):
         self._test_create_datagram_endpoint(('127.0.0.1', 0), socket.AF_INET)
 
-    @unittest.skipUnless(support.IPV6_ENABLED, 'IPv6 not supported or enabled')
+    @unittest.skipUnless(socket_helper.IPV6_ENABLED, 'IPv6 not supported or enabled')
     def test_create_datagram_endpoint_ipv6(self):
         self._test_create_datagram_endpoint(('::1', 0), socket.AF_INET6)
 
@@ -1275,7 +1303,7 @@ class EventLoopTestsMixin:
             else:
                 break
         else:
-            assert False, 'Can not create socket.'
+            self.fail('Can not create socket.')
 
         f = self.loop.create_datagram_endpoint(
             lambda: MyDatagramProto(loop=self.loop), sock=sock)
@@ -1341,7 +1369,7 @@ class EventLoopTestsMixin:
 
         rpipe, wpipe = os.pipe()
         rpipeobj = io.open(rpipe, 'rb', 1024)
-        wpipeobj = io.open(wpipe, 'w', 1024)
+        wpipeobj = io.open(wpipe, 'w', 1024, encoding="utf-8")
 
         async def connect():
             read_transport, _ = await loop.connect_read_pipe(
@@ -1367,6 +1395,7 @@ class EventLoopTestsMixin:
 
     @unittest.skipUnless(sys.platform != 'win32',
                          "Don't support pipes for Windows")
+    @unittest.skipUnless(hasattr(os, 'openpty'), 'need os.openpty()')
     def test_read_pty_output(self):
         proto = MyReadPipeProto(loop=self.loop)
 
@@ -1464,6 +1493,7 @@ class EventLoopTestsMixin:
 
     @unittest.skipUnless(sys.platform != 'win32',
                          "Don't support pipes for Windows")
+    @unittest.skipUnless(hasattr(os, 'openpty'), 'need os.openpty()')
     # select, poll and kqueue don't support character devices (PTY) on Mac OS X
     # older than 10.6 (Snow Leopard)
     @support.requires_mac_ver(10, 6)
@@ -1487,12 +1517,12 @@ class EventLoopTestsMixin:
             return len(data)
 
         test_utils.run_until(self.loop, lambda: reader(data) >= 1,
-                             timeout=10)
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(b'1', data)
 
         transport.write(b'2345')
         test_utils.run_until(self.loop, lambda: reader(data) >= 5,
-                             timeout=10)
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(b'12345', data)
         self.assertEqual('CONNECTED', proto.state)
 
@@ -1508,6 +1538,7 @@ class EventLoopTestsMixin:
 
     @unittest.skipUnless(sys.platform != 'win32',
                          "Don't support pipes for Windows")
+    @unittest.skipUnless(hasattr(os, 'openpty'), 'need os.openpty()')
     # select, poll and kqueue don't support character devices (PTY) on Mac OS X
     # older than 10.6 (Snow Leopard)
     @support.requires_mac_ver(10, 6)
@@ -1543,27 +1574,29 @@ class EventLoopTestsMixin:
             return len(data)
 
         write_transport.write(b'1')
-        test_utils.run_until(self.loop, lambda: reader(data) >= 1, timeout=10)
+        test_utils.run_until(self.loop, lambda: reader(data) >= 1,
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(b'1', data)
         self.assertEqual(['INITIAL', 'CONNECTED'], read_proto.state)
         self.assertEqual('CONNECTED', write_proto.state)
 
         os.write(master, b'a')
         test_utils.run_until(self.loop, lambda: read_proto.nbytes >= 1,
-                             timeout=10)
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(['INITIAL', 'CONNECTED'], read_proto.state)
         self.assertEqual(1, read_proto.nbytes)
         self.assertEqual('CONNECTED', write_proto.state)
 
         write_transport.write(b'2345')
-        test_utils.run_until(self.loop, lambda: reader(data) >= 5, timeout=10)
+        test_utils.run_until(self.loop, lambda: reader(data) >= 5,
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(b'12345', data)
         self.assertEqual(['INITIAL', 'CONNECTED'], read_proto.state)
         self.assertEqual('CONNECTED', write_proto.state)
 
         os.write(master, b'bcde')
         test_utils.run_until(self.loop, lambda: read_proto.nbytes >= 5,
-                             timeout=10)
+                             timeout=support.SHORT_TIMEOUT)
         self.assertEqual(['INITIAL', 'CONNECTED'], read_proto.state)
         self.assertEqual(5, read_proto.nbytes)
         self.assertEqual('CONNECTED', write_proto.state)
@@ -1725,29 +1758,27 @@ class SubprocessTestsMixin:
         else:
             self.assertEqual(-signal.SIGKILL, returncode)
 
-    @unittest.skipUnderUwsgi()
     def test_subprocess_exec(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo.py')
 
         connect = self.loop.subprocess_exec(
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
-            self.assertEqual('CONNECTED', proto.state)
 
-            stdin = transp.get_pipe_transport(0)
-            stdin.write(b'Python The Winner')
-            self.loop.run_until_complete(proto.got_data[1].wait())
-            with test_utils.disable_logger():
-                transp.close()
-            self.loop.run_until_complete(proto.completed)
-            self.check_killed(proto.returncode)
-            self.assertEqual(b'Python The Winner', proto.data[1])
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
+        self.assertEqual('CONNECTED', proto.state)
 
-    @unittest.skipUnderUwsgi()
+        stdin = transp.get_pipe_transport(0)
+        stdin.write(b'Python The Winner')
+        self.loop.run_until_complete(proto.got_data[1].wait())
+        with test_utils.disable_logger():
+            transp.close()
+        self.loop.run_until_complete(proto.completed)
+        self.check_killed(proto.returncode)
+        self.assertEqual(b'Python The Winner', proto.data[1])
+
     def test_subprocess_interactive(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo.py')
 
@@ -1755,51 +1786,48 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
-            self.assertEqual('CONNECTED', proto.state)
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
+        self.assertEqual('CONNECTED', proto.state)
 
-            stdin = transp.get_pipe_transport(0)
-            stdin.write(b'Python ')
-            self.loop.run_until_complete(proto.got_data[1].wait())
-            proto.got_data[1].clear()
-            self.assertEqual(b'Python ', proto.data[1])
+        stdin = transp.get_pipe_transport(0)
+        stdin.write(b'Python ')
+        self.loop.run_until_complete(proto.got_data[1].wait())
+        proto.got_data[1].clear()
+        self.assertEqual(b'Python ', proto.data[1])
 
-            stdin.write(b'The Winner')
-            self.loop.run_until_complete(proto.got_data[1].wait())
-            self.assertEqual(b'Python The Winner', proto.data[1])
+        stdin.write(b'The Winner')
+        self.loop.run_until_complete(proto.got_data[1].wait())
+        self.assertEqual(b'Python The Winner', proto.data[1])
 
-            with test_utils.disable_logger():
-                transp.close()
-            self.loop.run_until_complete(proto.completed)
-            self.check_killed(proto.returncode)
+        with test_utils.disable_logger():
+            transp.close()
+        self.loop.run_until_complete(proto.completed)
+        self.check_killed(proto.returncode)
 
     def test_subprocess_shell(self):
-        with self.assertWarns(DeprecationWarning):
-            connect = self.loop.subprocess_shell(
-                            functools.partial(MySubprocessProtocol, self.loop),
-                            'echo Python')
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
+        connect = self.loop.subprocess_shell(
+                        functools.partial(MySubprocessProtocol, self.loop),
+                        'echo Python')
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            transp.get_pipe_transport(0).close()
-            self.loop.run_until_complete(proto.completed)
-            self.assertEqual(0, proto.returncode)
-            self.assertTrue(all(f.done() for f in proto.disconnects.values()))
-            self.assertEqual(proto.data[1].rstrip(b'\r\n'), b'Python')
-            self.assertEqual(proto.data[2], b'')
-            transp.close()
+        transp.get_pipe_transport(0).close()
+        self.loop.run_until_complete(proto.completed)
+        self.assertEqual(0, proto.returncode)
+        self.assertTrue(all(f.done() for f in proto.disconnects.values()))
+        self.assertEqual(proto.data[1].rstrip(b'\r\n'), b'Python')
+        self.assertEqual(proto.data[2], b'')
+        transp.close()
 
     def test_subprocess_exitcode(self):
         connect = self.loop.subprocess_shell(
                         functools.partial(MySubprocessProtocol, self.loop),
                         'exit 7', stdin=None, stdout=None, stderr=None)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
+        transp, proto = self.loop.run_until_complete(connect)
         self.assertIsInstance(proto, MySubprocessProtocol)
         self.loop.run_until_complete(proto.completed)
         self.assertEqual(7, proto.returncode)
@@ -1809,8 +1837,8 @@ class SubprocessTestsMixin:
         connect = self.loop.subprocess_shell(
                         functools.partial(MySubprocessProtocol, self.loop),
                         'exit 7', stdin=None, stdout=None, stderr=None)
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
+
+        transp, proto = self.loop.run_until_complete(connect)
         self.assertIsInstance(proto, MySubprocessProtocol)
         self.assertIsNone(transp.get_pipe_transport(0))
         self.assertIsNone(transp.get_pipe_transport(1))
@@ -1826,15 +1854,14 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            transp.kill()
-            self.loop.run_until_complete(proto.completed)
-            self.check_killed(proto.returncode)
-            transp.close()
+        transp.kill()
+        self.loop.run_until_complete(proto.completed)
+        self.check_killed(proto.returncode)
+        transp.close()
 
     def test_subprocess_terminate(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo.py')
@@ -1843,15 +1870,14 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            transp.terminate()
-            self.loop.run_until_complete(proto.completed)
-            self.check_terminated(proto.returncode)
-            transp.close()
+        transp.terminate()
+        self.loop.run_until_complete(proto.completed)
+        self.check_terminated(proto.returncode)
+        transp.close()
 
     @unittest.skipIf(sys.platform == 'win32', "Don't have SIGHUP")
     def test_subprocess_send_signal(self):
@@ -1866,19 +1892,18 @@ class SubprocessTestsMixin:
                             functools.partial(MySubprocessProtocol, self.loop),
                             sys.executable, prog)
 
-            with self.assertWarns(DeprecationWarning):
-                transp, proto = self.loop.run_until_complete(connect)
-                self.assertIsInstance(proto, MySubprocessProtocol)
-                self.loop.run_until_complete(proto.connected)
 
-                transp.send_signal(signal.SIGHUP)
-                self.loop.run_until_complete(proto.completed)
-                self.assertEqual(-signal.SIGHUP, proto.returncode)
-                transp.close()
+            transp, proto = self.loop.run_until_complete(connect)
+            self.assertIsInstance(proto, MySubprocessProtocol)
+            self.loop.run_until_complete(proto.connected)
+
+            transp.send_signal(signal.SIGHUP)
+            self.loop.run_until_complete(proto.completed)
+            self.assertEqual(-signal.SIGHUP, proto.returncode)
+            transp.close()
         finally:
             signal.signal(signal.SIGHUP, old_handler)
 
-    @unittest.skipUnderUwsgi()
     def test_subprocess_stderr(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo2.py')
 
@@ -1886,22 +1911,20 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            stdin = transp.get_pipe_transport(0)
-            stdin.write(b'test')
+        stdin = transp.get_pipe_transport(0)
+        stdin.write(b'test')
 
-            self.loop.run_until_complete(proto.completed)
+        self.loop.run_until_complete(proto.completed)
 
-            transp.close()
-            self.assertEqual(b'OUT:test', proto.data[1])
-            self.assertTrue(proto.data[2].startswith(b'ERR:test'), proto.data[2])
-            self.assertEqual(0, proto.returncode)
+        transp.close()
+        self.assertEqual(b'OUT:test', proto.data[1])
+        self.assertTrue(proto.data[2].startswith(b'ERR:test'), proto.data[2])
+        self.assertEqual(0, proto.returncode)
 
-    @unittest.skipUnderUwsgi()
     def test_subprocess_stderr_redirect_to_stdout(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo2.py')
 
@@ -1909,58 +1932,57 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog, stderr=subprocess.STDOUT)
 
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
 
-            stdin = transp.get_pipe_transport(0)
-            self.assertIsNotNone(transp.get_pipe_transport(1))
-            self.assertIsNone(transp.get_pipe_transport(2))
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            stdin.write(b'test')
-            self.loop.run_until_complete(proto.completed)
-            self.assertTrue(proto.data[1].startswith(b'OUT:testERR:test'),
-                            proto.data[1])
-            self.assertEqual(b'', proto.data[2])
+        stdin = transp.get_pipe_transport(0)
+        self.assertIsNotNone(transp.get_pipe_transport(1))
+        self.assertIsNone(transp.get_pipe_transport(2))
 
-            transp.close()
-            self.assertEqual(0, proto.returncode)
+        stdin.write(b'test')
+        self.loop.run_until_complete(proto.completed)
+        self.assertTrue(proto.data[1].startswith(b'OUT:testERR:test'),
+                        proto.data[1])
+        self.assertEqual(b'', proto.data[2])
 
-    @unittest.skipUnderUwsgi()
+        transp.close()
+        self.assertEqual(0, proto.returncode)
+
     def test_subprocess_close_client_stream(self):
         prog = os.path.join(os.path.dirname(__file__), 'echo3.py')
 
         connect = self.loop.subprocess_exec(
                         functools.partial(MySubprocessProtocol, self.loop),
                         sys.executable, prog)
-        with self.assertWarns(DeprecationWarning):
-            transp, proto = self.loop.run_until_complete(connect)
-            self.assertIsInstance(proto, MySubprocessProtocol)
-            self.loop.run_until_complete(proto.connected)
 
-            stdin = transp.get_pipe_transport(0)
-            stdout = transp.get_pipe_transport(1)
-            stdin.write(b'test')
-            self.loop.run_until_complete(proto.got_data[1].wait())
-            self.assertEqual(b'OUT:test', proto.data[1])
+        transp, proto = self.loop.run_until_complete(connect)
+        self.assertIsInstance(proto, MySubprocessProtocol)
+        self.loop.run_until_complete(proto.connected)
 
-            stdout.close()
-            self.loop.run_until_complete(proto.disconnects[1])
-            stdin.write(b'xxx')
-            self.loop.run_until_complete(proto.got_data[2].wait())
-            if sys.platform != 'win32':
-                self.assertEqual(b'ERR:BrokenPipeError', proto.data[2])
-            else:
-                # After closing the read-end of a pipe, writing to the
-                # write-end using os.write() fails with errno==EINVAL and
-                # GetLastError()==ERROR_INVALID_NAME on Windows!?!  (Using
-                # WriteFile() we get ERROR_BROKEN_PIPE as expected.)
-                self.assertEqual(b'ERR:OSError', proto.data[2])
-            with test_utils.disable_logger():
-                transp.close()
-            self.loop.run_until_complete(proto.completed)
-            self.check_killed(proto.returncode)
+        stdin = transp.get_pipe_transport(0)
+        stdout = transp.get_pipe_transport(1)
+        stdin.write(b'test')
+        self.loop.run_until_complete(proto.got_data[1].wait())
+        self.assertEqual(b'OUT:test', proto.data[1])
+
+        stdout.close()
+        self.loop.run_until_complete(proto.disconnects[1])
+        stdin.write(b'xxx')
+        self.loop.run_until_complete(proto.got_data[2].wait())
+        if sys.platform != 'win32':
+            self.assertEqual(b'ERR:BrokenPipeError', proto.data[2])
+        else:
+            # After closing the read-end of a pipe, writing to the
+            # write-end using os.write() fails with errno==EINVAL and
+            # GetLastError()==ERROR_INVALID_NAME on Windows!?!  (Using
+            # WriteFile() we get ERROR_BROKEN_PIPE as expected.)
+            self.assertEqual(b'ERR:OSError', proto.data[2])
+        with test_utils.disable_logger():
+            transp.close()
+        self.loop.run_until_complete(proto.completed)
+        self.check_killed(proto.returncode)
 
     def test_subprocess_wait_no_same_group(self):
         # start the new process in a new session
@@ -1968,10 +1990,11 @@ class SubprocessTestsMixin:
                         functools.partial(MySubprocessProtocol, self.loop),
                         'exit 7', stdin=None, stdout=None, stderr=None,
                         start_new_session=True)
-        _, proto = yield self.loop.run_until_complete(connect)
+        transp, proto = self.loop.run_until_complete(connect)
         self.assertIsInstance(proto, MySubprocessProtocol)
         self.loop.run_until_complete(proto.completed)
         self.assertEqual(7, proto.returncode)
+        transp.close()
 
     def test_subprocess_exec_invalid_args(self):
         async def connect(**kwds):
@@ -2195,7 +2218,6 @@ class HandleTests(test_utils.TestCase):
                      % (cb_regex, re.escape(filename), lineno))
             self.assertRegex(repr(h), regex)
 
-    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_handle_repr_debug(self):
         self.loop.get_debug.return_value = True
 
@@ -2222,7 +2244,6 @@ class HandleTests(test_utils.TestCase):
             '<Handle cancelled noop(1, 2) at %s:%s created at %s:%s>'
             % (filename, lineno, create_filename, create_lineno))
 
-    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_handle_source_traceback(self):
         loop = asyncio.get_event_loop_policy().new_event_loop()
         loop.set_debug(True)
@@ -2340,7 +2361,6 @@ class TimerTests(unittest.TestCase):
         self.assertEqual(repr(h),
                         '<TimerHandle cancelled when=123>')
 
-    @unittest.skipUnderCinderJIT("Invalid stack traces (T86183012)")
     def test_timer_repr_debug(self):
         self.loop.get_debug.return_value = True
 
@@ -2401,6 +2421,28 @@ class TimerTests(unittest.TestCase):
         h3 = asyncio.Handle(callback, (), self.loop)
         self.assertIs(NotImplemented, h1.__eq__(h3))
         self.assertIs(NotImplemented, h1.__ne__(h3))
+
+        with self.assertRaises(TypeError):
+            h1 < ()
+        with self.assertRaises(TypeError):
+            h1 > ()
+        with self.assertRaises(TypeError):
+            h1 <= ()
+        with self.assertRaises(TypeError):
+            h1 >= ()
+        self.assertFalse(h1 == ())
+        self.assertTrue(h1 != ())
+
+        self.assertTrue(h1 == ALWAYS_EQ)
+        self.assertFalse(h1 != ALWAYS_EQ)
+        self.assertTrue(h1 < LARGEST)
+        self.assertFalse(h1 > LARGEST)
+        self.assertTrue(h1 <= LARGEST)
+        self.assertFalse(h1 >= LARGEST)
+        self.assertFalse(h1 < SMALLEST)
+        self.assertTrue(h1 > SMALLEST)
+        self.assertFalse(h1 <= SMALLEST)
+        self.assertTrue(h1 >= SMALLEST)
 
 
 class AbstractEventLoopTests(unittest.TestCase):
@@ -2681,14 +2723,18 @@ class GetEventLoopTestsMixin:
             asyncio.set_event_loop_policy(Policy())
             loop = asyncio.new_event_loop()
 
-            with self.assertRaises(TestError):
-                asyncio.get_event_loop()
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaises(TestError):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
             asyncio.set_event_loop(None)
-            with self.assertRaises(TestError):
-                asyncio.get_event_loop()
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaises(TestError):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
 
             with self.assertRaisesRegex(RuntimeError, 'no running'):
-                self.assertIs(asyncio.get_running_loop(), None)
+                asyncio.get_running_loop()
             self.assertIs(asyncio._get_running_loop(), None)
 
             async def func():
@@ -2699,12 +2745,16 @@ class GetEventLoopTestsMixin:
             loop.run_until_complete(func())
 
             asyncio.set_event_loop(loop)
-            with self.assertRaises(TestError):
-                asyncio.get_event_loop()
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaises(TestError):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
 
             asyncio.set_event_loop(None)
-            with self.assertRaises(TestError):
-                asyncio.get_event_loop()
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaises(TestError):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
 
         finally:
             asyncio.set_event_loop_policy(old_policy)
@@ -2712,7 +2762,56 @@ class GetEventLoopTestsMixin:
                 loop.close()
 
         with self.assertRaisesRegex(RuntimeError, 'no running'):
-            self.assertIs(asyncio.get_running_loop(), None)
+            asyncio.get_running_loop()
+
+        self.assertIs(asyncio._get_running_loop(), None)
+
+    def test_get_event_loop_returns_running_loop2(self):
+        old_policy = asyncio.get_event_loop_policy()
+        try:
+            asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+            loop = asyncio.new_event_loop()
+            self.addCleanup(loop.close)
+
+            with self.assertWarns(DeprecationWarning) as cm:
+                loop2 = asyncio.get_event_loop()
+            self.addCleanup(loop2.close)
+            self.assertEqual(cm.warnings[0].filename, __file__)
+            asyncio.set_event_loop(None)
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaisesRegex(RuntimeError, 'no current'):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
+
+            with self.assertRaisesRegex(RuntimeError, 'no running'):
+                asyncio.get_running_loop()
+            self.assertIs(asyncio._get_running_loop(), None)
+
+            async def func():
+                self.assertIs(asyncio.get_event_loop(), loop)
+                self.assertIs(asyncio.get_running_loop(), loop)
+                self.assertIs(asyncio._get_running_loop(), loop)
+
+            loop.run_until_complete(func())
+
+            asyncio.set_event_loop(loop)
+            with self.assertWarns(DeprecationWarning) as cm:
+                self.assertIs(asyncio.get_event_loop(), loop)
+            self.assertEqual(cm.warnings[0].filename, __file__)
+
+            asyncio.set_event_loop(None)
+            with self.assertWarns(DeprecationWarning) as cm:
+                with self.assertRaisesRegex(RuntimeError, 'no current'):
+                    asyncio.get_event_loop()
+            self.assertEqual(cm.warnings[0].filename, __file__)
+
+        finally:
+            asyncio.set_event_loop_policy(old_policy)
+            if loop is not None:
+                loop.close()
+
+        with self.assertRaisesRegex(RuntimeError, 'no running'):
+            asyncio.get_running_loop()
 
         self.assertIs(asyncio._get_running_loop(), None)
 

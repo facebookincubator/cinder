@@ -1,7 +1,6 @@
-#-*- coding: iso-8859-1 -*-
 # pysqlite2/test/hooks.py: tests for various SQLite-specific hooks
 #
-# Copyright (C) 2006-2007 Gerhard Häring <gh@ghaering.de>
+# Copyright (C) 2006-2007 Gerhard HÃ¤ring <gh@ghaering.de>
 #
 # This file is part of pysqlite.
 #
@@ -21,29 +20,31 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+import contextlib
 import unittest
 import sqlite3 as sqlite
 
-from test.support import TESTFN, unlink
+from test.support.os_helper import TESTFN, unlink
+
 
 class CollationTests(unittest.TestCase):
-    def CheckCreateCollationNotString(self):
+    def test_create_collation_not_string(self):
         con = sqlite.connect(":memory:")
         with self.assertRaises(TypeError):
             con.create_collation(None, lambda x, y: (x > y) - (x < y))
 
-    def CheckCreateCollationNotCallable(self):
+    def test_create_collation_not_callable(self):
         con = sqlite.connect(":memory:")
         with self.assertRaises(TypeError) as cm:
             con.create_collation("X", 42)
         self.assertEqual(str(cm.exception), 'parameter must be callable')
 
-    def CheckCreateCollationNotAscii(self):
+    def test_create_collation_not_ascii(self):
         con = sqlite.connect(":memory:")
         with self.assertRaises(sqlite.ProgrammingError):
-            con.create_collation("collä", lambda x, y: (x > y) - (x < y))
+            con.create_collation("collÃ¤", lambda x, y: (x > y) - (x < y))
 
-    def CheckCreateCollationBadUpper(self):
+    def test_create_collation_bad_upper(self):
         class BadUpperStr(str):
             def upper(self):
                 return None
@@ -60,9 +61,7 @@ class CollationTests(unittest.TestCase):
         self.assertEqual(result[0][0], 'b')
         self.assertEqual(result[1][0], 'a')
 
-    @unittest.skipIf(sqlite.sqlite_version_info < (3, 2, 1),
-                     'old SQLite versions crash on this test')
-    def CheckCollationIsUsed(self):
+    def test_collation_is_used(self):
         def mycoll(x, y):
             # reverse order
             return -((x > y) - (x < y))
@@ -87,7 +86,7 @@ class CollationTests(unittest.TestCase):
             result = con.execute(sql).fetchall()
         self.assertEqual(str(cm.exception), 'no such collation sequence: mycoll')
 
-    def CheckCollationReturnsLargeInteger(self):
+    def test_collation_returns_large_integer(self):
         def mycoll(x, y):
             # reverse order
             return -((x > y) - (x < y)) * 2**32
@@ -106,7 +105,7 @@ class CollationTests(unittest.TestCase):
         self.assertEqual(result, [('c',), ('b',), ('a',)],
                          msg="the expected order was not returned")
 
-    def CheckCollationRegisterTwice(self):
+    def test_collation_register_twice(self):
         """
         Register two different collation functions under the same name.
         Verify that the last one is actually used.
@@ -120,7 +119,7 @@ class CollationTests(unittest.TestCase):
         self.assertEqual(result[0][0], 'b')
         self.assertEqual(result[1][0], 'a')
 
-    def CheckDeregisterCollation(self):
+    def test_deregister_collation(self):
         """
         Register a collation, then deregister it. Make sure an error is raised if we try
         to use it.
@@ -133,7 +132,7 @@ class CollationTests(unittest.TestCase):
         self.assertEqual(str(cm.exception), 'no such collation sequence: mycoll')
 
 class ProgressTests(unittest.TestCase):
-    def CheckProgressHandlerUsed(self):
+    def test_progress_handler_used(self):
         """
         Test that the progress handler is invoked once it is set.
         """
@@ -149,7 +148,7 @@ class ProgressTests(unittest.TestCase):
         self.assertTrue(progress_calls)
 
 
-    def CheckOpcodeCount(self):
+    def test_opcode_count(self):
         """
         Test that the opcode argument is respected.
         """
@@ -172,7 +171,7 @@ class ProgressTests(unittest.TestCase):
         second_count = len(progress_calls)
         self.assertGreaterEqual(first_count, second_count)
 
-    def CheckCancelOperation(self):
+    def test_cancel_operation(self):
         """
         Test that returning a non-zero value stops the operation in progress.
         """
@@ -186,7 +185,7 @@ class ProgressTests(unittest.TestCase):
             curs.execute,
             "create table bar (a, b)")
 
-    def CheckClearHandler(self):
+    def test_clear_handler(self):
         """
         Test that setting the progress handler to None clears the previously set handler.
         """
@@ -202,7 +201,17 @@ class ProgressTests(unittest.TestCase):
         self.assertEqual(action, 0, "progress handler was not cleared")
 
 class TraceCallbackTests(unittest.TestCase):
-    def CheckTraceCallbackUsed(self):
+    @contextlib.contextmanager
+    def check_stmt_trace(self, cx, expected):
+        try:
+            traced = []
+            cx.set_trace_callback(lambda stmt: traced.append(stmt))
+            yield
+        finally:
+            self.assertEqual(traced, expected)
+            cx.set_trace_callback(None)
+
+    def test_trace_callback_used(self):
         """
         Test that the trace callback is invoked once it is set.
         """
@@ -215,7 +224,7 @@ class TraceCallbackTests(unittest.TestCase):
         self.assertTrue(traced_statements)
         self.assertTrue(any("create table foo" in stmt for stmt in traced_statements))
 
-    def CheckClearTraceCallback(self):
+    def test_clear_trace_callback(self):
         """
         Test that setting the trace callback to None clears the previously set callback.
         """
@@ -228,7 +237,7 @@ class TraceCallbackTests(unittest.TestCase):
         con.execute("create table foo(a, b)")
         self.assertFalse(traced_statements, "trace callback was not cleared")
 
-    def CheckUnicodeContent(self):
+    def test_unicode_content(self):
         """
         Test that the statement can contain unicode literals.
         """
@@ -239,17 +248,13 @@ class TraceCallbackTests(unittest.TestCase):
             traced_statements.append(statement)
         con.set_trace_callback(trace)
         con.execute("create table foo(x)")
-        # Can't execute bound parameters as their values don't appear
-        # in traced statements before SQLite 3.6.21
-        # (cf. http://www.sqlite.org/draft/releaselog/3_6_21.html)
-        con.execute('insert into foo(x) values ("%s")' % unicode_value)
+        con.execute("insert into foo(x) values ('%s')" % unicode_value)
         con.commit()
         self.assertTrue(any(unicode_value in stmt for stmt in traced_statements),
                         "Unicode data %s garbled in trace callback: %s"
                         % (ascii(unicode_value), ', '.join(map(ascii, traced_statements))))
 
-    @unittest.skipIf(sqlite.sqlite_version_info < (3, 3, 9), "sqlite3_prepare_v2 is not available")
-    def CheckTraceCallbackContent(self):
+    def test_trace_callback_content(self):
         # set_trace_callback() shouldn't produce duplicate content (bpo-26187)
         traced_statements = []
         def trace(statement):
@@ -267,12 +272,31 @@ class TraceCallbackTests(unittest.TestCase):
         cur.execute(queries[1])
         self.assertEqual(traced_statements, queries)
 
+    def test_trace_expanded_sql(self):
+        expected = [
+            "create table t(t)",
+            "BEGIN ",
+            "insert into t values(0)",
+            "insert into t values(1)",
+            "insert into t values(2)",
+            "COMMIT",
+        ]
+        cx = sqlite.connect(":memory:")
+        with self.check_stmt_trace(cx, expected):
+            with cx:
+                cx.execute("create table t(t)")
+                cx.executemany("insert into t values(?)", ((v,) for v in range(3)))
+
 
 def suite():
-    collation_suite = unittest.makeSuite(CollationTests, "Check")
-    progress_suite = unittest.makeSuite(ProgressTests, "Check")
-    trace_suite = unittest.makeSuite(TraceCallbackTests, "Check")
-    return unittest.TestSuite((collation_suite, progress_suite, trace_suite))
+    tests = [
+        CollationTests,
+        ProgressTests,
+        TraceCallbackTests,
+    ]
+    return unittest.TestSuite(
+        [unittest.TestLoader().loadTestsFromTestCase(t) for t in tests]
+    )
 
 def test():
     runner = unittest.TextTestRunner()

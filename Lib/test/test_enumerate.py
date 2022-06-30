@@ -2,6 +2,7 @@ import unittest
 import operator
 import sys
 import pickle
+import gc
 
 from test import support
 
@@ -134,6 +135,18 @@ class EnumerateTestCase(unittest.TestCase, PickleTest):
         self.assertEqual(len(set(map(id, list(enumerate(self.seq))))), len(self.seq))
         self.assertEqual(len(set(map(id, enumerate(self.seq)))), min(1,len(self.seq)))
 
+    @support.cpython_only
+    def test_enumerate_result_gc(self):
+        # bpo-42536: enumerate's tuple-reuse speed trick breaks the GC's
+        # assumptions about what can be untracked. Make sure we re-track result
+        # tuples whenever we reuse them.
+        it = self.enum([[]])
+        gc.collect()
+        # That GC collection probably untracked the recycled internal result
+        # tuple, which is initialized to (None, None). Make sure it's re-tracked
+        # when it's mutated and returned from __next__:
+        self.assertTrue(gc.is_tracked(next(it)))
+
 class MyEnum(enumerate):
     pass
 
@@ -204,7 +217,6 @@ class TestReversed(unittest.TestCase, PickleTest):
         self.assertRaises(TypeError, reversed, [], 'extra')
 
     @unittest.skipUnless(hasattr(sys, 'getrefcount'), 'test needs sys.getrefcount()')
-    @unittest.skipUnderCinderJIT("tests refcounting internals")
     def test_bug1229429(self):
         # this bug was never in reversed, it was in
         # PyObject_CallMethod, and reversed_new calls that sometimes.

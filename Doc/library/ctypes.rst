@@ -20,7 +20,7 @@ ctypes tutorial
 
 Note: The code samples in this tutorial use :mod:`doctest` to make sure that
 they actually work.  Since some code samples behave differently under Linux,
-Windows, or Mac OS X, they contain doctest directives in comments.
+Windows, or macOS, they contain doctest directives in comments.
 
 Note: Some code samples reference the ctypes :class:`c_int` type.  On platforms
 where ``sizeof(long) == sizeof(int)`` it is an alias to :class:`c_long`.
@@ -80,7 +80,7 @@ the library by creating an instance of CDLL by calling the constructor::
    <CDLL 'libc.so.6', handle ... at ...>
    >>>
 
-.. XXX Add section for Mac OS X.
+.. XXX Add section for macOS.
 
 
 .. _ctypes-accessing-functions-from-loaded-dlls:
@@ -919,9 +919,9 @@ Let's try it. We create two instances of ``cell``, and let them point to each
 other, and finally follow the pointer chain a few times::
 
    >>> c1 = cell()
-   >>> c1.name = "foo"
+   >>> c1.name = b"foo"
    >>> c2 = cell()
-   >>> c2.name = "bar"
+   >>> c2.name = b"bar"
    >>> c1.next = pointer(c2)
    >>> c2.next = pointer(c1)
    >>> p = c1
@@ -1288,7 +1288,7 @@ Here are some examples::
    'libbz2.so.1.0'
    >>>
 
-On OS X, :func:`find_library` tries several predefined naming schemes and paths
+On macOS, :func:`find_library` tries several predefined naming schemes and paths
 to locate the library, and returns a full pathname if successful::
 
    >>> from ctypes.util import find_library
@@ -1320,14 +1320,29 @@ There are several ways to load shared libraries into the Python process.  One
 way is to instantiate one of the following classes:
 
 
-.. class:: CDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=0)
+.. class:: CDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=None)
 
    Instances of this class represent loaded shared libraries. Functions in these
    libraries use the standard C calling convention, and are assumed to return
    :c:type:`int`.
 
+   On Windows creating a :class:`CDLL` instance may fail even if the DLL name
+   exists. When a dependent DLL of the loaded DLL is not found, a
+   :exc:`OSError` error is raised with the message *"[WinError 126] The
+   specified module could not be found".* This error message does not contain
+   the name of the missing DLL because the Windows API does not return this
+   information making this error hard to diagnose. To resolve this error and
+   determine which DLL is not found, you need to find the list of dependent
+   DLLs and determine which one is not found using Windows debugging and
+   tracing tools.
 
-.. class:: OleDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=0)
+.. seealso::
+
+    `Microsoft DUMPBIN tool <https://docs.microsoft.com/cpp/build/reference/dependents>`_
+    -- A tool to find DLL dependents.
+
+
+.. class:: OleDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=None)
 
    Windows only: Instances of this class represent loaded shared libraries,
    functions in these libraries use the ``stdcall`` calling convention, and are
@@ -1340,15 +1355,11 @@ way is to instantiate one of the following classes:
       :exc:`WindowsError` used to be raised.
 
 
-.. class:: WinDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=0)
+.. class:: WinDLL(name, mode=DEFAULT_MODE, handle=None, use_errno=False, use_last_error=False, winmode=None)
 
    Windows only: Instances of this class represent loaded shared libraries,
    functions in these libraries use the ``stdcall`` calling convention, and are
    assumed to return :c:type:`int` by default.
-
-   On Windows CE only the standard calling convention is used, for convenience the
-   :class:`WinDLL` and :class:`OleDLL` use the standard calling convention on this
-   platform.
 
 The Python :term:`global interpreter lock` is released before calling any
 function exported by these libraries, and reacquired afterwards.
@@ -1618,7 +1629,7 @@ They are instances of a private class:
    ``ctypes.seh_exception`` with argument ``code`` will be raised, allowing an
    audit hook to replace the exception with its own.
 
-.. audit-event:: ctypes.call_function func_pointer,arguments ctype-foreign-functions
+.. audit-event:: ctypes.call_function func_pointer,arguments foreign-functions
 
    Some ways to invoke foreign function calls may raise an auditing event
    ``ctypes.call_function`` with arguments ``function pointer`` and ``arguments``.
@@ -1650,8 +1661,7 @@ See :ref:`ctypes-callback-functions` for examples.
 .. function:: WINFUNCTYPE(restype, *argtypes, use_errno=False, use_last_error=False)
 
    Windows only: The returned function prototype creates functions that use the
-   ``stdcall`` calling convention, except on Windows CE where
-   :func:`WINFUNCTYPE` is the same as :func:`CFUNCTYPE`.  The function will
+   ``stdcall`` calling convention.  The function will
    release the GIL during the call.  *use_errno* and *use_last_error* have the
    same meaning as above.
 
@@ -2493,12 +2503,12 @@ other data types containing pointer type fields.
 Arrays and pointers
 ^^^^^^^^^^^^^^^^^^^
 
-.. class:: Array(\*args)
+.. class:: Array(*args)
 
    Abstract base class for arrays.
 
    The recommended way to create concrete array types is by multiplying any
-   :mod:`ctypes` data type with a positive integer.  Alternatively, you can subclass
+   :mod:`ctypes` data type with a non-negative integer.  Alternatively, you can subclass
    this type and define :attr:`_length_` and :attr:`_type_` class variables.
    Array elements can be read and written using standard
    subscript and slice accesses; for slice reads, the resulting object is
@@ -2545,4 +2555,3 @@ Arrays and pointers
 
         Returns the object to which to pointer points.  Assigning to this
         attribute changes the pointer to point to the assigned object.
-

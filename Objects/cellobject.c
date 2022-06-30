@@ -2,32 +2,13 @@
 
 #include "Python.h"
 #include "pycore_object.h"
-#include "pycore_pymem.h"
-#include "pycore_pystate.h"
-
-static PyCellObject *free_list = NULL;
-static int numfree = 0;
-#define PyCell_MAXFREELIST 200
 
 PyObject *
 PyCell_New(PyObject *obj)
 {
     PyCellObject *op;
 
-    if (free_list == NULL) {
-        op = (PyCellObject *)PyObject_GC_New(PyCellObject, &PyCell_Type);
-        if (op == NULL) {
-            return NULL;
-        }
-    } else {
-        assert(numfree > 0);
-        --numfree;
-        op = free_list;
-        free_list = (PyCellObject *)free_list->ob_ref;
-
-        _Py_NewReference((PyObject *)op);
-    }
-
+    op = (PyCellObject *)PyObject_GC_New(PyCellObject, &PyCell_Type);
     if (op == NULL)
         return NULL;
     op->ob_ref = obj;
@@ -99,14 +80,7 @@ cell_dealloc(PyCellObject *op)
 {
     _PyObject_GC_UNTRACK(op);
     Py_XDECREF(op->ob_ref);
-
-    if (numfree < PyCell_MAXFREELIST) {
-        ++numfree;
-        op->ob_ref = (PyObject *)free_list;
-        free_list = op;
-    } else {
-        PyObject_GC_Del(op);
-    }
+    PyObject_GC_Del(op);
 }
 
 static PyObject *
@@ -136,7 +110,7 @@ cell_repr(PyCellObject *op)
         return PyUnicode_FromFormat("<cell at %p: empty>", op);
 
     return PyUnicode_FromFormat("<cell at %p: %.80s object at %p>",
-                               op, op->ob_ref->ob_type->tp_name,
+                               op, Py_TYPE(op->ob_ref)->tp_name,
                                op->ob_ref);
 }
 
@@ -172,21 +146,6 @@ cell_set_contents(PyCellObject *op, PyObject *obj, void *Py_UNUSED(ignored))
     Py_XINCREF(obj);
     Py_XSETREF(op->ob_ref, obj);
     return 0;
-}
-
-int
-_PyCell_ClearFreeList(void)
-{
-    int freelist_size = numfree;
-
-    while (free_list != NULL) {
-        PyCellObject *f = free_list;
-        free_list = (PyCellObject*) free_list->ob_ref;
-        PyObject_GC_Del(f);
-        --numfree;
-    }
-    assert(numfree == 0);
-    return freelist_size;
 }
 
 static PyGetSetDef cell_getsetlist[] = {

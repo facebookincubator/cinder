@@ -13,9 +13,6 @@ if sys.platform == "win32":
 if sys.platform == 'darwin':
     raise unittest.SkipTest("test may crash on macOS (bpo-33725)")
 
-if sys._built_with_asan:
-    raise unittest.SkipTest("ASAN deadlocks post fork in several test suites")
-
 test._test_multiprocessing.install_tests_in_module_dict(globals(), 'fork')
 
 if __name__ == '__main__':

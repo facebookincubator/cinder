@@ -14,14 +14,12 @@
  * (c) 2002 Gregory P. Ward.  All Rights Reserved.
  * (c) 2002 Python Software Foundation.  All Rights Reserved.
  *
- * XXX need a license statement
- *
  * $Id$
  */
 
 #define PY_SSIZE_T_CLEAN
 #include "Python.h"
-#include "structmember.h"
+#include "structmember.h"         // PyMemberDef
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -156,7 +154,7 @@ oss_dealloc(oss_audio_t *self)
     /* if already closed, don't reclose it */
     if (self->fd != -1)
         close(self->fd);
-    PyObject_Del(self);
+    PyObject_Free(self);
 }
 
 
@@ -201,7 +199,7 @@ oss_mixer_dealloc(oss_mixer_t *self)
     /* if already closed, don't reclose it */
     if (self->fd != -1)
         close(self->fd);
-    PyObject_Del(self);
+    PyObject_Free(self);
 }
 
 
@@ -539,7 +537,7 @@ oss_exit(PyObject *self, PyObject *unused)
 {
     _Py_IDENTIFIER(close);
 
-    PyObject *ret = _PyObject_CallMethodId(self, &PyId_close, NULL);
+    PyObject *ret = _PyObject_CallMethodIdNoArgs(self, &PyId_close);
     if (!ret)
         return NULL;
     Py_DECREF(ret);
@@ -1245,8 +1243,12 @@ PyInit_ossaudiodev(void)
     _EXPORT_INT(m, SNDCTL_DSP_GETSPDIF);
 #endif
     _EXPORT_INT(m, SNDCTL_DSP_GETTRIGGER);
+#ifdef SNDCTL_DSP_MAPINBUF
     _EXPORT_INT(m, SNDCTL_DSP_MAPINBUF);
+#endif
+#ifdef SNDCTL_DSP_MAPOUTBUF
     _EXPORT_INT(m, SNDCTL_DSP_MAPOUTBUF);
+#endif
     _EXPORT_INT(m, SNDCTL_DSP_NONBLOCK);
     _EXPORT_INT(m, SNDCTL_DSP_POST);
 #ifdef SNDCTL_DSP_PROFILE

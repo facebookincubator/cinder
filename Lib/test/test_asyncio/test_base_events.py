@@ -3,7 +3,6 @@
 import concurrent.futures
 import errno
 import math
-import os
 import socket
 import sys
 import threading
@@ -17,7 +16,9 @@ from asyncio import constants
 from test.test_asyncio import utils as test_utils
 from test import support
 from test.support.script_helper import assert_python_ok
-
+from test.support import os_helper
+from test.support import socket_helper
+import warnings
 
 MOCK_ANY = mock.ANY
 PY34 = sys.version_info >= (3, 4)
@@ -91,7 +92,7 @@ class BaseEventTests(test_utils.TestCase):
         self.assertIsNone(
             base_events._ipaddr_info('1.2.3.4', 1, UNSPEC, 0, 0))
 
-        if support.IPV6_ENABLED:
+        if socket_helper.IPV6_ENABLED:
             # IPv4 address with family IPv6.
             self.assertIsNone(
                 base_events._ipaddr_info('1.2.3.4', 1, INET6, STREAM, TCP))
@@ -216,6 +217,9 @@ class BaseEventLoopTests(test_utils.TestCase):
                 raise NotImplementedError(
                     'cannot submit into a dummy executor')
 
+        self.loop._process_events = mock.Mock()
+        self.loop._write_to_self = mock.Mock()
+
         executor = DummyExecutor()
         self.loop.set_default_executor(executor)
         self.assertIs(executor, self.loop._default_executor)
@@ -225,6 +229,9 @@ class BaseEventLoopTests(test_utils.TestCase):
 
         with self.assertWarns(DeprecationWarning):
             self.loop.set_default_executor(executor)
+
+        # Avoid cleaning up the executor mock
+        self.loop._default_executor = None
 
     def test_call_soon(self):
         def cb():
@@ -636,7 +643,7 @@ class BaseEventLoopTests(test_utils.TestCase):
                                 'Exception in callback.*zero'),
                         exc_info=(ZeroDivisionError, MOCK_ANY, MOCK_ANY))
 
-        assert not mock_handler.called
+        self.assertFalse(mock_handler.called)
 
     def test_set_exc_handler_broken(self):
         def run_loop():
@@ -742,7 +749,6 @@ class BaseEventLoopTests(test_utils.TestCase):
         self.assertFalse(isinstance(task, MyTask))
         self.loop.run_until_complete(task)
 
-    @unittest.skipUnderUwsgi()
     def test_env_var_debug(self):
         code = '\n'.join((
             'import asyncio',
@@ -794,6 +800,17 @@ class BaseEventLoopTests(test_utils.TestCase):
         # make warnings quiet
         task._log_destroy_pending = False
         coro.close()
+
+    def test_create_task_error_closes_coro(self):
+        async def test():
+            pass
+        loop = asyncio.new_event_loop()
+        loop.close()
+        with warnings.catch_warnings(record=True) as w:
+            with self.assertRaises(RuntimeError):
+                asyncio.ensure_future(test(), loop=loop)
+            self.assertEqual(len(w), 0)
+
 
     def test_create_named_task_with_default_factory(self):
         async def test():
@@ -997,22 +1014,26 @@ class MyProto(asyncio.Protocol):
         if create_future:
             self.done = asyncio.get_running_loop().create_future()
 
+    def _assert_state(self, *expected):
+        if self.state not in expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'CONNECTED'
         transport.write(b'GET / HTTP/1.0\r\nHost: example.com\r\n\r\n')
 
     def data_received(self, data):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.nbytes += len(data)
 
     def eof_received(self):
-        assert self.state == 'CONNECTED', self.state
+        self._assert_state('CONNECTED')
         self.state = 'EOF'
 
     def connection_lost(self, exc):
-        assert self.state in ('CONNECTED', 'EOF'), self.state
+        self._assert_state('CONNECTED', 'EOF')
         self.state = 'CLOSED'
         if self.done:
             self.done.set_result(None)
@@ -1027,20 +1048,24 @@ class MyDatagramProto(asyncio.DatagramProtocol):
         if create_future:
             self.done = loop.create_future()
 
+    def _assert_state(self, expected):
+        if self.state != expected:
+            raise AssertionError(f'state: {self.state!r}, expected: {expected!r}')
+
     def connection_made(self, transport):
         self.transport = transport
-        assert self.state == 'INITIAL', self.state
+        self._assert_state('INITIAL')
         self.state = 'INITIALIZED'
 
     def datagram_received(self, data, addr):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
         self.nbytes += len(data)
 
     def error_received(self, exc):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
 
     def connection_lost(self, exc):
-        assert self.state == 'INITIALIZED', self.state
+        self._assert_state('INITIALIZED')
         self.state = 'CLOSED'
         if self.done:
             self.done.set_result(None)
@@ -1151,12 +1176,10 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
             srv.close()
             self.loop.run_until_complete(srv.wait_closed())
 
-    @unittest.skipUnless(support.IPV6_ENABLED, 'no IPv6 support')
+    @unittest.skipUnless(socket_helper.IPV6_ENABLED, 'no IPv6 support')
     def test_create_server_ipv6(self):
         async def main():
-            with self.assertWarns(DeprecationWarning):
-                srv = await asyncio.start_server(
-                    lambda: None, '::1', 0, loop=self.loop)
+            srv = await asyncio.start_server(lambda: None, '::1', 0)
             try:
                 self.assertGreater(len(srv.sockets), 0)
             finally:
@@ -1283,7 +1306,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
             t.close()
             test_utils.run_briefly(self.loop)  # allow transport to close
 
-        if support.IPV6_ENABLED:
+        if socket_helper.IPV6_ENABLED:
             sock.family = socket.AF_INET6
             coro = self.loop.create_connection(asyncio.Protocol, '::1', 80)
             t, p = self.loop.run_until_complete(coro)
@@ -1302,7 +1325,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
                 t.close()
                 test_utils.run_briefly(self.loop)  # allow transport to close
 
-    @unittest.skipUnless(support.IPV6_ENABLED, 'no IPv6 support')
+    @unittest.skipUnless(socket_helper.IPV6_ENABLED, 'no IPv6 support')
     @unittest.skipIf(sys.platform.startswith('aix'),
                     "bpo-25545: IPv6 scope id and getaddrinfo() behave differently on AIX")
     @patch_socket
@@ -1391,7 +1414,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         addr = ('00:01:02:03:04:05', 1)
 
         def getaddrinfo(host, port, *args, **kw):
-            assert (host, port) == addr
+            self.assertEqual((host, port), addr)
             return [(999, 1, 999, '', (addr, 1))]
 
         m_socket.getaddrinfo = getaddrinfo
@@ -1634,7 +1657,7 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
         self.assertRaises(
             OSError, self.loop.run_until_complete, coro)
 
-    @unittest.skipUnless(support.IPV6_ENABLED, 'IPv6 not supported or enabled')
+    @unittest.skipUnless(socket_helper.IPV6_ENABLED, 'IPv6 not supported or enabled')
     def test_create_datagram_endpoint_no_matching_family(self):
         coro = self.loop.create_datagram_endpoint(
             asyncio.DatagramProtocol,
@@ -1690,12 +1713,12 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
             lambda: MyDatagramProto(create_future=True, loop=self.loop),
             family=socket.AF_UNIX)
         transport, protocol = self.loop.run_until_complete(fut)
-        assert transport._sock.family == socket.AF_UNIX
+        self.assertEqual(transport._sock.family, socket.AF_UNIX)
         transport.close()
         self.loop.run_until_complete(protocol.done)
         self.assertEqual('CLOSED', protocol.state)
 
-    @support.skip_unless_bind_unix_socket
+    @socket_helper.skip_unless_bind_unix_socket
     def test_create_datagram_endpoint_existing_sock_unix(self):
         with test_utils.unix_socket_path() as path:
             sock = socket.socket(socket.AF_UNIX, type=socket.SOCK_DGRAM)
@@ -1741,6 +1764,8 @@ class BaseEventLoopWithSelectorTests(test_utils.TestCase):
             MyDatagramProto, allow_broadcast=True, sock=FakeSock())
         self.assertRaises(ValueError, self.loop.run_until_complete, fut)
 
+    @unittest.skipIf(sys.platform == 'vxworks',
+                    "SO_BROADCAST is enabled by default on VxWorks")
     def test_create_datagram_endpoint_sockopts(self):
         # Socket options should not be applied unless asked for.
         # SO_REUSEPORT is not available on all platforms.
@@ -1978,14 +2003,14 @@ class BaseLoopSockSendfileTests(test_utils.TestCase):
     def setUpClass(cls):
         cls.__old_bufsize = constants.SENDFILE_FALLBACK_READBUFFER_SIZE
         constants.SENDFILE_FALLBACK_READBUFFER_SIZE = 1024 * 16
-        with open(support.TESTFN, 'wb') as fp:
+        with open(os_helper.TESTFN, 'wb') as fp:
             fp.write(cls.DATA)
         super().setUpClass()
 
     @classmethod
     def tearDownClass(cls):
         constants.SENDFILE_FALLBACK_READBUFFER_SIZE = cls.__old_bufsize
-        support.unlink(support.TESTFN)
+        os_helper.unlink(os_helper.TESTFN)
         super().tearDownClass()
 
     def setUp(self):
@@ -1993,7 +2018,7 @@ class BaseLoopSockSendfileTests(test_utils.TestCase):
         # BaseSelectorEventLoop() has no native implementation
         self.loop = BaseSelectorEventLoop()
         self.set_event_loop(self.loop)
-        self.file = open(support.TESTFN, 'rb')
+        self.file = open(os_helper.TESTFN, 'rb')
         self.addCleanup(self.file.close)
         super().setUp()
 
@@ -2010,7 +2035,7 @@ class BaseLoopSockSendfileTests(test_utils.TestCase):
         sock = self.make_socket()
         proto = self.MyProto(self.loop)
         server = self.run_loop(self.loop.create_server(
-            lambda: proto, support.HOST, 0, family=socket.AF_INET))
+            lambda: proto, socket_helper.HOST, 0, family=socket.AF_INET))
         addr = server.sockets[0].getsockname()
 
         for _ in range(10):
@@ -2090,7 +2115,7 @@ class BaseLoopSockSendfileTests(test_utils.TestCase):
 
     def test_nonbinary_file(self):
         sock = self.make_socket()
-        with open(support.TESTFN, 'r') as f:
+        with open(os_helper.TESTFN, encoding="utf-8") as f:
             with self.assertRaisesRegex(ValueError, "binary mode"):
                 self.run_loop(self.loop.sock_sendfile(sock, f))
 

@@ -29,9 +29,6 @@ class MemFunctionsTest(unittest.TestCase):
         self.assertEqual(string_at(result, 16), b"Hello, World\0\0\0\0")
         self.assertEqual(string_at(result, 0), b"")
 
-        # XXX(T62694321): Keep the buffer alive past all uses of result.
-        self.assertIs(a, a)
-
     def test_memset(self):
         a = create_string_buffer(1000000)
         result = memset(a, ord('x'), 16)
@@ -56,7 +53,6 @@ class MemFunctionsTest(unittest.TestCase):
                              [97])
 
     @support.refcount_test
-    @unittest.skipUnderCinderJIT("tests refcounting behavior")
     def test_string_at(self):
         s = string_at(b"foo bar")
         # XXX The following may be wrong, depending on how Python

@@ -13,15 +13,23 @@ import time
 import typing
 import unittest
 import unittest.mock
+import os
+import weakref
+import gc
 from weakref import proxy
 import contextlib
 
+from test.support import import_helper
+from test.support import threading_helper
+from test.support.script_helper import assert_python_ok
+
 import functools
 
-py_functools = support.import_fresh_module('functools', blocked=['_functools'])
-c_functools = support.import_fresh_module('functools', fresh=['_functools'])
+py_functools = import_helper.import_fresh_module('functools',
+                                                 blocked=['_functools'])
+c_functools = import_helper.import_fresh_module('functools')
 
-decimal = support.import_fresh_module('decimal', fresh=['_decimal'])
+decimal = import_helper.import_fresh_module('decimal', fresh=['_decimal'])
 
 @contextlib.contextmanager
 def replaced_module(name, replacement):
@@ -159,6 +167,7 @@ class TestPartial:
         p = proxy(f)
         self.assertEqual(f.func, p.func)
         f = None
+        support.gc_collect()  # For PyPy or other GCs.
         self.assertRaises(ReferenceError, getattr, p, 'func')
 
     def test_with_bound_and_unbound_methods(self):
@@ -556,11 +565,9 @@ class TestPartialMethod(unittest.TestCase):
         with self.assertRaises(TypeError):
             class B:
                 method = functools.partialmethod()
-        with self.assertWarns(DeprecationWarning):
+        with self.assertRaises(TypeError):
             class B:
                 method = functools.partialmethod(func=capture, a=1)
-        b = B()
-        self.assertEqual(b.method(2, x=3), ((b, 2), {'a': 1, 'x': 3}))
 
     def test_repr(self):
         self.assertEqual(repr(vars(self.A)['both']),
@@ -942,6 +949,13 @@ class TestCmpToKeyC(TestCmpToKey, unittest.TestCase):
     if c_functools:
         cmp_to_key = c_functools.cmp_to_key
 
+    @support.cpython_only
+    def test_disallow_instantiation(self):
+        # Ensure that the type disallows instantiation (bpo-43916)
+        support.check_disallow_instantiation(
+            self, type(c_functools.cmp_to_key(None))
+        )
+
 
 class TestCmpToKeyPy(TestCmpToKey, unittest.TestCase):
     cmp_to_key = staticmethod(py_functools.cmp_to_key)
@@ -1150,6 +1164,34 @@ class TestTotalOrdering(unittest.TestCase):
                     method_copy = pickle.loads(pickle.dumps(method, proto))
                     self.assertIs(method_copy, method)
 
+
+    def test_total_ordering_for_metaclasses_issue_44605(self):
+
+        @functools.total_ordering
+        class SortableMeta(type):
+            def __new__(cls, name, bases, ns):
+                return super().__new__(cls, name, bases, ns)
+
+            def __lt__(self, other):
+                if not isinstance(other, SortableMeta):
+                    pass
+                return self.__name__ < other.__name__
+
+            def __eq__(self, other):
+                if not isinstance(other, SortableMeta):
+                    pass
+                return self.__name__ == other.__name__
+
+        class B(metaclass=SortableMeta):
+            pass
+
+        class A(metaclass=SortableMeta):
+            pass
+
+        self.assertTrue(A < B)
+        self.assertFalse(A > B)
+
+
 @functools.total_ordering
 class Orderable_LT:
     def __init__(self, value):
@@ -1158,6 +1200,25 @@ class Orderable_LT:
         return self.value < other.value
     def __eq__(self, other):
         return self.value == other.value
+
+
+class TestCache:
+    # This tests that the pass-through is working as designed.
+    # The underlying functionality is tested in TestLRU.
+
+    def test_cache(self):
+        @self.module.cache
+        def fib(n):
+            if n < 2:
+                return n
+            return fib(n-1) + fib(n-2)
+        self.assertEqual([fib(n) for n in range(16)],
+            [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610])
+        self.assertEqual(fib.cache_info(),
+            self.module._CacheInfo(hits=28, misses=16, maxsize=None, currsize=16))
+        fib.cache_clear()
+        self.assertEqual(fib.cache_info(),
+            self.module._CacheInfo(hits=0, misses=0, maxsize=None, currsize=0))
 
 
 class TestLRU:
@@ -1507,7 +1568,7 @@ class TestLRU:
             # create n threads in order to fill cache
             threads = [threading.Thread(target=full, args=[k])
                        for k in range(n)]
-            with support.start_threads(threads):
+            with threading_helper.start_threads(threads):
                 start.set()
 
             hits, misses, maxsize, currsize = f.cache_info()
@@ -1525,7 +1586,7 @@ class TestLRU:
             threads += [threading.Thread(target=full, args=[k])
                         for k in range(n)]
             start.clear()
-            with support.start_threads(threads):
+            with threading_helper.start_threads(threads):
                 start.set()
         finally:
             sys.setswitchinterval(orig_si)
@@ -1547,7 +1608,7 @@ class TestLRU:
                 self.assertEqual(f(i), 3 * i)
                 stop.wait(10)
         threads = [threading.Thread(target=test) for k in range(n)]
-        with support.start_threads(threads):
+        with threading_helper.start_threads(threads):
             for i in range(m):
                 start.wait(10)
                 stop.reset()
@@ -1567,7 +1628,7 @@ class TestLRU:
                 self.assertEqual(f(x), 3 * x, i)
         threads = [threading.Thread(target=test, args=(i, v))
                    for i, v in enumerate([1, 2, 2, 3, 2])]
-        with support.start_threads(threads):
+        with threading_helper.start_threads(threads):
             pass
 
     def test_need_for_rlock(self):
@@ -1656,6 +1717,46 @@ class TestLRU:
             with self.subTest(func=f):
                 f_copy = copy.deepcopy(f)
                 self.assertIs(f_copy, f)
+
+    def test_lru_cache_parameters(self):
+        @self.module.lru_cache(maxsize=2)
+        def f():
+            return 1
+        self.assertEqual(f.cache_parameters(), {'maxsize': 2, "typed": False})
+
+        @self.module.lru_cache(maxsize=1000, typed=True)
+        def f():
+            return 1
+        self.assertEqual(f.cache_parameters(), {'maxsize': 1000, "typed": True})
+
+    def test_lru_cache_weakrefable(self):
+        @self.module.lru_cache
+        def test_function(x):
+            return x
+
+        class A:
+            @self.module.lru_cache
+            def test_method(self, x):
+                return (self, x)
+
+            @staticmethod
+            @self.module.lru_cache
+            def test_staticmethod(x):
+                return (self, x)
+
+        refs = [weakref.ref(test_function),
+                weakref.ref(A.test_method),
+                weakref.ref(A.test_staticmethod)]
+
+        for ref in refs:
+            self.assertIsNotNone(ref())
+
+        del A
+        del test_function
+        gc.collect()
+
+        for ref in refs:
+            self.assertIsNone(ref())
 
 
 @py_functools.lru_cache()
@@ -2310,7 +2411,7 @@ class TestSingleDispatch(unittest.TestCase):
         self.assertEqual(A.t(0.0).arg, "base")
 
     def test_abstractmethod_register(self):
-        class Abstract(abc.ABCMeta):
+        class Abstract(metaclass=abc.ABCMeta):
 
             @functools.singledispatchmethod
             @abc.abstractmethod
@@ -2318,6 +2419,10 @@ class TestSingleDispatch(unittest.TestCase):
                 pass
 
         self.assertTrue(Abstract.add.__isabstractmethod__)
+        self.assertTrue(Abstract.__dict__['add'].__isabstractmethod__)
+
+        with self.assertRaises(TypeError):
+            Abstract()
 
     def test_type_ann_register(self):
         class A:
@@ -2335,6 +2440,183 @@ class TestSingleDispatch(unittest.TestCase):
         self.assertEqual(a.t(0), "int")
         self.assertEqual(a.t(''), "str")
         self.assertEqual(a.t(0.0), "base")
+
+    def test_staticmethod_type_ann_register(self):
+        class A:
+            @functools.singledispatchmethod
+            @staticmethod
+            def t(arg):
+                return arg
+            @t.register
+            @staticmethod
+            def _(arg: int):
+                return isinstance(arg, int)
+            @t.register
+            @staticmethod
+            def _(arg: str):
+                return isinstance(arg, str)
+        a = A()
+
+        self.assertTrue(A.t(0))
+        self.assertTrue(A.t(''))
+        self.assertEqual(A.t(0.0), 0.0)
+
+    def test_classmethod_type_ann_register(self):
+        class A:
+            def __init__(self, arg):
+                self.arg = arg
+
+            @functools.singledispatchmethod
+            @classmethod
+            def t(cls, arg):
+                return cls("base")
+            @t.register
+            @classmethod
+            def _(cls, arg: int):
+                return cls("int")
+            @t.register
+            @classmethod
+            def _(cls, arg: str):
+                return cls("str")
+
+        self.assertEqual(A.t(0).arg, "int")
+        self.assertEqual(A.t('').arg, "str")
+        self.assertEqual(A.t(0.0).arg, "base")
+
+    def test_method_wrapping_attributes(self):
+        class A:
+            @functools.singledispatchmethod
+            def func(self, arg: int) -> str:
+                """My function docstring"""
+                return str(arg)
+            @functools.singledispatchmethod
+            @classmethod
+            def cls_func(cls, arg: int) -> str:
+                """My function docstring"""
+                return str(arg)
+            @functools.singledispatchmethod
+            @staticmethod
+            def static_func(arg: int) -> str:
+                """My function docstring"""
+                return str(arg)
+
+        for meth in (
+            A.func,
+            A().func,
+            A.cls_func,
+            A().cls_func,
+            A.static_func,
+            A().static_func
+        ):
+            with self.subTest(meth=meth):
+                self.assertEqual(meth.__doc__, 'My function docstring')
+                self.assertEqual(meth.__annotations__['arg'], int)
+
+        self.assertEqual(A.func.__name__, 'func')
+        self.assertEqual(A().func.__name__, 'func')
+        self.assertEqual(A.cls_func.__name__, 'cls_func')
+        self.assertEqual(A().cls_func.__name__, 'cls_func')
+        self.assertEqual(A.static_func.__name__, 'static_func')
+        self.assertEqual(A().static_func.__name__, 'static_func')
+
+    def test_double_wrapped_methods(self):
+        def classmethod_friendly_decorator(func):
+            wrapped = func.__func__
+            @classmethod
+            @functools.wraps(wrapped)
+            def wrapper(*args, **kwargs):
+                return wrapped(*args, **kwargs)
+            return wrapper
+
+        class WithoutSingleDispatch:
+            @classmethod
+            @contextlib.contextmanager
+            def cls_context_manager(cls, arg: int) -> str:
+                try:
+                    yield str(arg)
+                finally:
+                    return 'Done'
+
+            @classmethod_friendly_decorator
+            @classmethod
+            def decorated_classmethod(cls, arg: int) -> str:
+                return str(arg)
+
+        class WithSingleDispatch:
+            @functools.singledispatchmethod
+            @classmethod
+            @contextlib.contextmanager
+            def cls_context_manager(cls, arg: int) -> str:
+                """My function docstring"""
+                try:
+                    yield str(arg)
+                finally:
+                    return 'Done'
+
+            @functools.singledispatchmethod
+            @classmethod_friendly_decorator
+            @classmethod
+            def decorated_classmethod(cls, arg: int) -> str:
+                """My function docstring"""
+                return str(arg)
+
+        # These are sanity checks
+        # to test the test itself is working as expected
+        with WithoutSingleDispatch.cls_context_manager(5) as foo:
+            without_single_dispatch_foo = foo
+
+        with WithSingleDispatch.cls_context_manager(5) as foo:
+            single_dispatch_foo = foo
+
+        self.assertEqual(without_single_dispatch_foo, single_dispatch_foo)
+        self.assertEqual(single_dispatch_foo, '5')
+
+        self.assertEqual(
+            WithoutSingleDispatch.decorated_classmethod(5),
+            WithSingleDispatch.decorated_classmethod(5)
+        )
+
+        self.assertEqual(WithSingleDispatch.decorated_classmethod(5), '5')
+
+        # Behavioural checks now follow
+        for method_name in ('cls_context_manager', 'decorated_classmethod'):
+            with self.subTest(method=method_name):
+                self.assertEqual(
+                    getattr(WithSingleDispatch, method_name).__name__,
+                    getattr(WithoutSingleDispatch, method_name).__name__
+                )
+
+                self.assertEqual(
+                    getattr(WithSingleDispatch(), method_name).__name__,
+                    getattr(WithoutSingleDispatch(), method_name).__name__
+                )
+
+        for meth in (
+            WithSingleDispatch.cls_context_manager,
+            WithSingleDispatch().cls_context_manager,
+            WithSingleDispatch.decorated_classmethod,
+            WithSingleDispatch().decorated_classmethod
+        ):
+            with self.subTest(meth=meth):
+                self.assertEqual(meth.__doc__, 'My function docstring')
+                self.assertEqual(meth.__annotations__['arg'], int)
+
+        self.assertEqual(
+            WithSingleDispatch.cls_context_manager.__name__,
+            'cls_context_manager'
+        )
+        self.assertEqual(
+            WithSingleDispatch().cls_context_manager.__name__,
+            'cls_context_manager'
+        )
+        self.assertEqual(
+            WithSingleDispatch.decorated_classmethod.__name__,
+            'decorated_classmethod'
+        )
+        self.assertEqual(
+            WithSingleDispatch().decorated_classmethod.__name__,
+            'decorated_classmethod'
+        )
 
     def test_invalid_registrations(self):
         msg_prefix = "Invalid first argument to `register()`: "
@@ -2382,6 +2664,74 @@ class TestSingleDispatch(unittest.TestCase):
         msg = 'f requires at least 1 positional argument'
         with self.assertRaisesRegex(TypeError, msg):
             f()
+
+    def test_register_genericalias(self):
+        @functools.singledispatch
+        def f(arg):
+            return "default"
+
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(list[int], lambda arg: "types.GenericAlias")
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.List[int], lambda arg: "typing.GenericAlias")
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(list[int] | str, lambda arg: "types.UnionTypes(types.GenericAlias)")
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.List[float] | bytes, lambda arg: "typing.Union[typing.GenericAlias]")
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.Any, lambda arg: "typing.Any")
+
+        self.assertEqual(f([1]), "default")
+        self.assertEqual(f([1.0]), "default")
+        self.assertEqual(f(""), "default")
+        self.assertEqual(f(b""), "default")
+
+    def test_register_genericalias_decorator(self):
+        @functools.singledispatch
+        def f(arg):
+            return "default"
+
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(list[int])
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.List[int])
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(list[int] | str)
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.List[int] | str)
+        with self.assertRaisesRegex(TypeError, "Invalid first argument to "):
+            f.register(typing.Any)
+
+    def test_register_genericalias_annotation(self):
+        @functools.singledispatch
+        def f(arg):
+            return "default"
+
+        with self.assertRaisesRegex(TypeError, "Invalid annotation for 'arg'"):
+            @f.register
+            def _(arg: list[int]):
+                return "types.GenericAlias"
+        with self.assertRaisesRegex(TypeError, "Invalid annotation for 'arg'"):
+            @f.register
+            def _(arg: typing.List[float]):
+                return "typing.GenericAlias"
+        with self.assertRaisesRegex(TypeError, "Invalid annotation for 'arg'"):
+            @f.register
+            def _(arg: list[int] | str):
+                return "types.UnionType(types.GenericAlias)"
+        with self.assertRaisesRegex(TypeError, "Invalid annotation for 'arg'"):
+            @f.register
+            def _(arg: typing.List[float] | bytes):
+                return "typing.Union[typing.GenericAlias]"
+        with self.assertRaisesRegex(TypeError, "Invalid annotation for 'arg'"):
+            @f.register
+            def _(arg: typing.Any):
+                return "typing.Any"
+
+        self.assertEqual(f([1]), "default")
+        self.assertEqual(f([1.0]), "default")
+        self.assertEqual(f(""), "default")
+        self.assertEqual(f(b""), "default")
 
 
 class CachedCostItem:
@@ -2461,7 +2811,7 @@ class TestCachedProperty(unittest.TestCase):
                 threading.Thread(target=lambda: item.cost)
                 for k in range(num_threads)
             ]
-            with support.start_threads(threads):
+            with threading_helper.start_threads(threads):
                 go.set()
         finally:
             sys.setswitchinterval(orig_si)

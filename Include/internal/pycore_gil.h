@@ -1,9 +1,5 @@
 #ifndef Py_INTERNAL_GIL_H
 #define Py_INTERNAL_GIL_H
-
-#include "pycore_condvar.h"
-#include "pycore_atomic.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +7,9 @@ extern "C" {
 #ifndef Py_BUILD_CORE
 #  error "this header requires Py_BUILD_CORE define"
 #endif
+
+#include "pycore_atomic.h"    /* _Py_atomic_address */
+#include "pycore_condvar.h"   /* PyCOND_T */
 
 #ifndef Py_HAVE_CONDVAR
 #  error You need either a POSIX-compatible or a Windows system!

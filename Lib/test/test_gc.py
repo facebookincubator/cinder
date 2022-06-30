@@ -1,9 +1,11 @@
 import unittest
-from test.support import (verbose, refcount_test, run_unittest,
-                          strip_python_stderr, cpython_only, start_threads,
-                          temp_dir, requires_type_collecting, TESTFN, unlink,
-                          import_module)
+import unittest.mock
+from test.support import (verbose, refcount_test,
+                          cpython_only)
+from test.support.import_helper import import_module
+from test.support.os_helper import temp_dir, TESTFN, unlink
 from test.support.script_helper import assert_python_ok, make_script
+from test.support import threading_helper
 
 import gc
 import sys
@@ -21,6 +23,11 @@ except ImportError:
             def __new__(cls, *args, **kwargs):
                 raise TypeError('requires _testcapi.with_tp_del')
         return C
+
+try:
+    from _testcapi import ContainerNoGC
+except ImportError:
+    ContainerNoGC = None
 
 ### Support code
 ###############################################################################
@@ -125,7 +132,6 @@ class GCTests(unittest.TestCase):
         del a
         self.assertNotEqual(gc.collect(), 0)
 
-    @requires_type_collecting
     def test_newinstance(self):
         class A(object):
             pass
@@ -217,23 +223,10 @@ class GCTests(unittest.TestCase):
         # break the cycle.
         d = {}
         exec("def f(): pass\n", d)
-        try:
-            import cinderjit
-            is_jit_compiled = cinderjit.is_jit_compiled(d["f"])
-        except ImportError:
-            is_jit_compiled = False
         gc.collect()
         del d
-        if is_jit_compiled:
-            # If the JIT is enabled and f ends up getting JIT-compiled, we'll
-            # store a weak reference to it. When gc.collect() is called, that
-            # weakref will be collected, thereby increasing the count from 2
-            # to 3.
-            self.assertEqual(gc.collect(), 3)
-        else:
-            self.assertEqual(gc.collect(), 2)
+        self.assertEqual(gc.collect(), 2)
 
-    @unittest.skipUnderCinderJIT("Assumes locals live as long as frame")
     @refcount_test
     def test_frame(self):
         def f():
@@ -423,7 +416,7 @@ class GCTests(unittest.TestCase):
             for i in range(N_THREADS):
                 t = threading.Thread(target=run_thread)
                 threads.append(t)
-            with start_threads(threads, lambda: exit.append(1)):
+            with threading_helper.start_threads(threads, lambda: exit.append(1)):
                 time.sleep(1.0)
         finally:
             sys.setswitchinterval(old_switchinterval)
@@ -589,9 +582,27 @@ class GCTests(unittest.TestCase):
         self.assertTrue(gc.is_tracked(UserInt()))
         self.assertTrue(gc.is_tracked([]))
         self.assertTrue(gc.is_tracked(set()))
-        self.assertFalse(gc.is_tracked(UserClassSlots()))
-        self.assertFalse(gc.is_tracked(UserFloatSlots()))
-        self.assertFalse(gc.is_tracked(UserIntSlots()))
+        self.assertTrue(gc.is_tracked(UserClassSlots()))
+        self.assertTrue(gc.is_tracked(UserFloatSlots()))
+        self.assertTrue(gc.is_tracked(UserIntSlots()))
+
+    def test_is_finalized(self):
+        # Objects not tracked by the always gc return false
+        self.assertFalse(gc.is_finalized(3))
+
+        storage = []
+        class Lazarus:
+            def __del__(self):
+                storage.append(self)
+
+        lazarus = Lazarus()
+        self.assertFalse(gc.is_finalized(lazarus))
+
+        del lazarus
+        gc.collect()
+
+        lazarus = storage.pop()
+        self.assertTrue(gc.is_finalized(lazarus))
 
     def test_bug1055820b(self):
         # Corresponds to temp2b.py in the bug report.
@@ -609,10 +620,6 @@ class GCTests(unittest.TestCase):
         # Make the two instances trash, and collect again.  The bug was that
         # the callback materialized a strong reference to an instance, but gc
         # cleared the instance's dict anyway.
-
-        # TODO(T62694321) keep Cs alive in the JIT
-        self.assertIs(Cs, Cs)
-
         Cs = None
         gc.collect()
         self.assertEqual(len(ouch), 2)  # else the callbacks didn't run
@@ -620,9 +627,6 @@ class GCTests(unittest.TestCase):
             # If the callback resurrected one of these guys, the instance
             # would be damaged, with an empty __dict__.
             self.assertEqual(x, None)
-
-        # TODO(T62694321) keep WRs alive in the JIT
-        self.assertIs(WRs, WRs)
 
     def test_bug21435(self):
         # This is a poor test - its only virtue is that it happened to
@@ -685,8 +689,8 @@ class GCTests(unittest.TestCase):
             p.stdout.close()
             p.stderr.close()
             self.assertEqual(p.returncode, 0)
-            self.assertEqual(stdout.strip(), b"")
-            return strip_python_stderr(stderr)
+            self.assertEqual(stdout, b"")
+            return stderr
 
         stderr = run_command(code % "0")
         self.assertIn(b"ResourceWarning: gc: 2 uncollectable objects at "
@@ -705,7 +709,6 @@ class GCTests(unittest.TestCase):
         stderr = run_command(code % "gc.DEBUG_SAVEALL")
         self.assertNotIn(b"uncollectable objects at shutdown", stderr)
 
-    @requires_type_collecting
     def test_gc_main_module_at_shutdown(self):
         # Create a reference cycle through the __main__ module and check
         # it gets collected at interpreter shutdown.
@@ -719,7 +722,6 @@ class GCTests(unittest.TestCase):
         rc, out, err = assert_python_ok('-c', code)
         self.assertEqual(out.strip(), b'__del__ called')
 
-    @requires_type_collecting
     def test_gc_ordinary_module_at_shutdown(self):
         # Same as above, but with a non-__main__ module.
         with temp_dir() as script_dir:
@@ -739,7 +741,6 @@ class GCTests(unittest.TestCase):
             rc, out, err = assert_python_ok('-c', code)
             self.assertEqual(out.strip(), b'__del__ called')
 
-    @requires_type_collecting
     def test_global_del_SystemExit(self):
         code = """if 1:
             class ClassWithDel:
@@ -749,7 +750,7 @@ class GCTests(unittest.TestCase):
             a.link = a
             raise SystemExit(0)"""
         self.addCleanup(unlink, TESTFN)
-        with open(TESTFN, 'w') as script:
+        with open(TESTFN, 'w', encoding="utf-8") as script:
             script.write(code)
         rc, out, err = assert_python_ok(TESTFN)
         self.assertEqual(out.strip(), b'__del__ called')
@@ -842,7 +843,78 @@ class GCTests(unittest.TestCase):
         self.assertRaises(TypeError, gc.get_objects, "1")
         self.assertRaises(TypeError, gc.get_objects, 1.234)
 
-    def test_38379(self):
+    def test_resurrection_only_happens_once_per_object(self):
+        class A:  # simple self-loop
+            def __init__(self):
+                self.me = self
+
+        class Lazarus(A):
+            resurrected = 0
+            resurrected_instances = []
+
+            def __del__(self):
+                Lazarus.resurrected += 1
+                Lazarus.resurrected_instances.append(self)
+
+        gc.collect()
+        gc.disable()
+
+        # We start with 0 resurrections
+        laz = Lazarus()
+        self.assertEqual(Lazarus.resurrected, 0)
+
+        # Deleting the instance and triggering a collection
+        # resurrects the object
+        del laz
+        gc.collect()
+        self.assertEqual(Lazarus.resurrected, 1)
+        self.assertEqual(len(Lazarus.resurrected_instances), 1)
+
+        # Clearing the references and forcing a collection
+        # should not resurrect the object again.
+        Lazarus.resurrected_instances.clear()
+        self.assertEqual(Lazarus.resurrected, 1)
+        gc.collect()
+        self.assertEqual(Lazarus.resurrected, 1)
+
+        gc.enable()
+
+    def test_resurrection_is_transitive(self):
+        class Cargo:
+            def __init__(self):
+                self.me = self
+
+        class Lazarus:
+            resurrected_instances = []
+
+            def __del__(self):
+                Lazarus.resurrected_instances.append(self)
+
+        gc.collect()
+        gc.disable()
+
+        laz = Lazarus()
+        cargo = Cargo()
+        cargo_id = id(cargo)
+
+        # Create a cycle between cargo and laz
+        laz.cargo = cargo
+        cargo.laz = laz
+
+        # Drop the references, force a collection and check that
+        # everything was resurrected.
+        del laz, cargo
+        gc.collect()
+        self.assertEqual(len(Lazarus.resurrected_instances), 1)
+        instance = Lazarus.resurrected_instances.pop()
+        self.assertTrue(hasattr(instance, "cargo"))
+        self.assertEqual(id(instance.cargo), cargo_id)
+
+        gc.collect()
+        gc.enable()
+
+    def test_resurrection_does_not_block_cleanup_of_other_objects(self):
+
         # When a finalizer resurrects objects, stats were reporting them as
         # having been collected.  This affected both collect()'s return
         # value and the dicts returned by get_stats().
@@ -881,109 +953,91 @@ class GCTests(unittest.TestCase):
         # Nothing is collected - Z() is merely resurrected.
         t = gc.collect()
         c, nc = getstats()
-        #self.assertEqual(t, 2)  # before
-        self.assertEqual(t, 0)  # after
-        #self.assertEqual(c - oldc, 2)   # before
-        self.assertEqual(c - oldc, 0)   # after
+        self.assertEqual(t, 0)
+        self.assertEqual(c - oldc, 0)
         self.assertEqual(nc - oldnc, 0)
 
-        # Unfortunately, a Z() prevents _anything_ from being collected.
-        # It should be possible to collect the A instances anyway, but
-        # that will require non-trivial code changes.
+        # Z() should not prevent anything else from being collected.
         oldc, oldnc = c, nc
         for i in range(N):
             A()
         Z()
-        # Z() prevents anything from being collected.
-        t = gc.collect()
-        c, nc = getstats()
-        #self.assertEqual(t, 2*N + 2)  # before
-        self.assertEqual(t, 0)  # after
-        #self.assertEqual(c - oldc, 2*N + 2)   # before
-        self.assertEqual(c - oldc, 0)   # after
-        self.assertEqual(nc - oldnc, 0)
-
-        # But the A() trash is reclaimed on the next run.
-        oldc, oldnc = c, nc
         t = gc.collect()
         c, nc = getstats()
         self.assertEqual(t, 2*N)
         self.assertEqual(c - oldc, 2*N)
         self.assertEqual(nc - oldnc, 0)
 
+        # The A() trash should have been reclaimed already but the
+        # 2 copies of Z are still in zs (and the associated dicts).
+        oldc, oldnc = c, nc
+        zs.clear()
+        t = gc.collect()
+        c, nc = getstats()
+        self.assertEqual(t, 4)
+        self.assertEqual(c - oldc, 4)
+        self.assertEqual(nc - oldnc, 0)
+
         gc.enable()
 
-    # begin facebook
-    def test_get_frozen_heap(self):
-        gc.freeze()
-        self.assertEqual(gc.get_freeze_count(), len(gc.get_frozen_objects()))
-        gc.unfreeze()
+    @unittest.skipIf(ContainerNoGC is None,
+                     'requires ContainerNoGC extension type')
+    def test_trash_weakref_clear(self):
+        # Test that trash weakrefs are properly cleared (bpo-38006).
+        #
+        # Structure we are creating:
+        #
+        #   Z <- Y <- A--+--> WZ -> C
+        #             ^  |
+        #             +--+
+        # where:
+        #   WZ is a weakref to Z with callback C
+        #   Y doesn't implement tp_traverse
+        #   A contains a reference to itself, Y and WZ
+        #
+        # A, Y, Z, WZ are all trash.  The GC doesn't know that Z is trash
+        # because Y does not implement tp_traverse.  To show the bug, WZ needs
+        # to live long enough so that Z is deallocated before it.  Then, if
+        # gcmodule is buggy, when Z is being deallocated, C will run.
+        #
+        # To ensure WZ lives long enough, we put it in a second reference
+        # cycle.  That trick only works due to the ordering of the GC prev/next
+        # linked lists.  So, this test is a bit fragile.
+        #
+        # The bug reported in bpo-38006 is caused because the GC did not
+        # clear WZ before starting the process of calling tp_clear on the
+        # trash.  Normally, handle_weakrefs() would find the weakref via Z and
+        # clear it.  However, since the GC cannot find Z, WR is not cleared and
+        # it can execute during delete_garbage().  That can lead to disaster
+        # since the callback might tinker with objects that have already had
+        # tp_clear called on them (leaving them in possibly invalid states).
 
-    def test_get_all_referrers(self):
-        obj = 'test_get_all_referrers'
-        referrer = [obj]
-        gc.freeze()
-        self.assertIn(referrer, gc.get_all_referrers(obj))
-        gc.unfreeze()
-    # end facebook
+        callback = unittest.mock.Mock()
 
+        class A:
+            __slots__ = ['a', 'y', 'wz']
 
-# begin facebook
-class GCImmortalizeTests(unittest.TestCase):
-    # These tests need to be run in a separate process since gc.immortalize_heap
-    # is irreversible. Once called all objects on the heap become uncleanable
+        class Z:
+            pass
 
-    def test_not_immortal(self):
-        obj = []
-        self.assertFalse(gc.is_immortal(obj))
-
-    def test_is_immortal(self):
-        code = """if 1:
-            import gc
-            obj = []
-            gc.immortalize_heap()
-            print(gc.is_immortal(obj))
-            """
-        rc, out, err = assert_python_ok('-c', code)
-        self.assertEqual(out.strip(), b'True')
-
-    def test_post_immortalize(self):
-        code = """if 1:
-            import gc
-            gc.immortalize_heap()
-            obj = []
-            print(gc.is_immortal(obj))
-            """
-        rc, out, err = assert_python_ok('-c', code)
-        self.assertEqual(out.strip(), b'False')
-
-    def test_recursive_heap_walk_when_immortalize(self):
-        code = """if 1:
-            import gc
-            import cinder
-            cinder.setknobs({"immortalrecursiveheapwalk": True})
-            # long string to avoid string interning
-            obj = {"a" : {"b" : "c" * 5120}}
-            gc.immortalize_heap()
-            print(gc.is_immortal(obj["a"]["b"]))
-            """
-        rc, out, err = assert_python_ok('-c', code)
-        self.assertEqual(out.strip(), b'True')
-
-    def test_no_recursive_heap_walk_when_immortalize(self):
-        code = """if 1:
-            import gc
-            import cinder
-            cinder.setknobs({"immortalrecursiveheapwalk": False})
-            # long string to avoid string interning
-            obj = {"a" : {"b" : "c" * 5120}}
-            gc.immortalize_heap()
-            print(gc.is_immortal(obj["a"]["b"]))
-            """
-        rc, out, err = assert_python_ok('-c', code)
-        self.assertEqual(out.strip(), b'False')
-
-# end facebook
+        # setup required object graph, as described above
+        a = A()
+        a.a = a
+        a.y = ContainerNoGC(Z())
+        a.wz = weakref.ref(a.y.value, callback)
+        # create second cycle to keep WZ alive longer
+        wr_cycle = [a.wz]
+        wr_cycle.append(wr_cycle)
+        # ensure trash unrelated to this test is gone
+        gc.collect()
+        gc.disable()
+        # release references and create trash
+        del a, wr_cycle
+        gc.collect()
+        # if called, it means there is a bug in the GC.  The weakref should be
+        # cleared before Z dies.
+        callback.assert_not_called()
+        gc.enable()
 
 
 class GCCallbackTests(unittest.TestCase):
@@ -1074,16 +1128,8 @@ class GCCallbackTests(unittest.TestCase):
     @cpython_only
     def test_collect_garbage(self):
         self.preclean()
-        # Each instantiation of Uncollectable causes four
-        # objects to be garbage: the instances and their
-        # instances dicts. The constructor creates a second
-        # Uncollectable and creates a circular reference between
-        # the two, leaving us with something that looks like
-        #
-        # Uncollectable <----> Uncollectable
-        #      |                    |
-        #      v                    v
-        #   __dict__             __dict__
+        # Each of these cause four objects to be garbage: Two
+        # Uncollectables and their instance dicts.
         Uncollectable()
         Uncollectable()
         C1055820(666)
@@ -1100,10 +1146,6 @@ class GCCallbackTests(unittest.TestCase):
         for e in gc.garbage:
             self.assertIsInstance(e, Uncollectable)
 
-        # Assigning to e clears the reference that it held
-        # to the last Uncollectable in gc.garbage.
-        e = None
-
         # Now, let our callback handle the Uncollectable instances
         self.cleanup=True
         self.visit = []
@@ -1114,7 +1156,7 @@ class GCCallbackTests(unittest.TestCase):
                 continue
             info = v[2]
             self.assertEqual(info["collected"], 0)
-            self.assertEqual(info["uncollectable"], 8)
+            self.assertEqual(info["uncollectable"], 4)
 
         # Uncollectables should be gone
         self.assertEqual(len(gc.garbage), 0)
@@ -1319,26 +1361,55 @@ class GCTogglingTests(unittest.TestCase):
             # empty __dict__.
             self.assertEqual(x, None)
 
-def test_main():
+
+class PythonFinalizationTests(unittest.TestCase):
+    def test_ast_fini(self):
+        # bpo-44184: Regression test for subtype_dealloc() when deallocating
+        # an AST instance also destroy its AST type: subtype_dealloc() must
+        # not access the type memory after deallocating the instance, since
+        # the type memory can be freed as well. The test is also related to
+        # _PyAST_Fini() which clears references to AST types.
+        code = textwrap.dedent("""
+            import ast
+            import codecs
+
+            # Small AST tree to keep their AST types alive
+            tree = ast.parse("def f(x, y): return 2*x-y")
+            x = [tree]
+            x.append(x)
+
+            # Put the cycle somewhere to survive until the last GC collection.
+            # Codec search functions are only cleared at the end of
+            # interpreter_clear().
+            def search_func(encoding):
+                return None
+            search_func.a = x
+            codecs.register(search_func)
+        """)
+        assert_python_ok("-c", code)
+
+
+def setUpModule():
+    global enabled, debug
     enabled = gc.isenabled()
     gc.disable()
     assert not gc.isenabled()
     debug = gc.get_debug()
     gc.set_debug(debug & ~gc.DEBUG_LEAK) # this test is supposed to leak
+    gc.collect() # Delete 2nd generation garbage
 
-    try:
-        gc.collect() # Delete 2nd generation garbage
-        run_unittest(GCTests, GCTogglingTests, GCCallbackTests)
-    finally:
-        gc.set_debug(debug)
-        # test gc.enable() even if GC is disabled by default
-        if verbose:
-            print("restoring automatic collection")
-        # make sure to always test gc.enable()
-        gc.enable()
-        assert gc.isenabled()
-        if not enabled:
-            gc.disable()
+
+def tearDownModule():
+    gc.set_debug(debug)
+    # test gc.enable() even if GC is disabled by default
+    if verbose:
+        print("restoring automatic collection")
+    # make sure to always test gc.enable()
+    gc.enable()
+    assert gc.isenabled()
+    if not enabled:
+        gc.disable()
+
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

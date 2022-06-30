@@ -8,47 +8,93 @@ extern "C" {
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
-#include "pycore_pystate.h"   /* _PyRuntime */
+#include "pycore_gc.h"            // _PyObject_GC_IS_TRACKED()
+#include "pycore_interp.h"        // PyInterpreterState.gc
+#include "pycore_pystate.h"       // _PyInterpreterState_GET()
 
 PyAPI_FUNC(int) _PyType_CheckConsistency(PyTypeObject *type);
 PyAPI_FUNC(int) _PyDict_CheckConsistency(PyObject *mp, int check_content);
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+/* Update the Python traceback of an object. This function must be called
+   when a memory block is reused from a free list.
+
+   Internal function called by _Py_NewReference(). */
+extern int _PyTraceMalloc_NewReference(PyObject *op);
+
+// Fast inlined version of PyType_HasFeature()
+static inline int
+_PyType_HasFeature(PyTypeObject *type, unsigned long feature) {
+    return ((type->tp_flags & feature) != 0);
+}
+
+extern void _PyType_InitCache(PyInterpreterState *interp);
+
+/* Only private in Python 3.10 and 3.9.8+; public in 3.11 */
+extern PyObject *_PyType_GetQualName(PyTypeObject *type);
+
+/* Inline functions trading binary compatibility for speed:
+   _PyObject_Init() is the fast version of PyObject_Init(), and
+   _PyObject_InitVar() is the fast version of PyObject_InitVar().
+
+   These inline functions must not be called with op=NULL. */
+static inline void
+_PyObject_Init(PyObject *op, PyTypeObject *typeobj)
+{
+    assert(op != NULL);
+    Py_SET_TYPE(op, typeobj);
+    if (_PyType_HasFeature(typeobj, Py_TPFLAGS_HEAPTYPE)) {
+        Py_INCREF(typeobj);
+    }
+    _Py_NewReference(op);
+}
+
+static inline void
+_PyObject_InitVar(PyVarObject *op, PyTypeObject *typeobj, Py_ssize_t size)
+{
+    assert(op != NULL);
+    Py_SET_SIZE(op, size);
+    _PyObject_Init((PyObject *)op, typeobj);
+}
+
 
 /* Tell the GC to track this object.
+ *
+ * The object must not be tracked by the GC.
  *
  * NB: While the object is tracked by the collector, it must be safe to call the
  * ob_traverse method.
  *
- * Internal note: _PyRuntime.gc.generation0->_gc_prev doesn't have any bit flags
+ * Internal note: interp->gc.generation0->_gc_prev doesn't have any bit flags
  * because it's not object header.  So we don't use _PyGCHead_PREV() and
  * _PyGCHead_SET_PREV() for it to avoid unnecessary bitwise operations.
  *
- * The PyObject_GC_Track() function is the public version of this macro.
+ * See also the public PyObject_GC_Track() function.
  */
-static inline void _PyObject_GC_TRACK_impl(const char *filename, int lineno,
-                                           PyObject *op)
+static inline void _PyObject_GC_TRACK(
+// The preprocessor removes _PyObject_ASSERT_FROM() calls if NDEBUG is defined
+#ifndef NDEBUG
+    const char *filename, int lineno,
+#endif
+    PyObject *op)
 {
     _PyObject_ASSERT_FROM(op, !_PyObject_GC_IS_TRACKED(op),
                           "object already tracked by the garbage collector",
-                          filename, lineno, "_PyObject_GC_TRACK");
+                          filename, lineno, __func__);
 
     PyGC_Head *gc = _Py_AS_GC(op);
     _PyObject_ASSERT_FROM(op,
                           (gc->_gc_prev & _PyGC_PREV_MASK_COLLECTING) == 0,
                           "object is in generation which is garbage collected",
-                          filename, lineno, "_PyObject_GC_TRACK");
+                          filename, lineno, __func__);
 
-    PyGC_Head *last = (PyGC_Head*)(_PyRuntime.gc.generation0->_gc_prev);
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    PyGC_Head *generation0 = interp->gc.generation0;
+    PyGC_Head *last = (PyGC_Head*)(generation0->_gc_prev);
     _PyGCHead_SET_NEXT(last, gc);
     _PyGCHead_SET_PREV(gc, last);
-    _PyGCHead_SET_NEXT(gc, _PyRuntime.gc.generation0);
-    _PyRuntime.gc.generation0->_gc_prev = (uintptr_t)gc;
+    _PyGCHead_SET_NEXT(gc, generation0);
+    generation0->_gc_prev = (uintptr_t)gc;
 }
-
-#define _PyObject_GC_TRACK(op) \
-    _PyObject_GC_TRACK_impl(__FILE__, __LINE__, _PyObject_CAST(op))
 
 /* Tell the GC to stop tracking this object.
  *
@@ -57,14 +103,19 @@ static inline void _PyObject_GC_TRACK_impl(const char *filename, int lineno,
  *
  * The object must be tracked by the GC.
  *
- * The PyObject_GC_UnTrack() function is the public version of this macro.
+ * See also the public PyObject_GC_UnTrack() which accept an object which is
+ * not tracked.
  */
-static inline void _PyObject_GC_UNTRACK_impl(const char *filename, int lineno,
-                                             PyObject *op)
+static inline void _PyObject_GC_UNTRACK(
+// The preprocessor removes _PyObject_ASSERT_FROM() calls if NDEBUG is defined
+#ifndef NDEBUG
+    const char *filename, int lineno,
+#endif
+    PyObject *op)
 {
     _PyObject_ASSERT_FROM(op, _PyObject_GC_IS_TRACKED(op),
                           "object not tracked by the garbage collector",
-                          filename, lineno, "_PyObject_GC_UNTRACK");
+                          filename, lineno, __func__);
 
     PyGC_Head *gc = _Py_AS_GC(op);
     PyGC_Head *prev = _PyGCHead_PREV(gc);
@@ -75,28 +126,59 @@ static inline void _PyObject_GC_UNTRACK_impl(const char *filename, int lineno,
     gc->_gc_prev &= _PyGC_PREV_MASK_FINALIZED;
 }
 
-#define _PyObject_GC_UNTRACK(op) \
-    _PyObject_GC_UNTRACK_impl(__FILE__, __LINE__, _PyObject_CAST(op))
+// Macros to accept any type for the parameter, and to automatically pass
+// the filename and the filename (if NDEBUG is not defined) where the macro
+// is called.
+#ifdef NDEBUG
+#  define _PyObject_GC_TRACK(op) \
+        _PyObject_GC_TRACK(_PyObject_CAST(op))
+#  define _PyObject_GC_UNTRACK(op) \
+        _PyObject_GC_UNTRACK(_PyObject_CAST(op))
+#else
+#  define _PyObject_GC_TRACK(op) \
+        _PyObject_GC_TRACK(__FILE__, __LINE__, _PyObject_CAST(op))
+#  define _PyObject_GC_UNTRACK(op) \
+        _PyObject_GC_UNTRACK(__FILE__, __LINE__, _PyObject_CAST(op))
+#endif
 
-#pragma GCC diagnostic pop
+#ifdef Py_REF_DEBUG
+extern void _PyDebug_PrintTotalRefs(void);
+#endif
 
-typedef struct {
-    PyObject *init_func;
-    int type_code;
-} _PyType_CinderExtra;
+#ifdef Py_TRACE_REFS
+extern void _Py_AddToAllObjects(PyObject *op, int force);
+extern void _Py_PrintReferences(FILE *);
+extern void _Py_PrintReferenceAddresses(FILE *);
+#endif
 
-#define PyHeapType_CINDER_EXTRA(etype) \
-    ((_PyType_CinderExtra *)(((char *)etype) +  \
-      Py_TYPE(etype)->tp_basicsize + \
-      Py_SIZE(etype) * sizeof(PyMemberDef)))
+static inline PyObject **
+_PyObject_GET_WEAKREFS_LISTPTR(PyObject *op)
+{
+    Py_ssize_t offset = Py_TYPE(op)->tp_weaklistoffset;
+    return (PyObject **)((char *)op + offset);
+}
 
-#define PyHeapType_CINDER_AM_EXTRA(etype) \
-  ((PyAsyncMethodsWithExtra*)( \
-      (char*)PyHeapType_CINDER_EXTRA(etype) + \
-      sizeof(_PyType_CinderExtra) \
-  ))
+// Fast inlined version of PyObject_IS_GC()
+static inline int
+_PyObject_IS_GC(PyObject *obj)
+{
+    return (PyType_IS_GC(Py_TYPE(obj))
+            && (Py_TYPE(obj)->tp_is_gc == NULL
+                || Py_TYPE(obj)->tp_is_gc(obj)));
+}
 
+// Fast inlined version of PyType_IS_GC()
+#define _PyType_IS_GC(t) _PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
 
+// Usage: assert(_Py_CheckSlotResult(obj, "__getitem__", result != NULL));
+extern int _Py_CheckSlotResult(
+    PyObject *obj,
+    const char *slot_name,
+    int success);
+
+// PyType_Ready() must be called if _PyType_IsReady() is false.
+// See also the Py_TPFLAGS_READY flag.
+#define _PyType_IsReady(type) ((type)->tp_dict != NULL)
 
 #ifdef __cplusplus
 }

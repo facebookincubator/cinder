@@ -83,10 +83,10 @@ module.  Specifically, any module that contains a ``__path__`` attribute is
 considered a package.
 
 All modules have a name.  Subpackage names are separated from their parent
-package name by dots, akin to Python's standard attribute access syntax.  Thus
-you might have a module called :mod:`sys` and a package called :mod:`email`,
-which in turn has a subpackage called :mod:`email.mime` and a module within
-that subpackage called :mod:`email.mime.text`.
+package name by a dot, akin to Python's standard attribute access syntax.  Thus
+you might have a package called :mod:`email`, which in turn has a subpackage
+called :mod:`email.mime` and a module within that subpackage called
+:mod:`email.mime.text`.
 
 
 Regular packages
@@ -201,6 +201,8 @@ named module, the two module objects will *not* be the same. By contrast,
 :func:`importlib.reload` will reuse the *same* module object, and simply
 reinitialise the module contents by rerunning the module's code.
 
+
+.. _finders-and-loaders:
 
 Finders and loaders
 -------------------
@@ -326,6 +328,10 @@ modules, and one that knows how to import modules from an :term:`import path`
    is now deprecated.  While it will continue to work without change, the
    import machinery will try it only if the finder does not implement
    ``find_spec()``.
+
+.. versionchanged:: 3.10
+   Use of :meth:`~importlib.abc.MetaPathFinder.find_module` by the import system
+   now raises :exc:`ImportWarning`.
 
 
 Loading
@@ -468,6 +474,9 @@ import machinery will create the new module itself.
    An :exc:`ImportError` is raised when ``exec_module()`` is defined but
    ``create_module()`` is not.
 
+.. versionchanged:: 3.10
+   Use of ``load_module()`` will raise :exc:`ImportWarning`.
+
 Submodules
 ----------
 
@@ -481,21 +490,19 @@ submodule.  Let's say you have the following directory structure::
     spam/
         __init__.py
         foo.py
-        bar.py
 
-and ``spam/__init__.py`` has the following lines in it::
+and ``spam/__init__.py`` has the following line in it::
 
     from .foo import Foo
-    from .bar import Bar
 
-then executing the following puts a name binding to ``foo`` and ``bar`` in the
+then executing the following puts name bindings for ``foo`` and ``Foo`` in the
 ``spam`` module::
 
     >>> import spam
     >>> spam.foo
     <module 'spam.foo' from '/tmp/imports/spam/foo.py'>
-    >>> spam.bar
-    <module 'spam.bar' from '/tmp/imports/spam/bar.py'>
+    >>> spam.Foo
+    <class 'spam.foo.Foo'>
 
 Given Python's familiar name binding rules this might seem surprising, but
 it's actually a fundamental feature of the import system.  The invariant
@@ -673,12 +680,19 @@ Here are the exact rules used:
    :meth:`~importlib.abc.Loader.module_repr` method, if defined, before
    trying either approach described above.  However, the method is deprecated.
 
+.. versionchanged:: 3.10
+
+   Calling :meth:`~importlib.abc.Loader.module_repr` now occurs after trying to
+   use a module's ``__spec__`` attribute but before falling back on
+   ``__file__``. Use of :meth:`~importlib.abc.Loader.module_repr` is slated to
+   stop in Python 3.12.
+
 .. _pyc-invalidation:
 
 Cached bytecode invalidation
 ----------------------------
 
-Before Python loads cached bytecode from ``.pyc`` file, it checks whether the
+Before Python loads cached bytecode from a ``.pyc`` file, it checks whether the
 cache is up-to-date with the source ``.py`` file. By default, Python does this
 by storing the source's last-modified timestamp and size in the cache file when
 writing it. At runtime, the import system then validates the cache file by
@@ -855,9 +869,8 @@ module.  ``find_spec()`` returns a fully populated spec for the module.
 This spec will always have "loader" set (with one exception).
 
 To indicate to the import machinery that the spec represents a namespace
-:term:`portion`, the path entry finder sets "loader" on the spec to
-``None`` and "submodule_search_locations" to a list containing the
-portion.
+:term:`portion`, the path entry finder sets "submodule_search_locations" to
+a list containing the portion.
 
 .. versionchanged:: 3.4
    :meth:`~importlib.abc.PathEntryFinder.find_spec` replaced
@@ -873,18 +886,7 @@ portion.
    :meth:`~importlib.abc.PathEntryFinder.find_loader` takes one argument, the
    fully qualified name of the module being imported.  ``find_loader()``
    returns a 2-tuple where the first item is the loader and the second item
-   is a namespace :term:`portion`.  When the first item (i.e. the loader) is
-   ``None``, this means that while the path entry finder does not have a
-   loader for the named module, it knows that the path entry contributes to
-   a namespace portion for the named module.  This will almost always be the
-   case where Python is asked to import a namespace package that has no
-   physical presence on the file system.  When a path entry finder returns
-   ``None`` for the loader, the second item of the 2-tuple return value must
-   be a sequence, although it can be empty.
-
-   If ``find_loader()`` returns a non-``None`` loader value, the portion is
-   ignored and the loader is returned from the path based finder, terminating
-   the search through the path entries.
+   is a namespace :term:`portion`.
 
    For backwards compatibility with other implementations of the import
    protocol, many path entry finders also support the same,
@@ -898,6 +900,11 @@ portion.
    namespace packages.  If both ``find_loader()`` and ``find_module()``
    exist on a path entry finder, the import system will always call
    ``find_loader()`` in preference to ``find_module()``.
+
+.. versionchanged:: 3.10
+    Calls to :meth:`~importlib.abc.PathEntryFinder.find_module` and
+    :meth:`~importlib.abc.PathEntryFinder.find_loader` by the import
+    system will raise :exc:`ImportWarning`.
 
 
 Replacing the standard import system
@@ -960,6 +967,8 @@ for this is that::
 should expose ``XXX.YYY.ZZZ`` as a usable expression, but .moduleY is
 not a valid expression.
 
+
+.. _import-dunder-main:
 
 Special considerations for __main__
 ===================================

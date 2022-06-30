@@ -46,6 +46,9 @@ This has consequences:
   arbitrary amount of time, regardless of any signals received.  The Python
   signal handlers will be called when the calculation finishes.
 
+* If the handler raises an exception, it will be raised "out of thin air" in
+  the main thread. See the :ref:`note below <handlers-and-exceptions>` for a
+  discussion.
 
 .. _signals-and-threads:
 
@@ -53,12 +56,12 @@ This has consequences:
 Signals and threads
 ^^^^^^^^^^^^^^^^^^^
 
-Python signal handlers are always executed in the main Python thread,
+Python signal handlers are always executed in the main Python thread of the main interpreter,
 even if the signal was received in another thread.  This means that signals
 can't be used as a means of inter-thread communication.  You can use
 the synchronization primitives from the :mod:`threading` module instead.
 
-Besides, only the main thread is allowed to set a new signal handler.
+Besides, only the main thread of the main interpreter is allowed to set a new signal handler.
 
 
 Module contents
@@ -117,7 +120,7 @@ The variables defined in the :mod:`signal` module are:
 
    Child process stopped or terminated.
 
-   .. availability:: Windows.
+   .. availability:: Unix.
 
 .. data:: SIGCLD
 
@@ -351,13 +354,26 @@ The :mod:`signal` module defines the following functions:
    .. versionadded:: 3.8
 
 
+.. function:: pidfd_send_signal(pidfd, sig, siginfo=None, flags=0)
+
+   Send signal *sig* to the process referred to by file descriptor *pidfd*.
+   Python does not currently support the *siginfo* parameter; it must be
+   ``None``.  The *flags* argument is provided for future extensions; no flag
+   values are currently defined.
+
+   See the :manpage:`pidfd_send_signal(2)` man page for more information.
+
+   .. availability:: Linux 5.1+
+   .. versionadded:: 3.9
+
+
 .. function:: pthread_kill(thread_id, signalnum)
 
    Send the signal *signalnum* to the thread *thread_id*, another thread in the
    same process as the caller.  The target thread can be executing any code
    (Python or not).  However, if the target thread is executing the Python
    interpreter, the Python signal handlers will be :ref:`executed by the main
-   thread <signals-and-threads>`.  Therefore, the only point of sending a
+   thread of the main interpreter <signals-and-threads>`.  Therefore, the only point of sending a
    signal to a particular Python thread would be to force a running system call
    to fail with :exc:`InterruptedError`.
 
@@ -403,7 +419,7 @@ The :mod:`signal` module defines the following functions:
 
    :data:`SIGKILL` and :data:`SIGSTOP` cannot be blocked.
 
-   .. availability:: Unix.  See the man page :manpage:`sigprocmask(3)` and
+   .. availability:: Unix.  See the man page :manpage:`sigprocmask(2)` and
       :manpage:`pthread_sigmask(3)` for further information.
 
    See also :func:`pause`, :func:`sigpending` and :func:`sigwait`.
@@ -453,7 +469,8 @@ The :mod:`signal` module defines the following functions:
    If not -1, *fd* must be non-blocking.  It is up to the library to remove
    any bytes from *fd* before calling poll or select again.
 
-   When threads are enabled, this function can only be called from the main thread;
+   When threads are enabled, this function can only be called
+   from :ref:`the main thread of the main interpreter <signals-and-threads>`;
    attempting to call it from other threads will cause a :exc:`ValueError`
    exception to be raised.
 
@@ -506,7 +523,8 @@ The :mod:`signal` module defines the following functions:
    signal handler will be returned (see the description of :func:`getsignal`
    above).  (See the Unix man page :manpage:`signal(2)` for further information.)
 
-   When threads are enabled, this function can only be called from the main thread;
+   When threads are enabled, this function can only be called
+   from :ref:`the main thread of the main interpreter <signals-and-threads>`;
    attempting to call it from other threads will cause a :exc:`ValueError`
    exception to be raised.
 
@@ -658,7 +676,75 @@ case, wrap your entry point to catch this exception as follows::
     if __name__ == '__main__':
         main()
 
-Do not set :const:`SIGPIPE`'s disposition to :const:`SIG_DFL`
-in order to avoid :exc:`BrokenPipeError`.  Doing that would cause
-your program to exit unexpectedly also whenever any socket connection
-is interrupted while your program is still writing to it.
+Do not set :const:`SIGPIPE`'s disposition to :const:`SIG_DFL` in
+order to avoid :exc:`BrokenPipeError`.  Doing that would cause
+your program to exit unexpectedly whenever any socket
+connection is interrupted while your program is still writing to
+it.
+
+.. _handlers-and-exceptions:
+
+Note on Signal Handlers and Exceptions
+--------------------------------------
+
+If a signal handler raises an exception, the exception will be propagated to
+the main thread and may be raised after any :term:`bytecode` instruction. Most
+notably, a :exc:`KeyboardInterrupt` may appear at any point during execution.
+Most Python code, including the standard library, cannot be made robust against
+this, and so a :exc:`KeyboardInterrupt` (or any other exception resulting from
+a signal handler) may on rare occasions put the program in an unexpected state.
+
+To illustrate this issue, consider the following code::
+
+    class SpamContext:
+        def __init__(self):
+            self.lock = threading.Lock()
+
+        def __enter__(self):
+            # If KeyboardInterrupt occurs here, everything is fine
+            self.lock.acquire()
+            # If KeyboardInterrupt occcurs here, __exit__ will not be called
+            ...
+            # KeyboardInterrupt could occur just before the function returns
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            ...
+            self.lock.release()
+
+For many programs, especially those that merely want to exit on
+:exc:`KeyboardInterrupt`, this is not a problem, but applications that are
+complex or require high reliability should avoid raising exceptions from signal
+handlers. They should also avoid catching :exc:`KeyboardInterrupt` as a means
+of gracefully shutting down.  Instead, they should install their own
+:const:`SIGINT` handler. Below is an example of an HTTP server that avoids
+:exc:`KeyboardInterrupt`::
+
+    import signal
+    import socket
+    from selectors import DefaultSelector, EVENT_READ
+    from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+    interrupt_read, interrupt_write = socket.socketpair()
+
+    def handler(signum, frame):
+        print('Signal handler called with signal', signum)
+        interrupt_write.send(b'\0')
+    signal.signal(signal.SIGINT, handler)
+
+    def serve_forever(httpd):
+        sel = DefaultSelector()
+        sel.register(interrupt_read, EVENT_READ)
+        sel.register(httpd, EVENT_READ)
+
+        while True:
+            for key, _ in sel.select():
+                if key.fileobj == interrupt_read:
+                    interrupt_read.recv(1)
+                    return
+                if key.fileobj == httpd:
+                    httpd.handle_request()
+
+    print("Serving on port 8000")
+    httpd = HTTPServer(('', 8000), SimpleHTTPRequestHandler)
+    serve_forever(httpd)
+    print("Shutdown...")

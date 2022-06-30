@@ -6,6 +6,7 @@
 #include "Python.h"
 
 extern PyObject* PyInit__abc(void);
+extern PyObject* PyInit_array(void);
 extern PyObject* PyInit_audioop(void);
 extern PyObject* PyInit_binascii(void);
 extern PyObject* PyInit_cmath(void);
@@ -44,7 +45,6 @@ extern PyObject* PyInit__symtable(void);
 extern PyObject* PyInit_mmap(void);
 extern PyObject* PyInit__csv(void);
 extern PyObject* PyInit__sre(void);
-extern PyObject* PyInit_parser(void);
 extern PyObject* PyInit_winreg(void);
 extern PyObject* PyInit__struct(void);
 extern PyObject* PyInit__datetime(void);
@@ -74,6 +74,7 @@ extern PyObject* PyInit__opcode(void);
 
 extern PyObject* PyInit__contextvars(void);
 
+
 /* tools/freeze/makeconfig.py marker for additional "extern" */
 /* -- ADDMODULE MARKER 1 -- */
 
@@ -83,6 +84,7 @@ extern PyObject* PyInit__imp(void);
 struct _inittab _PyImport_Inittab[] = {
 
     {"_abc", PyInit__abc},
+    {"array", PyInit_array},
     {"_ast", PyInit__ast},
     {"audioop", PyInit_audioop},
     {"binascii", PyInit_binascii},
@@ -123,7 +125,6 @@ struct _inittab _PyImport_Inittab[] = {
     {"mmap", PyInit_mmap},
     {"_csv", PyInit__csv},
     {"_sre", PyInit__sre},
-    {"parser", PyInit_parser},
     {"winreg", PyInit_winreg},
     {"_struct", PyInit__struct},
     {"_datetime", PyInit__datetime},
@@ -155,7 +156,6 @@ struct _inittab _PyImport_Inittab[] = {
     {"_imp", PyInit__imp},
 
     /* These entries are here for sys.builtin_module_names */
-    {"array", NULL},
     {"builtins", NULL},
     {"sys", NULL},
     {"_warnings", _PyWarnings_Init},

@@ -16,6 +16,7 @@
 import contextlib
 import unittest
 from test import support
+from test.support import os_helper
 from itertools import permutations, product
 from random import randrange, sample, choice
 import warnings
@@ -39,11 +40,16 @@ except ImportError:
     ctypes = None
 
 try:
-    with support.EnvironmentVarGuard() as os.environ, \
+    with os_helper.EnvironmentVarGuard() as os.environ, \
          warnings.catch_warnings():
         from numpy import ndarray as numpy_array
 except ImportError:
     numpy_array = None
+
+try:
+    import _testcapi
+except ImportError:
+    _testcapi = None
 
 
 SHORT_TEST = True
@@ -966,8 +972,6 @@ class TestBufferProtocol(unittest.TestCase):
             m.tobytes()  # Releasing mm didn't release m
 
     def verify_getbuf(self, orig_ex, ex, req, sliced=False):
-        def simple_fmt(ex):
-            return ex.format == '' or ex.format == 'B'
         def match(req, flag):
             return ((req&flag) == flag)
 
@@ -1589,12 +1593,10 @@ class TestBufferProtocol(unittest.TestCase):
 
     def test_ndarray_sequence(self):
         nd = ndarray(1, shape=())
-        with self.assertRaises(TypeError):
-            1 in nd
+        self.assertRaises(TypeError, eval, "1 in nd", locals())
         mv = memoryview(nd)
         self.assertEqual(mv, nd)
-        with self.assertRaises(TypeError):
-            1 in mv
+        self.assertRaises(TypeError, eval, "1 in mv", locals())
 
         for fmt, items, _ in iter_format(5):
             nd = ndarray(items, shape=[5], format=fmt)
@@ -2527,7 +2529,7 @@ class TestBufferProtocol(unittest.TestCase):
         values = [INT(9), IDX(9),
                   2.2+3j, Decimal("-21.1"), 12.2, Fraction(5, 2),
                   [1,2,3], {4,5,6}, {7:8}, (), (9,),
-                  True, False, None, NotImplemented,
+                  True, False, None, Ellipsis,
                   b'a', b'abc', bytearray(b'a'), bytearray(b'abc'),
                   'a', 'abc', r'a', r'abc',
                   f, lambda x: x]
@@ -2883,7 +2885,7 @@ class TestBufferProtocol(unittest.TestCase):
 
         ex = ndarray(9.0, [], format='f')
         m = memoryview(ex)
-        self.assertRaises(TypeError, eval, "9.0 in m", {'m': m})
+        self.assertRaises(TypeError, eval, "9.0 in m", locals())
 
     @contextlib.contextmanager
     def assert_out_of_bounds_error(self, dim):
@@ -3900,8 +3902,7 @@ class TestBufferProtocol(unittest.TestCase):
         # memoryview.tobytes()
         self.assertRaises(ValueError, m.tobytes)
         # sequence
-        with self.assertRaises(ValueError):
-            1.0 in m
+        self.assertRaises(ValueError, eval, "1.0 in m", locals())
         # subscript
         self.assertRaises(ValueError, m.__getitem__, 0)
         # assignment
@@ -4420,6 +4421,13 @@ class TestBufferProtocol(unittest.TestCase):
     def test_issue_7385(self):
         x = ndarray([1,2,3], shape=[3], flags=ND_GETBUF_FAIL)
         self.assertRaises(BufferError, memoryview, x)
+
+    @support.cpython_only
+    def test_pybuffer_size_from_format(self):
+        # basic tests
+        for format in ('', 'ii', '3s'):
+            self.assertEqual(_testcapi.PyBuffer_SizeFromFormat(format),
+                             struct.calcsize(format))
 
 
 if __name__ == "__main__":

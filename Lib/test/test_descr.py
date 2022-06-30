@@ -4,6 +4,8 @@ import gc
 import itertools
 import math
 import pickle
+import random
+import string
 import sys
 import types
 import unittest
@@ -845,6 +847,14 @@ class ClassPropertiesAndMethods(unittest.TestCase):
             self.fail("inheriting from ModuleType and str at the same time "
                       "should fail")
 
+        # Issue 34805: Verify that definition order is retained
+        def random_name():
+            return ''.join(random.choices(string.ascii_letters, k=10))
+        class A:
+            pass
+        subclasses = [type(random_name(), (A,), {}) for i in range(100)]
+        self.assertEqual(A.__subclasses__(), subclasses)
+
     def test_multiple_inheritance(self):
         # Testing multiple inheritance...
         class C(object):
@@ -1269,8 +1279,6 @@ order (MRO) for bases """
                 def __eq__(self, other):
                     return False
             g = G()
-            # Warm up any relevant caches:
-            g==g
             orig_objects = len(gc.get_objects())
             for i in range(10):
                 g==g
@@ -1294,6 +1302,12 @@ order (MRO) for bases """
             __slots__ = "a"
         with self.assertRaises(AttributeError):
             del X().a
+
+        # Inherit from object on purpose to check some backwards compatibility paths
+        class X(object):
+            __slots__ = "a"
+        with self.assertRaisesRegex(AttributeError, "'X' object has no attribute 'a'"):
+            X().a
 
     def test_slots_special(self):
         # Testing __dict__ and __weakref__ in __slots__...
@@ -1537,7 +1551,9 @@ order (MRO) for bases """
         self.assertEqual(d.foo(1), (d, 1))
         self.assertEqual(D.foo(d, 1), (d, 1))
         # Test for a specific crash (SF bug 528132)
-        def f(cls, arg): return (cls, arg)
+        def f(cls, arg):
+            "f docstring"
+            return (cls, arg)
         ff = classmethod(f)
         self.assertEqual(ff.__get__(0, int)(42), (int, 42))
         self.assertEqual(ff.__get__(0)(42), (int, 42))
@@ -1563,10 +1579,16 @@ order (MRO) for bases """
             self.fail("classmethod shouldn't accept keyword args")
 
         cm = classmethod(f)
-        self.assertEqual(cm.__dict__, {})
+        cm_dict = {'__annotations__': {},
+                   '__doc__': "f docstring",
+                   '__module__': __name__,
+                   '__name__': 'f',
+                   '__qualname__': f.__qualname__}
+        self.assertEqual(cm.__dict__, cm_dict)
+
         cm.x = 42
         self.assertEqual(cm.x, 42)
-        self.assertEqual(cm.__dict__, {"x" : 42})
+        self.assertEqual(cm.__dict__, {"x" : 42, **cm_dict})
         del cm.x
         self.assertNotHasAttr(cm, "x")
 
@@ -1574,7 +1596,6 @@ order (MRO) for bases """
     def test_refleaks_in_classmethod___init__(self):
         gettotalrefcount = support.get_attribute(sys, 'gettotalrefcount')
         cm = classmethod(None)
-        cm.__init__(None)
         refs_before = gettotalrefcount()
         for i in range(100):
             cm.__init__(None)
@@ -1616,8 +1637,8 @@ order (MRO) for bases """
             spam_cm(spam.spamlist())
         self.assertEqual(
             str(cm.exception),
-            "descriptor 'classmeth' requires a type "
-            "but received a 'xxsubtype.spamlist' instance")
+            "descriptor 'classmeth' for type 'xxsubtype.spamlist' "
+            "needs a type, not a 'xxsubtype.spamlist' as arg 2")
 
         with self.assertRaises(TypeError) as cm:
             spam_cm(list)
@@ -1647,10 +1668,10 @@ order (MRO) for bases """
         self.assertEqual(d.foo(1), (d, 1))
         self.assertEqual(D.foo(d, 1), (d, 1))
         sm = staticmethod(None)
-        self.assertEqual(sm.__dict__, {})
+        self.assertEqual(sm.__dict__, {'__doc__': None})
         sm.x = 42
         self.assertEqual(sm.x, 42)
-        self.assertEqual(sm.__dict__, {"x" : 42})
+        self.assertEqual(sm.__dict__, {"x" : 42, '__doc__': None})
         del sm.x
         self.assertNotHasAttr(sm, "x")
 
@@ -1658,7 +1679,6 @@ order (MRO) for bases """
     def test_refleaks_in_staticmethod___init__(self):
         gettotalrefcount = support.get_attribute(sys, 'gettotalrefcount')
         sm = staticmethod(None)
-        sm.__init__(None)
         refs_before = gettotalrefcount()
         for i in range(100):
             sm.__init__(None)
@@ -1971,7 +1991,7 @@ order (MRO) for bases """
         # different error messages.
         set_add = set.add
 
-        expected_errmsg = "descriptor 'add' of 'set' object needs an argument"
+        expected_errmsg = "unbound method set.add() needs an argument"
 
         with self.assertRaises(TypeError) as cm:
             set_add()
@@ -2525,14 +2545,12 @@ order (MRO) for bases """
         m2instance.b = 2
         m2instance.a = 1
         self.assertEqual(m2instance.__dict__, "Not a dict!")
-        try:
+        with self.assertRaises(TypeError):
             dir(m2instance)
-        except TypeError:
-            pass
 
-        # Two essentially featureless objects, just inheriting stuff from
-        # object.
-        self.assertEqual(dir(NotImplemented), dir(Ellipsis))
+        # Two essentially featureless objects, (Ellipsis just inherits stuff
+        # from object.
+        self.assertEqual(dir(object()), dir(Ellipsis))
 
         # Nasty test case for proxied objects
         class Wrapper(object):
@@ -2979,12 +2997,12 @@ order (MRO) for bases """
         ##             self.ateof = 1
         ##        return s
         ##
-        ## f = file(name=support.TESTFN, mode='w')
+        ## f = file(name=os_helper.TESTFN, mode='w')
         ## lines = ['a\n', 'b\n', 'c\n']
         ## try:
         ##     f.writelines(lines)
         ##     f.close()
-        ##     f = CountedInput(support.TESTFN)
+        ##     f = CountedInput(os_helper.TESTFN)
         ##     for (i, expected) in zip(range(1, 5) + [4], lines + 2 * [""]):
         ##         got = f.readline()
         ##         self.assertEqual(expected, got)
@@ -2996,7 +3014,7 @@ order (MRO) for bases """
         ##         f.close()
         ##     except:
         ##         pass
-        ##     support.unlink(support.TESTFN)
+        ##     os_helper.unlink(os_helper.TESTFN)
 
     def test_keywords(self):
         # Testing keyword args to basic type constructors ...
@@ -3556,13 +3574,6 @@ order (MRO) for bases """
         self.assertEqual(o.__str__(), '41')
         self.assertEqual(o.__repr__(), 'A repr')
 
-        capture = io.StringIO()
-        # Calling str() or not exercises different internal paths.
-        print(o, file=capture)
-        print(str(o), file=capture)
-        self.assertEqual(capture.getvalue(), '41\n41\n')
-        capture.close()
-
     def test_keyword_arguments(self):
         # Testing keyword arguments to __init__, __call__...
         def f(a): return a
@@ -3904,6 +3915,48 @@ order (MRO) for bases """
         a = C()
         a **= 2
 
+    def test_ipow_returns_not_implemented(self):
+        class A:
+            def __ipow__(self, other):
+                return NotImplemented
+
+        class B(A):
+            def __rpow__(self, other):
+                return 1
+
+        class C(A):
+            def __pow__(self, other):
+                return 2
+        a = A()
+        b = B()
+        c = C()
+
+        a **= b
+        self.assertEqual(a, 1)
+
+        c **= b
+        self.assertEqual(c, 2)
+
+    def test_no_ipow(self):
+        class B:
+            def __rpow__(self, other):
+                return 1
+
+        a = object()
+        b = B()
+        a **= b
+        self.assertEqual(a, 1)
+
+    def test_ipow_exception_text(self):
+        x = None
+        with self.assertRaises(TypeError) as cm:
+            x **= 2
+        self.assertIn('unsupported operand type(s) for **=', str(cm.exception))
+
+        with self.assertRaises(TypeError) as cm:
+            y = x ** 2
+        self.assertIn('unsupported operand type(s) for **', str(cm.exception))
+
     def test_mutable_bases(self):
         # Testing mutable bases...
 
@@ -4007,7 +4060,7 @@ order (MRO) for bases """
         except TypeError:
             pass
         else:
-            assert 0, "best_base calculation found wanting"
+            self.fail("best_base calculation found wanting")
 
     def test_unsubclassable_types(self):
         with self.assertRaises(TypeError):
@@ -4393,6 +4446,8 @@ order (MRO) for bases """
             print("Oops!")
         except RuntimeError:
             pass
+        else:
+            self.fail("Didn't raise RuntimeError")
         finally:
             sys.stdout = test_stdout
 
@@ -4714,12 +4769,14 @@ order (MRO) for bases """
             "elephant"
         X.__doc__ = "banana"
         self.assertEqual(X.__doc__, "banana")
+
         with self.assertRaises(TypeError) as cm:
             type(list).__dict__["__doc__"].__set__(list, "blah")
-        self.assertIn("can't set list.__doc__", str(cm.exception))
+        self.assertIn("cannot set '__doc__' attribute of immutable type 'list'", str(cm.exception))
+
         with self.assertRaises(TypeError) as cm:
             type(X).__dict__["__doc__"].__delete__(X)
-        self.assertIn("can't delete X.__doc__", str(cm.exception))
+        self.assertIn("cannot delete '__doc__' attribute of immutable type 'X'", str(cm.exception))
         self.assertEqual(X.__doc__, "banana")
 
     def test_qualname(self):
@@ -4939,8 +4996,11 @@ class DictProxyTests(unittest.TestCase):
             self.assertIn('{!r}: {!r}'.format(k, v), r)
 
 
-class PTypesLongInitTest(unittest.TestCase):
+class AAAPTypesLongInitTest(unittest.TestCase):
     # This is in its own TestCase so that it can be run before any other tests.
+    # (Hence the 'AAA' in the test class name: to make it the first
+    # item in a list sorted by name, like
+    # unittest.TestLoader.getTestCaseNames() does.)
     def test_pytype_long_ready(self):
         # Testing SF bug 551412 ...
 
@@ -5663,7 +5723,7 @@ class MroTest(unittest.TestCase):
 
     def test_incomplete_super(self):
         """
-        Attrubute lookup on a super object must be aware that
+        Attribute lookup on a super object must be aware that
         its target type can be uninitialized (type->tp_mro == NULL).
         """
         class M(DebugHelperMeta):
@@ -5677,13 +5737,23 @@ class MroTest(unittest.TestCase):
         class A(metaclass=M):
             pass
 
+    def test_disappearing_custom_mro(self):
+        """
+        gh-92112: A custom mro() returning a result conflicting with
+        __bases__ and deleting itself caused a double free.
+        """
+        class B:
+            pass
 
-def test_main():
-    # Run all local test cases, with PTypesLongInitTest first.
-    support.run_unittest(PTypesLongInitTest, OperatorsTest,
-                         ClassPropertiesAndMethods, DictProxyTests,
-                         MiscTests, PicklingTests, SharedKeyTests,
-                         MroTest)
+        class M(DebugHelperMeta):
+            def mro(cls):
+                del M.mro
+                return (B,)
+
+        with self.assertRaises(TypeError):
+            class A(metaclass=M):
+                pass
+
 
 if __name__ == "__main__":
-    test_main()
+    unittest.main()

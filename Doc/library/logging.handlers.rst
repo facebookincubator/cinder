@@ -48,7 +48,7 @@ and :meth:`flush` methods).
    .. method:: emit(record)
 
       If a formatter is specified, it is used to format the record. The record
-      is then written to the stream with a terminator. If exception information
+      is then written to the stream followed by :attr:`terminator`. If exception information
       is present, it is formatted using :func:`traceback.print_exception` and
       appended to the stream.
 
@@ -68,15 +68,19 @@ and :meth:`flush` methods).
 
       :return: the old stream, if the stream was changed, or *None* if it wasn't.
 
-   .. versionadded:: 3.7
+      .. versionadded:: 3.7
 
+   .. attribute:: terminator
 
-.. versionchanged:: 3.2
-   The ``StreamHandler`` class now has a ``terminator`` attribute, default
-   value ``'\n'``, which is used as the terminator when writing a formatted
-   record to a stream. If you don't want this newline termination, you can
-   set the handler instance's ``terminator`` attribute to the empty string.
-   In earlier versions, the terminator was hardcoded as ``'\n'``.
+      String used as the terminator when writing a formatted record to a stream.
+      Default value is ``'\n'``.
+
+      If you don't want a newline termination, you can set the handler instance's
+      ``terminator`` attribute to the empty string.
+
+      In earlier versions, the terminator was hardcoded as ``'\n'``.
+
+      .. versionadded:: 3.2
 
 
 .. _file-handler:
@@ -89,26 +93,32 @@ sends logging output to a disk file.  It inherits the output functionality from
 :class:`StreamHandler`.
 
 
-.. class:: FileHandler(filename, mode='a', encoding=None, delay=False)
+.. class:: FileHandler(filename, mode='a', encoding=None, delay=False, errors=None)
 
    Returns a new instance of the :class:`FileHandler` class. The specified file is
    opened and used as the stream for logging. If *mode* is not specified,
    :const:`'a'` is used.  If *encoding* is not ``None``, it is used to open the file
    with that encoding.  If *delay* is true, then file opening is deferred until the
-   first call to :meth:`emit`. By default, the file grows indefinitely.
+   first call to :meth:`emit`. By default, the file grows indefinitely. If
+   *errors* is specified, it's used to determine how encoding errors are handled.
 
    .. versionchanged:: 3.6
       As well as string values, :class:`~pathlib.Path` objects are also accepted
       for the *filename* argument.
 
+   .. versionchanged:: 3.9
+      The *errors* parameter was added.
+
    .. method:: close()
 
       Closes the file.
 
-
    .. method:: emit(record)
 
       Outputs the record to the file.
+
+      Note that if the file was closed due to logging shutdown at exit and the file
+      mode is 'w', the record will not be emitted (see :issue:`42378`).
 
 
 .. _null-handler:
@@ -168,17 +178,21 @@ exclusive locks - and so there is no need for such a handler. Furthermore,
 for this value.
 
 
-.. class:: WatchedFileHandler(filename, mode='a', encoding=None, delay=False)
+.. class:: WatchedFileHandler(filename, mode='a', encoding=None, delay=False, errors=None)
 
    Returns a new instance of the :class:`WatchedFileHandler` class. The specified
    file is opened and used as the stream for logging. If *mode* is not specified,
    :const:`'a'` is used.  If *encoding* is not ``None``, it is used to open the file
    with that encoding.  If *delay* is true, then file opening is deferred until the
-   first call to :meth:`emit`.  By default, the file grows indefinitely.
+   first call to :meth:`emit`.  By default, the file grows indefinitely. If
+   *errors* is provided, it determines how encoding errors are handled.
 
    .. versionchanged:: 3.6
       As well as string values, :class:`~pathlib.Path` objects are also accepted
       for the *filename* argument.
+
+   .. versionchanged:: 3.9
+      The *errors* parameter was added.
 
    .. method:: reopenIfNeeded()
 
@@ -205,7 +219,7 @@ module, is the base class for the rotating file handlers,
 not need to instantiate this class, but it has attributes and methods you may
 need to override.
 
-.. class:: BaseRotatingHandler(filename, mode, encoding=None, delay=False)
+.. class:: BaseRotatingHandler(filename, mode, encoding=None, delay=False, errors=None)
 
    The parameters are as for :class:`FileHandler`. The attributes are:
 
@@ -219,6 +233,19 @@ need to override.
          so it should be as simple and as fast as possible. It should also
          return the same output every time for a given input, otherwise the
          rollover behaviour may not work as expected.
+
+         It's also worth noting that care should be taken when using a namer to
+         preserve certain attributes in the filename which are used during rotation.
+         For example, :class:`RotatingFileHandler` expects to have a set of log files
+         whose names contain successive integers, so that rotation works as expected,
+         and :class:`TimedRotatingFileHandler` deletes old log files (based on the
+         ``backupCount`` parameter passed to the handler's initializer) by determining
+         the oldest files to delete. For this to happen, the filenames should be
+         sortable using the date/time portion of the filename, and a namer needs to
+         respect this. (If a namer is wanted that doesn't respect this scheme, it will
+         need to be used in a subclass of :class:`TimedRotatingFileHandler` which
+         overrides the :meth:`~TimedRotatingFileHandler.getFilesToDelete` method to
+         fit in with the custom naming scheme.)
 
       .. versionadded:: 3.3
 
@@ -284,13 +311,14 @@ The :class:`RotatingFileHandler` class, located in the :mod:`logging.handlers`
 module, supports rotation of disk log files.
 
 
-.. class:: RotatingFileHandler(filename, mode='a', maxBytes=0, backupCount=0, encoding=None, delay=False)
+.. class:: RotatingFileHandler(filename, mode='a', maxBytes=0, backupCount=0, encoding=None, delay=False, errors=None)
 
    Returns a new instance of the :class:`RotatingFileHandler` class. The specified
    file is opened and used as the stream for logging. If *mode* is not specified,
    ``'a'`` is used.  If *encoding* is not ``None``, it is used to open the file
    with that encoding.  If *delay* is true, then file opening is deferred until the
-   first call to :meth:`emit`.  By default, the file grows indefinitely.
+   first call to :meth:`emit`.  By default, the file grows indefinitely. If
+   *errors* is provided, it determines how encoding errors are handled.
 
    You can use the *maxBytes* and *backupCount* values to allow the file to
    :dfn:`rollover` at a predetermined size. When the size is about to be exceeded,
@@ -310,6 +338,9 @@ module, supports rotation of disk log files.
    .. versionchanged:: 3.6
       As well as string values, :class:`~pathlib.Path` objects are also accepted
       for the *filename* argument.
+
+   .. versionchanged:: 3.9
+      The *errors* parameter was added.
 
    .. method:: doRollover()
 
@@ -331,7 +362,7 @@ The :class:`TimedRotatingFileHandler` class, located in the
 timed intervals.
 
 
-.. class:: TimedRotatingFileHandler(filename, when='h', interval=1, backupCount=0, encoding=None, delay=False, utc=False, atTime=None)
+.. class:: TimedRotatingFileHandler(filename, when='h', interval=1, backupCount=0, encoding=None, delay=False, utc=False, atTime=None, errors=None)
 
    Returns a new instance of the :class:`TimedRotatingFileHandler` class. The
    specified file is opened and used as the stream for logging. On rotating it also
@@ -391,6 +422,9 @@ timed intervals.
    rollover, and subsequent rollovers would be calculated via the normal
    interval calculation.
 
+   If *errors* is specified, it's used to determine how encoding errors are
+   handled.
+
    .. note:: Calculation of the initial rollover time is done when the handler
       is initialised. Calculation of subsequent rollover times is done only
       when rollover occurs, and rollover occurs only when emitting output. If
@@ -411,6 +445,9 @@ timed intervals.
       As well as string values, :class:`~pathlib.Path` objects are also accepted
       for the *filename* argument.
 
+   .. versionchanged:: 3.9
+      The *errors* parameter was added.
+
    .. method:: doRollover()
 
       Does a rollover, as described above.
@@ -419,6 +456,10 @@ timed intervals.
 
       Outputs the record to the file, catering for rollover as described above.
 
+   .. method:: getFilesToDelete()
+
+      Returns a list of filenames which should be deleted as part of rollover. These
+      are the absolute paths of the oldest backup log files written by the handler.
 
 .. _socket-handler:
 
@@ -906,7 +947,7 @@ HTTPHandler
 ^^^^^^^^^^^
 
 The :class:`HTTPHandler` class, located in the :mod:`logging.handlers` module,
-supports sending logging messages to a Web server, using either ``GET`` or
+supports sending logging messages to a web server, using either ``GET`` or
 ``POST`` semantics.
 
 
@@ -936,17 +977,17 @@ supports sending logging messages to a Web server, using either ``GET`` or
 
    .. method:: emit(record)
 
-      Sends the record to the Web server as a URL-encoded dictionary. The
+      Sends the record to the web server as a URL-encoded dictionary. The
       :meth:`mapLogRecord` method is used to convert the record to the
       dictionary to be sent.
 
-   .. note:: Since preparing a record for sending it to a Web server is not
+   .. note:: Since preparing a record for sending it to a web server is not
       the same as a generic formatting operation, using
       :meth:`~logging.Handler.setFormatter` to specify a
       :class:`~logging.Formatter` for a :class:`HTTPHandler` has no effect.
       Instead of calling :meth:`~logging.Handler.format`, this handler calls
       :meth:`mapLogRecord` and then :func:`urllib.parse.urlencode` to encode the
-      dictionary in a form suitable for sending to a Web server.
+      dictionary in a form suitable for sending to a web server.
 
 
 .. _queue-handler:
@@ -963,7 +1004,7 @@ supports sending logging messages to a queue, such as those implemented in the
 
 Along with the :class:`QueueListener` class, :class:`QueueHandler` can be used
 to let handlers do their work on a separate thread from the one which does the
-logging. This is important in Web applications and also other service
+logging. This is important in web applications and also other service
 applications where threads servicing clients need to respond as quickly as
 possible, while any potentially slow operations (such as sending an email via
 :class:`SMTPHandler`) are done on a separate thread.
@@ -1025,7 +1066,7 @@ because it works hand-in-hand with :class:`QueueHandler`.
 
 Along with the :class:`QueueHandler` class, :class:`QueueListener` can be used
 to let handlers do their work on a separate thread from the one which does the
-logging. This is important in Web applications and also other service
+logging. This is important in web applications and also other service
 applications where threads servicing clients need to respond as quickly as
 possible, while any potentially slow operations (such as sending an email via
 :class:`SMTPHandler`) are done on a separate thread.

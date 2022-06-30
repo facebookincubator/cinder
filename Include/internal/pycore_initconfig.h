@@ -1,8 +1,5 @@
 #ifndef Py_INTERNAL_CORECONFIG_H
 #define Py_INTERNAL_CORECONFIG_H
-
-#include "pycore_pystate.h"   /* _PyRuntimeState */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,6 +8,8 @@ extern "C" {
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
+/* Forward declaration */
+struct pyruntimestate;
 
 /* --- PyStatus ----------------------------------------------- */
 
@@ -45,6 +44,8 @@ extern "C" {
 #define _PyStatus_UPDATE_FUNC(err) \
     do { err.func = _PyStatus_GET_FUNC(); } while (0)
 
+PyObject* _PyErr_SetFromPyStatus(PyStatus status);
+
 /* --- PyWideStringList ------------------------------------------------ */
 
 #define _PyWideStringList_INIT (PyWideStringList){.length = 0, .items = NULL}
@@ -62,7 +63,7 @@ PyAPI_FUNC(PyObject*) _PyWideStringList_AsList(const PyWideStringList *list);
 
 /* --- _PyArgv ---------------------------------------------------- */
 
-typedef struct {
+typedef struct _PyArgv {
     Py_ssize_t argc;
     int use_bytes_argv;
     char * const *bytes_argv;
@@ -101,6 +102,7 @@ typedef struct {
     int isolated;             /* -I option */
     int use_environment;      /* -E option */
     int dev_mode;             /* -X dev and PYTHONDEVMODE */
+    int warn_default_encoding;     /* -X warn_default_encoding and PYTHONWARNDEFAULTENCODING */
 } _PyPreCmdline;
 
 #define _PyPreCmdline_INIT \
@@ -150,12 +152,18 @@ PyAPI_FUNC(void) _PyConfig_InitCompatConfig(PyConfig *config);
 extern PyStatus _PyConfig_Copy(
     PyConfig *config,
     const PyConfig *config2);
-extern PyStatus _PyConfig_InitPathConfig(PyConfig *config);
-extern void _PyConfig_Write(const PyConfig *config,
-    _PyRuntimeState *runtime);
+extern PyStatus _PyConfig_InitPathConfig(
+    PyConfig *config,
+    int compute_path_config);
+extern PyStatus _PyConfig_Read(PyConfig *config, int compute_path_config);
+extern PyStatus _PyConfig_Write(const PyConfig *config,
+    struct pyruntimestate *runtime);
 extern PyStatus _PyConfig_SetPyArgv(
     PyConfig *config,
     const _PyArgv *args);
+
+PyAPI_FUNC(PyObject*) _PyConfig_AsDict(const PyConfig *config);
+PyAPI_FUNC(int) _PyConfig_FromDict(PyConfig *config, PyObject *dict);
 
 
 /* --- Function used for testing ---------------------------------- */

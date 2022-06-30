@@ -130,13 +130,12 @@ import sys
 import threading
 import unittest
 import weakref
-import opcode
 try:
     import ctypes
 except ImportError:
     ctypes = None
 from test.support import (run_doctest, run_unittest, cpython_only,
-                          check_impl_detail)
+                          check_impl_detail, gc_collect)
 
 
 def consts(t):
@@ -214,7 +213,7 @@ class CodeTest(unittest.TestCase):
         CodeType = type(co)
 
         # test code constructor
-        return CodeType(co.co_argcount,
+        CodeType(co.co_argcount,
                         co.co_posonlyargcount,
                         co.co_kwonlyargcount,
                         co.co_nlocals,
@@ -241,7 +240,7 @@ class CodeTest(unittest.TestCase):
         def func2():
             y = 2
             return y
-        code2 = func.__code__
+        code2 = func2.__code__
 
         for attr, value in (
             ("co_argcount", 0),
@@ -259,11 +258,17 @@ class CodeTest(unittest.TestCase):
             ("co_cellvars", ("cellvar",)),
             ("co_filename", "newfilename"),
             ("co_name", "newname"),
-            ("co_lnotab", code2.co_lnotab),
+            ("co_linetable", code2.co_linetable),
         ):
             with self.subTest(attr=attr, value=value):
                 new_code = code.replace(**{attr: value})
                 self.assertEqual(getattr(new_code, attr), value)
+
+    def test_empty_linetable(self):
+        def func():
+            pass
+        new_code = code = func.__code__.replace(co_linetable=b'')
+        self.assertEqual(list(new_code.co_lines()), [])
 
 
 def isinterned(s):
@@ -338,6 +343,7 @@ class CodeWeakRefTest(unittest.TestCase):
         coderef = weakref.ref(f.__code__, callback)
         self.assertTrue(bool(coderef()))
         del f
+        gc_collect()  # For PyPy or other GCs.
         self.assertFalse(bool(coderef()))
         self.assertTrue(self.called)
 
@@ -433,42 +439,6 @@ if check_impl_detail(cpython=True) and ctypes is not None:
             tt.start()
             tt.join()
             self.assertEqual(LAST_FREED, 500)
-
-        @cpython_only
-        def test_clean_stack_on_return(self):
-
-            def f(x):
-                return x
-
-            code = f.__code__
-            ct = type(f.__code__)
-
-            # Insert an extra LOAD_FAST, this duplicates the value of
-            # 'x' in the stack, leaking it if the frame is not properly
-            # cleaned up upon exit.
-
-            bytecode = list(code.co_code)
-            bytecode.insert(-2, opcode.opmap['LOAD_FAST'])
-            bytecode.insert(-2, 0)
-
-            c = ct(code.co_argcount, code.co_posonlyargcount,
-                   code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize+1,
-                   code.co_flags, bytes(bytecode),
-                   code.co_consts, code.co_names, code.co_varnames,
-                   code.co_filename, code.co_name, code.co_firstlineno,
-                   code.co_lnotab, code.co_freevars, code.co_cellvars)
-            new_function = type(f)(c, f.__globals__, 'nf', f.__defaults__, f.__closure__)
-
-            class Var:
-                pass
-            the_object = Var()
-            var = weakref.ref(the_object)
-
-            new_function(the_object)
-
-            # Check if the_object is leaked
-            del the_object
-            assert var() is None
 
 
 def test_main(verbose=None):

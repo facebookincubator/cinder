@@ -1,4 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import sys
 
 class MyMod(object):
@@ -11,4 +10,3 @@ class MyMod(object):
 
 
 sys.modules[__name__] = MyMod()
-

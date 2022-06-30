@@ -35,13 +35,17 @@ though it may take a while to be processed.
    `Helping with Documentation <https://devguide.python.org/docquality/#helping-with-documentation>`_
       Comprehensive guide for individuals that are interested in contributing to Python documentation.
 
+   `Documentation Translations <https://devguide.python.org/documenting/#translating>`_
+      A list of GitHub pages for documentation translation and their primary contacts.
+
+
 .. _using-the-tracker:
 
 Using the Python issue tracker
 ==============================
 
 Bug reports for Python itself should be submitted via the Python Bug Tracker
-(https://bugs.python.org/).  The bug tracker offers a Web form which allows
+(https://bugs.python.org/).  The bug tracker offers a web form which allows
 pertinent information to be entered and submitted to the developers.
 
 The first step in filing a report is to determine whether the problem has
@@ -80,7 +84,7 @@ taken on the bug.
       Article which goes into some detail about how to create a useful bug report.
       This describes what kind of information is useful and why it is useful.
 
-   `Bug Report Writing Guidelines <https://developer.mozilla.org/en-US/docs/Mozilla/QA/Bug_writing_guidelines>`_
+   `Bug Writing Guidelines <https://bugzilla.mozilla.org/page.cgi?id=bug-writing.html>`_
       Information about writing a good bug report.  Some of this is specific to the
       Mozilla project, but describes general good practices.
 

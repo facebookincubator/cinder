@@ -17,8 +17,7 @@ typedef struct PyGetSetDef {
 } PyGetSetDef;
 
 #ifndef Py_LIMITED_API
-typedef PyObject *(*wrapperfunc)(PyObject *self, PyObject *const *stack,
-                                 Py_ssize_t nargs,
+typedef PyObject *(*wrapperfunc)(PyObject *self, PyObject *args,
                                  void *wrapped);
 
 typedef PyObject *(*wrapperfunc_kwds)(PyObject *self, PyObject *args,
@@ -71,54 +70,12 @@ typedef struct {
     PyDescr_COMMON;
     struct wrapperbase *d_base;
     void *d_wrapped; /* This can be any function pointer */
-    vectorcallfunc d_vectorcall;
 } PyWrapperDescrObject;
-
-int _PyWrapper_ClearFreeList(void);
-
-/* fb t46346203 */
-typedef struct {
-    PyObject_HEAD
-    PyObject *func;             /* function object */
-    PyObject *name_or_descr;    /* str or member descriptor object */
-} PyCachedPropertyDescrObject;
-/* end fb t46346203 */
-
- /* fb T82701047 */
-typedef struct {
-    PyObject_HEAD
-    PyObject *func;             /* function object */
-    PyObject *name_or_descr;    /* str or member descriptor object */
-} PyAsyncCachedPropertyDescrObject;
- /* end fb T82701047 */
-
-/* fb T82701047 */
-typedef struct {
-    PyObject_HEAD
-    PyObject *func;             /* function object */
-    PyObject *name;             /* str or member descriptor object */
-    PyObject *value;            /* value or NULL when uninitialized */
-} PyAsyncCachedClassPropertyDescrObject;
-/* end fb T82701047 */
-
-typedef struct {
-    PyObject_HEAD
-    PyObject *prop_get;
-    PyObject *prop_set;
-    PyObject *prop_del;
-    PyObject *prop_doc;
-    int getter_doc;
-} propertyobject;
 #endif /* Py_LIMITED_API */
 
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyGetSetDescr_Type;
 PyAPI_DATA(PyTypeObject) PyMemberDescr_Type;
-PyAPI_DATA(PyType_Spec) _PyCachedClassProperty_TypeSpec;     /* fb t46346203 */
-PyAPI_DATA(PyTypeObject) PyCachedProperty_Type;     /* fb T46346203 */
-PyAPI_DATA(PyTypeObject) PyCachedPropertyWithDescr_Type;     /* fb T46346203 */
-PyAPI_DATA(PyTypeObject) PyAsyncCachedProperty_Type;     /* fb T82701047 */
-PyAPI_DATA(PyTypeObject) PyAsyncCachedClassProperty_Type;     /* fb T82701047 */
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyWrapperDescr_Type;
 PyAPI_DATA(PyTypeObject) PyDictProxy_Type;
@@ -136,8 +93,7 @@ PyAPI_FUNC(PyObject *) PyDescr_NewGetSet(PyTypeObject *,
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(PyObject *) PyDescr_NewWrapper(PyTypeObject *,
                                                 struct wrapperbase *, void *);
-#define PyDescr_IsData(d) (Py_TYPE(d)->tp_descr_set != NULL)
-#define PyWrapperDescr_Check(d) (Py_TYPE(d) == &PyWrapperDescr_Type)
+PyAPI_FUNC(int) PyDescr_IsData(PyObject *);
 #endif
 
 PyAPI_FUNC(PyObject *) PyDictProxy_New(PyObject *);

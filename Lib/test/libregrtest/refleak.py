@@ -1,11 +1,12 @@
-import gc
 import os
 import re
 import sys
 import warnings
 from inspect import isabstract
 from test import support
-from types import CodeType, FunctionType, ModuleType
+from test.support import os_helper
+from test.libregrtest.utils import clear_caches
+
 try:
     from _abc import _get_dump
 except ImportError:
@@ -18,15 +19,6 @@ except ImportError:
         return (registry_weakrefs, cls._abc_cache,
                 cls._abc_negative_cache, cls._abc_negative_cache_version)
 
-try:
-    import cinder
-except:
-    cinder = None
-
-try:
-    import _asyncio
-except:
-    _asyncio = None
 
 def dash_R(ns, test_name, test_func):
     """Run a test multiple times, looking for reference leaks.
@@ -72,7 +64,7 @@ def dash_R(ns, test_name, test_func):
         return int_pool.setdefault(value, value)
 
     nwarmup, ntracked, fname = ns.huntrleaks
-    fname = os.path.join(support.SAVEDCWD, fname)
+    fname = os.path.join(os_helper.SAVEDCWD, fname)
     repcount = nwarmup + ntracked
 
     # Pre-allocate to ensure that the loop doesn't allocate anything new
@@ -82,7 +74,7 @@ def dash_R(ns, test_name, test_func):
     fd_deltas = [0] * repcount
     getallocatedblocks = sys.getallocatedblocks
     gettotalrefcount = sys.gettotalrefcount
-    fd_count = support.fd_count
+    fd_count = os_helper.fd_count
 
     # initialize variables to make pyflakes quiet
     rc_before = alloc_before = fd_before = 0
@@ -120,7 +112,7 @@ def dash_R(ns, test_name, test_func):
 
     # These checkers return False on success, True on failure
     def check_rc_deltas(deltas):
-        # Checker for reference counters and memomry blocks.
+        # Checker for reference counters and memory blocks.
         #
         # bpo-30776: Try to ignore false positives:
         #
@@ -156,10 +148,6 @@ def dash_R(ns, test_name, test_func):
     return failed
 
 
-if cinder is not None:
-    CINDER_KNOBS = cinder.getknobs()
-
-
 def dash_R_cleanup(fs, ps, pic, zdc, abcs):
     import copyreg
     import collections.abc
@@ -177,37 +165,6 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
     else:
         zipimport._zip_directory_cache.clear()
         zipimport._zip_directory_cache.update(zdc)
-    if _asyncio is not None:
-        _asyncio._clear_caches()
-
-    if cinder is not None:
-        # disable shadow byte code, we don't want to allocate new caches while
-        # cleaning caches
-        cinder.setknobs({"shadowcode": False})
-        cinder.clear_caches()
-        has_caches = [x for x in gc.get_objects()
-                      if isinstance(x, (type, FunctionType, ModuleType))]
-
-        for has_cache in has_caches:
-            cinder.clear_shadow_cache(has_cache)
-            if type(has_cache) is FunctionType:
-                # The function could create lambdas or comprehensions which
-                # get optimized
-                for const in has_cache.__code__.co_consts:
-                    if isinstance(const, CodeType):
-                        has_caches.append(const)
-            elif isinstance(has_cache, CodeType):
-                for const in has_cache.co_consts:
-                    if isinstance(const, CodeType):
-                        has_caches.append(const)
-        # Extension types aren't tracked by the GC, so find their shadow
-        # refs, and then use those weak refs to clear the underlying
-        # objects
-        has_caches = [x for x in gc.get_objects() if type(x).__name__ == "shadow_ref"]
-        for has_cache in has_caches:
-            cinder.clear_shadow_cache(has_cache())
-        del has_cache
-        del has_caches
 
     # clear type cache
     sys._clear_type_cache()
@@ -223,119 +180,6 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
             obj._abc_caches_clear()
 
     clear_caches()
-    clear_asyncio_caches()
-
-    if cinder is not None:
-        cinder.setknobs(CINDER_KNOBS)
-
-def clear_asyncio_caches():
-
-    try:
-        asyncio_coroutines = sys.modules["asyncio.coroutines"]
-    except KeyError:
-        pass
-    else:
-        asyncio_coroutines._iscoroutine_typecache.clear()
-
-    refs = [x for x in gc.get_objects() if type(x).__name__ == "future_method_table"]
-    for ref in refs:
-        _asyncio._clear_method_table(ref)
-    del refs
-
-def clear_caches():
-    # Clear the warnings registry, so they can be displayed again
-    for mod in sys.modules.values():
-        if hasattr(mod, '__warningregistry__'):
-            del mod.__warningregistry__
-
-    # Flush standard output, so that buffered data is sent to the OS and
-    # associated Python objects are reclaimed.
-    for stream in (sys.stdout, sys.stderr, sys.__stdout__, sys.__stderr__):
-        if stream is not None:
-            stream.flush()
-
-    # Clear assorted module caches.
-    # Don't worry about resetting the cache if the module is not loaded
-    try:
-        distutils_dir_util = sys.modules['distutils.dir_util']
-    except KeyError:
-        pass
-    else:
-        distutils_dir_util._path_created.clear()
-    re.purge()
-
-    try:
-        _strptime = sys.modules['_strptime']
-    except KeyError:
-        pass
-    else:
-        _strptime._regex_cache.clear()
-
-    try:
-        urllib_parse = sys.modules['urllib.parse']
-    except KeyError:
-        pass
-    else:
-        urllib_parse.clear_cache()
-
-    try:
-        urllib_request = sys.modules['urllib.request']
-    except KeyError:
-        pass
-    else:
-        urllib_request.urlcleanup()
-
-    try:
-        linecache = sys.modules['linecache']
-    except KeyError:
-        pass
-    else:
-        linecache.clearcache()
-
-    try:
-        mimetypes = sys.modules['mimetypes']
-    except KeyError:
-        pass
-    else:
-        mimetypes._default_mime_types()
-
-    try:
-        filecmp = sys.modules['filecmp']
-    except KeyError:
-        pass
-    else:
-        filecmp._cache.clear()
-
-    try:
-        struct = sys.modules['struct']
-    except KeyError:
-        pass
-    else:
-        struct._clearcache()
-
-    try:
-        doctest = sys.modules['doctest']
-    except KeyError:
-        pass
-    else:
-        doctest.master = None
-
-    try:
-        ctypes = sys.modules['ctypes']
-    except KeyError:
-        pass
-    else:
-        ctypes._reset_cache()
-
-    try:
-        typing = sys.modules['typing']
-    except KeyError:
-        pass
-    else:
-        for f in typing._cleanups:
-            f()
-
-    support.gc_collect()
 
 
 def warm_caches():

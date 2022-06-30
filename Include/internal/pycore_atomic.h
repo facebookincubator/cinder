@@ -1,20 +1,18 @@
 #ifndef Py_ATOMIC_H
 #define Py_ATOMIC_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef Py_BUILD_CORE
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
-#include "dynamic_annotations.h"
-
+#include "dynamic_annotations.h"   /* _Py_ANNOTATE_MEMORY_ORDER */
 #include "pyconfig.h"
 
-#if defined(HAVE_STD_ATOMIC)
-#ifdef __cplusplus
-#include <atomic>
-#else
-#include <stdatomic.h>
-#endif
+#ifdef HAVE_STD_ATOMIC
+#  include <stdatomic.h>
 #endif
 
 
@@ -23,10 +21,6 @@
 #if defined(_M_IX86) || defined(_M_X64)
 #  include <immintrin.h>
 #endif
-#endif
-
-#ifdef __cplusplus
-extern "C" {
 #endif
 
 /* This is modeled after the atomics interface from C1x, according to
@@ -41,55 +35,20 @@ extern "C" {
 #if defined(HAVE_STD_ATOMIC)
 
 typedef enum _Py_memory_order {
-#ifdef __cplusplus
-    _Py_memory_order_relaxed = (int)std::memory_order_relaxed,
-    _Py_memory_order_acquire = (int)std::memory_order_acquire,
-    _Py_memory_order_release = (int)std::memory_order_release,
-    _Py_memory_order_acq_rel = (int)std::memory_order_acq_rel,
-    _Py_memory_order_seq_cst = (int)std::memory_order_seq_cst
-#else
     _Py_memory_order_relaxed = memory_order_relaxed,
     _Py_memory_order_acquire = memory_order_acquire,
     _Py_memory_order_release = memory_order_release,
     _Py_memory_order_acq_rel = memory_order_acq_rel,
     _Py_memory_order_seq_cst = memory_order_seq_cst
-#endif
 } _Py_memory_order;
 
 typedef struct _Py_atomic_address {
-#ifdef __cplusplus
-    std::atomic_uintptr_t _value;
-#else
     atomic_uintptr_t _value;
-#endif
 } _Py_atomic_address;
 
 typedef struct _Py_atomic_int {
-#ifdef __cplusplus
-    std::atomic_int _value;
-#else
     atomic_int _value;
-#endif
 } _Py_atomic_int;
-
-#ifdef __cplusplus
-
-#define _Py_atomic_signal_fence(/*memory_order*/ ORDER)                       \
-    atomic_signal_fence(static_cast<std::memory_order>(ORDER))
-
-#define _Py_atomic_thread_fence(/*memory_order*/ ORDER)                       \
-    atomic_thread_fence(static_cast<std::memory_order>(ORDER))
-
-#define _Py_atomic_store_explicit(ATOMIC_VAL, NEW_VAL, ORDER)                 \
-    atomic_store_explicit(&(ATOMIC_VAL)->_value,                              \
-                          NEW_VAL,                                            \
-                          static_cast<std::memory_order>(ORDER))
-
-#define _Py_atomic_load_explicit(ATOMIC_VAL, ORDER)                           \
-    atomic_load_explicit(&(ATOMIC_VAL)->_value,                               \
-                         static_cast<std::memory_order>(ORDER))
-
-#else
 
 #define _Py_atomic_signal_fence(/*memory_order*/ ORDER) \
     atomic_signal_fence(ORDER)
@@ -103,9 +62,7 @@ typedef struct _Py_atomic_int {
 #define _Py_atomic_load_explicit(ATOMIC_VAL, ORDER) \
     atomic_load_explicit(&((ATOMIC_VAL)->_value), ORDER)
 
-#endif
-
-/* Use builtin atomic operations in GCC >= 4.7 */
+// Use builtin atomic operations in GCC >= 4.7 and clang
 #elif defined(HAVE_BUILTIN_ATOMIC)
 
 typedef enum _Py_memory_order {

@@ -1,135 +1,112 @@
 #ifndef Py_INTERNAL_CEVAL_H
 #define Py_INTERNAL_CEVAL_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef Py_BUILD_CORE
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
-#include "pycore_atomic.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include "pycore_pystate.h"
-#include "pythread.h"
+/* Forward declarations */
+struct pyruntimestate;
+struct _ceval_runtime_state;
 
-/* facebook begin T57511654 */
-PyAPI_DATA(int32_t) __strobe_PyVersion_major;
-PyAPI_DATA(int32_t) __strobe_PyVersion_micro;
-PyAPI_DATA(int32_t) __strobe_PyVersion_minor;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_co_flags;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_filename;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_name;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_qualname;
-PyAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
-PyAPI_DATA(int64_t) __strobe_PyCoroObject_cr_awaiter;
-PyAPI_DATA(int64_t) __strobe_PyCoroObject_creator;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_back;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_code;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_gen;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_lineno;
-PyAPI_DATA(int64_t) __strobe_PyFrameObject_localsplus;
-PyAPI_DATA(int64_t) __strobe_PyGenObject_code;
-PyAPI_DATA(int64_t) __strobe_PyGenObject_gi_shadow_frame;
-PyAPI_DATA(int64_t) __strobe_PyObject_type;
-PyAPI_DATA(int64_t) __strobe_PyThreadState_frame;
-PyAPI_DATA(int64_t) __strobe_PyThreadState_shadow_frame;
-PyAPI_DATA(int64_t) __strobe_PyThreadState_thread;
-PyAPI_DATA(int64_t) __strobe_PyTupleObject_item;
-PyAPI_DATA(int64_t) __strobe_PyTypeObject_name;
-PyAPI_DATA(int64_t) __strobe_String_data;
-PyAPI_DATA(int64_t) __strobe_String_size;
-PyAPI_DATA(int64_t) __strobe_TCurrentState_offset;
-PyAPI_DATA(int64_t) __strobe_TLSKey_offset;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_CODE_RT;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYCODE;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_RTFS;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYFRAME;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrKindMask;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrMask;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_data;
-PyAPI_DATA(int64_t) __strobe__PyShadowFrame_prev;
-/* facebook end T57511654 */
+#include "pycore_interp.h"   /* PyInterpreterState.eval_frame */
 
-PyAPI_FUNC(void) _Py_FinishPendingCalls(_PyRuntimeState *runtime);
-PyAPI_FUNC(void) _PyEval_Initialize(struct _ceval_runtime_state *);
-PyAPI_FUNC(void) _PyEval_FiniThreads(
-    struct _ceval_runtime_state *ceval);
-PyAPI_FUNC(void) _PyEval_SignalReceived(
-    struct _ceval_runtime_state *ceval);
+extern void _Py_FinishPendingCalls(PyThreadState *tstate);
+extern void _PyEval_InitRuntimeState(struct _ceval_runtime_state *);
+extern int _PyEval_InitState(struct _ceval_state *ceval);
+extern void _PyEval_FiniState(struct _ceval_state *ceval);
+PyAPI_FUNC(void) _PyEval_SignalReceived(PyInterpreterState *interp);
 PyAPI_FUNC(int) _PyEval_AddPendingCall(
-    PyThreadState *tstate,
-    struct _ceval_runtime_state *ceval,
+    PyInterpreterState *interp,
     int (*func)(void *),
     void *arg);
-PyAPI_FUNC(void) _PyEval_SignalAsyncExc(
-    struct _ceval_runtime_state *ceval);
-PyAPI_FUNC(void) _PyEval_ReInitThreads(
-    _PyRuntimeState *runtime);
+PyAPI_FUNC(void) _PyEval_SignalAsyncExc(PyInterpreterState *interp);
+#ifdef HAVE_FORK
+extern PyStatus _PyEval_ReInitThreads(PyThreadState *tstate);
+#endif
+PyAPI_FUNC(void) _PyEval_SetCoroutineOriginTrackingDepth(
+    PyThreadState *tstate,
+    int new_depth);
 
-#define GIL_REQUEST _Py_atomic_load_relaxed(&ceval->gil_drop_request)
-
-/* This can set eval_breaker to 0 even though gil_drop_request became
-   1.  We believe this is all right because the eval loop will release
-   the GIL eventually anyway. */
-#define COMPUTE_EVAL_BREAKER(ceval) \
-    _Py_atomic_store_relaxed( \
-        &(ceval)->eval_breaker, \
-        GIL_REQUEST | \
-        _Py_atomic_load_relaxed(&(ceval)->signals_pending) | \
-        _Py_atomic_load_relaxed(&(ceval)->pending.calls_to_do) | \
-        (ceval)->pending.async_exc)
-
-#define SET_GIL_DROP_REQUEST(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->gil_drop_request, 1); \
-        _Py_atomic_store_relaxed(&(ceval)->eval_breaker, 1); \
-    } while (0)
-
-#define RESET_GIL_DROP_REQUEST(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->gil_drop_request, 0); \
-        COMPUTE_EVAL_BREAKER(ceval); \
-    } while (0)
-
-/* Pending calls are only modified under pending_lock */
-#define SIGNAL_PENDING_CALLS(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->pending.calls_to_do, 1); \
-        _Py_atomic_store_relaxed(&(ceval)->eval_breaker, 1); \
-    } while (0)
-
-#define UNSIGNAL_PENDING_CALLS(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->pending.calls_to_do, 0); \
-        COMPUTE_EVAL_BREAKER(ceval); \
-    } while (0)
-
-#define SIGNAL_PENDING_SIGNALS(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->signals_pending, 1); \
-        _Py_atomic_store_relaxed(&(ceval)->eval_breaker, 1); \
-    } while (0)
-
-#define UNSIGNAL_PENDING_SIGNALS(ceval) \
-    do { \
-        _Py_atomic_store_relaxed(&(ceval)->signals_pending, 0); \
-        COMPUTE_EVAL_BREAKER(ceval); \
-    } while (0)
-
-#define SIGNAL_ASYNC_EXC(ceval) \
-    do { \
-        (ceval)->pending.async_exc = 1; \
-        _Py_atomic_store_relaxed(&(ceval)->eval_breaker, 1); \
-    } while (0)
-
-#define UNSIGNAL_ASYNC_EXC(ceval) \
-    do { \
-        (ceval)->pending.async_exc = 0; \
-        COMPUTE_EVAL_BREAKER(ceval); \
-    } while (0)
-
-/* Private function */
 void _PyEval_Fini(void);
+
+
+extern PyObject* _PyEval_GetBuiltins(PyThreadState *tstate);
+extern PyObject *_PyEval_BuiltinsFromGlobals(
+    PyThreadState *tstate,
+    PyObject *globals);
+
+
+static inline PyObject*
+_PyEval_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
+{
+    return tstate->interp->eval_frame(tstate, f, throwflag);
+}
+
+extern PyObject *
+_PyEval_Vector(PyThreadState *tstate,
+            PyFrameConstructor *desc, PyObject *locals,
+            PyObject* const* args, size_t argcount,
+            PyObject *kwnames);
+
+#ifdef EXPERIMENTAL_ISOLATED_SUBINTERPRETERS
+extern int _PyEval_ThreadsInitialized(PyInterpreterState *interp);
+#else
+extern int _PyEval_ThreadsInitialized(struct pyruntimestate *runtime);
+#endif
+extern PyStatus _PyEval_InitGIL(PyThreadState *tstate);
+extern void _PyEval_FiniGIL(PyInterpreterState *interp);
+
+extern void _PyEval_ReleaseLock(PyThreadState *tstate);
+
+extern void _PyEval_DeactivateOpCache(void);
+
+
+/* --- _Py_EnterRecursiveCall() ----------------------------------------- */
+
+#ifdef USE_STACKCHECK
+/* With USE_STACKCHECK macro defined, trigger stack checks in
+   _Py_CheckRecursiveCall() on every 64th call to Py_EnterRecursiveCall. */
+static inline int _Py_MakeRecCheck(PyThreadState *tstate)  {
+    return (++tstate->recursion_depth > tstate->interp->ceval.recursion_limit
+            || ++tstate->stackcheck_counter > 64);
+}
+#else
+static inline int _Py_MakeRecCheck(PyThreadState *tstate) {
+    return (++tstate->recursion_depth > tstate->interp->ceval.recursion_limit);
+}
+#endif
+
+PyAPI_FUNC(int) _Py_CheckRecursiveCall(
+    PyThreadState *tstate,
+    const char *where);
+
+static inline int _Py_EnterRecursiveCall(PyThreadState *tstate,
+                                         const char *where) {
+    return (_Py_MakeRecCheck(tstate) && _Py_CheckRecursiveCall(tstate, where));
+}
+
+static inline int _Py_EnterRecursiveCall_inline(const char *where) {
+    PyThreadState *tstate = PyThreadState_GET();
+    return _Py_EnterRecursiveCall(tstate, where);
+}
+
+#define Py_EnterRecursiveCall(where) _Py_EnterRecursiveCall_inline(where)
+
+static inline void _Py_LeaveRecursiveCall(PyThreadState *tstate)  {
+    tstate->recursion_depth--;
+}
+
+static inline void _Py_LeaveRecursiveCall_inline(void)  {
+    PyThreadState *tstate = PyThreadState_GET();
+    _Py_LeaveRecursiveCall(tstate);
+}
+
+#define Py_LeaveRecursiveCall() _Py_LeaveRecursiveCall_inline()
+
 
 #ifdef __cplusplus
 }

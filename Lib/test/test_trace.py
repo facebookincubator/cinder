@@ -1,6 +1,7 @@
 import os
 import sys
-from test.support import TESTFN, TESTFN_UNICODE, FS_NONASCII, rmtree, unlink, captured_stdout
+from test.support import captured_stdout
+from test.support.os_helper import (TESTFN, rmtree, unlink)
 from test.support.script_helper import assert_python_ok, assert_python_failure
 import textwrap
 import unittest
@@ -180,11 +181,11 @@ class TestLineCounts(unittest.TestCase):
         firstlineno_called = get_firstlineno(traced_doubler)
         expected = {
             (self.my_py_filename, firstlineno_calling + 1): 1,
-            # List compehentions work differently in 3.x, so the count
+            # List comprehensions work differently in 3.x, so the count
             # below changed compared to 2.x.
-            (self.my_py_filename, firstlineno_calling + 2): 11,
-            (self.my_py_filename, firstlineno_called + 1): 10,
+            (self.my_py_filename, firstlineno_calling + 2): 12,
             (self.my_py_filename, firstlineno_calling + 3): 1,
+            (self.my_py_filename, firstlineno_called + 1): 10,
         }
         self.assertEqual(self.tracer.results().counts, expected)
 
@@ -276,9 +277,8 @@ class TestFuncs(unittest.TestCase):
     def test_arg_errors(self):
         res = self.tracer.runfunc(traced_capturer, 1, 2, self=3, func=4)
         self.assertEqual(res, ((1, 2), {'self': 3, 'func': 4}))
-        with self.assertWarns(DeprecationWarning):
-            res = self.tracer.runfunc(func=traced_capturer, arg=1)
-        self.assertEqual(res, ((), {'arg': 1}))
+        with self.assertRaises(TypeError):
+            self.tracer.runfunc(func=traced_capturer, arg=1)
         with self.assertRaises(TypeError):
             self.tracer.runfunc()
 
@@ -507,7 +507,8 @@ class TestCommandLine(unittest.TestCase):
             fd.write("print(type(sys.argv))\n")
 
         status, direct_stdout, stderr = assert_python_ok(TESTFN)
-        status, trace_stdout, stderr = assert_python_ok('-m', 'trace', '-l', TESTFN)
+        status, trace_stdout, stderr = assert_python_ok('-m', 'trace', '-l', TESTFN,
+                                                        PYTHONIOENCODING='utf-8')
         self.assertIn(direct_stdout.strip(), trace_stdout)
 
     def test_count_and_summary(self):
@@ -527,7 +528,8 @@ class TestCommandLine(unittest.TestCase):
                 for i in range(10):
                     f()
             """))
-        status, stdout, _ = assert_python_ok('-m', 'trace', '-cs', filename)
+        status, stdout, _ = assert_python_ok('-m', 'trace', '-cs', filename,
+                                             PYTHONIOENCODING='utf-8')
         stdout = stdout.decode()
         self.assertEqual(status, 0)
         self.assertIn('lines   cov%   module   (path)', stdout)

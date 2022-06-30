@@ -32,8 +32,8 @@ Number-theoretic and representation functions
 .. function:: ceil(x)
 
    Return the ceiling of *x*, the smallest integer greater than or equal to *x*.
-   If *x* is not a float, delegates to ``x.__ceil__()``, which should return an
-   :class:`~numbers.Integral` value.
+   If *x* is not a float, delegates to :meth:`x.__ceil__ <object.__ceil__>`,
+   which should return an :class:`~numbers.Integral` value.
 
 
 .. function:: comb(n, k)
@@ -71,12 +71,15 @@ Number-theoretic and representation functions
    Return *x* factorial as an integer.  Raises :exc:`ValueError` if *x* is not integral or
    is negative.
 
+   .. deprecated:: 3.9
+      Accepting floats with integral values (like ``5.0``) is deprecated.
+
 
 .. function:: floor(x)
 
-   Return the floor of *x*, the largest integer less than or equal to *x*.
-   If *x* is not a float, delegates to ``x.__floor__()``, which should return an
-   :class:`~numbers.Integral` value.
+   Return the floor of *x*, the largest integer less than or equal to *x*.  If
+   *x* is not a float, delegates to :meth:`x.__floor__ <object.__floor__>`, which
+   should return an :class:`~numbers.Integral` value.
 
 
 .. function:: fmod(x, y)
@@ -123,14 +126,19 @@ Number-theoretic and representation functions
    <https://code.activestate.com/recipes/393090/>`_\.
 
 
-.. function:: gcd(a, b)
+.. function:: gcd(*integers)
 
-   Return the greatest common divisor of the integers *a* and *b*.  If either
-   *a* or *b* is nonzero, then the value of ``gcd(a, b)`` is the largest
-   positive integer that divides both *a* and *b*.  ``gcd(0, 0)`` returns
-   ``0``.
+   Return the greatest common divisor of the specified integer arguments.
+   If any of the arguments is nonzero, then the returned value is the largest
+   positive integer that is a divisor of all arguments.  If all arguments
+   are zero, then the returned value is ``0``.  ``gcd()`` without arguments
+   returns ``0``.
 
    .. versionadded:: 3.5
+
+   .. versionchanged:: 3.9
+      Added support for an arbitrary number of arguments. Formerly, only two
+      arguments were supported.
 
 
 .. function:: isclose(a, b, *, rel_tol=1e-09, abs_tol=0.0)
@@ -198,6 +206,17 @@ Number-theoretic and representation functions
    .. versionadded:: 3.8
 
 
+.. function:: lcm(*integers)
+
+   Return the least common multiple of the specified integer arguments.
+   If all arguments are nonzero, then the returned value is the smallest
+   positive integer that is a multiple of all arguments.  If any of the arguments
+   is zero, then the returned value is ``0``.  ``lcm()`` without arguments
+   returns ``1``.
+
+   .. versionadded:: 3.9
+
+
 .. function:: ldexp(x, i)
 
    Return ``x * (2**i)``.  This is essentially the inverse of function
@@ -209,6 +228,23 @@ Number-theoretic and representation functions
    Return the fractional and integer parts of *x*.  Both results carry the sign
    of *x* and are floats.
 
+
+.. function:: nextafter(x, y)
+
+   Return the next floating-point value after *x* towards *y*.
+
+   If *x* is equal to *y*, return *y*.
+
+   Examples:
+
+   * ``math.nextafter(x, math.inf)`` goes up: towards positive infinity.
+   * ``math.nextafter(x, -math.inf)`` goes down: towards minus infinity.
+   * ``math.nextafter(x, 0.0)`` goes towards zero.
+   * ``math.nextafter(x, math.copysign(math.inf, x))`` goes away from zero.
+
+   See also :func:`math.ulp`.
+
+   .. versionadded:: 3.9
 
 .. function:: perm(n, k=None)
 
@@ -262,9 +298,35 @@ Number-theoretic and representation functions
 
 .. function:: trunc(x)
 
-   Return the :class:`~numbers.Real` value *x* truncated to an
-   :class:`~numbers.Integral` (usually an integer). Delegates to
-   :meth:`x.__trunc__() <object.__trunc__>`.
+   Return *x* with the fractional part
+   removed, leaving the integer part.  This rounds toward 0: ``trunc()`` is
+   equivalent to :func:`floor` for positive *x*, and equivalent to :func:`ceil`
+   for negative *x*. If *x* is not a float, delegates to :meth:`x.__trunc__
+   <object.__trunc__>`, which should return an :class:`~numbers.Integral` value.
+
+.. function:: ulp(x)
+
+   Return the value of the least significant bit of the float *x*:
+
+   * If *x* is a NaN (not a number), return *x*.
+   * If *x* is negative, return ``ulp(-x)``.
+   * If *x* is a positive infinity, return *x*.
+   * If *x* is equal to zero, return the smallest positive
+     *denormalized* representable float (smaller than the minimum positive
+     *normalized* float, :data:`sys.float_info.min <sys.float_info>`).
+   * If *x* is equal to the largest positive representable float,
+     return the value of the least significant bit of *x*, such that the first
+     float smaller than *x* is ``x - ulp(x)``.
+   * Otherwise (*x* is a positive finite number), return the value of the least
+     significant bit of *x*, such that the first float bigger than *x*
+     is ``x + ulp(x)``.
+
+   ULP stands for "Unit in the Last Place".
+
+   See also :func:`math.nextafter` and :data:`sys.float_info.epsilon
+   <sys.float_info>`.
+
+   .. versionadded:: 3.9
 
 
 Note that :func:`frexp` and :func:`modf` have a different call/return pattern
@@ -363,17 +425,20 @@ Trigonometric functions
 
 .. function:: acos(x)
 
-   Return the arc cosine of *x*, in radians.
+   Return the arc cosine of *x*, in radians. The result is between ``0`` and
+   ``pi``.
 
 
 .. function:: asin(x)
 
-   Return the arc sine of *x*, in radians.
+   Return the arc sine of *x*, in radians. The result is between ``-pi/2`` and
+   ``pi/2``.
 
 
 .. function:: atan(x)
 
-   Return the arc tangent of *x*, in radians.
+   Return the arc tangent of *x*, in radians. The result is between ``-pi/2`` and
+   ``pi/2``.
 
 
 .. function:: atan2(y, x)
@@ -417,6 +482,11 @@ Trigonometric functions
    .. versionchanged:: 3.8
       Added support for n-dimensional points. Formerly, only the two
       dimensional case was supported.
+
+   .. versionchanged:: 3.10
+      Improved the algorithm's accuracy so that the maximum error is
+      under 1 ulp (unit in the last place).  More typically, the result
+      is almost always correctly rounded to within 1/2 ulp.
 
 
 .. function:: sin(x)
@@ -559,8 +629,23 @@ Constants
 
 .. data:: nan
 
-   A floating-point "not a number" (NaN) value.  Equivalent to the output of
-   ``float('nan')``.
+   A floating-point "not a number" (NaN) value. Equivalent to the output of
+   ``float('nan')``. Due to the requirements of the `IEEE-754 standard
+   <https://en.wikipedia.org/wiki/IEEE_754>`_, ``math.nan`` and ``float('nan')`` are
+   not considered to equal to any other numeric value, including themselves. To check
+   whether a number is a NaN, use the :func:`isnan` function to test
+   for NaNs instead of ``is`` or ``==``.
+   Example::
+
+      >>> import math
+      >>> math.nan == math.nan
+      False
+      >>> float('nan') == float('nan')
+      False
+      >>> math.isnan(math.nan)
+      True
+      >>> math.isnan(float('nan'))
+      True
 
    .. versionadded:: 3.5
 

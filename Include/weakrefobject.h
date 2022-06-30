@@ -37,8 +37,6 @@ struct _PyWeakReference {
      */
     PyWeakReference *wr_prev;
     PyWeakReference *wr_next;
-
-    vectorcallfunc vectorcall;
 };
 #endif
 
@@ -48,10 +46,10 @@ PyAPI_DATA(PyTypeObject) _PyWeakref_CallableProxyType;
 
 #define PyWeakref_CheckRef(op) PyObject_TypeCheck(op, &_PyWeakref_RefType)
 #define PyWeakref_CheckRefExact(op) \
-        (Py_TYPE(op) == &_PyWeakref_RefType)
+        Py_IS_TYPE(op, &_PyWeakref_RefType)
 #define PyWeakref_CheckProxy(op) \
-        ((Py_TYPE(op) == &_PyWeakref_ProxyType) || \
-         (Py_TYPE(op) == &_PyWeakref_CallableProxyType))
+        (Py_IS_TYPE(op, &_PyWeakref_ProxyType) || \
+         Py_IS_TYPE(op, &_PyWeakref_CallableProxyType))
 
 #define PyWeakref_Check(op) \
         (PyWeakref_CheckRef(op) || PyWeakref_CheckProxy(op))

@@ -45,24 +45,10 @@ The module also extends gdb with some python-specific commands.
 # compatible (2.6+ and 3.0+).  See #19308.
 
 from __future__ import print_function
-import contextlib
 import gdb
 import os
 import locale
-import logging
 import sys
-from collections import namedtuple
-
-
-log = logging.getLogger(__name__)
-
-# x86-64 registers that can be used for storing of local variables and function arguments
-PYFRAME_REGISTERS = (
-        'rax', 'rbx', 'rcx', 'rdx',
-        'rsi', 'rdi',
-        'rbp', 'rsp',
-        'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15',
-)
 
 if sys.version_info[0] >= 3:
     unichr = chr
@@ -96,8 +82,7 @@ def _sizeof_void_p():
 # value computed later, see PyUnicodeObjectPtr.proxy()
 _is_pep393 = None
 
-Py_TPFLAGS_GENERIC_TYPE_INST = (1 << 6)
-Py_TPFLAGS_HEAPTYPE          = (1 << 9)
+Py_TPFLAGS_HEAPTYPE = (1 << 9)
 Py_TPFLAGS_LONG_SUBCLASS     = (1 << 24)
 Py_TPFLAGS_LIST_SUBCLASS     = (1 << 25)
 Py_TPFLAGS_TUPLE_SUBCLASS    = (1 << 26)
@@ -390,13 +375,6 @@ class PyObjectPtr(object):
             return name_map[tp_name]
 
         if tp_flags & Py_TPFLAGS_HEAPTYPE:
-            if tp_flags & Py_TPFLAGS_GENERIC_TYPE_INST:
-                _PyGenericTypeInst = gdb.lookup_type("_PyGenericTypeInst").pointer()
-                generic_type_def = t._gdbval.cast(_PyGenericTypeInst)['gti_gtd']
-                if generic_type_def == gdb.parse_and_eval("_PyCheckedDict_Type").address:
-                    return PyCheckedDictObjectPtr
-                if generic_type_def == gdb.parse_and_eval("_PyCheckedList_Type").address:
-                    return PyCheckedListObjectPtr
             return HeapTypeObjectPtr
 
         if tp_flags & Py_TPFLAGS_LONG_SUBCLASS:
@@ -490,7 +468,7 @@ class InstanceProxy(object):
     def __repr__(self):
         if isinstance(self.attrdict, dict):
             kwargs = ', '.join(["%s=%r" % (arg, val)
-                                for arg, val in self.attrdict.iteritems()])
+                                for arg, val in self.attrdict.items()])
             return '<%s(%s) at remote 0x%x>' % (self.cl_name,
                                                 kwargs, self.address)
         else:
@@ -663,33 +641,6 @@ class PyCodeObjectPtr(PyObjectPtr):
     """
     _typename = 'PyCodeObject'
 
-    # These are available in compiler.consts, but gdb's Python doesn't use Cinder
-    CO_OPTIMIZED = 0x0001
-    CO_NEWLOCALS = 0x0002
-    CO_VARARGS = 0x0004
-    CO_VARKEYWORDS = 0x0008
-    CO_NESTED = 0x0010
-    CO_GENERATOR = 0x0020
-    CO_NOFREE = 0x0040
-    CO_COROUTINE = 0x0080
-    CO_GENERATOR_ALLOWED = 0
-    CO_ITERABLE_COROUTINE = 0x0100
-    CO_ASYNC_GENERATOR = 0x0200
-    CO_FUTURE_DIVISION = 0x20000
-    CO_FUTURE_ABSOLUTE_IMPORT = 0x40000
-    CO_FUTURE_WITH_STATEMENT = 0x80000
-    CO_FUTURE_PRINT_FUNCTION = 0x100000
-    CO_FUTURE_UNICODE_LITERALS = 0x200000
-    CO_FUTURE_BARRY_AS_BDFL = 0x400000
-    CO_FUTURE_GENERATOR_STOP = 0x800000
-    CO_FUTURE_ANNOTATIONS = 0x1000000
-    CO_FUTURE_EAGER_IMPORTS = 0x2000000
-    CO_STATICALLY_COMPILED = 0x4000000
-    CO_FUTURE_LAZY_IMPORTS = 0x8000000
-    CO_SHADOW_FRAME = 0x10000000
-    CO_NORMAL_FRAME = 0x20000000
-    CO_SUPPRESS_JIT = 0x40000000
-
     def addr2line(self, addrq):
         '''
         Get the line number for a given bytecode offset
@@ -697,33 +648,28 @@ class PyCodeObjectPtr(PyObjectPtr):
         Analogous to PyCode_Addr2Line; translated from pseudocode in
         Objects/lnotab_notes.txt
         '''
-        co_lnotab = self.pyop_field('co_lnotab').proxyval(set())
+        co_linetable = self.pyop_field('co_linetable').proxyval(set())
 
         # Initialize lineno to co_firstlineno as per PyCode_Addr2Line
         # not 0, as lnotab_notes.txt has it:
         lineno = int_from_int(self.field('co_firstlineno'))
 
+        if addrq < 0:
+            return lineno
         addr = 0
-        for addr_incr, line_incr in zip(co_lnotab[::2], co_lnotab[1::2]):
+        for addr_incr, line_incr in zip(co_linetable[::2], co_linetable[1::2]):
+            if addr_incr == 255:
+                break
             addr += ord(addr_incr)
+            line_delta = ord(line_incr)
+            if line_delta == 128:
+                line_delta = 0
+            elif line_delta > 128:
+                line_delta -= 256
+            lineno += line_delta
             if addr > addrq:
                 return lineno
-            lineno += ord(line_incr)
-        return lineno
-
-    def is_gen(self):
-        flags = long(self.field('co_flags'))
-        return bool(
-            flags & (
-                PyCodeObjectPtr.CO_ASYNC_GENERATOR |
-                PyCodeObjectPtr.CO_COROUTINE |
-                PyCodeObjectPtr.CO_GENERATOR |
-                PyCodeObjectPtr.CO_ITERABLE_COROUTINE
-            )
-        )
-
-    def __repr__(self):
-        return f"<code {self.field('co_qualname')}, file={self.field('co_filename')}>"
+        assert False, "Unreachable"
 
 
 class PyDictObjectPtr(PyObjectPtr):
@@ -809,27 +755,6 @@ class PyDictObjectPtr(PyObjectPtr):
         return ent_addr, dk_nentries
 
 
-class PyCheckedDictObjectPtr(PyDictObjectPtr):
-    def write_repr(self, out, visited):
-        # Guard against infinite loops:
-        if self.as_address() in visited:
-            out.write('{...}')
-            return
-        visited.add(self.as_address())
-
-        out.write(self.safe_tp_name())
-        out.write('({')
-        first = True
-        for pyop_key, pyop_value in self.iteritems():
-            if not first:
-                out.write(', ')
-            first = False
-            pyop_key.write_repr(out, visited)
-            out.write(': ')
-            pyop_value.write_repr(out, visited)
-        out.write('})')
-
-
 class PyListObjectPtr(PyObjectPtr):
     _typename = 'PyListObject'
 
@@ -862,24 +787,6 @@ class PyListObjectPtr(PyObjectPtr):
             element = PyObjectPtr.from_pyobject_ptr(self[i])
             element.write_repr(out, visited)
         out.write(']')
-
-
-class PyCheckedListObjectPtr(PyListObjectPtr):
-    def write_repr(self, out, visited):
-        # Guard against infinite loops:
-        if self.as_address() in visited:
-            out.write('[...]')
-            return
-        visited.add(self.as_address())
-
-        out.write(self.safe_tp_name())
-        out.write('([')
-        for i in safe_range(int_from_int(self.field('ob_size'))):
-            if i > 0:
-                out.write(', ')
-            element = PyObjectPtr.from_pyobject_ptr(self[i])
-            element.write_repr(out, visited)
-        out.write('])')
 
 class PyLongObjectPtr(PyObjectPtr):
     _typename = 'PyLongObject'
@@ -1040,7 +947,7 @@ class PyFrameObjectPtr(PyObjectPtr):
             return self.f_lineno
 
         try:
-            return self.co.addr2line(self.f_lasti)
+            return self.co.addr2line(self.f_lasti*2)
         except Exception:
             # bpo-34989: addr2line() is a complex function, it can fail in many
             # ways. For example, it fails with a TypeError on "FakeRepr" if
@@ -1384,7 +1291,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
                 out.write('\\r')
 
             # Map non-printable US ASCII to '\xhh' */
-            elif ch < ' ' or ch == 0x7F:
+            elif ch < ' ' or ord(ch) == 0x7F:
                 out.write('\\x')
                 out.write(hexdigits[(ord(ch) >> 4) & 0x000F])
                 out.write(hexdigits[ord(ch) & 0x000F])
@@ -1668,7 +1575,7 @@ class Frame(object):
             return False
 
         if (caller.startswith('cfunction_vectorcall_') or
-            caller == 'cfunction_call_varargs'):
+            caller == 'cfunction_call'):
             arg_name = 'func'
             # Within that frame:
             #   "func" is the local containing the PyObject* of the
@@ -1707,8 +1614,8 @@ class Frame(object):
             return (name == 'take_gil')
 
     def is_gc_collect(self):
-        '''Is this frame "collect" within the garbage-collector?'''
-        return self._gdbframe.name() == 'collect'
+        '''Is this frame gc_collect_main() within the garbage-collector?'''
+        return self._gdbframe.name() in ('collect', 'gc_collect_main')
 
     def get_pyop(self):
         try:
@@ -2051,421 +1958,3 @@ class PyLocals(gdb.Command):
                       pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
-
-
-def realize(obj):
-    if callable(obj):
-        obj = obj()
-    return obj
-
-
-@contextlib.contextmanager
-def restore_original_frame():
-    orig_frame = gdb.selected_frame()
-    try:
-        yield
-    finally:
-        orig_frame.select()
-
-
-@contextlib.contextmanager
-def restore_original_thread():
-    orig_thread = gdb.selected_thread()
-    try:
-        yield
-    finally:
-        orig_thread.switch()
-
-
-@contextlib.contextmanager
-def restore_original_state():
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(restore_original_frame())
-        stack.enter_context(restore_original_thread())
-        yield
-
-
-class PyFrameObjectNotFoundError(gdb.GdbError):
-    pass
-
-
-def find_pyframeobject_in_registers(frame=gdb.selected_frame, registers=PYFRAME_REGISTERS):
-    gdb_type = PyObjectPtr.get_gdb_type()
-    frame = realize(frame)
-    log.debug('frame=%r', frame)
-
-    for register in registers:
-        log.debug('register=%r', register)
-        try:
-            value = frame.read_register(register).cast(gdb_type)
-            if value['ob_type']['tp_name'].string() == 'frame':
-                return register, value
-        except (gdb.MemoryError, UnicodeDecodeError) as exc:
-            # if either cast or pointer dereference fails, then it's not a valid PyFrameObjectPtr*
-            log.debug('Caught exc=%r, must not be PyFrameObjectPtr*', exc)
-            continue
-
-    raise PyFrameObjectNotFoundError("No PyFrameObject found in any registers.")
-
-
-def find_and_walk_pyframeobject_stack():
-    pyfo_type = PyFrameObjectPtr.get_gdb_type()
-
-    gdb.execute('frame 0', to_string=True)
-
-    frame = gdb.selected_frame()
-    pyfo = None
-    while not pyfo:
-        try:
-            register, root_pyfo = find_pyframeobject_in_registers(frame=frame)
-        except PyFrameObjectNotFoundError:
-            frame = frame.older()
-            if not frame:
-                raise
-            frame.select()
-            continue
-        pyfo = root_pyfo.cast(pyfo_type)
-
-    cont = True
-    while cont:
-        yield pyfo
-
-        try:
-            pyfo = pyfo['f_back'].cast(pyfo_type)
-        except gdb.MemoryError:
-            cont = False
-
-
-def format_pyframeobject_stack(frames):
-    for pyfo in frames:
-        line = pyfo.format_string()
-        # Print out all but the root (last) frame object
-        # It looks like "0x0" when formatted, which isn't very helpful.
-        if line not in ['0x0']:
-            yield line
-
-
-class LocatePyFrameObject(gdb.Command):
-    """
-    Locate the CPU register that contains the value of PyFrameObject* in the selected stack frame.
-
-    Useful when all of your call time arguments have been optimized out, resulting in:
-    ```
-    (gdb) thread apply all py-bt-full
-
-    Thread 3 (Thread 0x7f201ffb0700 (LWP 280154)):
-    #3 <built-in method sleep of module object at remote 0x7f2020a91400>
-    #6 (frame information optimized out)
-    #15 (frame information optimized out)
-    #23 (frame information optimized out)
-    #31 (frame information optimized out)
-
-    Thread 2 (Thread 0x7f20207b1700 (LWP 280153)):
-    #3 <built-in method sleep of module object at remote 0x7f2020a91400>
-    #6 (frame information optimized out)
-    #15 (frame information optimized out)
-    #23 (frame information optimized out)
-    #31 (frame information optimized out)
-
-    Thread 1 (Thread 0x7f202daf2740 (LWP 280147)):
-    #0 (frame information optimized out)
-    ```
-    """
-
-    def __init__(self):
-        super().__init__(
-            'py-locate-frame',
-            gdb.COMMAND_DATA,
-            gdb.COMPLETE_NONE
-        )
-
-    def invoke(self, args, from_tty):
-        register, pyfo = find_pyframeobject_in_registers()
-        if register:
-            print(register)
-            return register
-
-LocatePyFrameObject()
-
-
-class WalkPyFrameObjectStack(gdb.Command):
-    """
-    Walks backtrace frames, looking in registers to see if one contains a
-    pyframe object. Once one is found, it walks backwards, printing each
-    python frame.
-
-    Hack to work around that we optimize cinder prod builds by optimizing
-    out/removing the method argument register map (part of -O3).
-
-    Pretty similar to:
-    ```
-    gdb.execute(f'p ((PyFrameObject *) ${register})')
-    gdb.execute(f'p ((PyFrameObject *) ((PyFrameObject *) ${register}))')
-    ```
-    """
-    gdb_command_name = 'py-walk-frame'
-
-    def __init__(self):
-        super().__init__(
-            self.gdb_command_name,
-            gdb.COMMAND_DATA,
-            gdb.COMPLETE_NONE
-        )
-
-    def invoke(self, args, from_tty):
-        with restore_original_frame():
-            printed_info = False
-            try:
-                pyfos = list(find_and_walk_pyframeobject_stack())
-                for line in format_pyframeobject_stack(pyfos):
-                    if not printed_info:
-                        gdb.execute('frame')
-                        printed_info = True
-                    print(line)
-            except PyFrameObjectNotFoundError as exc:
-                # If you raise it prevents `thread apply all py-walk-frame` from continuing
-                print(exc)
-
-WalkPyFrameObjectStack()
-
-class PyShadowFrameWalkError(Exception):
-    pass
-
-class PyShadowFrameEdgeType:
-    BOTTOM = "BOTTOM"
-    SYNC = "SYNC"
-    AWAITER = "AWAITER"
-
-
-PyShadowFrameKind = namedtuple("PyShadowFrameKind", ['value', 'name'])
-
-class PyShadowFrameKinds:
-    PYSF_CODE_RT = PyShadowFrameKind(0b00, "PYSF_CODE_RT")
-    PYSF_PYFRAME = PyShadowFrameKind(0b01, "PYSF_PYFRAME")
-    PYSF_PYCODE = PyShadowFrameKind(0b10, "PYSF_PYCODE")
-    PYSF_DUMMY = PyShadowFrameKind(0b11, "PYSF_DUMMY")
-
-class JitCodeRuntime:
-    _typename = 'jit::CodeRuntime'
-
-    def __init__(self, gdbval):
-        self._gdbval = gdbval
-
-    def is_null(self):
-        return 0 == long(self._gdbval.address)
-
-    def get_code(self):
-        return PyCodeObjectPtr.from_pyobject_ptr(self._gdbval['py_code_'].cast(PyCodeObjectPtr.get_gdb_type()))
-
-    @classmethod
-    def get_gdb_type(cls):
-        return gdb.lookup_type(cls._typename).pointer()
-
-    def __repr__(self):
-        return f"<JitCodeRuntime {hex(self._gdbval.address)}>"
-
-class PyShadowFrame:
-    """
-    Class wrapping a gdb.Value that represents a `_PyShadowFrame`
-    """
-    _typename = '_PyShadowFrame'
-
-    PTRKIND_MASK = 0b11
-
-    def __init__(self, gdbval, edge_type):
-        self._gdbval = gdbval
-        self.edge_type = edge_type
-
-    def prev(self):
-        if self.is_null():
-            return None
-
-        prev_ptr = self._gdbval['prev']
-        return PyShadowFrame(prev_ptr.dereference(), PyShadowFrameEdgeType.SYNC)
-
-    def is_null(self):
-        return 0 == long(self._gdbval.address)
-
-    @classmethod
-    def get_gdb_type(cls):
-        return gdb.lookup_type(cls._typename).pointer()
-
-    @classmethod
-    def get_bottommost_frame(cls):
-        # The bottommost frame always exists on the thread state
-        bottom = gdb.parse_and_eval(
-            "((PyThreadState*)_PyRuntime->gilstate->tstate_current)->shadow_frame"
-        )
-        return cls(bottom.dereference(), PyShadowFrameEdgeType.BOTTOM)
-
-    @property
-    def ptr_kind(self):
-        if self.is_null():
-            return PyShadowFrameKinds.PYSF_DUMMY
-        kind = self._gdbval['data'] & PyShadowFrame.PTRKIND_MASK
-        if kind == PyShadowFrameKinds.PYSF_CODE_RT.value:
-            return PyShadowFrameKinds.PYSF_CODE_RT
-        elif kind == PyShadowFrameKinds.PYSF_PYFRAME.value:
-            return PyShadowFrameKinds.PYSF_PYFRAME
-        elif kind == PyShadowFrameKinds.PYSF_PYCODE.value:
-            return PyShadowFrameKinds.PYSF_PYCODE
-        else:
-            return PyShadowFrameKinds.PYSF_DUMMY
-
-    def _get_ptr(self):
-        if self.is_null():
-            return 0
-
-        data = self._gdbval['data'] & (~PyShadowFrame.PTRKIND_MASK)
-        return data
-
-    def _get_codeobj(self):
-        if self.ptr_kind == PyShadowFrameKinds.PYSF_PYFRAME:
-            ptr = self._get_ptr()
-            frame = ptr.cast(PyObjectPtr.get_gdb_type())
-            frameobj = PyFrameObjectPtr.from_pyobject_ptr(frame)
-            return getattr(frameobj, 'co', None)
-        elif self.ptr_kind == PyShadowFrameKinds.PYSF_CODE_RT:
-            ptr = self._get_ptr()
-            codert = JitCodeRuntime(ptr.cast(JitCodeRuntime.get_gdb_type()))
-            return codert.get_code()
-
-    def _has_gen(self):
-        if self.ptr_kind == PyShadowFrameKinds.PYSF_CODE_RT:
-            code = self._get_codeobj()
-            return code and code.is_gen()
-        elif self.ptr_kind == PyShadowFrameKinds.PYSF_PYFRAME:
-            ptr = self._get_ptr()
-            frame = ptr.cast(PyObjectPtr.get_gdb_type())
-            frameobj = PyFrameObjectPtr.from_pyobject_ptr(frame)
-            f_gen = frameobj.field('f_gen')
-            return f_gen != 0
-
-    def _get_gen(self):
-        if not self._has_gen():
-            return None
-
-        offset = int(gdb.parse_and_eval("__strobe_PyGenObject_gi_shadow_frame"))
-        raw_addr = long(self._gdbval.address) - offset
-        return PyObjectPtr.from_pyobject_ptr(gdb.Value(raw_addr))
-
-    def get_awaiter(self):
-        if not self._has_gen():
-            return None
-        gen = self._get_gen()
-        PyCoro_Type = gdb.parse_and_eval("PyCoro_Type")
-        PyCoroObjectPtr = gdb.lookup_type('PyCoroObject').pointer()
-        if (gen.field('ob_type').dereference().address == PyCoro_Type.address):
-            # The generator is a coroutine. Look up the awaiter.
-            coro = gdb.Value(gen.as_address()).cast(PyCoroObjectPtr)
-            awaiter = coro['cr_awaiter'].cast(PyCoroObjectPtr)
-            if awaiter != 0:
-                return awaiter['cr_shadow_frame'].address
-
-    def __repr__(self):
-        return f"<ShadowFrame {hex(self._gdbval.address)}, {self.ptr_kind.name} code={self._get_codeobj()}>"
-
-
-class WalkShadowFrameSyncStack(gdb.Command):
-    """
-    Walks the "sync" stack of shadow frames, by following the "prev" pointers
-    """
-    gdb_command_name = 'py-walk-shadow-sync'
-
-    def __init__(self):
-        super().__init__(
-            self.gdb_command_name,
-            gdb.COMMAND_DATA,
-            gdb.COMPLETE_NONE
-        )
-
-    def walk_sync(self):
-        shadow_frame = PyShadowFrame.get_bottommost_frame()
-        while shadow_frame and shadow_frame.ptr_kind != PyShadowFrameKinds.PYSF_DUMMY:
-            print(shadow_frame)
-            shadow_frame = shadow_frame.prev()
-
-    def invoke(self, args, from_tty):
-        try:
-            self.walk_sync()
-        except Exception:
-            log.exception("Stack walking failed")
-
-
-WalkShadowFrameSyncStack()
-
-class WalkShadowFrameAsyncStack(gdb.Command):
-    """
-    Walks the shadow frame "async" stack, by following awaiter pointers
-    wherever possible. This connects frames across asyncio Tasks too.
-    """
-    gdb_command_name = 'py-walk-shadow-async'
-
-    def __init__(self):
-        super().__init__(
-            self.gdb_command_name,
-            gdb.COMMAND_DATA,
-            gdb.COMPLETE_NONE
-        )
-
-    def walk_async(self):
-        shadow_frame = PyShadowFrame.get_bottommost_frame()
-        while shadow_frame and shadow_frame.ptr_kind != PyShadowFrameKinds.PYSF_DUMMY:
-            print(shadow_frame)
-            awaiter = shadow_frame.get_awaiter()
-            # For async stacks, we try to walk the awaiter pointers
-            if awaiter is not None:
-                awaiter_frame = awaiter.cast(PyShadowFrame.get_gdb_type())
-                shadow_frame = PyShadowFrame(awaiter_frame.dereference(), PyShadowFrameEdgeType.AWAITER)
-            else:
-                shadow_frame = shadow_frame.prev()
-
-    def invoke(self, args, from_tty):
-        try:
-            self.walk_async()
-        except Exception:
-            log.exception("Stack walking failed")
-
-
-WalkShadowFrameAsyncStack()
-
-class PyWalkThreads(gdb.Command):
-    """
-    Runs py-walk-frame on every thread. Similar to `t a a py-walk-frame` but with cleaner output.
-    """
-    gdb_command_name = 'py-walk-threads'
-
-    def __init__(self):
-        super().__init__(
-            self.gdb_command_name,
-            gdb.COMMAND_DATA,
-            gdb.COMPLETE_NONE
-        )
-
-    def invoke(self, args, from_tty):
-        with restore_original_state():
-            inf = gdb.selected_inferior()
-            threads = inf.threads()
-            thread_ids_with_pyframes = []
-            for thread in threads:
-                thread.switch()
-                printed_info = False
-                try:
-                    pyfos = list(find_and_walk_pyframeobject_stack())
-                    for line in format_pyframeobject_stack(pyfos):
-                        if not printed_info:
-                            gdb.execute('thread')
-                            gdb.execute('frame')
-                            thread_ids_with_pyframes.append(thread.num)
-                            printed_info = True
-                        print(line)
-                    if printed_info:
-                        print()
-                except PyFrameObjectNotFoundError as exc:
-                    pass
-            print(
-                f'Found {len(thread_ids_with_pyframes)} threads containing python frames: '
-                f'{thread_ids_with_pyframes}'
-            )
-
-PyWalkThreads()

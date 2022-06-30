@@ -7,9 +7,10 @@ import types
 import unittest
 import warnings
 from test import support
+from test.support import import_helper
+from test.support import warnings_helper
 from test.support.script_helper import assert_python_ok
 
-import cinder
 
 class AsyncYieldFrom:
     def __init__(self, obj):
@@ -1159,15 +1160,6 @@ class CoroutineTest(unittest.TestCase):
         _, result = run_async(g())
         self.assertIsNone(result.__context__)
 
-    @unittest.skipUnderCinderJITNotFullFrame("Requires full frame support")
-    def test_creator(self):
-        async def coro():
-            return "hello"
-        frame = sys._getframe()
-        c = coro()
-        self.assertTrue(c.is_creator(frame))
-        self.assertEqual(run_async(c), ([], "hello"))
-
     def test_with_1(self):
         class Manager:
             def __init__(self, name):
@@ -1213,39 +1205,47 @@ class CoroutineTest(unittest.TestCase):
             def __aenter__(self):
                 pass
 
+        body_executed = None
         async def foo():
+            nonlocal body_executed
+            body_executed = False
             async with CM():
-                pass
+                body_executed = True
 
         with self.assertRaisesRegex(AttributeError, '__aexit__'):
             run_async(foo())
+        self.assertIs(body_executed, False)
 
     def test_with_3(self):
         class CM:
             def __aexit__(self):
                 pass
 
+        body_executed = None
         async def foo():
+            nonlocal body_executed
+            body_executed = False
             async with CM():
-                pass
+                body_executed = True
 
         with self.assertRaisesRegex(AttributeError, '__aenter__'):
             run_async(foo())
+        self.assertIs(body_executed, False)
 
     def test_with_4(self):
         class CM:
-            def __enter__(self):
-                pass
+            pass
 
-            def __exit__(self):
-                pass
-
+        body_executed = None
         async def foo():
+            nonlocal body_executed
+            body_executed = False
             async with CM():
-                pass
+                body_executed = True
 
-        with self.assertRaisesRegex(AttributeError, '__aexit__'):
+        with self.assertRaisesRegex(AttributeError, '__aenter__'):
             run_async(foo())
+        self.assertIs(body_executed, False)
 
     def test_with_5(self):
         # While this test doesn't make a lot of sense,
@@ -2120,144 +2120,12 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(run_async(run_gen()), ([], 'end'))
 
 
-class CoroutineAwaiterTest(unittest.TestCase):
-    def test_basic_await(self):
-        async def coro():
-            self.assertIs(cinder._get_coro_awaiter(coro_obj), awaiter_obj)
-            return "success"
-
-        async def awaiter():
-            return await coro_obj
-
-        coro_obj = coro()
-        awaiter_obj = awaiter()
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-        self.assertEqual(run_async(awaiter_obj), ([], "success"))
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-        del awaiter_obj
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-    class FakeFuture:
-        def __await__(self):
-            return iter(["future"])
-
-    @unittest.skipUnderCinderJIT("JIT does not eagerly execute coroutines")
-    def test_eager_await(self):
-        async def awaitee():
-            nonlocal awaitee_frame
-            awaitee_frame = sys._getframe()
-            self.assertIsNone(cinder._get_frame_gen(awaitee_frame))
-            await self.FakeFuture()
-
-            # Our caller verified our awaiter while we were suspended; ensure
-            # it's still set while running.
-            awaitee_obj = cinder._get_frame_gen(awaitee_frame)
-            self.assertIsInstance(awaitee_obj, types.CoroutineType)
-            self.assertIs(cinder._get_coro_awaiter(awaitee_obj), awaiter_obj)
-            return "good!"
-
-        async def awaiter():
-            nonlocal awaiter_frame
-            awaiter_frame = sys._getframe()
-            return await awaitee()
-
-        awaitee_frame = None
-        awaiter_frame = None
-        awaiter_obj = awaiter()
-        self.assertIsNone(awaiter_frame)
-        self.assertIsNone(awaitee_frame)
-
-        v1 = awaiter_obj.send(None)
-        self.assertEqual(v1, "future")
-        self.assertIsInstance(awaitee_frame, types.FrameType)
-        self.assertIsInstance(awaiter_frame, types.FrameType)
-        self.assertIs(cinder._get_frame_gen(awaiter_frame), awaiter_obj)
-        self.assertIsNone(cinder._get_coro_awaiter(awaiter_obj))
-
-        awaitee_obj = cinder._get_frame_gen(awaitee_frame)
-        self.assertIsInstance(awaitee_obj, types.CoroutineType)
-        self.assertIs(cinder._get_coro_awaiter(awaitee_obj), awaiter_obj)
-
-        with self.assertRaises(StopIteration) as cm:
-            awaiter_obj.send(None)
-        self.assertEqual(cm.exception.value, "good!")
-        self.assertIsNone(cinder._get_coro_awaiter(awaitee_obj))
-
-        # Run roughly the same sequence again, with awaiter() executed eagerly.
-        async def awaiter2():
-            return await awaiter()
-
-        awaitee_frame = None
-        awaiter_frame = None
-        awaiter2_obj = awaiter2()
-        self.assertIsNone(cinder._get_coro_awaiter(awaiter2_obj))
-        awaiter2_obj.send(None)
-
-        self.assertIsInstance(awaitee_frame, types.FrameType)
-        self.assertIsInstance(awaiter_frame, types.FrameType)
-        awaitee_obj = cinder._get_frame_gen(awaitee_frame)
-        awaiter_obj = cinder._get_frame_gen(awaiter_frame)
-        self.assertIsInstance(awaitee_obj, types.CoroutineType)
-        self.assertIsInstance(awaiter_obj, types.CoroutineType)
-        self.assertIs(cinder._get_coro_awaiter(awaitee_obj), awaiter_obj)
-        self.assertIs(cinder._get_coro_awaiter(awaiter_obj), awaiter2_obj)
-        self.assertIsNone(cinder._get_coro_awaiter(awaiter2_obj))
-
-        with self.assertRaises(StopIteration) as cm:
-            awaiter2_obj.send(None)
-        self.assertEqual(cm.exception.value, "good!")
-        self.assertIsNone(cinder._get_coro_awaiter(awaitee_obj))
-        self.assertIsNone(cinder._get_coro_awaiter(awaiter_obj))
-
-
-    def test_coro_outlives_awaiter(self):
-        async def coro():
-            await self.FakeFuture()
-
-        async def awaiter(cr):
-            await cr
-
-        coro_obj = coro()
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-        awaiter_obj = awaiter(coro_obj)
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-        v1 = awaiter_obj.send(None)
-        self.assertEqual(v1, "future")
-        self.assertIs(cinder._get_coro_awaiter(coro_obj), awaiter_obj)
-
-        del awaiter_obj
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-    def test_async_gen_doesnt_set(self):
-        async def coro():
-            await self.FakeFuture()
-
-        async def async_gen(cr):
-            await cr
-            yield "hi"
-
-        # cr_awaiter should always be None or a coroutine object, and async
-        # generators aren't coroutines.
-        coro_obj = coro()
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-        agen = async_gen(coro_obj)
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-        v1 = agen.asend(None).send(None)
-        self.assertEqual(v1, "future")
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-        del agen
-        self.assertIsNone(cinder._get_coro_awaiter(coro_obj))
-
-
 class CoroAsyncIOCompatTest(unittest.TestCase):
 
     def test_asyncio_1(self):
         # asyncio cannot be imported when Python is compiled without thread
         # support
-        asyncio = support.import_module('asyncio')
+        asyncio = import_helper.import_module('asyncio')
 
         class MyException(Exception):
             pass
@@ -2299,7 +2167,6 @@ class OriginTrackingTest(unittest.TestCase):
         info = inspect.getframeinfo(inspect.currentframe().f_back)
         return (info.filename, info.lineno)
 
-    @unittest.skipUnderCinderJIT("Incorrect line numbers: T63031461")
     def test_origin_tracking(self):
         orig_depth = sys.get_coroutine_origin_tracking_depth()
         try:
@@ -2346,7 +2213,6 @@ class OriginTrackingTest(unittest.TestCase):
         finally:
             sys.set_coroutine_origin_tracking_depth(orig_depth)
 
-    @unittest.skipUnderCinderJIT("Incorrect line number: T63031461")
     def test_origin_tracking_warning(self):
         async def corofn():
             pass
@@ -2400,8 +2266,9 @@ class OriginTrackingTest(unittest.TestCase):
         try:
             warnings._warn_unawaited_coroutine = lambda coro: 1/0
             with support.catch_unraisable_exception() as cm, \
-                 support.check_warnings((r'coroutine .* was never awaited',
-                                         RuntimeWarning)):
+                 warnings_helper.check_warnings(
+                         (r'coroutine .* was never awaited',
+                          RuntimeWarning)):
                 # only store repr() to avoid keeping the coroutine alive
                 coro = corofn()
                 coro_repr = repr(coro)
@@ -2414,8 +2281,8 @@ class OriginTrackingTest(unittest.TestCase):
                 self.assertEqual(cm.unraisable.exc_type, ZeroDivisionError)
 
             del warnings._warn_unawaited_coroutine
-            with support.check_warnings((r'coroutine .* was never awaited',
-                                         RuntimeWarning)):
+            with warnings_helper.check_warnings(
+                    (r'coroutine .* was never awaited', RuntimeWarning)):
                 corofn()
                 support.gc_collect()
 
@@ -2425,7 +2292,6 @@ class OriginTrackingTest(unittest.TestCase):
 
 class UnawaitedWarningDuringShutdownTest(unittest.TestCase):
     # https://bugs.python.org/issue32591#msg310726
-    @unittest.skipUnderUwsgi()
     def test_unawaited_warning_during_shutdown(self):
         code = ("import asyncio\n"
                 "async def f(): pass\n"
@@ -2472,106 +2338,6 @@ class CAPITest(unittest.TestCase):
         with self.assertRaisesRegex(
                 TypeError, "__await__.*returned non-iterator of type 'int'"):
             self.assertEqual(foo().send(None), 1)
-
-
-class TestEagerExecution(unittest.TestCase):
-
-    def setUp(self):
-        self._asyncio = support.import_module('asyncio')
-
-    async def _raise_IndexError_eager(self, x=None):
-        try:
-            raise IndexError
-        except:
-            pass
-
-
-    async def _raise_IndexError_suspended(self, x=None):
-        try:
-            raise IndexError
-        except:
-            await self._asyncio.sleep(0)
-
-
-    def _check(self, expected_coro, actual_coro):
-        def run(coro):
-            try:
-                self._asyncio.run(coro)
-                self.fail("Exception expected")
-            except RuntimeError as e:
-                return type(e.__context__)
-            finally:
-                # This is a little funny, but it's what other tests do.
-                # Normally I'd expect something like the following, but it also
-                # results in altering asyncio.events._event_loop_policy
-                #
-                #   policy = self._asyncio.get_event_loop_policy()
-                #   try:
-                #     ...
-                #   finally:
-                #     self._asyncio.set_event_loop_policy(policy)
-                self._asyncio.set_event_loop_policy(None)
-        self.assertEqual(run(expected_coro), run(actual_coro))
-
-    def _do_test_exc_handler(self, f):
-        async def actual_1():
-            try:
-                raise ValueError
-            except:
-                await f()
-                raise RuntimeError
-        async def expected_1():
-            try:
-                raise ValueError
-            except:
-                coro = f()
-                await coro
-                raise RuntimeError
-        async def actual_2():
-            try:
-                raise ValueError
-            except:
-                await f(x=1)
-                raise RuntimeError
-        async def expected_2():
-            try:
-                raise ValueError
-            except:
-                coro = f(x=1)
-                await coro
-                raise RuntimeError
-        self._check(expected_1(), actual_1())
-        self._check(expected_2(), actual_2())
-
-    def _do_test_no_err(self, f):
-        async def actual_1():
-            await f()
-            raise RuntimeError
-        async def expected_1():
-            coro = f()
-            await coro
-            raise RuntimeError
-        async def actual_2():
-            await f(x=1)
-            raise RuntimeError
-        async def expected_2():
-            coro = f(x=1)
-            await coro
-            raise RuntimeError
-        self._check(expected_1(), actual_1())
-        self._check(expected_2(), actual_2())
-
-    def test_eager_await_no_error(self):
-        self._do_test_no_err(self._raise_IndexError_eager)
-
-    def test_suspended_await_no_error(self):
-        self._do_test_no_err(self._raise_IndexError_suspended)
-
-    def test_suspended_pass_catch(self):
-        self._do_test_exc_handler(self._raise_IndexError_eager)
-
-    def test_suspended_await_in_catch(self):
-        self._do_test_exc_handler(self._raise_IndexError_suspended)
 
 
 if __name__=="__main__":

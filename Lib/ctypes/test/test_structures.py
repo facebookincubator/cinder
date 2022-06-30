@@ -7,6 +7,11 @@ from struct import calcsize
 import _ctypes_test
 from test import support
 
+# The following definition is meant to be used from time to time to assist
+# temporarily disabling tests on specific architectures while investigations
+# are in progress, to keep buildbots happy.
+MACHINE = platform.machine()
+
 class SubclassesTest(unittest.TestCase):
     def test_subclass(self):
         class X(Structure):
@@ -438,7 +443,7 @@ class StructureTestCase(unittest.TestCase):
 
         s = Test(1, 2, 3)
         # Test the StructUnionType_paramfunc() code path which copies the
-        # structure: if the stucture is larger than sizeof(void*).
+        # structure: if the structure is larger than sizeof(void*).
         self.assertGreater(sizeof(s), sizeof(c_void_p))
 
         dll = CDLL(_ctypes_test.__file__)
@@ -446,7 +451,7 @@ class StructureTestCase(unittest.TestCase):
         func.argtypes = (Test,)
         func.restype = None
         func(s)
-        # bpo-37140: Passing the structure by refrence must not call
+        # bpo-37140: Passing the structure by reference must not call
         # its finalizer!
         self.assertEqual(finalizer_calls, [])
         self.assertEqual(s.first, 1)

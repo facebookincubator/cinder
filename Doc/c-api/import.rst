@@ -223,21 +223,6 @@ Importing Modules
    Return a new reference to the finder object.
 
 
-.. c:function:: void _PyImport_Init()
-
-   Initialize the import mechanism.  For internal use only.
-
-
-.. c:function:: void PyImport_Cleanup()
-
-   Empty the module table.  For internal use only.
-
-
-.. c:function:: void _PyImport_Fini()
-
-   Finalize the import mechanism.  For internal use only.
-
-
 .. c:function:: int PyImport_ImportFrozenModuleObject(PyObject *name)
 
    Load a frozen module named *name*.  Return ``1`` for success, ``0`` if the
@@ -314,4 +299,8 @@ Importing Modules
    field; failure to provide the sentinel value can result in a memory fault.
    Returns ``0`` on success or ``-1`` if insufficient memory could be allocated to
    extend the internal table.  In the event of failure, no modules are added to the
-   internal table.  This should be called before :c:func:`Py_Initialize`.
+   internal table.  This must be called before :c:func:`Py_Initialize`.
+
+   If Python is initialized multiple times, :c:func:`PyImport_AppendInittab` or
+   :c:func:`PyImport_ExtendInittab` must be called before each Python
+   initialization.

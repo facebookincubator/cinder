@@ -11,7 +11,6 @@ dll = ctypes.CDLL(_ctypes_test.__file__)
 
 class RefcountTestCase(unittest.TestCase):
 
-    @unittest.skipUnderCinderJIT("behavior specific to CPython interpreter")
     @support.refcount_test
     def test_1(self):
         from sys import getrefcount as grc

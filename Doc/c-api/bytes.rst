@@ -5,7 +5,7 @@
 Bytes Objects
 -------------
 
-These functions raise :exc:`TypeError` when expecting a bytes parameter and are
+These functions raise :exc:`TypeError` when expecting a bytes parameter and
 called with a non-bytes parameter.
 
 .. index:: object: bytes
@@ -25,13 +25,13 @@ called with a non-bytes parameter.
 .. c:function:: int PyBytes_Check(PyObject *o)
 
    Return true if the object *o* is a bytes object or an instance of a subtype
-   of the bytes type.
+   of the bytes type.  This function always succeeds.
 
 
 .. c:function:: int PyBytes_CheckExact(PyObject *o)
 
    Return true if the object *o* is a bytes object, but not an instance of a
-   subtype of the bytes type.
+   subtype of the bytes type.  This function always succeeds.
 
 
 .. c:function:: PyObject* PyBytes_FromString(const char *v)
@@ -84,8 +84,8 @@ called with a non-bytes parameter.
    | :attr:`%lu`       | unsigned long | Equivalent to                  |
    |                   |               | ``printf("%lu")``. [1]_        |
    +-------------------+---------------+--------------------------------+
-   | :attr:`%zd`       | Py_ssize_t    | Equivalent to                  |
-   |                   |               | ``printf("%zd")``. [1]_        |
+   | :attr:`%zd`       | :c:type:`\    | Equivalent to                  |
+   |                   | Py_ssize_t`   | ``printf("%zd")``. [1]_        |
    +-------------------+---------------+--------------------------------+
    | :attr:`%zu`       | size_t        | Equivalent to                  |
    |                   |               | ``printf("%zu")``. [1]_        |

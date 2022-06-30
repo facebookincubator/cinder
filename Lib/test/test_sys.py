@@ -1,5 +1,3 @@
-from test import support
-from test.support.script_helper import assert_python_ok, assert_python_failure
 import builtins
 import codecs
 import gc
@@ -11,6 +9,10 @@ import subprocess
 import sys
 import sysconfig
 import test.support
+from test import support
+from test.support import os_helper
+from test.support.script_helper import assert_python_ok, assert_python_failure
+from test.support import threading_helper
 import textwrap
 import unittest
 import warnings
@@ -187,15 +189,6 @@ class SysModuleTest(unittest.TestCase):
     # testing sys.settrace() is done in test_sys_settrace.py
     # testing sys.setprofile() is done in test_sys_setprofile.py
 
-    def test_setcheckinterval(self):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self.assertRaises(TypeError, sys.setcheckinterval)
-            orig = sys.getcheckinterval()
-            for n in 0, 100, 120, orig: # orig last to restore starting state
-                sys.setcheckinterval(n)
-                self.assertEqual(sys.getcheckinterval(), n)
-
     def test_switchinterval(self):
         self.assertRaises(TypeError, sys.setswitchinterval)
         self.assertRaises(TypeError, sys.setswitchinterval, "a")
@@ -220,7 +213,6 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(sys.getrecursionlimit(), 10000)
         sys.setrecursionlimit(oldlimit)
 
-    @unittest.hasInfiniteRecursion
     def test_recursionlimit_recovery(self):
         if hasattr(sys, 'gettrace') and sys.gettrace():
             self.skipTest('fatal error if run with a trace function')
@@ -229,7 +221,7 @@ class SysModuleTest(unittest.TestCase):
         def f():
             f()
         try:
-            for depth in (10, 25, 50, 75, 100, 250, 1000):
+            for depth in (50, 75, 100, 250, 1000):
                 try:
                     sys.setrecursionlimit(depth)
                 except RecursionError:
@@ -239,20 +231,19 @@ class SysModuleTest(unittest.TestCase):
 
                 # Issue #5392: test stack overflow after hitting recursion
                 # limit twice
-                self.assertRaises(RecursionError, f)
-                self.assertRaises(RecursionError, f)
+                with self.assertRaises(RecursionError):
+                    f()
+                with self.assertRaises(RecursionError):
+                    f()
         finally:
             sys.setrecursionlimit(oldlimit)
 
     @test.support.cpython_only
-    @unittest.skipUnderCinderJIT("Recursion limit not enforced: T87011403")
     def test_setrecursionlimit_recursion_depth(self):
         # Issue #25274: Setting a low recursion limit must be blocked if the
-        # current recursion depth is already higher than the "lower-water
-        # mark". Otherwise, it may not be possible anymore to
-        # reset the overflowed flag to 0.
+        # current recursion depth is already higher than limit.
 
-        from _testcapi import get_recursion_depth
+        from _testinternalcapi import get_recursion_depth
 
         def set_recursion_limit_at_depth(depth, limit):
             recursion_depth = get_recursion_depth()
@@ -271,39 +262,9 @@ class SysModuleTest(unittest.TestCase):
             sys.setrecursionlimit(1000)
 
             for limit in (10, 25, 50, 75, 100, 150, 200):
-                # formula extracted from _Py_RecursionLimitLowerWaterMark()
-                if limit > 200:
-                    depth = limit - 50
-                else:
-                    depth = limit * 3 // 4
-                set_recursion_limit_at_depth(depth, limit)
+                set_recursion_limit_at_depth(limit, limit)
         finally:
             sys.setrecursionlimit(oldlimit)
-
-    @unittest.skipIfDebug("Recursion overflows the C stack in debug")
-    def test_recursionlimit_fatalerror(self):
-        # A fatal error occurs if a second recursion limit is hit when recovering
-        # from a first one.
-        code = textwrap.dedent("""
-            import sys
-
-            def f():
-                try:
-                    f()
-                except RecursionError:
-                    f()
-
-            sys.setrecursionlimit(%d)
-            f()""")
-        with test.support.SuppressCrashReport():
-            for i in (50, 1000):
-                sub = subprocess.Popen([sys.executable, '-c', code % i],
-                    stderr=subprocess.PIPE)
-                err = sub.communicate()[1]
-                self.assertTrue(sub.returncode, sub.returncode)
-                self.assertIn(
-                    b"Fatal Python error: Cannot recover from stack overflow",
-                    err)
 
     def test_getwindowsversion(self):
         # Raise SkipTest if sys doesn't have getwindowsversion attribute
@@ -359,7 +320,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertRaises(TypeError, sys.getrefcount)
         c = sys.getrefcount(None)
         n = None
-        self.assertEqual(sys.getrefcount(None), c)
+        self.assertEqual(sys.getrefcount(None), c+1)
         del n
         self.assertEqual(sys.getrefcount(None), c)
         if hasattr(sys, "gettotalrefcount"):
@@ -374,8 +335,7 @@ class SysModuleTest(unittest.TestCase):
         )
 
     # sys._current_frames() is a CPython-only gimmick.
-    @test.support.reap_threads
-    @unittest.skipUnderCinderJIT("Incorrect line numbers: T63031461")
+    @threading_helper.reap_threads
     def test_current_frames(self):
         import threading
         import traceback
@@ -399,53 +359,122 @@ class SysModuleTest(unittest.TestCase):
         t.start()
         entered_g.wait()
 
-        # Make sure we signal t to end even if we exit early from a failed
-        # assertion.
-        try:
-            # At this point, t has finished its entered_g.set(), although it's
-            # impossible to guess whether it's still on that line or has moved
-            # on to its leave_g.wait().
-            self.assertEqual(len(thread_info), 1)
-            thread_id = thread_info[0]
+        # At this point, t has finished its entered_g.set(), although it's
+        # impossible to guess whether it's still on that line or has moved on
+        # to its leave_g.wait().
+        self.assertEqual(len(thread_info), 1)
+        thread_id = thread_info[0]
 
-            d = sys._current_frames()
-            for tid in d:
-                self.assertIsInstance(tid, int)
-                self.assertGreater(tid, 0)
+        d = sys._current_frames()
+        for tid in d:
+            self.assertIsInstance(tid, int)
+            self.assertGreater(tid, 0)
 
-            main_id = threading.get_ident()
-            self.assertIn(main_id, d)
-            self.assertIn(thread_id, d)
+        main_id = threading.get_ident()
+        self.assertIn(main_id, d)
+        self.assertIn(thread_id, d)
 
-            # Verify that the captured main-thread frame is _this_ frame.
-            frame = d.pop(main_id)
-            self.assertTrue(frame is sys._getframe())
+        # Verify that the captured main-thread frame is _this_ frame.
+        frame = d.pop(main_id)
+        self.assertTrue(frame is sys._getframe())
 
-            # Verify that the captured thread frame is blocked in g456, called
-            # from f123.  This is a litte tricky, since various bits of
-            # threading.py are also in the thread's call stack.
-            frame = d.pop(thread_id)
-            stack = traceback.extract_stack(frame)
-            for i, (filename, lineno, funcname, sourceline) in enumerate(stack):
-                if funcname == "f123":
-                    break
-            else:
-                self.fail("didn't find f123() on thread's call stack")
+        # Verify that the captured thread frame is blocked in g456, called
+        # from f123.  This is a little tricky, since various bits of
+        # threading.py are also in the thread's call stack.
+        frame = d.pop(thread_id)
+        stack = traceback.extract_stack(frame)
+        for i, (filename, lineno, funcname, sourceline) in enumerate(stack):
+            if funcname == "f123":
+                break
+        else:
+            self.fail("didn't find f123() on thread's call stack")
 
-            self.assertEqual(sourceline, "g456()")
+        self.assertEqual(sourceline, "g456()")
 
-            # And the next record must be for g456().
-            filename, lineno, funcname, sourceline = stack[i+1]
-            self.assertEqual(funcname, "g456")
-            self.assertIn(sourceline, ["leave_g.wait()", "entered_g.set()"])
-        finally:
-            # Reap the spawned thread.
-            leave_g.set()
-            t.join()
+        # And the next record must be for g456().
+        filename, lineno, funcname, sourceline = stack[i+1]
+        self.assertEqual(funcname, "g456")
+        self.assertIn(sourceline, ["leave_g.wait()", "entered_g.set()"])
+
+        # Reap the spawned thread.
+        leave_g.set()
+        t.join()
+
+    @threading_helper.reap_threads
+    def test_current_exceptions(self):
+        import threading
+        import traceback
+
+        # Spawn a thread that blocks at a known place.  Then the main
+        # thread does sys._current_frames(), and verifies that the frames
+        # returned make sense.
+        entered_g = threading.Event()
+        leave_g = threading.Event()
+        thread_info = []  # the thread's id
+
+        def f123():
+            g456()
+
+        def g456():
+            thread_info.append(threading.get_ident())
+            entered_g.set()
+            while True:
+                try:
+                    raise ValueError("oops")
+                except ValueError:
+                    if leave_g.wait(timeout=support.LONG_TIMEOUT):
+                        break
+
+        t = threading.Thread(target=f123)
+        t.start()
+        entered_g.wait()
+
+        # At this point, t has finished its entered_g.set(), although it's
+        # impossible to guess whether it's still on that line or has moved on
+        # to its leave_g.wait().
+        self.assertEqual(len(thread_info), 1)
+        thread_id = thread_info[0]
+
+        d = sys._current_exceptions()
+        for tid in d:
+            self.assertIsInstance(tid, int)
+            self.assertGreater(tid, 0)
+
+        main_id = threading.get_ident()
+        self.assertIn(main_id, d)
+        self.assertIn(thread_id, d)
+        self.assertEqual((None, None, None), d.pop(main_id))
+
+        # Verify that the captured thread frame is blocked in g456, called
+        # from f123.  This is a little tricky, since various bits of
+        # threading.py are also in the thread's call stack.
+        exc_type, exc_value, exc_tb = d.pop(thread_id)
+        stack = traceback.extract_stack(exc_tb.tb_frame)
+        for i, (filename, lineno, funcname, sourceline) in enumerate(stack):
+            if funcname == "f123":
+                break
+        else:
+            self.fail("didn't find f123() on thread's call stack")
+
+        self.assertEqual(sourceline, "g456()")
+
+        # And the next record must be for g456().
+        filename, lineno, funcname, sourceline = stack[i+1]
+        self.assertEqual(funcname, "g456")
+        self.assertTrue(sourceline.startswith("if leave_g.wait("))
+
+        # Reap the spawned thread.
+        leave_g.set()
+        t.join()
 
     def test_attributes(self):
         self.assertIsInstance(sys.api_version, int)
         self.assertIsInstance(sys.argv, list)
+        for arg in sys.argv:
+            self.assertIsInstance(arg, str)
+        self.assertIsInstance(sys.orig_argv, list)
+        for arg in sys.orig_argv:
+            self.assertIsInstance(arg, str)
         self.assertIn(sys.byteorder, ("little", "big"))
         self.assertIsInstance(sys.builtin_module_names, tuple)
         self.assertIsInstance(sys.copyright, str)
@@ -499,6 +528,7 @@ class SysModuleTest(unittest.TestCase):
         self.assertIsInstance(sys.platform, str)
         self.assertIsInstance(sys.prefix, str)
         self.assertIsInstance(sys.base_prefix, str)
+        self.assertIsInstance(sys.platlibdir, str)
         self.assertIsInstance(sys.version, str)
         vi = sys.version_info
         self.assertIsInstance(vi[:], tuple)
@@ -558,10 +588,11 @@ class SysModuleTest(unittest.TestCase):
     def test_sys_flags(self):
         self.assertTrue(sys.flags)
         attrs = ("debug",
-                 "inspect", "interactive", "optimize", "dont_write_bytecode",
-                 "no_user_site", "no_site", "ignore_environment", "verbose",
-                 "bytes_warning", "quiet", "hash_randomization", "isolated",
-                 "dev_mode", "utf8_mode")
+                 "inspect", "interactive", "optimize",
+                 "dont_write_bytecode", "no_user_site", "no_site",
+                 "ignore_environment", "verbose", "bytes_warning", "quiet",
+                 "hash_randomization", "isolated", "dev_mode", "utf8_mode",
+                 "warn_default_encoding")
         for attr in attrs:
             self.assertTrue(hasattr(sys.flags, attr), attr)
             attr_type = bool if attr == "dev_mode" else int
@@ -574,11 +605,12 @@ class SysModuleTest(unittest.TestCase):
     def assert_raise_on_new_sys_type(self, sys_attr):
         # Users are intentionally prevented from creating new instances of
         # sys.flags, sys.version_info, and sys.getwindowsversion.
+        arg = sys_attr
         attr_type = type(sys_attr)
         with self.assertRaises(TypeError):
-            attr_type()
+            attr_type(arg)
         with self.assertRaises(TypeError):
-            attr_type.__new__(attr_type)
+            attr_type.__new__(attr_type, arg)
 
     def test_sys_flags_no_instantiation(self):
         self.assert_raise_on_new_sys_type(sys.flags)
@@ -638,7 +670,7 @@ class SysModuleTest(unittest.TestCase):
         out = p.communicate()[0].strip()
         self.assertEqual(out, b'\xbd')
 
-    @unittest.skipUnless(test.support.FS_NONASCII,
+    @unittest.skipUnless(os_helper.FS_NONASCII,
                          'requires OS support of non-ASCII encodings')
     @unittest.skipUnless(sys.getfilesystemencoding() == locale.getpreferredencoding(False),
                          'requires FS encoding to match locale')
@@ -647,10 +679,10 @@ class SysModuleTest(unittest.TestCase):
 
         env["PYTHONIOENCODING"] = ""
         p = subprocess.Popen([sys.executable, "-c",
-                                'print(%a)' % test.support.FS_NONASCII],
+                                'print(%a)' % os_helper.FS_NONASCII],
                                 stdout=subprocess.PIPE, env=env)
         out = p.communicate()[0].strip()
-        self.assertEqual(out, os.fsencode(test.support.FS_NONASCII))
+        self.assertEqual(out, os.fsencode(os_helper.FS_NONASCII))
 
     @unittest.skipIf(sys.base_prefix != sys.prefix,
                      'Test is not venv-compatible')
@@ -783,10 +815,6 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(sys.implementation.name,
                          sys.implementation.name.lower())
 
-    def test_cinder_implementation(self):
-        self.assertTrue(hasattr(sys.implementation, '_is_cinder'))
-        self.assertEqual(sys.implementation._is_cinder, True)
-
     @test.support.cpython_only
     def test_debugmallocstats(self):
         # Test sys._debugmallocstats()
@@ -839,7 +867,6 @@ class SysModuleTest(unittest.TestCase):
         c = sys.getallocatedblocks()
         self.assertIn(c, range(b - 50, b + 50))
 
-    @test.support.requires_type_collecting
     def test_is_finalizing(self):
         self.assertIs(sys.is_finalizing(), False)
         # Don't use the atexit module because _Py_Finalizing is only set
@@ -861,7 +888,6 @@ class SysModuleTest(unittest.TestCase):
         rc, stdout, stderr = assert_python_ok('-c', code)
         self.assertEqual(stdout.rstrip(), b'True')
 
-    @test.support.requires_type_collecting
     def test_issue20602(self):
         # sys.flags and sys.float_info were wiped during shutdown.
         code = """if 1:
@@ -876,6 +902,23 @@ class SysModuleTest(unittest.TestCase):
         out = out.splitlines()
         self.assertIn(b'sys.flags', out[0])
         self.assertIn(b'sys.float_info', out[1])
+
+    def test_sys_ignores_cleaning_up_user_data(self):
+        code = """if 1:
+            import struct, sys
+
+            class C:
+                def __init__(self):
+                    self.pack = struct.pack
+                def __del__(self):
+                    self.pack('I', -42)
+
+            sys.x = C()
+            """
+        rc, stdout, stderr = assert_python_ok('-c', code)
+        self.assertEqual(rc, 0)
+        self.assertEqual(stdout.rstrip(), b"")
+        self.assertEqual(stderr.rstrip(), b"")
 
     @unittest.skipUnless(hasattr(sys, 'getandroidapilevel'),
                          'need sys.getandroidapilevel()')
@@ -929,6 +972,26 @@ class SysModuleTest(unittest.TestCase):
         rc, out, err = assert_python_ok('-c', '; '.join(code))
         out = out.decode('ascii', 'replace').rstrip()
         self.assertEqual(out, 'mbcs replace')
+
+    def test_orig_argv(self):
+        code = textwrap.dedent('''
+            import sys
+            print(sys.argv)
+            print(sys.orig_argv)
+        ''')
+        args = [sys.executable, '-I', '-X', 'utf8', '-c', code, 'arg']
+        proc = subprocess.run(args, check=True, capture_output=True, text=True)
+        expected = [
+            repr(['-c', 'arg']),  # sys.argv
+            repr(args),  # sys.orig_argv
+        ]
+        self.assertEqual(proc.stdout.rstrip().splitlines(), expected,
+                         proc)
+
+    def test_module_names(self):
+        self.assertIsInstance(sys.stdlib_module_names, frozenset)
+        for name in sys.stdlib_module_names:
+            self.assertIsInstance(name, str)
 
 
 @test.support.cpython_only
@@ -1006,6 +1069,20 @@ class UnraisableHookTest(unittest.TestCase):
                     self.assertIn("del is broken", report)
                 self.assertTrue(report.endswith("\n"))
 
+    def test_original_unraisablehook_exception_qualname(self):
+        class A:
+            class B:
+                class X(Exception):
+                    pass
+
+        with test.support.captured_stderr() as stderr, \
+             test.support.swap_attr(sys, 'unraisablehook',
+                                    sys.__unraisablehook__):
+            expected = self.write_unraisable_exc(
+                A.B.X(), "msg", "obj");
+        report = stderr.getvalue()
+        testName = 'test_original_unraisablehook_exception_qualname'
+        self.assertIn(f"{testName}.<locals>.A.B.X", report)
 
     def test_original_unraisablehook_wrong_type(self):
         exc = ValueError(42)
@@ -1058,8 +1135,8 @@ class SizeofTest(unittest.TestCase):
     def setUp(self):
         self.P = struct.calcsize('P')
         self.longdigit = sys.int_info.sizeof_digit
-        import _testcapi
-        self.gc_headsize = _testcapi.SIZEOF_PYGC_HEAD
+        import _testinternalcapi
+        self.gc_headsize = _testinternalcapi.SIZEOF_PYGC_HEAD
 
     check_sizeof = test.support.check_sizeof
 
@@ -1160,9 +1237,9 @@ class SizeofTest(unittest.TestCase):
         import collections
         check(collections.defaultdict.default_factory, size('3PP'))
         # wrapper_descriptor (descriptor object)
-        check(int.__add__, size('3P3P'))
+        check(int.__add__, size('3P2P'))
         # method-wrapper (descriptor object)
-        check({}.__iter__, size('3P'))
+        check({}.__iter__, size('2P'))
         # empty dict
         check({}, size('nQ2P'))
         # dict
@@ -1216,10 +1293,10 @@ class SizeofTest(unittest.TestCase):
         nfrees = len(x.f_code.co_freevars)
         extras = x.f_code.co_stacksize + x.f_code.co_nlocals +\
                   ncells + nfrees - 1
-        check(x, vsize('5P2c4P3ic' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P'))
+        check(x, vsize('4Pi2c4P3ic' + CO_MAXBLOCKS*'3i' + 'P' + extras*'P'))
         # function
         def func(): pass
-        check(func, size('13P1q'))
+        check(func, size('14P'))
         class c():
             @staticmethod
             def foo():
@@ -1233,7 +1310,7 @@ class SizeofTest(unittest.TestCase):
             check(bar, size('PP'))
         # generator
         def get_gen(): yield 1
-        check(get_gen(), size('3Pb2PPP4PP'))
+        check(get_gen(), size('P2PPP4P'))
         # iterator
         check(iter('abc'), size('lP'))
         # callable-iterator
@@ -1242,7 +1319,7 @@ class SizeofTest(unittest.TestCase):
         # list
         samples = [[], [1,2,3], ['1', '2', '3']]
         for sample in samples:
-            check(sample, vsize('Pn') + len(sample)*self.P)
+            check(list(sample), vsize('Pn') + len(sample)*self.P)
         # sortwrapper (list)
         # XXX
         # cmpwrapper (list)
@@ -1273,7 +1350,7 @@ class SizeofTest(unittest.TestCase):
             def setx(self, value): self.__x = value
             def delx(self): del self.__x
             x = property(getx, setx, delx, "")
-            check(x, size('4Pi'))
+            check(x, size('5Pi'))
         # PyCapsule
         # XXX
         # rangeiterator
@@ -1314,19 +1391,17 @@ class SizeofTest(unittest.TestCase):
         check((1,2,3), vsize('') + 3*self.P)
         # type
         # static type: PyTypeObject
-        fmt = 'P2nPI13Pl4Pn9Pn11PIPPP'
-        if hasattr(sys, 'getcounts'):
-            fmt += '3n2P'
+        fmt = 'P2nPI13Pl4Pn9Pn11PIPP'
         s = vsize(fmt)
         check(int, s)
         # class
         s = vsize(fmt +                 # PyTypeObject
-                  '3P'                  # PyAsyncMethods
+                  '4P'                  # PyAsyncMethods
                   '36P'                 # PyNumberMethods
                   '3P'                  # PyMappingMethods
                   '10P'                 # PySequenceMethods
                   '2P'                  # PyBufferProcs
-                  '4P')
+                  '5P')
         class newstyleclass(object): pass
         # Separate block for PyDictKeysObject with 8 keys and 5 entries
         check(newstyleclass, s + calcsize("2nP2n0P") + 8 + 5*calcsize("n2P"))
@@ -1370,11 +1445,11 @@ class SizeofTest(unittest.TestCase):
         # TODO: add check that forces layout of unicodefields
         # weakref
         import weakref
-        check(weakref.ref(int), size('2Pn3P'))
+        check(weakref.ref(int), size('2Pn2P'))
         # weakproxy
         # XXX
         # weakcallableproxy
-        check(weakref.proxy(int), size('2Pn3P'))
+        check(weakref.proxy(int), size('2Pn2P'))
 
     def check_slots(self, obj, base, extra):
         expected = sys.getsizeof(base) + struct.calcsize(extra)
@@ -1452,84 +1527,21 @@ class SizeofTest(unittest.TestCase):
         self.assertIsNone(cur.firstiter)
         self.assertIsNone(cur.finalizer)
 
-    def test_method_free_list(self):
-        # test default initial size
-        self.assertEqual(256, sys._get_method_free_list_size())
-
-        # disable the cache
-        sys._set_method_free_list_size(0)
-        self.assertEqual(0, sys._get_method_free_list_size())
-
-        # invalid values
-        self.assertRaises(OverflowError, sys._set_method_free_list_size, -1)
-        self.assertRaises(TypeError, sys._set_method_free_list_size, None)
-
-        # raise the size
-        sys._set_method_free_list_size(512)
-        self.assertEqual(512, sys._get_method_free_list_size())
-
-        stats = sys._get_method_free_list_stats()
-        has_stats = stats[1] != -1
-
-        # Could be broken if the test framework changes to use more methods
-        self.assertEqual(1, stats[0])
-        class C:
-            def f(self): pass
-
-        fill_cache = [C().f for i in range(600)]
-        self.assertEqual(1, stats[0])
-        del fill_cache
-        # cache is now fully populated
-
-        stats = sys._get_method_free_list_stats()
-        self.assertEqual(512, stats[0])
-
-        # reduce size
-        sys._set_method_free_list_size(256)
-        self.assertEqual(256, sys._get_method_free_list_size())
-        if has_stats:
-            size, hits, misses = sys._get_method_free_list_stats()
-            C().f
-            size2, hits2, misses2 = sys._get_method_free_list_stats()
-            # cache hits are tracked
-            self.assertEqual(hits + 1, hits2)
-
-            [C().f for i in range(size2 + 1)]
-            size3, hits3, misses3 = sys._get_method_free_list_stats()
-            # cache misses are tracked
-            self.assertEqual(misses2 + 1, misses3)
-
-    @unittest.skipUnderCinderJIT(
-        "Assumes implementation details of a non-JIT method cache")
-    def test_get_method_cache_stats(self):
-        if sysconfig.get_config_var('Py_DEBUG') == 0:
-            return
-        cache_stats = sys._get_method_cache_stats()
-
-        self.assertIs(type(cache_stats), dict)
-
-        self.assertIn("num_hits", cache_stats)
-        self.assertIn("num_misses", cache_stats)
-        self.assertIn("num_collisions", cache_stats)
-
-        sys._reset_method_cache_stats()
-
-        class Foo:
-            bar = 'testing 123'
-
-        prev = sys._get_method_cache_stats()
-
-        # Should be a cache miss
-        for i in range(20):
-            getattr(Foo, 'baz' + str(i), None)
-
-        # Second access should be a cache hit
-        Foo.bar
-        Foo.bar
-
-        curr = sys._get_method_cache_stats()
-        self.assertGreater(curr['num_hits'], prev['num_hits'])
-        self.assertGreater(curr['num_misses'], prev['num_misses'])
+    def test_changing_sys_stderr_and_removing_reference(self):
+        # If the default displayhook doesn't take a strong reference
+        # to sys.stderr the following code can crash. See bpo-43660
+        # for more details.
+        code = textwrap.dedent('''
+            import sys
+            class MyStderr:
+                def write(self, s):
+                    sys.stderr = None
+            sys.stderr = MyStderr()
+            1/0
+        ''')
+        rc, out, err = assert_python_failure('-c', code)
+        self.assertEqual(out, b"")
+        self.assertEqual(err, b"")
 
 if __name__ == "__main__":
     unittest.main()

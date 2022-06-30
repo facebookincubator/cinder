@@ -1,3 +1,4 @@
+#include "pycore_interp.h"    // _PyInterpreterState.pythread_stacksize
 
 /* Posix threads interface */
 
@@ -31,18 +32,17 @@
 #define THREAD_STACK_SIZE       0       /* use default stack size */
 #endif
 
-/* The default stack size for new threads on OSX and BSD is small enough that
+/* The default stack size for new threads on BSD is small enough that
  * we'll get hard crashes instead of 'maximum recursion depth exceeded'
  * exceptions.
  *
- * The default stack sizes below are the empirically determined minimal stack
+ * The default stack size below is the empirically determined minimal stack
  * sizes where a simple recursive function doesn't cause a hard crash.
+ *
+ * For macOS the value of THREAD_STACK_SIZE is determined in configure.ac
+ * as it also depends on the other configure options like chosen sanitizer
+ * runtimes.
  */
-#if defined(__APPLE__) && defined(THREAD_STACK_SIZE) && THREAD_STACK_SIZE == 0
-#undef  THREAD_STACK_SIZE
-/* Note: This matches the value of -Wl,-stack_size in configure.ac */
-#define THREAD_STACK_SIZE       0x1000000
-#endif
 #if defined(__FreeBSD__) && defined(THREAD_STACK_SIZE) && THREAD_STACK_SIZE == 0
 #undef  THREAD_STACK_SIZE
 #define THREAD_STACK_SIZE       0x400000
@@ -50,6 +50,20 @@
 #if defined(_AIX) && defined(THREAD_STACK_SIZE) && THREAD_STACK_SIZE == 0
 #undef  THREAD_STACK_SIZE
 #define THREAD_STACK_SIZE       0x200000
+#endif
+/* bpo-38852: test_threading.test_recursion_limit() checks that 1000 recursive
+   Python calls (default recursion limit) doesn't crash, but raise a regular
+   RecursionError exception. In debug mode, Python function calls allocates
+   more memory on the stack, so use a stack of 8 MiB. */
+#if defined(__ANDROID__) && defined(THREAD_STACK_SIZE) && THREAD_STACK_SIZE == 0
+#   ifdef Py_DEBUG
+#   undef  THREAD_STACK_SIZE
+#   define THREAD_STACK_SIZE    0x800000
+#   endif
+#endif
+#if defined(__VXWORKS__) && defined(THREAD_STACK_SIZE) && THREAD_STACK_SIZE == 0
+#undef  THREAD_STACK_SIZE
+#define THREAD_STACK_SIZE       0x100000
 #endif
 /* for safety, ensure a viable minimum stacksize */
 #define THREAD_STACK_MIN        0x8000  /* 32 KiB */
@@ -78,10 +92,15 @@
  * mutexes and condition variables:
  */
 #if (defined(_POSIX_SEMAPHORES) && !defined(HAVE_BROKEN_POSIX_SEMAPHORES) && \
-     defined(HAVE_SEM_TIMEDWAIT))
+     (defined(HAVE_SEM_TIMEDWAIT) || defined(HAVE_SEM_CLOCKWAIT)))
 #  define USE_SEMAPHORES
 #else
 #  undef USE_SEMAPHORES
+#endif
+
+#if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+// monotonic is supported statically.  It doesn't mean it works on runtime.
+#define CONDATTR_MONOTONIC
 #endif
 
 
@@ -97,17 +116,10 @@
 #endif
 
 
-/* We assume all modern POSIX systems have gettimeofday() */
-#ifdef GETTIMEOFDAY_NO_TZ
-#define GETTIMEOFDAY(ptv) gettimeofday(ptv)
-#else
-#define GETTIMEOFDAY(ptv) gettimeofday(ptv, (struct timezone *)NULL)
-#endif
-
 #define MICROSECONDS_TO_TIMESPEC(microseconds, ts) \
 do { \
     struct timeval tv; \
-    GETTIMEOFDAY(&tv); \
+    gettimeofday(&tv, NULL); \
     tv.tv_usec += microseconds % 1000000; \
     tv.tv_sec += microseconds / 1000000; \
     tv.tv_sec += tv.tv_usec / 1000000; \
@@ -116,15 +128,22 @@ do { \
     ts.tv_nsec = tv.tv_usec * 1000; \
 } while(0)
 
+#if defined(CONDATTR_MONOTONIC) || defined(HAVE_SEM_CLOCKWAIT)
+static void
+monotonic_abs_timeout(long long us, struct timespec *abs)
+{
+    clock_gettime(CLOCK_MONOTONIC, abs);
+    abs->tv_sec  += us / 1000000;
+    abs->tv_nsec += (us % 1000000) * 1000;
+    abs->tv_sec  += abs->tv_nsec / 1000000000;
+    abs->tv_nsec %= 1000000000;
+}
+#endif
+
 
 /*
  * pthread_cond support
  */
-
-#if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-// monotonic is supported statically.  It doesn't mean it works on runtime.
-#define CONDATTR_MONOTONIC
-#endif
 
 // NULL when pthread_condattr_setclock(CLOCK_MONOTONIC) is not supported.
 static pthread_condattr_t *condattr_monotonic = NULL;
@@ -147,16 +166,13 @@ _PyThread_cond_init(PyCOND_T *cond)
     return pthread_cond_init(cond, condattr_monotonic);
 }
 
+
 void
 _PyThread_cond_after(long long us, struct timespec *abs)
 {
 #ifdef CONDATTR_MONOTONIC
     if (condattr_monotonic) {
-        clock_gettime(CLOCK_MONOTONIC, abs);
-        abs->tv_sec  += us / 1000000;
-        abs->tv_nsec += (us % 1000000) * 1000;
-        abs->tv_sec  += abs->tv_nsec / 1000000000;
-        abs->tv_nsec %= 1000000000;
+        monotonic_abs_timeout(us, abs);
         return;
     }
 #endif
@@ -427,7 +443,9 @@ PyThread_acquire_lock_timed(PyThread_type_lock lock, PY_TIMEOUT_T microseconds,
     sem_t *thelock = (sem_t *)lock;
     int status, error = 0;
     struct timespec ts;
+#ifndef HAVE_SEM_CLOCKWAIT
     _PyTime_t deadline = 0;
+#endif
 
     (void) error; /* silence unused-but-set-variable warning */
     dprintf(("PyThread_acquire_lock_timed(%p, %lld, %d) called\n",
@@ -438,6 +456,9 @@ PyThread_acquire_lock_timed(PyThread_type_lock lock, PY_TIMEOUT_T microseconds,
     }
 
     if (microseconds > 0) {
+#ifdef HAVE_SEM_CLOCKWAIT
+        monotonic_abs_timeout(microseconds, &ts);
+#else
         MICROSECONDS_TO_TIMESPEC(microseconds, ts);
 
         if (!intr_flag) {
@@ -446,11 +467,17 @@ PyThread_acquire_lock_timed(PyThread_type_lock lock, PY_TIMEOUT_T microseconds,
             _PyTime_t timeout = _PyTime_FromNanoseconds(microseconds * 1000);
             deadline = _PyTime_GetMonotonicClock() + timeout;
         }
+#endif
     }
 
     while (1) {
         if (microseconds > 0) {
+#ifdef HAVE_SEM_CLOCKWAIT
+            status = fix_status(sem_clockwait(thelock, CLOCK_MONOTONIC,
+                                              &ts));
+#else
             status = fix_status(sem_timedwait(thelock, &ts));
+#endif
         }
         else if (microseconds == 0) {
             status = fix_status(sem_trywait(thelock));
@@ -465,6 +492,9 @@ PyThread_acquire_lock_timed(PyThread_type_lock lock, PY_TIMEOUT_T microseconds,
             break;
         }
 
+        // sem_clockwait() uses an absolute timeout, there is no need
+        // to recompute the relative timeout.
+#ifndef HAVE_SEM_CLOCKWAIT
         if (microseconds > 0) {
             /* wait interrupted by a signal (EINTR): recompute the timeout */
             _PyTime_t dt = deadline - _PyTime_GetMonotonicClock();
@@ -486,13 +516,19 @@ PyThread_acquire_lock_timed(PyThread_type_lock lock, PY_TIMEOUT_T microseconds,
                 microseconds = 0;
             }
         }
+#endif
     }
 
     /* Don't check the status if we're stopping because of an interrupt.  */
     if (!(intr_flag && status == EINTR)) {
         if (microseconds > 0) {
-            if (status != ETIMEDOUT)
+            if (status != ETIMEDOUT) {
+#ifdef HAVE_SEM_CLOCKWAIT
+                CHECK_STATUS("sem_clockwait");
+#else
                 CHECK_STATUS("sem_timedwait");
+#endif
+            }
         }
         else if (microseconds == 0) {
             if (status != EAGAIN)
@@ -544,9 +580,8 @@ PyThread_allocate_lock(void)
     if (!initialized)
         PyThread_init_thread();
 
-    lock = (pthread_lock *) PyMem_RawMalloc(sizeof(pthread_lock));
+    lock = (pthread_lock *) PyMem_RawCalloc(1, sizeof(pthread_lock));
     if (lock) {
-        memset((void *)lock, '\0', sizeof(pthread_lock));
         lock->locked = 0;
 
         status = pthread_mutex_init(&lock->mut, NULL);
@@ -692,6 +727,26 @@ PyThread_release_lock(PyThread_type_lock lock)
 #endif /* USE_SEMAPHORES */
 
 int
+_PyThread_at_fork_reinit(PyThread_type_lock *lock)
+{
+    PyThread_type_lock new_lock = PyThread_allocate_lock();
+    if (new_lock == NULL) {
+        return -1;
+    }
+
+    /* bpo-6721, bpo-40089: The old lock can be in an inconsistent state.
+       fork() can be called in the middle of an operation on the lock done by
+       another thread. So don't call PyThread_free_lock(*lock).
+
+       Leak memory on purpose. Don't release the memory either since the
+       address of a mutex is relevant. Putting two mutexes at the same address
+       can lead to problems. */
+
+    *lock = new_lock;
+    return 0;
+}
+
+int
 PyThread_acquire_lock(PyThread_type_lock lock, int waitflag)
 {
     return PyThread_acquire_lock_timed(lock, waitflag ? -1 : 0, /*intr_flag=*/0);
@@ -712,7 +767,7 @@ _pythread_pthread_set_stacksize(size_t size)
 
     /* set to default */
     if (size == 0) {
-        _PyInterpreterState_GET_UNSAFE()->pythread_stacksize = 0;
+        _PyInterpreterState_GET()->pythread_stacksize = 0;
         return 0;
     }
 
@@ -729,7 +784,7 @@ _pythread_pthread_set_stacksize(size_t size)
             rc = pthread_attr_setstacksize(&attrs, size);
             pthread_attr_destroy(&attrs);
             if (rc == 0) {
-                _PyInterpreterState_GET_UNSAFE()->pythread_stacksize = size;
+                _PyInterpreterState_GET()->pythread_stacksize = size;
                 return 0;
             }
         }

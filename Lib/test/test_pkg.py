@@ -128,10 +128,8 @@ class TestPkg(unittest.TestCase):
         self.assertEqual(sub.__name__, "t2.sub")
         self.assertEqual(subsub.__name__, "t2.sub.subsub")
         self.assertEqual(sub.subsub.__name__, "t2.sub.subsub")
-        self.assertTrue(spam, "Failed to import spam")
-        self.assertTrue(sub, "Failed to import sub")
-        self.assertTrue(subsub, "Failed to import subsub")
-        self.assertTrue(t2, "Failed to import t2")
+        for name in ['spam', 'sub', 'subsub', 't2']:
+            self.assertTrue(locals()["name"], "Failed to import %s" % name)
 
         import t2.sub
         import t2.sub.subsub

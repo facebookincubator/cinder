@@ -99,6 +99,11 @@ The module provides the following classes:
       :attr:`ssl.SSLContext.post_handshake_auth` for the default *context* or
       when *cert_file* is passed with a custom *context*.
 
+   .. versionchanged:: 3.10
+      This class now sends an ALPN extension with protocol indicator
+      ``http/1.1`` when no *context* is given. Custom *context* should set
+      ALPN protocols with :meth:`~ssl.SSLContext.set_alpn_protocol`.
+
    .. deprecated:: 3.6
 
        *key_file* and *cert_file* are deprecated in favor of *context*.
@@ -363,6 +368,8 @@ HTTPConnection Objects
    this is called automatically when making a request if the client does not
    already have a connection.
 
+   .. audit-event:: http.client.connect self,host,port http.client.HTTPConnection.connect
+
 
 .. method:: HTTPConnection.close()
 
@@ -432,6 +439,8 @@ also send your request step by step, by using the four functions below.
    :meth:`endheaders` method has been called and before :meth:`getresponse` is
    called.
 
+   .. audit-event:: http.client.send self,data http.client.HTTPConnection.send
+
 
 .. _httpresponse-objects:
 
@@ -484,6 +493,14 @@ statement.
 
    HTTP protocol version used by server.  10 for HTTP/1.0, 11 for HTTP/1.1.
 
+.. attribute:: HTTPResponse.url
+
+   URL of the resource retrieved, commonly used to determine if a redirect was followed.
+
+.. attribute:: HTTPResponse.headers
+
+   Headers of the response in the form of an :class:`email.message.EmailMessage` instance.
+
 .. attribute:: HTTPResponse.status
 
    Status code returned by server.
@@ -500,6 +517,21 @@ statement.
 .. attribute:: HTTPResponse.closed
 
    Is ``True`` if the stream is closed.
+
+.. method:: HTTPResponse.geturl()
+
+   .. deprecated:: 3.9
+      Deprecated in favor of :attr:`~HTTPResponse.url`.
+
+.. method:: HTTPResponse.info()
+
+   .. deprecated:: 3.9
+      Deprecated in favor of :attr:`~HTTPResponse.headers`.
+
+.. method:: HTTPResponse.getstatus()
+
+   .. deprecated:: 3.9
+      Deprecated in favor of :attr:`~HTTPResponse.status`.
 
 Examples
 --------

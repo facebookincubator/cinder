@@ -6,6 +6,7 @@ import builtins
 import collections
 import decimal
 import fractions
+import gc
 import io
 import locale
 import os
@@ -25,10 +26,11 @@ from itertools import product
 from textwrap import dedent
 from types import AsyncGeneratorType, FunctionType
 from operator import neg
-from test.support import (
-    EnvironmentVarGuard, TESTFN, check_warnings, swap_attr, unlink,
-    maybe_get_event_loop_policy)
+from test import support
+from test.support import (swap_attr, maybe_get_event_loop_policy)
+from test.support.os_helper import (EnvironmentVarGuard, TESTFN, unlink)
 from test.support.script_helper import assert_python_ok
+from test.support.warnings_helper import check_warnings
 from unittest.mock import MagicMock, patch
 try:
     import pty, signal
@@ -326,8 +328,8 @@ class BuiltinTest(unittest.TestCase):
         bom = b'\xef\xbb\xbf'
         compile(bom + b'print(1)\n', '', 'exec')
         compile(source='pass', filename='?', mode='exec')
-        compile(dont_inherit=0, filename='tmp', source='0', mode='eval')
-        compile('pass', '?', dont_inherit=1, mode='exec')
+        compile(dont_inherit=False, filename='tmp', source='0', mode='eval')
+        compile('pass', '?', dont_inherit=True, mode='exec')
         compile(memoryview(b"text"), "name", "exec")
         self.assertRaises(TypeError, compile)
         self.assertRaises(ValueError, compile, 'print(42)\n', '<string>', 'badmode')
@@ -579,8 +581,8 @@ class BuiltinTest(unittest.TestCase):
         # dir(traceback)
         try:
             raise IndexError
-        except:
-            self.assertEqual(len(dir(sys.exc_info()[2])), 4)
+        except IndexError as e:
+            self.assertEqual(len(dir(e.__traceback__)), 4)
 
         # test that object has a __dir__()
         self.assertEqual(sorted([].__dir__()), dir([]))
@@ -720,12 +722,34 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual((g, l), ({'a': 1}, {'b': 2}))
 
     def test_exec_globals(self):
+        code = compile("print('Hello World!')", "", "exec")
+        # no builtin function
+        self.assertRaisesRegex(NameError, "name 'print' is not defined",
+                               exec, code, {'__builtins__': {}})
+        # __builtins__ must be a mapping type
+        self.assertRaises(TypeError,
+                          exec, code, {'__builtins__': 123})
+
+        # no __build_class__ function
+        code = compile("class A: pass", "", "exec")
+        self.assertRaisesRegex(NameError, "__build_class__ not found",
+                               exec, code, {'__builtins__': {}})
+
         class frozendict_error(Exception):
             pass
 
         class frozendict(dict):
             def __setitem__(self, key, value):
                 raise frozendict_error("frozendict is readonly")
+
+        # read-only builtins
+        if isinstance(__builtins__, types.ModuleType):
+            frozen_builtins = frozendict(__builtins__.__dict__)
+        else:
+            frozen_builtins = frozendict(__builtins__)
+        code = compile("__builtins__['superglobal']=2; print(superglobal)", "test", "exec")
+        self.assertRaises(frozendict_error,
+                          exec, code, {'__builtins__': frozen_builtins})
 
         # read-only globals
         namespace = frozendict({})
@@ -809,6 +833,7 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual(hash('spam'), hash(b'spam'))
         hash((0,1,2,3))
         def f(): pass
+        hash(f)
         self.assertRaises(TypeError, hash, [])
         self.assertRaises(TypeError, hash, {})
         # Bug 1536021: Allow hash to return long objects
@@ -992,7 +1017,12 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual(max(1, 2.0, 3), 3)
         self.assertEqual(max(1.0, 2, 3), 3)
 
-        self.assertRaises(TypeError, max)
+        with self.assertRaisesRegex(
+            TypeError,
+            'max expected at least 1 argument, got 0'
+        ):
+            max()
+
         self.assertRaises(TypeError, max, 42)
         self.assertRaises(ValueError, max, ())
         class BadSeq:
@@ -1046,7 +1076,12 @@ class BuiltinTest(unittest.TestCase):
         self.assertEqual(min(1, 2.0, 3), 1)
         self.assertEqual(min(1.0, 2, 3), 1.0)
 
-        self.assertRaises(TypeError, min)
+        with self.assertRaisesRegex(
+            TypeError,
+            'min expected at least 1 argument, got 0'
+        ):
+            min()
+
         self.assertRaises(TypeError, min, 42)
         self.assertRaises(ValueError, min, ())
         class BadSeq:
@@ -1124,7 +1159,7 @@ class BuiltinTest(unittest.TestCase):
 
     def write_testfile(self):
         # NB the first 4 lines are also used to test input, below
-        fp = open(TESTFN, 'w')
+        fp = open(TESTFN, 'w', encoding="utf-8")
         self.addCleanup(unlink, TESTFN)
         with fp:
             fp.write('1+1\n')
@@ -1136,7 +1171,7 @@ class BuiltinTest(unittest.TestCase):
 
     def test_open(self):
         self.write_testfile()
-        fp = open(TESTFN, 'r')
+        fp = open(TESTFN, encoding="utf-8")
         with fp:
             self.assertEqual(fp.readline(4), '1+1\n')
             self.assertEqual(fp.readline(), 'The quick brown fox jumps over the lazy dog.\n')
@@ -1162,7 +1197,9 @@ class BuiltinTest(unittest.TestCase):
 
             self.write_testfile()
             current_locale_encoding = locale.getpreferredencoding(False)
-            fp = open(TESTFN, 'w')
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", EncodingWarning)
+                fp = open(TESTFN, 'w')
             with fp:
                 self.assertEqual(fp.encoding, current_locale_encoding)
         finally:
@@ -1170,7 +1207,7 @@ class BuiltinTest(unittest.TestCase):
             os.environ.update(old_environ)
 
     def test_open_non_inheritable(self):
-        fileobj = open(__file__)
+        fileobj = open(__file__, encoding="utf-8")
         with fileobj:
             self.assertFalse(os.get_inheritable(fileobj.fileno()))
 
@@ -1265,7 +1302,7 @@ class BuiltinTest(unittest.TestCase):
 
     def test_input(self):
         self.write_testfile()
-        fp = open(TESTFN, 'r')
+        fp = open(TESTFN, encoding="utf-8")
         savestdin = sys.stdin
         savestdout = sys.stdout # Eats the echo
         try:
@@ -1435,6 +1472,24 @@ class BuiltinTest(unittest.TestCase):
 
         self.assertEqual(sum(range(10), 1000), 1045)
         self.assertEqual(sum(range(10), start=1000), 1045)
+        self.assertEqual(sum(range(10), 2**31-5), 2**31+40)
+        self.assertEqual(sum(range(10), 2**63-5), 2**63+40)
+
+        self.assertEqual(sum(i % 2 != 0 for i in range(10)), 5)
+        self.assertEqual(sum((i % 2 != 0 for i in range(10)), 2**31-3),
+                         2**31+2)
+        self.assertEqual(sum((i % 2 != 0 for i in range(10)), 2**63-3),
+                         2**63+2)
+        self.assertIs(sum([], False), False)
+
+        self.assertEqual(sum(i / 2 for i in range(10)), 22.5)
+        self.assertEqual(sum((i / 2 for i in range(10)), 1000), 1022.5)
+        self.assertEqual(sum((i / 2 for i in range(10)), 1000.25), 1022.75)
+        self.assertEqual(sum([0.5, 1]), 1.5)
+        self.assertEqual(sum([1, 0.5]), 1.5)
+        self.assertEqual(repr(sum([-0.0])), '0.0')
+        self.assertEqual(repr(sum([-0.0], -0.0)), '-0.0')
+        self.assertEqual(repr(sum([], -0.0)), '-0.0')
 
         self.assertRaises(TypeError, sum)
         self.assertRaises(TypeError, sum, 42)
@@ -1446,6 +1501,9 @@ class BuiltinTest(unittest.TestCase):
         self.assertRaises(TypeError, sum, [[1], [2], [3]])
         self.assertRaises(TypeError, sum, [{2:3}])
         self.assertRaises(TypeError, sum, [{2:3}]*2, {2:3})
+        self.assertRaises(TypeError, sum, [], '')
+        self.assertRaises(TypeError, sum, [], b'')
+        self.assertRaises(TypeError, sum, [], bytearray())
 
         class BadSeq:
             def __getitem__(self, index):
@@ -1478,7 +1536,6 @@ class BuiltinTest(unittest.TestCase):
             return {'a':2}
         __dict__ = property(fget=getDict)
 
-    @unittest.skipUnderCinderJIT("frame locals not accessible for running functions")
     def test_vars(self):
         self.assertEqual(set(vars()), set(dir()))
         self.assertEqual(set(vars(sys)), set(dir(sys)))
@@ -1487,6 +1544,14 @@ class BuiltinTest(unittest.TestCase):
         self.assertRaises(TypeError, vars, 42, 42)
         self.assertRaises(TypeError, vars, 42)
         self.assertEqual(vars(self.C_get_vars()), {'a':2})
+
+    def iter_error(self, iterable, error):
+        """Collect `iterable` into a list, catching an expected `error`."""
+        items = []
+        with self.assertRaises(error):
+            for item in iterable:
+                items.append(item)
+        return items
 
     def test_zip(self):
         a = (1, 2, 3)
@@ -1540,6 +1605,24 @@ class BuiltinTest(unittest.TestCase):
             z1 = zip(a, b)
             self.check_iter_pickle(z1, t, proto)
 
+    def test_zip_pickle_strict(self):
+        a = (1, 2, 3)
+        b = (4, 5, 6)
+        t = [(1, 4), (2, 5), (3, 6)]
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            z1 = zip(a, b, strict=True)
+            self.check_iter_pickle(z1, t, proto)
+
+    def test_zip_pickle_strict_fail(self):
+        a = (1, 2, 3)
+        b = (4, 5, 6, 7)
+        t = [(1, 4), (2, 5), (3, 6)]
+        for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+            z1 = zip(a, b, strict=True)
+            z2 = pickle.loads(pickle.dumps(z1, proto))
+            self.assertEqual(self.iter_error(z1, ValueError), t)
+            self.assertEqual(self.iter_error(z2, ValueError), t)
+
     def test_zip_bad_iterable(self):
         exception = TypeError()
 
@@ -1551,6 +1634,100 @@ class BuiltinTest(unittest.TestCase):
             zip(BadIterable())
 
         self.assertIs(cm.exception, exception)
+
+    def test_zip_strict(self):
+        self.assertEqual(tuple(zip((1, 2, 3), 'abc', strict=True)),
+                         ((1, 'a'), (2, 'b'), (3, 'c')))
+        self.assertRaises(ValueError, tuple,
+                          zip((1, 2, 3, 4), 'abc', strict=True))
+        self.assertRaises(ValueError, tuple,
+                          zip((1, 2), 'abc', strict=True))
+        self.assertRaises(ValueError, tuple,
+                          zip((1, 2), (1, 2), 'abc', strict=True))
+
+    def test_zip_strict_iterators(self):
+        x = iter(range(5))
+        y = [0]
+        z = iter(range(5))
+        self.assertRaises(ValueError, list,
+                          (zip(x, y, z, strict=True)))
+        self.assertEqual(next(x), 2)
+        self.assertEqual(next(z), 1)
+
+    def test_zip_strict_error_handling(self):
+
+        class Error(Exception):
+            pass
+
+        class Iter:
+            def __init__(self, size):
+                self.size = size
+            def __iter__(self):
+                return self
+            def __next__(self):
+                self.size -= 1
+                if self.size < 0:
+                    raise Error
+                return self.size
+
+        l1 = self.iter_error(zip("AB", Iter(1), strict=True), Error)
+        self.assertEqual(l1, [("A", 0)])
+        l2 = self.iter_error(zip("AB", Iter(2), "A", strict=True), ValueError)
+        self.assertEqual(l2, [("A", 1, "A")])
+        l3 = self.iter_error(zip("AB", Iter(2), "ABC", strict=True), Error)
+        self.assertEqual(l3, [("A", 1, "A"), ("B", 0, "B")])
+        l4 = self.iter_error(zip("AB", Iter(3), strict=True), ValueError)
+        self.assertEqual(l4, [("A", 2), ("B", 1)])
+        l5 = self.iter_error(zip(Iter(1), "AB", strict=True), Error)
+        self.assertEqual(l5, [(0, "A")])
+        l6 = self.iter_error(zip(Iter(2), "A", strict=True), ValueError)
+        self.assertEqual(l6, [(1, "A")])
+        l7 = self.iter_error(zip(Iter(2), "ABC", strict=True), Error)
+        self.assertEqual(l7, [(1, "A"), (0, "B")])
+        l8 = self.iter_error(zip(Iter(3), "AB", strict=True), ValueError)
+        self.assertEqual(l8, [(2, "A"), (1, "B")])
+
+    def test_zip_strict_error_handling_stopiteration(self):
+
+        class Iter:
+            def __init__(self, size):
+                self.size = size
+            def __iter__(self):
+                return self
+            def __next__(self):
+                self.size -= 1
+                if self.size < 0:
+                    raise StopIteration
+                return self.size
+
+        l1 = self.iter_error(zip("AB", Iter(1), strict=True), ValueError)
+        self.assertEqual(l1, [("A", 0)])
+        l2 = self.iter_error(zip("AB", Iter(2), "A", strict=True), ValueError)
+        self.assertEqual(l2, [("A", 1, "A")])
+        l3 = self.iter_error(zip("AB", Iter(2), "ABC", strict=True), ValueError)
+        self.assertEqual(l3, [("A", 1, "A"), ("B", 0, "B")])
+        l4 = self.iter_error(zip("AB", Iter(3), strict=True), ValueError)
+        self.assertEqual(l4, [("A", 2), ("B", 1)])
+        l5 = self.iter_error(zip(Iter(1), "AB", strict=True), ValueError)
+        self.assertEqual(l5, [(0, "A")])
+        l6 = self.iter_error(zip(Iter(2), "A", strict=True), ValueError)
+        self.assertEqual(l6, [(1, "A")])
+        l7 = self.iter_error(zip(Iter(2), "ABC", strict=True), ValueError)
+        self.assertEqual(l7, [(1, "A"), (0, "B")])
+        l8 = self.iter_error(zip(Iter(3), "AB", strict=True), ValueError)
+        self.assertEqual(l8, [(2, "A"), (1, "B")])
+
+    @support.cpython_only
+    def test_zip_result_gc(self):
+        # bpo-42536: zip's tuple-reuse speed trick breaks the GC's assumptions
+        # about what can be untracked. Make sure we re-track result tuples
+        # whenever we reuse them.
+        it = zip([[]])
+        gc.collect()
+        # That GC collection probably untracked the recycled internal result
+        # tuple, which is initialized to (None,). Make sure it's re-tracked when
+        # it's mutated and returned from __next__:
+        self.assertTrue(gc.is_tracked(next(it)))
 
     def test_format(self):
         # Test the basic machinery of the format() builtin.  Don't test
@@ -1678,6 +1855,20 @@ class BuiltinTest(unittest.TestCase):
             self.assertIs(tp(), const)
             self.assertRaises(TypeError, tp, 1, 2)
             self.assertRaises(TypeError, tp, a=1, b=2)
+
+    def test_warning_notimplemented(self):
+        # Issue #35712: NotImplemented is a sentinel value that should never
+        # be evaluated in a boolean context (virtually all such use cases
+        # are a result of accidental misuse implementing rich comparison
+        # operations in terms of one another).
+        # For the time being, it will continue to evaluate as a true value, but
+        # issue a deprecation warning (with the eventual intent to make it
+        # a TypeError).
+        self.assertWarns(DeprecationWarning, bool, NotImplemented)
+        with self.assertWarns(DeprecationWarning):
+            self.assertTrue(NotImplemented)
+        with self.assertWarns(DeprecationWarning):
+            self.assertFalse(not NotImplemented)
 
 
 class TestBreakpoint(unittest.TestCase):
@@ -1813,6 +2004,7 @@ class PtyTests(unittest.TestCase):
             os.close(w)
             self.skipTest("pty.fork() raised {}".format(e))
             raise
+
         if pid == 0:
             # Child
             try:
@@ -1826,11 +2018,13 @@ class PtyTests(unittest.TestCase):
             finally:
                 # We don't want to return to unittest...
                 os._exit(0)
+
         # Parent
         os.close(w)
         os.write(fd, terminal_input)
+
         # Get results from the pipe
-        with open(r, "r") as rpipe:
+        with open(r, encoding="utf-8") as rpipe:
             lines = []
             while True:
                 line = rpipe.readline().strip()
@@ -1838,6 +2032,7 @@ class PtyTests(unittest.TestCase):
                     # The other end was closed => the child exited
                     break
                 lines.append(line)
+
         # Check the result was got and corresponds to the user's terminal input
         if len(lines) != 2:
             # Something went wrong, try to get at stderr
@@ -1860,8 +2055,7 @@ class PtyTests(unittest.TestCase):
         # completion, otherwise the child process hangs on AIX.
         os.close(fd)
 
-        # Wait until the child process completes
-        os.waitpid(pid, 0)
+        support.wait_process(pid, exitcode=0)
 
         return lines
 
@@ -1896,12 +2090,24 @@ class PtyTests(unittest.TestCase):
         # is different and invokes GNU readline if available).
         self.check_input_tty("prompt", b"quux")
 
+    def skip_if_readline(self):
+        # bpo-13886: When the readline module is loaded, PyOS_Readline() uses
+        # the readline implementation. In some cases, the Python readline
+        # callback rlhandler() is called by readline with a string without
+        # non-ASCII characters. Skip tests on non-ASCII characters if the
+        # readline module is loaded, since test_builtin is not intented to test
+        # the readline module, but the builtins module.
+        if 'readline' in sys.modules:
+            self.skipTest("the readline module is loaded")
+
     def test_input_tty_non_ascii(self):
-        # Check stdin/stdout encoding is used when invoking GNU readline
+        self.skip_if_readline()
+        # Check stdin/stdout encoding is used when invoking PyOS_Readline()
         self.check_input_tty("prompté", b"quux\xe9", "utf-8")
 
     def test_input_tty_non_ascii_unicode_errors(self):
-        # Check stdin/stdout error handler is used when invoking GNU readline
+        self.skip_if_readline()
+        # Check stdin/stdout error handler is used when invoking PyOS_Readline()
         self.check_input_tty("prompté", b"quux\xe9", "ascii")
 
     def test_input_no_stdout_fileno(self):
@@ -1933,7 +2139,7 @@ class TestSorted(unittest.TestCase):
         self.assertEqual(data, sorted(copy, key=lambda x: -x))
         self.assertNotEqual(data, copy)
         random.shuffle(copy)
-        self.assertEqual(data, sorted(copy, reverse=1))
+        self.assertEqual(data, sorted(copy, reverse=True))
         self.assertNotEqual(data, copy)
 
     def test_bad_arguments(self):

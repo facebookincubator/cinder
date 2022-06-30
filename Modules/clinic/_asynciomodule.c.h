@@ -2,19 +2,6 @@
 preserve
 [clinic start generated code]*/
 
-PyDoc_STRVAR(_asyncio_isfuture__doc__,
-"isfuture($module, obj, /)\n"
-"--\n"
-"\n"
-"Return True if obj is a Future instance.\n"
-"\n"
-"This returns True when obj is a Future instance or is advertising\n"
-"itself as duck-type compatible by setting _asyncio_future_blocking.\n"
-"See comment in Future for more details.");
-
-#define _ASYNCIO_ISFUTURE_METHODDEF    \
-    {"isfuture", (PyCFunction)_asyncio_isfuture, METH_O, _asyncio_isfuture__doc__},
-
 PyDoc_STRVAR(_asyncio_Future___init____doc__,
 "Future(*, loop=None)\n"
 "--\n"
@@ -187,7 +174,7 @@ PyDoc_STRVAR(_asyncio_Future_remove_done_callback__doc__,
     {"remove_done_callback", (PyCFunction)_asyncio_Future_remove_done_callback, METH_O, _asyncio_Future_remove_done_callback__doc__},
 
 PyDoc_STRVAR(_asyncio_Future_cancel__doc__,
-"cancel($self, /)\n"
+"cancel($self, /, msg=None)\n"
 "--\n"
 "\n"
 "Cancel the future and schedule callbacks.\n"
@@ -197,15 +184,34 @@ PyDoc_STRVAR(_asyncio_Future_cancel__doc__,
 "return True.");
 
 #define _ASYNCIO_FUTURE_CANCEL_METHODDEF    \
-    {"cancel", (PyCFunction)_asyncio_Future_cancel, METH_NOARGS, _asyncio_Future_cancel__doc__},
+    {"cancel", (PyCFunction)(void(*)(void))_asyncio_Future_cancel, METH_FASTCALL|METH_KEYWORDS, _asyncio_Future_cancel__doc__},
 
 static PyObject *
-_asyncio_Future_cancel_impl(FutureObj *self);
+_asyncio_Future_cancel_impl(FutureObj *self, PyObject *msg);
 
 static PyObject *
-_asyncio_Future_cancel(FutureObj *self, PyObject *Py_UNUSED(ignored))
+_asyncio_Future_cancel(FutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
-    return _asyncio_Future_cancel_impl(self);
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"msg", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "cancel", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *msg = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    msg = args[0];
+skip_optional_pos:
+    return_value = _asyncio_Future_cancel_impl(self, msg);
+
+exit:
+    return return_value;
 }
 
 PyDoc_STRVAR(_asyncio_Future_cancelled__doc__,
@@ -263,6 +269,27 @@ static PyObject *
 _asyncio_Future_get_loop(FutureObj *self, PyObject *Py_UNUSED(ignored))
 {
     return _asyncio_Future_get_loop_impl(self);
+}
+
+PyDoc_STRVAR(_asyncio_Future__make_cancelled_error__doc__,
+"_make_cancelled_error($self, /)\n"
+"--\n"
+"\n"
+"Create the CancelledError to raise if the Future is cancelled.\n"
+"\n"
+"This should only be called once when handling a cancellation since\n"
+"it erases the context exception value.");
+
+#define _ASYNCIO_FUTURE__MAKE_CANCELLED_ERROR_METHODDEF    \
+    {"_make_cancelled_error", (PyCFunction)_asyncio_Future__make_cancelled_error, METH_NOARGS, _asyncio_Future__make_cancelled_error__doc__},
+
+static PyObject *
+_asyncio_Future__make_cancelled_error_impl(FutureObj *self);
+
+static PyObject *
+_asyncio_Future__make_cancelled_error(FutureObj *self, PyObject *Py_UNUSED(ignored))
+{
+    return _asyncio_Future__make_cancelled_error_impl(self);
 }
 
 PyDoc_STRVAR(_asyncio_Future__repr_info__doc__,
@@ -328,84 +355,25 @@ exit:
     return return_value;
 }
 
-PyDoc_STRVAR(_asyncio_Task_current_task__doc__,
-"current_task($type, /, loop=None)\n"
+PyDoc_STRVAR(_asyncio_Task__make_cancelled_error__doc__,
+"_make_cancelled_error($self, /)\n"
 "--\n"
 "\n"
-"Return the currently running task in an event loop or None.\n"
+"Create the CancelledError to raise if the Task is cancelled.\n"
 "\n"
-"By default the current task for the current event loop is returned.\n"
-"\n"
-"None is returned when called not in the context of a Task.");
+"This should only be called once when handling a cancellation since\n"
+"it erases the context exception value.");
 
-#define _ASYNCIO_TASK_CURRENT_TASK_METHODDEF    \
-    {"current_task", (PyCFunction)(void(*)(void))_asyncio_Task_current_task, METH_FASTCALL|METH_KEYWORDS|METH_CLASS, _asyncio_Task_current_task__doc__},
+#define _ASYNCIO_TASK__MAKE_CANCELLED_ERROR_METHODDEF    \
+    {"_make_cancelled_error", (PyCFunction)_asyncio_Task__make_cancelled_error, METH_NOARGS, _asyncio_Task__make_cancelled_error__doc__},
 
 static PyObject *
-_asyncio_Task_current_task_impl(PyTypeObject *type, PyObject *loop);
+_asyncio_Task__make_cancelled_error_impl(TaskObj *self);
 
 static PyObject *
-_asyncio_Task_current_task(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_asyncio_Task__make_cancelled_error(TaskObj *self, PyObject *Py_UNUSED(ignored))
 {
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"loop", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "current_task", 0};
-    PyObject *argsbuf[1];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
-    PyObject *loop = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    loop = args[0];
-skip_optional_pos:
-    return_value = _asyncio_Task_current_task_impl(type, loop);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio_Task_all_tasks__doc__,
-"all_tasks($type, /, loop=None)\n"
-"--\n"
-"\n"
-"Return a set of all tasks for an event loop.\n"
-"\n"
-"By default all tasks for the current event loop are returned.");
-
-#define _ASYNCIO_TASK_ALL_TASKS_METHODDEF    \
-    {"all_tasks", (PyCFunction)(void(*)(void))_asyncio_Task_all_tasks, METH_FASTCALL|METH_KEYWORDS|METH_CLASS, _asyncio_Task_all_tasks__doc__},
-
-static PyObject *
-_asyncio_Task_all_tasks_impl(PyTypeObject *type, PyObject *loop);
-
-static PyObject *
-_asyncio_Task_all_tasks(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"loop", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "all_tasks", 0};
-    PyObject *argsbuf[1];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
-    PyObject *loop = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    loop = args[0];
-skip_optional_pos:
-    return_value = _asyncio_Task_all_tasks_impl(type, loop);
-
-exit:
-    return return_value;
+    return _asyncio_Task__make_cancelled_error_impl(self);
 }
 
 PyDoc_STRVAR(_asyncio_Task__repr_info__doc__,
@@ -426,7 +394,7 @@ _asyncio_Task__repr_info(TaskObj *self, PyObject *Py_UNUSED(ignored))
 }
 
 PyDoc_STRVAR(_asyncio_Task_cancel__doc__,
-"cancel($self, /)\n"
+"cancel($self, /, msg=None)\n"
 "--\n"
 "\n"
 "Request that this task cancel itself.\n"
@@ -449,15 +417,34 @@ PyDoc_STRVAR(_asyncio_Task_cancel__doc__,
 "was not called).");
 
 #define _ASYNCIO_TASK_CANCEL_METHODDEF    \
-    {"cancel", (PyCFunction)_asyncio_Task_cancel, METH_NOARGS, _asyncio_Task_cancel__doc__},
+    {"cancel", (PyCFunction)(void(*)(void))_asyncio_Task_cancel, METH_FASTCALL|METH_KEYWORDS, _asyncio_Task_cancel__doc__},
 
 static PyObject *
-_asyncio_Task_cancel_impl(TaskObj *self);
+_asyncio_Task_cancel_impl(TaskObj *self, PyObject *msg);
 
 static PyObject *
-_asyncio_Task_cancel(TaskObj *self, PyObject *Py_UNUSED(ignored))
+_asyncio_Task_cancel(TaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
-    return _asyncio_Task_cancel_impl(self);
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"msg", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "cancel", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *msg = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    msg = args[0];
+skip_optional_pos:
+    return_value = _asyncio_Task_cancel_impl(self, msg);
+
+exit:
+    return return_value;
 }
 
 PyDoc_STRVAR(_asyncio_Task_get_stack__doc__,
@@ -582,42 +569,6 @@ PyDoc_STRVAR(_asyncio_Task_set_exception__doc__,
 #define _ASYNCIO_TASK_SET_EXCEPTION_METHODDEF    \
     {"set_exception", (PyCFunction)_asyncio_Task_set_exception, METH_O, _asyncio_Task_set_exception__doc__},
 
-PyDoc_STRVAR(_asyncio_Task__step__doc__,
-"_step($self, /, exc=None)\n"
-"--\n"
-"\n");
-
-#define _ASYNCIO_TASK__STEP_METHODDEF    \
-    {"_step", (PyCFunction)(void(*)(void))_asyncio_Task__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_Task__step__doc__},
-
-static PyObject *
-_asyncio_Task__step_impl(TaskObj *self, PyObject *exc);
-
-static PyObject *
-_asyncio_Task__step(TaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"exc", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "_step", 0};
-    PyObject *argsbuf[1];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
-    PyObject *exc = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    exc = args[0];
-skip_optional_pos:
-    return_value = _asyncio_Task__step_impl(self, exc);
-
-exit:
-    return return_value;
-}
-
 PyDoc_STRVAR(_asyncio_Task_get_coro__doc__,
 "get_coro($self, /)\n"
 "--\n"
@@ -659,253 +610,6 @@ PyDoc_STRVAR(_asyncio_Task_set_name__doc__,
 
 #define _ASYNCIO_TASK_SET_NAME_METHODDEF    \
     {"set_name", (PyCFunction)_asyncio_Task_set_name, METH_O, _asyncio_Task_set_name__doc__},
-
-PyDoc_STRVAR(_asyncio_ContextAwareTask___init____doc__,
-"ContextAwareTask(coro, *, loop=None, name=None)\n"
-"--\n"
-"\n"
-"Extension for _asyncio.Task that tracks external context.");
-
-static int
-_asyncio_ContextAwareTask___init___impl(ContextAwareTaskObj *self,
-                                        PyObject *coro, PyObject *loop,
-                                        PyObject *name);
-
-static int
-_asyncio_ContextAwareTask___init__(PyObject *self, PyObject *args, PyObject *kwargs)
-{
-    int return_value = -1;
-    static const char * const _keywords[] = {"coro", "loop", "name", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "ContextAwareTask", 0};
-    PyObject *argsbuf[3];
-    PyObject * const *fastargs;
-    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
-    Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
-    PyObject *coro;
-    PyObject *loop = Py_None;
-    PyObject *name = Py_None;
-
-    fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 1, 0, argsbuf);
-    if (!fastargs) {
-        goto exit;
-    }
-    coro = fastargs[0];
-    if (!noptargs) {
-        goto skip_optional_kwonly;
-    }
-    if (fastargs[1]) {
-        loop = fastargs[1];
-        if (!--noptargs) {
-            goto skip_optional_kwonly;
-        }
-    }
-    name = fastargs[2];
-skip_optional_kwonly:
-    return_value = _asyncio_ContextAwareTask___init___impl((ContextAwareTaskObj *)self, coro, loop, name);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio_ContextAwareTask_add_done_callback__doc__,
-"add_done_callback($self, fn, /, *, context=<unrepresentable>)\n"
-"--\n"
-"\n"
-"Add a callback to be run when the future becomes done.");
-
-#define _ASYNCIO_CONTEXTAWARETASK_ADD_DONE_CALLBACK_METHODDEF    \
-    {"add_done_callback", (PyCFunction)(void(*)(void))_asyncio_ContextAwareTask_add_done_callback, METH_FASTCALL|METH_KEYWORDS, _asyncio_ContextAwareTask_add_done_callback__doc__},
-
-static PyObject *
-_asyncio_ContextAwareTask_add_done_callback_impl(ContextAwareTaskObj *self,
-                                                 PyObject *fn,
-                                                 PyObject *context);
-
-static PyObject *
-_asyncio_ContextAwareTask_add_done_callback(ContextAwareTaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"", "context", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "add_done_callback", 0};
-    PyObject *argsbuf[2];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
-    PyObject *fn;
-    PyObject *context = NULL;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    fn = args[0];
-    if (!noptargs) {
-        goto skip_optional_kwonly;
-    }
-    context = args[1];
-skip_optional_kwonly:
-    return_value = _asyncio_ContextAwareTask_add_done_callback_impl(self, fn, context);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio_ContextAwareTask__step__doc__,
-"_step($self, /, exc=None)\n"
-"--\n"
-"\n");
-
-#define _ASYNCIO_CONTEXTAWARETASK__STEP_METHODDEF    \
-    {"_step", (PyCFunction)(void(*)(void))_asyncio_ContextAwareTask__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_ContextAwareTask__step__doc__},
-
-static PyObject *
-_asyncio_ContextAwareTask__step_impl(ContextAwareTaskObj *self,
-                                     PyObject *exc);
-
-static PyObject *
-_asyncio_ContextAwareTask__step(ContextAwareTaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"exc", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "_step", 0};
-    PyObject *argsbuf[1];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
-    PyObject *exc = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    exc = args[0];
-skip_optional_pos:
-    return_value = _asyncio_ContextAwareTask__step_impl(self, exc);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio_AsyncLazyValueCompute_throw__doc__,
-"throw($self, type, val=<unrepresentable>, tb=<unrepresentable>, /)\n"
-"--\n"
-"\n");
-
-#define _ASYNCIO_ASYNCLAZYVALUECOMPUTE_THROW_METHODDEF    \
-    {"throw", (PyCFunction)(void(*)(void))_asyncio_AsyncLazyValueCompute_throw, METH_FASTCALL, _asyncio_AsyncLazyValueCompute_throw__doc__},
-
-static PyObject *
-_asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
-                                          PyObject *type, PyObject *val,
-                                          PyObject *tb);
-
-static PyObject *
-_asyncio_AsyncLazyValueCompute_throw(AsyncLazyValueComputeObj *self, PyObject *const *args, Py_ssize_t nargs)
-{
-    PyObject *return_value = NULL;
-    PyObject *type;
-    PyObject *val = NULL;
-    PyObject *tb = NULL;
-
-    if (!_PyArg_CheckPositional("throw", nargs, 1, 3)) {
-        goto exit;
-    }
-    type = args[0];
-    if (nargs < 2) {
-        goto skip_optional;
-    }
-    val = args[1];
-    if (nargs < 3) {
-        goto skip_optional;
-    }
-    tb = args[2];
-skip_optional:
-    return_value = _asyncio_AsyncLazyValueCompute_throw_impl(self, type, val, tb);
-
-exit:
-    return return_value;
-}
-
-static int
-_asyncio_AwaitableValue___init___impl(AwaitableValueObj *self,
-                                      PyObject *value);
-
-static int
-_asyncio_AwaitableValue___init__(PyObject *self, PyObject *args, PyObject *kwargs)
-{
-    int return_value = -1;
-    PyObject *value;
-
-    if ((Py_TYPE(self) == (PyTypeObject *)&AwaitableValue_Type) &&
-        !_PyArg_NoKeywords("AwaitableValue", kwargs)) {
-        goto exit;
-    }
-    if (!_PyArg_CheckPositional("AwaitableValue", PyTuple_GET_SIZE(args), 1, 1)) {
-        goto exit;
-    }
-    value = PyTuple_GET_ITEM(args, 0);
-    return_value = _asyncio_AwaitableValue___init___impl((AwaitableValueObj *)self, value);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio_ensure_future__doc__,
-"ensure_future($module, /, coro_or_future, loop=None)\n"
-"--\n"
-"\n"
-"Converts coro_or_future argument to a future");
-
-#define _ASYNCIO_ENSURE_FUTURE_METHODDEF    \
-    {"ensure_future", (PyCFunction)(void(*)(void))_asyncio_ensure_future, METH_FASTCALL|METH_KEYWORDS, _asyncio_ensure_future__doc__},
-
-static PyObject *
-_asyncio_ensure_future_impl(PyObject *module, PyObject *coro_or_future,
-                            PyObject *loop);
-
-static PyObject *
-_asyncio_ensure_future(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"coro_or_future", "loop", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "ensure_future", 0};
-    PyObject *argsbuf[2];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
-    PyObject *coro_or_future;
-    PyObject *loop = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 2, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    coro_or_future = args[0];
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    loop = args[1];
-skip_optional_pos:
-    return_value = _asyncio_ensure_future_impl(module, coro_or_future, loop);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__GatheringFuture_cancel__doc__,
-"cancel($self, /)\n"
-"--\n"
-"\n"
-"Cancel the future and schedule callbacks.");
-
-#define _ASYNCIO__GATHERINGFUTURE_CANCEL_METHODDEF    \
-    {"cancel", (PyCFunction)_asyncio__GatheringFuture_cancel, METH_NOARGS, _asyncio__GatheringFuture_cancel__doc__},
-
-static PyObject *
-_asyncio__GatheringFuture_cancel_impl(_GatheringFutureObj *self);
-
-static PyObject *
-_asyncio__GatheringFuture_cancel(_GatheringFutureObj *self, PyObject *Py_UNUSED(ignored))
-{
-    return _asyncio__GatheringFuture_cancel_impl(self);
-}
 
 PyDoc_STRVAR(_asyncio__get_running_loop__doc__,
 "_get_running_loop($module, /)\n"
@@ -963,6 +667,45 @@ static PyObject *
 _asyncio_get_event_loop(PyObject *module, PyObject *Py_UNUSED(ignored))
 {
     return _asyncio_get_event_loop_impl(module);
+}
+
+PyDoc_STRVAR(_asyncio__get_event_loop__doc__,
+"_get_event_loop($module, /, stacklevel=3)\n"
+"--\n"
+"\n");
+
+#define _ASYNCIO__GET_EVENT_LOOP_METHODDEF    \
+    {"_get_event_loop", (PyCFunction)(void(*)(void))_asyncio__get_event_loop, METH_FASTCALL|METH_KEYWORDS, _asyncio__get_event_loop__doc__},
+
+static PyObject *
+_asyncio__get_event_loop_impl(PyObject *module, int stacklevel);
+
+static PyObject *
+_asyncio__get_event_loop(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"stacklevel", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_get_event_loop", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    int stacklevel = 3;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    stacklevel = _PyLong_AsInt(args[0]);
+    if (stacklevel == -1 && PyErr_Occurred()) {
+        goto exit;
+    }
+skip_optional_pos:
+    return_value = _asyncio__get_event_loop_impl(module, stacklevel);
+
+exit:
+    return return_value;
 }
 
 PyDoc_STRVAR(_asyncio_get_running_loop__doc__,
@@ -1128,285 +871,4 @@ _asyncio__leave_task(PyObject *module, PyObject *const *args, Py_ssize_t nargs, 
 exit:
     return return_value;
 }
-
-PyDoc_STRVAR(_asyncio_all_tasks__doc__,
-"all_tasks($module, /, loop=None)\n"
-"--\n"
-"\n"
-"Return a set of all tasks for the loop.");
-
-#define _ASYNCIO_ALL_TASKS_METHODDEF    \
-    {"all_tasks", (PyCFunction)(void(*)(void))_asyncio_all_tasks, METH_FASTCALL|METH_KEYWORDS, _asyncio_all_tasks__doc__},
-
-static PyObject *
-_asyncio_all_tasks_impl(PyObject *module, PyObject *loop);
-
-static PyObject *
-_asyncio_all_tasks(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"loop", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "all_tasks", 0};
-    PyObject *argsbuf[1];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
-    PyObject *loop = Py_None;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    if (!noptargs) {
-        goto skip_optional_pos;
-    }
-    loop = args[0];
-skip_optional_pos:
-    return_value = _asyncio_all_tasks_impl(module, loop);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__is_coro_suspended__doc__,
-"_is_coro_suspended($module, coro, /)\n"
-"--\n"
-"\n"
-"Returns true if coroutine being passed is in suspended state");
-
-#define _ASYNCIO__IS_CORO_SUSPENDED_METHODDEF    \
-    {"_is_coro_suspended", (PyCFunction)_asyncio__is_coro_suspended, METH_O, _asyncio__is_coro_suspended__doc__},
-
-PyDoc_STRVAR(_asyncio__register_known_coroutine_type__doc__,
-"_register_known_coroutine_type($module, coro_type, /)\n"
-"--\n"
-"\n"
-"Records type as known coroutine type");
-
-#define _ASYNCIO__REGISTER_KNOWN_COROUTINE_TYPE_METHODDEF    \
-    {"_register_known_coroutine_type", (PyCFunction)_asyncio__register_known_coroutine_type, METH_O, _asyncio__register_known_coroutine_type__doc__},
-
-PyDoc_STRVAR(_asyncio__set_context_helpers__doc__,
-"_set_context_helpers($module, get_current_context_obj,\n"
-"                     reset_context_obj, /)\n"
-"--\n"
-"\n"
-"Internal function used to supply custom context management hooks.\n"
-"\n"
-"Hooks are provided as function pointers wrapped in PyCapsule objects");
-
-#define _ASYNCIO__SET_CONTEXT_HELPERS_METHODDEF    \
-    {"_set_context_helpers", (PyCFunction)(void(*)(void))_asyncio__set_context_helpers, METH_FASTCALL, _asyncio__set_context_helpers__doc__},
-
-static PyObject *
-_asyncio__set_context_helpers_impl(PyObject *module,
-                                   PyObject *get_current_context_obj,
-                                   PyObject *reset_context_obj);
-
-static PyObject *
-_asyncio__set_context_helpers(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
-{
-    PyObject *return_value = NULL;
-    PyObject *get_current_context_obj;
-    PyObject *reset_context_obj;
-
-    if (!_PyArg_CheckPositional("_set_context_helpers", nargs, 2, 2)) {
-        goto exit;
-    }
-    get_current_context_obj = args[0];
-    reset_context_obj = args[1];
-    return_value = _asyncio__set_context_helpers_impl(module, get_current_context_obj, reset_context_obj);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__reset_context_helpers__doc__,
-"_reset_context_helpers($module, /)\n"
-"--\n"
-"\n"
-"Internal function used to reset custom context management hooks to default values.");
-
-#define _ASYNCIO__RESET_CONTEXT_HELPERS_METHODDEF    \
-    {"_reset_context_helpers", (PyCFunction)_asyncio__reset_context_helpers, METH_NOARGS, _asyncio__reset_context_helpers__doc__},
-
-static PyObject *
-_asyncio__reset_context_helpers_impl(PyObject *module);
-
-static PyObject *
-_asyncio__reset_context_helpers(PyObject *module, PyObject *Py_UNUSED(ignored))
-{
-    return _asyncio__reset_context_helpers_impl(module);
-}
-
-PyDoc_STRVAR(_asyncio__start_immediate__doc__,
-"_start_immediate($module, coro, loop=None, /)\n"
-"--\n"
-"\n"
-"Executes provided coroutine eagerly.\n"
-"\n"
-"If coroutine is completed - returns AwaitableValue that contain the result.\n"
-"If coroutine is not completed - returns a task that wraps the coroutine");
-
-#define _ASYNCIO__START_IMMEDIATE_METHODDEF    \
-    {"_start_immediate", (PyCFunction)(void(*)(void))_asyncio__start_immediate, METH_FASTCALL, _asyncio__start_immediate__doc__},
-
-static PyObject *
-_asyncio__start_immediate_impl(PyObject *module, PyObject *coro,
-                               PyObject *loop);
-
-static PyObject *
-_asyncio__start_immediate(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
-{
-    PyObject *return_value = NULL;
-    PyObject *coro;
-    PyObject *loop = Py_None;
-
-    if (!_PyArg_CheckPositional("_start_immediate", nargs, 1, 2)) {
-        goto exit;
-    }
-    coro = args[0];
-    if (nargs < 2) {
-        goto skip_optional;
-    }
-    loop = args[1];
-skip_optional:
-    return_value = _asyncio__start_immediate_impl(module, coro, loop);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__AwaitingFuture___init____doc__,
-"_AwaitingFuture(awaited, *, loop=None)\n"
-"--\n"
-"\n"
-"A subclass of Future that completes when awaited completes.\n"
-"\n"
-"An _AwaitingFuture is primarily useful if you want to wait for another future\n"
-"to complete but be able to reliably cancel the wait. An _AwaitingFuture\n"
-"completes either with a None result when awaited completes or with a\n"
-"CancelledError if it is cancelled.  It does not support set_result or\n"
-"set_exception. It propagates its awaiter onto awaited when it is awaited.");
-
-static int
-_asyncio__AwaitingFuture___init___impl(_AwaitingFutureObj *self,
-                                       PyObject *awaited, PyObject *loop);
-
-static int
-_asyncio__AwaitingFuture___init__(PyObject *self, PyObject *args, PyObject *kwargs)
-{
-    int return_value = -1;
-    static const char * const _keywords[] = {"awaited", "loop", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "_AwaitingFuture", 0};
-    PyObject *argsbuf[2];
-    PyObject * const *fastargs;
-    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
-    Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
-    PyObject *awaited;
-    PyObject *loop = Py_None;
-
-    fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 1, 0, argsbuf);
-    if (!fastargs) {
-        goto exit;
-    }
-    awaited = fastargs[0];
-    if (!noptargs) {
-        goto skip_optional_kwonly;
-    }
-    loop = fastargs[1];
-skip_optional_kwonly:
-    return_value = _asyncio__AwaitingFuture___init___impl((_AwaitingFutureObj *)self, awaited, loop);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__AwaitingFuture_cancel__doc__,
-"cancel($self, /)\n"
-"--\n"
-"\n"
-"Cancel the future and schedule callbacks.\n"
-"\n"
-"If the future is already done or cancelled, return False.  Otherwise,\n"
-"change the future\'s state to cancelled, schedule the callbacks and\n"
-"return True.\n"
-"\n"
-"This does not propagate cancellation onto the future that we\'re waiting on.");
-
-#define _ASYNCIO__AWAITINGFUTURE_CANCEL_METHODDEF    \
-    {"cancel", (PyCFunction)_asyncio__AwaitingFuture_cancel, METH_NOARGS, _asyncio__AwaitingFuture_cancel__doc__},
-
-static PyObject *
-_asyncio__AwaitingFuture_cancel_impl(_AwaitingFutureObj *self);
-
-static PyObject *
-_asyncio__AwaitingFuture_cancel(_AwaitingFutureObj *self, PyObject *Py_UNUSED(ignored))
-{
-    return _asyncio__AwaitingFuture_cancel_impl(self);
-}
-
-PyDoc_STRVAR(_asyncio__AwaitingFuture_set_result__doc__,
-"set_result($self, /, result)\n"
-"--\n"
-"\n"
-"Unsupported by _AwaitingFuture.");
-
-#define _ASYNCIO__AWAITINGFUTURE_SET_RESULT_METHODDEF    \
-    {"set_result", (PyCFunction)(void(*)(void))_asyncio__AwaitingFuture_set_result, METH_FASTCALL|METH_KEYWORDS, _asyncio__AwaitingFuture_set_result__doc__},
-
-static PyObject *
-_asyncio__AwaitingFuture_set_result_impl(_AwaitingFutureObj *self,
-                                         PyObject *result);
-
-static PyObject *
-_asyncio__AwaitingFuture_set_result(_AwaitingFutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"result", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "set_result", 0};
-    PyObject *argsbuf[1];
-    PyObject *result;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    result = args[0];
-    return_value = _asyncio__AwaitingFuture_set_result_impl(self, result);
-
-exit:
-    return return_value;
-}
-
-PyDoc_STRVAR(_asyncio__AwaitingFuture_set_exception__doc__,
-"set_exception($self, /, exception)\n"
-"--\n"
-"\n"
-"Unsupported by _AwaitingFuture.");
-
-#define _ASYNCIO__AWAITINGFUTURE_SET_EXCEPTION_METHODDEF    \
-    {"set_exception", (PyCFunction)(void(*)(void))_asyncio__AwaitingFuture_set_exception, METH_FASTCALL|METH_KEYWORDS, _asyncio__AwaitingFuture_set_exception__doc__},
-
-static PyObject *
-_asyncio__AwaitingFuture_set_exception_impl(_AwaitingFutureObj *self,
-                                            PyObject *exception);
-
-static PyObject *
-_asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"exception", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "set_exception", 0};
-    PyObject *argsbuf[1];
-    PyObject *exception;
-
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
-    if (!args) {
-        goto exit;
-    }
-    exception = args[0];
-    return_value = _asyncio__AwaitingFuture_set_exception_impl(self, exception);
-
-exit:
-    return return_value;
-}
-/*[clinic end generated code: output=b49fddf1bc7c5445 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=0d127162ac92e0c0 input=a9049054013a1b77]*/

@@ -36,7 +36,7 @@ your :ref:`Python installation <using-on-windows>`::
 The command, if run with ``-h``, will show the available options::
 
     usage: venv [-h] [--system-site-packages] [--symlinks | --copies] [--clear]
-                [--upgrade] [--without-pip] [--prompt PROMPT]
+                [--upgrade] [--without-pip] [--prompt PROMPT] [--upgrade-deps]
                 ENV_DIR [ENV_DIR ...]
 
     Creates virtual Python environments in one or more target directories.
@@ -61,9 +61,14 @@ The command, if run with ``-h``, will show the available options::
                             environment (pip is bootstrapped by default)
       --prompt PROMPT       Provides an alternative prompt prefix for this
                             environment.
+      --upgrade-deps        Upgrade core dependencies: pip setuptools to the
+                            latest version in PyPI
 
     Once an environment has been created, you may wish to activate it, e.g. by
     sourcing an activate script in its bin directory.
+
+.. versionchanged:: 3.9
+   Add ``--upgrade-deps`` option to upgrade pip + setuptools to the latest on PyPI
 
 .. versionchanged:: 3.4
    Installs pip by default, added the ``--without-pip``  and ``--copies``
@@ -110,7 +115,7 @@ directory containing the virtual environment):
 +=============+=================+=========================================+
 | POSIX       | bash/zsh        | $ source <venv>/bin/activate            |
 +-------------+-----------------+-----------------------------------------+
-|             | fish            | $ . <venv>/bin/activate.fish            |
+|             | fish            | $ source <venv>/bin/activate.fish       |
 +-------------+-----------------+-----------------------------------------+
 |             | csh/tcsh        | $ source <venv>/bin/activate.csh        |
 +-------------+-----------------+-----------------------------------------+
@@ -120,6 +125,10 @@ directory containing the virtual environment):
 +-------------+-----------------+-----------------------------------------+
 |             | PowerShell      | PS C:\\> <venv>\\Scripts\\Activate.ps1  |
 +-------------+-----------------+-----------------------------------------+
+
+When a virtual environment is active, the :envvar:`VIRTUAL_ENV` environment
+variable is set to the path of the virtual environment. This can be used to
+check if one is running inside a virtual environment.
 
 You don't specifically *need* to activate an environment; activation just
 prepends the virtual environment's binary directory to your path, so that

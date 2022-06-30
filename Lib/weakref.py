@@ -2,7 +2,7 @@
 
 This module is an implementation of PEP 205:
 
-http://www.python.org/dev/peps/pep-0205/
+https://www.python.org/dev/peps/pep-0205/
 """
 
 # Naming convention: Variables named "wr" are weak reference objects;
@@ -32,6 +32,9 @@ __all__ = ["ref", "proxy", "getweakrefcount", "getweakrefs",
            "CallableProxyType", "ProxyTypes", "WeakValueDictionary",
            "WeakSet", "WeakMethod", "finalize"]
 
+
+_collections_abc.Set.register(WeakSet)
+_collections_abc.MutableSet.register(WeakSet)
 
 class WeakMethod(ref):
     """
@@ -75,14 +78,14 @@ class WeakMethod(ref):
             if not self._alive or not other._alive:
                 return self is other
             return ref.__eq__(self, other) and self._func_ref == other._func_ref
-        return False
+        return NotImplemented
 
     def __ne__(self, other):
         if isinstance(other, WeakMethod):
             if not self._alive or not other._alive:
                 return self is not other
             return ref.__ne__(self, other) or self._func_ref != other._func_ref
-        return True
+        return NotImplemented
 
     __hash__ = ref.__hash__
 
@@ -116,14 +119,17 @@ class WeakValueDictionary(_collections_abc.MutableMapping):
         self.data = {}
         self.update(other, **kw)
 
-    def _commit_removals(self):
-        l = self._pending_removals
+    def _commit_removals(self, _atomic_removal=_remove_dead_weakref):
+        pop = self._pending_removals.pop
         d = self.data
         # We shouldn't encounter any KeyError, because this method should
         # always be called *before* mutating the dict.
-        while l:
-            key = l.pop()
-            _remove_dead_weakref(d, key)
+        while True:
+            try:
+                key = pop()
+            except IndexError:
+                return
+            _atomic_removal(d, key)
 
     def __getitem__(self, key):
         if self._pending_removals:
@@ -307,6 +313,25 @@ class WeakValueDictionary(_collections_abc.MutableMapping):
             self._commit_removals()
         return list(self.data.values())
 
+    def __ior__(self, other):
+        self.update(other)
+        return self
+
+    def __or__(self, other):
+        if isinstance(other, _collections_abc.Mapping):
+            c = self.copy()
+            c.update(other)
+            return c
+        return NotImplemented
+
+    def __ror__(self, other):
+        if isinstance(other, _collections_abc.Mapping):
+            c = self.__class__()
+            c.update(other)
+            c.update(self)
+            return c
+        return NotImplemented
+
 
 class KeyedRef(ref):
     """Specialized reference that includes a key corresponding to the value.
@@ -348,7 +373,10 @@ class WeakKeyDictionary(_collections_abc.MutableMapping):
                 if self._iterating:
                     self._pending_removals.append(k)
                 else:
-                    del self.data[k]
+                    try:
+                        del self.data[k]
+                    except KeyError:
+                        pass
         self._remove = remove
         # A list of dead weakrefs (keys to be removed)
         self._pending_removals = []
@@ -362,11 +390,16 @@ class WeakKeyDictionary(_collections_abc.MutableMapping):
         # because a dead weakref never compares equal to a live weakref,
         # even if they happened to refer to equal objects.
         # However, it means keys may already have been removed.
-        l = self._pending_removals
+        pop = self._pending_removals.pop
         d = self.data
-        while l:
+        while True:
             try:
-                del d[l.pop()]
+                key = pop()
+            except IndexError:
+                return
+
+            try:
+                del d[key]
             except KeyError:
                 pass
 
@@ -485,6 +518,25 @@ class WeakKeyDictionary(_collections_abc.MutableMapping):
         if len(kwargs):
             self.update(kwargs)
 
+    def __ior__(self, other):
+        self.update(other)
+        return self
+
+    def __or__(self, other):
+        if isinstance(other, _collections_abc.Mapping):
+            c = self.copy()
+            c.update(other)
+            return c
+        return NotImplemented
+
+    def __ror__(self, other):
+        if isinstance(other, _collections_abc.Mapping):
+            c = self.__class__()
+            c.update(other)
+            c.update(self)
+            return c
+        return NotImplemented
+
 
 class finalize:
     """Class for finalization of weakrefable objects
@@ -514,33 +566,7 @@ class finalize:
     class _Info:
         __slots__ = ("weakref", "func", "args", "kwargs", "atexit", "index")
 
-    def __init__(*args, **kwargs):
-        if len(args) >= 3:
-            self, obj, func, *args = args
-        elif not args:
-            raise TypeError("descriptor '__init__' of 'finalize' object "
-                            "needs an argument")
-        else:
-            if 'func' not in kwargs:
-                raise TypeError('finalize expected at least 2 positional '
-                                'arguments, got %d' % (len(args)-1))
-            func = kwargs.pop('func')
-            if len(args) >= 2:
-                self, obj, *args = args
-                import warnings
-                warnings.warn("Passing 'func' as keyword argument is deprecated",
-                              DeprecationWarning, stacklevel=2)
-            else:
-                if 'obj' not in kwargs:
-                    raise TypeError('finalize expected at least 2 positional '
-                                    'arguments, got %d' % (len(args)-1))
-                obj = kwargs.pop('obj')
-                self, *args = args
-                import warnings
-                warnings.warn("Passing 'obj' as keyword argument is deprecated",
-                              DeprecationWarning, stacklevel=2)
-        args = tuple(args)
-
+    def __init__(self, obj, func, /, *args, **kwargs):
         if not self._registered_with_atexit:
             # We may register the exit function more than once because
             # of a thread race, but that is harmless
@@ -556,7 +582,6 @@ class finalize:
         info.index = next(self._index_iter)
         self._registry[self] = info
         finalize._dirty = True
-    __init__.__text_signature__ = '($self, obj, func, /, *args, **kwargs)'
 
     def __call__(self, _=None):
         """If alive then mark as dead and return func(*args, **kwargs);

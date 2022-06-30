@@ -98,7 +98,7 @@ creation according to their needs, the :class:`EnvBuilder` class.
 
 .. class:: EnvBuilder(system_site_packages=False, clear=False, \
                       symlinks=False, upgrade=False, with_pip=False, \
-                      prompt=None)
+                      prompt=None, upgrade_deps=False)
 
     The :class:`EnvBuilder` class accepts the following keyword arguments on
     instantiation:
@@ -122,13 +122,19 @@ creation according to their needs, the :class:`EnvBuilder` class.
 
     * ``prompt`` -- a String to be used after virtual environment is activated
       (defaults to ``None`` which means directory name of the environment would
-      be used).
+      be used). If the special string ``"."`` is provided, the basename of the
+      current directory is used as the prompt.
+
+    * ``upgrade_deps`` -- Update the base venv modules to the latest on PyPI
 
     .. versionchanged:: 3.4
        Added the ``with_pip`` parameter
 
     .. versionadded:: 3.6
        Added the ``prompt`` parameter
+
+    .. versionadded:: 3.9
+       Added the ``upgrade_deps`` parameter
 
     Creators of third-party virtual environment tools will be free to use the
     provided :class:`EnvBuilder` class as a base class.
@@ -186,6 +192,14 @@ creation according to their needs, the :class:`EnvBuilder` class.
         Installs activation scripts appropriate to the platform into the virtual
         environment.
 
+    .. method:: upgrade_dependencies(context)
+
+       Upgrades the core venv dependency packages (currently ``pip`` and
+       ``setuptools``) in the environment. This is done by shelling out to the
+       ``pip`` executable in the environment.
+
+       .. versionadded:: 3.9
+
     .. method:: post_setup(context)
 
         A placeholder method which can be overridden in third party
@@ -235,7 +249,8 @@ creation according to their needs, the :class:`EnvBuilder` class.
 There is also a module-level convenience function:
 
 .. function:: create(env_dir, system_site_packages=False, clear=False, \
-                     symlinks=False, with_pip=False, prompt=None)
+                     symlinks=False, with_pip=False, prompt=None, \
+                     upgrade_deps=False)
 
     Create an :class:`EnvBuilder` with the given keyword arguments, and call its
     :meth:`~EnvBuilder.create` method with the *env_dir* argument.
@@ -247,6 +262,9 @@ There is also a module-level convenience function:
 
     .. versionchanged:: 3.6
        Added the ``prompt`` parameter
+
+    .. versionchanged:: 3.9
+       Added the ``upgrade_deps`` parameter
 
 An example of extending ``EnvBuilder``
 --------------------------------------
@@ -386,7 +404,7 @@ subclass which installs setuptools and pip into a created virtual environment::
             :param context: The information for the virtual environment
                             creation request being processed.
             """
-            url = 'https://raw.github.com/pypa/pip/master/contrib/get-pip.py'
+            url = 'https://bootstrap.pypa.io/get-pip.py'
             self.install_script(context, 'pip', url)
 
     def main(args=None):
@@ -407,7 +425,7 @@ subclass which installs setuptools and pip into a created virtual environment::
                                                          'more target '
                                                          'directories.')
             parser.add_argument('dirs', metavar='ENV_DIR', nargs='+',
-                                help='A directory in which to create the
+                                help='A directory in which to create the '
                                      'virtual environment.')
             parser.add_argument('--no-setuptools', default=False,
                                 action='store_true', dest='nodist',

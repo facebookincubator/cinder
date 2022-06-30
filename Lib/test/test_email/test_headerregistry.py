@@ -7,6 +7,7 @@ from email.message import Message
 from test.test_email import TestEmailBase, parameterize
 from email import headerregistry
 from email.headerregistry import Address, Group
+from test.support import ALWAYS_EQ
 
 
 DITTO = object()
@@ -202,6 +203,22 @@ class TestDateHeader(TestHeaderBase):
         h = self.make_header('date', '')
         self.assertEqual(len(h.defects), 1)
         self.assertIsInstance(h.defects[0], errors.HeaderMissingRequiredValue)
+
+    def test_invalid_date_format(self):
+        s = 'Not a date header'
+        h = self.make_header('date', s)
+        self.assertEqual(h, s)
+        self.assertIsNone(h.datetime)
+        self.assertEqual(len(h.defects), 1)
+        self.assertIsInstance(h.defects[0], errors.InvalidDateDefect)
+
+    def test_invalid_date_value(self):
+        s = 'Tue, 06 Jun 2017 27:39:33 +0600'
+        h = self.make_header('date', s)
+        self.assertEqual(h, s)
+        self.assertIsNone(h.datetime)
+        self.assertEqual(len(h.defects), 1)
+        self.assertIsInstance(h.defects[0], errors.InvalidDateDefect)
 
     def test_datetime_read_only(self):
         h = self.make_header('date', self.datestring)
@@ -695,6 +712,18 @@ class TestContentTypeHeader(TestHeaderBase):
             # reproduces the original, which is arguably fine.
             "Content-Type: text/plain;"
             " charset*=unknown-8bit''utf-8%E2%80%9D\n",
+            ),
+
+        'rfc2231_nonascii_in_charset_of_charset_parameter_value': (
+            "text/plain; charset*=utf-8”''utf-8%E2%80%9D",
+            'text/plain',
+            'text',
+            'plain',
+            {'charset': 'utf-8”'},
+            [],
+            'text/plain; charset="utf-8”"',
+            "Content-Type: text/plain;"
+            " charset*=utf-8''utf-8%E2%80%9D\n",
             ),
 
         'rfc2231_encoded_then_unencoded_segments': (
@@ -1562,6 +1591,24 @@ class TestAddressAndGroup(TestEmailBase):
         m['To'] = g
         self.assertEqual(m['to'], 'foo bar:;')
         self.assertEqual(m['to'].addresses, g.addresses)
+
+    def test_address_comparison(self):
+        a = Address('foo', 'bar', 'example.com')
+        self.assertEqual(Address('foo', 'bar', 'example.com'), a)
+        self.assertNotEqual(Address('baz', 'bar', 'example.com'), a)
+        self.assertNotEqual(Address('foo', 'baz', 'example.com'), a)
+        self.assertNotEqual(Address('foo', 'bar', 'baz'), a)
+        self.assertFalse(a == object())
+        self.assertTrue(a == ALWAYS_EQ)
+
+    def test_group_comparison(self):
+        a = Address('foo', 'bar', 'example.com')
+        g = Group('foo bar', [a])
+        self.assertEqual(Group('foo bar', (a,)), g)
+        self.assertNotEqual(Group('baz', [a]), g)
+        self.assertNotEqual(Group('foo bar', []), g)
+        self.assertFalse(g == object())
+        self.assertTrue(g == ALWAYS_EQ)
 
 
 class TestFolding(TestHeaderBase):
