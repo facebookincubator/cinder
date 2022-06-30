@@ -37,6 +37,8 @@ struct _PyWeakReference {
      */
     PyWeakReference *wr_prev;
     PyWeakReference *wr_next;
+
+    vectorcallfunc vectorcall;
 };
 #endif
 

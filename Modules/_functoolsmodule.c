@@ -503,6 +503,7 @@ typedef struct {
     PyObject_HEAD
     PyObject *cmp;
     PyObject *object;
+    vectorcallfunc vectorcall;
 } keyobject;
 
 static int
@@ -536,6 +537,8 @@ static PyMemberDef keyobject_members[] = {
     {"obj", T_OBJECT,
      offsetof(keyobject, object), 0,
      PyDoc_STR("Value wrapped by a key function.")},
+    {"__vectorcalloffset__", T_PYSSIZET,
+     offsetof(keyobject, vectorcall), READONLY},
     {NULL}
 };
 
@@ -544,6 +547,10 @@ keyobject_call(keyobject *ko, PyObject *args, PyObject *kwds);
 
 static PyObject *
 keyobject_richcompare(PyObject *ko, PyObject *other, int op);
+
+static PyObject *
+keyobject_vectorcall(keyobject *ko, PyObject *const *stack,
+                     size_t nargs, PyObject *kwnames);
 
 static PyType_Slot keyobject_type_slots[] = {
     {Py_tp_dealloc, keyobject_dealloc},
@@ -582,6 +589,35 @@ keyobject_call(keyobject *ko, PyObject *args, PyObject *kwds)
     result->cmp = ko->cmp;
     Py_INCREF(object);
     result->object = object;
+    result->vectorcall = (vectorcallfunc)&keyobject_vectorcall;
+    PyObject_GC_Track(result);
+    return (PyObject *)result;
+}
+
+static PyObject *
+keyobject_vectorcall(keyobject *ko, PyObject *const *args, size_t nargsf, PyObject *kwnames)
+{
+    static const char * const kwargs[] = {"obj", NULL};
+    static _PyArg_Parser _parser = {NULL, kwargs, 0};
+
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    PyObject *argsbuf[1];
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    if (args == NULL) {
+        return NULL;
+    }
+    PyObject *obj = args[0];
+
+    keyobject *result = PyObject_GC_New(keyobject, Py_TYPE(ko));
+    if (!result) {
+        return NULL;
+    }
+    Py_INCREF(ko->cmp);
+    result->cmp = ko->cmp;
+    Py_INCREF(obj);
+    result->object = obj;
+    result->vectorcall = (vectorcallfunc)&keyobject_vectorcall;
     PyObject_GC_Track(result);
     return (PyObject *)result;
 }

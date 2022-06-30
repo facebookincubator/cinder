@@ -1,5 +1,6 @@
 #include "Python.h"
 #include "pycore_moduleobject.h"  // _PyModule_GetState()
+#include "structmember.h"         // PyMemberDef
 #include "clinic/_operator.c.h"
 
 typedef struct {
@@ -953,7 +954,12 @@ typedef struct {
     Py_ssize_t nitems;
     PyObject *item;
     Py_ssize_t index; // -1 unless *item* is a single non-negative integer index
+    vectorcallfunc vectorcall;
 } itemgetterobject;
+
+static PyObject*
+itemgetter_vectorcall(itemgetterobject *self, PyObject *const* stack,
+                      size_t nargsf, PyObject*kwnames);
 
 /* AC 3.5: treats first argument as an iterable, otherwise uses *args */
 static PyObject *
@@ -1000,6 +1006,7 @@ itemgetter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         }
     }
 
+    ig->vectorcall = (vectorcallfunc)itemgetter_vectorcall;
     PyObject_GC_Track(ig);
     return (PyObject *)ig;
 }
@@ -1030,18 +1037,11 @@ itemgetter_traverse(itemgetterobject *ig, visitproc visit, void *arg)
 }
 
 static PyObject *
-itemgetter_call(itemgetterobject *ig, PyObject *args, PyObject *kw)
+itemgetter_call_impl(itemgetterobject *ig, PyObject *obj)
 {
-    PyObject *obj, *result;
-    Py_ssize_t i, nitems=ig->nitems;
+    Py_ssize_t nitems=ig->nitems;
+    PyObject *result;
 
-    assert(PyTuple_CheckExact(args));
-    if (!_PyArg_NoKeywords("itemgetter", kw))
-        return NULL;
-    if (!_PyArg_CheckPositional("itemgetter", PyTuple_GET_SIZE(args), 1, 1))
-        return NULL;
-
-    obj = PyTuple_GET_ITEM(args, 0);
     if (nitems == 1) {
         if (ig->index >= 0
             && PyTuple_CheckExact(obj)
@@ -1061,7 +1061,7 @@ itemgetter_call(itemgetterobject *ig, PyObject *args, PyObject *kw)
     if (result == NULL)
         return NULL;
 
-    for (i=0 ; i < nitems ; i++) {
+    for (Py_ssize_t i=0 ; i < nitems ; i++) {
         PyObject *item, *val;
         item = PyTuple_GET_ITEM(ig->item, i);
         val = PyObject_GetItem(obj, item);
@@ -1072,6 +1072,31 @@ itemgetter_call(itemgetterobject *ig, PyObject *args, PyObject *kw)
         PyTuple_SET_ITEM(result, i, val);
     }
     return result;
+}
+
+static PyObject *
+itemgetter_vectorcall(itemgetterobject *ig, PyObject *const* stack, size_t nargsf, PyObject*kwnames)
+{
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+    if (!_PyArg_NoKwnames("itemgetter", kwnames))
+        return NULL;
+    if (!_PyArg_CheckPositional("itemgetter", nargs, 1, 1))
+        return NULL;
+
+    return itemgetter_call_impl(ig, stack[0]);
+}
+
+static PyObject *
+itemgetter_call(itemgetterobject *ig, PyObject *args, PyObject *kw)
+{
+    assert(PyTuple_CheckExact(args));
+    if (!_PyArg_NoKeywords("itemgetter", kw))
+        return NULL;
+    if (!_PyArg_CheckPositional("itemgetter", PyTuple_GET_SIZE(args), 1, 1))
+        return NULL;
+
+    return itemgetter_call_impl(ig, PyTuple_GET_ITEM(args, 0));
 }
 
 static PyObject *
@@ -1109,6 +1134,11 @@ static PyMethodDef itemgetter_methods[] = {
     {NULL}
 };
 
+static PyMemberDef itemgetter_members[] = {
+    {"__vectorcalloffset__", T_PYSSIZET,
+     offsetof(itemgetterobject, vectorcall), READONLY},
+};
+
 PyDoc_STRVAR(itemgetter_doc,
 "itemgetter(item, ...) --> itemgetter object\n\
 \n\
@@ -1123,6 +1153,7 @@ static PyType_Slot itemgetter_type_slots[] = {
     {Py_tp_traverse, itemgetter_traverse},
     {Py_tp_clear, itemgetter_clear},
     {Py_tp_methods, itemgetter_methods},
+    {Py_tp_members, itemgetter_members},
     {Py_tp_new, itemgetter_new},
     {Py_tp_getattro, PyObject_GenericGetAttr},
     {Py_tp_repr, itemgetter_repr},
@@ -1144,7 +1175,12 @@ typedef struct {
     PyObject_HEAD
     Py_ssize_t nattrs;
     PyObject *attr;
+    vectorcallfunc vectorcall;
 } attrgetterobject;
+
+static PyObject*
+attrgetter_vectorcall(attrgetterobject* ag, PyObject * const* stack,
+                      size_t nargsf, PyObject *kwnames);
 
 /* AC 3.5: treats first argument as an iterable, otherwise uses *args */
 static PyObject *
@@ -1256,6 +1292,8 @@ attrgetter_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     ag->attr = attr;
     ag->nattrs = nattrs;
 
+    ag->vectorcall = (vectorcallfunc)attrgetter_vectorcall;
+
     PyObject_GC_Track(ag);
     return (PyObject *)ag;
 }
@@ -1319,27 +1357,21 @@ dotted_getattr(PyObject *obj, PyObject *attr)
 }
 
 static PyObject *
-attrgetter_call(attrgetterobject *ag, PyObject *args, PyObject *kw)
+attrgetter_call_impl(attrgetterobject* ag, PyObject *obj)
 {
-    PyObject *obj, *result;
-    Py_ssize_t i, nattrs=ag->nattrs;
+    Py_ssize_t nattrs=ag->nattrs;
 
-    if (!_PyArg_NoKeywords("attrgetter", kw))
-        return NULL;
-    if (!_PyArg_CheckPositional("attrgetter", PyTuple_GET_SIZE(args), 1, 1))
-        return NULL;
-    obj = PyTuple_GET_ITEM(args, 0);
-    if (ag->nattrs == 1) /* ag->attr is always a tuple */
+    if (nattrs == 1) /* ag->attr is always a tuple */
         return dotted_getattr(obj, PyTuple_GET_ITEM(ag->attr, 0));
 
     assert(PyTuple_Check(ag->attr));
     assert(PyTuple_GET_SIZE(ag->attr) == nattrs);
 
-    result = PyTuple_New(nattrs);
+    PyObject *result = PyTuple_New(nattrs);
     if (result == NULL)
         return NULL;
 
-    for (i=0 ; i < nattrs ; i++) {
+    for (Py_ssize_t i=0 ; i < nattrs ; i++) {
         PyObject *attr, *val;
         attr = PyTuple_GET_ITEM(ag->attr, i);
         val = dotted_getattr(obj, attr);
@@ -1350,6 +1382,28 @@ attrgetter_call(attrgetterobject *ag, PyObject *args, PyObject *kw)
         PyTuple_SET_ITEM(result, i, val);
     }
     return result;
+}
+
+static PyObject *
+attrgetter_vectorcall(attrgetterobject* ag, PyObject * const* stack, size_t nargsf, PyObject *kwnames)
+{
+    if (!_PyArg_NoKwnames("attrgetter", kwnames))
+        return NULL;
+    if (!_PyArg_CheckPositional("attrgetter", PyVectorcall_NARGS(nargsf), 1, 1))
+        return NULL;
+
+    return attrgetter_call_impl(ag, stack[0]);
+}
+
+static PyObject *
+attrgetter_call(attrgetterobject *ag, PyObject *args, PyObject *kw)
+{
+    if (!_PyArg_NoKeywords("attrgetter", kw))
+        return NULL;
+    if (!_PyArg_CheckPositional("attrgetter", PyTuple_GET_SIZE(args), 1, 1))
+        return NULL;
+
+    return attrgetter_call_impl(ag, PyTuple_GET_ITEM(args, 0));
 }
 
 static PyObject *
@@ -1439,6 +1493,11 @@ static PyMethodDef attrgetter_methods[] = {
     {NULL}
 };
 
+static PyMemberDef attrgetter_members[] = {
+    {"__vectorcalloffset__", T_PYSSIZET,
+     offsetof(attrgetterobject, vectorcall), READONLY},
+};
+
 PyDoc_STRVAR(attrgetter_doc,
 "attrgetter(attr, ...) --> attrgetter object\n\
 \n\
@@ -1455,6 +1514,7 @@ static PyType_Slot attrgetter_type_slots[] = {
     {Py_tp_traverse, attrgetter_traverse},
     {Py_tp_clear, attrgetter_clear},
     {Py_tp_methods, attrgetter_methods},
+    {Py_tp_members, attrgetter_members},
     {Py_tp_new, attrgetter_new},
     {Py_tp_getattro, PyObject_GenericGetAttr},
     {Py_tp_repr, attrgetter_repr},

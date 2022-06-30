@@ -19,6 +19,8 @@ _PyWeakref_GetWeakrefCount(PyWeakReference *head)
     return count;
 }
 
+static PyObject *
+weakref_vectorcall(PyWeakReference *self, PyObject **stack, size_t nargsf, PyObject *kwnames);
 
 static void
 init_weakref(PyWeakReference *self, PyObject *ob, PyObject *callback)
@@ -29,6 +31,7 @@ init_weakref(PyWeakReference *self, PyObject *ob, PyObject *callback)
     self->wr_next = NULL;
     Py_XINCREF(callback);
     self->wr_callback = callback;
+    self->vectorcall = (vectorcallfunc)weakref_vectorcall;
 }
 
 static PyWeakReference *
@@ -126,6 +129,21 @@ gc_clear(PyWeakReference *self)
     return 0;
 }
 
+static PyObject *
+weakref_vectorcall(PyWeakReference *self, PyObject **stack, size_t nargsf, PyObject *kwnames)
+{
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    if (nargs != 0 || (kwnames != NULL && PyTuple_GET_SIZE(kwnames))) {
+        static const char * const kwargs[] = {NULL};
+        static _PyArg_Parser _parser = {":__call__", kwargs, 0};
+        if (!_PyArg_ParseStackAndKeywords(stack, nargs, kwnames, &_parser)) {
+            return NULL;
+        }
+    }
+    PyObject *object = PyWeakref_GET_OBJECT(self);
+    Py_INCREF(object);
+    return (object);
+}
 
 static PyObject *
 weakref_call(PyWeakReference *self, PyObject *args, PyObject *kw)
@@ -375,7 +393,7 @@ _PyWeakref_RefType = {
     sizeof(PyWeakReference),
     0,
     weakref_dealloc,            /*tp_dealloc*/
-    0,                          /*tp_vectorcall_offset*/
+    offsetof(PyWeakReference, vectorcall), /*tp_vectorcall_offset*/
     0,                          /*tp_getattr*/
     0,                          /*tp_setattr*/
     0,                          /*tp_as_async*/
