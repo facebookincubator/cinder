@@ -4649,9 +4649,12 @@ slot_new_object_init_vectorcall(PyTypeObject *type,
 
         /* use borrowed references */
         tmpstack[0] = (PyObject *)type;
-        memcpy(&tmpstack[1],
-            stack,
-            totalargs * sizeof(PyObject *));
+        if (totalargs > 0) {
+          assert(stack != NULL);
+          memcpy(&tmpstack[1],
+              stack,
+              totalargs * sizeof(PyObject *));
+        }
 
         result = _PyObject_VectorcallTstate(tstate, func, tmpstack, nargs + 1, kwnames);
     }
@@ -4757,7 +4760,10 @@ object_new_slot_init_vectorcall(PyTypeObject *type,
             Py_ssize_t n = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0);
             PyObject **newargs = alloca((n + 1) * sizeof(PyObject *));
             newargs[0] = obj;
-            memcpy(&newargs[1], stack, n * sizeof(PyObject *));
+            if (n > 0) {
+                assert(stack != NULL);
+                memcpy(&newargs[1], stack, n * sizeof(PyObject *));
+            }
             res = _PyObject_Vectorcall(meth, newargs, nargs + 1, kwnames);
         }
     } else {
