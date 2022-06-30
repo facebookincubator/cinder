@@ -2034,7 +2034,7 @@ Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
 .PHONY: smelly funny patchcheck touch altmaninstall commoninstall
 .PHONY: clean-retain-profile profile-removal run_profile_task
 .PHONY: build_all_generate_profile build_all_merge_profile
-.PHONY: gdbhooks
+.PHONY: gdbhooks testcinder
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
 # Local Variables:
