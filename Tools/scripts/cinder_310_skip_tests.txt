@@ -9,5 +9,4 @@ test_memoize
 test_shadow_stack_walk
 test_shadowcode
 test_strictmodule
-test_grp
 test_tools
