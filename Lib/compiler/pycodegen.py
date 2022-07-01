@@ -490,17 +490,23 @@ class CodeGenerator(ASTVisitor):
     def build_annotations(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
     ) -> bool:
-        ann_args = self.annotate_args(node.args)
+        (ann_args, annotation_count) = self.annotate_args(node.args)
         # Cannot annotate return type for lambda
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
-            self._visitAnnotation(node.returns)
-            ann_args.append("return")
+            if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
+                ann_args.append("return")
+                ann_args.append(to_expr(node.returns))
+            else:
+                self.emit("LOAD_CONST", "return")
+                self.visit(node.returns)
+                annotation_count += 2
+
         if ann_args:
             self.emit("LOAD_CONST", tuple(ann_args))
-            self.emit("BUILD_CONST_KEY_MAP", len(ann_args))
-            return True
+        elif annotation_count > 0:
+            self.emit("BUILD_TUPLE", annotation_count)
 
-        return False
+        return annotation_count > 0
 
     def visitFunctionOrLambda(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
@@ -532,24 +538,32 @@ class CodeGenerator(ASTVisitor):
     def visitDefault(self, node: ast.expr) -> None:
         self.visit(node)
 
-    def annotate_args(self, args: ast.arguments) -> List[str]:
+    def annotate_args(self, args: ast.arguments) -> Tuple[List[str], bool]:
         ann_args = []
+        annotation_count = False
         for arg in args.args:
-            self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg, ann_args)
         for arg in args.posonlyargs:
-            self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg, ann_args)
         if arg := args.vararg:
-            self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg, ann_args)
         for arg in args.kwonlyargs:
-            self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg, ann_args)
         if arg := args.kwarg:
-            self.annotate_arg(arg, ann_args)
-        return ann_args
+            annotation_count += self.annotate_arg(arg, ann_args)
+        return ann_args, annotation_count
 
-    def annotate_arg(self, arg: ast.arg, ann_args: List[str]):
+    def annotate_arg(self, arg: ast.arg, ann_args: List[str]) -> bool:
         if arg.annotation:
-            self._visitAnnotation(arg.annotation)
-            ann_args.append(self.mangle(arg.arg))
+            if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
+                ann_args.append(self.mangle(arg.arg))
+                ann_args.append(to_expr(arg.annotation))
+                return 2
+            else:
+                self.emit("LOAD_CONST", self.mangle(arg.arg))
+                self.visit(arg.annotation)
+                return 2
+        return 0
 
     def visitClassDef(self, node: ast.ClassDef) -> None:
         self.set_lineno(node)
