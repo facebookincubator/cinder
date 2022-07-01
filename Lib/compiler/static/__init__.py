@@ -525,7 +525,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
                     self.emit("POP_TOP")
 
     def visitAttribute(self, node: Attribute) -> None:
-        self.update_lineno(node)
+        self.set_lineno(node)
         data = self.get_opt_node_data(node, UsedRefinementField)
         if data is not None and not data.is_source:
             self.emit("LOAD_FAST", data.name)
@@ -676,7 +676,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.get_type(node.target).emit_aug_rhs(node, self)
 
     def visitCompare(self, node: Compare) -> None:
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.left)
         cleanup = self.newBlock("cleanup")
         left = node.left
@@ -829,7 +829,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             and klass.type_def is self.compiler.type_env.checked_dict
         ), dict_type
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         elements = 0
         is_unpacking = False
         built_final_dict = False
@@ -918,7 +918,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             and klass.type_def is self.compiler.type_env.checked_list
         ), list_type
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         list_descr = list_type.klass.type_descr
         extend_descr = list_descr + ("extend",)
         built_final_list = False

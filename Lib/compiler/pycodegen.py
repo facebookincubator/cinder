@@ -232,6 +232,7 @@ class CodeGenerator(ASTVisitor):
     def _setupGraphDelegation(self):
         self.emit = self.graph.emit
         self.emitWithBlock = self.graph.emitWithBlock
+        self.emit_noline = self.graph.emit_noline
         self.newBlock = self.graph.newBlock
         self.nextBlock = self.graph.nextBlock
 
@@ -317,14 +318,12 @@ class CodeGenerator(ASTVisitor):
         else:
             self.emit(prefix + "_NAME", name)
 
-    def set_lineno(self, node):
-        if hasattr(node, "lineno"):
-            self.graph.lineno = node.lineno
-            self.graph.lineno_set = False
+    def set_lineno(self, node: AST):
+        self.graph.set_lineno(node.lineno)
 
-    def update_lineno(self, node):
-        if hasattr(node, "lineno") and node.lineno != self.graph.lineno:
-            self.set_lineno(node)
+    def set_no_lineno(self):
+        """Mark following instructions as synthetic (no source line number)."""
+        self.graph.set_lineno(-1)
 
     def skip_docstring(self, body):
         """Given list of statements, representing body of a function, class,
@@ -361,13 +360,13 @@ class CodeGenerator(ASTVisitor):
         self.future_flags = self.findFutures(node)
         self.graph.setFlag(self.future_flags)
 
-        if node.body:
-            self.set_lineno(node.body[0])
-
         # Set current line number to the line number of first statement.
         # This way line number for SETUP_ANNOTATIONS will always
         # coincide with the line number of first "real" statement in module.
         # If body is empy, then lineno will be set later in assemble.
+        if node.body:
+            self.set_lineno(node.body[0])
+
         if self.findAnn(node.body):
             self.emit("SETUP_ANNOTATIONS")
             self.did_setup_annotations = True
@@ -389,6 +388,7 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def emit_module_return(self, node: ast.Module) -> None:
+        self.set_no_lineno()
         self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")
 
@@ -403,14 +403,14 @@ class CodeGenerator(ASTVisitor):
     visitAsyncFunctionDef = visitFunctionDef
 
     def visitJoinedStr(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         for value in node.values:
             self.visit(value)
         if len(node.values) != 1:
             self.emit("BUILD_STRING", len(node.values))
 
     def visitFormattedValue(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
 
         if node.conversion == CONV_STR:
@@ -429,7 +429,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("FORMAT_VALUE", oparg)
 
     def visitLambda(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visitFunctionOrLambda(node)
 
     def processBody(self, node, body, gen):
@@ -586,7 +586,7 @@ class CodeGenerator(ASTVisitor):
 
         doc = gen.get_docstring(node)
         if doc is not None:
-            gen.update_lineno(node.body[0])
+            gen.set_lineno(node.body[0])
             gen.emit("LOAD_CONST", doc)
             gen.storeName("__doc__")
 
@@ -642,10 +642,6 @@ class CodeGenerator(ASTVisitor):
         self.set_lineno(node)
         test = node.test
         test_const = self.get_bool_const(test)
-
-        # Emulate co_firstlineno behavior of C compiler
-        if test_const is False and not node.orelse:
-            self.graph.maybeEmitSetLineno()
 
         end = self.newBlock("if_end")
         orelse = None
@@ -903,7 +899,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("COMPARE_OP", self._cmp_opcode[type(op)])
 
     def visitCompare(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.left)
         cleanup = self.newBlock("cleanup")
         for op, code in zip(node.ops[:-1], node.comparators[:-1]):
@@ -974,7 +970,7 @@ class CodeGenerator(ASTVisitor):
         oparg: object = 0,
     ) -> None:
         args = self.conjure_arguments([ast.arg(".0", None)])
-        self.update_lineno(node)
+        self.set_lineno(node)
         gen = self.make_func_codegen(node, args, name, node.lineno)
 
         if opcode:
@@ -1283,8 +1279,10 @@ class CodeGenerator(ASTVisitor):
 
     def emit_except_local(self, handler: ast.ExceptHandler):
         target = handler.name
+        type_ = handler.type
         if target:
-            self.update_lineno(handler.type)
+            if type_:
+                self.set_lineno(type_)
             self.storeName(target)
         else:
             self.emit("POP_TOP")
@@ -1410,36 +1408,38 @@ class CodeGenerator(ASTVisitor):
 
     def visitExpr(self, node):
         self.set_lineno(node)
-        # CPy3.6 discards lots of constants
         if self.interactive:
             self.visit(node.value)
             self.emit("PRINT_EXPR")
-        elif not is_const(node.value):
+        elif is_const(node.value):
+            self.emit("NOP")
+        else:
             self.visit(node.value)
+            self.set_no_lineno()
             self.emit("POP_TOP")
 
     def visitNum(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.n)
 
     def visitStr(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.s)
 
     def visitBytes(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.s)
 
     def visitNameConstant(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.value)
 
     def visitConst(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.value)
 
     def visitConstant(self, node: ast.Constant):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", node.value)
 
     def visitKeyword(self, node):
@@ -1455,7 +1455,7 @@ class CodeGenerator(ASTVisitor):
         # no code to generate
 
     def visitName(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         if isinstance(node.ctx, ast.Store):
             self.storeName(node.id)
         elif isinstance(node.ctx, ast.Del):
@@ -1520,7 +1520,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_TOP")
 
     def visitAttribute(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         if isinstance(node.ctx, ast.Store):
             self.emit("STORE_ATTR", self.mangle(node.attr))
@@ -1798,7 +1798,7 @@ class CodeGenerator(ASTVisitor):
             self._call_helper(0, node, node.args, node.keywords)
             return
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.func.value)
         self.emit("LOAD_METHOD", self.mangle(node.func.attr))
         for arg in node.args:
@@ -1865,7 +1865,7 @@ class CodeGenerator(ASTVisitor):
             raise SyntaxError(
                 "'yield' outside function", self.syntax_error_position(node)
             )
-        self.update_lineno(node)
+        self.set_lineno(node)
         if node.value:
             self.visit(node.value)
         else:
@@ -1885,14 +1885,14 @@ class CodeGenerator(ASTVisitor):
                 "'yield from' inside async function", self.syntax_error_position(node)
             )
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         self.emit("GET_YIELD_FROM_ITER")
         self.emit("LOAD_CONST", None)
         self.emit("YIELD_FROM")
 
     def visitAwait(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         self.emit("GET_AWAITABLE")
         self.emit("LOAD_CONST", None)
@@ -1900,7 +1900,7 @@ class CodeGenerator(ASTVisitor):
 
     # slice and subscript stuff
     def visitSubscript(self, node, aug_flag=None):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         self.visit(node.slice)
         if isinstance(node.ctx, ast.Load):
@@ -1940,7 +1940,7 @@ class CodeGenerator(ASTVisitor):
     }
 
     def visitBinOp(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.left)
         self.visit(node.right)
         op = self._binary_opcode[type(node.op)]
@@ -1960,7 +1960,7 @@ class CodeGenerator(ASTVisitor):
     }
 
     def visitUnaryOp(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.unaryOp(node, self._unary_opcode[type(node.op)])
 
     def visitBackquote(self, node):
@@ -1969,7 +1969,7 @@ class CodeGenerator(ASTVisitor):
     # object constructors
 
     def visitEllipsis(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("LOAD_CONST", Ellipsis)
 
     def _visitUnpack(self, node):
@@ -2047,7 +2047,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("LIST_TO_TUPLE")
 
     def _visitSequence(self, node, build_op, add_op, extend_op, ctx, is_tuple=False):
-        self.update_lineno(node)
+        self.set_lineno(node)
         if isinstance(ctx, ast.Store):
             self._visitUnpack(node)
             for elt in node.elts:
@@ -2104,7 +2104,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("BUILD_TUPLE", len(node.dims))
 
     def visitNamedExpr(self, node: ast.NamedExpr):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         self.emit("DUP_TOP")
         self.visit(node.target)
@@ -2112,7 +2112,7 @@ class CodeGenerator(ASTVisitor):
     # Create dict item by item. Saves interp stack size at the expense
     # of bytecode size/speed.
     def visitDict_by_one(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.emit("BUILD_MAP", 0)
         for k, v in zip(node.keys, node.values):
             self.emit("DUP_TOP")
@@ -2167,7 +2167,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_MAP", n)
 
     def visitDict(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         containers = elements = 0
         is_unpacking = False
 
@@ -2437,7 +2437,6 @@ class CodeGenerator(ASTVisitor):
 
         if old_lineno is not None and old_lineno != self.graph.lineno:
             self.graph.lineno = old_lineno
-            self.graph.lineno_set = False
 
         return ret
 

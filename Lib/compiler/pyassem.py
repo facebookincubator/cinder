@@ -55,30 +55,35 @@ FVS_HAVE_SPEC = 0x4
 
 
 class Instruction:
-    __slots__ = ("opname", "oparg", "target", "ioparg")
+    __slots__ = ("opname", "oparg", "target", "ioparg", "lineno")
 
     def __init__(
         self,
         opname: str,
         oparg: object,
         ioparg: int = 0,
+        lineno: int = -1,
         target: Optional[Block] = None,
     ):
         self.opname = opname
         self.oparg = oparg
+        self.lineno = lineno
         self.ioparg = ioparg
         self.target = target
 
     def __repr__(self):
-        args = [f"{self.opname!r}", f"{self.oparg!r}", f"{self.ioparg!r}"]
+        args = [
+            f"{self.opname!r}",
+            f"{self.oparg!r}",
+            f"{self.ioparg!r}",
+            f"{self.lineno!r}",
+        ]
         if self.target is not None:
             args.append(f"{self.target!r}")
 
         return f"Instruction({', '.join(args)})"
 
     def is_jump(self) -> bool:
-        if self.opname == "SET_LINENO":
-            return False
         op = opcodes.opcode.opmap[self.opname]
         return opcodes.opcode.has_jump(op)
 
@@ -108,9 +113,6 @@ class FlowGraph:
 
         # Source line number to use for next instruction.
         self.lineno = 0
-        # Whether line number was already output (set to False to output
-        # new line number).
-        self.lineno_set = False
         # First line of this code block. This field is expected to be set
         # externally and serve as a reference for generating all other
         # line numbers in the code block. (If it's not set, it will be
@@ -205,33 +207,32 @@ class FlowGraph:
     def _disable_debug(self):
         self._debug = 0
 
-    def emit(self, opcode: str, oparg: object = 0):
-        self.maybeEmitSetLineno()
-
-        if opcode != "SET_LINENO" and isinstance(oparg, Block):
+    def emit(self, opcode: str, oparg: object = 0, lineno: int | None = None) -> None:
+        if lineno is None:
+            lineno = self.lineno
+        if isinstance(oparg, Block):
             if not self.do_not_emit_bytecode:
                 self.current.addOutEdge(oparg)
-                self.current.emit(Instruction(opcode, 0, 0, target=oparg))
+                self.current.emit(Instruction(opcode, 0, 0, lineno, target=oparg))
             return
 
         ioparg = self.convertArg(opcode, oparg)
 
         if not self.do_not_emit_bytecode:
-            self.current.emit(Instruction(opcode, oparg, ioparg))
+            self.current.emit(Instruction(opcode, oparg, ioparg, lineno))
 
-        if opcode == "SET_LINENO" and not self.first_inst_lineno:
-            self.first_inst_lineno = ioparg
+    def emit_noline(self, opcode: str, oparg: object = 0):
+        self.emit(opcode, oparg, -1)
 
     def emitWithBlock(self, opcode: str, oparg: object, target: Block):
-        self.maybeEmitSetLineno()
         if not self.do_not_emit_bytecode:
             self.current.addOutEdge(target)
             self.current.emit(Instruction(opcode, oparg, target=target))
 
-    def maybeEmitSetLineno(self):
-        if not self.do_not_emit_bytecode and not self.lineno_set and self.lineno:
-            self.lineno_set = True
-            self.emit("SET_LINENO", self.lineno)
+    def set_lineno(self, lineno: int) -> None:
+        if not self.first_inst_lineno:
+            self.first_inst_lineno = lineno
+        self.lineno = lineno
 
     def convertArg(self, opcode: str, oparg: object) -> int:
         if isinstance(oparg, int):
@@ -463,7 +464,6 @@ class PyFlowGraph(FlowGraph):
         self.stage = ACTIVE
         self.firstline = firstline
         self.first_inst_lineno = 0
-        self.lineno_set = False
         self.lineno = 0
         # Add any extra consts that were requested to the const pool
         self.extra_consts = []
@@ -530,17 +530,15 @@ class PyFlowGraph(FlowGraph):
             print(repr(block))
             for instr in block.getInstructions():
                 opname = instr.opname
-                if opname == "SET_LINENO":
-                    continue
                 if instr.target is None:
-                    print("\t", "%3d" % pc, opname, instr.oparg)
+                    print("\t", f"{pc:3} {instr.lineno} {opname} {instr.oparg}")
                 elif instr.target.label:
                     print(
                         "\t",
-                        f"{pc:3} {opname} {instr.target.bid} ({instr.target.label})",
+                        f"{pc:3} {instr.lineno} {opname} {instr.target.bid} ({instr.target.label})",
                     )
                 else:
-                    print("\t", f"{pc:3} {opname} {instr.target.bid}")
+                    print("\t", f"{pc:3} {instr.lineno} {opname} {instr.target.bid}")
                 pc += self.opcode.CODEUNIT_SIZE
         if io:
             sys.stdout = save
@@ -564,9 +562,6 @@ class PyFlowGraph(FlowGraph):
             assert depth >= 0
 
             for instr in block.getInstructions():
-                if instr.opname == "SET_LINENO":
-                    continue
-
                 delta = self.opcode.stack_effect_raw(instr.opname, instr.oparg, False)
                 new_depth = depth + delta
                 if new_depth > maxdepth:
@@ -648,14 +643,10 @@ class PyFlowGraph(FlowGraph):
 
                 for inst in b.getInstructions():
                     insts.append(inst)
-                    if inst.opname != "SET_LINENO":
-                        pc += instrsize(inst.ioparg)
+                    pc += instrsize(inst.ioparg)
 
             pc = 0
             for inst in insts:
-                if inst.opname == "SET_LINENO":
-                    continue
-
                 pc += instrsize(inst.ioparg)
                 op = self.opcode.opmap[inst.opname]
                 if self.opcode.has_jump(op):
@@ -807,11 +798,10 @@ class PyFlowGraph(FlowGraph):
         self.lnotab = lnotab = LineAddrTable(self.opcode)
         lnotab.setFirstLine(self.firstline or self.first_inst_lineno or 1)
 
+        prev_lineno = -1
         for t in self.insts:
-            if t.opname == "SET_LINENO":
-                lnotab.nextLine(t.oparg)
-                continue
-
+            if prev_lineno != t.lineno:
+                lnotab.nextLine(t.lineno)
             oparg = t.ioparg
             assert 0 <= oparg <= 0xFFFFFFFF, oparg
             if oparg > 0xFFFFFF:
@@ -821,6 +811,7 @@ class PyFlowGraph(FlowGraph):
             if oparg > 0xFF:
                 lnotab.addCode(self.opcode.EXTENDED_ARG, (oparg >> 8) & 0xFF)
             lnotab.addCode(self.opcode.opmap[t.opname], oparg & 0xFF)
+            prev_lineno = t.lineno
 
         # Since the linetable format writes the end offset of bytecodes, we can't commit the
         # last write until all the instructions are iterated over.
@@ -884,10 +875,14 @@ class PyFlowGraph(FlowGraph):
         optimizer = FlowGraphOptimizer(self.consts)
         for block in self.ordered_blocks:
             optimizer.optimizeBlock(block)
-            optimizer.cleanBlock(block)
+            optimizer.cleanBlock(block, -1)
 
         for block in self.ordered_blocks:
             optimizer.normalizeBlock(block)
+            prev_lineno = -1
+            if block.prev and block.prev.insts:
+                prev_lineno = block.prev.insts[0].lineno
+            optimizer.cleanBlock(block, prev_lineno)
 
         for block in self.ordered_blocks:
             optimizer.extendBlock(block)
@@ -944,18 +939,18 @@ class PyFlowGraphCinder(PyFlowGraph):
 
 
 class LineAddrTable:
-    """lnotab
+    """linetable / lnotab
 
-    This class builds the linetable, which is documented in Objects/lnotab_notes.txt.
-    Here's a brief recap:
+    This class builds the linetable, which is documented in
+    Objects/lnotab_notes.txt. Here's a brief recap:
 
-    For each SET_LINENO instruction after the first one, two bytes are
-    added to the linetable.  (In some cases, multiple two-byte entries are
-    added.)  The first byte is the distance in bytes between the
-    instruction for the current SET_LINENO and the next SET_LINENO.
-    The second byte is offset in line numbers.  If either offset is
-    greater than 255, multiple two-byte entries are added -- see
-    compile.c for the delicate details.
+    For each new lineno after the first one, two bytes are added to the
+    linetable.  (In some cases, multiple two-byte entries are added.)  The first
+    byte is the distance in bytes between the instruction for the current lineno
+    and the next lineno.  The second byte is offset in line numbers.  If either
+    offset is greater than 255, multiple two-byte entries are added -- see
+    lnotab_notes.txt for the delicate details.
+
     """
 
     def __init__(self, opcode):
@@ -980,7 +975,8 @@ class LineAddrTable:
         self.emitCurrentLine()
 
         self.current_start = self.current_end
-        self.prev_line = self.current_line
+        if self.current_line >= 0:
+            self.prev_line = self.current_line
         self.current_line = lineno
 
     def emitCurrentLine(self):
@@ -992,9 +988,6 @@ class LineAddrTable:
             line_delta = -128
         else:
             line_delta = self.current_line - self.prev_line
-            if not line_delta:
-                return
-
             while line_delta < -127 or 127 < line_delta:
                 if line_delta < 0:
                     k = -127

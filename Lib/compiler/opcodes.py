@@ -306,7 +306,6 @@ opcode.stack_effects.update(
     # If there's a fmt_spec on the stack, we go from 2->1,
     # else 1->1.
     FORMAT_VALUE=lambda oparg, jmp=0: -1 if (oparg & FVS_MASK) == FVS_HAVE_SPEC else 0,
-    SET_LINENO=0,
     EXTENDED_ARG=0,
     SETUP_WITH=lambda oparg, jmp=0: 6 if jmp else 1,
     POP_EXCEPT=-3,

@@ -970,7 +970,7 @@ class Value:
         visitor.syntax_error(f"cannot index {self.name}", node)
 
     def emit_subscr(self, node: ast.Subscript, code_gen: Static38CodeGenerator) -> None:
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
         code_gen.visit(node.value)
         code_gen.visit(node.slice)
         if isinstance(node.ctx, ast.Load):
@@ -2988,7 +2988,7 @@ class ArgMapping:
             code_gen.defaultVisit(self.call)
             return
 
-        code_gen.update_lineno(self.call)
+        code_gen.set_lineno(self.call)
 
         for emitter in self.emitters:
             emitter.emit(self.call, code_gen)
@@ -3049,7 +3049,7 @@ class ClassMethodArgMapping(ArgMapping):
         if self.is_instance_call:
             code_gen.emit("LOAD_TYPE")
 
-        code_gen.update_lineno(self.call)
+        code_gen.set_lineno(self.call)
 
         for emitter in self.emitters:
             emitter.emit(self.call, code_gen)
@@ -4069,7 +4069,7 @@ class MethodType(Object[Class]):
         if self.function.func_name in NON_VIRTUAL_METHODS:
             return super().emit_call(node, code_gen)
 
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
 
         self.function.emit_call_self(node, code_gen, self.target)
 
@@ -5936,7 +5936,7 @@ class BuiltinFunction(Callable[Class]):
         if node.keywords:
             return super().emit_call(node, code_gen)
 
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
         self.emit_call_self(node, code_gen)
 
     def make_generic(
@@ -6141,7 +6141,7 @@ class BuiltinMethod(Callable[Class]):
         if node.keywords:
             return super().emit_call(node, code_gen)
 
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
 
         if self.args is not None:
             self.desc.emit_call_self(node, code_gen, self.target)
@@ -6150,7 +6150,7 @@ class BuiltinMethod(Callable[Class]):
 
             code_gen.visit(self.target)
 
-            code_gen.update_lineno(node)
+            code_gen.set_lineno(node)
             for arg in node.args:
                 code_gen.visit(arg)
 
@@ -8796,7 +8796,7 @@ class CInstance(Value, Generic[TClass]):
         raise NotImplementedError("Must be implemented in the subclass")
 
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
         # In the pow case, the return type isn't the common type.
         ltype = code_gen.get_type(node.left)
         common_type = code_gen.get_opt_node_data(node, BinOpCommonType)
@@ -9464,7 +9464,7 @@ class CIntInstance(CInstance["CIntType"]):
             visitor.set_type(node, self.klass.type_env.cbool.instance)
 
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
         code_gen.visit(node.operand)
         if isinstance(node.op, ast.USub):
             code_gen.emit("PRIMITIVE_UNARY_OP", PRIM_OP_NEG_INT)
@@ -9643,7 +9643,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
             visitor.syntax_error("Cannot invert/not a double", node)
 
     def emit_unaryop(self, node: ast.UnaryOp, code_gen: Static38CodeGenerator) -> None:
-        code_gen.update_lineno(node)
+        code_gen.set_lineno(node)
         assert not isinstance(
             node.op, (ast.Invert, ast.Not)
         )  # should be prevent by the type checker

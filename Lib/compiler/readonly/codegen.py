@@ -158,7 +158,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             super().visitUnaryOp(node)
             return
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.operand)
         readonlyMask = self.build_operation_mask(node, [node.operand])
         self.emit_readonly_op(self._unary_opcode[type(node.op)], [readonlyMask])
@@ -168,7 +168,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             super().visitBinOp(node)
             return
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.left)
         self.visit(node.right)
         readonlyMask = self.build_operation_mask(node, [node.left, node.right])
@@ -205,7 +205,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             super().visitCompare(node)
             return
 
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.left)
         prev_value = node.left
         cleanup = self.newBlock("cleanup")
@@ -454,7 +454,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         self.emit_readonly_op("CHECK_FUNCTION", [nargs, mask, method_flag])
 
     def visitAttribute(self, node: ast.Attribute) -> None:
-        self.update_lineno(node)
+        self.set_lineno(node)
         self.visit(node.value)
         if isinstance(node.ctx, ast.Store):
             self.emit("STORE_ATTR", self.mangle(node.attr))
