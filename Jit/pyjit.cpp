@@ -798,12 +798,6 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     case PYJIT_NOT_INITIALIZED:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_NOT_INITIALIZED");
       return NULL;
-    case PYJIT_RESULT_NO_PRELOADER:
-      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_NO_PRELOADER");
-      return NULL;
-    case PYJIT_RESULT_NOT_ON_JITLIST:
-      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_NOT_ON_JITLIST");
-      return NULL;
   }
   PyErr_SetString(PyExc_RuntimeError, "Unhandled compilation result");
   return NULL;
@@ -1519,13 +1513,13 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
 
     auto it = jit_preloaders.find(func->func_code);
     if (it == jit_preloaders.end()) {
-      return PYJIT_RESULT_NO_PRELOADER;
+      return PYJIT_RESULT_CANNOT_SPECIALIZE;
     }
     return _PyJITContext_CompilePreloader(jit_ctx, it->second);
   }
 
   if (!_PyJIT_OnJitList(func)) {
-    return PYJIT_RESULT_NOT_ON_JITLIST;
+    return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
   CompilationTimer timer(func);
