@@ -1966,6 +1966,12 @@ PyImport_LazyImportName(PyObject *name, PyObject *globals, PyObject *locals, PyO
         return NULL;
     }
 
+    PyThreadState *tstate = _PyThreadState_GET();
+    int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
+    if (verbose) {
+        fprintf(stderr, "# lazy import '%s'\n", PyUnicode_AsUTF8(name));
+    }
+
     res = PyImport_LazyImportModuleLevelObject(
                     name,
                     globals,
