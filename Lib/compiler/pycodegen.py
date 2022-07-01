@@ -671,41 +671,25 @@ class CodeGenerator(ASTVisitor):
     def visitWhile(self, node):
         self.set_lineno(node)
 
-        test_const = self.get_bool_const(node.test)
         loop = self.newBlock("while_loop")
+        body = self.newBlock("while_body")
         else_ = self.newBlock("while_else")
         after = self.newBlock("while_after")
 
         self.push_loop(WHILE_LOOP, loop, after)
 
-        if test_const is False:
-            with self.noEmit():
-                self.visit(node.test)
-                self.visit(node.body)
-            self.pop_loop()
-            if node.orelse:
-                self.visit(node.orelse)
-            self.nextBlock(after)
-            return
-        elif test_const is True:
-            # emulate co_firstlineno behavior of C compiler
-            self.graph.maybeEmitSetLineno()
-
         self.nextBlock(loop)
+        self.compileJumpIf(node.test, else_, False)
 
-        with self.maybeEmit(test_const is not True):
-            self.compileJumpIf(node.test, else_ or after, False)
-
-        self.nextBlock(label="while_body")
+        self.nextBlock(body)
         self.visit(node.body)
-        self.emit("JUMP_ABSOLUTE", loop)
-
-        with self.maybeEmit(test_const is not True):
-            self.nextBlock(else_ or after)  # or just the POPs if not else clause
+        self.compileJumpIf(node.test, body, True)
 
         self.pop_loop()
+        self.nextBlock(else_)
         if node.orelse:
             self.visit(node.orelse)
+
         self.nextBlock(after)
 
     def push_loop(self, kind, start, end):
