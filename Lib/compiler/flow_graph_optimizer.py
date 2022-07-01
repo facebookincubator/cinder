@@ -72,12 +72,6 @@ class FlowGraphOptimizer:
         consts,
     ) -> None:
         self.consts = consts
-        self.const_stack = []
-        self.in_consts = False
-
-    def push_const(self, const) -> None:
-        self.const_stack.append(const)
-        self.in_consts = True
 
     def optimizeBlock(self, block: Block) -> None:
         instr_index = 0
@@ -97,10 +91,6 @@ class FlowGraphOptimizer:
                 if instr_index + 1 < len(block.insts)
                 else None
             )
-
-            if not self.in_consts:
-                del self.const_stack[:]
-            self.in_consts = False
 
             handler = self.OP_HANDLERS.get(instr.opname)
             if handler is not None:
@@ -150,14 +140,8 @@ class FlowGraphOptimizer:
 
     @ophandler("LOAD_CONST")
     def opt_load_const(self, instr_index, instr, next_instr, target, block):
-        # Skip over LOAD_CONST trueconst
-        # POP_JUMP_IF_FALSE xx.  This improves
-        # "while 1" performance.
-        # The above comment is from CPython.  This optimization is now performed
-        # at the AST level and is also applied to if statements.  But it does
-        # not get applied to conditionals, e.g. 1 if 2 else 3
+        # Remove LOAD_CONST const; conditional jump
         const = instr.oparg
-        self.push_const(const)
         if next_instr is None:
             return
         if next_instr.opname in (
