@@ -7,6 +7,10 @@
 extern "C" {
 #endif
 
+PyAPI_FUNC(PyObject *) _Py_DoImportFrom(PyThreadState *tstate,
+                                        PyObject *v,
+                                        PyObject *name);
+
 PyAPI_FUNC(PyObject *) PyEval_EvalCode(PyObject *, PyObject *, PyObject *);
 
 PyAPI_FUNC(PyObject *) PyEval_EvalCodeEx(PyObject *co,

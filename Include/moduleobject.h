@@ -7,10 +7,15 @@
 extern "C" {
 #endif
 
+PyAPI_DATA(PyTypeObject) PyDeferred_Type;
 PyAPI_DATA(PyTypeObject) PyModule_Type;
 
+#define PyDeferred_CheckExact(op) (Py_TYPE(op) == &PyDeferred_Type)
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
+
+PyAPI_FUNC(PyObject *) PyDeferredModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyAPI_FUNC(PyObject *) PyDeferred_NewObject(PyObject *deferred, PyObject *name);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -89,6 +94,22 @@ typedef struct PyModuleDef{
 #ifdef Py_BUILD_CORE
 extern int _PyModule_IsExtension(PyObject *obj);
 #endif
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *df_deferred;
+    PyObject *df_name;
+    PyObject *df_globals;
+    PyObject *df_locals;
+    PyObject *df_fromlist;
+    PyObject *df_level;
+    PyObject *df_obj;
+    PyObject *df_next;
+    int df_resolving;
+    int df_skip_warmup;
+} PyDeferredObject;
+
+int PyDeferred_Match(PyDeferredObject *deferred, PyObject *mod_dict, PyObject *name);
 
 #ifdef __cplusplus
 }

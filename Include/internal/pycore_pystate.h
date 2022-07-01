@@ -10,7 +10,6 @@ extern "C" {
 
 #include "pycore_runtime.h"   /* PyRuntimeState */
 
-
 /* Check if the current thread is the main thread.
    Use _Py_IsMainInterpreter() to check if it's the main interpreter. */
 static inline int

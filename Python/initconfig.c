@@ -65,6 +65,7 @@ static const char usage_3[] = "\
          when given twice, print more information about the build\n\
 -W arg : warning control; arg is action:message:category:module:lineno\n\
          also PYTHONWARNINGS=arg\n\
+-L     : enable lazy imports\n\
 -x     : skip first line of source, allowing use of non-Unix forms of #!cmd\n\
 -X opt : set implementation-specific option. The following options are available:\n\
          -X faulthandler: enable faulthandler\n\
@@ -130,7 +131,8 @@ static const char usage_6[] =
 "   debugger. It can be set to the callable of your debugger of choice.\n"
 "PYTHONDEVMODE: enable the development mode.\n"
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
-"PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n";
+"PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
+"PYTHONLAZYIMPORTS: enable lazy imports by default.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -159,6 +161,7 @@ int Py_NoUserSiteDirectory = 0; /* for -s and site.py */
 int Py_UnbufferedStdioFlag = 0; /* Unbuffered binary std{in,out,err} */
 int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 int Py_IsolatedFlag = 0; /* for -I, isolate from user's env */
+int Py_LazyImportsFlag = 0; /* For -L, Needed by ceval.c */
 #ifdef MS_WINDOWS
 int Py_LegacyWindowsFSEncodingFlag = 0; /* Uses mbcs instead of utf-8 */
 int Py_LegacyWindowsStdioFlag = 0; /* Uses FileIO instead of WindowsConsoleIO */
@@ -218,6 +221,7 @@ _Py_GetGlobalVariablesAsDict(void)
     SET_ITEM_INT(Py_UnbufferedStdioFlag);
     SET_ITEM_INT(Py_HashRandomizationFlag);
     SET_ITEM_INT(Py_IsolatedFlag);
+    SET_ITEM_INT(Py_LazyImportsFlag);
 
 #ifdef MS_WINDOWS
     SET_ITEM_INT(Py_LegacyWindowsFSEncodingFlag);
@@ -635,6 +639,7 @@ config_check_consistency(const PyConfig *config)
     assert(config->check_hash_pycs_mode != NULL);
     assert(config->_install_importlib >= 0);
     assert(config->pathconfig_warnings >= 0);
+    assert(config->lazy_imports >= 0);
     return 1;
 }
 #endif
@@ -690,6 +695,7 @@ _PyConfig_InitCompatConfig(PyConfig *config)
 
     config->_config_init = (int)_PyConfig_INIT_COMPAT;
     config->isolated = -1;
+    config->lazy_imports = -1;
     config->use_environment = -1;
     config->dev_mode = -1;
     config->install_signal_handlers = 1;
@@ -728,6 +734,7 @@ config_init_defaults(PyConfig *config)
     _PyConfig_InitCompatConfig(config);
 
     config->isolated = 0;
+    config->lazy_imports = 0;
     config->use_environment = 1;
     config->site_import = 1;
     config->bytes_warning = 0;
@@ -924,6 +931,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_WSTR_ATTR(filesystem_errors);
     COPY_WSTR_ATTR(stdio_encoding);
     COPY_WSTR_ATTR(stdio_errors);
+    COPY_ATTR(lazy_imports);
 #ifdef MS_WINDOWS
     COPY_ATTR(legacy_windows_stdio);
 #endif
@@ -936,6 +944,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_ATTR(_init_main);
     COPY_ATTR(_isolated_interpreter);
     COPY_WSTRLIST(orig_argv);
+    COPY_ATTR(lazy_imports);
 
 #undef COPY_ATTR
 #undef COPY_WSTR_ATTR
@@ -1024,6 +1033,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(buffered_stdio);
     SET_ITEM_WSTR(stdio_encoding);
     SET_ITEM_WSTR(stdio_errors);
+    SET_ITEM_INT(lazy_imports);
 #ifdef MS_WINDOWS
     SET_ITEM_INT(legacy_windows_stdio);
 #endif
@@ -1037,6 +1047,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(_init_main);
     SET_ITEM_INT(_isolated_interpreter);
     SET_ITEM_WSTRLIST(orig_argv);
+    SET_ITEM_INT(lazy_imports);
 
     return dict;
 
@@ -1318,6 +1329,7 @@ _PyConfig_FromDict(PyConfig *config, PyObject *dict)
     GET_UINT(_install_importlib);
     GET_UINT(_init_main);
     GET_UINT(_isolated_interpreter);
+    GET_UINT(lazy_imports);
 
 #undef CHECK_VALUE
 #undef GET_UINT
@@ -1401,6 +1413,7 @@ config_get_global_vars(PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1410,6 +1423,7 @@ config_get_global_vars(PyConfig *config)
     COPY_NOT_FLAG(site_import, Py_NoSiteFlag);
     COPY_NOT_FLAG(write_bytecode, Py_DontWriteBytecodeFlag);
     COPY_NOT_FLAG(user_site_directory, Py_NoUserSiteDirectory);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 
 #undef COPY_FLAG
 #undef COPY_NOT_FLAG
@@ -1438,6 +1452,7 @@ config_set_global_vars(const PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1447,6 +1462,7 @@ config_set_global_vars(const PyConfig *config)
     COPY_NOT_FLAG(site_import, Py_NoSiteFlag);
     COPY_NOT_FLAG(write_bytecode, Py_DontWriteBytecodeFlag);
     COPY_NOT_FLAG(user_site_directory, Py_NoUserSiteDirectory);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 
     /* Random or non-zero hash seed */
     Py_HashRandomizationFlag = (config->use_hash_seed == 0 ||
@@ -1655,6 +1671,7 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->verbose, "PYTHONVERBOSE");
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
+    _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTS");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");
@@ -2351,6 +2368,10 @@ config_parse_cmdline(PyConfig *config, PyWideStringList *warnoptions,
             config->verbose++;
             break;
 
+        case 'L':
+            config->lazy_imports = 1;
+            break;
+
         case 'x':
             config->skip_source_first_line = 1;
             break;
@@ -3012,6 +3033,7 @@ _Py_DumpPathConfig(PyThreadState *tstate)
     PySys_WriteStderr("  environment = %i\n", config->use_environment);
     PySys_WriteStderr("  user site = %i\n", config->user_site_directory);
     PySys_WriteStderr("  import site = %i\n", config->site_import);
+    PySys_WriteStderr("  lazy imports = %i\n", config->lazy_imports);
 #undef DUMP_CONFIG
 
 #define DUMP_SYS(NAME) \

@@ -173,6 +173,7 @@ typedef struct PyConfig {
     int legacy_windows_stdio;
 #endif
     wchar_t *check_hash_pycs_mode;
+    int lazy_imports;
 
     /* --- Path configuration inputs ------------ */
     int pathconfig_warnings;
