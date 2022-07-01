@@ -158,7 +158,8 @@ class Disassembler:
             co.co_filename,
             co.co_name,
             co.co_firstlineno,
-            co.co_lnotab,
+            # pyre-fixme[16]: `CodeType` has no attribute `co_linetable`.
+            co.co_linetable,
             co.co_freevars,
             co.co_cellvars,
         )
@@ -196,7 +197,8 @@ class Disassembler:
         print("co_varnames:", co.co_varnames, file=file)
         print("co_cellvars:", co.co_cellvars, file=file)
         print("co_freevars:", co.co_freevars, file=file)
-        # print("co_lnotab:", repr(co.co_lnotab), file=file)
+        # pyre-fixme[16]: `CodeType` has no attribute `co_linetable`.
+        print("co_linetable:", repr(co.co_linetable), file=file)
         print(file=file)
         for c in co.co_consts:
             if hasattr(c, "co_code"):

@@ -150,10 +150,10 @@ def ophandler_registry(existing: Optional[Dict[str, TOpcodeHandler]] = None):
 
 
 class OptimizedCode:
-    def __init__(self, byte_code, consts, lnotab):
+    def __init__(self, byte_code, consts, linetable):
         self.byte_code = byte_code
         self.consts = consts
-        self.lnotab = lnotab
+        self.linetable = linetable
 
 
 class Optimizer:
@@ -161,12 +161,12 @@ class Optimizer:
         self,
         codestr: bytes,
         consts,
-        lnotab: bytes,
+        linetable: bytes,
         opcode,
     ) -> None:
         self.consts = list(consts)
         self.codestr = bytearray(codestr)
-        self.lnotab = lnotab
+        self.linetable = linetable
         self.const_stack = []
         self.in_consts = False
         self.opcode = opcode
@@ -249,8 +249,8 @@ class Optimizer:
 
     def optimize(self) -> Optional[OptimizedCode]:
         i = 0
-        while i < len(self.lnotab):
-            if self.lnotab[i] == 0xFF:
+        while i < len(self.linetable):
+            if self.linetable[i] == 0xFF:
                 return None
             i += 2
 
@@ -293,12 +293,12 @@ class Optimizer:
                 instr_index = nexti
 
         self.fix_blocks()
-        lnotab = self.fix_lnotab()
+        linetable = self.fix_linetable()
         codestr = self.fix_jumps()
         if codestr is None:
             return None
 
-        return OptimizedCode(bytes(codestr), tuple(self.consts), bytes(lnotab))
+        return OptimizedCode(bytes(codestr), tuple(self.consts), bytes(linetable))
 
     OP_HANDLERS, ophandler = ophandler_registry()
 
@@ -628,14 +628,14 @@ class Optimizer:
             if self.codestr[i * self.CODEUNIT_SIZE] == self.NOP:
                 nops += 1
 
-    def fix_lnotab(self):
-        lnotab = bytearray(self.lnotab)
-        tabsiz = len(lnotab)
+    def fix_linetable(self):
+        linetable = bytearray(self.linetable)
+        tabsiz = len(linetable)
         codelen = len(self.codestr) // self.CODEUNIT_SIZE
         cum_orig_offset = 0
         last_offset = 0
         for i in range(0, tabsiz, 2):
-            cum_orig_offset += lnotab[i]
+            cum_orig_offset += linetable[i]
             assert cum_orig_offset % 2 == 0
             index = cum_orig_offset // self.CODEUNIT_SIZE
             if index >= codelen:
@@ -650,9 +650,9 @@ class Optimizer:
             )
             offset_delta = new_offset - last_offset
             assert offset_delta <= 255
-            lnotab[i] = cast_signed_byte_to_unsigned(offset_delta)
+            linetable[i] = cast_signed_byte_to_unsigned(offset_delta)
             last_offset = new_offset
-        return lnotab
+        return linetable
 
     def fix_jumps(self):
         op_start = i = last_instr_index = 0

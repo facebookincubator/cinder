@@ -10,7 +10,9 @@ from .test_graph import GraphTests
 
 # from .test_optimizer import AstOptimizerTests
 # from .test_peephole import PeepHoleTests
-# from .test_py37 import Python37Tests
+from .test_py310 import Python310Tests
+from .test_py37 import Python37Tests
+
 # from .test_py38 import Python38Tests
 # from .test_sbs_stdlib import SbsCompileTests
 from .test_symbols import SymbolVisitorTests
