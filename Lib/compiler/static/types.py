@@ -7776,7 +7776,6 @@ class AnnotatedType(Class):
         if (
             len(annotations) == 1
             and isinstance(annotations[0], ast.Constant)
-            # pyre-ignore[16]: Pyre doesn't let us refine the first element of a list.
             and annotations[0].value == "Exact"
             and isinstance(actual_type, Class)
         ):

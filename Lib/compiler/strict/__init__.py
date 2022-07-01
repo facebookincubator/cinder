@@ -28,7 +28,6 @@ from ..pycodegen import (
     Entry,
     FOR_LOOP,
     TRY_FINALLY,
-    TRY_FINALLY_BREAK,
 )
 from ..readonly import ReadonlyCodeGenerator, ReadonlyTypeBinder
 from ..symbols import FunctionScope, SymbolVisitor
@@ -545,6 +544,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
     def processBody(
         self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator
     ) -> None:
+        # TODO needs updating for 3.10 handling of try/finally
         if (
             isinstance(node, (FunctionDef, AsyncFunctionDef))
             and isinstance(gen, StrictCodeGenerator)
@@ -562,7 +562,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
             # copied logic from emit_try_finally
             with gen.graph.new_compile_scope() as compile_end_finally:
                 gen.nextBlock(end)
-                gen.setups.push(Entry(END_FINALLY, end, end))
+                gen.setups.push(Entry(TRY_FINALLY, end, None, None))
                 gen.emit_freeze_class_list()
                 gen.emit("END_FINALLY")
                 break_finally = gen.setups[-1].exit is None
@@ -574,11 +574,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
                 gen.emit("LOAD_CONST", None)
             gen.emit("SETUP_FINALLY", end)
             gen.nextBlock(try_body)
-            gen.setups.push(
-                Entry(
-                    TRY_FINALLY_BREAK if break_finally else TRY_FINALLY, try_body, end
-                )
-            )
+            gen.setups.push(Entry(END_FINALLY, try_body, end, None))
             # normal function body here
             super().processBody(node, body, gen)
             gen.emit("POP_BLOCK")

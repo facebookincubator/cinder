@@ -490,14 +490,16 @@ class CodeGenerator(ASTVisitor):
     ) -> bool:
         (ann_args, annotation_count) = self.annotate_args(node.args)
         # Cannot annotate return type for lambda
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
-            if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
-                ann_args.append("return")
-                ann_args.append(to_expr(node.returns))
-            else:
-                self.emit("LOAD_CONST", "return")
-                self.visit(node.returns)
-                annotation_count += 2
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            returns = node.returns
+            if returns:
+                if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
+                    ann_args.append("return")
+                    ann_args.append(to_expr(returns))
+                else:
+                    self.emit("LOAD_CONST", "return")
+                    self.visit(returns)
+                    annotation_count += 2
 
         if ann_args:
             self.emit("LOAD_CONST", tuple(ann_args))
@@ -551,15 +553,16 @@ class CodeGenerator(ASTVisitor):
             annotation_count += self.annotate_arg(arg, ann_args)
         return ann_args, annotation_count
 
-    def annotate_arg(self, arg: ast.arg, ann_args: List[str]) -> bool:
-        if arg.annotation:
+    def annotate_arg(self, arg: ast.arg, ann_args: List[str]) -> int:
+        ann = arg.annotation
+        if ann:
             if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
                 ann_args.append(self.mangle(arg.arg))
-                ann_args.append(to_expr(arg.annotation))
+                ann_args.append(to_expr(ann))
                 return 2
             else:
                 self.emit("LOAD_CONST", self.mangle(arg.arg))
-                self.visit(arg.annotation)
+                self.visit(ann)
                 return 2
         return 0
 
@@ -2210,6 +2213,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("POP_BLOCK")
             if preserve_tos:
                 self.setups.push(Entry(POP_VALUE, None, None, None))
+            assert callable(e.unwinding_datum)
             e.unwinding_datum()
         elif e.kind in (WITH, ASYNC_WITH):
             self.emit("POP_BLOCK")
@@ -2623,7 +2627,8 @@ class CinderCodeGenerator(CodeGenerator):
     def build_annotations(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
     ) -> bool:
-        ann_args = self.annotate_args(node.args)
+        # TODO needs updating for 3.10 handling of annotations
+        ann_args = self.annotate_args(node.args)[0]
         # Cannot annotate return type for lambda
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
             self.emit("LOAD_CONST", "return")

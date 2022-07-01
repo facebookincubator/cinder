@@ -1378,13 +1378,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.set_type(node, self.type_env.DYNAMIC)
         return NO_EFFECT
 
-    def visitIndex(
-        self, node: Index, type_ctx: Optional[Class] = None
-    ) -> NarrowingEffect:
-        self.visit(node.value, type_ctx)
-        self.set_type(node, self.get_type(node.value))
-        return NO_EFFECT
-
     def visitCompare(
         self, node: Compare, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
