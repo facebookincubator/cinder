@@ -130,7 +130,6 @@ def make_compiler(
     optimize=-1,
     generator=None,
     modname=_DEFAULT_MODNAME,
-    peephole_enabled=True,
     ast_optimizer_enabled=True,
 ):
     if mode not in ("single", "exec", "eval"):
@@ -160,7 +159,6 @@ def make_compiler(
         filename,
         flags,
         optimize,
-        peephole_enabled=peephole_enabled,
         ast_optimizer_enabled=ast_optimizer_enabled,
     )
 
@@ -2273,7 +2271,6 @@ class CodeGenerator(ASTVisitor):
             klass=True,
             docstring=self.get_docstring(klass),
             firstline=first_lineno,
-            peephole_enabled=self.graph.peephole_enabled,
         )
 
         res = self.make_child_codegen(klass, graph)
@@ -2314,7 +2311,6 @@ class CodeGenerator(ASTVisitor):
             optimized=1,
             docstring=self.get_docstring(func),
             firstline=first_lineno,
-            peephole_enabled=self.graph.peephole_enabled,
             posonlyargs=len(func_args.posonlyargs),
         )
 
@@ -2362,7 +2358,6 @@ class CodeGenerator(ASTVisitor):
         filename: str,
         flags: int,
         optimize: int,
-        peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
     ):
         if ast_optimizer_enabled:
@@ -2371,7 +2366,9 @@ class CodeGenerator(ASTVisitor):
         walk(tree, s)
 
         graph = cls.flow_graph(
-            module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
+            module_name,
+            filename,
+            s.scopes[tree],
         )
         code_gen = cls(None, tree, s, graph, flags, optimize)
         code_gen._qual_name = module_name

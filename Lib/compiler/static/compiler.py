@@ -543,9 +543,7 @@ class Compiler:
             raise readonly_type_binder.error_sink.errors[0]
 
         # Compile the code w/ the static compiler
-        graph = self.code_generator.flow_graph(
-            name, filename, s.scopes[tree], peephole_enabled=True
-        )
+        graph = self.code_generator.flow_graph(name, filename, s.scopes[tree])
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
         graph.extra_consts.append(tuple(self.modules[name].imported_from.items()))
 

@@ -1,4 +1,5 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# pyre-unsafe
 from __future__ import annotations
 
 import ast
@@ -7,7 +8,6 @@ import sys
 from ast import Bytes, cmpop, Constant, copy_location, Ellipsis, NameConstant, Num, Str
 from typing import Callable, Dict, Iterable, Mapping, Optional, Type
 
-from .peephole import safe_lshift, safe_mod, safe_multiply, safe_power
 from .visitor import ASTRewriter
 
 
@@ -46,6 +46,78 @@ BIN_OPS: Mapping[Type[ast.operator], Callable[[object, object], object]] = {
     ast.BitXor: operator.xor,
     ast.BitAnd: operator.and_,
 }
+
+
+class DefaultLimits:
+    MAX_INT_SIZE = 128
+    MAX_COLLECTION_SIZE = 20
+    MAX_STR_SIZE = 20
+    MAX_TOTAL_ITEMS = 1024
+
+
+def safe_lshift(left, right, limits=DefaultLimits):
+    if isinstance(left, int) and isinstance(right, int) and left and right:
+        lbits = left.bit_length()
+        if (
+            right < 0
+            or right > limits.MAX_INT_SIZE
+            or lbits > limits.MAX_INT_SIZE - right
+        ):
+            raise OverflowError()
+
+    return left << right
+
+
+def check_complexity(obj, limit):
+    if isinstance(obj, (frozenset, tuple)):
+        limit -= len(obj)
+        for item in obj:
+            limit = check_complexity(item, limit)
+            if limit < 0:
+                break
+
+    return limit
+
+
+def safe_multiply(left, right, limits=DefaultLimits):
+    if isinstance(left, int) and isinstance(right, int) and left and right:
+        lbits = left.bit_length()
+        rbits = right.bit_length()
+        if lbits + rbits > limits.MAX_INT_SIZE:
+            raise OverflowError()
+    elif isinstance(left, int) and isinstance(right, (tuple, frozenset)):
+        rsize = len(right)
+        if rsize:
+            if left < 0 or left > limits.MAX_COLLECTION_SIZE / rsize:
+                raise OverflowError()
+            if left:
+                if check_complexity(right, limits.MAX_TOTAL_ITEMS / left) < 0:
+                    raise OverflowError()
+    elif isinstance(left, int) and isinstance(right, (str, bytes)):
+        rsize = len(right)
+        if rsize:
+            if left < 0 or left > limits.MAX_STR_SIZE / rsize:
+                raise OverflowError()
+    elif isinstance(right, int) and isinstance(left, (tuple, frozenset, str, bytes)):
+        return safe_multiply(right, left, limits)
+
+    return left * right
+
+
+def safe_power(left, right, limits=DefaultLimits):
+    if isinstance(left, int) and isinstance(right, int) and left and right > 0:
+        lbits = left.bit_length()
+        if lbits > limits.MAX_INT_SIZE / right:
+            raise OverflowError()
+
+    return left**right
+
+
+def safe_mod(left, right, limits=DefaultLimits):
+    if isinstance(left, (str, bytes)):
+        raise OverflowError()
+
+    return left % right
 
 
 class AstOptimizer(ASTRewriter):

@@ -159,9 +159,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
 
         binder = ReadonlyTypeBinder(tree, filename, s)
 
-        graph = cls.flow_graph(
-            module_name, filename, s.scopes[tree], peephole_enabled=peephole_enabled
-        )
+        graph = cls.flow_graph(module_name, filename, s.scopes[tree])
         code_gen = cls(
             None,
             tree,

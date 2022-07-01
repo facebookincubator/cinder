@@ -75,7 +75,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         filename: str,
         flags: int,
         optimize: int,
-        peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
     ) -> ReadonlyCodeGenerator:
         s = cls._SymbolVisitor()
@@ -85,7 +84,6 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
             module_name,
             filename,
             s.scopes[tree],
-            peephole_enabled=peephole_enabled,
         )
         codegen = cls(
             None,

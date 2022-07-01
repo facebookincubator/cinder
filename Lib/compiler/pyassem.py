@@ -10,7 +10,6 @@ from typing import Generator, List, Optional
 
 from . import opcode_cinder, opcodes
 from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
-from .peephole import Optimizer
 
 try:
     import cinder
@@ -427,7 +426,6 @@ class PyFlowGraph(FlowGraph):
         klass: bool = False,
         docstring: Optional[str] = None,
         firstline: int = 0,
-        peephole_enabled: bool = True,
         posonlyargs: int = 0,
     ) -> None:
         self.super_init()
@@ -442,7 +440,6 @@ class PyFlowGraph(FlowGraph):
         self.klass = klass
         self.stacksize = 0
         self.docstring = docstring
-        self.peephole_enabled = peephole_enabled
         self.flags = flags
         if optimized:
             self.setFlag(CO_OPTIMIZED | CO_NEWLOCALS)
@@ -844,19 +841,8 @@ class PyFlowGraph(FlowGraph):
         consts = self.getConsts()
         code = self.lnotab.getCode()
         lnotab = self.lnotab.getTable()
-        if self.peephole_enabled:
-            for _i in range(MAX_BYTECODE_OPT_ITERS):
-                opt = self.make_optimizer(code, consts, lnotab).optimize()
-                if opt is not None:
-                    if code == opt.byte_code:
-                        break
-                    code, consts, lnotab = opt.byte_code, opt.consts, opt.lnotab
-
         consts = consts + tuple(self.extra_consts)
         return self.make_code(nlocals, code, consts, firstline, lnotab)
-
-    def make_optimizer(self, code, consts, lnotab) -> Optimizer:
-        return Optimizer(code, consts, lnotab, self.opcode)
 
     def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
         return CodeType(
