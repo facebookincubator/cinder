@@ -2168,28 +2168,36 @@ class CodeGenerator(ASTVisitor):
 
     def visitDict(self, node):
         self.set_lineno(node)
-        containers = elements = 0
+        elements = 0
         is_unpacking = False
+        have_dict = False
+        n = len(node.values)
 
         for i, (k, v) in enumerate(zip(node.keys, node.values)):
             is_unpacking = k is None
-            if elements == 0xFFFF or (elements and is_unpacking):
-                self.compile_subdict(node, i - elements, i)
-                containers += 1
-                elements = 0
-
             if is_unpacking:
+                if elements:
+                    self.compile_subdict(node, i - elements, i)
+                    if have_dict:
+                        self.emit("DICT_UPDATE", 1)
+                    have_dict = True
+                    elements = 0
+                if not have_dict:
+                    self.emit("BUILD_MAP", 0)
+                    have_dict = True
                 self.visit(v)
-                containers += 1
+                self.emit("DICT_UPDATE", 1)
             else:
                 elements += 1
 
-        if elements or containers == 0:
-            self.compile_subdict(node, len(node.keys) - elements, len(node.keys))
-            containers += 1
+        if elements:
+            self.compile_subdict(node, n - elements, n)
+            if have_dict:
+                self.emit("DICT_UPDATE", 1)
+            have_dict = True
 
-        if containers > 1 or is_unpacking:
-            self.emit("BUILD_MAP_UNPACK", containers)
+        if not have_dict:
+            self.emit("BUILD_MAP")
 
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
         if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER):
