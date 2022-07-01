@@ -12,13 +12,6 @@ from . import opcode_cinder, opcodes
 from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .flow_graph_optimizer import FlowGraphOptimizer
 
-try:
-    import cinder
-
-    MAX_BYTECODE_OPT_ITERS = 5
-except ImportError:
-    MAX_BYTECODE_OPT_ITERS = 1
-
 
 def sign(a):
     if not isinstance(a, float):
