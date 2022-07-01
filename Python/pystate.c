@@ -271,6 +271,7 @@ PyInterpreterState_New(void)
     interp->tstate_next_unique_id = 0;
 
     interp->audit_hooks = NULL;
+    interp->lazy_imports_enabled = 0;
 
     return interp;
 

@@ -3729,7 +3729,7 @@ main_loop:
             }
 
             if (_PyEval_LazyImportsEnabled
-                && lazy_imports
+                && PyImport_IsLazyImportsEnabled()
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {
                 res = PyImport_LazyImportName(name,
