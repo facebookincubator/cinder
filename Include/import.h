@@ -57,11 +57,11 @@ PyAPI_FUNC(PyObject *) PyImport_ImportModuleLevel(
     int level
     );
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03050000
-PyObject * PyImport_ImportDeferred(PyObject *deferred);
-PyObject * PyImport_DeferredImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
-PyObject * PyImport_ImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyObject * PyImport_LoadLazyObject(PyObject *deferred);
+PyObject * PyImport_LazyImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyObject * PyImport_EagerImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
 PyObject *
-PyImport_DeferredImportModuleLevelObject(
+PyImport_LazyImportModuleLevelObject(
     PyObject *name,
     PyObject *globals,
     PyObject *locals,

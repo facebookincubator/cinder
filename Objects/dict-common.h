@@ -31,7 +31,7 @@ struct _dictkeysobject {
        - lookdict(): general-purpose, and may return DKIX_ERROR if (and
          only if) a comparison raises an exception.
 
-       - lookdict_deferred(): general-purpose with deferred values, may return
+       - lookdict_with_lazy_imports(): general-purpose with deferred values, may return
          DKIX_ERROR if (and only if) a comparison raises an exception. On
          deferred object resolution errors, it may return DKIX_VALUE_ERROR.
 
@@ -39,7 +39,7 @@ struct _dictkeysobject {
          which can never raise an exception; that function can never return
          DKIX_ERROR.
 
-       - lookdict_unicode_deferred(): specialized to Unicode string keys,
+       - lookdict_with_lazy_imports_unicode(): specialized to Unicode string keys,
          comparison of which can never raise an exception; that function can
          never return DKIX_ERROR. On deferred object resolution errors, it may
          return DKIX_VALUE_ERROR.

@@ -2770,12 +2770,12 @@ main_loop:
                 goto error;
             }
             if (PyDict_CheckExact(ns)) {
-                if (PyDeferred_CheckExact(v)) {
-                    PyObject *d = PyDict_GetUnresolvedItem(ns, name);
-                    if (d != NULL && PyDeferred_CheckExact(d)) {
-                        assert(((PyDeferredObject *)v)->df_next == NULL);
+                if (PyLazyImport_CheckExact(v)) {
+                    PyObject *d = PyDict_GetItemKeepLazy(ns, name);
+                    if (d != NULL && PyLazyImport_CheckExact(d)) {
+                        assert(((PyLazyImport *)v)->lz_next == NULL);
                         Py_INCREF(d);
-                        ((PyDeferredObject *)v)->df_next = d;
+                        ((PyLazyImport *)v)->lz_next = d;
                     }
                     _PyDict_SetHasDeferredObjects(ns);
                 }
@@ -2883,12 +2883,12 @@ main_loop:
             PyObject *name = GETITEM(names, oparg);
             PyObject *v = POP();
             int err;
-            if (PyDeferred_CheckExact(v)) {
-                PyObject *d = PyDict_GetUnresolvedItem(f->f_globals, name);
-                if (d != NULL && PyDeferred_CheckExact(d)) {
-                    assert(((PyDeferredObject *)v)->df_next == NULL);
+            if (PyLazyImport_CheckExact(v)) {
+                PyObject *d = PyDict_GetItemKeepLazy(f->f_globals, name);
+                if (d != NULL && PyLazyImport_CheckExact(d)) {
+                    assert(((PyLazyImport *)v)->lz_next == NULL);
                     Py_INCREF(d);
-                    ((PyDeferredObject *)v)->df_next = d;
+                    ((PyLazyImport *)v)->lz_next = d;
                 }
                 _PyDict_SetHasDeferredObjects(f->f_globals);
             }
@@ -3732,14 +3732,14 @@ main_loop:
                 && lazy_imports
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {
-                res = PyImport_DeferredImportName(name,
+                res = PyImport_LazyImportName(name,
                                                   f->f_globals,
                                                   f->f_locals == NULL ? Py_None : f->f_locals,
                                                   fromlist,
                                                   level);
             }
             else {
-                res = PyImport_ImportName(name,
+                res = PyImport_EagerImportName(name,
                                           f->f_globals,
                                           f->f_locals == NULL ? Py_None : f->f_locals,
                                           fromlist,
@@ -3757,8 +3757,8 @@ main_loop:
         case TARGET(IMPORT_STAR): {
             PyObject *from = POP();
             int err;
-            if (PyDeferred_CheckExact(from)) {
-                PyObject *mod = PyImport_ImportDeferred(from);
+            if (PyLazyImport_CheckExact(from)) {
+                PyObject *mod = PyImport_LoadLazyObject(from);
                 Py_XINCREF(mod);
                 Py_DECREF(from);
                 if (mod == NULL) {
@@ -3784,8 +3784,8 @@ main_loop:
             PyObject *name = GETITEM(names, oparg);
             PyObject *from = TOP();
             PyObject *res;
-            if (PyDeferred_CheckExact(from)) {
-                res = PyDeferred_NewObject((PyObject *)from, name);
+            if (PyLazyImport_CheckExact(from)) {
+                res = PyLazyImportObject_NewObject((PyObject *)from, name);
             } else {
                 res = _Py_DoImportFrom(tstate, from, name);
             }
@@ -6222,9 +6222,9 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
         if (f->f_globals == f->f_locals
             && f->f_iblock == 0
             && _PyDict_HasDeferredObjects(dict)) {
-            value = PyDict_GetUnresolvedItem(dict, name);
+            value = PyDict_GetItemKeepLazy(dict, name);
             if (value != NULL) {
-                if (PyDeferred_CheckExact(value)) {
+                if (PyLazyImport_CheckExact(value)) {
                     _PyDict_SetHasDeferredObjects(f->f_globals);
                 }
                 Py_INCREF(value);
