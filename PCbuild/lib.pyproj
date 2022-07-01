@@ -653,7 +653,6 @@
     <Compile Include="logging\__init__.py" />
     <Compile Include="lzma.py" />
     <Compile Include="mailbox.py" />
-    <Compile Include="mailcap.py" />
     <Compile Include="mimetypes.py" />
     <Compile Include="modulefinder.py" />
     <Compile Include="msilib\schema.py" />
@@ -1172,7 +1171,6 @@
     <Compile Include="test\test_longexp.py" />
     <Compile Include="test\test_lzma.py" />
     <Compile Include="test\test_mailbox.py" />
-    <Compile Include="test\test_mailcap.py" />
     <Compile Include="test\test_marshal.py" />
     <Compile Include="test\test_math.py" />
     <Compile Include="test\test_memoryio.py" />
@@ -1651,7 +1649,6 @@
     <Content Include="test\imghdrdata\python.jpg" />
     <Content Include="test\imghdrdata\python.png" />
     <Content Include="test\leakers\README.txt" />
-    <Content Include="test\mailcap.txt" />
     <Content Include="test\math_testcases.txt" />
     <Content Include="test\sgml_input.html" />
     <Content Include="test\test_difflib_expect.html" />
