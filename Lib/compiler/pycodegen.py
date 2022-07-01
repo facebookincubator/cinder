@@ -165,10 +165,7 @@ def make_compiler(
 
 
 def is_const(node):
-    is_const_node = isinstance(
-        node,
-        (ast.Num, ast.Str, ast.Ellipsis, ast.Bytes, ast.NameConstant, ast.Constant),
-    )
+    is_const_node = isinstance(node, ast.Constant)
     is_debug = isinstance(node, ast.Name) and node.id == "__debug__"
     return is_const_node or is_debug
 
