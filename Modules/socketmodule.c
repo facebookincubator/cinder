@@ -2365,7 +2365,7 @@ getsockaddrarg(PySocketSockObject *s, PyObject *args,
             PyErr_SetString(PyExc_ValueError, "AF_ALG name too long.");
             return 0;
         }
-        strncpy((char *)sa->salg_name, name, sizeof(sa->salg_name));
+        strncpy((char *)sa->salg_name, name, sizeof(sa->salg_name) - 1);
 
         *len_ret = sizeof(*sa);
         return 1;
