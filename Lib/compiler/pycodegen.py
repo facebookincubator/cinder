@@ -1564,6 +1564,10 @@ class CodeGenerator(ASTVisitor):
             # If we have a simple name in a module or class, store the annotation
             if node.simple and isinstance(self.tree, (ast.Module, ast.ClassDef)):
                 self.emitStoreAnnotation(node.target.id, node.annotation)
+            else:
+                # if not, still visit the annotation so we consistently catch bad ones
+                with self.noEmit():
+                    self._visitAnnotation(node.annotation)
         elif isinstance(node.target, ast.Attribute):
             if not node.value:
                 self.checkAnnExpr(node.target.value)

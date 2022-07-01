@@ -69,9 +69,6 @@ class UnparseTests(TestCase):
             "a(b=1, **foo)",
             "a(a, b=1, **foo)",
             "a(a, b=1, **foo)",
-            "(yield)",
-            "(yield 42)",
-            "(yield from [])",
             "lambda: 42",
             "lambda a: 42",
             "lambda a=2: 42",
@@ -103,20 +100,21 @@ class UnparseTests(TestCase):
         ]
 
         for example in examples:
-            if isinstance(example, tuple):
-                example, expected = example
-            else:
-                expected = example
+            with self.subTest(example=example):
+                if isinstance(example, tuple):
+                    example, expected = example
+                else:
+                    expected = example
 
-            tree = ast.parse(example)
-            self.assertEqual(expected, to_expr(tree.body[0].value))
+                tree = ast.parse(example)
+                self.assertEqual(expected, to_expr(tree.body[0].value))
 
-            # Make sure we match CPython's compilation too
-            l = {}
-            exec(
-                f"from __future__ import annotations\ndef f() -> {example}:\n    pass",
-                l,
-                l,
-            )
-            f = l["f"]
-            self.assertEqual(expected, f.__annotations__["return"])
+                # Make sure we match CPython's compilation too
+                l = {}
+                exec(
+                    f"from __future__ import annotations\ndef f() -> {example}:\n    pass",
+                    l,
+                    l,
+                )
+                f = l["f"]
+                self.assertEqual(expected, f.__annotations__["return"])
