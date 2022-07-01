@@ -80,6 +80,11 @@ class Instruction:
         op = opcodes.opcode.opmap[self.opname]
         return opcodes.opcode.has_jump(op)
 
+    def copy(self) -> Instruction:
+        return Instruction(
+            self.opname, self.oparg, self.ioparg, self.lineno, self.target
+        )
+
 
 class CompileScope:
     START_MARKER = "compile-scope-start-marker"
@@ -340,6 +345,15 @@ class Block:
                 contained.append(op.graph)
         return contained
 
+    def copy(self):
+        # Cannot copy block if it has fallthrough, since a block can have only one
+        # fallthrough predecessor
+        assert self.no_fallthrough
+        result = Block()
+        result.insts = [instr.copy() for instr in self.insts]
+        result.is_exit = self.is_exit
+        result.no_fallthrough = True
+        return result
 
 # flags for code objects
 
@@ -503,6 +517,7 @@ class PyFlowGraph(FlowGraph):
         assert self.stage == ACTIVE, self.stage
         self.stage = CLOSED
         self.optimizeCFG()
+        self.duplicate_exits_without_lineno()
         self.propagate_line_numbers()
         assert self.stage == OPTIMIZED, self.stage
 
@@ -892,6 +907,41 @@ class PyFlowGraph(FlowGraph):
                     next_instr = target.insts[0]
                     if next_instr.lineno < 0:
                         next_instr.lineno = prev_lineno
+
+    def duplicate_exits_without_lineno(self):
+        """
+        PEP 626 mandates that the f_lineno of a frame is correct
+        after a frame terminates. It would be prohibitively expensive
+        to continuously update the f_lineno field at runtime,
+        so we make sure that all exiting instruction (raises and returns)
+        have a valid line number, allowing us to compute f_lineno lazily.
+        We can do this by duplicating the exit blocks without line number
+        so that none have more than one predecessor. We can then safely
+        copy the line number from the sole predecessor block.
+        """
+        # Copy all exit blocks without line number that are targets of a jump.
+        append_after = {}
+        for block in self.ordered_blocks:
+            if block.insts and (last := block.insts[-1]).is_jump():
+                if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
+                    continue
+                target = last.target
+                assert target.insts
+                if target.is_exit and target.insts[0].lineno < 0:
+                    new_target = target.copy()
+                    new_target.insts[0].lineno = last.lineno
+                    last.target = new_target
+                    target.num_predecessors -= 1
+                    new_target.num_predecessors = 1
+                    new_target.next = target.next
+                    target.next = new_target
+                    new_target.prev = target
+                    new_target.bid = self.block_count
+                    self.block_count += 1
+                    append_after.setdefault(target, []).append(new_target)
+        for after, to_append in append_after.items():
+            idx = self.ordered_blocks.index(after) + 1
+            self.ordered_blocks[idx:idx] = to_append
 
     def optimizeCFG(self):
         """Optimize a well-formed CFG."""
