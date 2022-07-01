@@ -199,6 +199,7 @@ class Disassembler:
         print("co_freevars:", co.co_freevars, file=file)
         # pyre-fixme[16]: `CodeType` has no attribute `co_linetable`.
         print("co_linetable:", repr(co.co_linetable), file=file)
+        print("co_lines:", repr(list(co.co_lines())), file=file)
         print(file=file)
         for c in co.co_consts:
             if hasattr(c, "co_code"):
