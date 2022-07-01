@@ -30,9 +30,16 @@
 #  include <editline/readline.h>
 #else
 /* GNU readline definitions */
-#  undef HAVE_CONFIG_H /* Else readline/chardefs.h includes strings.h */
-#  include <readline/readline.h>
-#  include <readline/history.h>
+#undef HAVE_CONFIG_H /* Else readline/chardefs.h includes strings.h */
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wstrict-prototypes"
+#endif
+#include <readline/readline.h>
+#include <readline/history.h>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #endif
 
 #ifdef HAVE_RL_COMPLETION_MATCHES
