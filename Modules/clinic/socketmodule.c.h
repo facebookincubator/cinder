@@ -1,4 +1,3 @@
-/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /*[clinic input]
 preserve
 [clinic start generated code]*/
@@ -30,11 +29,6 @@ _socket_socket___init__(PyObject *self, PyObject *args, PyObject *kwargs)
         goto skip_optional_pos;
     }
     if (fastargs[0]) {
-        if (PyFloat_Check(fastargs[0])) {
-            PyErr_SetString(PyExc_TypeError,
-                            "integer argument expected, got float" );
-            goto exit;
-        }
         family = _PyLong_AsInt(fastargs[0]);
         if (family == -1 && PyErr_Occurred()) {
             goto exit;
@@ -44,11 +38,6 @@ _socket_socket___init__(PyObject *self, PyObject *args, PyObject *kwargs)
         }
     }
     if (fastargs[1]) {
-        if (PyFloat_Check(fastargs[1])) {
-            PyErr_SetString(PyExc_TypeError,
-                            "integer argument expected, got float" );
-            goto exit;
-        }
         type = _PyLong_AsInt(fastargs[1]);
         if (type == -1 && PyErr_Occurred()) {
             goto exit;
@@ -58,11 +47,6 @@ _socket_socket___init__(PyObject *self, PyObject *args, PyObject *kwargs)
         }
     }
     if (fastargs[2]) {
-        if (PyFloat_Check(fastargs[2])) {
-            PyErr_SetString(PyExc_TypeError,
-                            "integer argument expected, got float" );
-            goto exit;
-        }
         proto = _PyLong_AsInt(fastargs[2]);
         if (proto == -1 && PyErr_Occurred()) {
             goto exit;
@@ -78,4 +62,4 @@ skip_optional_pos:
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=aafb68501ee70886 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=22aa2b498a4e55d1 input=a9049054013a1b77]*/
