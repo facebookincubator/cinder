@@ -2,7 +2,6 @@
   "logger": "/usr/local/bin/scribe_cat",
   "version": "4a7d605ae2b24ff631351c2e30d279466dc68d72",
   "source_directories": [
-    "Lib/compiler",
     "Tools/scripts/facebook/perf",
     "Tools/scripts/facebook/workflow",
     "Tools/scripts/typed"
