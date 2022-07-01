@@ -389,6 +389,7 @@ class AstOptimizerTests(CompilerTest):
             return a not in {1, 2, 3}"""
         )
         f, g = d["f"], d["g"]
+
         self.assertTrue(f(3))
         self.assertTrue(not f(4))
 

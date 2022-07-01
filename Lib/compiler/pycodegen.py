@@ -811,10 +811,6 @@ class CodeGenerator(ASTVisitor):
         ast.LtE: "<=",
         ast.Gt: ">",
         ast.GtE: ">=",
-        ast.Is: "is",
-        ast.IsNot: "is not",
-        ast.In: "in",
-        ast.NotIn: "not in",
     }
 
     def compileJumpIf(self, test, next, is_if_true):
@@ -898,7 +894,16 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(label="compare_or_cleanup")
 
     def defaultEmitCompare(self, op):
-        self.emit("COMPARE_OP", self._cmp_opcode[type(op)])
+        if isinstance(op, ast.Is):
+            self.emit("IS_OP", 0)
+        elif isinstance(op, ast.IsNot):
+            self.emit("IS_OP", 1)
+        elif isinstance(op, ast.In):
+            self.emit("CONTAINS_OP", 0)
+        elif isinstance(op, ast.NotIn):
+            self.emit("CONTAINS_OP", 1)
+        else:
+            self.emit("COMPARE_OP", self._cmp_opcode[type(op)])
 
     def visitCompare(self, node):
         self.update_lineno(node)

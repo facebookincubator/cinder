@@ -93,6 +93,8 @@ opcode.jabs_op("JUMP_ABSOLUTE", 113)  # ""
 opcode.jabs_op("POP_JUMP_IF_FALSE", 114)  # ""
 opcode.jabs_op("POP_JUMP_IF_TRUE", 115)  # ""
 opcode.name_op("LOAD_GLOBAL", 116)  # Index in name list
+opcode.def_op("IS_OP", 117)  # is/is not operator
+opcode.def_op("CONTAINS_OP", 118)  # in/not in operator
 opcode.jrel_op("SETUP_FINALLY", 122)  # ""
 opcode.def_op("LOAD_FAST", 124)  # Local variable number
 opcode.haslocal.add(124)
@@ -267,6 +269,8 @@ opcode.stack_effects.update(
     BUILD_CONST_KEY_MAP=lambda oparg, jmp=0: -oparg,
     LOAD_ATTR=0,
     COMPARE_OP=-1,
+    CONTAINS_OP=-1,
+    IS_OP=-1,
     IMPORT_NAME=-1,
     IMPORT_FROM=1,
     JUMP_FORWARD=0,
