@@ -1,11 +1,14 @@
 fun(a, *c, kw=1)
 # EXPECTED:
 [
-    ...,
-    BUILD_TUPLE(1),
-    ...,
-    BUILD_TUPLE_UNPACK_WITH_CALL(2),
-    ...,
+    LOAD_NAME("fun"),
+    LOAD_NAME("a"),
+    BUILD_LIST(1),
+    LOAD_NAME("c"),
+    LIST_EXTEND(1),
+    LIST_TO_TUPLE(0),
+    LOAD_CONST("kw"),
+    LOAD_CONST(1),
     BUILD_MAP(1),
     CALL_FUNCTION_EX(1),
     ...,

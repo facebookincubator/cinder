@@ -1,7 +1,3 @@
-{*[1,2,3]}
+{*[1, 2, 3]}
 # EXPECTED:
-[
-    ...,
-    BUILD_SET_UNPACK(1),
-    ...
-]
+[BUILD_SET(0), BUILD_LIST(0), LOAD_CONST((1, 2, 3)), LIST_EXTEND(1), SET_UPDATE(1), ...]

@@ -233,17 +233,19 @@ class AstOptimizerTests(CompilerTest):
             ('a = ("a","b","c")', ("a", "b", "c")),
             ("a,b,c = 1,2,3", (1, 2, 3)),
             ("a = (None, 1, None)", (None, 1, None)),
-            ("a = ((1, 2), 3, 4)", ((1, 2), 3, 4)),
         ):
+            code = self.compare_graph(line)
+            code.assert_both("LOAD_CONST", elem)
+
+        for line, elem in (("a = ((1, 2), 3, 4)", ((1, 2), 3, 4)),):
             code = self.compare_graph(line)
             code.assert_added("LOAD_CONST", elem)
             code.assert_removed("BUILD_TUPLE")
 
         # Long tuples should be folded too.
         code = self.compare_graph("x=" + repr(tuple(range(10000))))
-        code.assert_removed("BUILD_TUPLE")
         # One LOAD_CONST for the tuple, one for the None return value
-        code.assert_instr_count("LOAD_CONST", 10001, 2)
+        code.assert_instr_count("LOAD_CONST", 2, 2)
 
         # Bug 1053819:  Tuple of constants misidentified when presented with:
         # . . . opcode_with_arg 100   unary_opcode   BUILD_TUPLE 1  . . .
@@ -360,24 +362,29 @@ class AstOptimizerTests(CompilerTest):
             ("a in [1,2,3]", (1, 2, 3)),
             ('a not in ["a","b","c"]', ("a", "b", "c")),
             ("a in [None, 1, None]", (None, 1, None)),
-            ("a not in [(1, 2), 3, 4]", ((1, 2), 3, 4)),
         ):
+            code = self.compare_graph(line)
+            code.assert_both("LOAD_CONST", elem)
+
+        for line, elem in (("a not in [(1, 2), 3, 4]", ((1, 2), 3, 4)),):
             code = self.compare_graph(line)
             code.assert_added("LOAD_CONST", elem)
             code.assert_removed("BUILD_LIST")
 
     def test_folding_of_sets_of_constants(self):
         for line, elem in (
-            # in/not in constants with BUILD_SET should be folded to a frozenset:
             ("a in {1,2,3}", frozenset({1, 2, 3})),
             ('a not in {"a","b","c"}', frozenset({"a", "c", "b"})),
             ("a in {None, 1, None}", frozenset({1, None})),
-            ("a not in {(1, 2), 3, 4}", frozenset({(1, 2), 3, 4})),
             ("a in {1, 2, 3, 3, 2, 1}", frozenset({1, 2, 3})),
         ):
             code = self.compare_graph(line)
-            code.assert_removed("BUILD_SET")
+            # The LOAD_CONSTfrozenset optimization takes place in the compiler.
+            code.assert_both("LOAD_CONST", elem)
+        for line, elem in (("a not in {(1, 2), 3, 4}", frozenset({(1, 2), 3, 4})),):
+            code = self.compare_graph(line)
             code.assert_added("LOAD_CONST", elem)
+            code.assert_removed("BUILD_SET")
 
         # Ensure that the resulting code actually works:
         d = self.run_code(
