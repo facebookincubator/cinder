@@ -2585,8 +2585,9 @@ class CinderCodeGenerator(CodeGenerator):
 
 def get_default_generator():
 
-    if "cinder" in sys.version:
-        return CinderCodeGenerator
+    # TODO Enable CinderCodeGenerator once we port Cinder changes to C compiler
+    # if "cinder" in sys.version:
+    #    return CinderCodeGenerator
 
     return CodeGenerator
 

@@ -1,9 +1,12 @@
-[![Build Status](https://travis-ci.org/pfalcon/python-compiler.png?branch=master)](https://travis-ci.org/pfalcon/python-compiler)
-
 Python Bytecode Compiler Written in Python
 ==========================================
 
-This is WIP port of Python2 stdlib
+(Below README from pfalcon as of 2019 when this code was pulled into Cinder.
+This version is now maintained by Cinder team and kept up to date with current
+Cinder CPython version; some of the below text is now out of date but preserved
+to keep the history clear.)
+
+This is a port of the Python2 stdlib
 [compiler](https://docs.python.org/2/library/compiler.html) package
 to Python3.
 
