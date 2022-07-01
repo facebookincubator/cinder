@@ -10,7 +10,9 @@ if TYPE_CHECKING:
 
     from .pyassem import Block
 
-    TOpcodeHandler = Callable[["FlowGraphOptimizer", int, int, int, int], Optional[int]]
+    TOpcodeHandler = Callable[
+        ["FlowGraphOptimizer", int, int, int, int, Block], Optional[int]
+    ]
 
 
 PyCmp_LT = 0
@@ -79,9 +81,8 @@ class FlowGraphOptimizer:
 
     def optimizeBlock(self, block: Block) -> None:
         instr_index = 0
-        num_operations = len(block.insts)
 
-        while instr_index < num_operations:
+        while instr_index < len(block.insts):
             instr = block.insts[instr_index]
 
             target: Optional[Block] = None
@@ -93,7 +94,7 @@ class FlowGraphOptimizer:
 
             next_instr = (
                 block.insts[instr_index + 1]
-                if instr_index + 1 < num_operations
+                if instr_index + 1 < len(block.insts)
                 else None
             )
 
@@ -104,7 +105,7 @@ class FlowGraphOptimizer:
             handler = self.OP_HANDLERS.get(instr.opname)
             if handler is not None:
                 instr_index = (
-                    handler(self, instr_index, instr, next_instr, target)
+                    handler(self, instr_index, instr, next_instr, target, block)
                     or instr_index + 1
                 )
             else:
@@ -122,7 +123,7 @@ class FlowGraphOptimizer:
     OP_HANDLERS, ophandler = ophandler_registry()
 
     @ophandler("LOAD_CONST")
-    def opt_load_const(self, instr_index, instr, next_instr, target):
+    def opt_load_const(self, instr_index, instr, next_instr, target, block):
         # Skip over LOAD_CONST trueconst
         # POP_JUMP_IF_FALSE xx.  This improves
         # "while 1" performance.
@@ -153,6 +154,10 @@ class FlowGraphOptimizer:
                 instr.opname = "NOP"
                 next_instr.opname = "NOP"
 
+    @ophandler("RETURN_VALUE", "RETURN_PRIMITIVE")
+    def opt_return_value(self, instr_index, instr, next_instr, target, block):
+        block.insts = block.insts[: instr_index + 1]
+
     def extendBlock(self, block: Block) -> None:
         if len(block.insts) == 0:
             return
@@ -160,10 +165,29 @@ class FlowGraphOptimizer:
         if last.opname not in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
             return
         target = last.target
-        if not target.is_exit_block():
+        if not target.is_exit:
             return
         if len(target.insts) > MAX_COPY_SIZE:
             return
         block.insts[-1] = target.insts[0]
         for instr in target.insts[1:]:
             block.insts.append(instr)
+
+    def normalizeBlock(self, block: Block) -> None:
+        """Sets the `fallthrough` and `exit` properties of a block, and ensures that the targets of
+        any jumps point to non-empty blocks by following the next pointer of empty blocks."""
+        for instr in block.getInstructions():
+            if instr.opname in ("RETURN_VALUE", "RAISE_VARARGS", "RERAISE"):
+                block.is_exit = True
+                block.no_fallthrough = True
+            elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+                block.no_fallthrough = True
+            elif instr.opname in (
+                "POP_JUMP_IF_TRUE",
+                "POP_JUMP_IF_FALSE",
+                "JUMP_IF_TRUE_OR_POP",
+                "JUMP_IF_FALSE_OR_POP",
+                "FOR_ITER",
+            ):
+                while not instr.target.insts:
+                    instr.target = instr.target.next
