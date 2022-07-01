@@ -6,7 +6,6 @@ class Opcode:
         "!=",
         ">",
         ">=",
-        "exception match",
         "BAD",
     )
     CONTAINS_OP_ARGS = (

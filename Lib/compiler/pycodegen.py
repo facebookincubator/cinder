@@ -63,10 +63,11 @@ TRY_FINALLY = 3
 END_FINALLY = 4
 WHILE_LOOP = 5
 FOR_LOOP = 6
-TRY_FINALLY_BREAK = 7
 WITH = 8
 ASYNC_WITH = 9
 HANDLER_CLEANUP = 10
+POP_VALUE = 11
+EXCEPTION_HANDLER = 12
 
 _ZERO = (0).to_bytes(4, "little")
 
@@ -708,7 +709,7 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(after)
 
     def push_loop(self, kind, start, end):
-        self.setups.push(Entry(kind, start, end))
+        self.setups.push(Entry(kind, start, end, None))
 
     def pop_loop(self):
         self.setups.pop()
@@ -746,7 +747,7 @@ class CodeGenerator(ASTVisitor):
 
         self.nextBlock(start)
 
-        self.setups.push(Entry(FOR_LOOP, start, end))
+        self.setups.push(Entry(FOR_LOOP, start, end, None))
         self.emit("SETUP_FINALLY", except_)
         self.emit("GET_ANEXT")
         self.emit("LOAD_CONST", None)
@@ -1220,13 +1221,13 @@ class CodeGenerator(ASTVisitor):
         self.emit("SETUP_FINALLY", except_)
         self.nextBlock(body)
 
-        self.setups.push(Entry(EXCEPT, body, None))
+        self.setups.push(Entry(EXCEPT, body, None, None))
         self.visit(node.body)
-        self.emit("POP_BLOCK")
         self.setups.pop()
-
+        self.emit("POP_BLOCK")
         self.emit("JUMP_FORWARD", orElse)
         self.nextBlock(except_)
+        self.setups.push(Entry(EXCEPTION_HANDLER, None, None, None))
 
         last = len(node.handlers) - 1
         for i in range(len(node.handlers)):
@@ -1239,8 +1240,8 @@ class CodeGenerator(ASTVisitor):
             if expr:
                 self.emit("DUP_TOP")
                 self.visit(expr)
-                self.emit("COMPARE_OP", "exception match")
-                self.emit("POP_JUMP_IF_FALSE", except_)
+                self.emit("JUMP_IF_NOT_EXC_MATCH", except_)
+                self.nextBlock()
             elif i < last:
                 raise SyntaxError(
                     "default 'except:' must be last",
@@ -1252,37 +1253,46 @@ class CodeGenerator(ASTVisitor):
             if target:
                 cleanup_end = self.newBlock(f"try_cleanup_end{i}")
                 cleanup_body = self.newBlock(f"try_cleanup_body{i}")
+
                 self.storeName(target)
                 self.emit("POP_TOP")
+
                 self.emit("SETUP_FINALLY", cleanup_end)
                 self.nextBlock(cleanup_body)
-                self.setups.push(Entry(HANDLER_CLEANUP, cleanup_body, cleanup_end))
+                self.setups.push(
+                    Entry(HANDLER_CLEANUP, cleanup_body, cleanup_end, target)
+                )
                 self.visit(body)
-                self.emit("POP_BLOCK")
-                self.emit("BEGIN_FINALLY")
                 self.setups.pop()
+                self.emit("POP_BLOCK")
+                self.emit("POP_EXCEPT")
 
-                self.nextBlock(cleanup_end)
-                self.setups.push(Entry(END_FINALLY, cleanup_end, None))
                 self.emit("LOAD_CONST", None)
                 self.storeName(target)
                 self.delName(target)
-                self.emit("END_FINALLY")
-                self.emit("POP_EXCEPT")
-                self.setups.pop()
+                self.emit("JUMP_FORWARD", end)
+
+                self.nextBlock(cleanup_end)
+                self.emit("LOAD_CONST", None)
+                self.storeName(target)
+                self.delName(target)
+
+                self.emit("RERAISE", 1)
+
             else:
                 cleanup_body = self.newBlock(f"try_cleanup_body{i}")
                 self.emit("POP_TOP")
                 self.emit("POP_TOP")
                 self.nextBlock(cleanup_body)
-                self.setups.push(Entry(HANDLER_CLEANUP, cleanup_body, None))
+                self.setups.push(Entry(HANDLER_CLEANUP, cleanup_body, None, None))
                 self.visit(body)
-                self.emit("POP_EXCEPT")
                 self.setups.pop()
-            self.emit("JUMP_FORWARD", end)
+                self.emit("POP_EXCEPT")
+                self.emit("JUMP_FORWARD", end)
             self.nextBlock(except_)
 
-        self.emit("END_FINALLY")
+        self.setups.pop()
+        self.emit("RERAISE", 0)
         self.nextBlock(orElse)
         self.visit(node.orelse)
         self.nextBlock(end)
@@ -1297,44 +1307,52 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_TOP")
 
     def emit_try_finally(self, node, try_body, finalbody, except_protect=False):
+        """
+        The overall idea is:
+           SETUP_FINALLY end
+           try-body
+           POP_BLOCK
+           finally-body
+           JUMP exit
+        end:
+           finally-body
+        exit:
+        """
         body = self.newBlock("try_finally_body")
         end = self.newBlock("try_finally_end")
+        exit_ = self.newBlock("try_finally_exit")
 
         self.set_lineno(node)
-        break_finally = True
-
-        # compile FINALLY_END out of order to match CPython
-        with self.graph.new_compile_scope() as compile_end_finally:
-            self.nextBlock(end)
-
-            self.setups.push(Entry(END_FINALLY, end, end))
-            finalbody()
-            self.emit("END_FINALLY")
-            break_finally = self.setups[-1].exit is None
-            if break_finally:
-                self.emit("POP_TOP")
-            self.setups.pop()
-
-        self.set_lineno(node)
-        if break_finally:
-            self.emit("LOAD_CONST", None)
         self.emit("SETUP_FINALLY", end)
+
         self.nextBlock(body)
-        self.setups.push(
-            Entry(TRY_FINALLY_BREAK if break_finally else TRY_FINALLY, body, end)
-        )
+        self.setups.push(Entry(TRY_FINALLY, body, end, finalbody))
         try_body()
         self.emit("POP_BLOCK")
-        self.emit("BEGIN_FINALLY")
         self.setups.pop()
+        finalbody()
+        self.emit("JUMP_FORWARD", exit_)
 
-        self.graph.apply_from_scope(compile_end_finally)
+        self.nextBlock(end)
+        self.setups.push(Entry(END_FINALLY, end, None, None))
+        finalbody()
+        self.setups.pop()
+        self.emit("RERAISE", 0)
+
+        self.nextBlock(exit_)
+
+    def call_exit_with_nones(self):
+        self.emit("LOAD_CONST", None)
+        self.emit("DUP_TOP")
+        self.emit("DUP_TOP")
+        self.emit("CALL_FUNCTION", 3)
 
     def visitWith_(self, node, kind, pos=0):
         item = node.items[pos]
 
         block = self.newBlock("with_block")
         finally_ = self.newBlock("with_finally")
+        exit_ = self.newBlock("with_exit")
         self.visit(item.context_expr)
         if kind == ASYNC_WITH:
             self.emit("BEFORE_ASYNC_WITH")
@@ -1346,7 +1364,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("SETUP_WITH", finally_)
 
         self.nextBlock(block)
-        self.setups.push(Entry(kind, block, finally_))
+        self.setups.push(Entry(kind, block, finally_, None))
         if item.optional_vars:
             self.visit(item.optional_vars)
         else:
@@ -1357,22 +1375,41 @@ class CodeGenerator(ASTVisitor):
         else:
             self.visit(node.body)
 
-        self.emit("POP_BLOCK")
-        self.emit("BEGIN_FINALLY")
         self.setups.pop()
+        self.emit("POP_BLOCK")
+
+        self.call_exit_with_nones()
+
+        if kind == ASYNC_WITH:
+            self.emit("GET_AWAITABLE")
+            self.emit("LOAD_CONST", None)
+            self.emit("YIELD_FROM")
+        self.emit("POP_TOP")
+        if kind == ASYNC_WITH:
+            self.emit("JUMP_ABSOLUTE", exit_)
+        else:
+            self.emit("JUMP_FORWARD", exit_)
 
         self.nextBlock(finally_)
+        self.emit("WITH_EXCEPT_START")
 
-        self.setups.push(Entry(END_FINALLY, finally_, None))
-        self.emit("WITH_CLEANUP_START")
         if kind == ASYNC_WITH:
             self.emit("GET_AWAITABLE")
             self.emit("LOAD_CONST", None)
             self.emit("YIELD_FROM")
 
-        self.emit("WITH_CLEANUP_FINISH")
-        self.emit("END_FINALLY")
-        self.setups.pop()
+        except_ = self.newBlock()
+        self.emit("POP_JUMP_IF_TRUE", except_)
+        self.nextBlock()
+        self.emit("RERAISE", 1)
+        self.nextBlock(except_)
+        self.emit("POP_TOP")
+        self.emit("POP_TOP")
+        self.emit("POP_TOP")
+        self.emit("POP_EXCEPT")
+        self.emit("POP_TOP")
+
+        self.nextBlock(exit_)
 
     def visitWith(self, node):
         self.set_lineno(node)
@@ -2157,14 +2194,17 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_MAP_UNPACK", containers)
 
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
-        if e.kind == WHILE_LOOP:
+        if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER):
             return
         if e.kind == END_FINALLY:
-            e.exit = None
-            self.emit("POP_FINALLY", preserve_tos)
             if preserve_tos:
-                self.emit("ROT_TWO")
+                self.emit("ROT_FOUR")
             self.emit("POP_TOP")
+            self.emit("POP_TOP")
+            self.emit("POP_TOP")
+            if preserve_tos:
+                self.emit("ROT_FOUR")
+            self.emit("POP_EXCEPT", preserve_tos)
         elif e.kind == FOR_LOOP:
             if preserve_tos:
                 self.emit("ROT_TWO")
@@ -2173,37 +2213,34 @@ class CodeGenerator(ASTVisitor):
             self.emit("POP_BLOCK")
         elif e.kind == TRY_FINALLY:
             self.emit("POP_BLOCK")
-            self.emit("CALL_FINALLY", e.exit)
-        elif e.kind == TRY_FINALLY_BREAK:
-            self.emit("POP_BLOCK")
             if preserve_tos:
-                self.emit("ROT_TWO")
-                self.emit("POP_TOP")
-                self.emit("CALL_FINALLY", e.exit)
-            else:
-                self.emit("CALL_FINALLY", e.exit)
-                self.emit("POP_TOP")
+                self.setups.push(Entry(POP_VALUE, None, None, None))
+            e.unwinding_datum()
         elif e.kind in (WITH, ASYNC_WITH):
             self.emit("POP_BLOCK")
             if preserve_tos:
                 self.emit("ROT_TWO")
-            self.emit("BEGIN_FINALLY")
-            self.emit("WITH_CLEANUP_START")
+            self.call_exit_with_nones()
             if e.kind == ASYNC_WITH:
                 self.emit("GET_AWAITABLE")
                 self.emit("LOAD_CONST", None)
                 self.emit("YIELD_FROM")
-            self.emit("WITH_CLEANUP_FINISH")
-            self.emit("POP_FINALLY", 0)
+            self.emit("POP_TOP")
         elif e.kind == HANDLER_CLEANUP:
+            datum = e.unwinding_datum
+            if datum is not None:
+                self.emit("POP_BLOCK")
             if preserve_tos:
                 self.emit("ROT_FOUR")
-            if e.exit:
-                self.emit("POP_BLOCK")
-                self.emit("POP_EXCEPT")
-                self.emit("CALL_FINALLY", e.exit)
-            else:
-                self.emit("POP_EXCEPT")
+            self.emit("POP_EXCEPT")
+            if datum is not None:
+                self.emit("LOAD_CONST", None)
+                self.storeName(datum)
+                self.delName(datum)
+        elif e.kind == POP_VALUE:
+            if preserve_tos:
+                self.emit("ROT_TWO")
+            self.emit("POP_TOP")
         else:
             raise Exception(f"Unexpected kind {e.kind}")
 
@@ -2411,11 +2448,13 @@ class Entry:
     kind: int
     block: pyassem.Block
     exit: Optional[pyassem.Block]
+    unwinding_datum: object
 
-    def __init__(self, kind, block, exit):
+    def __init__(self, kind, block, exit, unwinding_datum):
         self.kind = kind
         self.block = block
         self.exit = exit
+        self.unwinding_datum = unwinding_datum
 
 
 class CinderCodeGenerator(CodeGenerator):

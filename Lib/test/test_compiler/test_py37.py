@@ -77,7 +77,7 @@ class Python37Tests(CompilerTest):
                 break
 
     def test_try_except_pop_except(self):
-        """POP_EXCEPT moved after END_FINALLY in Python 3.7"""
+        """POP_EXCEPT moved after POP_BLOCK in Python 3.10"""
         graph = self.to_graph(
             """
             try:
@@ -89,7 +89,7 @@ class Python37Tests(CompilerTest):
         prev_instr = None
         for instr in self.graph_to_instrs(graph):
             if instr.opname == "POP_EXCEPT":
-                self.assertEqual(prev_instr.opname, "END_FINALLY", prev_instr.opname)
+                self.assertEqual(prev_instr.opname, "POP_BLOCK", prev_instr.opname)
             prev_instr = instr
 
     def test_func_doc_str_lnotab(self):

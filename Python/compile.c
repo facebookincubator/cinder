@@ -5084,7 +5084,7 @@ compiler_async_with(struct compiler *c, stmt_ty s, int pos)
     ADDOP(c, YIELD_FROM);
     compiler_with_except_finish(c);
 
-compiler_use_next_block(c, exit);
+    compiler_use_next_block(c, exit);
     return 1;
 }
 

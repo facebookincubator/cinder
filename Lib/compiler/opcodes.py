@@ -27,10 +27,10 @@ opcode.def_op("BINARY_FLOOR_DIVIDE", 26)
 opcode.def_op("BINARY_TRUE_DIVIDE", 27)
 opcode.def_op("INPLACE_FLOOR_DIVIDE", 28)
 opcode.def_op("INPLACE_TRUE_DIVIDE", 29)
+opcode.def_op("WITH_EXCEPT_START", 49)
 opcode.def_op("GET_AITER", 50)
 opcode.def_op("GET_ANEXT", 51)
 opcode.def_op("BEFORE_ASYNC_WITH", 52)
-opcode.def_op("BEGIN_FINALLY", 53)
 opcode.def_op("END_ASYNC_FOR", 54)
 opcode.def_op("INPLACE_ADD", 55)
 opcode.def_op("INPLACE_SUBTRACT", 56)
@@ -55,14 +55,11 @@ opcode.def_op("INPLACE_RSHIFT", 76)
 opcode.def_op("INPLACE_AND", 77)
 opcode.def_op("INPLACE_XOR", 78)
 opcode.def_op("INPLACE_OR", 79)
-opcode.def_op("WITH_CLEANUP_START", 81)
-opcode.def_op("WITH_CLEANUP_FINISH", 82)
 opcode.def_op("RETURN_VALUE", 83)
 opcode.def_op("IMPORT_STAR", 84)
 opcode.def_op("SETUP_ANNOTATIONS", 85)
 opcode.def_op("YIELD_VALUE", 86)
 opcode.def_op("POP_BLOCK", 87)
-opcode.def_op("END_FINALLY", 88)
 opcode.def_op("POP_EXCEPT", 89)
 # Opcodes from here have an argument:
 opcode.name_op("STORE_NAME", 90)  # Index in name list
@@ -95,6 +92,8 @@ opcode.jabs_op("POP_JUMP_IF_TRUE", 115)  # ""
 opcode.name_op("LOAD_GLOBAL", 116)  # Index in name list
 opcode.def_op("IS_OP", 117)  # is/is not operator
 opcode.def_op("CONTAINS_OP", 118)  # in/not in operator
+opcode.def_op("RERAISE", 119)
+opcode.jabs_op("JUMP_IF_NOT_EXC_MATCH", 121)
 opcode.jrel_op("SETUP_FINALLY", 122)  # ""
 opcode.def_op("LOAD_FAST", 124)  # Local variable number
 opcode.haslocal.add(124)
@@ -165,8 +164,6 @@ opcode.def_op("BUILD_STRING", 157)
 opcode.def_op("BUILD_TUPLE_UNPACK_WITH_CALL", 158)
 opcode.name_op("LOAD_METHOD", 160)
 opcode.def_op("CALL_METHOD", 161)
-opcode.jrel_op("CALL_FINALLY", 162)
-opcode.def_op("POP_FINALLY", 163)
 
 FVC_MASK = 0x3
 FVC_NONE = 0x0
@@ -311,10 +308,7 @@ opcode.stack_effects.update(
     SET_LINENO=0,
     EXTENDED_ARG=0,
     SETUP_WITH=lambda oparg, jmp=0: 6 if jmp else 1,
-    WITH_CLEANUP_START=2,  # or 1, depending on TOS
-    WITH_CLEANUP_FINISH=-3,
     POP_EXCEPT=-3,
-    END_FINALLY=-6,
     FOR_ITER=lambda oparg, jmp=0: -1 if jmp > 0 else 1,
     JUMP_IF_TRUE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     JUMP_IF_FALSE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
@@ -324,7 +318,7 @@ opcode.stack_effects.update(
     LOAD_METHOD=1,
     ROT_FOUR=0,
     END_ASYNC_FOR=-7,
-    POP_FINALLY=-6,
-    CALL_FINALLY=lambda oparg, jmp: 1 if jmp else 0,
-    BEGIN_FINALLY=6,
+    RERAISE=-3,
+    WITH_EXCEPT_START=1,
+    JUMP_IF_NOT_EXC_MATCH=-2,
 )
