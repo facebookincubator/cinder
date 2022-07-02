@@ -142,3 +142,25 @@ Tools/ssl/win32
 /Programs/_freeze_module
 /Python/deepfreeze/
 /Python/frozen_modules/
+
+# Cinder-related ignores
+!.vscode/settings.json
+dist/
+cindervm.egg-info
+Include/pydtrace_probes_ceval.h
+Include/pydtrace_probes_gcmodule.h
+Include/pydtrace_probes_import.h
+.vs/
+gmon.out
+ThirdParty/**/*.a
+runtime_tests
+compile_commands.json
+g++
+gcc
+clang
+clang++
+pyembed_includes
+.clangd/
+strict_module_tests
+.sphinx-build/
+.cache/
