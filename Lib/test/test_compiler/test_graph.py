@@ -58,7 +58,7 @@ class GraphTests(CompilerTest):
         else:
             pass"""
         )
-        expected = Block("entry", Block("", Block("if_end", Block(""))))
+        expected = Block("entry", Block("", Block("if_else", Block("if_end"))))
         self.assert_graph_equal(graph, expected)
 
     def test_try_except(self):
