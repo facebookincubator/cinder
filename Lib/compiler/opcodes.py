@@ -102,6 +102,7 @@ opcode.def_op("STORE_FAST", 125)  # Local variable number
 opcode.haslocal.add(125)
 opcode.def_op("DELETE_FAST", 126)  # Local variable number
 opcode.haslocal.add(126)
+opcode.def_op("GEN_START", 129)  # Kind of generator/coroutine (0,1,2)
 opcode.def_op("RAISE_VARARGS", 130)  # Number of raise arguments (1, 2, or 3)
 opcode.def_op("CALL_FUNCTION", 131)  # #args
 opcode.def_op("MAKE_FUNCTION", 132)  # Flags
@@ -323,4 +324,5 @@ opcode.stack_effects.update(
     SET_UPDATE=-1,
     DICT_MERGE=-1,
     DICT_UPDATE=-1,
+    GEN_START=-1,
 )
