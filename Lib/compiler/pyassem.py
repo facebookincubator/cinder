@@ -360,7 +360,8 @@ class Block:
 # the FlowGraph is transformed in place; it exists in one of these states
 ACTIVE = "ACTIVE"  # accepting calls to .emit()
 CLOSED = "CLOSED"  # closed to new instructions, ready for codegen
-OPTIMIZED = "OPTIMIZED"  # peephole optimizations have been run
+OPTIMIZED = "OPTIMIZED"  # optimizations have been run
+FINAL = "FINAL"  # all optimization and normalization of flow graph is done
 FLAT = "FLAT"  # flattened
 DONE = "DONE"
 
@@ -512,16 +513,20 @@ class PyFlowGraph(FlowGraph):
 
         return super().convertArg(opcode, oparg)
 
-    def getCode(self):
-        """Get a Python code object"""
+    def finalize(self) -> None:
+        """Perform final optimizations and normalization of flow graph."""
         assert self.stage == ACTIVE, self.stage
         self.stage = CLOSED
         self.optimizeCFG()
         self.duplicate_exits_without_lineno()
         self.propagate_line_numbers()
-        assert self.stage == OPTIMIZED, self.stage
+        self.stage = FINAL
 
-        # assert self.stage == OPTIMIZED, self.stage
+    def getCode(self):
+        """Get a Python code object"""
+        self.finalize()
+        assert self.stage == FINAL, self.stage
+
         self.computeStackDepth()
         self.flattenGraph()
 
@@ -620,7 +625,7 @@ class PyFlowGraph(FlowGraph):
         Find the flow path that needs the largest stack.  We assume that
         cycles in the flow graph have no net effect on the stack depth.
         """
-        assert self.stage == OPTIMIZED, self.stage
+        assert self.stage == FINAL, self.stage
         for block in self.getBlocksInOrder():
             # We need to get to the first block which actually has instructions
             if block.getInstructions():
@@ -629,7 +634,7 @@ class PyFlowGraph(FlowGraph):
 
     def flattenGraph(self):
         """Arrange the blocks in order and resolve jumps"""
-        assert self.stage == OPTIMIZED, self.stage
+        assert self.stage == FINAL, self.stage
         # This is an awf/ul hack that could hurt performance, but
         # on the bright side it should work until we come up
         # with a better solution.

@@ -117,6 +117,7 @@ class CompilerTest(TestCase):
             generator=generator,
             ast_optimizer_enabled=ast_optimizer_enabled,
         )
+        gen.graph.finalize()
         return gen.graph
 
     def dump_graph(self, graph):
