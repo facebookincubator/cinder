@@ -243,7 +243,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         else:
             self.emit("POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next)
 
-    def compileJumpIf(self, test: ast.AST, next: Block, is_if_true: bool) -> None:
+    def compileJumpIf(self, test: ast.expr, next: Block, is_if_true: bool) -> None:
         if not self.emit_readonly_checks:
             super().compileJumpIf(test, next, is_if_true)
             return

@@ -78,7 +78,6 @@ class GraphTests(CompilerTest):
                     "try_handlers",
                     Block(
                         "try_cleanup_body0",
-                        Block("try_except_0", Block("try_end")),
                     ),
                 ),
             ),
@@ -103,7 +102,7 @@ class GraphTests(CompilerTest):
         graph = self.get_child_graph(graph, "f")
         expected = Block(
             "entry",
-            Block("async_for_try", Block("except", Block("exit"))),
+            Block("async_for_try", Block("except", Block("end"))),
         )
         self.assert_graph_equal(graph, expected)
 

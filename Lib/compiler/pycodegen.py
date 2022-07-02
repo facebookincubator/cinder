@@ -31,7 +31,7 @@ from .consts import (
     SC_LOCAL,
 )
 from .optimizer import AstOptimizer
-from .pyassem import PyFlowGraph
+from .pyassem import Block, PyFlowGraph
 from .symbols import Scope, SymbolVisitor
 from .unparse import to_expr
 from .visitor import ASTVisitor, walk
@@ -590,7 +590,7 @@ class CodeGenerator(ASTVisitor):
 
         self.walkClassBody(node, gen)
 
-        gen.graph.startExitBlock()
+        gen.nextBlock(label="exit")
         if "__class__" in gen.scope.cells:
             gen.emit("LOAD_CLOSURE", "__class__")
             gen.emit("DUP_TOP")
@@ -638,27 +638,19 @@ class CodeGenerator(ASTVisitor):
 
     def visitIf(self, node):
         self.set_lineno(node)
-        test = node.test
-        test_const = self.get_bool_const(test)
 
         end = self.newBlock("if_end")
         orelse = None
         if node.orelse:
             orelse = self.newBlock("if_else")
 
-        if test_const is None:
-            self.compileJumpIf(test, orelse or end, False)
-
-        with self.maybeEmit(test_const is not False):
-            self.nextBlock()
-            self.visit(node.body)
+        self.compileJumpIf(node.test, orelse or end, False)
+        self.visit(node.body)
 
         if node.orelse:
-            if test_const is None:
-                self.emit("JUMP_FORWARD", end)
-            with self.maybeEmit(test_const is not True):
-                self.nextBlock(orelse)
-                self.visit(node.orelse)
+            self.emit_noline("JUMP_FORWARD", end)
+            self.nextBlock(orelse)
+            self.visit(node.orelse)
 
         self.nextBlock(end)
 
@@ -804,7 +796,7 @@ class CodeGenerator(ASTVisitor):
         ast.GtE: ">=",
     }
 
-    def compileJumpIf(self, test, next, is_if_true):
+    def compileJumpIf(self, test: ast.expr, next: Block, is_if_true: bool) -> None:
         if isinstance(test, ast.UnaryOp):
             if isinstance(test.op, ast.Not):
                 # Compile to remove not operation
@@ -828,14 +820,13 @@ class CodeGenerator(ASTVisitor):
             end = self.newBlock("end")
             orelse = self.newBlock("orelse")
             # Jump directly to orelse if test matches
-            self.compileJumpIf(test.test, orelse, 0)
+            self.compileJumpIf(test.test, orelse, False)
             # Jump directly to target if test is true and body is matches
             self.compileJumpIf(test.body, next, is_if_true)
-            self.emit("JUMP_FORWARD", end)
+            self.emit_noline("JUMP_FORWARD", end)
             # Jump directly to target if test is true and orelse matches
             self.nextBlock(orelse)
             self.compileJumpIf(test.orelse, next, is_if_true)
-
             self.nextBlock(end)
             return
         elif isinstance(test, ast.Compare):
@@ -852,17 +843,17 @@ class CodeGenerator(ASTVisitor):
                     "POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next
                 )
                 end = self.newBlock()
-                self.emit("JUMP_FORWARD", end)
+                self.emit_noline("JUMP_FORWARD", end)
                 self.nextBlock(cleanup)
                 self.emit("POP_TOP")
                 if not is_if_true:
-                    self.emit("JUMP_FORWARD", next)
+                    self.emit_noline("JUMP_FORWARD", next)
                 self.nextBlock(end)
                 return
 
         self.visit(test)
         self.emit("POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next)
-        return True
+        self.nextBlock()
 
     def visitIfExp(self, node):
         endblock = self.newBlock()
@@ -2251,7 +2242,7 @@ class CodeGenerator(ASTVisitor):
     def finishFunction(self):
         if self.graph.current.returns:
             return
-        self.graph.startExitBlock()
+        self.set_no_lineno()
         if not isinstance(self.tree, ast.Lambda):
             self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")

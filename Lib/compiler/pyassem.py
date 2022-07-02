@@ -13,6 +13,9 @@ from .consts import CO_NEWLOCALS, CO_OPTIMIZED, CO_SUPPRESS_JIT
 from .flow_graph_optimizer import FlowGraphOptimizer
 
 
+MAX_COPY_SIZE = 4
+
+
 def sign(a):
     if not isinstance(a, float):
         raise TypeError(f"Must be a real number, not {type(a)}")
@@ -106,7 +109,6 @@ class FlowGraph:
         # Current block being filled in with instructions.
         self.current = None
         self.entry = Block("entry")
-        self.exit = Block("exit")
         self.startBlock(self.entry)
 
         # Source line number to use for next instruction.
@@ -159,9 +161,6 @@ class FlowGraph:
         self.block_count += 1
         self.current = block
         if block and block not in self.ordered_blocks:
-            if block is self.exit:
-                if self.ordered_blocks and self.ordered_blocks[-1].has_return():
-                    return
             self.ordered_blocks.append(block)
 
     def nextBlock(self, block=None, label=""):
@@ -193,9 +192,6 @@ class FlowGraph:
     def newBlock(self, label=""):
         b = Block(label)
         return b
-
-    def startExitBlock(self):
-        self.nextBlock(self.exit)
 
     _debug = 0
 
@@ -242,8 +238,6 @@ class FlowGraph:
         return self.ordered_blocks
 
     def getBlocks(self):
-        if self.exit not in self.ordered_blocks:
-            return self.ordered_blocks + [self.exit]
         return self.ordered_blocks
 
     def getRoot(self):
@@ -354,6 +348,7 @@ class Block:
         result.is_exit = self.is_exit
         result.no_fallthrough = True
         return result
+
 
 # flags for code objects
 
@@ -517,8 +512,14 @@ class PyFlowGraph(FlowGraph):
         """Perform final optimizations and normalization of flow graph."""
         assert self.stage == ACTIVE, self.stage
         self.stage = CLOSED
+
+        for block in self.ordered_blocks:
+            self.normalize_basic_block(block)
+        for block in self.ordered_blocks:
+            self.extend_block(block)
         self.optimizeCFG()
         self.duplicate_exits_without_lineno()
+        self.trim_unused_consts()
         self.propagate_line_numbers()
         self.stage = FINAL
 
@@ -954,25 +955,48 @@ class PyFlowGraph(FlowGraph):
 
         optimizer = FlowGraphOptimizer(self.consts)
         for block in self.ordered_blocks:
-            optimizer.optimizeBlock(block)
-            optimizer.cleanBlock(block, -1)
+            optimizer.optimize_basic_block(block)
+            optimizer.clean_basic_block(block, -1)
 
         for block in self.ordered_blocks:
-            optimizer.normalizeBlock(block)
+            self.extend_block(block)
+
+        prev_block = None
+        for block in self.ordered_blocks:
             prev_lineno = -1
-            if block.prev and block.prev.insts:
-                prev_lineno = block.prev.insts[0].lineno
-            optimizer.cleanBlock(block, prev_lineno)
+            if prev_block and prev_block.insts:
+                prev_lineno = prev_block.insts[-1].lineno
+            optimizer.clean_basic_block(block, prev_lineno)
+            prev_block = None if block.no_fallthrough else block
 
+        self.eliminate_empty_basic_blocks()
+        self.remove_unreachable_basic_blocks()
+
+        # Delete jump instructions made redundant by previous step. If a non-empty
+        # block ends with a jump instruction, check if the next non-empty block
+        # reached through normal flow control is the target of that jump. If it
+        # is, then the jump instruction is redundant and can be deleted.
+        maybe_empty_blocks = False
         for block in self.ordered_blocks:
-            optimizer.extendBlock(block)
+            if not block.insts:
+                continue
+            last = block.insts[-1]
+            if last.opname not in {"JUMP_ABSOLUTE", "JUMP_FORWARD"}:
+                continue
+            if last.target == block.next:
+                block.no_fallthrough = False
+                last.opname = "NOP"
+                last.oparg = last.ioparg = 0
+                last.target = None
+                optimizer.clean_basic_block(block, -1)
+                maybe_empty_blocks = True
 
-        self.eliminate_empty_blocks()
-        self.removeUnreachableBlocks()
+        if maybe_empty_blocks:
+            self.eliminate_empty_basic_blocks()
 
         self.stage = OPTIMIZED
 
-    def eliminate_empty_blocks(self):
+    def eliminate_empty_basic_blocks(self):
         for block in self.ordered_blocks:
             next_block = block.next
             if next_block:
@@ -989,7 +1013,7 @@ class PyFlowGraph(FlowGraph):
                     target = target.next
                 last.target = target
 
-    def removeUnreachableBlocks(self):
+    def remove_unreachable_basic_blocks(self):
         # mark all reachable blocks
         reachable_blocks = set()
         worklist = [self.entry]
@@ -1011,6 +1035,66 @@ class PyFlowGraph(FlowGraph):
         self.ordered_blocks = [
             block for block in self.ordered_blocks if block.bid in reachable_blocks
         ]
+        prev = None
+        for block in self.ordered_blocks:
+            block.prev = prev
+            if prev is not None:
+                prev.next = block
+            prev = block
+
+    def normalize_basic_block(self, block: Block) -> None:
+        """Sets the `fallthrough` and `exit` properties of a block, and ensures that the targets of
+        any jumps point to non-empty blocks by following the next pointer of empty blocks."""
+        for instr in block.getInstructions():
+            if instr.opname in ("RETURN_VALUE", "RAISE_VARARGS", "RERAISE"):
+                block.is_exit = True
+                block.no_fallthrough = True
+            elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+                block.no_fallthrough = True
+            elif instr.opname in (
+                "POP_JUMP_IF_TRUE",
+                "POP_JUMP_IF_FALSE",
+                "JUMP_IF_TRUE_OR_POP",
+                "JUMP_IF_FALSE_OR_POP",
+                "FOR_ITER",
+            ):
+                while not instr.target.insts:
+                    instr.target = instr.target.next
+
+    def extend_block(self, block: Block) -> None:
+        """If this block ends with an unconditional jump to an exit block,
+        then remove the jump and extend this block with the target.
+        """
+        if len(block.insts) == 0:
+            return
+        last = block.insts[-1]
+        if last.opname not in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+            return
+        target = last.target
+        if not target.is_exit:
+            return
+        if len(target.insts) > MAX_COPY_SIZE:
+            return
+        last = block.insts[-1]
+        last.opname = "NOP"
+        last.oparg = last.ioparg = 0
+        last.target = None
+        for instr in target.insts:
+            block.insts.append(instr)
+        block.next = None
+        block.is_exit = True
+        block.no_fallthrough = True
+
+    def trim_unused_consts(self) -> None:
+        """Remove trailing unused constants."""
+        max_const_index = 0
+        for block in self.ordered_blocks:
+            for instr in block.insts:
+                if instr.opname == "LOAD_CONST" and instr.ioparg > max_const_index:
+                    max_const_index = instr.ioparg
+        self.consts = {
+            key: index for key, index in self.consts.items() if index <= max_const_index
+        }
 
 
 class PyFlowGraphCinder(PyFlowGraph):
