@@ -6,13 +6,9 @@ from .optimizer import safe_lshift, safe_mod, safe_multiply, safe_power
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import Callable, Dict, Optional
+    from typing import Dict, Optional, Tuple
 
-    from .pyassem import Block
-
-    TOpcodeHandler = Callable[
-        ["FlowGraphOptimizer", int, int, int, int, Block], Optional[int]
-    ]
+    from .pyassem import Block, Instruction
 
 
 PyCmp_LT = 0
@@ -51,20 +47,6 @@ BINARY_OPS: Dict[str, object] = {
 }
 
 
-def ophandler_registry(existing: Optional[Dict[str, TOpcodeHandler]] = None):
-    registry = {} if existing is None else dict(existing)
-
-    def register(*opcodes):
-        def handler(f: TOpcodeHandler):
-            for opcode in opcodes:
-                registry[opcode] = f
-            return f
-
-        return handler
-
-    return registry, register
-
-
 class FlowGraphOptimizer:
     def __init__(
         self,
@@ -83,7 +65,7 @@ class FlowGraphOptimizer:
                 # Skip over empty basic blocks.
                 if len(instr.target.insts) == 0:
                     instr.target = instr.target.next
-                target = instr.target
+                target = instr.target.insts[0]
 
             next_instr = (
                 block.insts[instr_index + 1]
@@ -91,14 +73,37 @@ class FlowGraphOptimizer:
                 else None
             )
 
-            handler = self.OP_HANDLERS.get(instr.opname)
-            if handler is not None:
-                instr_index = (
-                    handler(self, instr_index, instr, next_instr, target, block)
-                    or instr_index + 1
-                )
-            else:
-                instr_index += 1
+            instr_index = (
+                self.dispatch_instr(instr_index, instr, next_instr, target, block)
+                or instr_index + 1
+            )
+
+    def dispatch_instr(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if instr.opname == "JUMP_IF_FALSE_OR_POP":
+            return self.opt_jump_if_false_or_pop(
+                instr_index, instr, next_instr, target, block
+            )
+        elif instr.opname == "JUMP_IF_TRUE_OR_POP":
+            return self.opt_jump_if_true_or_pop(
+                instr_index, instr, next_instr, target, block
+            )
+        elif instr.opname in ("POP_JUMP_IF_TRUE", "POP_JUMP_IF_FALSE"):
+            return self.opt_pop_jump_if(instr_index, instr, next_instr, target, block)
+        elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+            return self.opt_jump(instr_index, instr, next_instr, target, block)
+        elif instr.opname == "FOR_ITER":
+            return self.opt_for_iter(instr_index, instr, next_instr, target, block)
+        elif instr.opname == "LOAD_CONST":
+            return self.opt_load_const(instr_index, instr, next_instr, target, block)
+        elif instr.opname == "RETURN_VALUE":
+            return self.opt_return_value(instr_index, instr, next_instr, target, block)
 
     def clean_basic_block(self, block: Block, prev_lineno: int) -> None:
         """Remove all NOPs from a function when legal."""
@@ -133,10 +138,95 @@ class FlowGraphOptimizer:
             prev_lineno = instr.lineno
         block.insts = new_instrs
 
-    OP_HANDLERS, ophandler = ophandler_registry()
+    def jump_thread(self, instr: Instruction, target: Instruction, opname: str) -> bool:
+        """Attempt to eliminate jumps to jumps by updating inst to jump to
+        target->i_target using the provided opcode. Return whether or not the
+        optimization was successful."""
+        assert instr.is_jump()
+        assert target.is_jump()
+        if instr.lineno == target.lineno and instr.target != target.target:
+            instr.target = target.target
+            instr.opname = opname
+            return True
+        return False
 
-    @ophandler("LOAD_CONST")
-    def opt_load_const(self, instr_index, instr, next_instr, target, block):
+    def opt_jump_if_false_or_pop(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if target.opname == "POP_JUMP_IF_FALSE":
+            self.jump_thread(instr, target, "POP_JUMP_IF_FALSE")
+        elif target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD", "JUMP_IF_FALSE_OR_POP"):
+            self.jump_thread(instr, target, "JUMP_IF_FALSE_OR_POP")
+        elif target.opname in ("JUMP_IF_TRUE_OR_POP", "POP_JUMP_IF_TRUE"):
+            target_block = instr.target
+            assert target_block and target_block != target_block.next
+            instr.opname = "POP_JUMP_IF_FALSE"
+            instr.target = target_block.next
+
+    def opt_jump_if_true_or_pop(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if target.opname == "POP_JUMP_IF_TRUE":
+            self.jump_thread(instr, target, "POP_JUMP_IF_TRUE")
+        elif target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD", "JUMP_IF_TRUE_OR_POP"):
+            self.jump_thread(instr, target, "JUMP_IF_TRUE_OR_POP")
+        elif target.opname in ("JUMP_IF_FALSE_OR_POP", "POP_JUMP_IF_FALSE"):
+            target_block = instr.target
+            assert target_block and target_block != target_block.next
+            instr.opname = "POP_JUMP_IF_TRUE"
+            instr.target = target_block.next
+
+    def opt_pop_jump_if(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+            self.jump_thread(instr, target, instr.opname)
+
+    def opt_jump(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
+            self.jump_thread(instr, target, "JUMP_ABSOLUTE")
+
+    def opt_for_iter(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if target.opname == "JUMP_FORWARD":
+            self.jump_thread(instr, target, "FOR_ITER")
+
+    def opt_load_const(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
         # Remove LOAD_CONST const; conditional jump
         const = instr.oparg
         if next_instr is None:
@@ -165,6 +255,12 @@ class FlowGraphOptimizer:
                 next_instr.opname = "NOP"
                 next_instr.target = None
 
-    @ophandler("RETURN_VALUE", "RETURN_PRIMITIVE")
-    def opt_return_value(self, instr_index, instr, next_instr, target, block):
+    def opt_return_value(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
         block.insts = block.insts[: instr_index + 1]
