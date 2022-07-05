@@ -2418,6 +2418,21 @@ _imp_set_lazy_imports_impl(PyObject *module)
     Py_RETURN_NONE;
 }
 
+/*[clinic input]
+_imp.is_lazy_imports_enabled
+
+Return True is lazy imports is currently enabled.
+[clinic start generated code]*/
+
+static PyObject *
+_imp_is_lazy_imports_enabled_impl(PyObject *module)
+/*[clinic end generated code: output=d9c9631b599c4b9c input=ee99e18e6db8eb61]*/
+{
+    if (PyImport_IsLazyImportsEnabled()) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
 
 PyDoc_STRVAR(doc_imp,
 "(Extremely) low-level import machinery bits as used by importlib and imp.");
@@ -2440,6 +2455,7 @@ static PyMethodDef imp_methods[] = {
     _IMP_SOURCE_HASH_METHODDEF
     _IMP_IS_LAZY_IMPORT_METHODDEF
     _IMP_SET_LAZY_IMPORTS_METHODDEF
+    _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 

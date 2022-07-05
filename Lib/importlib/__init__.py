@@ -76,6 +76,14 @@ def set_lazy_imports():
     _imp.set_lazy_imports()
 
 
+def is_lazy_imports_enabled():
+    """Check if Lazy Imports is enabled
+
+    Return True if Lazy Imports is enabled, False if not.
+    """
+    return _imp.is_lazy_imports_enabled()
+
+
 class eager_imports:
     """A context manager that forces imports executed within to be
        executed eagerly even if lazy imports are enabled.
