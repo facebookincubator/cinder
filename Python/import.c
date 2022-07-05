@@ -1621,8 +1621,8 @@ PyImport_EagerImportName(PyObject *name, PyObject *globals, PyObject *locals, Py
 
 PyObject *
 PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
-                                         PyObject *locals, PyObject *fromlist,
-                                         int level)
+                                     PyObject *locals, PyObject *fromlist,
+                                     int level)
 {
     PyObject *olevel = NULL;
     PyObject *deferred = NULL;
@@ -1645,6 +1645,7 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
     }
 
     olevel = PyLong_FromLong(0);
+    // get filename and line number for potential LazyImportError
     deferred = PyLazyImportModule_NewObject(abs_name, globals, locals, fromlist, olevel);
 
     if (deferred != NULL) {
@@ -1890,11 +1891,11 @@ PyImport_ImportModuleLevel(const char *name, PyObject *globals, PyObject *locals
 }
 
 static PyObject *
-_imp_import_deferred_impl(PyLazyImport *d)
+_imp_load_lazy_import_impl(PyLazyImport *d)
 {
     PyObject *obj;
     if (d->lz_next != NULL) {
-        PyObject *value = _imp_import_deferred_impl((PyLazyImport *)d->lz_next);
+        PyObject *value = _imp_load_lazy_import_impl((PyLazyImport *)d->lz_next);
         if (value == NULL) {
             return NULL;
         }
@@ -1916,7 +1917,7 @@ _imp_import_deferred_impl(PyLazyImport *d)
         }
     }
     else {
-        PyObject *from = _imp_import_deferred_impl((PyLazyImport *)d->lz_lazy_import);
+        PyObject *from = _imp_load_lazy_import_impl((PyLazyImport *)d->lz_lazy_import);
         if (from == NULL) {
             return NULL;
         }
@@ -1927,7 +1928,7 @@ _imp_import_deferred_impl(PyLazyImport *d)
             return NULL;
         }
         if (PyLazyImport_CheckExact(obj)) {
-            PyObject *value = _imp_import_deferred_impl((PyLazyImport *)obj);
+            PyObject *value = _imp_load_lazy_import_impl((PyLazyImport *)obj);
             Py_DECREF(obj);
             if (value == NULL) {
                 return NULL;
@@ -1943,14 +1944,22 @@ PyImport_LoadLazyObject(PyObject *deferred)
 {
     assert(deferred != NULL);
     assert(PyLazyImport_CheckExact(deferred));
-    PyLazyImport *d = (PyLazyImport *)deferred;
-    PyObject *obj = d->lz_obj;
+    PyLazyImport *lz = (PyLazyImport *)deferred;
+    PyObject *obj = lz->lz_obj;
     if (obj == NULL) {
-        obj = _imp_import_deferred_impl(d);
+        obj = _imp_load_lazy_import_impl(lz);
         if (obj != NULL) {
-            d->lz_obj = obj;
+            lz->lz_obj = obj;
         } else {
-            d->lz_skip_warmup = 1;
+            PyThreadState *tstate = _PyThreadState_GET();
+            // only preserve the most recent (innermost) LazyImportError
+            if (tstate->curexc_type != PyExc_LazyImportError) {
+                _PyErr_FormatFromCauseTstate(
+                    tstate, PyExc_LazyImportError,
+                    "Error occurred when loading a lazy import. Original import was at file %S, line %d",
+                    lz->lz_filename, lz->lz_lineno);
+            }
+            lz->lz_skip_warmup = 1;
         }
     }
     return obj;

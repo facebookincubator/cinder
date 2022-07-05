@@ -14,7 +14,8 @@ PyAPI_DATA(PyTypeObject) PyModule_Type;
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
 
-PyAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
+PyAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(
+    PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
 PyAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
@@ -107,6 +108,8 @@ typedef struct {
     PyObject *lz_next;
     int lz_resolving;
     int lz_skip_warmup;
+    PyObject *lz_filename;
+    int lz_lineno;
 } PyLazyImport;
 
 int PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name);

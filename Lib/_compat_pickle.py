@@ -244,6 +244,7 @@ for excname in PYTHON3_OSERROR_EXCEPTIONS:
     REVERSE_NAME_MAPPING[('builtins', excname)] = ('exceptions', 'OSError')
 
 PYTHON3_IMPORTERROR_EXCEPTIONS = (
+    'LazyImportError',
     'ModuleNotFoundError',
 )
 

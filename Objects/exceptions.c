@@ -787,6 +787,13 @@ MiddlingExtendsException(PyExc_ImportError, ModuleNotFoundError, ImportError,
                          "Module not found.");
 
 /*
+ *    LazyImportError extends ImportError
+ */
+
+MiddlingExtendsException(PyExc_ImportError, LazyImportError, ImportError,
+                         "Errors raised when loading a lazy import.");
+
+/*
  *    OSError extends Exception
  */
 
@@ -2687,6 +2694,7 @@ _PyExc_Init(PyInterpreterState *interp)
     PRE_INIT(KeyboardInterrupt);
     PRE_INIT(ImportError);
     PRE_INIT(ModuleNotFoundError);
+    PRE_INIT(LazyImportError);
     PRE_INIT(OSError);
     PRE_INIT(EOFError);
     PRE_INIT(RuntimeError);
@@ -2822,6 +2830,7 @@ _PyBuiltins_AddExceptions(PyObject *bltinmod)
     POST_INIT(KeyboardInterrupt);
     POST_INIT(ImportError);
     POST_INIT(ModuleNotFoundError);
+    POST_INIT(LazyImportError);
     POST_INIT(OSError);
     INIT_ALIAS(EnvironmentError, OSError);
     INIT_ALIAS(IOError, OSError);
