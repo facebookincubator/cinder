@@ -19,11 +19,11 @@ FROM build as install
 WORKDIR /cinder/build
 RUN make install
 # Discarding symbols from the built binary makes to reduce size
-RUN strip /cinder/bin/python3.8
+RUN strip /cinder/bin/python3.10
 # These libraries are very big and generally are not needed
-RUN rm /cinder/lib/libpython3.8_static.a /cinder/lib/python3.8/config-3.8-x86_64-linux-gnu/libpython3.8_static.a
+RUN rm /cinder/lib/libpython3.10.a /cinder/lib/python3.10/config-3.10-x86_64-linux-gnu/libpython3.10.a
 # The test dir is very large - throw it away to reduce image size further
-RUN rm -rf /cinder/lib/python3.8/test
+RUN rm -rf /cinder/lib/python3.10/test
 # Discard the source and build trees to reduce clutter
 RUN rm -rf /cinder/src /cinder/build
 WORKDIR /
