@@ -8,6 +8,7 @@ import re
 import warnings
 import collections
 import contextlib
+import importlib
 import traceback
 import types
 
@@ -143,6 +144,12 @@ def skipUnless(condition, reason):
     if not condition:
         return skip(reason)
     return _id
+
+def skipIfLazyImportsEnabled(reason):
+    return skipIf(importlib.is_lazy_imports_enabled(), reason)
+
+def skipIfLazyImportsDisabled(reason):
+    return skipUnless(importlib.is_lazy_imports_enabled(), reason)
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

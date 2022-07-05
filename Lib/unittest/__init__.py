@@ -47,6 +47,7 @@ SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 __all__ = ['TestResult', 'TestCase', 'IsolatedAsyncioTestCase', 'TestSuite',
            'TextTestRunner', 'TestLoader', 'FunctionTestCase', 'main',
            'defaultTestLoader', 'SkipTest', 'skip', 'skipIf', 'skipUnless',
+           'skipIfLazyImportsEnabled', 'skipIfLazyImportsDisabled',
            'expectedFailure', 'TextTestResult', 'installHandler',
            'registerResult', 'removeResult', 'removeHandler',
            'addModuleCleanup']
@@ -58,7 +59,8 @@ __unittest = True
 
 from .result import TestResult
 from .case import (addModuleCleanup, TestCase, FunctionTestCase, SkipTest, skip,
-                   skipIf, skipUnless, expectedFailure)
+                   skipIf, skipUnless, expectedFailure,
+                   skipIfLazyImportsEnabled, skipIfLazyImportsDisabled)
 from .suite import BaseTestSuite, TestSuite
 from .loader import (TestLoader, defaultTestLoader, makeSuite, getTestCaseNames,
                      findTestCases)
