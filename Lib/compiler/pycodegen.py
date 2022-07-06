@@ -1168,6 +1168,7 @@ class CodeGenerator(ASTVisitor):
             self.visit(node.cause)
             n = n + 1
         self.emit("RAISE_VARARGS", n)
+        self.nextBlock()
 
     def visitTry(self, node):
         self.set_lineno(node)
