@@ -1142,14 +1142,11 @@ class CodeGenerator(ASTVisitor):
         if not self.optimization_lvl:
             end = self.newBlock()
             self.set_lineno(node)
-            # XXX AssertionError appears to be special case -- it is always
-            # loaded as a global even if there is a local name.  I guess this
-            # is a sort of renaming op.
             self.nextBlock()
             self.compileJumpIf(node.test, end, True)
 
             self.nextBlock()
-            self.emit("LOAD_GLOBAL", "AssertionError")
+            self.emit("LOAD_ASSERTION_ERROR")
             if node.msg:
                 self.visit(node.msg)
                 self.emit("CALL_FUNCTION", 1)

@@ -50,6 +50,7 @@ opcode.def_op("PRINT_EXPR", 70)
 opcode.def_op("LOAD_BUILD_CLASS", 71)
 opcode.def_op("YIELD_FROM", 72)
 opcode.def_op("GET_AWAITABLE", 73)
+opcode.def_op("LOAD_ASSERTION_ERROR", 74)
 opcode.def_op("INPLACE_LSHIFT", 75)
 opcode.def_op("INPLACE_RSHIFT", 76)
 opcode.def_op("INPLACE_AND", 77)
@@ -325,4 +326,5 @@ opcode.stack_effects.update(
     DICT_MERGE=-1,
     DICT_UPDATE=-1,
     GEN_START=-1,
+    LOAD_ASSERTION_ERROR=1,
 )
