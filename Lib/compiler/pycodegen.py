@@ -326,8 +326,10 @@ class CodeGenerator(ASTVisitor):
         """
         if (
             body
+            and isinstance(body, list)
             and isinstance(body[0], ast.Expr)
-            and isinstance(body[0].value, ast.Str)
+            and isinstance(body[0].value, ast.Constant)
+            and isinstance(body[0].value.value, str)
         ):
             return body[1:]
         return body
@@ -447,7 +449,7 @@ class CodeGenerator(ASTVisitor):
         first_lineno: int,
     ) -> CodeGenerator:
         gen = self.make_func_codegen(node, node.args, name, first_lineno)
-        body = node.body
+        body = self.skip_docstring(node.body)
 
         self.processBody(node, body, gen)
 
@@ -573,7 +575,9 @@ class CodeGenerator(ASTVisitor):
                 first_lineno = decorator.lineno
             self.visit_decorator(decorator, node)
 
-        gen = self.make_class_codegen(node, first_lineno or node.lineno)
+        first_lineno = node.lineno if first_lineno is None else first_lineno
+        gen = self.make_class_codegen(node, first_lineno)
+        gen.graph.set_lineno(first_lineno)
         gen.emit("LOAD_NAME", "__name__")
         gen.storeName("__module__")
         gen.emit("LOAD_CONST", gen.get_qual_prefix(gen) + gen.name)
@@ -1247,6 +1251,7 @@ class CodeGenerator(ASTVisitor):
                 self.emit("JUMP_FORWARD", end)
 
                 self.nextBlock(cleanup_end)
+                self.set_no_lineno()
                 self.emit("LOAD_CONST", None)
                 self.storeName(target)
                 self.delName(target)
@@ -1266,6 +1271,7 @@ class CodeGenerator(ASTVisitor):
             self.nextBlock(except_)
 
         self.setups.pop()
+        self.set_no_lineno()
         self.emit("RERAISE", 0)
         self.nextBlock(orElse)
         self.visit(node.orelse)
@@ -1353,6 +1359,7 @@ class CodeGenerator(ASTVisitor):
         else:
             self.visit(node.body)
 
+        self.set_no_lineno()
         self.setups.pop()
         self.emit("POP_BLOCK")
 
@@ -1391,7 +1398,6 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(exit_)
 
     def visitWith(self, node):
-        self.set_lineno(node)
         self.visitWith_(node, WITH, 0)
 
     def visitAsyncWith(self, node, pos=0):
@@ -2405,6 +2411,7 @@ class CodeGenerator(ASTVisitor):
             module_name,
             filename,
             s.scopes[tree],
+            firstline=1,
         )
         code_gen = cls(None, tree, s, graph, flags, optimize)
         code_gen._qual_name = module_name

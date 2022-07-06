@@ -92,18 +92,6 @@ class Python37Tests(CompilerTest):
                 self.assertEqual(prev_instr.opname, "POP_BLOCK", prev_instr.opname)
             prev_instr = instr
 
-    def test_func_doc_str_lnotab(self):
-        test_code = """
-            def f():
-
-                '''hello there
-
-                '''
-            """
-
-        code = self.find_code(self.compile(test_code))
-        self.assertEqual(code.co_lnotab, b"\x00\x02")
-
     def test_future_annotations(self):
         annotations = ["42"]
         for annotation in annotations:
