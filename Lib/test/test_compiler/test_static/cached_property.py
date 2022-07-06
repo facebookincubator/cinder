@@ -648,3 +648,37 @@ class CachedPropertyTests(StaticTestBase):
             pass
         """
         self.type_error(codestr, "Cannot decorate a class with @async_cached_property")
+
+    def test_async_cached_property_setter_raises_type_error(self):
+        codestr = """
+        from cinder import async_cached_property
+
+        class C:
+            @async_cached_property
+            async def fn(self) -> int:
+                return 3
+
+            @fn.setter
+            def fn(self, new: int) -> None:
+                pass
+        """
+        self.type_error(
+            codestr, "async_cached_property <module>.C.fn does not support setters"
+        )
+
+    def test_cached_property_setter_raises_type_error(self):
+        codestr = """
+        from cinder import cached_property
+
+        class C:
+            @cached_property
+            def fn(self) -> int:
+                return 3
+
+            @fn.setter
+            def fn(self, new: int) -> None:
+                pass
+        """
+        self.type_error(
+            codestr, "cached_property <module>.C.fn does not support setters"
+        )

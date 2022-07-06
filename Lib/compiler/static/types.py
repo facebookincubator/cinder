@@ -4526,6 +4526,15 @@ class CachedPropertyMethod(PropertyMethod):
 
         return CACHED_PROPERTY_IMPL_PREFIX + node.name
 
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
+    ) -> Optional[Value]:
+        if node.attr == "setter":
+            visitor.syntax_error(
+                f"cached_property {self.name} does not support setters",
+                node,
+            )
+        return super().resolve_attr(node, visitor)
 
 class AsyncCachedPropertyMethod(PropertyMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
@@ -4561,6 +4570,16 @@ class AsyncCachedPropertyMethod(PropertyMethod):
         )
 
         return ASYNC_CACHED_PROPERTY_IMPL_PREFIX + node.name
+
+    def resolve_attr(
+        self, node: ast.Attribute, visitor: GenericVisitor[object]
+    ) -> Optional[Value]:
+        if node.attr == "setter":
+            visitor.syntax_error(
+                f"async_cached_property {self.name} does not support setters",
+                node,
+            )
+        return super().resolve_attr(node, visitor)
 
 
 class TypingFinalDecorator(Class):
