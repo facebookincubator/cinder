@@ -1008,6 +1008,9 @@ nlohmann::json JSONPrinter::Print(const Instr& instr) {
       operands.emplace_back(nlohmann::json());
     }
   }
+  if (instr.bytecodeOffset() != -1) {
+    result["bytecode_offset"] = instr.bytecodeOffset();
+  }
   result["operands"] = operands;
   return result;
 }
