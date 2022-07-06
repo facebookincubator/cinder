@@ -66,6 +66,7 @@ class Type {
   // Create a Type specialized with a C value.
   static Type fromCBool(bool b);
   static Type fromCDouble(double d);
+  static Type fromCPtr(void* p);
 
   // Create a Type from a PyTypeObject representing an Enum type.
   static Type fromEnum(PyTypeObject* type);
@@ -186,7 +187,8 @@ class Type {
     // Object specialization: pyobject_ is valid.
     kSpecObject,
 
-    // Integral specialization: int_ is valid
+    // Integral specialization: int_ is valid if (*this <= TCInt), or ptr_ is
+    // valid if (*this <= TCPtr).
     kSpecInt,
 
     // Double specialization: double_ is valid
@@ -277,6 +279,7 @@ class Type {
     PyObject* pyobject_;
     intptr_t int_;
     double_t double_;
+    void* ptr_;
   };
 };
 

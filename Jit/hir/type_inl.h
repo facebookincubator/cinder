@@ -39,6 +39,11 @@ inline Type Type::fromCInt(int64_t i, Type t) {
   return Type{t.bits_, kLifetimeBottom, kSpecInt, i};
 }
 
+inline Type Type::fromCPtr(void* p) {
+  return Type{
+      TCPtr.bits_, kLifetimeBottom, kSpecInt, reinterpret_cast<intptr_t>(p)};
+}
+
 inline bool Type::CUIntFitsType(uint64_t i, Type t) {
   return t == TCUInt64 || (t == TCUInt32 && i <= UINT32_MAX) ||
       (t == TCUInt16 && i <= UINT16_MAX) || i <= UINT8_MAX;
