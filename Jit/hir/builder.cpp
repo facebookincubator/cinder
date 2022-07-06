@@ -729,7 +729,9 @@ void HIRBuilder::emitProfiledTypes(
     for (auto type : first_profile) {
       if (type != nullptr) {
         Register* value = tc.frame.stack.top(stack_idx);
-        tc.emit<GuardType>(value, Type::fromTypeExact(type), value);
+        GuardType* guard = tc.emit<GuardType>(
+            value, Type::fromTypeExact(type), value, tc.frame);
+        guard->setGuiltyReg(value);
       }
       stack_idx--;
     }
