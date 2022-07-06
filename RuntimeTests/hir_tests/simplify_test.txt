@@ -17,7 +17,7 @@ fun jittestmodule:test {
     v10:Object = LoadArg<1; "b">
     v11:Nullptr = LoadConst<Nullptr>
     v14:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    v15:MortalDict = MakeDict<2> {
+    v15:MortalDictExact = MakeDict<2> {
       FrameState {
         NextInstrOffset 8
         Locals<3> v9 v10 v11
