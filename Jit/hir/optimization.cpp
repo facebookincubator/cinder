@@ -1038,6 +1038,10 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   // from managed code and for which looking up the methods is guaranteed to
   // not do anything "weird" that needs to happen at runtime, like make a
   // network request.
+  // Note that due to the different staticmethod/classmethod/other descriptors,
+  // loading and invoking methods off an instance (e.g. {}.fromkeys(...)) is
+  // resolved and called differently than from the type (e.g.
+  // dict.fromkeys(...)). The code below handles the instance case only.
   if (!(receiver_type <= TArrayExact || receiver_type <= TBool ||
         receiver_type <= TBytesExact || receiver_type <= TCode ||
         receiver_type <= TDictExact || receiver_type <= TFloatExact ||
@@ -1054,24 +1058,41 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
       ? receiver_type.typeSpec()
       : receiver_type.uniquePyType();
   JIT_DCHECK(type != nullptr, "type must not be null");
-  Ref<> method_obj =
-      Ref<>::steal(PyObject_GetAttr(reinterpret_cast<PyObject*>(type), name));
+  BorrowedRef<> method_obj = _PyType_Lookup(type, name);
   if (method_obj == nullptr) {
-    // No such method. Let the LoadMethod fail at runtime.
-    PyErr_Clear();
+    // No such method. Let the LoadMethod fail at runtime. _PyType_Lookup does
+    // not raise an exception.
+    return;
+  }
+  if (Py_TYPE(method_obj) == &PyStaticMethod_Type) {
+    // This is slightly tricky and nobody uses this except for
+    // bytearray/bytes/str.maketrans. Not worth optimizing.
     return;
   }
   Register* method_reg = invoke.load_method->dst();
   auto load_const = LoadConst::create(
-      method_reg,
-      Type::fromObject(irfunc.env.addReference(std::move(method_obj))));
+      method_reg, Type::fromObject(irfunc.env.addReference(Ref<>(method_obj))));
   auto call_static = VectorCallStatic::create(
       invoke.call_method->NumOperands(),
       invoke.call_method->dst(),
       invoke.call_method->isAwaited(),
       *invoke.call_method->frameState());
   call_static->SetOperand(0, method_reg);
-  call_static->SetOperand(1, receiver);
+  if (Py_TYPE(method_obj) == &PyClassMethodDescr_Type) {
+    // Pass the type as the first argument (e.g. dict.fromkeys).
+    Register* type_reg = irfunc.env.AllocateRegister();
+    auto load_type = LoadConst::create(
+        type_reg, Type::fromObject(reinterpret_cast<PyObject*>(type)));
+    load_type->InsertBefore(*invoke.call_method);
+    call_static->SetOperand(1, type_reg);
+  } else {
+    JIT_DCHECK(
+        Py_TYPE(method_obj) == &PyMethodDescr_Type ||
+            Py_TYPE(method_obj) == &PyWrapperDescr_Type,
+        "unexpected type");
+    // Pass the instance as the first argument (e.g. str.join, str.__mod__).
+    call_static->SetOperand(1, receiver);
+  }
   for (std::size_t i = 2; i < invoke.call_method->NumOperands(); i++) {
     call_static->SetOperand(i, invoke.call_method->GetOperand(i));
   }

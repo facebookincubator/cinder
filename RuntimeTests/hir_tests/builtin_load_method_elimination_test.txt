@@ -269,3 +269,46 @@ fun jittestmodule:test {
   }
 }
 ---
+LoadMethodWithMethClassPassesType
+---
+def test():
+    return b"".fromhex("FF")
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:MortalBytesExact[''] = LoadConst<MortalBytesExact['']>
+    UseType<MortalBytesExact> v5
+    v6:MortalObjectUser[classmethod_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[classmethod_descriptor:0xdeadbeef]>
+    v7:MortalBytesExact[''] = Assign v5
+    v8:MortalUnicodeExact["FF"] = LoadConst<MortalUnicodeExact["FF"]>
+    v10:MortalTypeExact[bytes:obj] = LoadConst<MortalTypeExact[bytes:obj]>
+    v9:Object = VectorCallStatic<2> v6 v10 v8 {
+      FrameState {
+        NextInstrOffset 8
+      }
+    }
+    Return v9
+  }
+}
+---
+LoadMethodWithWrapperDescrPassesInstance
+---
+def test():
+    return "%s".__mod__(1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:MortalUnicodeExact["%s"] = LoadConst<MortalUnicodeExact["%s"]>
+    UseType<MortalUnicodeExact> v5
+    v6:MortalObjectUser[wrapper_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
+    v7:MortalUnicodeExact["%s"] = Assign v5
+    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v9:Object = VectorCallStatic<2> v6 v5 v8 {
+      FrameState {
+        NextInstrOffset 8
+      }
+    }
+    Return v9
+  }
+}
+---
