@@ -673,6 +673,7 @@ class CodeGenerator(ASTVisitor):
 
         self.nextBlock(body)
         self.visit(node.body)
+        self.set_lineno(node)
         self.compileJumpIf(node.test, body, True)
 
         self.pop_loop()
