@@ -259,6 +259,8 @@ class FlowGraph:
 
 
 class Block:
+    allocated_block_count = 0
+
     def __init__(self, label=""):
         self.insts = []
         self.outEdges = set()
@@ -273,6 +275,8 @@ class Block:
         self.is_exit = False
         self.no_fallthrough = False
         self.num_predecessors = 0
+        self.alloc_id = Block.allocated_block_count
+        Block.allocated_block_count += 1
 
     def __repr__(self):
         data = []
@@ -968,7 +972,7 @@ class PyFlowGraph(FlowGraph):
         """
         # Copy all exit blocks without line number that are targets of a jump.
         append_after = {}
-        for block in reversed(self.ordered_blocks):
+        for block in sorted(self.ordered_blocks, key=lambda b: -b.alloc_id):
             if block.insts and (last := block.insts[-1]).is_jump():
                 if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
                     continue
