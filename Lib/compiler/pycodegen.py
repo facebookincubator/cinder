@@ -488,22 +488,16 @@ class CodeGenerator(ASTVisitor):
     def build_annotations(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
     ) -> bool:
-        (ann_args, annotation_count) = self.annotate_args(node.args)
+        annotation_count = self.annotate_args(node.args)
         # Cannot annotate return type for lambda
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             returns = node.returns
             if returns:
-                if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
-                    ann_args.append("return")
-                    ann_args.append(to_expr(returns))
-                else:
-                    self.emit("LOAD_CONST", "return")
-                    self.visit(returns)
-                    annotation_count += 2
+                self.emit("LOAD_CONST", "return")
+                self._visitAnnotation(returns)
+                annotation_count += 2
 
-        if ann_args:
-            self.emit("LOAD_CONST", tuple(ann_args))
-        elif annotation_count > 0:
+        if annotation_count > 0:
             self.emit("BUILD_TUPLE", annotation_count)
 
         return annotation_count > 0
@@ -538,32 +532,26 @@ class CodeGenerator(ASTVisitor):
     def visitDefault(self, node: ast.expr) -> None:
         self.visit(node)
 
-    def annotate_args(self, args: ast.arguments) -> Tuple[List[str], bool]:
-        ann_args = []
-        annotation_count = False
+    def annotate_args(self, args: ast.arguments) -> int:
+        annotation_count = 0
         for arg in args.args:
-            annotation_count += self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg)
         for arg in args.posonlyargs:
-            annotation_count += self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg)
         if arg := args.vararg:
-            annotation_count += self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg)
         for arg in args.kwonlyargs:
-            annotation_count += self.annotate_arg(arg, ann_args)
+            annotation_count += self.annotate_arg(arg)
         if arg := args.kwarg:
-            annotation_count += self.annotate_arg(arg, ann_args)
-        return ann_args, annotation_count
+            annotation_count += self.annotate_arg(arg)
+        return annotation_count
 
-    def annotate_arg(self, arg: ast.arg, ann_args: List[str]) -> int:
+    def annotate_arg(self, arg: ast.arg) -> int:
         ann = arg.annotation
         if ann:
-            if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
-                ann_args.append(self.mangle(arg.arg))
-                ann_args.append(to_expr(ann))
-                return 2
-            else:
-                self.emit("LOAD_CONST", self.mangle(arg.arg))
-                self.visit(ann)
-                return 2
+            self.emit("LOAD_CONST", self.mangle(arg.arg))
+            self._visitAnnotation(ann)
+            return 2
         return 0
 
     def visitClassDef(self, node: ast.ClassDef) -> None:
@@ -2610,29 +2598,6 @@ class CinderCodeGenerator(CodeGenerator):
             self.emit("GET_AWAITABLE")
             self.emit("LOAD_CONST", None)
             self.emit("YIELD_FROM")
-
-    def annotate_arg(self, arg: ast.arg, ann_args: List[str]):
-        if arg.annotation:
-            name = self.mangle(arg.arg)
-            self.emit("LOAD_CONST", name)
-            self._visitAnnotation(arg.annotation)
-            ann_args.append(name)
-
-    def build_annotations(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
-    ) -> bool:
-        # TODO needs updating for 3.10 handling of annotations
-        ann_args = self.annotate_args(node.args)[0]
-        # Cannot annotate return type for lambda
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns:
-            self.emit("LOAD_CONST", "return")
-            self._visitAnnotation(node.returns)
-            ann_args.append("return")
-        if ann_args:
-            self.emit("BUILD_TUPLE", len(ann_args) * 2)
-            return True
-
-        return False
 
 
 def get_default_generator():
