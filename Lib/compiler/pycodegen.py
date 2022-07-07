@@ -1790,6 +1790,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("CALL_FUNCTION_EX", int(nkwelts > 0))
 
     def visitCall(self, node):
+        self.set_lineno(node)
         if (
             node.keywords
             or not isinstance(node.func, ast.Attribute)
@@ -1801,7 +1802,6 @@ class CodeGenerator(ASTVisitor):
             self._call_helper(0, node, node.args, node.keywords)
             return
 
-        self.set_lineno(node)
         self.visit(node.func.value)
         self.emit("LOAD_METHOD", self.mangle(node.func.attr))
         for arg in node.args:
