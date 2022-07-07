@@ -361,7 +361,8 @@ class Block:
 
 # the FlowGraph is transformed in place; it exists in one of these states
 ACTIVE = "ACTIVE"  # accepting calls to .emit()
-CLOSED = "CLOSED"  # closed to new instructions, ready for codegen
+CLOSED = "CLOSED"  # closed to new instructions
+CONSTS_CLOSED = "CONSTS_CLOSED"  # closed to new consts
 OPTIMIZED = "OPTIMIZED"  # optimizations have been run
 FINAL = "FINAL"  # all optimization and normalization of flow graph is done
 FLAT = "FLAT"  # flattened
@@ -511,7 +512,7 @@ class PyFlowGraph(FlowGraph):
                 self.consts[self.get_const_key(None)] = 0
 
     def convertArg(self, opcode: str, oparg: object) -> int:
-        assert self.stage == ACTIVE, self.stage
+        assert self.stage in {ACTIVE, CLOSED}, self.stage
 
         if self.do_not_emit_bytecode and opcode in self._quiet_opcodes:
             # return -1 so this errors if it ever ends up in non-dead-code due
@@ -535,6 +536,8 @@ class PyFlowGraph(FlowGraph):
             self.extend_block(block)
         self.optimizeCFG()
         self.duplicate_exits_without_lineno()
+
+        self.stage = CONSTS_CLOSED
         self.trim_unused_consts()
         self.propagate_line_numbers()
         self.firstline = self.firstline or self.first_inst_lineno or 1
@@ -991,7 +994,7 @@ class PyFlowGraph(FlowGraph):
         """Optimize a well-formed CFG."""
         assert self.stage == CLOSED, self.stage
 
-        optimizer = FlowGraphOptimizer(self.consts)
+        optimizer = FlowGraphOptimizer(self)
         for block in self.ordered_blocks:
             optimizer.optimize_basic_block(block)
             optimizer.clean_basic_block(block, -1)
@@ -1127,6 +1130,8 @@ class PyFlowGraph(FlowGraph):
 
     def trim_unused_consts(self) -> None:
         """Remove trailing unused constants."""
+        assert self.stage == CONSTS_CLOSED, self.stage
+
         max_const_index = 0
         for block in self.ordered_blocks:
             for instr in block.insts:

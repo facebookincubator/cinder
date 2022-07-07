@@ -8,7 +8,7 @@ TYPE_CHECKING = False
 if TYPE_CHECKING:
     from typing import Dict, Optional, Tuple
 
-    from .pyassem import Block, Instruction
+    from .pyassem import Block, Instruction, PyFlowGraph
 
 
 PyCmp_LT = 0
@@ -50,9 +50,9 @@ BINARY_OPS: Dict[str, object] = {
 class FlowGraphOptimizer:
     def __init__(
         self,
-        consts,
+        graph: PyFlowGraph,
     ) -> None:
-        self.consts = consts
+        self.graph = graph
 
     def optimize_basic_block(self, block: Block) -> None:
         instr_index = 0
@@ -102,6 +102,8 @@ class FlowGraphOptimizer:
             return self.opt_for_iter(instr_index, instr, next_instr, target, block)
         elif instr.opname == "LOAD_CONST":
             return self.opt_load_const(instr_index, instr, next_instr, target, block)
+        elif instr.opname == "BUILD_TUPLE":
+            return self.opt_build_tuple(instr_index, instr, next_instr, target, block)
         elif instr.opname == "RETURN_VALUE":
             return self.opt_return_value(instr_index, instr, next_instr, target, block)
 
@@ -254,6 +256,33 @@ class FlowGraphOptimizer:
                 instr.opname = "NOP"
                 next_instr.opname = "NOP"
                 next_instr.target = None
+
+    def opt_build_tuple(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction,
+        target: Instruction,
+        block: Block,
+    ) -> Optional[int]:
+        if instr_index >= instr.ioparg:
+            self.fold_tuple_on_constants(instr_index, instr, block)
+
+    def fold_tuple_on_constants(
+        self, instr_index: int, instr: Instruction, block: Block
+    ) -> None:
+        load_const_instrs = []
+        for i in range(instr_index - instr.ioparg, instr_index):
+            maybe_load_const = block.insts[i]
+            if maybe_load_const.opname != "LOAD_CONST":
+                return
+            load_const_instrs.append(maybe_load_const)
+        newconst = tuple(lc.oparg for lc in load_const_instrs)
+        for lc in load_const_instrs:
+            lc.opname = "NOP"
+        instr.opname = "LOAD_CONST"
+        instr.oparg = newconst
+        instr.ioparg = self.graph.convertArg("LOAD_CONST", newconst)
 
     def opt_return_value(
         self,

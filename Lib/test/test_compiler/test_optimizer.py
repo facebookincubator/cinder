@@ -228,133 +228,21 @@ class AstOptimizerTests(CompilerTest):
         self.assertIsInstance(unoptimized.body[0].body[0], ast.Assert)
 
     def test_folding_of_tuples_of_constants(self):
+        bigtuple = tuple(range(10000))
         for line, elem in (
             ("a = 1,2,3", (1, 2, 3)),
             ('a = ("a","b","c")', ("a", "b", "c")),
             ("a,b,c = 1,2,3", (1, 2, 3)),
             ("a = (None, 1, None)", (None, 1, None)),
+            ("a = ((1, 2), 3, 4)", ((1, 2), 3, 4)),
+            ("a = " + repr(bigtuple), bigtuple),
         ):
-            code = self.compare_graph(line)
-            code.assert_both("LOAD_CONST", elem)
-
-        for line, elem in (("a = ((1, 2), 3, 4)", ((1, 2), 3, 4)),):
-            code = self.compare_graph(line)
-            code.assert_added("LOAD_CONST", elem)
-            code.assert_removed("BUILD_TUPLE")
-
-        # Long tuples should be folded too.
-        code = self.compare_graph("x=" + repr(tuple(range(10000))))
-        # One LOAD_CONST for the tuple, one for the None return value
-        code.assert_instr_count("LOAD_CONST", 2, 2)
-
-        # Bug 1053819:  Tuple of constants misidentified when presented with:
-        # . . . opcode_with_arg 100   unary_opcode   BUILD_TUPLE 1  . . .
-        # The following would segfault upon compilation
-        def crater():
-            (
-                ~[
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                    0,
-                    1,
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    7,
-                    8,
-                    9,
-                ],
-            )
+            tree = ast.parse(line)
+            self.assertIsInstance(tree.body[0].value, ast.Tuple)
+            optimized = AstOptimizer(optimize=True).visit(tree)
+            const = optimized.body[0].value
+            self.assertIsInstance(const, ast.Constant)
+            self.assertEqual(const.value, elem)
 
     def test_folding_of_lists_of_constants(self):
         for line, elem in (
