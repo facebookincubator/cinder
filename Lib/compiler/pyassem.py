@@ -817,6 +817,7 @@ class PyFlowGraph(FlowGraph):
 
     # Opcodes which do not add names to co_consts/co_names/co_varnames in dead code (self.do_not_emit_bytecode)
     _quiet_opcodes = {
+        "LOAD_GLOBAL",
         "LOAD_CONST",
         "IMPORT_NAME",
         "STORE_ATTR",
