@@ -770,6 +770,7 @@ class CodeGenerator(ASTVisitor):
         )
 
     def compileJumpIfPop(self, test, label, is_if_true):
+        self.set_lineno(test)
         self.visit(test)
         self.emit(
             "JUMP_IF_TRUE_OR_POP" if is_if_true else "JUMP_IF_FALSE_OR_POP", label
@@ -855,6 +856,7 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock()
 
     def visitIfExp(self, node):
+        self.set_lineno(node)
         endblock = self.newBlock()
         elseblock = self.newBlock()
         self.compileJumpIf(node.test, elseblock, False)
