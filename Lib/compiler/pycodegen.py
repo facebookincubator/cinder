@@ -78,6 +78,15 @@ FuncOrLambda = Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda]
 CompNode = Union[ast.SetComp, ast.DictComp, ast.ListComp]
 
 
+# A soft limit for stack use, to avoid excessive
+# memory use for large constants, etc.
+#
+# The value 30 is plucked out of thin air.
+# Code that could use more stack than this is
+# rare, so the exact value is unimportant.
+STACK_USE_GUIDELINE = 30
+
+
 def make_header(mtime, size):
     return _ZERO + mtime.to_bytes(4, "little") + size.to_bytes(4, "little")
 
@@ -2105,18 +2114,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("DUP_TOP")
         self.visit(node.target)
 
-    # Create dict item by item. Saves interp stack size at the expense
-    # of bytecode size/speed.
-    def visitDict_by_one(self, node):
-        self.set_lineno(node)
-        self.emit("BUILD_MAP", 0)
-        for k, v in zip(node.keys, node.values):
-            self.emit("DUP_TOP")
-            self.visit(k)
-            self.visit(v)
-            self.emit("ROT_THREE")
-            self.emit("STORE_SUBSCR")
-
     def _const_value(self, node):
         assert isinstance(node, ast.Constant)
         return node.value
@@ -2129,7 +2126,8 @@ class CodeGenerator(ASTVisitor):
 
     def compile_subdict(self, node, begin, end):
         n = end - begin
-        if n > 1 and all_items_const(node.keys, begin, end):
+        big = n * 2 > STACK_USE_GUIDELINE
+        if n > 1 and not big and all_items_const(node.keys, begin, end):
             for i in range(begin, end):
                 self.visit(node.values[i])
 
@@ -2137,11 +2135,18 @@ class CodeGenerator(ASTVisitor):
                 "LOAD_CONST", tuple(self._const_value(x) for x in node.keys[begin:end])
             )
             self.emit("BUILD_CONST_KEY_MAP", n)
-        else:
-            for i in range(begin, end):
-                self.visit(node.keys[i])
-                self.visit(node.values[i])
+            return
 
+        if big:
+            self.emit("BUILD_MAP", 0)
+
+        for i in range(begin, end):
+            self.visit(node.keys[i])
+            self.visit(node.values[i])
+            if big:
+                self.emit("MAP_ADD", 1)
+
+        if not big:
             self.emit("BUILD_MAP", n)
 
     def visitDict(self, node):
@@ -2166,7 +2171,14 @@ class CodeGenerator(ASTVisitor):
                 self.visit(v)
                 self.emit("DICT_UPDATE", 1)
             else:
-                elements += 1
+                if elements * 2 > STACK_USE_GUIDELINE:
+                    self.compile_subdict(node, i - elements, i + 1)
+                    if have_dict:
+                        self.emit("DICT_UPDATE", 1)
+                    have_dict = True
+                    elements = 0
+                else:
+                    elements += 1
 
         if elements:
             self.compile_subdict(node, n - elements, n)
