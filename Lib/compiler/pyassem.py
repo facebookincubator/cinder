@@ -364,6 +364,7 @@ ACTIVE = "ACTIVE"  # accepting calls to .emit()
 CLOSED = "CLOSED"  # closed to new instructions
 CONSTS_CLOSED = "CONSTS_CLOSED"  # closed to new consts
 OPTIMIZED = "OPTIMIZED"  # optimizations have been run
+ORDERED = "ORDERED"  # basic block ordering is set
 FINAL = "FINAL"  # all optimization and normalization of flow graph is done
 FLAT = "FLAT"  # flattened
 DONE = "DONE"
@@ -542,6 +543,9 @@ class PyFlowGraph(FlowGraph):
         self.propagate_line_numbers()
         self.firstline = self.firstline or self.first_inst_lineno or 1
         self.guarantee_lineno_for_exits()
+
+        self.stage = ORDERED
+        self.normalize_jumps()
         self.stage = FINAL
 
     def getCode(self):
@@ -989,6 +993,21 @@ class PyFlowGraph(FlowGraph):
         for after, to_append in append_after.items():
             idx = self.ordered_blocks.index(after) + 1
             self.ordered_blocks[idx:idx] = reversed(to_append)
+
+    def normalize_jumps(self):
+        assert self.stage == ORDERED, self.stage
+
+        seen_blocks = set()
+
+        for block in self.ordered_blocks:
+            seen_blocks.add(block.bid)
+            if not block.insts:
+                continue
+            last = block.insts[-1]
+            if last.opname == "JUMP_ABSOLUTE" and last.target.bid not in seen_blocks:
+                last.opname = "JUMP_FORWARD"
+            elif last.opname == "JUMP_FORWARD" and last.target.bid in seen_blocks:
+                last.opname = "JUMP_ABSOLUTE"
 
     def optimizeCFG(self):
         """Optimize a well-formed CFG."""
