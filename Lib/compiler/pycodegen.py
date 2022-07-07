@@ -1193,6 +1193,7 @@ class CodeGenerator(ASTVisitor):
         self.setups.push(Entry(EXCEPT, body, None, None))
         self.visit(node.body)
         self.setups.pop()
+        self.set_no_lineno()
         self.emit("POP_BLOCK")
         self.emit("JUMP_FORWARD", orElse)
         self.nextBlock(except_)
@@ -1233,6 +1234,7 @@ class CodeGenerator(ASTVisitor):
                 )
                 self.visit(body)
                 self.setups.pop()
+                self.set_no_lineno()
                 self.emit("POP_BLOCK")
                 self.emit("POP_EXCEPT")
 
@@ -1257,6 +1259,7 @@ class CodeGenerator(ASTVisitor):
                 self.setups.push(Entry(HANDLER_CLEANUP, cleanup_body, None, None))
                 self.visit(body)
                 self.setups.pop()
+                self.set_no_lineno()
                 self.emit("POP_EXCEPT")
                 self.emit("JUMP_FORWARD", end)
             self.nextBlock(except_)
@@ -1301,10 +1304,10 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(body)
         self.setups.push(Entry(TRY_FINALLY, body, end, finalbody))
         try_body()
-        self.emit("POP_BLOCK")
+        self.emit_noline("POP_BLOCK")
         self.setups.pop()
         finalbody()
-        self.emit("JUMP_FORWARD", exit_)
+        self.emit_noline("JUMP_FORWARD", exit_)
 
         self.nextBlock(end)
         self.setups.push(Entry(END_FINALLY, end, None, None))
@@ -1339,7 +1342,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("SETUP_WITH", finally_)
 
         self.nextBlock(block)
-        self.setups.push(Entry(kind, block, finally_, None))
+        self.setups.push(Entry(kind, block, finally_, node))
         if item.optional_vars:
             self.visit(item.optional_vars)
         else:
@@ -2199,6 +2202,8 @@ class CodeGenerator(ASTVisitor):
             assert callable(e.unwinding_datum)
             e.unwinding_datum()
         elif e.kind in (WITH, ASYNC_WITH):
+            assert isinstance(e.unwinding_datum, AST)
+            self.set_lineno(e.unwinding_datum)
             self.emit("POP_BLOCK")
             if preserve_tos:
                 self.emit("ROT_TWO")
