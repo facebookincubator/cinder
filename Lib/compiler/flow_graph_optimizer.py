@@ -265,6 +265,17 @@ class FlowGraphOptimizer:
         target: Instruction,
         block: Block,
     ) -> Optional[int]:
+        if next_instr.opname == "UNPACK_SEQUENCE" and instr.ioparg == next_instr.ioparg:
+            if instr.ioparg == 1:
+                instr.opname = "NOP"
+                next_instr.opname = "NOP"
+            elif instr.ioparg == 2:
+                instr.opname = "ROT_TWO"
+                next_instr.opname = "NOP"
+            elif instr.ioparg == 3:
+                instr.opname = "ROT_THREE"
+                next_instr.opname = "ROT_TWO"
+            return
         if instr_index >= instr.ioparg:
             self.fold_tuple_on_constants(instr_index, instr, block)
 
