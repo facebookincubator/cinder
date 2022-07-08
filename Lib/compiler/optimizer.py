@@ -210,7 +210,7 @@ class AstOptimizer(ASTRewriter):
             if res is not None:
                 return copy_location(res, node)
             if not any(isinstance(e, ast.Starred) for e in elts):
-                return self.update_node(ast.Tuple(elts=elts, ctx=node.ctx))
+                return copy_location(ast.Tuple(elts=elts, ctx=node.ctx), node)
             return self.update_node(node, elts=elts)
         elif isinstance(node, ast.Set):
             elts = self.walk_list(node.elts)
