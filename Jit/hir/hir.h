@@ -3429,7 +3429,7 @@ class INSTR_CLASS(
 
 class INSTR_CLASS(
     DictSubscr,
-    (TDictExact, TUnicodeExact),
+    (TDictExact, TObject),
     HasOutput,
     Operands<2>,
     DeoptBase) {
