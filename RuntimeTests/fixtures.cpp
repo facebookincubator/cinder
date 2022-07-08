@@ -42,7 +42,9 @@ void HIRTest::TestBody() {
   }
 
   if (!passes_.empty()) {
-    if (!src_is_hir_) {
+    if (!src_is_hir_ &&
+        !(passes_.size() == 1 &&
+          std::string(passes_.at(0)->name()) == "@AllPasses")) {
       SSAify{}.Run(*irfunc);
       // Perform some straightforward cleanup on Python inputs to make the
       // output more reasonable. This implies that tests for the passes used

@@ -27,6 +27,22 @@
 namespace jit {
 namespace hir {
 
+class AllPasses : public Pass {
+ public:
+  AllPasses() : Pass("@AllPasses") {}
+
+  void Run(Function& irfunc) override {
+    Compiler::runPasses(irfunc, PassConfig::kEnableHIRInliner);
+  }
+
+  static std::unique_ptr<AllPasses> Factory() {
+    return std::make_unique<AllPasses>();
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AllPasses);
+};
+
 PassRegistry::PassRegistry() {
   auto addPass = [&](const PassFactory& factory) {
     factories_.emplace(factory()->name(), factory);
@@ -42,6 +58,8 @@ PassRegistry::PassRegistry() {
   addPass(GuardTypeRemoval::Factory);
   addPass(BeginInlinedFunctionElimination::Factory);
   addPass(BuiltinLoadMethodElimination::Factory);
+  // AllPasses is only used for testing.
+  addPass(AllPasses::Factory);
 }
 
 std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
