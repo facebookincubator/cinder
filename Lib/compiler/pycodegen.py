@@ -1854,11 +1854,17 @@ class CodeGenerator(ASTVisitor):
         preserve_tos = bool(node.value and not isinstance(node.value, ast.Constant))
         if preserve_tos:
             self.visit(node.value)
+        elif node.value:
+            self.set_lineno(node.value)
+            self.emit("NOP")
+        if not node.value or node.value.lineno != node.lineno:
+            self.set_lineno(node)
+            self.emit("NOP")
         self.unwind_setup_entries(preserve_tos)
         if not node.value:
             self.emit("LOAD_CONST", None)
         elif not preserve_tos:
-            self.visit(node.value)
+            self.emit("LOAD_CONST", node.value.value)
 
         self.emit("RETURN_VALUE")
 
