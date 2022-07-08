@@ -86,13 +86,14 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
                     func);)
 }
 
-void Compiler::runPasses(jit::hir::Function& irfunc) {
+void Compiler::runPasses(jit::hir::Function& irfunc, PassConfig config) {
   PostPassFunction callback = [](hir::Function&, const char*, std::size_t) {};
-  runPasses(irfunc, callback);
+  runPasses(irfunc, config, callback);
 }
 
 void Compiler::runPasses(
     jit::hir::Function& irfunc,
+    PassConfig config,
     PostPassFunction callback) {
   // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
   runPass<jit::hir::SSAify>(irfunc, callback);
@@ -100,7 +101,7 @@ void Compiler::runPasses(
   runPass<jit::hir::DynamicComparisonElimination>(irfunc, callback);
   runPass<jit::hir::GuardTypeRemoval>(irfunc, callback);
   runPass<jit::hir::PhiElimination>(irfunc, callback);
-  if (_PyJIT_IsHIRInlinerEnabled()) {
+  if (config & PassConfig::kEnableHIRInliner) {
     runPass<jit::hir::InlineFunctionCalls>(irfunc, callback);
     runPass<jit::hir::Simplify>(irfunc, callback);
     runPass<jit::hir::BeginInlinedFunctionElimination>(irfunc, callback);
@@ -119,6 +120,14 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   return Compile(jit::hir::Preloader(func));
+}
+
+PassConfig createConfig() {
+  PassConfig result{PassConfig::kDefault};
+  if (_PyJIT_IsHIRInlinerEnabled()) {
+    result = static_cast<PassConfig>(result | PassConfig::kEnableHIRInliner);
+  }
+  return result;
 }
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(
@@ -172,6 +181,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     irfunc->setCompilationPhaseTimer(std::move(compilation_phase_timer));
   }
 
+  PassConfig config = createConfig();
   std::unique_ptr<nlohmann::json> json{nullptr};
   if (g_dump_hir_passes_json != nullptr) {
     // TODO(emacs): For inlined functions, grab the sources from all the
@@ -190,14 +200,14 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     COMPILE_TIMER(
         irfunc->compilation_phase_timer,
         "HIR transformations",
-        Compiler::runPasses(*irfunc, dump))
+        Compiler::runPasses(*irfunc, config, dump))
     (*json)["fullname"] = fullname;
     (*json)["cols"] = passes;
   } else {
     COMPILE_TIMER(
         irfunc->compilation_phase_timer,
         "HIR transformations",
-        Compiler::runPasses(*irfunc))
+        Compiler::runPasses(*irfunc, config))
   }
 
   auto ngen = ngen_factory_(irfunc.get());

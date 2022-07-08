@@ -51,7 +51,7 @@ class LIRGeneratorTest : public RuntimeTest {
       return nullptr;
     }
 
-    Compiler::runPasses(*irfunc);
+    Compiler::runPasses(*irfunc, PassConfig::kDefault);
 
     jit::codegen::Environ env;
     jit::Runtime rt;
@@ -462,7 +462,7 @@ fun foo {
   std::unique_ptr<hir::Function> irfunc = hir::HIRParser{}.ParseHIR(hir);
   ASSERT_NE(irfunc, nullptr);
 
-  Compiler::runPasses(*irfunc);
+  Compiler::runPasses(*irfunc, PassConfig::kDefault);
 
   jit::codegen::Environ env;
   jit::Runtime rt;

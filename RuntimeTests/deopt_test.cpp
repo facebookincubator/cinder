@@ -341,7 +341,7 @@ class DeoptStressTest : public RuntimeTest {
     std::unique_ptr<Function> irfunc(buildHIR(funcobj));
     ASSERT_NE(irfunc, nullptr);
     auto guards = insertDeopts(*irfunc);
-    jit::Compiler::runPasses(*irfunc);
+    jit::Compiler::runPasses(*irfunc, PassConfig::kDefault);
     auto delete_one_deopt = [&](const DeoptMetadata& deopt_meta) {
       auto it = guards.find(deopt_meta.nonce);
       JIT_CHECK(it != guards.end(), "no guard for nonce %d", deopt_meta.nonce);

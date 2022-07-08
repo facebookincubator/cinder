@@ -108,6 +108,11 @@ typedef std::function<
     void(hir::Function& func, const char* pass_name, std::size_t time_ns)>
     PostPassFunction;
 
+enum PassConfig : uint64_t {
+  kDefault = 0,
+  kEnableHIRInliner = 1 << 0,
+};
+
 // Compiler is the high-level interface for translating Python functions into
 // native code.
 class Compiler {
@@ -122,10 +127,13 @@ class Compiler {
   std::unique_ptr<CompiledFunction> Compile(BorrowedRef<PyFunctionObject> func);
 
   // Runs all the compiler passes on the HIR function.
-  static void runPasses(hir::Function&);
+  static void runPasses(hir::Function&, PassConfig config);
   // Runs the compiler passes, calling callback on the HIR function after each
   // pass.
-  static void runPasses(hir::Function& irfunc, PostPassFunction callback);
+  static void runPasses(
+      hir::Function& irfunc,
+      PassConfig config,
+      PostPassFunction callback);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Compiler);
