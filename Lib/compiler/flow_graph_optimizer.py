@@ -142,8 +142,9 @@ class FlowGraphOptimizer:
 
     def jump_thread(self, instr: Instruction, target: Instruction, opname: str) -> int:
         """Attempt to eliminate jumps to jumps by updating inst to jump to
-        target->i_target using the provided opcode. Return whether or not the
-        optimization was successful."""
+        target->i_target using the provided opcode. Return 0 if successful, 1 if
+        not; this makes it easier for our callers to revisit the same
+        instruction again only if we changed it."""
         assert instr.is_jump()
         assert target.is_jump()
         if instr.lineno == target.lineno and instr.target != target.target:

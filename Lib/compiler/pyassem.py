@@ -972,7 +972,9 @@ class PyFlowGraph(FlowGraph):
         """
         # Copy all exit blocks without line number that are targets of a jump.
         append_after = {}
-        for block in sorted(self.ordered_blocks, key=lambda b: -b.alloc_id):
+        for block in sorted(
+            self.ordered_blocks, key=lambda b: b.alloc_id, reverse=True
+        ):
             if block.insts and (last := block.insts[-1]).is_jump():
                 if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
                     continue
