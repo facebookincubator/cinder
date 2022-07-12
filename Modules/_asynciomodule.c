@@ -107,6 +107,9 @@ static PyTypeObject FutureType;
 static PyTypeObject TaskType;
 static PyTypeObject PyRunningLoopHolder_Type;
 
+#if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
+static pid_t current_pid;
+#endif
 
 #define Future_CheckExact(obj) Py_IS_TYPE(obj, &FutureType)
 #define Task_CheckExact(obj) Py_IS_TYPE(obj, &TaskType)
@@ -264,7 +267,7 @@ get_running_loop(PyObject **loop)
     /* On Windows there is no getpid, but there is also no os.fork(),
        so there is no need for this check.
     */
-    if (getpid() != ((PyRunningLoopHolder *)rl)->rl_pid) {
+    if (current_pid != ((PyRunningLoopHolder *)rl)->rl_pid) {
         goto not_found;
     }
 #endif
@@ -3240,7 +3243,7 @@ new_running_loop_holder(PyObject *loop)
     }
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
-    rl->rl_pid = getpid();
+    rl->rl_pid = current_pid;
 #endif
 
     Py_INCREF(loop);
@@ -3431,6 +3434,13 @@ static struct PyModuleDef _asynciomodule = {
     (freefunc)module_free       /* m_free */
 };
 
+#if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
+void
+reset_pid()
+{
+    current_pid = getpid();
+}
+#endif
 
 PyMODINIT_FUNC
 PyInit__asyncio(void)
@@ -3477,6 +3487,11 @@ PyInit__asyncio(void)
         Py_DECREF(m);
         return NULL;
     }
+
+#if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
+    reset_pid();
+    pthread_atfork(NULL, NULL, reset_pid);
+#endif
 
     return m;
 }
