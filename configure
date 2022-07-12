@@ -641,6 +641,8 @@ BINLIBDEST
 LIBPYTHON
 EXT_SUFFIX
 ALT_SOABI
+USE_COMPAT_SOABI
+FB_COMPAT_SOABI
 SOABI
 LIBC
 LIBM
@@ -654,8 +656,12 @@ TRUE
 MACHDEP_OBJS
 DYNLOADFILE
 DLINCLDIR
-DTRACE_OBJS
-DTRACE_HEADERS
+IMPORT_DTRACE_HEADER
+IMPORT_MAYBE_PROBED
+GCMODULE_DTRACE_HEADER
+GCMODULE_MAYBE_PROBED
+CEVAL_DTRACE_HEADER
+CEVAL_MAYBE_PROBED
 DFLAGS
 DTRACE
 TCLTK_LIBS
@@ -673,12 +679,17 @@ BLDSHARED
 LDCXXSHARED
 LDSHARED
 SHLIB_SUFFIX
+ASAN_TEST_ENV_WITH_LSAN
+ASAN_TEST_ENV
 LIBTOOL_CRUFT
 OTHER_LIBTOOL_OPT
 UNIVERSAL_ARCH_FLAGS
+CXXFLAGS_NODIST
+BASECXXFLAGS
 LDFLAGS_NODIST
 CFLAGS_NODIST
 BASECFLAGS
+OPTCXX
 CFLAGS_ALIASING
 OPT
 LLVM_PROF_FOUND
@@ -724,8 +735,6 @@ MULTIARCH_CPPFLAGS
 PLATFORM_TRIPLET
 MULTIARCH
 ac_ct_CXX
-MAINCC
-CXX
 SED
 GREP
 CPP
@@ -757,6 +766,8 @@ LIPO_32BIT_FLAGS
 ARCH_RUN_32BIT
 UNIVERSALSDK
 CONFIG_ARGS
+CXXFLAGS
+CXX
 SOVERSION
 VERSION
 PYTHON_FOR_BUILD
@@ -793,7 +804,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -820,7 +830,6 @@ enable_universalsdk
 with_universal_archs
 with_framework_name
 enable_framework
-with_cxx_main
 with_suffix
 enable_shared
 enable_profiling
@@ -832,6 +841,7 @@ with_lto
 with_address_sanitizer
 with_memory_sanitizer
 with_undefined_behavior_sanitizer
+with_thread_sanitizer
 with_hash_algorithm
 with_tzpath
 with_libs
@@ -868,6 +878,8 @@ enable_test_modules
       ac_precious_vars='build_alias
 host_alias
 target_alias
+CXX
+CXXFLAGS
 MACHDEP
 CC
 CFLAGS
@@ -917,7 +929,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1170,15 +1181,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1316,7 +1318,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1469,7 +1471,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1542,9 +1543,6 @@ Optional Packages:
                           specify the name for the python framework on macOS
                           only valid when --enable-framework is set. see
                           Mac/README.rst (default is 'Python')
-  --with-cxx-main[=COMPILER]
-                          compile main() and link Python executable with C++
-                          compiler specified in COMPILER (default is $CXX)
   --with-suffix=SUFFIX    set executable suffix to SUFFIX (default is '.exe')
   --with-pydebug          build with Py_DEBUG defined (default is no)
   --with-trace-refs       enable tracing references for debugging purpose
@@ -1560,6 +1558,7 @@ Optional Packages:
   --with-undefined-behavior-sanitizer
                           enable UndefinedBehaviorSanitizer undefined
                           behaviour detector, 'ubsan' (default is no)
+  --with-thread-sanitizer enable ThreadSanitizer (tsan)
   --with-hash-algorithm=[fnv|siphash24]
                           select hash algorithm for use in Python/pyhash.c
                           (default is SipHash24)
@@ -1631,6 +1630,8 @@ Optional Packages:
                           install python.o (default is yes)
 
 Some influential environment variables:
+  CXX         C++ compiler command
+  CXXFLAGS    C++ compiler flags
   MACHDEP     name for machine-dependent library files
   CC          C compiler command
   CFLAGS      C compiler flags
@@ -3081,6 +3082,8 @@ define_xopen_source=yes
 
 # Arguments passed to configure.
 
+
+
 CONFIG_ARGS="$ac_configure_args"
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-universalsdk" >&5
@@ -3552,6 +3555,11 @@ fi
 if test -z "$CFLAGS"; then
         CFLAGS=
 fi
+
+# We're not really supposed to do this, as this is a predefined variable that
+# is usually controlled by AC_PROG_CXX. However, the CPython build has a bunch
+# of logic to determine the C++ compiler that it uses instead of autoconf.
+
 
 if test "$ac_sys_system" = "Darwin"
 then
@@ -4673,35 +4681,6 @@ $as_echo "$ac_cv_path_SED" >&6; }
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-cxx-main=<compiler>" >&5
-$as_echo_n "checking for --with-cxx-main=<compiler>... " >&6; }
-
-# Check whether --with-cxx_main was given.
-if test "${with_cxx_main+set}" = set; then :
-  withval=$with_cxx_main;
-
-	case $withval in
-	no)	with_cxx_main=no
-		MAINCC='$(CC)';;
-	yes)	with_cxx_main=yes
-		MAINCC='$(CXX)';;
-	*)	with_cxx_main=yes
-		MAINCC=$withval
-		if test -z "$CXX"
-		then
-			CXX=$withval
-		fi;;
-	esac
-else
-
-	with_cxx_main=no
-	MAINCC='$(CC)'
-
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_cxx_main" >&5
-$as_echo "$with_cxx_main" >&6; }
-
 preset_cxx="$CXX"
 if test -z "$CXX"
 then
@@ -5375,7 +5354,12 @@ cat >> conftest.c <<EOF
 EOF
 
 if $CPP $CPPFLAGS conftest.c >conftest.out 2>/dev/null; then
-  PLATFORM_TRIPLET=`grep -v '^#' conftest.out | grep -v '^ *$' | tr -d ' 	'`
+  default_platform=`grep -v '^#' conftest.out | grep -v '^ *$' | tr -d ' 	'`
+  if test x$PLATFORM_TRIPLET = x; then
+    PLATFORM_TRIPLET=$default_platform
+  else
+    FB_COMPAT_PLATFORM=$default_platform
+  fi
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PLATFORM_TRIPLET" >&5
 $as_echo "$PLATFORM_TRIPLET" >&6; }
 else
@@ -5802,7 +5786,7 @@ esac
 $as_echo_n "checking LIBRARY... " >&6; }
 if test -z "$LIBRARY"
 then
-	LIBRARY='libpython$(VERSION)$(ABIFLAGS).a'
+	LIBRARY='libpython$(VERSION)$(ABIFLAGS)_static.a'
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LIBRARY" >&5
 $as_echo "$LIBRARY" >&6; }
@@ -5839,22 +5823,13 @@ LDLIBRARYDIR=''
 RUNSHARED=''
 LDVERSION="$VERSION"
 
-# LINKCC is the command that links the python executable -- default is $(CC).
-# If CXX is set, and if it is needed to link a main function that was
-# compiled with CXX, LINKCC is CXX instead. Always using CXX is undesirable:
-# python might then depend on the C++ runtime
+# LINKCC is the command that links the python executable.
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking LINKCC" >&5
 $as_echo_n "checking LINKCC... " >&6; }
 if test -z "$LINKCC"
 then
-	LINKCC='$(PURIFY) $(MAINCC)'
-	case $ac_sys_system in
-	QNX*)
-	   # qcc must be used because the other compilers do not
-	   # support -N.
-	   LINKCC=qcc;;
-	esac
+	LINKCC='$(PURIFY) $(CXX)'
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LINKCC" >&5
 $as_echo "$LINKCC" >&6; }
@@ -6514,57 +6489,23 @@ $as_echo "no" >&6; }
 fi
 
 if test "$Py_OPT" = 'true' ; then
-  # Intentionally not forcing Py_LTO='true' here.  Too many toolchains do not
-  # compile working code using it and both test_distutils and test_gdb are
-  # broken when you do manage to get a toolchain that works with it.  People
-  # who want LTO need to use --with-lto themselves.
-  DEF_MAKE_ALL_RULE="profile-opt"
-  REQUIRE_PGO="yes"
-  DEF_MAKE_RULE="build_all"
   case $CC in
-    *gcc*)
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler accepts -fno-semantic-interposition" >&5
-$as_echo_n "checking whether C compiler accepts -fno-semantic-interposition... " >&6; }
-if ${ax_cv_check_cflags___fno_semantic_interposition+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-
-  ax_check_save_flags=$CFLAGS
-  CFLAGS="$CFLAGS  -fno-semantic-interposition"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ax_cv_check_cflags___fno_semantic_interposition=yes
-else
-  ax_cv_check_cflags___fno_semantic_interposition=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-  CFLAGS=$ax_check_save_flags
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cflags___fno_semantic_interposition" >&5
-$as_echo "$ax_cv_check_cflags___fno_semantic_interposition" >&6; }
-if test "x$ax_cv_check_cflags___fno_semantic_interposition" = xyes; then :
-
-      CFLAGS_NODIST="$CFLAGS_NODIST -fno-semantic-interposition"
-      LDFLAGS_NODIST="$LDFLAGS_NODIST -fno-semantic-interposition"
-
-else
-  :
-fi
-
+    *clang*)
+      # Not using instrumented PGO but AutoFDO instead.
+      DEF_MAKE_ALL_RULE="build_all"
+      REQUIRE_PGO="no"
+      DEF_MAKE_RULE="all"
+      ;;
+    *)
+      # Intentionally not forcing Py_LTO='true' here.  Too many toolchains do not
+      # compile working code using it and both test_distutils and test_gdb are
+      # broken when you do manage to get a toolchain that works with it.  People
+      # who want LTO need to use --with-lto themselves.
+      DEF_MAKE_ALL_RULE="profile-opt"
+      REQUIRE_PGO="yes"
+      DEF_MAKE_RULE="build_all"
       ;;
   esac
-
-
 else
   DEF_MAKE_ALL_RULE="build_all"
   REQUIRE_PGO="no"
@@ -6784,6 +6725,7 @@ $as_echo "$as_me: llvm-ar found via xcrun: ${LLVM_AR}" >&6;}
   fi
 
   CFLAGS_NODIST="$CFLAGS_NODIST ${LTOCFLAGS-$LTOFLAGS}"
+  CXXFLAGS_NODIST="$CXXFLAGS_NODIST $LTOFLAGS"
   LDFLAGS_NODIST="$LDFLAGS_NODIST $LTOFLAGS"
 fi
 
@@ -6917,10 +6859,10 @@ case $CC in
   *clang*)
     # Any changes made here should be reflected in the GCC+Darwin case below
     PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
-    PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
+    PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd -Wno-error=profile-instr-unprofiled"
     LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
     LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
-    if test $LLVM_PROF_FOUND = not-found
+    if test "$LLVM_PROF_FOUND" = "not-found"
     then
       LLVM_PROF_ERR=yes
       if test "${REQUIRE_PGO}" = "yes"
@@ -6933,7 +6875,7 @@ case $CC in
     case $ac_sys_system in
       Darwin*)
         PGO_PROF_GEN_FLAG="-fprofile-instr-generate"
-        PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd"
+        PGO_PROF_USE_FLAG="-fprofile-instr-use=code.profclangd -Wno-error=profile-instr-unprofiled"
         LLVM_PROF_MERGER="${LLVM_PROFDATA} merge -output=code.profclangd *.profclangr"
         LLVM_PROF_FILE="LLVM_PROFILE_FILE=\"code-%p.profclangr\""
         if test "${LLVM_PROF_FOUND}" = "not-found"
@@ -6947,7 +6889,7 @@ case $CC in
         ;;
       *)
         PGO_PROF_GEN_FLAG="-fprofile-generate"
-        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction"
+        PGO_PROF_USE_FLAG="-fprofile-use -fprofile-correction -Wno-error=missing-profile"
         LLVM_PROF_MERGER="true"
         LLVM_PROF_FILE=""
         ;;
@@ -7040,6 +6982,14 @@ then
     esac
 fi
 
+# This is a quick fix for now. If we need to set up separate optimization flags
+# for C++ we can do so later.
+
+OPTCXX="$(echo ${OPT} | tr -d '\n' | sed -e s/-Wstrict-prototypes//)"
+
+
+
+
 
 
 
@@ -7052,6 +7002,7 @@ UNIVERSAL_ARCH_FLAGS=
 case $GCC in
 yes)
     CFLAGS_NODIST="$CFLAGS_NODIST -std=c99"
+    CXXFLAGS_NODIST="$CXXFLAGS_NODIST -std=c++20"
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wextra" >&5
 $as_echo_n "checking for -Wextra... " >&6; }
@@ -7091,7 +7042,8 @@ $as_echo "$ac_cv_extra_warnings" >&6; }
 
     if test $ac_cv_extra_warnings = yes
     then
-      CFLAGS_NODIST="$CFLAGS_NODIST -Wextra"
+      CFLAGS_NODIST="$CFLAGS_NODIST -Wextra -Werror"
+      CXXFLAGS_NODIST="$CXXFLAGS_NODIST -Wextra -Werror -Wno-implicit-fallthrough"
     fi
 
     # Python doesn't violate C99 aliasing rules, but older versions of
@@ -7340,6 +7292,7 @@ $as_echo "$ac_cv_enable_sign_compare_warning" >&6; }
     if test $ac_cv_enable_sign_compare_warning = yes
     then
       BASECFLAGS="$BASECFLAGS -Wsign-compare"
+      BASECXXFLAGS="$BASECXXFLAGS -Wsign-compare"
     fi
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if we can turn on $CC unreachable code warning" >&5
@@ -7390,6 +7343,7 @@ fi
         test -z "`$CC --version 2>/dev/null | grep 'Free Software Foundation'`"
     then
       BASECFLAGS="$BASECFLAGS -Wunreachable-code"
+      BASECXXFLAGS="$BASECXXFLAGS -Wunreachable-code"
     else
       ac_cv_enable_unreachable_code_warning=no
     fi
@@ -7603,6 +7557,9 @@ $as_echo "$CC" >&6; }
                ;;
             esac
 
+            CFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CFLAGS}"
+            CXXFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CXXFLAGS}"
+            LDFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${LDFLAGS}"
             if test "${UNIVERSALSDK}" != "/"
             then
                 CFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CFLAGS}"
@@ -7724,11 +7681,13 @@ if test "$assertions" = 'true'; then
   :
 else
   OPT="-DNDEBUG $OPT"
+  OPTCXX="-DNDEBUG $OPTCXX"
 fi
 
 if test "$ac_arch_flags"
 then
 	BASECFLAGS="$BASECFLAGS $ac_arch_flags"
+        BASECXXFLAGS="$BASECXXFLAGS $ac_arch_flags"
 fi
 
 # On some compilers, pthreads are available without further options
@@ -9557,6 +9516,7 @@ $as_echo_n "checking for --enable-framework... " >&6; }
 if test "$enable_framework"
 then
 	BASECFLAGS="$BASECFLAGS -fno-common -dynamic"
+	BASECXXFLAGS="$BASECXXFLAGS -fno-common -dynamic"
 	# -F. is needed to allow linking to the framework while
 	# in the build location.
 
@@ -9589,6 +9549,8 @@ $as_echo "no" >&6; }
 	;;
 esac
 
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-address-sanitizer" >&5
 $as_echo_n "checking for --with-address-sanitizer... " >&6; }
 
@@ -9598,7 +9560,14 @@ if test "${with_address_sanitizer+set}" = set; then :
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $withval" >&5
 $as_echo "$withval" >&6; }
 BASECFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECFLAGS"
+BASECXXFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=address $LDFLAGS"
+
+ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=0"
+
+ASAN_TEST_ENV_WITH_LSAN="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0 \
+ LSAN_OPTIONS=suppressions=$(realpath $srcdir)/lsan_suppressions.txt,print_suppressions=0"
+
 # ASan works by controlling memory allocation, our own malloc interferes.
 with_pymalloc="no"
 
@@ -9648,6 +9617,7 @@ $as_echo "$ax_cv_check_cflags___fsanitize_memory" >&6; }
 if test "x$ax_cv_check_cflags___fsanitize_memory" = xyes; then :
 
 BASECFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer $BASECFLAGS"
+BASECXXFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 $LDFLAGS"
 
 else
@@ -9672,6 +9642,7 @@ if test "${with_undefined_behavior_sanitizer+set}" = set; then :
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $withval" >&5
 $as_echo "$withval" >&6; }
 BASECFLAGS="-fsanitize=undefined $BASECFLAGS"
+BASECXXFLAGS="-fsanitize=undefined $BASECXXFLAGS"
 LDFLAGS="-fsanitize=undefined $LDFLAGS"
 with_ubsan="yes"
 
@@ -9681,6 +9652,24 @@ else
 $as_echo "no" >&6; }
 with_ubsan="no"
 
+fi
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-thread-sanitizer" >&5
+$as_echo_n "checking for --with-thread-sanitizer... " >&6; }
+
+# Check whether --with-thread_sanitizer was given.
+if test "${with_thread_sanitizer+set}" = set; then :
+  withval=$with_thread_sanitizer;
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $withval" >&5
+$as_echo "$withval" >&6; }
+BASECFLAGS="-fsanitize=thread $BASECFLAGS"
+BASECXXFLAGS="-fsanitize=thread $BASECXXFLAGS"
+LDFLAGS="-fsanitize=thread $LDFLAGS"
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
 
@@ -11543,6 +11532,7 @@ rm -f conftest*
 				ipv6lib=inet6
 				ipv6libdir=/usr/inet6/lib
 				BASECFLAGS="-I/usr/inet6/include $BASECFLAGS"
+				BASECXXFLAGS="-I/usr/inet6/include $BASECXXFLAGS"
 			fi
 			;;
 		solaris)
@@ -11585,7 +11575,8 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
   ipv6type=$i;
 				ipv6lib=v6;
 				ipv6libdir=/usr/local/v6/lib;
-				BASECFLAGS="-I/usr/local/v6/include $BASECFLAGS"
+				BASECFLAGS="-I/usr/local/v6/include $BASECFLAGS";
+				BASECXXFLAGS="-I/usr/local/v6/include $BASECXXFLAGS"
 fi
 rm -f conftest*
 
@@ -11787,6 +11778,7 @@ fi
 
 
     OPT="-DDYNAMIC_ANNOTATIONS_ENABLED=1 $OPT"
+    OPTCXX="-DDYNAMIC_ANNOTATIONS_ENABLED=1 $OPTCXX"
 fi
 
 # Check for DTrace support
@@ -11807,9 +11799,18 @@ $as_echo "$with_dtrace" >&6; }
 
 
 
+
+
+
+
 DTRACE=
-DTRACE_HEADERS=
-DTRACE_OBJS=
+DFLAGS=
+CEVAL_MAYBE_PROBED="Python/ceval.o"
+CEVAL_DTRACE_HEADER=
+GCMODULE_MAYBE_PROBED="Modules/gcmodule.o"
+GCMODULE_DTRACE_HEADER=
+IMPORT_MAYBE_PROBED="Python/import.o"
+IMPORT_DTRACE_HEADER=
 
 if test "$with_dtrace" = "yes"
 then
@@ -11860,7 +11861,9 @@ fi
 
 $as_echo "#define WITH_DTRACE 1" >>confdefs.h
 
-    DTRACE_HEADERS="Include/pydtrace_probes.h"
+    CEVAL_DTRACE_HEADER="Include/pydtrace_probes_ceval.h"
+    GCMODULE_DTRACE_HEADER="Include/pydtrace_probes_gcmodule.h"
+    IMPORT_DTRACE_HEADER="Include/pydtrace_probes_import.h"
 
     # On OS X, DTrace providers do not need to be explicitly compiled and
     # linked into the binary. Correspondingly, dtrace(1) is missing the ELF
@@ -11880,7 +11883,9 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_dtrace_link" >&5
 $as_echo "$ac_cv_dtrace_link" >&6; }
     if test "$ac_cv_dtrace_link" = "yes"; then
-        DTRACE_OBJS="Python/pydtrace.o"
+        CEVAL_MAYBE_PROBED="Python/ceval_probed.o"
+        GCMODULE_MAYBE_PROBED="Modules/gcmodule_probed.o"
+        IMPORT_MAYBE_PROBED="Python/import_probed.o"
     fi
 fi
 
@@ -12823,6 +12828,8 @@ $as_echo "#define HAVE_ZLIB_COPY 1" >>confdefs.h
 
 fi
 
+
+LIBS="$LIBS -lz"
 
 case $ac_sys_system/$ac_sys_release in
 Darwin/*)
@@ -15610,6 +15617,8 @@ $as_echo "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 # In Python 3.2 and older, --with-wide-unicode added a 'u' flag.
 # In Python 3.7 and older, --with-pymalloc added a 'm' flag.
 
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking ABIFLAGS" >&5
 $as_echo_n "checking ABIFLAGS... " >&6; }
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ABIFLAGS" >&5
@@ -15617,6 +15626,12 @@ $as_echo "$ABIFLAGS" >&6; }
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking SOABI" >&5
 $as_echo_n "checking SOABI... " >&6; }
 SOABI='cpython-'`echo $VERSION | tr -d .`${ABIFLAGS}${PLATFORM_TRIPLET:+-$PLATFORM_TRIPLET}
+FB_COMPAT_SOABI='cpython-'`echo $VERSION | tr -d .`${ABIFLAGS}-${FB_COMPAT_PLATFORM}
+if test x$FB_COMPAT_PLATFORM = x; then
+  USE_COMPAT_SOABI=0
+else
+  USE_COMPAT_SOABI=1
+fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SOABI" >&5
 $as_echo "$SOABI" >&6; }
 
@@ -17162,12 +17177,25 @@ do
 done
 
 
-SRCDIRS="Parser Objects Python Modules Modules/_io Programs"
+SRCDIRS="Parser Objects Python Modules Programs \
+    Jit \
+    Jit/codegen \
+    Jit/hir \
+    Jit/lir \
+    RuntimeTests \
+    StrictModules \
+    StrictModules/Compiler \
+    StrictModules/Objects \
+    StrictModules/Tests \
+    ThirdParty/googletest-1.8.1/googletest \
+    ThirdParty/i386-dis \
+    ThirdParty/asmjit/src/asmjit/core \
+    ThirdParty/asmjit/src/asmjit/x86"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for build directories" >&5
 $as_echo_n "checking for build directories... " >&6; }
 for dir in $SRCDIRS; do
     if test ! -d $dir; then
-        mkdir $dir
+        mkdir -p $dir
     fi
 done
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: done" >&5
@@ -18058,6 +18086,30 @@ $as_echo "no" >&6; }
 fi
 
 
+# Cinder alterations to compiler flags
+BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
+BASECPPFLAGS="-I\"$srcdir\" ${BASECPPFLAGS}"
+BASECXXFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECXXFLAGS}"
+
+GCC_CFLAGS="-Wno-cast-function-type -Wno-type-limits"
+CLANG_CFLAGS="-Wno-deprecated -Wno-macro-redefined -Wno-unknown-warning-option -Wno-unreachable-code"
+case "$CC" in
+    *clang*)
+      BASECFLAGS="$BASECFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably gcc
+      BASECFLAGS="$BASECFLAGS $GCC_CFLAGS"
+      ;;
+esac
+
+case "$CXX" in
+    *clang*)
+      BASECXXFLAGS="$BASECXXFLAGS $CLANG_CFLAGS"
+      ;;
+    *) # Probably g++
+      BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
+      ;;
+esac
 
 # generate output files
 ac_config_files="$ac_config_files Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh"

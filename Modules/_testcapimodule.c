@@ -7184,7 +7184,7 @@ static PyTypeObject ContainerNoGC_type = {
 
 
 /************** ContextAwareTask testing helpers ****************************/
-typedef PyObject *(*acquire_context_hook)();
+typedef PyObject *(*acquire_context_hook)(void);
 
 // execute base step
 typedef PyObject *(*execute_base_step)(PyObject *self, PyObject *exc);

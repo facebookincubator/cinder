@@ -453,7 +453,7 @@ is_set_impl_method(PyGetSetDescrObject *descr, setter f)
 
 static inline PyMethodTableRef*
 get_method_table(PyTypeObject *type) {
-    PyWeakReference **weakrefs = (PyWeakReference**)PyObject_GET_WEAKREFS_LISTPTR(type);
+    PyWeakReference **weakrefs = (PyWeakReference**)PyObject_GET_WEAKREFS_LISTPTR((PyObject *)type);
     if (weakrefs != NULL) {
         PyWeakReference *p = *weakrefs;
         while (p != NULL) {
@@ -4035,7 +4035,7 @@ task_wakeup(TaskObj *task, PyObject *o)
 /********************** ContextAwareTask hooks **************/
 
 // acquire context hook
-typedef PyObject *(*acquire_context_hook)();
+typedef PyObject *(*acquire_context_hook)(void);
 
 // execute base step
 typedef PyObject *(*execute_base_step)(PyObject *self, PyObject *exc);
@@ -4820,7 +4820,7 @@ static struct PyModuleDef _asynciomodule = {
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 void
-reset_pid()
+reset_pid(void)
 {
     current_pid = getpid();
 }
