@@ -17,6 +17,7 @@ _Py_IDENTIFIER(call_soon);
 _Py_IDENTIFIER(cancel);
 _Py_IDENTIFIER(get_event_loop);
 _Py_IDENTIFIER(throw);
+_Py_IDENTIFIER(_step);
 
 
 /* State of the _asyncio module */
@@ -1827,6 +1828,19 @@ TaskStepMethWrapper_dealloc(TaskStepMethWrapper *o)
     Py_TYPE(o)->tp_free(o);
 }
 
+static inline PyObject *
+task_call_step(TaskObj *task, PyObject *arg)
+{
+    if (Task_CheckExact(task)) {
+        return task_step(task, arg);
+    }
+    else {
+        /* `task` is a subclass of Task */
+        return _PyObject_CallMethodIdObjArgs(
+            (PyObject*)task, &PyId__step,arg, NULL);
+    }
+}
+
 static PyObject *
 TaskStepMethWrapper_call(TaskStepMethWrapper *o,
                          PyObject *args, PyObject *kwds)
@@ -1839,7 +1853,7 @@ TaskStepMethWrapper_call(TaskStepMethWrapper *o,
         PyErr_SetString(PyExc_TypeError, "function takes no positional arguments");
         return NULL;
     }
-    return task_step(o->sw_task, o->sw_arg);
+    return task_call_step(o->sw_task, o->sw_arg);
 }
 
 static int
@@ -2320,6 +2334,19 @@ _asyncio_Task_set_exception(TaskObj *self, PyObject *exception)
 }
 
 /*[clinic input]
+_asyncio.Task._step
+
+    exc: object = None
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio_Task__step_impl(TaskObj *self, PyObject *exc)
+/*[clinic end generated code: output=7ed23f0cefd5ae42 input=1e19a985ace87ca4]*/
+{
+    return task_step(self, exc == Py_None ? NULL : exc);
+}
+
+/*[clinic input]
 _asyncio.Task.get_coro
 [clinic start generated code]*/
 
@@ -2457,6 +2484,7 @@ static PyMethodDef TaskType_methods[] = {
     _ASYNCIO_TASK_GET_NAME_METHODDEF
     _ASYNCIO_TASK_SET_NAME_METHODDEF
     _ASYNCIO_TASK_GET_CORO_METHODDEF
+    _ASYNCIO_TASK__STEP_METHODDEF
     {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS, PyDoc_STR("See PEP 585")},
     {NULL, NULL}        /* Sentinel */
 };
@@ -2972,10 +3000,10 @@ task_wakeup(TaskObj *task, PyObject *o)
             break; /* exception raised */
         case 0:
             Py_DECREF(fut_result);
-            return task_step(task, NULL);
+            return task_call_step(task, NULL);
         default:
             assert(res == 1);
-            result = task_step(task, fut_result);
+            result = task_call_step(task, fut_result);
             Py_DECREF(fut_result);
             return result;
         }
@@ -2984,7 +3012,7 @@ task_wakeup(TaskObj *task, PyObject *o)
         PyObject *fut_result = PyObject_CallMethod(o, "result", NULL);
         if (fut_result != NULL) {
             Py_DECREF(fut_result);
-            return task_step(task, NULL);
+            return task_call_step(task, NULL);
         }
         /* exception raised */
     }
@@ -2994,7 +3022,7 @@ task_wakeup(TaskObj *task, PyObject *o)
         PyErr_NormalizeException(&et, &ev, &tb);
     }
 
-    result = task_step(task, ev);
+    result = task_call_step(task, ev);
 
     Py_DECREF(et);
     Py_XDECREF(tb);

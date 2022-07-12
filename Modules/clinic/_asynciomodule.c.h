@@ -118,6 +118,35 @@ PyDoc_STRVAR(_asyncio_Future_set_exception__doc__,
 #define _ASYNCIO_FUTURE_SET_EXCEPTION_METHODDEF    \
     {"set_exception", (PyCFunction)_asyncio_Future_set_exception, METH_O, _asyncio_Future_set_exception__doc__},
 
+PyDoc_STRVAR(_asyncio_Task__step__doc__,
+"_step($self, /, exc=None)\n"
+"--\n"
+"\n");
+
+#define _ASYNCIO_TASK__STEP_METHODDEF    \
+    {"_step", (PyCFunction)(void(*)(void))_asyncio_Task__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_Task__step__doc__},
+
+static PyObject *
+_asyncio_Task__step_impl(TaskObj *self, PyObject *exc);
+
+static PyObject *
+_asyncio_Task__step(TaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"exc", NULL};
+    static _PyArg_Parser _parser = {"|O:_step", _keywords, 0};
+    PyObject *exc = Py_None;
+
+    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
+        &exc)) {
+        goto exit;
+    }
+    return_value = _asyncio_Task__step_impl(self, exc);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio_Future_add_done_callback__doc__,
 "add_done_callback($self, fn, /, *, context=<unrepresentable>)\n"
 "--\n"
