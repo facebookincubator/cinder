@@ -5620,6 +5620,56 @@ test_fatal_error(PyObject *self, PyObject *args)
 static PyObject *test_buildvalue_issue38913(PyObject *, PyObject *);
 static PyObject *getargs_s_hash_int(PyObject *, PyObject *, PyObject*);
 
+_Py_IDENTIFIER(call_soon_impl);
+
+static PyObject*
+EventLoop_call_soon(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    return _PyObject_CallMethodIdObjArgs(self, &PyId_call_soon_impl, args, kwargs, NULL);
+}
+
+_Py_IDENTIFIER(get_debug_impl);
+
+static PyObject*
+EventLoop_get_debug(PyObject *self, PyObject *Py_UNUSED(arg))
+{
+    return _PyObject_CallMethodIdObjArgs(self, &PyId_get_debug_impl, NULL);
+}
+
+static PyMethodDef get_debug_def =
+    {"EventLoop_get_debug", (PyCFunction)EventLoop_get_debug, METH_NOARGS };
+
+static PyMethodDef call_soon_def =
+    {"EventLoop_call_soon", (PyCFunction)EventLoop_call_soon, METH_VARARGS | METH_KEYWORDS };
+
+static PyObject*
+EventLoop_make_get_debug_descriptor(PyObject *Py_UNUSED(module), PyObject *arg) {
+    return PyDescr_NewMethod((PyTypeObject*)arg, &get_debug_def);
+}
+
+static PyObject*
+EventLoop_make_call_soon_descriptor(PyObject *Py_UNUSED(module), PyObject *arg) {
+    return PyDescr_NewMethod((PyTypeObject*)arg, &call_soon_def);
+}
+
+typedef PyObject *(*ctx_getter)(PyObject *);
+
+static PyObject *
+get_context(PyObject *Py_UNUSED(module), PyObject *args)
+{
+    if (PyTuple_GET_SIZE(args) != 2) {
+        PyErr_SetString(PyExc_TypeError, "Expected 2 arguments");
+        return NULL;
+    }
+    PyObject *self = PyTuple_GET_ITEM(args, 0);
+    PyObject *capsule = PyTuple_GET_ITEM(args, 1);
+    ctx_getter getter_ptr = PyCapsule_GetPointer(capsule, NULL);
+    if (getter_ptr == NULL) {
+        return NULL;
+    }
+    return getter_ptr(self);
+}
+
 static PyMethodDef TestMethods[] = {
     {"raise_exception",         raise_exception,                 METH_VARARGS},
     {"raise_memoryerror",       raise_memoryerror,               METH_NOARGS},
@@ -5899,6 +5949,9 @@ static PyMethodDef TestMethods[] = {
     {"test_py_is_funcs", test_py_is_funcs, METH_NOARGS},
     {"fatal_error", test_fatal_error, METH_VARARGS,
      PyDoc_STR("fatal_error(message, release_gil=False): call Py_FatalError(message)")},
+    {"make_get_debug_descriptor", EventLoop_make_get_debug_descriptor, METH_O},
+    {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
+    {"get_context_indirect", get_context, METH_VARARGS},
     {NULL, NULL} /* sentinel */
 };
 
@@ -7130,6 +7183,42 @@ static PyTypeObject ContainerNoGC_type = {
 };
 
 
+/************** ContextAwareTask testing helpers ****************************/
+typedef PyObject *(*acquire_context_hook)();
+
+// execute base step
+typedef PyObject *(*execute_base_step)(PyObject *self, PyObject *exc);
+
+// execute step
+typedef PyObject *(*execute_step_hook)(PyObject *self,
+                                       PyObject *exc,
+                                       PyObject *context,
+                                       execute_base_step);
+
+static PyObject *
+create_context()
+{
+    return PyDict_New();
+}
+
+static PyObject *
+do_step(PyObject *task,
+        PyObject *exc,
+        PyObject *context,
+        execute_base_step execute)
+{
+    PyObject *val = PyLong_FromLong(42);
+    if (val == NULL) {
+        return NULL;
+    }
+    int ok = PyDict_SetItemString(context, "context_var", val);
+    Py_DECREF(val);
+    if (ok < 0) {
+        return NULL;
+    }
+    return execute(task, exc);
+}
+
 static struct PyModuleDef _testcapimodule = {
     PyModuleDef_HEAD_INIT,
     "_testcapi",
@@ -7237,6 +7326,23 @@ PyInit__testcapi(void)
     Py_INCREF(&PyRecursingInfinitelyError_Type);
     PyModule_AddObject(m, "RecursingInfinitelyError",
                        (PyObject *)&PyRecursingInfinitelyError_Type);
+
+    PyObject *acquire_context = PyCapsule_New(create_context, NULL, NULL);
+    if (acquire_context == NULL) {
+        return NULL;
+    }
+    PyModule_AddObject(m, "AcquireContextPtr", acquire_context);
+    PyObject *do_step_ptr = PyCapsule_New(do_step, NULL, NULL);
+    if (do_step_ptr == NULL) {
+        return NULL;
+    }
+    PyModule_AddObject(m, "DoStepPtr", do_step_ptr);
+
+    PyObject *get_context_ref = PyCapsule_New(do_step, NULL, NULL);
+    if (get_context_ref == NULL) {
+        return NULL;
+    }
+    PyModule_AddObject(m, "GetContextRef", get_context_ref);
 
     PyModule_AddObject(m, "CHAR_MAX", PyLong_FromLong(CHAR_MAX));
     PyModule_AddObject(m, "CHAR_MIN", PyLong_FromLong(CHAR_MIN));

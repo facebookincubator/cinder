@@ -90,6 +90,38 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
     # status is still pending
     _log_destroy_pending = True
 
+    @classmethod
+    def current_task(cls, loop=None):
+        """Return the currently running task in an event loop or None.
+
+        By default the current task for the current event loop is returned.
+
+        None is returned when called not in the context of a Task.
+        """
+        warnings.warn("Task.current_task() is deprecated since Python 3.7, "
+                      "use asyncio.current_task() instead",
+                      DeprecationWarning,
+                      stacklevel=2)
+        if loop is None:
+            loop = events.get_event_loop()
+        return current_task(loop)
+
+    @classmethod
+    def all_tasks(cls, loop=None):
+        """Return a set of all tasks for an event loop.
+
+        By default all tasks for the current event loop are returned.
+        """
+        warnings.warn("Task.all_tasks() is deprecated since Python 3.7, "
+                      "use asyncio.all_tasks() instead",
+                      DeprecationWarning,
+                      stacklevel=2)
+        if loop is None:
+            loop = events.get_event_loop()
+        # NB: set(_all_tasks) is required to protect
+        # from https://bugs.python.org/issue34970 bug
+        return {t for t in list(_all_tasks) if futures._get_loop(t) is loop}
+
     def __init__(self, coro, *, loop=None, name=None):
         super().__init__(loop=loop)
         if self._source_traceback:
@@ -924,12 +956,13 @@ _py_register_task = _register_task
 _py_unregister_task = _unregister_task
 _py_enter_task = _enter_task
 _py_leave_task = _leave_task
-
+_py_all_tasks = all_tasks
 
 try:
     from _asyncio import (_register_task, _unregister_task,
                           _enter_task, _leave_task,
-                          _all_tasks, _current_tasks)
+                          _current_tasks,
+                          all_tasks)
 except ImportError:
     pass
 else:
@@ -937,3 +970,4 @@ else:
     _c_unregister_task = _unregister_task
     _c_enter_task = _enter_task
     _c_leave_task = _leave_task
+    _c_all_tasks = all_tasks

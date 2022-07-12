@@ -640,6 +640,90 @@ PyDoc_STRVAR(_asyncio_Task_set_name__doc__,
 #define _ASYNCIO_TASK_SET_NAME_METHODDEF    \
     {"set_name", (PyCFunction)_asyncio_Task_set_name, METH_O, _asyncio_Task_set_name__doc__},
 
+PyDoc_STRVAR(_asyncio_ContextAwareTask___init____doc__,
+"ContextAwareTask(coro, *, loop=None, name=None)\n"
+"--\n"
+"\n"
+"Extension for _asyncio.Task that tracks external context.");
+
+static int
+_asyncio_ContextAwareTask___init___impl(ContextAwareTaskObj *self,
+                                        PyObject *coro, PyObject *loop,
+                                        PyObject *name);
+
+static int
+_asyncio_ContextAwareTask___init__(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    int return_value = -1;
+    static const char * const _keywords[] = {"coro", "loop", "name", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "ContextAwareTask", 0};
+    PyObject *argsbuf[3];
+    PyObject * const *fastargs;
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 1;
+    PyObject *coro;
+    PyObject *loop = Py_None;
+    PyObject *name = Py_None;
+
+    fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 1, 1, 0, argsbuf);
+    if (!fastargs) {
+        goto exit;
+    }
+    coro = fastargs[0];
+    if (!noptargs) {
+        goto skip_optional_kwonly;
+    }
+    if (fastargs[1]) {
+        loop = fastargs[1];
+        if (!--noptargs) {
+            goto skip_optional_kwonly;
+        }
+    }
+    name = fastargs[2];
+skip_optional_kwonly:
+    return_value = _asyncio_ContextAwareTask___init___impl((ContextAwareTaskObj *)self, coro, loop, name);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio_ContextAwareTask__step__doc__,
+"_step($self, /, exc=None)\n"
+"--\n"
+"\n");
+
+#define _ASYNCIO_CONTEXTAWARETASK__STEP_METHODDEF    \
+    {"_step", (PyCFunction)(void(*)(void))_asyncio_ContextAwareTask__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_ContextAwareTask__step__doc__},
+
+static PyObject *
+_asyncio_ContextAwareTask__step_impl(ContextAwareTaskObj *self,
+                                     PyObject *exc);
+
+static PyObject *
+_asyncio_ContextAwareTask__step(ContextAwareTaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"exc", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_step", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *exc = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    exc = args[0];
+skip_optional_pos:
+    return_value = _asyncio_ContextAwareTask__step_impl(self, exc);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio__get_running_loop__doc__,
 "_get_running_loop($module, /)\n"
 "--\n"
@@ -900,4 +984,41 @@ _asyncio__leave_task(PyObject *module, PyObject *const *args, Py_ssize_t nargs, 
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=0d127162ac92e0c0 input=a9049054013a1b77]*/
+
+PyDoc_STRVAR(_asyncio_all_tasks__doc__,
+"all_tasks($module, /, loop=None)\n"
+"--\n"
+"\n"
+"Return a set of all tasks for the loop.");
+
+#define _ASYNCIO_ALL_TASKS_METHODDEF    \
+    {"all_tasks", (PyCFunction)(void(*)(void))_asyncio_all_tasks, METH_FASTCALL|METH_KEYWORDS, _asyncio_all_tasks__doc__},
+
+static PyObject *
+_asyncio_all_tasks_impl(PyObject *module, PyObject *loop);
+
+static PyObject *
+_asyncio_all_tasks(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"loop", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "all_tasks", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *loop = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    loop = args[0];
+skip_optional_pos:
+    return_value = _asyncio_all_tasks_impl(module, loop);
+
+exit:
+    return return_value;
+}
+/*[clinic end generated code: output=486530a3e44bf3f0 input=a9049054013a1b77]*/
