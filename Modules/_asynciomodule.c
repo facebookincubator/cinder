@@ -3127,42 +3127,6 @@ _asyncio_Task__make_cancelled_error_impl(TaskObj *self)
 }
 
 /*[clinic input]
-@classmethod
-_asyncio.Task.all_tasks
-
-    loop: object = None
-
-Return a set of all tasks for an event loop.
-
-By default all tasks for the current event loop are returned.
-[clinic start generated code]*/
-
-static PyObject *
-_asyncio_Task_all_tasks_impl(PyTypeObject *type, PyObject *loop)
-/*[clinic end generated code: output=11f9b20749ccca5d input=497f80bc9ce726b5]*/
-{
-    if (PyErr_WarnEx(PyExc_DeprecationWarning,
-                     "Task.all_tasks() is deprecated, " \
-                     "use asyncio.all_tasks() instead",
-                     1) < 0) {
-        return NULL;
-    }
-    if (loop != Py_None) {
-        return _all_tasks(loop, 0);
-    }
-    else {
-        PyObject *current_loop = get_event_loop(1);
-        if (current_loop == NULL) {
-            return NULL;
-        }
-        PyObject *res = _all_tasks(current_loop, 0);
-        Py_DECREF(current_loop);
-        return res;
-
-    }
-}
-
-/*[clinic input]
 _asyncio.Task._repr_info
 [clinic start generated code]*/
 
