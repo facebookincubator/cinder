@@ -38,7 +38,7 @@ from .visitor import ASTVisitor, walk
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import List, Optional, Sequence, Tuple, Type, Union
+    from typing import Generator, List, Optional, Sequence, Tuple, Type, Union
 
 try:
     import _parser  # pyre-ignore[21]
@@ -343,6 +343,15 @@ class CodeGenerator(ASTVisitor):
     def set_no_lineno(self):
         """Mark following instructions as synthetic (no source line number)."""
         self.graph.set_lineno(-1)
+
+    @contextmanager
+    def temp_lineno(self, lineno: int) -> Generator[None, None, None]:
+        old_lineno = self.graph.lineno
+        self.graph.set_lineno(lineno)
+        try:
+            yield
+        finally:
+            self.graph.set_lineno(old_lineno)
 
     def skip_docstring(self, body):
         """Given list of statements, representing body of a function, class,
@@ -1531,11 +1540,13 @@ class CodeGenerator(ASTVisitor):
         self.set_lineno(node)
         self.visit(node.value)
         if isinstance(node.ctx, ast.Store):
-            self.emit("STORE_ATTR", self.mangle(node.attr))
+            with self.temp_lineno(node.end_lineno):
+                self.emit("STORE_ATTR", self.mangle(node.attr))
         elif isinstance(node.ctx, ast.Del):
             self.emit("DELETE_ATTR", self.mangle(node.attr))
         else:
-            self.emit("LOAD_ATTR", self.mangle(node.attr))
+            with self.temp_lineno(node.end_lineno):
+                self.emit("LOAD_ATTR", self.mangle(node.attr))
 
     # next five implement assignments
 
