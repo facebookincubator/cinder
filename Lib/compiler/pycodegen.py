@@ -1722,15 +1722,21 @@ class CodeGenerator(ASTVisitor):
 
     def compiler_subkwargs(self, kwargs, begin, end):
         nkwargs = end - begin
-        if nkwargs > 1:
+        big = (nkwargs * 2) > STACK_USE_GUIDELINE
+        if nkwargs > 1 and not big:
             for i in range(begin, end):
                 self.visit(kwargs[i].value)
             self.emit("LOAD_CONST", tuple(arg.arg for arg in kwargs[begin:end]))
             self.emit("BUILD_CONST_KEY_MAP", nkwargs)
-        else:
-            for i in range(begin, end):
-                self.emit("LOAD_CONST", kwargs[i].arg)
-                self.visit(kwargs[i].value)
+            return
+        if big:
+            self.emit_noline("BUILD_MAP", 0)
+        for i in range(begin, end):
+            self.emit("LOAD_CONST", kwargs[i].arg)
+            self.visit(kwargs[i].value)
+            if big:
+                self.emit_noline("MAP_ADD", 1)
+        if not big:
             self.emit("BUILD_MAP", nkwargs)
 
     def insertReadonlyCheck(self, node, nargs, call_method):
@@ -1750,7 +1756,8 @@ class CodeGenerator(ASTVisitor):
     def _call_helper(self, argcnt, node, args, kwargs):
         starred = any(isinstance(arg, ast.Starred) for arg in args)
         mustdictunpack = any(arg.arg is None for arg in kwargs)
-        if not (starred or mustdictunpack):
+        manyargs = (len(args) + (len(kwargs) * 2)) > STACK_USE_GUIDELINE
+        if not (starred or mustdictunpack or manyargs):
             return self._fastcall_helper(argcnt, node, args, kwargs)
 
         # Handle positional arguments.
