@@ -1,5 +1,5 @@
 import ast
-from compiler.unparse import to_expr
+from compiler.pycodegen import compile as py_compile
 from unittest import TestCase
 
 
@@ -83,7 +83,10 @@ class UnparseTests(TestCase):
             "f'foo{bar}'",
             "f'foo{bar!a}'",
             # joined strings get combined
-            ("f'foo{bar:N}'f'foo{bar:N}'", "f'foo{bar:N}foo{bar:N}'"),
+            (
+                "f'foo{bar:N}'f'foo{bar:N}'",
+                "f'foo{bar:N}foo{bar:N}'",
+            ),
             "f'foo{ {2: 3}}'",
             "f'{(lambda x: x)}'",
             "[x for x in abc]",
@@ -97,24 +100,41 @@ class UnparseTests(TestCase):
             "{x: y for x, y in abc for z in foo}",
             "[*abc]",
             "(x for x in y)",
+            "Generator[None, None, None]",
+        ]
+        positions = [
+            (
+                "return",
+                "from __future__ import annotations\ndef f() -> {example}:\n    pass",
+                lambda g: g["f"].__annotations__["return"],
+            ),
+            (
+                "argument",
+                "from __future__ import annotations\ndef f(x: {example}):\n    pass",
+                lambda g: g["f"].__annotations__["x"],
+            ),
+            (
+                "assignment",
+                "from __future__ import annotations\nclass C:\n    x: {example}",
+                lambda g: g["C"].__annotations__["x"],
+            ),
         ]
 
         for example in examples:
-            with self.subTest(example=example):
-                if isinstance(example, tuple):
-                    example, expected = example
-                else:
-                    expected = example
+            if isinstance(example, tuple):
+                example, expected = example
+            else:
+                expected = example
+            for position, template, fetcher in positions:
+                with self.subTest(example=example, position=position):
 
-                tree = ast.parse(example)
-                self.assertEqual(expected, to_expr(tree.body[0].value))
+                    full = template.format(example=example)
+                    code = py_compile(full, "foo.py", "exec")
+                    py_globals = {}
+                    exec(code, py_globals, py_globals)
+                    # self.assertEqual(expected, fetcher(py_globals))
 
-                # Make sure we match CPython's compilation too
-                l = {}
-                exec(
-                    f"from __future__ import annotations\ndef f() -> {example}:\n    pass",
-                    l,
-                    l,
-                )
-                f = l["f"]
-                self.assertEqual(expected, f.__annotations__["return"])
+                    # Make sure we match CPython's compilation too
+                    c_globals = {}
+                    exec(full, c_globals, c_globals)
+                    self.assertEqual(expected, fetcher(c_globals))

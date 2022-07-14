@@ -127,9 +127,23 @@ def safe_mod(left: Any, right: Any, limits: LimitsType = DefaultLimits) -> objec
 
 
 class AstOptimizer(ASTRewriter):
-    def __init__(self, optimize: bool = False) -> None:
+    def __init__(self, optimize: bool = False, string_anns: bool = False) -> None:
         super().__init__()
         self.optimize = optimize
+        self.string_anns = string_anns
+
+    def skip_field(self, node: ast.AST, field: str) -> bool:
+        if self.string_anns:
+            if (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and field == "returns"
+            ):
+                return True
+            if isinstance(node, ast.arg) and field == "annotation":
+                return True
+            if isinstance(node, ast.AnnAssign) and field == "annotation":
+                return True
+        return False
 
     def visitUnaryOp(self, node: ast.UnaryOp) -> ast.expr:
         op = self.visit(node.operand)

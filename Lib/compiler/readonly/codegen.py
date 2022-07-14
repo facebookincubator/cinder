@@ -71,7 +71,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
     def make_code_gen(
         cls,
         module_name: str,
-        tree: AST,
+        tree: ast.Module,
         filename: str,
         flags: int,
         optimize: int,
@@ -477,7 +477,7 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
 
 
 def readonly_compile(
-    name: str, filename: str, tree: AST, flags: int, optimize: int
+    name: str, filename: str, tree: ast.Module, flags: int, optimize: int
 ) -> CodeType:
     """
     Entry point used in non-static setting

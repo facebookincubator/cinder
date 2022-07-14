@@ -119,9 +119,14 @@ class ASTRewriter(ASTVisitor):
             new_values.append(value)
         return new_values if changed else nodes
 
+    def skip_field(self, node: AST, field: str) -> bool:
+        return False
+
     def generic_visit(self, node: TAst, *args) -> TAst:
         ret_node = node
         for field, old_value in ast.iter_fields(node):
+            if self.skip_field(node, field):
+                continue
             if not isinstance(old_value, (AST, list)):
                 continue
 

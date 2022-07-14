@@ -184,6 +184,16 @@ def all_items_const(seq, begin, end):
     return True
 
 
+def find_futures(flags: int, node: ast.Module) -> int:
+    future_flags = flags & consts.PyCF_MASK
+    for feature in future.find_futures(node):
+        if feature == "barry_as_FLUFL":
+            future_flags |= consts.CO_FUTURE_BARRY_AS_BDFL
+        elif feature == "annotations":
+            future_flags |= consts.CO_FUTURE_ANNOTATIONS
+    return future_flags
+
+
 CONV_STR = ord("s")
 CONV_REPR = ord("r")
 CONV_ASCII = ord("a")
@@ -212,8 +222,14 @@ class CodeGenerator(ASTVisitor):
         graph: PyFlowGraph,
         flags=0,
         optimization_lvl=0,
+        future_flags=None,
     ):
         super().__init__()
+        if parent is not None:
+            assert future_flags is None, "Child codegen should inherit future flags"
+            future_flags = parent.future_flags
+        self.future_flags = future_flags
+        graph.setFlag(self.future_flags)
         self.module_gen = self if parent is None else parent.module_gen
         self.tree = node
         self.symbols = symbols
@@ -223,7 +239,6 @@ class CodeGenerator(ASTVisitor):
         self.last_lineno = None
         self._setupGraphDelegation()
         self.interactive = False
-        self.graph.setFlag(self.module_gen.future_flags)
         self.scope = self.scopes[node]
         self.flags = flags
         self.optimization_lvl = optimization_lvl
@@ -353,19 +368,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")
 
-    def findFutures(self, node):
-        future_flags = self.flags & consts.PyCF_MASK
-        for feature in future.find_futures(node):
-            if feature == "barry_as_FLUFL":
-                future_flags |= consts.CO_FUTURE_BARRY_AS_BDFL
-            elif feature == "annotations":
-                future_flags |= consts.CO_FUTURE_ANNOTATIONS
-        return future_flags
-
     def visitModule(self, node: ast.Module) -> None:
-        self.future_flags = self.findFutures(node)
-        self.graph.setFlag(self.future_flags)
-
         # Set current line number to the line number of first statement.
         # This way line number for SETUP_ANNOTATIONS will always
         # coincide with the line number of first "real" statement in module.
@@ -446,7 +449,7 @@ class CodeGenerator(ASTVisitor):
             gen.visit(body)
 
     def _visitAnnotation(self, node):
-        if self.module_gen.future_flags & consts.CO_FUTURE_ANNOTATIONS:
+        if self.future_flags & consts.CO_FUTURE_ANNOTATIONS:
             self.emit("LOAD_CONST", to_expr(node))
         else:
             self.visit(node)
@@ -2417,14 +2420,17 @@ class CodeGenerator(ASTVisitor):
     def make_code_gen(
         cls,
         module_name: str,
-        tree: AST,
+        tree: ast.Module,
         filename: str,
         flags: int,
         optimize: int,
         ast_optimizer_enabled: bool = True,
     ):
+        future_flags = find_futures(flags, tree)
         if ast_optimizer_enabled:
-            tree = cls.optimize_tree(optimize, tree)
+            tree = cls.optimize_tree(
+                optimize, tree, bool(future_flags & consts.CO_FUTURE_ANNOTATIONS)
+            )
         s = cls._SymbolVisitor()
         walk(tree, s)
 
@@ -2434,14 +2440,14 @@ class CodeGenerator(ASTVisitor):
             s.scopes[tree],
             firstline=1,
         )
-        code_gen = cls(None, tree, s, graph, flags, optimize)
+        code_gen = cls(None, tree, s, graph, flags, optimize, future_flags=future_flags)
         code_gen._qual_name = module_name
         walk(tree, code_gen)
         return code_gen
 
     @classmethod
-    def optimize_tree(cls, optimize: int, tree: AST):
-        return AstOptimizer(optimize=optimize > 0).visit(tree)
+    def optimize_tree(cls, optimize: int, tree: AST, string_anns: bool):
+        return AstOptimizer(optimize=optimize > 0, string_anns=string_anns).visit(tree)
 
     def visit(self, node: Union[Sequence[AST], AST], *args):
         # Note down the old line number

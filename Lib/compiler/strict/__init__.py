@@ -20,12 +20,13 @@ from typing import Any, cast, Dict, final, List, Mapping, Optional
 
 from _strictmodule import MUTABLE_DECORATOR
 
-from .. import symbols
+from .. import consts, symbols
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import (
     CodeGenerator,
     END_FINALLY,
     Entry,
+    find_futures,
     FOR_LOOP,
     TRY_FINALLY,
 )
@@ -143,7 +144,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
     def make_code_gen(
         cls,
         module_name: str,
-        tree: AST,
+        tree: ast.Module,
         filename: str,
         flags: int,
         optimize: int,
@@ -151,8 +152,11 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         ast_optimizer_enabled: bool = True,
         builtins: Dict[str, Any] = builtins.__dict__,
     ) -> StrictCodeGenerator:
+        future_flags = find_futures(flags, tree)
         if ast_optimizer_enabled:
-            tree = cls.optimize_tree(optimize, tree)
+            tree = cls.optimize_tree(
+                optimize, tree, bool(future_flags & consts.CO_FUTURE_ANNOTATIONS)
+            )
         s = cls._SymbolVisitor()
         walk(tree, s)
 
@@ -640,7 +644,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
 def strict_compile(
     name: str,
     filename: str,
-    tree: AST,
+    tree: ast.Module,
     optimize: int = 0,
     builtins: Dict[str, Any] = builtins.__dict__,
 ) -> CodeType:
