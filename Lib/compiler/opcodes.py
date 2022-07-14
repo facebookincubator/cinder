@@ -1,5 +1,4 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-from typing import Tuple
 
 from .opcodebase import Opcode
 
@@ -27,6 +26,11 @@ opcode.def_op("BINARY_FLOOR_DIVIDE", 26)
 opcode.def_op("BINARY_TRUE_DIVIDE", 27)
 opcode.def_op("INPLACE_FLOOR_DIVIDE", 28)
 opcode.def_op("INPLACE_TRUE_DIVIDE", 29)
+opcode.def_op("GET_LEN", 30)
+opcode.def_op("MATCH_MAPPING", 31)
+opcode.def_op("MATCH_SEQUENCE", 32)
+opcode.def_op("MATCH_KEYS", 33)
+opcode.def_op("COPY_DICT_WITHOUT_KEYS", 34)
 opcode.def_op("WITH_EXCEPT_START", 49)
 opcode.def_op("GET_AITER", 50)
 opcode.def_op("GET_ANEXT", 51)
@@ -73,6 +77,7 @@ opcode.name_op("STORE_ATTR", 95)  # Index in name list
 opcode.name_op("DELETE_ATTR", 96)  # ""
 opcode.name_op("STORE_GLOBAL", 97)  # ""
 opcode.name_op("DELETE_GLOBAL", 98)  # ""
+opcode.def_op("ROT_N", 99)
 opcode.def_op("LOAD_CONST", 100)  # Index in const list
 opcode.hasconst.add(100)
 opcode.name_op("LOAD_NAME", 101)  # Index in name list
@@ -116,50 +121,20 @@ opcode.def_op("STORE_DEREF", 137)
 opcode.hasfree.add(137)
 opcode.def_op("DELETE_DEREF", 138)
 opcode.hasfree.add(138)
-opcode.def_op("FUNC_CREDENTIAL", 139)
-opcode.hasconst.add(139)
-opcode.def_op("READONLY_OPERATION", 140)
-opcode.hasconst.add(140)
-opcode.readonly_op("MAKE_FUNCTION", 0)
-opcode.readonly_op("CHECK_FUNCTION", 1)
-opcode.readonly_op("BINARY_ADD", 2)
-opcode.readonly_op("BINARY_SUBTRACT", 3)
-opcode.readonly_op("BINARY_MULTIPLY", 4)
-opcode.readonly_op("BINARY_MATRIX_MULTIPLY", 5)
-opcode.readonly_op("BINARY_TRUE_DIVIDE", 6)
-opcode.readonly_op("BINARY_FLOOR_DIVIDE", 7)
-opcode.readonly_op("BINARY_MODULO", 8)
-opcode.readonly_op("BINARY_POWER", 9)
-opcode.readonly_op("BINARY_LSHIFT", 10)
-opcode.readonly_op("BINARY_RSHIFT", 11)
-opcode.readonly_op("BINARY_OR", 12)
-opcode.readonly_op("BINARY_XOR", 13)
-opcode.readonly_op("BINARY_AND", 14)
-opcode.readonly_op("UNARY_INVERT", 15)
-opcode.readonly_op("UNARY_NEGATIVE", 16)
-opcode.readonly_op("UNARY_POSITIVE", 17)
-opcode.readonly_op("UNARY_NOT", 18)
-opcode.readonly_op("COMPARE_OP", 19)
-opcode.readonly_op("CHECK_LOAD_ATTR", 20)
-opcode.readonly_op("CHECK_STORE_ATTR", 21)
-opcode.readonly_op("GET_ITER", 22)
-opcode.readonly_op("FOR_ITER", 23)
-opcode.readonly_op("POP_JUMP_IF_TRUE", 24)
-opcode.readonly_op("POP_JUMP_IF_FALSE", 25)
 opcode.def_op("CALL_FUNCTION_KW", 141)  # #args + #kwargs
 opcode.def_op("CALL_FUNCTION_EX", 142)  # Flags
 opcode.jrel_op("SETUP_WITH", 143)
+opcode.def_op("EXTENDED_ARG", 144)
 opcode.def_op("LIST_APPEND", 145)
 opcode.def_op("SET_ADD", 146)
 opcode.def_op("MAP_ADD", 147)
 opcode.def_op("LOAD_CLASSDEREF", 148)
 opcode.hasfree.add(148)
-opcode.def_op("EXTENDED_ARG", 144)
+opcode.def_op("MATCH_CLASS", 152)
 opcode.jrel_op("SETUP_ASYNC_WITH", 154)
 opcode.def_op("FORMAT_VALUE", 155)
 opcode.def_op("BUILD_CONST_KEY_MAP", 156)
 opcode.def_op("BUILD_STRING", 157)
-opcode.def_op("BUILD_TUPLE_UNPACK_WITH_CALL", 158)
 opcode.name_op("LOAD_METHOD", 160)
 opcode.def_op("CALL_METHOD", 161)
 opcode.def_op("LIST_EXTEND", 162)
@@ -176,22 +151,6 @@ FVS_MASK = 0x4
 FVS_HAVE_SPEC = 0x4
 
 
-def calculate_readonly_op_stack_effect(oparg: Tuple[int], jmp: int) -> int:
-    op = oparg[0]
-    if op >= opcode.readonlyop["BINARY_ADD"] and op <= opcode.readonlyop["BINARY_AND"]:
-        return -1
-    if op == opcode.readonlyop["COMPARE_OP"]:
-        return -1
-    if op == opcode.readonlyop["FOR_ITER"]:
-        return -1 if jmp > 0 else 1
-    if (
-        op == opcode.readonlyop["POP_JUMP_IF_TRUE"]
-        or op == opcode.readonlyop["POP_JUMP_IF_FALSE"]
-    ):
-        return -1
-    return 0
-
-
 opcode.stack_effects.update(
     NOP=0,
     POP_TOP=-1,
@@ -199,16 +158,15 @@ opcode.stack_effects.update(
     ROT_THREE=0,
     DUP_TOP=1,
     DUP_TOP_TWO=2,
+    ROT_FOUR=0,
     UNARY_POSITIVE=0,
     UNARY_NEGATIVE=0,
     UNARY_NOT=0,
     UNARY_INVERT=0,
-    SET_ADD=-1,
-    LIST_APPEND=-1,
-    MAP_ADD=-2,
+    BINARY_MATRIX_MULTIPLY=-1,
+    INPLACE_MATRIX_MULTIPLY=-1,
     BINARY_POWER=-1,
     BINARY_MULTIPLY=-1,
-    BINARY_MATRIX_MULTIPLY=-1,
     BINARY_MODULO=-1,
     BINARY_ADD=-1,
     BINARY_SUBTRACT=-1,
@@ -217,10 +175,19 @@ opcode.stack_effects.update(
     BINARY_TRUE_DIVIDE=-1,
     INPLACE_FLOOR_DIVIDE=-1,
     INPLACE_TRUE_DIVIDE=-1,
+    GET_LEN=1,
+    MATCH_MAPPING=1,
+    MATCH_SEQUENCE=1,
+    MATCH_KEYS=2,
+    COPY_DICT_WITHOUT_KEYS=0,
+    WITH_EXCEPT_START=1,
+    GET_AITER=0,
+    GET_ANEXT=1,
+    BEFORE_ASYNC_WITH=1,
+    END_ASYNC_FOR=-7,
     INPLACE_ADD=-1,
     INPLACE_SUBTRACT=-1,
     INPLACE_MULTIPLY=-1,
-    INPLACE_MATRIX_MULTIPLY=-1,
     INPLACE_MODULO=-1,
     STORE_SUBSCR=-3,
     DELETE_SUBSCR=-2,
@@ -231,57 +198,62 @@ opcode.stack_effects.update(
     BINARY_OR=-1,
     INPLACE_POWER=-1,
     GET_ITER=0,
+    GET_YIELD_FROM_ITER=0,
     PRINT_EXPR=-1,
     LOAD_BUILD_CLASS=1,
+    YIELD_FROM=-1,
+    GET_AWAITABLE=0,
+    LOAD_ASSERTION_ERROR=1,
     INPLACE_LSHIFT=-1,
     INPLACE_RSHIFT=-1,
     INPLACE_AND=-1,
     INPLACE_XOR=-1,
     INPLACE_OR=-1,
+    LIST_TO_TUPLE=0,
     RETURN_VALUE=-1,
     IMPORT_STAR=-1,
     SETUP_ANNOTATIONS=0,
     YIELD_VALUE=0,
-    YIELD_FROM=-1,
     POP_BLOCK=0,
+    POP_EXCEPT=-3,
     STORE_NAME=-1,
     DELETE_NAME=0,
     UNPACK_SEQUENCE=lambda oparg, jmp=0: oparg - 1,
+    FOR_ITER=lambda oparg, jmp=0: -1 if jmp > 0 else 1,
     UNPACK_EX=lambda oparg, jmp=0: (oparg & 0xFF) + (oparg >> 8),
     STORE_ATTR=-2,
     DELETE_ATTR=-1,
     STORE_GLOBAL=-1,
     DELETE_GLOBAL=0,
+    ROT_N=0,
     LOAD_CONST=1,
     LOAD_NAME=1,
     BUILD_TUPLE=lambda oparg, jmp=0: 1 - oparg,
     BUILD_LIST=lambda oparg, jmp=0: 1 - oparg,
     BUILD_SET=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_STRING=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_LIST_UNPACK=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_TUPLE_UNPACK=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_TUPLE_UNPACK_WITH_CALL=lambda oparg, jmp=0: 1 - oparg,
-    BUILD_SET_UNPACK=lambda oparg, jmp=0: 1 - oparg,
     BUILD_MAP=lambda oparg, jmp=0: 1 - 2 * oparg,
-    BUILD_CONST_KEY_MAP=lambda oparg, jmp=0: -oparg,
     LOAD_ATTR=0,
     COMPARE_OP=-1,
-    CONTAINS_OP=-1,
-    IS_OP=-1,
     IMPORT_NAME=-1,
     IMPORT_FROM=1,
     JUMP_FORWARD=0,
+    JUMP_IF_FALSE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
+    JUMP_IF_TRUE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     JUMP_ABSOLUTE=0,
     POP_JUMP_IF_FALSE=-1,
     POP_JUMP_IF_TRUE=-1,
     LOAD_GLOBAL=1,
+    IS_OP=-1,
+    CONTAINS_OP=-1,
+    RERAISE=-3,
+    JUMP_IF_NOT_EXC_MATCH=-2,
+    SETUP_FINALLY=lambda oparg, jmp: 6 if jmp else 0,
     LOAD_FAST=1,
     STORE_FAST=-1,
     DELETE_FAST=0,
+    GEN_START=-1,
     RAISE_VARARGS=lambda oparg, jmp=0: -oparg,
     CALL_FUNCTION=lambda oparg, jmp=0: -oparg,
-    CALL_FUNCTION_KW=lambda oparg, jmp=0: -oparg - 1,
-    CALL_FUNCTION_EX=lambda oparg, jmp=0: -1 - ((oparg & 0x01) != 0),
     MAKE_FUNCTION=lambda oparg, jmp=0: -1
     - ((oparg & 0x01) != 0)
     - ((oparg & 0x02) != 0)
@@ -290,41 +262,28 @@ opcode.stack_effects.update(
     BUILD_SLICE=lambda oparg, jmp=0: -2 if oparg == 3 else -1,
     LOAD_CLOSURE=1,
     LOAD_DEREF=1,
-    LOAD_CLASSDEREF=1,
     STORE_DEREF=-1,
     DELETE_DEREF=0,
-    FUNC_CREDENTIAL=1,
-    READONLY_OPERATION=lambda oparg, jmp=0: calculate_readonly_op_stack_effect(
-        oparg, jmp
-    ),
-    GET_AWAITABLE=0,
-    BEFORE_ASYNC_WITH=1,
-    GET_AITER=0,
-    GET_ANEXT=1,
-    GET_YIELD_FROM_ITER=0,
+    CALL_FUNCTION_KW=lambda oparg, jmp=0: -oparg - 1,
+    CALL_FUNCTION_EX=lambda oparg, jmp=0: -1 - ((oparg & 0x01) != 0),
+    SETUP_WITH=lambda oparg, jmp=0: 6 if jmp else 1,
+    EXTENDED_ARG=0,
+    LIST_APPEND=-1,
+    SET_ADD=-1,
+    MAP_ADD=-2,
+    LOAD_CLASSDEREF=1,
+    MATCH_CLASS=-1,
+    SETUP_ASYNC_WITH=lambda oparg, jmp: (-1 + 6) if jmp else 0,
     # If there's a fmt_spec on the stack, we go from 2->1,
     # else 1->1.
     FORMAT_VALUE=lambda oparg, jmp=0: -1 if (oparg & FVS_MASK) == FVS_HAVE_SPEC else 0,
-    EXTENDED_ARG=0,
-    SETUP_WITH=lambda oparg, jmp=0: 6 if jmp else 1,
-    POP_EXCEPT=-3,
-    FOR_ITER=lambda oparg, jmp=0: -1 if jmp > 0 else 1,
-    JUMP_IF_TRUE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
-    JUMP_IF_FALSE_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
-    SETUP_FINALLY=lambda oparg, jmp: 6 if jmp else 0,
-    SETUP_ASYNC_WITH=lambda oparg, jmp: (-1 + 6) if jmp else 0,
-    CALL_METHOD=lambda oparg, jmp: -oparg - 1,
+    BUILD_CONST_KEY_MAP=lambda oparg, jmp=0: -oparg,
+    BUILD_STRING=lambda oparg, jmp=0: 1 - oparg,
+    INVOKE_METHOD=lambda oparg, jmp: -oparg - 1,
     LOAD_METHOD=1,
-    ROT_FOUR=0,
-    END_ASYNC_FOR=-7,
-    RERAISE=-3,
-    WITH_EXCEPT_START=1,
-    JUMP_IF_NOT_EXC_MATCH=-2,
-    LIST_TO_TUPLE=0,
+    CALL_METHOD=lambda oparg, jmp: -oparg - 1,
     LIST_EXTEND=-1,
     SET_UPDATE=-1,
     DICT_MERGE=-1,
     DICT_UPDATE=-1,
-    GEN_START=-1,
-    LOAD_ASSERTION_ERROR=1,
 )

@@ -129,12 +129,99 @@ extern "C" {
 #define FORMAT_VALUE            155
 #define BUILD_CONST_KEY_MAP     156
 #define BUILD_STRING            157
+#define INVOKE_METHOD           158
+#define LOAD_FIELD              159
 #define LOAD_METHOD             160
 #define CALL_METHOD             161
 #define LIST_EXTEND             162
 #define SET_UPDATE              163
 #define DICT_MERGE              164
 #define DICT_UPDATE             165
+#define STORE_FIELD             166
+#define SEQUENCE_REPEAT         167
+#define CAST                    170
+#define LOAD_LOCAL              171
+#define STORE_LOCAL             172
+#define INT_LOAD_CONST_OLD      173
+#define PRIMITIVE_BOX           174
+#define POP_JUMP_IF_ZERO        175
+#define POP_JUMP_IF_NONZERO     176
+#define PRIMITIVE_UNBOX         177
+#define PRIMITIVE_BINARY_OP     178
+#define PRIMITIVE_UNARY_OP      179
+#define PRIMITIVE_COMPARE_OP    180
+#define LOAD_ITERABLE_ARG       181
+#define LOAD_MAPPING_ARG        182
+#define INVOKE_FUNCTION         183
+#define JUMP_IF_ZERO_OR_POP     184
+#define JUMP_IF_NONZERO_OR_POP  185
+#define FAST_LEN                186
+#define CONVERT_PRIMITIVE       187
+#define CHECK_ARGS              188
+#define LOAD_CLASS              190
+#define BUILD_CHECKED_MAP       191
+#define SEQUENCE_GET            192
+#define SEQUENCE_SET            193
+#define LIST_DEL                194
+#define REFINE_TYPE             195
+#define PRIMITIVE_LOAD_CONST    196
+#define RETURN_PRIMITIVE        197
+#define LOAD_METHOD_SUPER       198
+#define LOAD_ATTR_SUPER         199
+#define TP_ALLOC                200
+#define BUILD_CHECKED_LIST      201
+#define LOAD_TYPE               202
+#define LOAD_METHOD_UNSHADOWED_METHOD 205
+#define LOAD_METHOD_TYPE_METHODLIKE 206
+#define BUILD_CHECKED_LIST_CACHED 207
+#define TP_ALLOC_CACHED         208
+#define LOAD_ATTR_S_MODULE      209
+#define LOAD_METHOD_S_MODULE    210
+#define INVOKE_FUNCTION_CACHED  211
+#define INVOKE_FUNCTION_INDIRECT_CACHED 212
+#define BUILD_CHECKED_MAP_CACHED 213
+#define CHECK_ARGS_CACHED       214
+#define PRIMITIVE_STORE_FAST    215
+#define CAST_CACHED_OPTIONAL    216
+#define CAST_CACHED             217
+#define CAST_CACHED_EXACT       218
+#define CAST_CACHED_OPTIONAL_EXACT 219
+#define LOAD_PRIMITIVE_FIELD    220
+#define STORE_PRIMITIVE_FIELD   221
+#define LOAD_OBJ_FIELD          222
+#define STORE_OBJ_FIELD         223
+#define INVOKE_METHOD_CACHED    224
+#define BINARY_SUBSCR_TUPLE_CONST_INT 225
+#define BINARY_SUBSCR_DICT_STR  226
+#define BINARY_SUBSCR_LIST      227
+#define BINARY_SUBSCR_TUPLE     228
+#define BINARY_SUBSCR_DICT      229
+#define LOAD_METHOD_UNCACHABLE  230
+#define LOAD_METHOD_MODULE      231
+#define LOAD_METHOD_TYPE        232
+#define LOAD_METHOD_SPLIT_DICT_DESCR 233
+#define LOAD_METHOD_SPLIT_DICT_METHOD 234
+#define LOAD_METHOD_DICT_DESCR  235
+#define LOAD_METHOD_DICT_METHOD 236
+#define LOAD_METHOD_NO_DICT_METHOD 237
+#define LOAD_METHOD_NO_DICT_DESCR 238
+#define STORE_ATTR_SLOT         239
+#define STORE_ATTR_SPLIT_DICT   240
+#define STORE_ATTR_DESCR        241
+#define STORE_ATTR_UNCACHABLE   242
+#define STORE_ATTR_DICT         243
+#define LOAD_ATTR_POLYMORPHIC   244
+#define LOAD_ATTR_SLOT          245
+#define LOAD_ATTR_MODULE        246
+#define LOAD_ATTR_TYPE          247
+#define LOAD_ATTR_SPLIT_DICT_DESCR 248
+#define LOAD_ATTR_SPLIT_DICT    249
+#define LOAD_ATTR_DICT_NO_DESCR 250
+#define LOAD_ATTR_NO_DICT_DESCR 251
+#define LOAD_ATTR_DICT_DESCR    252
+#define LOAD_ATTR_UNCACHABLE    253
+#define LOAD_GLOBAL_CACHED      254
+#define SHADOW_NOP              255
 #ifdef NEED_OPCODE_JUMP_TABLES
 static uint32_t _PyOpcode_RelativeJump[8] = {
     0U,
@@ -152,7 +239,7 @@ static uint32_t _PyOpcode_Jump[8] = {
     536870912U,
     101695488U,
     67141632U,
-    0U,
+    50429952U,
     0U,
     0U,
 };
