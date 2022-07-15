@@ -2208,8 +2208,8 @@ class CodeGenerator(ASTVisitor):
     def finishFunction(self):
         if self.graph.current.returns:
             return
-        self.set_no_lineno()
         if not isinstance(self.tree, ast.Lambda):
+            self.set_no_lineno()
             self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")
 
