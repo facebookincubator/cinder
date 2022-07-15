@@ -1739,6 +1739,21 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     assert(!_PyErr_Occurred(tstate));
 #endif
 
+int lazy_imports_eager_import = 0;
+
+if (f->f_globals == f->f_locals) {
+    PyObject *modname  = _PyDict_GetItemIdWithError(f->f_globals, &PyId___name__);
+
+    if (modname != NULL) {
+        PyObject *filter = tstate->interp->eager_imports;
+
+        if (filter != NULL &&
+            PySequence_Contains(filter, modname)) {
+            lazy_imports_eager_import = 1;
+        }
+    }
+}
+
 main_loop:
     for (;;) {
         assert(stack_pointer >= f->f_valuestack); /* else underflow */
@@ -3728,7 +3743,8 @@ main_loop:
                 }
             }
 
-            if (_PyEval_LazyImportsEnabled
+            if (lazy_imports_eager_import == 0
+                && _PyEval_LazyImportsEnabled
                 && PyImport_IsLazyImportsEnabled()
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {

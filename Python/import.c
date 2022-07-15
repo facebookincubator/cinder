@@ -2416,15 +2416,39 @@ _imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *name)
 /*[clinic input]
 _imp.set_lazy_imports
 
+    excluding: object
+
 Programmatic API for enabling lazy imports at runtime.
+
+`excluding` is an optional container of module names
+within which all imports will remain eager.
 [clinic start generated code]*/
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module)
-/*[clinic end generated code: output=1ed119585b4e7fbd input=1bbf55c584f30d2c]*/
+_imp_set_lazy_imports_impl(PyObject *module, PyObject *excluding)
+/*[clinic end generated code: output=e384bf92cca5597d input=84051ca0cfa80ac5]*/
 {
+    if (excluding != Py_None) {
+        if (PySequence_Contains(excluding, Py_None) == -1) {
+            goto error;
+        }
+        Py_INCREF(excluding);
+    }
+    else {
+        excluding = NULL;
+    }
+
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (interp->eager_imports != NULL) {
+        Py_CLEAR(interp->eager_imports);
+    }
+    interp->eager_imports = excluding;
+
     PyImport_EnableLazyImports();
     Py_RETURN_NONE;
+
+error:
+    return NULL;
 }
 
 /*[clinic input]

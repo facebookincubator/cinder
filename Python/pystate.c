@@ -272,6 +272,7 @@ PyInterpreterState_New(void)
 
     interp->audit_hooks = NULL;
     interp->lazy_imports_enabled = 0;
+    interp->eager_imports = NULL;
 
     return interp;
 
@@ -312,6 +313,7 @@ interpreter_clear(PyInterpreterState *interp, PyThreadState *tstate)
     Py_CLEAR(interp->importlib);
     Py_CLEAR(interp->import_func);
     Py_CLEAR(interp->lazy_loaded);
+    Py_CLEAR(interp->eager_imports);
     Py_CLEAR(interp->dict);
 #ifdef HAVE_FORK
     Py_CLEAR(interp->before_forkers);

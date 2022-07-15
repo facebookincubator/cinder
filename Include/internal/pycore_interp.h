@@ -243,6 +243,7 @@ struct _is {
     // importlib module
     PyObject *importlib;
     PyObject *lazy_loaded;
+    PyObject *eager_imports;
 
     /* Used in Modules/_threadmodule.c. */
     long num_threads;
