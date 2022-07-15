@@ -1711,9 +1711,6 @@ quicktest:	@DEF_MAKE_RULE@ platform
 # (e.g. lack of outbound network access).
 DEV_SKIP_TESTS  = $(srcdir)/Tools/scripts/devserver_skip_tests.txt
 
-# Exclude tests that depend on Cinder features that haven't been ported yet.
-CINDER_310_SKIP_TESTS = $(srcdir)/Tools/scripts/cinder_310_skip_tests.txt
-
 # Exclude tests that are currently broken for refleak check
 REFLEAK_SKIP_TESTS = $(srcdir)/Tools/scripts/refleak_skip_tests.txt
 
@@ -1722,7 +1719,7 @@ ifneq ($(strip $(ASAN_TEST_ENV)),)
 	ASAN_SKIP_TESTS = $(srcdir)/Tools/scripts/asan_skip_tests.txt
 endif
 
-TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(CINDER_310_SKIP_TESTS) $(ASAN_SKIP_TESTS))
+TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS))
 TESTCINDER_REFLEAK_OPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS)) --ignorefile $(REFLEAK_SKIP_TESTS) -R :
 ifneq ($(strip $(USE_RR)),)
 	JIT_TEST_RR_ARGS=--use-rr
