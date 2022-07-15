@@ -74,10 +74,10 @@ class FlowGraphOptimizer:
                 else None
             )
 
-            instr_index = (
-                self.dispatch_instr(instr_index, instr, next_instr, target_instr, block)
-                or instr_index + 1
+            new_index = self.dispatch_instr(
+                instr_index, instr, next_instr, target_instr, block
             )
+            instr_index = instr_index + 1 if new_index is None else new_index
 
     def dispatch_instr(
         self,
