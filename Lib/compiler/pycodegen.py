@@ -415,7 +415,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("RETURN_VALUE")
 
     def visitFunctionDef(self, node):
-        self.set_lineno(node)
         self.visitFunctionOrLambda(node)
 
     visitAsyncFunctionDef = visitFunctionDef
@@ -573,7 +572,6 @@ class CodeGenerator(ASTVisitor):
         return 0
 
     def visitClassDef(self, node: ast.ClassDef) -> None:
-        self.set_lineno(node)
         first_lineno = None
         immutability_flag = self.find_immutability_flag(node)
         for decorator in node.decorator_list:
@@ -647,8 +645,6 @@ class CodeGenerator(ASTVisitor):
     # The next few implement control-flow statements
 
     def visitIf(self, node):
-        self.set_lineno(node)
-
         end = self.newBlock("if_end")
         orelse = None
         if node.orelse:
@@ -665,8 +661,6 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(end)
 
     def visitWhile(self, node):
-        self.set_lineno(node)
-
         loop = self.newBlock("while_loop")
         body = self.newBlock("while_body")
         else_ = self.newBlock("while_else")
@@ -701,7 +695,6 @@ class CodeGenerator(ASTVisitor):
         cleanup = self.newBlock("for_cleanup")
         end = self.newBlock("for_end")
 
-        self.set_lineno(node)
         self.push_loop(FOR_LOOP, start, end)
         self.visit(node.iter)
         self.emit("GET_ITER")
@@ -724,7 +717,6 @@ class CodeGenerator(ASTVisitor):
         except_ = self.newBlock("except")
         end = self.newBlock("end")
 
-        self.set_lineno(node)
         self.visit(node.iter)
         self.emit("GET_AITER")
 
@@ -749,7 +741,6 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(end)
 
     def visitBreak(self, node):
-        self.set_lineno(node)
         self.emit("NOP")  # for line number
         for b in reversed(self.setups):
             self.unwind_setup_entry(b, 0)
@@ -760,7 +751,6 @@ class CodeGenerator(ASTVisitor):
         raise SyntaxError("'break' outside loop", self.syntax_error_position(node))
 
     def visitContinue(self, node):
-        self.set_lineno(node)
         self.emit("NOP")  # for line number
         for e in reversed(self.setups):
             if e.kind in (FOR_LOOP, WHILE_LOOP):
@@ -959,7 +949,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("MAKE_FUNCTION", flags)
 
     def visitDelete(self, node):
-        self.set_lineno(node)
         self.visit(node.targets)
 
     def conjure_arguments(self, args: List[ast.arg]) -> ast.arguments:
@@ -975,7 +964,6 @@ class CodeGenerator(ASTVisitor):
         oparg: object = 0,
     ) -> None:
         args = self.conjure_arguments([ast.arg(".0", None)])
-        self.set_lineno(node)
         gen = self.make_func_codegen(node, args, name, node.lineno)
         gen.set_lineno(node)
 
@@ -1147,11 +1135,8 @@ class CodeGenerator(ASTVisitor):
     # exception related
 
     def visitAssert(self, node):
-        # XXX would be interesting to implement this via a
-        # transformation of the AST before this stage
         if not self.optimization_lvl:
             end = self.newBlock()
-            self.set_lineno(node)
             self.nextBlock()
             self.compileJumpIf(node.test, end, True)
 
@@ -1166,7 +1151,6 @@ class CodeGenerator(ASTVisitor):
             self.nextBlock(end)
 
     def visitRaise(self, node):
-        self.set_lineno(node)
         n = 0
         if node.exc:
             self.visit(node.exc)
@@ -1178,7 +1162,6 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock()
 
     def visitTry(self, node):
-        self.set_lineno(node)
         if node.finalbody:
             if node.handlers:
                 self.emit_try_finally(
@@ -1339,8 +1322,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("CALL_FUNCTION", 3)
 
     def visitWith_(self, node, kind, pos=0):
-        self.set_lineno(node)
-
         item = node.items[pos]
 
         block = self.newBlock("with_block")
@@ -1419,7 +1400,6 @@ class CodeGenerator(ASTVisitor):
     # misc
 
     def visitExpr(self, node):
-        self.set_lineno(node)
         if self.interactive:
             self.visit(node.value)
             self.emit("PRINT_EXPR")
@@ -1438,12 +1418,10 @@ class CodeGenerator(ASTVisitor):
         self.visit(node.expr)
 
     def visitGlobal(self, node):
-        self.set_lineno(node)
-        # no code to generate
+        pass
 
     def visitNonlocal(self, node):
-        self.set_lineno(node)
-        # no code to generate
+        pass
 
     def visitName(self, node):
         if isinstance(node.ctx, ast.Store):
@@ -1454,11 +1432,9 @@ class CodeGenerator(ASTVisitor):
             self.loadName(node.id)
 
     def visitPass(self, node):
-        self.set_lineno(node)
         self.emit("NOP")  # for line number
 
     def visitImport(self, node):
-        self.set_lineno(node)
         level = 0
         for alias in node.names:
             name = alias.name
@@ -1473,7 +1449,6 @@ class CodeGenerator(ASTVisitor):
                 self.storeName(mod)
 
     def visitImportFrom(self, node):
-        self.set_lineno(node)
         level = node.level
         fromlist = tuple(alias.name for alias in node.names)
         self.emit("LOAD_CONST", level)
@@ -1522,7 +1497,6 @@ class CodeGenerator(ASTVisitor):
     # next five implement assignments
 
     def visitAssign(self, node):
-        self.set_lineno(node)
         self.visit(node.value)
         dups = len(node.targets) - 1
         for i in range(len(node.targets)):
@@ -1584,7 +1558,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("STORE_SUBSCR")
 
     def visitAnnAssign(self, node):
-        self.set_lineno(node)
         if node.value:
             self.visit(node.value)
             self.visit(node.target)
@@ -1644,7 +1617,6 @@ class CodeGenerator(ASTVisitor):
     # augmented assignment
 
     def visitAugAssign(self, node):
-        self.set_lineno(node)
         if isinstance(node.target, ast.Attribute):
             self.emitAugAttribute(node)
         elif isinstance(node.target, ast.Name):
@@ -1816,8 +1788,6 @@ class CodeGenerator(ASTVisitor):
 
     def visitReturn(self, node):
         self.checkReturn(node)
-
-        self.set_lineno(node)
 
         preserve_tos = bool(node.value and not isinstance(node.value, ast.Constant))
         if preserve_tos:
@@ -2402,10 +2372,12 @@ class CodeGenerator(ASTVisitor):
         return AstOptimizer(optimize=optimize > 0, string_anns=string_anns).visit(tree)
 
     def visit(self, node: Union[Sequence[AST], AST], *args):
-        # Note down the old line number
+        # Note down the old line number for exprs
         old_lineno = None
         if isinstance(node, ast.expr):
             old_lineno = self.graph.lineno
+            self.set_lineno(node)
+        elif isinstance(node, ast.stmt):
             self.set_lineno(node)
 
         ret = super().visit(node, *args)
