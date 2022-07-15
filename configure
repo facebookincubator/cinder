@@ -17211,6 +17211,7 @@ done
 
 
 SRCDIRS="Parser Objects Python Modules Programs \
+    Cinder \
     Jit \
     Jit/codegen \
     Jit/hir \

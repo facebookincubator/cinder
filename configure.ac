@@ -5642,6 +5642,7 @@ done
 
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
+    Cinder \
     Jit \
     Jit/codegen \
     Jit/hir \
