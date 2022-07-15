@@ -421,14 +421,12 @@ class CodeGenerator(ASTVisitor):
     visitAsyncFunctionDef = visitFunctionDef
 
     def visitJoinedStr(self, node):
-        self.set_lineno(node)
         for value in node.values:
             self.visit(value)
         if len(node.values) != 1:
             self.emit("BUILD_STRING", len(node.values))
 
     def visitFormattedValue(self, node):
-        self.set_lineno(node)
         self.visit(node.value)
 
         if node.conversion == CONV_STR:
@@ -447,7 +445,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("FORMAT_VALUE", oparg)
 
     def visitLambda(self, node):
-        self.set_lineno(node)
         self.visitFunctionOrLambda(node)
 
     def processBody(self, node, body, gen):
@@ -791,7 +788,6 @@ class CodeGenerator(ASTVisitor):
         )
 
     def compileJumpIfPop(self, test, label, is_if_true):
-        self.set_lineno(test)
         self.visit(test)
         self.emit(
             "JUMP_IF_TRUE_OR_POP" if is_if_true else "JUMP_IF_FALSE_OR_POP", label
@@ -877,7 +873,6 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock()
 
     def visitIfExp(self, node):
-        self.set_lineno(node)
         endblock = self.newBlock()
         elseblock = self.newBlock()
         self.compileJumpIf(node.test, elseblock, False)
@@ -910,7 +905,6 @@ class CodeGenerator(ASTVisitor):
             self.emit("COMPARE_OP", self._cmp_opcode[type(op)])
 
     def visitCompare(self, node):
-        self.set_lineno(node)
         self.visit(node.left)
         cleanup = self.newBlock("cleanup")
         for op, code in zip(node.ops[:-1], node.comparators[:-1]):
@@ -1436,28 +1430,7 @@ class CodeGenerator(ASTVisitor):
             self.set_no_lineno()
             self.emit("POP_TOP")
 
-    def visitNum(self, node):
-        self.set_lineno(node)
-        self.emit("LOAD_CONST", node.n)
-
-    def visitStr(self, node):
-        self.set_lineno(node)
-        self.emit("LOAD_CONST", node.s)
-
-    def visitBytes(self, node):
-        self.set_lineno(node)
-        self.emit("LOAD_CONST", node.s)
-
-    def visitNameConstant(self, node):
-        self.set_lineno(node)
-        self.emit("LOAD_CONST", node.value)
-
-    def visitConst(self, node):
-        self.set_lineno(node)
-        self.emit("LOAD_CONST", node.value)
-
     def visitConstant(self, node: ast.Constant):
-        self.set_lineno(node)
         self.emit("LOAD_CONST", node.value)
 
     def visitKeyword(self, node):
@@ -1473,7 +1446,6 @@ class CodeGenerator(ASTVisitor):
         # no code to generate
 
     def visitName(self, node):
-        self.set_lineno(node)
         if isinstance(node.ctx, ast.Store):
             self.storeName(node.id)
         elif isinstance(node.ctx, ast.Del):
@@ -1537,7 +1509,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_TOP")
 
     def visitAttribute(self, node):
-        self.set_lineno(node)
         self.visit(node.value)
         if isinstance(node.ctx, ast.Store):
             with self.temp_lineno(node.end_lineno):
@@ -1813,7 +1784,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("CALL_FUNCTION_EX", int(nkwelts > 0))
 
     def visitCall(self, node):
-        self.set_lineno(node)
         if (
             node.keywords
             or not isinstance(node.func, ast.Attribute)
@@ -1832,29 +1802,6 @@ class CodeGenerator(ASTVisitor):
         nargs = len(node.args)
         self.insertReadonlyCheck(node, nargs + 1, True)
         self.emit("CALL_METHOD", nargs)
-
-    def visitPrint(self, node, newline=0):
-        self.set_lineno(node)
-        if node.dest:
-            self.visit(node.dest)
-        for child in node.nodes:
-            if node.dest:
-                self.emit("DUP_TOP")
-            self.visit(child)
-            if node.dest:
-                self.emit("ROT_TWO")
-                self.emit("PRINT_ITEM_TO")
-            else:
-                self.emit("PRINT_ITEM")
-        if node.dest and not newline:
-            self.emit("POP_TOP")
-
-    def visitPrintnl(self, node):
-        self.visitPrint(node, newline=1)
-        if node.dest:
-            self.emit("PRINT_NEWLINE_TO")
-        else:
-            self.emit("PRINT_NEWLINE")
 
     def checkReturn(self, node):
         if not isinstance(self.tree, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -1897,7 +1844,6 @@ class CodeGenerator(ASTVisitor):
             raise SyntaxError(
                 "'yield' outside function", self.syntax_error_position(node)
             )
-        self.set_lineno(node)
         if node.value:
             self.visit(node.value)
         else:
@@ -1917,14 +1863,12 @@ class CodeGenerator(ASTVisitor):
                 "'yield from' inside async function", self.syntax_error_position(node)
             )
 
-        self.set_lineno(node)
         self.visit(node.value)
         self.emit("GET_YIELD_FROM_ITER")
         self.emit("LOAD_CONST", None)
         self.emit("YIELD_FROM")
 
     def visitAwait(self, node):
-        self.set_lineno(node)
         self.visit(node.value)
         self.emit("GET_AWAITABLE")
         self.emit("LOAD_CONST", None)
@@ -1932,7 +1876,6 @@ class CodeGenerator(ASTVisitor):
 
     # slice and subscript stuff
     def visitSubscript(self, node, aug_flag=None):
-        self.set_lineno(node)
         self.visit(node.value)
         self.visit(node.slice)
         if isinstance(node.ctx, ast.Load):
@@ -1972,7 +1915,6 @@ class CodeGenerator(ASTVisitor):
     }
 
     def visitBinOp(self, node):
-        self.set_lineno(node)
         self.visit(node.left)
         self.visit(node.right)
         op = self._binary_opcode[type(node.op)]
@@ -1992,7 +1934,6 @@ class CodeGenerator(ASTVisitor):
     }
 
     def visitUnaryOp(self, node):
-        self.set_lineno(node)
         self.unaryOp(node, self._unary_opcode[type(node.op)])
 
     def visitBackquote(self, node):
@@ -2001,7 +1942,6 @@ class CodeGenerator(ASTVisitor):
     # object constructors
 
     def visitEllipsis(self, node):
-        self.set_lineno(node)
         self.emit("LOAD_CONST", Ellipsis)
 
     def _visitUnpack(self, node):
@@ -2136,7 +2076,6 @@ class CodeGenerator(ASTVisitor):
         self.emit("BUILD_TUPLE", len(node.dims))
 
     def visitNamedExpr(self, node: ast.NamedExpr):
-        self.set_lineno(node)
         self.visit(node.value)
         self.emit("DUP_TOP")
         self.visit(node.target)
@@ -2177,7 +2116,6 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_MAP", n)
 
     def visitDict(self, node):
-        self.set_lineno(node)
         elements = 0
         is_unpacking = False
         have_dict = False
@@ -2462,8 +2400,10 @@ class CodeGenerator(ASTVisitor):
 
     def visit(self, node: Union[Sequence[AST], AST], *args):
         # Note down the old line number
-        could_be_multiline_expr = isinstance(node, ast.expr)
-        old_lineno = self.graph.lineno if could_be_multiline_expr else None
+        old_lineno = None
+        if isinstance(node, ast.expr):
+            old_lineno = self.graph.lineno
+            self.set_lineno(node)
 
         ret = super().visit(node, *args)
 
