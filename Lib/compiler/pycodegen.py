@@ -56,18 +56,18 @@ callfunc_opcode_info = {
     (1, 1): "CALL_FUNCTION_VAR_KW",
 }
 
-# This is a super set of all Python versions
-LOOP = 1
-EXCEPT = 2
-TRY_FINALLY = 3
-END_FINALLY = 4
-WHILE_LOOP = 5
-FOR_LOOP = 6
-WITH = 8
-ASYNC_WITH = 9
-HANDLER_CLEANUP = 10
-POP_VALUE = 11
-EXCEPTION_HANDLER = 12
+# enum fblocktype
+WHILE_LOOP = 1
+FOR_LOOP = 2
+TRY_EXCEPT = 3
+FINALLY_TRY = 4
+FINALLY_END = 5
+WITH = 6
+ASYNC_WITH = 7
+HANDLER_CLEANUP = 8
+POP_VALUE = 9
+EXCEPTION_HANDLER = 10
+ASYNC_COMPREHENSION_GENERATOR = 11
 
 _ZERO = (0).to_bytes(4, "little")
 
@@ -1205,7 +1205,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("SETUP_FINALLY", except_)
         self.nextBlock(body)
 
-        self.setups.push(Entry(EXCEPT, body, None, None))
+        self.setups.push(Entry(TRY_EXCEPT, body, None, None))
         self.visit(node.body)
         self.setups.pop()
         self.set_no_lineno()
@@ -1317,7 +1317,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("SETUP_FINALLY", end)
 
         self.nextBlock(body)
-        self.setups.push(Entry(TRY_FINALLY, body, end, finalbody))
+        self.setups.push(Entry(FINALLY_TRY, body, end, finalbody))
         try_body()
         self.emit_noline("POP_BLOCK")
         self.setups.pop()
@@ -1325,7 +1325,7 @@ class CodeGenerator(ASTVisitor):
         self.emit_noline("JUMP_FORWARD", exit_)
 
         self.nextBlock(end)
-        self.setups.push(Entry(END_FINALLY, end, None, None))
+        self.setups.push(Entry(FINALLY_END, end, None, None))
         finalbody()
         self.setups.pop()
         self.emit("RERAISE", 0)
@@ -2155,29 +2155,31 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_MAP")
 
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
-        if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER):
+        if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER, ASYNC_COMPREHENSION_GENERATOR):
             return
-        if e.kind == END_FINALLY:
-            if preserve_tos:
-                self.emit("ROT_FOUR")
-            self.emit("POP_TOP")
-            self.emit("POP_TOP")
-            self.emit("POP_TOP")
-            if preserve_tos:
-                self.emit("ROT_FOUR")
-            self.emit("POP_EXCEPT", preserve_tos)
         elif e.kind == FOR_LOOP:
             if preserve_tos:
                 self.emit("ROT_TWO")
             self.emit("POP_TOP")
-        elif e.kind == EXCEPT:
+        elif e.kind == TRY_EXCEPT:
             self.emit("POP_BLOCK")
-        elif e.kind == TRY_FINALLY:
+        elif e.kind == FINALLY_TRY:
             self.emit("POP_BLOCK")
             if preserve_tos:
                 self.setups.push(Entry(POP_VALUE, None, None, None))
             assert callable(e.unwinding_datum)
             e.unwinding_datum()
+            self.setups.pop()
+            self.set_no_lineno()
+        elif e.kind == FINALLY_END:
+            if preserve_tos:
+                self.emit("ROT_FOUR")
+            self.emit("POP_TOP")
+            self.emit("POP_TOP")
+            self.emit("POP_TOP")
+            if preserve_tos:
+                self.emit("ROT_FOUR")
+            self.emit("POP_EXCEPT")
         elif e.kind in (WITH, ASYNC_WITH):
             assert isinstance(e.unwinding_datum, AST)
             self.set_lineno(e.unwinding_datum)
@@ -2190,6 +2192,7 @@ class CodeGenerator(ASTVisitor):
                 self.emit("LOAD_CONST", None)
                 self.emit("YIELD_FROM")
             self.emit("POP_TOP")
+            self.set_no_lineno()
         elif e.kind == HANDLER_CLEANUP:
             datum = e.unwinding_datum
             if datum is not None:
