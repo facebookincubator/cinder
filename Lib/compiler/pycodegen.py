@@ -704,7 +704,8 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(body)
         self.visit(node.target)
         self.visit(node.body)
-        self.emit_noline("JUMP_ABSOLUTE", start)
+        self.set_no_lineno()
+        self.emit("JUMP_ABSOLUTE", start)
         self.nextBlock(cleanup)
         self.pop_loop()
 
@@ -1296,7 +1297,6 @@ class CodeGenerator(ASTVisitor):
         end = self.newBlock("try_finally_end")
         exit_ = self.newBlock("try_finally_exit")
 
-        self.set_lineno(node)
         self.emit("SETUP_FINALLY", end)
 
         self.nextBlock(body)
@@ -1768,12 +1768,13 @@ class CodeGenerator(ASTVisitor):
             return
 
         self.visit(node.func.value)
-        self.emit("LOAD_METHOD", self.mangle(node.func.attr))
-        for arg in node.args:
-            self.visit(arg)
-        nargs = len(node.args)
-        self.insertReadonlyCheck(node, nargs + 1, True)
-        self.emit("CALL_METHOD", nargs)
+        with self.temp_lineno(node.func.end_lineno):
+            self.emit("LOAD_METHOD", self.mangle(node.func.attr))
+            for arg in node.args:
+                self.visit(arg)
+            nargs = len(node.args)
+            self.insertReadonlyCheck(node, nargs + 1, True)
+            self.emit("CALL_METHOD", nargs)
 
     def checkReturn(self, node):
         if not isinstance(self.tree, (ast.FunctionDef, ast.AsyncFunctionDef)):
