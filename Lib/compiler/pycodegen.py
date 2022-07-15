@@ -2140,7 +2140,8 @@ class CodeGenerator(ASTVisitor):
                 self.setups.push(Entry(POP_VALUE, None, None, None))
             assert callable(e.unwinding_datum)
             e.unwinding_datum()
-            self.setups.pop()
+            if preserve_tos:
+                self.setups.pop()
             self.set_no_lineno()
         elif e.kind == FINALLY_END:
             if preserve_tos:
