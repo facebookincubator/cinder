@@ -1,5 +1,4 @@
 # Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-# pyre-unsafe
 from __future__ import annotations
 
 from .optimizer import safe_lshift, safe_mod, safe_multiply, safe_power
@@ -60,12 +59,14 @@ class FlowGraphOptimizer:
         while instr_index < len(block.insts):
             instr = block.insts[instr_index]
 
-            target: Optional[Block] = None
+            target_instr: Instruction | None = None
             if instr.is_jump():
+                target = instr.target
+                assert target is not None
                 # Skip over empty basic blocks.
-                if len(instr.target.insts) == 0:
-                    instr.target = instr.target.next
-                target = instr.target.insts[0]
+                if len(target.insts) == 0:
+                    instr.target = target.next
+                target_instr = target.insts[0]
 
             next_instr = (
                 block.insts[instr_index + 1]
@@ -74,7 +75,7 @@ class FlowGraphOptimizer:
             )
 
             instr_index = (
-                self.dispatch_instr(instr_index, instr, next_instr, target, block)
+                self.dispatch_instr(instr_index, instr, next_instr, target_instr, block)
                 or instr_index + 1
             )
 
@@ -82,8 +83,8 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
         if instr.opname == "JUMP_IF_FALSE_OR_POP":
@@ -157,10 +158,11 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
+        assert target is not None
         if target.opname == "POP_JUMP_IF_FALSE":
             return instr_index + self.jump_thread(instr, target, "POP_JUMP_IF_FALSE")
         elif target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD", "JUMP_IF_FALSE_OR_POP"):
@@ -176,10 +178,11 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
+        assert target is not None
         if target.opname == "POP_JUMP_IF_TRUE":
             return instr_index + self.jump_thread(instr, target, "POP_JUMP_IF_TRUE")
         elif target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD", "JUMP_IF_TRUE_OR_POP"):
@@ -195,10 +198,11 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
+        assert target is not None
         if target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
             return instr_index + self.jump_thread(instr, target, instr.opname)
 
@@ -206,10 +210,11 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
+        assert target is not None
         if target.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
             return instr_index + self.jump_thread(instr, target, "JUMP_ABSOLUTE")
 
@@ -217,10 +222,11 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
+        assert target is not None
         if target.opname == "JUMP_FORWARD":
             return instr_index + self.jump_thread(instr, target, "FOR_ITER")
 
@@ -228,8 +234,8 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
         # Remove LOAD_CONST const; conditional jump
@@ -264,11 +270,15 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
-        if next_instr.opname == "UNPACK_SEQUENCE" and instr.ioparg == next_instr.ioparg:
+        if (
+            next_instr
+            and next_instr.opname == "UNPACK_SEQUENCE"
+            and instr.ioparg == next_instr.ioparg
+        ):
             if instr.ioparg == 1:
                 instr.opname = "NOP"
                 next_instr.opname = "NOP"
@@ -302,8 +312,8 @@ class FlowGraphOptimizer:
         self,
         instr_index: int,
         instr: Instruction,
-        next_instr: Instruction,
-        target: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
         block: Block,
     ) -> Optional[int]:
         block.insts = block.insts[: instr_index + 1]

@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from contextlib import contextmanager
 from types import CodeType
-from typing import Generator, List, Optional
+from typing import ClassVar, Generator, List, Optional
 
 from . import opcode_cinder, opcodes
 from .consts import (
@@ -259,23 +259,23 @@ class FlowGraph:
 
 
 class Block:
-    allocated_block_count = 0
+    allocated_block_count: ClassVar[int] = 0
 
     def __init__(self, label=""):
-        self.insts = []
+        self.insts: List[Instruction] = []
         self.outEdges = set()
-        self.label = label
-        self.bid = None
-        self.next = None
-        self.prev = None
-        self.returns = False
-        self.offset = 0
-        self.seen = False  # visited during stack depth calculation
-        self.startdepth = -1
-        self.is_exit = False
-        self.no_fallthrough = False
-        self.num_predecessors = 0
-        self.alloc_id = Block.allocated_block_count
+        self.label: str = label
+        self.bid: int | None = None
+        self.next: Block | None = None
+        self.prev: Block | None = None
+        self.returns: bool = False
+        self.offset: int = 0
+        self.seen: bool = False  # visited during stack depth calculation
+        self.startdepth: int = -1
+        self.is_exit: bool = False
+        self.no_fallthrough: bool = False
+        self.num_predecessors: int = 0
+        self.alloc_id: int = Block.allocated_block_count
         Block.allocated_block_count += 1
 
     def __repr__(self):
@@ -1139,6 +1139,7 @@ class PyFlowGraph(FlowGraph):
         if last.opname not in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
             return
         target = last.target
+        assert target is not None
         if not target.is_exit:
             return
         if len(target.insts) > MAX_COPY_SIZE:
