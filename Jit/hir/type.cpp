@@ -1,6 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/type.h"
 
+#include "arraymodule.h"
+
+#include "cinder/porting-support.h"
+
 #include "Jit/hir/hir.h"
 #include "Jit/log.h"
 
@@ -23,6 +27,7 @@ namespace {
 // For Types where it makes sense, map them to their corresponding
 // PyTypeObject*.
 const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
+#ifdef CINDER_PORTING_DONE
   static auto const map = [] {
     const std::unordered_map<Type, PyTypeObject*> map{
         {TObject, &PyBaseObject_Type},
@@ -62,6 +67,9 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
   }();
 
   return map;
+#else
+  PORT_ASSERT("PyWaitHandle_Type and PyArray_Type not yet defined");
+#endif
 }
 
 // Like typeToPyType(), but including Exact types in the key set (e.g., mapping

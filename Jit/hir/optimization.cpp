@@ -3,7 +3,7 @@
 
 #include "Python.h"
 #include "code.h"
-#include "pycore_pystate.h"
+#include "internal/pycore_interp.h"
 
 #include "Jit/compiler.h"
 #include "Jit/hir/analysis.h"
@@ -94,7 +94,7 @@ void DynamicComparisonElimination::InitBuiltins() {
   // modules which can be mutated.  First find builtins, which we have
   // to do a search for because PyEval_GetBuiltins() returns the
   // module dict.
-  PyObject* mods = _PyThreadState_GET()->interp->modules_by_index;
+  PyObject* mods = _PyInterpreterState_GET()->modules_by_index;
   PyModuleDef* builtins = nullptr;
   for (Py_ssize_t i = 0; i < PyList_GET_SIZE(mods); i++) {
     PyObject* cur = PyList_GET_ITEM(mods, i);

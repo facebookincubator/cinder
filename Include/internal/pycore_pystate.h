@@ -1,12 +1,5 @@
 #ifndef Py_INTERNAL_PYSTATE_H
 #define Py_INTERNAL_PYSTATE_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef Py_BUILD_CORE
-#  error "this header requires Py_BUILD_CORE define"
-#endif
 
 #include "pycore_runtime.h"   /* PyRuntimeState */
 
@@ -146,7 +139,4 @@ PyAPI_FUNC(int) _PyState_AddModule(
 
 PyAPI_FUNC(int) _PyOS_InterruptOccurred(PyThreadState *tstate);
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* !Py_INTERNAL_PYSTATE_H */

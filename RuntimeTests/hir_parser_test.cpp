@@ -279,6 +279,7 @@ TEST_F(HIRParserTest, ParsesFrameState) {
   std::unique_ptr<Function> func(parser.ParseHIR(ir));
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRParserTest, IgnoresEscapedName) {
   const char* hir_src = R"(
 fun test {
@@ -377,3 +378,4 @@ def my_func(a, b, c):
   auto parsed_func = HIRParser{}.ParseHIR(printed_hir.c_str());
   ASSERT_NE(parsed_func, nullptr);
 }
+#endif

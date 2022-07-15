@@ -230,6 +230,7 @@ static std::string format_varname(const Instr& instr, int idx) {
 }
 
 static std::string format_immediates(const Instr& instr) {
+#ifdef CINDER_PORTING_DONE
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBatchDecref:
@@ -682,6 +683,10 @@ static std::string format_immediates(const Instr& instr) {
     }
   }
   JIT_CHECK(false, "invalid opcode %d", static_cast<int>(instr.opcode()));
+#else
+  PORT_ASSERT("Uses missing opcodes, particularly from Static Python");
+  (void)instr;
+#endif // CINDER_PORTING_DONE
 }
 
 void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
@@ -798,12 +803,17 @@ void HIRPrinter::Print(std::ostream& os, const FrameState& state) {
 }
 
 static int lastLineNumber(PyCodeObject* code) {
+#ifdef CINDER_PORTING_DONE
   int last_line = -1;
   for (Py_ssize_t off = 0; off < code->co_codelen;
        off += sizeof(_Py_CODEUNIT)) {
     last_line = std::max(last_line, PyCode_Addr2Line(code, off));
   }
   return last_line;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_codelen");
+  (void)code;
+#endif
 }
 
 nlohmann::json JSONPrinter::PrintSource(const Function& func) {
@@ -853,13 +863,16 @@ nlohmann::json JSONPrinter::PrintSource(const Function& func) {
 // associate how instructions change over time
 // TODO(emacs): Make JSON utils so we stop copying so much stuff around
 
+#ifdef CINDER_PORTING_DONE
 #define MAKE_OPNAME(opname, opnum) {opnum, #opname},
 static std::unordered_map<unsigned, const char*> kOpnames{
     PY_OPCODES(MAKE_OPNAME)};
 #undef MAKE_OPNAME
+#endif
 
 static std::string
 reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
+#ifdef CINDER_PORTING_DONE
   ThreadedCompileSerialize guard;
   switch (opcode) {
     case BUILD_CHECKED_LIST:
@@ -948,12 +961,19 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
       return std::to_string(oparg);
   }
   JIT_CHECK(false, "unreachable");
+#else
+  PORT_ASSERT("Uses missing opcodes, particularly from Static Python");
+  (void)code;
+  (void)opcode;
+  (void)oparg;
+#endif
 }
 
 // TODO(emacs): Write basic blocks for bytecode (using BytecodeInstructionBlock
 // and BlockMap?). Need to figure out how to allocate block IDs without
 // actually modifying the HIR function in place.
 nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
+#ifdef CINDER_PORTING_DONE
   nlohmann::json result;
   result["name"] = "Bytecode";
   result["type"] = "asm";
@@ -977,6 +997,10 @@ nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
   block["instrs"] = instrs_json;
   result["blocks"] = nlohmann::json::array({block});
   return result;
+#else
+  PORT_ASSERT("Needs kOpnames + PyCodeObject::co_rawcode + co_codelen");
+  (void)func;
+#endif
 }
 
 nlohmann::json JSONPrinter::Print(const Instr& instr) {

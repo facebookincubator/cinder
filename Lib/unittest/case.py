@@ -11,6 +11,7 @@ import contextlib
 import importlib
 import traceback
 import types
+import _testcapi
 
 from . import result
 from .util import (strclass, safe_repr, _count_diff_all_purpose,
@@ -22,6 +23,34 @@ _subtest_msg_sentinel = object()
 
 DIFF_OMITTED = ('\nDiff is %s characters long. '
                  'Set self.maxDiff to None to see it.')
+
+
+CINDERJIT_NOT_FULL_FRAME = False
+try:
+    from cinderjit import is_jit_compiled, force_compile
+    from cinderjit import jit_frame_mode
+    CINDERJIT_ENABLED = True
+    if jit_frame_mode() > 0:
+        CINDERJIT_NOT_FULL_FRAME = True
+except ImportError:
+    def is_jit_compiled(f):
+        return False
+    def force_compile(f):
+        return False
+    CINDERJIT_ENABLED = False
+
+try:
+    from cinder import readonly_enabled
+except ImportError:
+    def readonly_enabled():
+        return False
+
+
+# This wrapper seems to be needed to make
+# test.test_support.TestSupport.test_check__all__ pass
+def cinder_enable_broken_tests():
+    return _testcapi.cinder_enable_broken_tests()
+
 
 class SkipTest(Exception):
     """
@@ -150,6 +179,39 @@ def skipIfLazyImportsEnabled(reason):
 
 def skipIfLazyImportsDisabled(reason):
     return skipUnless(importlib.is_lazy_imports_enabled(), reason)
+
+def skipUnderCinderJIT(reason):
+    if CINDERJIT_ENABLED:
+        return skip(reason)
+    return _id
+
+def skipUnlessCinderJITEnabled(reason):
+    if not CINDERJIT_ENABLED:
+        return skip(reason)
+    return _id
+
+def skipUnderCinderJITNotFullFrame(reason):
+    """
+    Skip tests if we're in Shadow Frame mode.
+    """
+    if CINDERJIT_NOT_FULL_FRAME:
+        return skip(reason)
+    return _id
+
+def failUnlessJITCompiled(func):
+    """
+    Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
+    """
+    force_compile(func)
+    if not CINDERJIT_ENABLED or is_jit_compiled(func):
+        return func
+    def decorator(*args, **kwargs):
+        raise AssertionError(f"Function '{func.__qualname__}' is not JIT-compiled")
+    return decorator
+
+def cinderPortingBrokenTest():
+    return skipUnless(
+        cinder_enable_broken_tests(), "Cinder tests broken by porting not enabled")
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

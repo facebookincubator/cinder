@@ -3,6 +3,8 @@
 
 #include "switchboard.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/jit_context.h"
 #include "Jit/ref.h"
 
@@ -10,6 +12,8 @@
 #include "RuntimeTests/testutil.h"
 
 #include <memory>
+
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 class PyJITContextTest : public RuntimeTest {
  public:
@@ -94,3 +98,4 @@ foo = "hello"
   Ref<PyObject> result(PyObject_Call(func, empty_tuple, nullptr));
   ASSERT_EQ(result, Py_None);
 }
+#endif

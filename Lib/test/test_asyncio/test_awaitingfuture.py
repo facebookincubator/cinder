@@ -1,16 +1,20 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
-import cinder
-from _asyncio import _AwaitingFuture
 from functools import wraps
-from test.support.cinder import get_await_stack
+import unittest
 from test.test_asyncio import utils as test_utils
+
+if unittest.cinder_enable_broken_tests():
+    from _asyncio import _AwaitingFuture
+    import cinder
+    from test.support.cinder import get_await_stack
 
 
 def tearDownModule():
     asyncio.set_event_loop_policy(None)
 
 
+@unittest.cinderPortingBrokenTest()
 class _AwaitingFutureTests(test_utils.TestCase):
     def setUp(self) -> None:
         super().setUp()

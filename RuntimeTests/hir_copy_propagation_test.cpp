@@ -8,6 +8,7 @@
 
 using namespace jit::hir;
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(CopyPropagationTest, EliminatesCopies) {
   // TODO(bsimmers): This can be converted to a .txt-based pass test when we
   // lower directly to SSA.
@@ -66,3 +67,4 @@ fun test {
 
   EXPECT_EQ(HIRPrinter().ToString(*func), expected_hir);
 }
+#endif

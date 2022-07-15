@@ -8,6 +8,7 @@
 #include "Python.h"
 #include "frameobject.h"
 #include "opcode.h"
+#include "internal/pycore_call.h"
 
 #include "Jit/code_allocator.h"
 #include "Jit/jit_gdb_support.h"
@@ -139,9 +140,15 @@ static void shiftargs_for_prepend(x86::Builder& as, PyObject* func) {
 }
 
 static void gen_fused_call_slot(x86::Builder& as, PyObject* callfunc) {
+#ifdef CINDER_PORTING_DONE
   shiftargs_for_prepend(as, callfunc);
   as.mov(x86::rax, (uint64_t)_PyObject_Call_Prepend);
   as.jmp(x86::rax);
+#else
+  PORT_ASSERT("_PyObject_Call_Prepend needs tstate in 3.10");
+  (void)as;
+  (void)callfunc;
+#endif
 }
 
 ternaryfunc SlotGen::genCallSlot(
@@ -185,8 +192,16 @@ reprfunc SlotGen::genReprFuncSlot(
 PyObject* getattr_fallback(PyObject* self, PyObject* func, PyObject* name) {
   if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
     PyErr_Clear();
+#ifdef CINDER_PORTING_DONE
     PyObject* args[2] = {self, name};
     return _PyFunction_FastCallDict(func, args, 2, NULL);
+#else
+    PORT_ASSERT("Switch to PyObject_VectorcallDict?");
+    // Should work but maybe there is a perf implication?
+    (void)self;
+    (void)func;
+    (void)name;
+#endif
   }
   return NULL;
 }

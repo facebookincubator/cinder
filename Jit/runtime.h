@@ -1,6 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
+#include "Python.h"
+
+#include "cinder/porting-support.h"
+
 #include "Jit/containers.h"
 #include "Jit/debug_info.h"
 #include "Jit/deopt.h"

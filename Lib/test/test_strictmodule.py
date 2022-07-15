@@ -3,9 +3,11 @@ import ast
 import unittest
 from textwrap import dedent
 
-from _strictmodule import StrictModuleLoader, StrictAnalysisResult
+if unittest.cinder_enable_broken_tests():
+    from _strictmodule import StrictModuleLoader, StrictAnalysisResult
 
 
+@unittest.cinderPortingBrokenTest()
 class StrictModuleTest(unittest.TestCase):
     def get_loader(self):
         return StrictModuleLoader([], "", [], [])

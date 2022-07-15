@@ -838,6 +838,7 @@ with_trace_refs
 with_assertions
 enable_optimizations
 with_lto
+with_broken_cinder_tests
 with_address_sanitizer
 with_memory_sanitizer
 with_undefined_behavior_sanitizer
@@ -1550,6 +1551,8 @@ Optional Packages:
   --with-assertions       build with C assertions enabled (default is no)
   --with-lto              enable Link-Time-Optimization in any build (default
                           is no)
+  --with-broken-cinder-tests
+                          Enable Cinder tests known to not work
   --with-address-sanitizer
                           enable AddressSanitizer memory error detector,
                           'asan' (default is no)
@@ -5720,6 +5723,7 @@ $as_echo_n "checking for the Android arm ABI... " >&6; }
 $as_echo "$_arm_arch" >&6; }
   if test "$_arm_arch" = 7; then
     BASECFLAGS="${BASECFLAGS} -mfloat-abi=softfp -mfpu=vfpv3-d16"
+    BASECXXFLAGS="${BASECXXFLAGS} -mfloat-abi=softfp -mfpu=vfpv3-d16"
     LDFLAGS="${LDFLAGS} -march=armv7-a -Wl,--fix-cortex-a8"
   fi
 else
@@ -5922,6 +5926,7 @@ $as_echo "$enable_profiling" >&6; }
 
 if test "x$enable_profiling" = xyes; then
   BASECFLAGS="-pg $BASECFLAGS"
+  BASECXXFLAGS="-pg $BASECXXFLAGS"
   LDFLAGS="-pg $LDFLAGS"
 fi
 
@@ -6998,6 +7003,25 @@ OPTCXX="$(echo ${OPT} | tr -d '\n' | sed -e s/-Wstrict-prototypes//)"
 UNIVERSAL_ARCH_FLAGS=
 
 
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-broken-cinder-tests" >&5
+$as_echo_n "checking for --with-broken-cinder-tests... " >&6; }
+
+# Check whether --with-broken-cinder-tests was given.
+if test "${with_broken_cinder_tests+set}" = set; then :
+  withval=$with_broken_cinder_tests;
+BASECXXFLAGS="${BASECXXFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
+BASECFLAGS="${BASECFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
@@ -7114,6 +7138,7 @@ $as_echo "$ac_cv_no_strict_aliasing" >&6; }
     if test $ac_cv_no_strict_aliasing = yes
     then
       BASECFLAGS="$BASECFLAGS -fno-strict-aliasing"
+      BASECXXFLAGS="$BASECXXFLAGS -fno-strict-aliasing"
     fi
 
     # ICC doesn't recognize the option, but only emits a warning
@@ -7167,6 +7192,8 @@ $as_echo "$ac_cv_disable_unused_result_warning" >&6; }
     then
       BASECFLAGS="$BASECFLAGS -Wno-unused-result"
       CFLAGS_NODIST="$CFLAGS_NODIST -Wno-unused-result"
+      BASECXXFLAGS="$BASECXXFLAGS -Wno-unused-result"
+      CXXFLAGS_NODIST="$CXXFLAGS_NODIST -Wno-unused-result"
     fi
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if we can turn off $CC unused parameter warning" >&5
@@ -7479,12 +7506,14 @@ $as_echo "$ac_cv_enable_visibility" >&6; }
     case $host in
          alpha*)
                 BASECFLAGS="$BASECFLAGS -mieee"
+                BASECXXFLAGS="$BASECXXFLAGS -mieee"
                 ;;
     esac
 
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
+	    BASECXXFLAGS="$BASECXXFLAGS -m486 -DSCO5"
 	    ;;
 
     Darwin*)
@@ -7563,10 +7592,12 @@ $as_echo "$CC" >&6; }
             if test "${UNIVERSALSDK}" != "/"
             then
                 CFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CFLAGS}"
+                CXXFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CXXFLAGS}"
                 LDFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${LDFLAGS}"
                 CPPFLAGS="-isysroot ${UNIVERSALSDK} ${CPPFLAGS}"
             else
                 CFLAGS="${UNIVERSAL_ARCH_FLAGS} ${CFLAGS}"
+                CXXFLAGS="${UNIVERSAL_ARCH_FLAGS} ${CXXFLAGS}"
                 LDFLAGS="${UNIVERSAL_ARCH_FLAGS} ${LDFLAGS}"
             fi
         fi
@@ -7659,9 +7690,11 @@ rm -f core conftest.err conftest.$ac_objext \
     case $ac_sys_system in
     OpenUNIX*|UnixWare*)
 	BASECFLAGS="$BASECFLAGS -K pentium,host,inline,loop_unroll,alloca "
+	BASECXXFLAGS="$BASECXXFLAGS -K pentium,host,inline,loop_unroll,alloca "
 	;;
     SCO_SV*)
 	BASECFLAGS="$BASECFLAGS -belf -Ki486 -DSCO5"
+	BASECXXFLAGS="$BASECXXFLAGS -belf -Ki486 -DSCO5"
 	;;
     esac
     ;;
@@ -18110,6 +18143,15 @@ case "$CXX" in
       BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
       ;;
 esac
+
+echo "" >&6
+echo "" >&6
+echo "Using -Wno-unused-function for C++ code during Cinder 3.10 port" >&6
+echo "" >&6
+echo "" >&6
+BASECXXFLAGS="${BASECXXFLAGS} -Wno-unused-function"
+CXXFLAGS_NODIST="${CXXFLAGS_NODIST} -Wno-unused-function"
+
 
 # generate output files
 ac_config_files="$ac_config_files Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh"

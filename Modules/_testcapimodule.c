@@ -5616,6 +5616,16 @@ test_fatal_error(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+cinder_enable_broken_tests(PyObject *self, PyObject *Py_UNUSED(ignored))
+{
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+    Py_RETURN_TRUE;
+#else
+    Py_RETURN_FALSE;
+#endif
+}
+
 
 static PyObject *test_buildvalue_issue38913(PyObject *, PyObject *);
 static PyObject *getargs_s_hash_int(PyObject *, PyObject *, PyObject*);
@@ -5952,6 +5962,7 @@ static PyMethodDef TestMethods[] = {
     {"make_get_debug_descriptor", EventLoop_make_get_debug_descriptor, METH_O},
     {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
     {"get_context_indirect", get_context, METH_VARARGS},
+    {"cinder_enable_broken_tests", cinder_enable_broken_tests, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 

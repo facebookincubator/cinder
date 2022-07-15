@@ -1,8 +1,5 @@
 #ifndef Py_INTERNAL_INTERP_H
 #define Py_INTERNAL_INTERP_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef Py_BUILD_CORE
 #  error "this header requires Py_BUILD_CORE define"
@@ -13,6 +10,11 @@ extern "C" {
 #include "pycore_gil.h"           // struct _gil_runtime_state
 #include "pycore_gc.h"            // struct _gc_runtime_state
 #include "pycore_warnings.h"      // struct _warnings_runtime_state
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 struct _pending_calls {
     PyThread_type_lock lock;

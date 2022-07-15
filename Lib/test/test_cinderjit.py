@@ -1,30 +1,33 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import _testcapi
 import asyncio
-import builtins
-import dis
-import gc
-import sys
-import tempfile
-import threading
-import traceback
-import types
 import unittest
 import warnings
-import weakref
-from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
-from compiler.static import StaticCodeGenerator
-from contextlib import contextmanager
 from functools import cmp_to_key
-from pathlib import Path
-from textwrap import dedent
+if unittest.cinder_enable_broken_tests():
+    import builtins
+    import dis
+    import gc
+    import sys
+    import tempfile
+    import threading
+    import traceback
+    import types
+    import weakref
+    from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
+    from compiler.static import StaticCodeGenerator
+    from contextlib import contextmanager
+    from pathlib import Path
+    from textwrap import dedent
 
-try:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        from .test_compiler.test_static.common import StaticTestBase
-except ImportError:
-    from test_compiler.test_static.common import StaticTestBase
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            from .test_compiler.test_static.common import StaticTestBase
+    except ImportError:
+        from test_compiler.test_static.common import StaticTestBase
+else:
+    StaticTestBase = unittest.TestCase
 
 from contextlib import contextmanager
 
@@ -37,7 +40,7 @@ except:
     def jit_suppress(func):
         return func
 
-
+@unittest.cinderPortingBrokenTest()
 class GetFrameLineNumberTests(unittest.TestCase):
     def assert_code_and_lineno(self, frame, func, lineno):
         self.assertEqual(frame.f_code, func.__code__)
@@ -191,6 +194,7 @@ def call_get_stack_multi():
     return get_stack_multi()
 
 
+@unittest.cinderPortingBrokenTest()
 class InlinedFunctionLineNumberTests(unittest.TestCase):
     @jit_suppress
     @unittest.skipIf(
@@ -278,6 +282,7 @@ class _CallableObj:
         return self, a, b
 
 
+@unittest.cinderPortingBrokenTest()
 class CallKWArgsTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def test_call_basic_function_pos_and_kw(self):
@@ -348,6 +353,7 @@ class CallKWArgsTests(unittest.TestCase):
         self.assertEqual(__import__("sys", globals=None), sys)
 
 
+@unittest.cinderPortingBrokenTest()
 class CallExTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def test_call_dynamic_kw_dict(self):
@@ -456,6 +462,7 @@ class CallExTests(unittest.TestCase):
         self.assertEqual(__import__(*("sys",), **{"globals": None}), sys)
 
 
+@unittest.cinderPortingBrokenTest()
 class LoadMethodCacheTests(unittest.TestCase):
     def test_type_modified(self):
         class Oracle:
@@ -629,6 +636,7 @@ def get_foo(obj):
     return obj.foo
 
 
+@unittest.cinderPortingBrokenTest()
 class LoadAttrCacheTests(unittest.TestCase):
     def test_dict_reassigned(self):
         class Base:
@@ -703,6 +711,7 @@ class LoadAttrCacheTests(unittest.TestCase):
         self.assertEqual(get_foo(obj4), 600)
 
 
+@unittest.cinderPortingBrokenTest()
 class SetNonDataDescrAttrTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def set_foo(self, obj, val):
@@ -745,6 +754,7 @@ class SetNonDataDescrAttrTests(unittest.TestCase):
         self.assertTrue(self.descr.invoked)
 
 
+@unittest.cinderPortingBrokenTest()
 class GetSetNonDataDescrAttrTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def get_foo(self, obj):
@@ -850,6 +860,7 @@ class DataDescr:
         self.invoked = True
 
 
+@unittest.cinderPortingBrokenTest()
 class StoreAttrCacheTests(unittest.TestCase):
     def test_data_descr_attached(self):
         class Base:
@@ -946,6 +957,7 @@ class StoreAttrCacheTests(unittest.TestCase):
         self.assertEqual(obj1.foo, 300)
 
 
+@unittest.cinderPortingBrokenTest()
 class LoadGlobalCacheTests(unittest.TestCase):
     def setUp(self):
         global license, a_global
@@ -1208,6 +1220,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
 
+@unittest.cinderPortingBrokenTest()
 class ClosureTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def test_cellvar(self):
@@ -1348,6 +1361,7 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(add_5(10), 15)
 
 
+@unittest.cinderPortingBrokenTest()
 class TempNameTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _tmp_name(self, a, b):
@@ -1369,6 +1383,7 @@ class DummyContainer:
         raise Exception("hello!")
 
 
+@unittest.cinderPortingBrokenTest()
 class ExceptionInConditional(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def doit(self, x):
@@ -1421,6 +1436,7 @@ class DelObserver:
         self.cb(self.id)
 
 
+@unittest.cinderPortingBrokenTest()
 class UnwindStateTests(unittest.TestCase):
     DELETED = []
 
@@ -1478,6 +1494,7 @@ class UnwindStateTests(unittest.TestCase):
         self.assertEqual(deleted, [1])
 
 
+@unittest.cinderPortingBrokenTest()
 class ImportTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def test_import_name(self):
@@ -1508,6 +1525,7 @@ class ImportTests(unittest.TestCase):
             self._fail_to_import_from()
 
 
+@unittest.cinderPortingBrokenTest()
 class RaiseTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _jitRaise(self, exc):
@@ -1553,6 +1571,7 @@ class RaiseTests(unittest.TestCase):
         self.assertEqual(exc.exception.args, ("No active exception to reraise",))
 
 
+@unittest.cinderPortingBrokenTest()
 class GeneratorsTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _f1(self):
@@ -1988,6 +2007,7 @@ class GeneratorsTest(unittest.TestCase):
             g.__next__()
 
 
+@unittest.cinderPortingBrokenTest()
 class GeneratorFrameTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def gen1(self):
@@ -2026,6 +2046,7 @@ class GeneratorFrameTest(unittest.TestCase):
         next(g)
 
 
+@unittest.cinderPortingBrokenTest()
 class CoroutinesTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     async def _f1(self):
@@ -2213,6 +2234,7 @@ class CoroutinesTest(unittest.TestCase):
         self.assertTrue(executed_finally_block)
 
 
+@unittest.cinderPortingBrokenTest()
 class EagerCoroutineDispatch(StaticTestBase):
     def _assert_awaited_flag_seen(self, async_f_under_test):
         awaited_capturer = _testcapi.TestAwaitedCall()
@@ -2409,6 +2431,7 @@ class EagerCoroutineDispatch(StaticTestBase):
         self.assertEqual(coro.send(None), 2)
 
 
+@unittest.cinderPortingBrokenTest()
 class AsyncGeneratorsTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     async def _f1(self, awaitable):
@@ -2512,6 +2535,7 @@ class Err2(Exception):
     pass
 
 
+@unittest.cinderPortingBrokenTest()
 class ExceptionHandlingTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def try_except(self, func):
@@ -2797,6 +2821,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.nested_finally(False), 10)
 
 
+@unittest.cinderPortingBrokenTest()
 class UnpackSequenceTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _unpack_arg(self, seq, which):
@@ -2871,6 +2896,7 @@ class UnpackSequenceTests(unittest.TestCase):
         self.assertEqual(self._unpack_ex_arg(seq, "d"), 6)
 
 
+@unittest.cinderPortingBrokenTest()
 class DeleteSubscrTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _delit(self, container, key):
@@ -2912,6 +2938,7 @@ class DeleteSubscrTests(unittest.TestCase):
             self._delit(c, "foo")
 
 
+@unittest.cinderPortingBrokenTest()
 class DeleteFastTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def _del(self):
@@ -2970,6 +2997,7 @@ class DeleteFastTests(unittest.TestCase):
             self.assertEqual(self._del_ex_raise(), 42)
 
 
+@unittest.cinderPortingBrokenTest()
 class DictSubscrTests(unittest.TestCase):
     def test_custom_class(self):
         class C:
@@ -2989,6 +3017,7 @@ class DictSubscrTests(unittest.TestCase):
             d["x"]
 
 
+@unittest.cinderPortingBrokenTest()
 class KeywordOnlyArgTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def f1(self, *, val=10):
@@ -3084,6 +3113,7 @@ class ClassB(ClassA):
         return super(ClassB, self).x + 1
 
 
+@unittest.cinderPortingBrokenTest()
 class SuperAccessTest(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def test_super_method(self):
@@ -3105,6 +3135,7 @@ class SuperAccessTest(unittest.TestCase):
         self.assertEqual(ClassB().x_2arg, 42)
 
 
+@unittest.cinderPortingBrokenTest()
 class RegressionTests(StaticTestBase):
     # Detects an issue in the backend where the Store instruction generated 32-
     # bit memory writes for 64-bit constants.
@@ -3128,6 +3159,7 @@ class RegressionTests(StaticTestBase):
                 self.assertTrue(cinderjit.is_jit_compiled(testfunc))
 
 
+@unittest.cinderPortingBrokenTest()
 @unittest.skipUnlessCinderJITEnabled("Requires cinderjit module")
 class CinderJitModuleTests(StaticTestBase):
     def test_bad_disable(self):
@@ -3230,6 +3262,7 @@ class TestException(Exception):
     pass
 
 
+@unittest.cinderPortingBrokenTest()
 class GetFrameTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     def f1(self, leaf):
@@ -3475,6 +3508,7 @@ class GetFrameTests(unittest.TestCase):
             gc.set_threshold(*thresholds)
 
 
+@unittest.cinderPortingBrokenTest()
 class GetGenFrameDuringThrowTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -3523,6 +3557,7 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
         self.assertEqual(cm.exception.value, 123)
 
 
+@unittest.cinderPortingBrokenTest()
 class DeleteAttrTests(unittest.TestCase):
     def test_delete_attr(self):
         class C:
@@ -3550,6 +3585,7 @@ class DeleteAttrTests(unittest.TestCase):
 _cmp_key = cmp_to_key(lambda x, y: 0)
 
 
+@unittest.cinderPortingBrokenTest()
 class OtherTests(unittest.TestCase):
     def test_type_ready(self):
         # T100786119: type(_cmp_key) should have been initialized, or JIT

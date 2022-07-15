@@ -20,6 +20,7 @@ try:
 except ImportError:
     cinder = None
     cached_property = None
+    StrictModule = None
 
 # Sets the number of repetitions required in order to hit caching
 REPETITION = 100
@@ -46,6 +47,7 @@ def skip_ret_code_check_for_leaking_test_in_asan_mode(*args, **env_vars):
         return assert_python_ok(*args, **env_vars)
 
 
+@unittest.cinderPortingBrokenTest()
 class ShadowCodeTests(unittest.TestCase):
     def test_type_error(self):
         class Desc:

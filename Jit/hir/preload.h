@@ -4,6 +4,8 @@
 #include "Python.h"
 #include "classloader.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
 #include "Jit/inline_cache.h"

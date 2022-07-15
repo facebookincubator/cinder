@@ -1,8 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/lir/regalloc.h"
 
-#include "internal/pycore_shadow_frame.h"
-
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/lir/lir.h"

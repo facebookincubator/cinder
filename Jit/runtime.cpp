@@ -12,20 +12,32 @@ const int64_t CodeRuntime::kPyCodeOffset =
 
 int GenYieldPoint::visitRefs(PyGenObject* gen, visitproc visit, void* arg)
     const {
+#ifdef CINDER_PORTING_DONE
   for (auto offs : pyobj_offs_) {
     PyObject* v = reinterpret_cast<PyObject*>(
         *(reinterpret_cast<uint64_t*>(gen->gi_jit_data) + offs));
     Py_VISIT(v);
   }
   return 0;
+#else
+  PORT_ASSERT("JIT data not in PyGenObject yet");
+  (void)gen;
+  (void)visit;
+  (void)arg;
+#endif
 }
 
 void GenYieldPoint::releaseRefs(PyGenObject* gen) const {
+#ifdef CINDER_PORTING_DONE
   for (auto offs : pyobj_offs_) {
     PyObject* v = reinterpret_cast<PyObject*>(
         *(reinterpret_cast<uint64_t*>(gen->gi_jit_data) + offs));
     Py_DECREF(v);
   }
+#else
+  PORT_ASSERT("JIT data not in PyGenObject yet");
+  (void)gen;
+#endif
 }
 
 void CodeRuntime::releaseReferences() {
@@ -56,15 +68,20 @@ void Runtime::shutdown() {
 }
 
 void Runtime::mlockProfilerDependencies() {
+#ifdef CINDER_PORTING_DONE
   for (auto& codert : code_runtimes_) {
     PyCodeObject* code = codert.frameState()->code().get();
     ::mlock(code, sizeof(PyCodeObject));
     ::mlock(code->co_qualname, Py_SIZE(code->co_qualname));
   }
   code_runtimes_.mlock();
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname");
+#endif
 }
 
 Ref<> Runtime::pageInProfilerDependencies() {
+#ifdef CINDER_PORTING_DONE
   ThreadedCompileSerialize guard;
   Ref<> qualnames = Ref<>::steal(PyList_New(0));
   if (qualnames == nullptr) {
@@ -84,6 +101,9 @@ Ref<> Runtime::pageInProfilerDependencies() {
     }
   }
   return qualnames;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname");
+#endif
 }
 
 GlobalCache Runtime::findGlobalCache(

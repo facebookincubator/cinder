@@ -9,6 +9,8 @@
 #include "RuntimeTests/fixtures.h"
 #include "RuntimeTests/testutil.h"
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+
 class SwitchboardTest : public RuntimeTest {
  public:
   void SetUp() override {
@@ -210,3 +212,4 @@ Foo.bar = 12345
   ASSERT_TRUE(PyLong_CheckExact(value)) << "Didn't set an int in data";
   ASSERT_EQ(PyLong_AsLong(value), 123);
 }
+#endif

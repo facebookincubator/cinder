@@ -37,10 +37,15 @@ namespace jit {
 namespace {
 
 const char* codeName(PyCodeObject* code) {
+  PORT_ASSERT("Neesd PyCodeObject::co_qualname");
+#ifdef CINDER_PORTING_DONE
   if (code->co_qualname == nullptr) {
     return "<null>";
   }
   return PyUnicode_AsUTF8(code->co_qualname);
+#else
+  (void)code;
+#endif
 }
 
 PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
@@ -102,10 +107,14 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "shadow frame not owned by the JIT");
   if (is_shadow_frame_for_gen(shadow_frame)) {
+#ifdef CINDER_PORTING_DONE
     // The shadow frame belongs to a generator; retrieve the CodeRuntime
     // directly from the generator.
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     return reinterpret_cast<GenDataFooter*>(gen->gi_jit_data)->code_rt;
+#else
+    PORT_ASSERT("JIT data on generators needed");
+#endif
   }
   auto jit_sf = reinterpret_cast<JITShadowFrame*>(shadow_frame);
   _PyShadowFrame_PtrKind rt_ptr_kind = JITShadowFrame_GetRTPtrKind(jit_sf);
@@ -119,6 +128,7 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
 std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
     PyThreadState* tstate,
     _PyShadowFrame* needle) {
+#ifdef CINDER_PORTING_DONE
   PyFrameObject* prev_py_frame = nullptr;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   while (shadow_frame) {
@@ -130,15 +140,26 @@ std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
     shadow_frame = shadow_frame->prev;
   }
   return {};
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+  (void)needle;
+#endif
 }
 
 // Return whether or not needle is linked into a call stack
 bool isShadowFrameLinked(PyThreadState* tstate, _PyShadowFrame* needle) {
+#ifdef CINDER_PORTING_DONE
   if (tstate->shadow_frame == needle || needle->prev != nullptr) {
     return true;
   }
   // Handle the case where needle is the last frame on the call stack
   return findInnermostPyFrameForShadowFrame(tstate, needle).has_value();
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+  (void)needle;
+#endif
 }
 
 // Return the instruction pointer for the JIT-compiled function that is
@@ -150,6 +171,7 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
       "shadow frame not executed by the JIT");
   uintptr_t frame_base;
   if (is_shadow_frame_for_gen(shadow_frame)) {
+#ifdef CINDER_PORTING_DONE
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
     if (gen->gi_running && isShadowFrameLinked(tstate, shadow_frame)) {
@@ -162,6 +184,10 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
       // The generator is suspended.
       return footer->yieldPoint->resumeTarget();
     }
+#else
+    PORT_ASSERT("Need PyGenObject::gi_running replacement and JIT data on generator");
+    (void)tstate;
+#endif
   } else {
     frame_base = getFrameBaseFromOnStackShadowFrame(shadow_frame);
   }
@@ -177,6 +203,7 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
 Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame) {
+#ifdef CINDER_PORTING_DONE
   const RuntimeFrameState* frame_state;
   // TODO(T110700318): Collapse into RTFS case
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT) {
@@ -230,6 +257,11 @@ Ref<PyFrameObject> createPyFrame(
   shadow_frame->data =
       _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
   return py_frame;
+#else
+    PORT_ASSERT("Need to figure out f_executing/gi_running");
+    (void)tstate;
+    (void)shadow_frame;
+#endif
 }
 
 void insertPyFrameBefore(
@@ -444,6 +476,7 @@ using FrameHandler =
     std::function<bool(const CodeObjLoc&, PyFrameMaterializer)>;
 
 void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
+#ifdef CINDER_PORTING_DONE
   BorrowedRef<PyFrameObject> prev_py_frame;
   for (_PyShadowFrame* shadow_frame = tstate->shadow_frame;
        shadow_frame != nullptr;
@@ -500,6 +533,11 @@ void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
       }
     }
   }
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+  (void)handler;
+#endif // CINDER_PORTING_DONE
 }
 
 // Invoke handler for each frame on the shadow stack
@@ -516,6 +554,7 @@ using AsyncFrameHandler = std::function<bool(const CodeObjLoc&)>;
 
 // Invoke handler for each shadow frame on the async stack.
 void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
+#ifdef CINDER_PORTING_DONE
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   while (shadow_frame != nullptr) {
     _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
@@ -549,6 +588,11 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
       shadow_frame = shadow_frame->prev;
     }
   }
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+  (void)handler;
+#endif // CINDER_PORTING_DONE
 }
 
 const char* shadowFrameKind(_PyShadowFrame* sf) {
@@ -569,12 +613,18 @@ const char* shadowFrameKind(_PyShadowFrame* sf) {
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
+#ifdef CINDER_PORTING_DONE
   UnitState unit_state = getUnitState(tstate, tstate->shadow_frame);
   materializePyFrames(tstate, unit_state, nullptr);
   return Ref<PyFrameObject>::steal(tstate->frame);
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+#endif // CINDER_PORTING_DONE
 }
 
 void assertShadowCallStackConsistent(PyThreadState* tstate) {
+#ifdef CINDER_PORTING_DONE
   PyFrameObject* py_frame = tstate->frame;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
 
@@ -624,6 +674,10 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
     }
     JIT_CHECK(false, "stack walk didn't consume entire python stack");
   }
+#else
+  PORT_ASSERT("Needs working shadow frames");
+  (void)tstate;
+#endif // CINDER_PORTING_DONE
 }
 
 BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
@@ -638,6 +692,7 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen) {
+#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   if (gen_footer->state == _PyJitGenState_Completed) {
     return nullptr;
@@ -665,6 +720,11 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
   }
 
   return materializePyFrames(tstate, unit_state, cursor);
+#else
+  PORT_ASSERT("Uses JIT data, shadow frames, and gi_running");
+  (void)tstate;
+  (void)gen;
+#endif
 }
 
 } // namespace jit
@@ -674,6 +734,7 @@ int _PyShadowFrame_HasGen(_PyShadowFrame* shadow_frame) {
 }
 
 PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
+#ifdef CINDER_PORTING_DONE
   JIT_DCHECK(
       is_shadow_frame_for_gen(shadow_frame),
       "Not shadow-frame for a generator");
@@ -683,6 +744,10 @@ PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
   return reinterpret_cast<PyGenObject*>(
       reinterpret_cast<uintptr_t>(shadow_frame) -
       offsetof(PyGenObject, gi_shadow_frame));
+#else
+  PORT_ASSERT("Needs shadow frames");
+  (void)shadow_frame;
+#endif
 }
 
 PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
@@ -702,6 +767,7 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
 }
 
 PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
+#ifdef CINDER_PORTING_DONE
   PyObject* mod_name = jit::getModuleName(shadow_frame);
   if (!mod_name) {
     return NULL;
@@ -710,10 +776,13 @@ PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
   PyObject* result = PyUnicode_FromFormat("%U:%U", mod_name, code->co_qualname);
   Py_DECREF(mod_name);
   return result;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname");
+  (void)shadow_frame;
+#endif
 }
 
 _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
-  _PyShadowFrame* result;
   if (_PyShadowFrame_HasGen(shadow_frame)) {
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     if (!PyCoro_CheckExact((PyObject*)gen)) {
@@ -721,13 +790,16 @@ _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
       // but we also did not fail.
       return nullptr;
     }
+#ifdef CINDER_PORTING_DONE
     PyCoroObject* awaiter = ((PyCoroObject*)gen)->cr_awaiter;
     if (!awaiter) {
       // This is fine, not every coroutine needs to have an awaiter
       return nullptr;
     }
-    result = &(awaiter->cr_shadow_frame);
-    return result;
+    return &(awaiter->cr_shadow_frame);
+#else
+    PORT_ASSERT("Needs cr_awaiter and cr_shadow_frame");
+#endif
   }
   return nullptr;
 }

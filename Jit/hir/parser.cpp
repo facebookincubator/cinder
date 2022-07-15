@@ -2,7 +2,7 @@
 #include "Jit/hir/parser.h"
 
 #include "classloader.h"
-#include "pycore_tupleobject.h"
+#include "pycore_tuple.h"
 
 #include "Jit/hir/hir.h"
 #include "Jit/log.h"
@@ -420,7 +420,11 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         return BEFORE_ASYNC_WITH;
       }
       if (strcmp(tok, "WITH_CLEANUP_START") != 0) {
+#ifdef CINDER_PORTING_DONE
         return WITH_CLEANUP_START;
+#else
+        PORT_ASSERT("Missing WITH_CLEANUP_START opcode");
+#endif
       }
       JIT_CHECK(false, "Bad RaiseAwaitableError opcode: %s", tok);
     }();

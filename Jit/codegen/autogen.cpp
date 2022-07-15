@@ -382,6 +382,7 @@ void emitLoadResumedYieldInputs(
 }
 
 void translateYieldInitial(Environ* env, const Instruction* instr) {
+#ifdef CINDER_PORTING_DONE
   asmjit::x86::Builder* as = env->as;
 
   // Load tstate into RSI for call to JITRT_MakeGenObject*.
@@ -446,6 +447,11 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
 
   // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
   emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
+#else
+  PORT_ASSERT("Needs JIT data on generator object");
+  (void)env;
+  (void)instr;
+#endif
 }
 
 void translateYieldValue(Environ* env, const Instruction* instr) {

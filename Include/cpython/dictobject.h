@@ -57,6 +57,10 @@ PyAPI_FUNC(PyObject *) _PyDict_Pop(PyObject *, PyObject *, PyObject *);
 PyObject *_PyDict_Pop_KnownHash(PyObject *, PyObject *, Py_hash_t, PyObject *);
 PyObject *_PyDict_FromKeys(PyObject *, PyObject *, PyObject *);
 #define _PyDict_HasSplitTable(d) ((d)->ma_values != NULL)
+/* facebook begin t39538061 */
+Py_ssize_t
+_PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
+/* facebook end t39538061 */
 
 /* Like PyDict_Merge, but override can be 0, 1 or 2.  If override is 0,
    the first occurrence of a key wins, if override is 1, the last occurrence

@@ -2,6 +2,7 @@
 #include "Jit/hir/builder.h"
 
 #include "Python.h"
+#include "arraymodule.h"
 #include "ceval.h"
 #include "opcode.h"
 #include "pyreadonly.h"
@@ -57,6 +58,8 @@ Register* TempAllocator::AllocateNonStack() {
 }
 
 // Opcodes that we know how to translate into HIR
+#ifdef CINDER_PORTING_DONE
+// Needs reviewing for 3.10
 const std::unordered_set<int> kSupportedOpcodes = {
     BEFORE_ASYNC_WITH,
     BEGIN_FINALLY,
@@ -203,7 +206,10 @@ const std::unordered_set<int> kSupportedOpcodes = {
     YIELD_FROM,
     YIELD_VALUE,
 };
+#endif
 
+#ifdef CINDER_PORTING_DONE
+// Readonly features needed
 const std::unordered_set<int> kSupportedReadonlyOperations = {
     READONLY_MAKE_FUNCTION,      READONLY_CHECK_FUNCTION,
     READONLY_CHECK_LOAD_ATTR,    READONLY_BINARY_SUBTRACT,
@@ -223,8 +229,10 @@ const std::unordered_set<int> kSupportedReadonlyOperations = {
 const UnorderedMap<int, const char*> kReadonlyOperationNames = {
     READONLY_OPERATIONS(NAMES)};
 #undef NAMES
+#endif
 
 static bool can_translate(PyCodeObject* code) {
+#ifdef CINDER_PORTING_DONE
   static const std::unordered_set<std::string> kBannedNames{
       "eval", "exec", "locals"};
   PyObject* names = code->co_names;
@@ -263,6 +271,10 @@ static bool can_translate(PyCodeObject* code) {
     }
   }
   return true;
+#else
+  PORT_ASSERT("Need to re-review kSupportedOpcodes + kSupportedReadonlyOperations + kReadonlyOperationNames");
+  (void)code;
+#endif
 }
 
 void HIRBuilder::AllocateRegistersForLocals(
@@ -423,6 +435,7 @@ void HIRBuilder::addInitializeCells(
 static bool should_snapshot(
     const BytecodeInstruction& bci,
     bool is_in_async_for_header_block) {
+#ifdef CINDER_PORTING_DONE
   switch (bci.opcode()) {
     // These instructions conditionally alter the operand stack based on which
     // branch is taken, thus we cannot safely take a snapshot in the same basic
@@ -501,6 +514,11 @@ static bool should_snapshot(
       return true;
     }
   }
+#else
+  PORT_ASSERT("Need to re-review opcodes for 3.10");
+  (void)bci;
+  (void)is_in_async_for_header_block;
+#endif
 }
 
 // Compute basic block boundaries and allocate corresponding HIR blocks
@@ -518,12 +536,14 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
     }
   };
   for (auto bc_instr : bc_block) {
-    auto opcode = bc_instr.opcode();
     if (bc_instr.IsBranch()) {
       maybe_add_next_instr(bc_instr);
       auto target = bc_instr.GetJumpTargetAsIndex();
       block_starts.insert(target);
-    } else if (
+    } else
+#ifdef CINDER_PORTING_DONE
+    auto opcode = bc_instr.opcode();
+     if (
         // We always split after YIELD_FROM to handle the case where it's the
         // top of an async-for loop and so generate a HIR conditional jump.
         (opcode == BEGIN_FINALLY) || (opcode == END_FINALLY) ||
@@ -533,6 +553,11 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
     } else {
       JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
     }
+#else
+    {
+      PORT_ASSERT("Need to handle changed/missing opcodes");
+    }
+#endif
   }
 
   // Allocate blocks
@@ -671,6 +696,7 @@ void HIRBuilder::emitProfiledTypes(
     TranslationContext& tc,
     const CodeProfileData& profile_data,
     const BytecodeInstruction& bc_instr) {
+#ifdef CINDER_PORTING_DONE
   if (bc_instr.opcode() == CALL_METHOD) {
     // TODO(T107300350): Ignore profiling data for CALL_METHOD because we lie
     // about its stack inputs.
@@ -750,6 +776,12 @@ void HIRBuilder::emitProfiledTypes(
     }
     tc.emit<HintType>(args.size(), all_types, args);
   }
+#else
+  PORT_ASSERT("Need to handle changed/missing opcodes");
+  (void)tc;
+  (void)profile_data;
+  (void)bc_instr;
+#endif
 }
 
 InlineResult HIRBuilder::inlineHIR(
@@ -831,6 +863,7 @@ void HIRBuilder::translate(
     const jit::BytecodeInstructionBlock& bc_instrs,
     const TranslationContext& tc,
     FinallyCompleter complete_finally) {
+#ifdef CINDER_PORTING_DONE
   std::deque<TranslationContext> queue = {tc};
   std::unordered_set<BasicBlock*> processed;
   std::unordered_set<BasicBlock*> loop_headers;
@@ -1489,6 +1522,13 @@ void HIRBuilder::translate(
   for (auto block : loop_headers) {
     insertEvalBreakerCheckForLoop(irfunc.cfg, block);
   }
+#else
+  PORT_ASSERT("Handle missing/changed opcodes");
+  (void)irfunc;
+  (void)bc_instrs;
+  (void)tc;
+  (void)complete_finally;
+#endif
 }
 
 void BlockCanonicalizer::InsertCopies(
@@ -1647,6 +1687,7 @@ void HIRBuilder::emitAnyCall(
     TranslationContext& tc,
     jit::BytecodeInstructionBlock::Iterator& bc_it,
     const jit::BytecodeInstructionBlock& bc_instrs) {
+#ifdef CINDER_PORTING_DONE
   BytecodeInstruction bc_instr = *bc_it;
   int idx = bc_instr.index();
   bool is_awaited = code_->co_flags & CO_COROUTINE &&
@@ -1714,6 +1755,13 @@ void HIRBuilder::emitAnyCall(
 
     tc.block = post_await_block.block;
   }
+#else
+  PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
+  (void)cfg;
+  (void)tc;
+  (void)bc_it;
+  (void)bc_instrs;
+#endif
 }
 
 void HIRBuilder::emitBinaryOp(
@@ -1729,6 +1777,7 @@ void HIRBuilder::emitBinaryOp(
 }
 
 static inline BinaryOpKind get_readonly_bin_op_kind(int readonly_op) {
+#ifdef CINDER_PORTING_DONE
   switch (readonly_op) {
     case READONLY_BINARY_ADD: {
       return BinaryOpKind::kAdd;
@@ -1775,6 +1824,10 @@ static inline BinaryOpKind get_readonly_bin_op_kind(int readonly_op) {
       break;
     }
   }
+#else
+  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
+  (void)readonly_op;
+#endif
 }
 
 void HIRBuilder::emitReadonlyBinaryOp(
@@ -1885,6 +1938,7 @@ void HIRBuilder::emitUnaryOp(
 }
 
 static inline UnaryOpKind get_readonly_unary_op_kind(int readonly_op) {
+#ifdef CINDER_PORTING_DONE
   switch (readonly_op) {
     case READONLY_UNARY_NOT:
       return UnaryOpKind::kNot;
@@ -1903,6 +1957,10 @@ static inline UnaryOpKind get_readonly_unary_op_kind(int readonly_op) {
       // NOTREACHED
       break;
   }
+#else
+  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
+  (void)readonly_op;
+#endif
 }
 
 void HIRBuilder::emitReadonlyUnaryOp(
@@ -2253,6 +2311,7 @@ void HIRBuilder::emitCompareOp(
 void HIRBuilder::emitJumpIf(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
+#ifdef CINDER_PORTING_DONE
   Register* var = tc.frame.stack.top();
 
   Py_ssize_t true_offset, false_offset;
@@ -2295,6 +2354,11 @@ void HIRBuilder::emitJumpIf(
   } else {
     tc.emit<CondBranch>(var, true_block, false_block);
   }
+#else
+  PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
+  (void)tc;
+  (void)bc_instr;
+#endif
 }
 
 void HIRBuilder::emitDeleteAttr(
@@ -2836,6 +2900,7 @@ void HIRBuilder::emitReadonlyOperation(
     CFG& cfg,
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
+#ifdef CINDER_PORTING_DONE
   int oparg = bc_instr.oparg();
   PyObject* op_tuple = PyTuple_GET_ITEM(code_->co_consts, oparg);
   JIT_CHECK(op_tuple != nullptr, "op_tuple is nullptr");
@@ -3039,6 +3104,12 @@ void HIRBuilder::emitReadonlyOperation(
       break;
     }
   }
+#else
+  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
+  (void)cfg;
+  (void)tc;
+  (void)bc_instr;
+#endif
 }
 
 void HIRBuilder::emitRefineType(
@@ -3291,6 +3362,7 @@ void HIRBuilder::emitMakeListTuple(
 void HIRBuilder::emitMakeListTupleUnpack(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
+#ifdef CINDER_PORTING_DONE
   Register* list = temps_.AllocateStack();
   tc.emit<MakeListTuple>(false, list, 0, tc.frame);
 
@@ -3315,6 +3387,11 @@ void HIRBuilder::emitMakeListTupleUnpack(
 
   tc.frame.stack.discard(oparg);
   tc.frame.stack.push(retval);
+#else
+  PORT_ASSERT("Needs Static Python features");
+  (void)tc;
+  (void)bc_instr;
+#endif
 }
 
 void HIRBuilder::emitBuildCheckedList(
@@ -3470,6 +3547,7 @@ void HIRBuilder::emitBuildConstKeyMap(
 void HIRBuilder::emitPopJumpIf(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
+#ifdef CINDER_PORTING_DONE
   Register* var = tc.frame.stack.pop();
   Py_ssize_t true_offset, false_offset;
   switch (bc_instr.opcode()) {
@@ -3506,6 +3584,11 @@ void HIRBuilder::emitPopJumpIf(
   } else {
     tc.emit<CondBranch>(var, true_block, false_block);
   }
+#else
+  PORT_ASSERT("Needs Static Python features");
+  (void)tc;
+  (void)bc_instr;
+#endif
 }
 
 void HIRBuilder::emitStoreAttr(
@@ -3703,6 +3786,7 @@ void HIRBuilder::emitFinallyBlock(
     std::deque<TranslationContext>& queue,
     Py_ssize_t finally_off,
     BasicBlock* ret_block) {
+#ifdef CINDER_PORTING_DONE
   // Create a new set of basic blocks to house the finally block and jump there
   BlockMap new_block_map = createBlocks(irfunc, bc_instrs);
   BasicBlock* finally_block = map_get(new_block_map.blocks, finally_off);
@@ -3726,6 +3810,15 @@ void HIRBuilder::emitFinallyBlock(
   TranslationContext new_tc{finally_block, tc.frame};
   translate(irfunc, bc_instrs, new_tc, comp);
   std::swap(new_block_map, block_map_);
+#else
+  PORT_ASSERT("Needs Static Python features");
+  (void)irfunc;
+  (void)tc;
+  (void)bc_instrs;
+  (void)queue;
+  (void)finally_off;
+  (void)ret_block;
+#endif
 }
 
 void HIRBuilder::emitBeginFinally(
@@ -4074,6 +4167,7 @@ void HIRBuilder::emitGetAwaitable(
     CFG& cfg,
     TranslationContext& tc,
     int prev_op) {
+#ifdef CINDER_PORTING_DONE
   OperandStack& stack = tc.frame.stack;
   Register* iterable = stack.pop();
   Register* iter = temps_.AllocateStack();
@@ -4121,6 +4215,12 @@ void HIRBuilder::emitGetAwaitable(
   stack.push(iter);
 
   tc.block = block_done.block;
+#else
+  PORT_ASSERT("What to do about WITH_CLEANUP_START (SP?) opcode?");
+  (void)cfg;
+  (void)tc;
+  (void)prev_op;
+#endif
 }
 
 void HIRBuilder::emitBuildString(

@@ -2,7 +2,6 @@
 #include "Jit/hir/preload.h"
 
 #include "Python.h"
-#include "classloader.h"
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
@@ -140,6 +139,7 @@ static void fill_primitive_arg_types_builtin(
 static std::unique_ptr<InvokeTarget> resolve_target_descr(
     BorrowedRef<> descr,
     int opcode) {
+#ifdef CINDER_PORTING_DONE
   auto target = std::make_unique<InvokeTarget>();
   PyObject* container;
   auto callable =
@@ -214,6 +214,11 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   }
 
   return target;
+#else
+  PORT_ASSERT("Probably needs Static Python to be meaningful");
+  (void)descr;
+  (void)opcode;
+#endif
 }
 
 BorrowedRef<PyFunctionObject> InvokeTarget::func() const {
@@ -295,6 +300,7 @@ BorrowedRef<> Preloader::constArg(BytecodeInstruction& bc_instr) const {
 }
 
 void Preloader::preload() {
+#ifdef CINDER_PORTING_DONE
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
     return_type_ = to_jit_type(
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
@@ -390,6 +396,9 @@ void Preloader::preload() {
     prim_args_info_ = Ref<_PyTypedArgsInfo>::steal(
         _PyClassLoader_GetTypedArgsInfo(code_, true));
   }
+#else
+  PORT_ASSERT("This mostly needs Static Python features to be meaningful");
+#endif
 }
 
 } // namespace hir

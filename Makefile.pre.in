@@ -111,13 +111,13 @@ CONFIGURE_LDFLAGS=	@LDFLAGS@
 # command line to append to these values without stomping the pre-set
 # values.
 PY_CFLAGS=	$(BASECFLAGS) $(OPT) $(CONFIGURE_CFLAGS) $(CFLAGS) $(EXTRA_CFLAGS)
-PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(srcdir)/Include/internal
+PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(srcdir)/Include/internal -I$(srcdir)/Cinder/Include
 PY_CXXFLAGS=$(BASECXXFLAGS) $(OPTCXX) $(CONFIGURE_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXXFLAGS)
-PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(srcdir)/Include/internal
+PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(srcdir)/Include/internal -I$(srcdir)/Cinder/Include
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(srcdir)/Include -I$(srcdir)/ThirdParty/fmt-8.1.1/include -I$(srcdir)/ThirdParty/i386-dis -I$(srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(srcdir)/Include -I$(srcdir)/ThirdParty/fmt-8.1.1/include -I$(srcdir)/ThirdParty/i386-dis -I$(srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(srcdir)/Cinder/Include
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
@@ -525,6 +525,11 @@ I386_DASM_OBJS = \
 		ThirdParty/i386-dis/dis-buf.o
 
 ##########################################################################
+# Cinder common objects
+CINDER_OBJS = \
+		Cinder/stubs.o
+
+##########################################################################
 # Strict Modules
 STRICTM_OBJS=       \
 		StrictModules/Compiler/analyzed_module.o \
@@ -569,9 +574,7 @@ STRICTM_OBJS=       \
 		StrictModules/exceptions.o \
 		StrictModules/error_sink.o
 
-# TODO(T125621044): Disable compilation of the JIT and Strict Modules until
-# they work properly.
-JIT_OBJS=
+# TODO(T125621044): Disable compilation of Strict Modules until they work properly.
 STRICTM_OBJS=
 
 ##########################################################################
@@ -679,6 +682,7 @@ LIBRARY_OBJS_OMIT_FROZEN=	\
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS)    \
 		$(STRICTM_OBJS) \
+		$(CINDER_OBJS) \
 		$(I386_DASM_OBJS)    \
 		$(MODULE_OBJS) \
 		$(MODOBJS)
@@ -1009,6 +1013,7 @@ Modules/getbuildinfo.o: $(PARSER_OBJS) \
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS) \
 		$(STRICTM_OBJS) \
+		$(CINDER_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS) \
 		$(DTRACE_OBJS) \
@@ -1439,6 +1444,9 @@ STRICTM_HEADERS = \
 		$(STRICTM_PRIVATE_HEADERS) \
 		$(STRICTM_PUBLIC_HEADERS)
 
+CINDER_HEADERS= \
+		$(srcdir)/Cinder/Include/cinder/porting-support.h \
+		$(srcdir)/Cinder/Include/cinder/port-assert.h
 
 I386_DASM_HEADERS = \
         $(srcdir)/ThirdParty/i386-dis/dis-asm.h
@@ -1616,14 +1624,15 @@ PYTHON_HEADERS= \
 		\
 		$(srcdir)/Python/stdlib_module_names.h \
 		\
+		$(CINDER_HEADERS) \
 		$(JIT_HEADERS) \
 		$(JIT_PUBLIC_HEADERS) \
 		$(STRICTM_HEADERS) \
 		$(STRICTM_PUBLIC_HEADERS)
 
-$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS)
+$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
 
-$(JIT_OBJS): $(JIT_HEADERS)
+$(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
 
 $(STRICTM_OBJS): $(STRICTM_HEADERS)
 
@@ -2556,10 +2565,9 @@ regen-jit:
 		$(srcdir)/Jit/hir/type_generated.h.new
 	$(UPDATE_FILE) $(srcdir)/Jit/hir/type_generated.h \
 		$(srcdir)/Jit/hir/type_generated.h.new
+
 #
-# Runtime tests and supporting infrastructure
-#
-# These are tests for private runtime components that are easier to write in C
+# Cinder tests written in C++
 #
 ${GTEST_DIR}/libgtest.a: ${GTEST_SRCDIR}/src/gtest-all.cc
 	$(VPRE)$(CXX) -std=c++11 -isystem ${GTEST_SRCDIR}/include -I${GTEST_SRCDIR} -pthread -c $< -o ${GTEST_DIR}/gtest-all.o

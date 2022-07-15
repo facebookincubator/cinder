@@ -7,6 +7,10 @@
 #include "internal/pycore_pystate.h"
 #include "pyreadonly.h"
 
+#include "Jit/log.h"
+
+#include "cinder/port-assert.h"
+
 extern "C" {
 void take_gil(struct _ceval_runtime_state*, PyThreadState*);
 void drop_gil(struct _ceval_runtime_state*, PyThreadState*);
@@ -17,9 +21,11 @@ int handle_signals(_PyRuntimeState* runtime);
 
 namespace jit {
 
-PyObject g_iterDoneSentinel = {
-    _PyObject_EXTRA_INIT kImmortalInitialCount,
-    nullptr};
+#ifdef CINDER_PORTING_DONE
+static PyObject g_iterDoneSentinel = {
+  _PyObject_EXTRA_INIT kImmortalInitialCount,
+  nullptr};
+#endif
 
 PyObject* invokeIterNext(PyObject* iterator) {
   PyObject* val = (*iterator->ob_type->tp_iternext)(iterator);
@@ -32,8 +38,12 @@ PyObject* invokeIterNext(PyObject* iterator) {
     }
     PyErr_Clear();
   }
+#ifdef CINDER_PORTING_DONE
   Py_INCREF(&g_iterDoneSentinel);
   return &g_iterDoneSentinel;
+#else
+  PORT_ASSERT("Reference to kImmortalInitialCount");
+#endif
 }
 
 PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask) {
@@ -56,13 +66,18 @@ PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask) {
     }
     PyErr_Clear();
   }
+#ifdef CINDER_PORTING_DONE
   Py_INCREF(&g_iterDoneSentinel);
   return &g_iterDoneSentinel;
+#else
+  PORT_ASSERT("Reference to kImmortalInitialCount");
+#endif
 }
 
 // This duplicates the logic found at the beginning of the dispatch loop in
 // _PyEval_EvalFrameDefault
 PyObject* runPeriodicTasks() {
+#ifdef CINDER_PORTING_DONE
   PyThreadState* tstate = PyThreadState_GET();
   _PyRuntimeState* const runtime = &_PyRuntime;
   struct _ceval_runtime_state* const ceval = &_PyRuntime.ceval;
@@ -113,6 +128,10 @@ PyObject* runPeriodicTasks() {
   }
 
   return Py_True;
+#else
+  PORT_ASSERT("Several changes to where interpreter state is stored");
+  // Looks like this can be replaced with ceval.c: eval_frame_handle_pending()
+#endif
 }
 
 } // namespace jit

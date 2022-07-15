@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+#include "cinder/port-assert.h"
+
 #ifndef Py_LIMITED_API
 
 #ifdef __cplusplus
@@ -101,17 +103,30 @@ static inline uintptr_t _PyShadowFrame_MakeData(void *ptr,
 static inline void _PyShadowFrame_PushInterp(PyThreadState *tstate,
                                              _PyShadowFrame *shadow_frame,
                                              PyFrameObject *py_frame) {
+#ifdef CINDER_PORTING_DONE
   shadow_frame->prev = tstate->shadow_frame;
   tstate->shadow_frame = shadow_frame;
   shadow_frame->data =
       _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_INTERP);
+#else
+  PORT_ASSERT("Needs shadow frame support");
+  (void)tstate;
+  (void)shadow_frame;
+  (void)py_frame;
+#endif
 }
 
 static inline void _PyShadowFrame_Pop(PyThreadState *tstate,
                                       _PyShadowFrame *shadow_frame) {
+#ifdef CINDER_PORTING_DONE
   assert(tstate->shadow_frame == shadow_frame);
   tstate->shadow_frame = shadow_frame->prev;
   shadow_frame->prev = NULL;
+#else
+  PORT_ASSERT("Needs shadow frame support");
+  (void)tstate;
+  (void)shadow_frame;
+#endif
 }
 
 static inline void *JITShadowFrame_GetOrigPtr(JITShadowFrame *jit_sf) {

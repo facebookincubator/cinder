@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/dict_watch.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/inline_cache.h"
 #include "Jit/pyjit.h"

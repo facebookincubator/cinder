@@ -1,12 +1,14 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
-import cinder
 import inspect
 import unittest
-from _asyncio import AsyncLazyValue
 from functools import wraps
-from test.support.cinder import get_await_stack
 from time import time
+
+if unittest.cinder_enable_broken_tests():
+    from _asyncio import AsyncLazyValue
+    from test.support.cinder import get_await_stack
+    import cinder
 
 
 def async_test(f):
@@ -19,6 +21,7 @@ def async_test(f):
     return impl
 
 
+@unittest.cinderPortingBrokenTest()
 class AsyncLazyValueCoroTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -219,6 +222,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stacks[1][2], gatherer_coro)
 
 
+@unittest.cinderPortingBrokenTest()
 class AsyncLazyValueTest(unittest.TestCase):
     def setUp(self) -> None:
         self.events = []

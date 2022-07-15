@@ -1,11 +1,17 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-import memoize
 import unittest
-from functools import update_wrapper
+if unittest.cinder_enable_broken_tests():
+    import memoize
+    from functools import update_wrapper
+else:
+    class memoize:
+        def memoize_func_wrapper(self):
+            pass
 
 def mock_cache_fetcher():
     return {}
 
+@unittest.cinderPortingBrokenTest()
 class TestMemoizeFuncWrapper(unittest.TestCase):
     memoize_func_wrapper = memoize.memoize_func_wrapper
 

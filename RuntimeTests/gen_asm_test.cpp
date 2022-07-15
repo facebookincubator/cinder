@@ -21,6 +21,8 @@ using namespace jit;
 using namespace jit::codegen;
 using namespace jit::hir;
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+
 class ASMGeneratorTest : public RuntimeTest {
  public:
   std::unique_ptr<CompiledFunction> GenerateCode(PyObject* func) {
@@ -1309,6 +1311,7 @@ def test_override_builtin_import(locals):
   EXPECT_EQ(res1.get(), Py_True)
       << "Failed to run test_override_builtin_import(True)";
 }
+#endif
 
 class NewASMGeneratorTest : public RuntimeTest {
  public:
@@ -1317,6 +1320,7 @@ class NewASMGeneratorTest : public RuntimeTest {
   }
 };
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(NewASMGeneratorTest, Linear) {
   const char* src = R"(
 def func(x):
@@ -1364,6 +1368,7 @@ def func(a, b):
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 106);
 }
+#endif
 
 TEST_F(NewASMGeneratorTest, BlockSorter) {
   jit::lir::Function func;

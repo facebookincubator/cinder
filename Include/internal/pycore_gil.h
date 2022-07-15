@@ -1,5 +1,9 @@
 #ifndef Py_INTERNAL_GIL_H
 #define Py_INTERNAL_GIL_H
+
+#include "pycore_condvar.h"
+#include "pycore_atomic.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

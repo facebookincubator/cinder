@@ -7,6 +7,7 @@
 
 using namespace jit::hir;
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(BlockCanonicalizerTest, BreaksCycles) {
   CFG cfg;
   Environment env;
@@ -113,3 +114,4 @@ TEST(BlockCanonicalizerTest, HandlesMixOfLocalsAndTemporaries) {
 )";
   ASSERT_EQ(printer.ToString(*block), expected);
 }
+#endif

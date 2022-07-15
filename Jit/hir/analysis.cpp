@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/analysis.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/dataflow.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/memory_effects.h"

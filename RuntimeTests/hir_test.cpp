@@ -138,6 +138,7 @@ TEST(CFGIterTest, VisitsLoops) {
   ASSERT_EQ(traversal[3], outer_else) << "Should have visited else block last";
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(SplitCriticalEdgesTest, SplitsCriticalEdges) {
   auto hir_source = R"(
 fun test {
@@ -561,6 +562,7 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
 )";
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
+#endif
 
 class CppInlinerTest : public RuntimeTest {};
 
@@ -598,6 +600,7 @@ def f():
 
 class HIRCloneTest : public RuntimeTest {};
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRCloneTest, CanCloneInstrs) {
   Environment env;
   auto v0 = env.AllocateRegister();
@@ -612,6 +615,7 @@ TEST_F(HIRCloneTest, CanCloneInstrs) {
   EXPECT_EQ(load_const->GetOutput()->instr(), load_const.get());
   EXPECT_EQ(new_load->GetOutput()->instr(), load_const.get());
 }
+#endif
 
 TEST_F(HIRCloneTest, CanCloneBranches) {
   Environment env;
@@ -681,6 +685,7 @@ TEST_F(HIRCloneTest, CanCloneVariadicOpInstr) {
   EXPECT_EQ(orig_raise->GetOperand(1), dup_raise->GetOperand(1));
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRCloneTest, CanCloneDeoptBase) {
   const char* hir = R"(fun jittestmodule:test {
   bb 0 {
@@ -747,3 +752,4 @@ TEST_F(HIRCloneTest, CanCloneDeoptBase) {
   // Should have equal contents
   EXPECT_TRUE(orig->live_regs() == dup->live_regs());
 }
+#endif

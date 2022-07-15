@@ -6,6 +6,8 @@
 #include "Include/internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/containers.h"
@@ -642,6 +644,7 @@ static void compile_worker_thread() {
 }
 
 static void multithread_compile_all() {
+#ifdef CINDER_PORTING_DONE
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
   std::vector<BorrowedRef<>> compilation_units;
@@ -701,6 +704,9 @@ static void multithread_compile_all() {
   }
   _PyGILState_check_enabled = old_gil_check_enabled;
   jit_preloaders.clear();
+#else
+  PORT_ASSERT("Need to figure out how to 'Take the GIL' in 3.10");
+#endif
 }
 
 static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
@@ -964,6 +970,7 @@ int check(int ret) {
 }
 
 Ref<> make_deopt_stats() {
+#ifdef CINDER_PORTING_DONE
   Runtime* runtime = Runtime::get();
   auto stats = Ref<>::steal(check(PyList_New(0)));
 
@@ -1021,6 +1028,9 @@ Ref<> make_deopt_stats() {
   runtime->clearDeoptStats();
 
   return stats;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname and co_lnotab");
+#endif
 }
 
 } // namespace
@@ -1342,6 +1352,7 @@ int _PyJIT_Initialize() {
   INTERNED_STRINGS(INTERN_STR)
 #undef INTERN_STR
 
+#ifdef CINDER_PORTING_DONE
 #define MAKE_OPNAME(opname, opnum)                                   \
   if ((s_opnames.at(opnum) = PyUnicode_InternFromString(#opname)) == \
       nullptr) {                                                     \
@@ -1349,6 +1360,9 @@ int _PyJIT_Initialize() {
   }
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
+#else
+  PORT_ASSERT("Needs PY_OPCODES output from Tools/scripts/generate_opcode_h.py");
+#endif
 
   initFlagProcessor();
 
@@ -1375,6 +1389,7 @@ int _PyJIT_Initialize() {
   }
 
   if (!write_profile_file.empty() || jit_profile_interp == 1) {
+#ifdef CINDER_PORTING_DONE
     if (use_jit) {
       use_jit = 0;
       JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
@@ -1384,6 +1399,9 @@ int _PyJIT_Initialize() {
     if (!write_profile_file.empty()) {
       g_write_profile_file = write_profile_file;
     }
+#else
+    PORT_ASSERT("Needs _PyThreadState_SetProfileInterpAll");
+#endif
   }
 
   if (use_jit) {
@@ -1416,10 +1434,15 @@ int _PyJIT_Initialize() {
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
+
+#ifdef CINDER_PORTING_DONE
   // Unconditionally set this, since we might have shadow frames from
   // CO_SHADOW_FRAME or inlined functions.
   _PyThreadState_GetFrame =
       reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
+#else
+  PORT_ASSERT("Not sure if/how global getframe works in 3.10");
+#endif
 
   total_compliation_time = 0.0;
 
@@ -1539,6 +1562,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
 static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
     BorrowedRef<> module,
     BorrowedRef<> root_consts) {
+#ifdef CINDER_PORTING_DONE
   std::queue<PyObject*> consts_tuples;
   std::unordered_set<PyCodeObject*> visited;
   std::vector<BorrowedRef<PyCodeObject>> result;
@@ -1562,6 +1586,11 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
   }
 
   return result;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname");
+  (void)module;
+  (void)root_consts;
+#endif
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {
@@ -1718,6 +1747,7 @@ PyObject* _PyJIT_GenSend(
     PyFrameObject* f,
     PyThreadState* tstate,
     int finish_yield_from) {
+#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
 
   // state should be valid and the generator should not be completed
@@ -1766,6 +1796,15 @@ PyObject* _PyJIT_GenSend(
   }
 
   return result;
+#else
+    PORT_ASSERT("Needs PyGenObject::gi_jit_data and figure out f_executing")
+    (void)gen;
+    (void)arg;
+    (void)exc;
+    (void)f;
+    (void)tstate;
+    (void)finish_yield_from;
+#endif
 }
 
 PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
@@ -1775,6 +1814,7 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
 }
 
 int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
+#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
   if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
@@ -1782,18 +1822,30 @@ int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
         ->visitRefs(gen, visit, arg);
   }
   return 0;
+#else
+    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+    (void)gen;
+    (void)visit;
+    (void)arg;
+#endif
 }
 
 void _PyJIT_GenDealloc(PyGenObject* gen) {
+#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
   if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
     reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)->releaseRefs(gen);
   }
   JITRT_GenJitDataFree(gen);
+#else
+    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+    (void)gen;
+#endif
 }
 
 PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
+#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
   PyObject* yf = NULL;
@@ -1802,9 +1854,14 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
     Py_XINCREF(yf);
   }
   return yf;
+#else
+    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+    (void)gen;
+#endif
 }
 
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
+#ifdef CINDER_PORTING_DONE
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   if (shadow_frame == nullptr) {
     JIT_CHECK(
@@ -1827,6 +1884,10 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
   jit::CodeRuntime* code_rt =
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
   return code_rt->frameState()->globals();
+#else
+    PORT_ASSERT("Needs shadow frame support")
+    (void)tstate;
+#endif
 }
 
 void _PyJIT_ProfileCurrentInstr(
@@ -1834,6 +1895,7 @@ void _PyJIT_ProfileCurrentInstr(
     PyObject** stack_top,
     int opcode,
     int oparg) {
+#ifdef CINDER_PORTING_DONE
   auto profile_stack = [&](auto... stack_offsets) {
     CodeProfile& code_profile =
         jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
@@ -1937,6 +1999,13 @@ void _PyJIT_ProfileCurrentInstr(
       break;
     }
   }
+#else
+  PORT_ASSERT("Using some missing opcodes (maybe from Static Python?)");
+  (void)frame;
+  (void)stack_top;
+  (void)opcode;
+  (void)oparg;
+#endif
 }
 
 void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
@@ -2001,6 +2070,7 @@ void start_code(ProfileEnv& env, PyCodeObject* code) {
 }
 
 void start_instr(ProfileEnv& env, int bcoff_raw) {
+#ifdef CINDER_PORTING_DONE
   int lineno_raw = env.code->co_lnotab != nullptr
       ? PyCode_Addr2Line(env.code, bcoff_raw)
       : -1;
@@ -2008,6 +2078,11 @@ void start_instr(ProfileEnv& env, int bcoff_raw) {
   env.bc_offset = Ref<>::steal(check(PyLong_FromLong(bcoff_raw)));
   env.lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
   env.opname.reset(s_opnames.at(opcode));
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_lnotab");
+  (void)env;
+  (void)bcoff_raw;
+#endif
 }
 
 void append_item(

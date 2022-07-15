@@ -61,6 +61,13 @@ struct PyCodeObject {
     _PyOpcache *co_opcache;
     int co_opcache_flag;  // used to determine when create a cache.
     unsigned char co_opcache_size;  // length of co_opcache.
+
+   /*
+    * Fields added for Cinder
+    */
+
+    _Py_CODEUNIT* co_rawcode_NOT_IMPLEMENTED;
+    Py_ssize_t co_codelen_NOT_IMPLEMENTED;
 };
 
 /* Masks for co_flags above */
@@ -180,5 +187,3 @@ void PyLineTable_InitAddressRange(const char *linetable, Py_ssize_t length, int 
 /** API for traversing the line number table. */
 int PyLineTable_NextAddressRange(PyCodeAddressRange *range);
 int PyLineTable_PreviousAddressRange(PyCodeAddressRange *range);
-
-

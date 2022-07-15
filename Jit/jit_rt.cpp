@@ -12,6 +12,8 @@
 #include "pystate.h"
 #include "switchboard.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/frame.h"
 #include "Jit/log.h"
@@ -25,7 +27,7 @@
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_object.h"
-#include "internal/pycore_tupleobject.h"
+#include "pycore_tuple.h"
 // clang-format on
 
 // This is mostly taken from ceval.c _PyEval_EvalCodeWithName
@@ -622,6 +624,7 @@ allocateFrame(PyThreadState* tstate, PyCodeObject* code, PyObject* globals) {
 PyThreadState* JITRT_AllocateAndLinkFrame(
     PyCodeObject* code,
     PyObject* globals) {
+#ifdef CINDER_PORTING_DONE
   PyThreadState* tstate = PyThreadState_GET();
   JIT_DCHECK(tstate != NULL, "thread state cannot be null");
 
@@ -635,6 +638,11 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
   tstate->frame = frame;
 
   return tstate;
+#else
+  PORT_ASSERT("Figure out how frame f_executing works now");
+  (void)code;
+  (void)globals;
+#endif
 }
 
 void JITRT_DecrefFrame(PyFrameObject* frame) {
@@ -650,11 +658,16 @@ void JITRT_DecrefFrame(PyFrameObject* frame) {
 }
 
 void JITRT_UnlinkFrame(PyThreadState* tstate) {
+#ifdef CINDER_PORTING_DONE
   PyFrameObject* f = tstate->frame;
   f->f_executing = 0;
 
   tstate->frame = f->f_back;
   JITRT_DecrefFrame(f);
+#else
+  PORT_ASSERT("Figure out how frame f_executing works now");
+  (void)tstate;
+#endif
 }
 
 PyObject*
@@ -1572,6 +1585,7 @@ static void* gen_data_allocate(size_t spill_words) {
 }
 
 void JITRT_GenJitDataFree(PyGenObject* gen) {
+#ifdef CINDER_PORTING_DONE
   auto gen_data_footer =
       reinterpret_cast<jit::GenDataFooter*>(gen->gi_jit_data);
   auto gen_data = reinterpret_cast<uint64_t*>(gen_data_footer) -
@@ -1588,6 +1602,11 @@ void JITRT_GenJitDataFree(PyGenObject* gen) {
   }
   gen_data_free_list_size++;
   gen_data_free_list_tail = gen_data;
+#else
+  PORT_ASSERT("Need PyGenObject::gi_jit_data");
+  (void)gen;
+  (void)kGenDataFreeListMaxSize;
+#endif
 }
 
 enum class MakeGenObjectMode {
@@ -1603,6 +1622,7 @@ static inline PyObject* make_gen_object(
     size_t spill_words,
     jit::CodeRuntime* code_rt,
     PyCodeObject* code) {
+#ifdef CINDER_PORTING_DONE
   PyGenObject* gen = nullptr;
   if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
@@ -1661,6 +1681,14 @@ static inline PyObject* make_gen_object(
   gen->gi_jit_data = reinterpret_cast<_PyJIT_GenData*>(footer);
 
   return reinterpret_cast<PyObject*>(gen);
+#else
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data and PyCodeObject::co_qualname")
+  (void)resume_entry;
+  (void)tstate;
+  (void)spill_words;
+  (void)code_rt;
+  (void)code;
+#endif
 }
 
 PyObject* JITRT_MakeGenObject(
@@ -1694,11 +1722,17 @@ PyObject* JITRT_MakeGenObjectCoro(
 }
 
 void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
+#ifdef CINDER_PORTING_DONE
   _PyShadowFrame* sf = ts->shadow_frame;
   // TODO(bsimmers): This may need to change when we support eager evaluation
   // of coroutines.
   auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
   _PyAwaitable_SetAwaiter(awaitable, awaiter);
+#else
+  PORT_ASSERT("Needs shadow frames and _PyAwaitable_SetAwaiter");
+  (void)awaitable;
+  (void)ts;
+#endif
 }
 
 JITRT_YieldFromRes JITRT_YieldFrom(
@@ -1706,6 +1740,7 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     PyObject* v,
     PyThreadState* tstate,
     uint64_t finish_yield_from) {
+#ifdef CINDER_PORTING_DONE
   if (v == NULL) {
     return {NULL, 1};
   }
@@ -1724,6 +1759,13 @@ JITRT_YieldFromRes JITRT_YieldFrom(
   }
   JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
+#else
+  PORT_ASSERT("Loosk like PyIter_Send() in 3.10 doesn't need tstate");
+  (void)gen;
+  (void)v;
+  (void)tstate;
+  (void)finish_yield_from;
+#endif
 }
 
 JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
@@ -1735,8 +1777,12 @@ JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
   if ((res.retval == NULL) && (res.done == 1) &&
       PyErr_ExceptionMatches(PyExc_StopAsyncIteration)) {
     _PyErr_Clear(tstate);
+#ifdef CINDER_PORTING_DONE
     Py_INCREF(&jit::g_iterDoneSentinel);
     res.retval = &jit::g_iterDoneSentinel;
+#else
+    PORT_ASSERT("Needs g_iterDoneSentinel from runtime_support.cpp");
+#endif
   }
   return res;
 }

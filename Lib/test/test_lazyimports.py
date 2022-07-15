@@ -3,6 +3,7 @@ import unittest
 from test.support.script_helper import run_python_until_end
 
 
+@unittest.cinderPortingBrokenTest()
 class LazyImportsTest(unittest.TestCase):
     def assertStartswith(self, str1, str2):
         self.assertTrue(str1.startswith(str2), f"{str1!r}.startswith({str2!r})")

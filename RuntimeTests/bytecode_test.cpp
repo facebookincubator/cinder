@@ -11,6 +11,7 @@
 
 using BytecodeInstructionIteratorTest = RuntimeTest;
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(BytecodeInstructionIteratorTest, ConsumesExtendedArgs) {
   //  0  EXTENDED_ARG  1
   //  2  EXTENDED_ARG  2
@@ -81,3 +82,4 @@ TEST_F(BytecodeInstructionIteratorTest, ConsumesExtendedArgs) {
   ++it;
   EXPECT_EQ(it, bc_block.end());
 }
+#endif

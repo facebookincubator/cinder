@@ -923,6 +923,7 @@ if $CPP $CPPFLAGS conftest.c >conftest.out 2>/dev/null; then
   AC_MSG_RESULT([$_arm_arch])
   if test "$_arm_arch" = 7; then
     BASECFLAGS="${BASECFLAGS} -mfloat-abi=softfp -mfpu=vfpv3-d16"
+    BASECXXFLAGS="${BASECXXFLAGS} -mfloat-abi=softfp -mfpu=vfpv3-d16"
     LDFLAGS="${LDFLAGS} -march=armv7-a -Wl,--fix-cortex-a8"
   fi
 else
@@ -1090,6 +1091,7 @@ AC_MSG_RESULT($enable_profiling)
 
 if test "x$enable_profiling" = xyes; then
   BASECFLAGS="-pg $BASECFLAGS"
+  BASECXXFLAGS="-pg $BASECXXFLAGS"
   LDFLAGS="-pg $LDFLAGS"
 fi
 
@@ -1596,6 +1598,18 @@ AC_SUBST(CXXFLAGS_NODIST)
 UNIVERSAL_ARCH_FLAGS=
 AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 
+
+AC_MSG_CHECKING(for --with-broken-cinder-tests)
+AC_ARG_WITH(broken-cinder-tests,
+            AS_HELP_STRING([--with-broken-cinder-tests], [Enable Cinder tests known to not work]),
+[
+BASECXXFLAGS="${BASECXXFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
+BASECFLAGS="${BASECFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
+AC_MSG_RESULT(yes)
+],
+[AC_MSG_RESULT(no)])
+
+
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
@@ -1656,6 +1670,7 @@ yes)
     if test $ac_cv_no_strict_aliasing = yes
     then
       BASECFLAGS="$BASECFLAGS -fno-strict-aliasing"
+      BASECXXFLAGS="$BASECXXFLAGS -fno-strict-aliasing"
     fi
 
     # ICC doesn't recognize the option, but only emits a warning
@@ -1688,6 +1703,8 @@ yes)
     then
       BASECFLAGS="$BASECFLAGS -Wno-unused-result"
       CFLAGS_NODIST="$CFLAGS_NODIST -Wno-unused-result"
+      BASECXXFLAGS="$BASECXXFLAGS -Wno-unused-result"
+      CXXFLAGS_NODIST="$CXXFLAGS_NODIST -Wno-unused-result"
     fi
 
     AC_MSG_CHECKING(if we can turn off $CC unused parameter warning)
@@ -1853,12 +1870,14 @@ yes)
     case $host in
          alpha*)
                 BASECFLAGS="$BASECFLAGS -mieee"
+                BASECXXFLAGS="$BASECXXFLAGS -mieee"
                 ;;
     esac
 
     case $ac_sys_system in
 	SCO_SV*)
 	    BASECFLAGS="$BASECFLAGS -m486 -DSCO5"
+	    BASECXXFLAGS="$BASECXXFLAGS -m486 -DSCO5"
 	    ;;
 
     Darwin*)
@@ -1935,10 +1954,12 @@ yes)
             if test "${UNIVERSALSDK}" != "/"
             then
                 CFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CFLAGS}"
+                CXXFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${CXXFLAGS}"
                 LDFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${LDFLAGS}"
                 CPPFLAGS="-isysroot ${UNIVERSALSDK} ${CPPFLAGS}"
             else
                 CFLAGS="${UNIVERSAL_ARCH_FLAGS} ${CFLAGS}"
+                CXXFLAGS="${UNIVERSAL_ARCH_FLAGS} ${CXXFLAGS}"
                 LDFLAGS="${UNIVERSAL_ARCH_FLAGS} ${LDFLAGS}"
             fi
         fi
@@ -2011,9 +2032,11 @@ yes)
     case $ac_sys_system in
     OpenUNIX*|UnixWare*)
 	BASECFLAGS="$BASECFLAGS -K pentium,host,inline,loop_unroll,alloca "
+	BASECXXFLAGS="$BASECXXFLAGS -K pentium,host,inline,loop_unroll,alloca "
 	;;
     SCO_SV*)
 	BASECFLAGS="$BASECFLAGS -belf -Ki486 -DSCO5"
+	BASECXXFLAGS="$BASECXXFLAGS -belf -Ki486 -DSCO5"
 	;;
     esac
     ;;
@@ -4009,6 +4032,7 @@ esac
 
 AC_CHECK_LIB(z, inflateCopy, AC_DEFINE(HAVE_ZLIB_COPY, 1, [Define if the zlib library has inflateCopy]))
 
+dnl Added by Cinder for crc32()
 LIBS="$LIBS -lz"
 
 case $ac_sys_system/$ac_sys_release in
@@ -6089,6 +6113,16 @@ case "$CXX" in
       BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
       ;;
 esac
+
+dnl TODO(T125839145): Remove this
+echo "" >&AS_MESSAGE_FD
+echo "" >&AS_MESSAGE_FD
+echo "Using -Wno-unused-function for C++ code during Cinder 3.10 port" >&AS_MESSAGE_FD
+echo "" >&AS_MESSAGE_FD
+echo "" >&AS_MESSAGE_FD
+BASECXXFLAGS="${BASECXXFLAGS} -Wno-unused-function"
+CXXFLAGS_NODIST="${CXXFLAGS_NODIST} -Wno-unused-function"
+
 
 # generate output files
 AC_CONFIG_FILES(Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh)

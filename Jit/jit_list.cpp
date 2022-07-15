@@ -7,6 +7,8 @@
 #include <fstream>
 #include <string>
 
+#include "cinder/port-assert.h"
+
 namespace jit {
 
 static bool g_jitlist_match_line_numbers = false;
@@ -209,6 +211,7 @@ int JITList::lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) {
 }
 
 int JITList::lookupCO(BorrowedRef<PyCodeObject> code) {
+#ifdef CINDER_PORTING_DONE
   Ref<> name(code->co_qualname ? code->co_qualname : code->co_name);
   Ref<> line_no = Ref<>::steal(PyLong_FromLong(code->co_firstlineno));
   Ref<> file(pathBasename(code->co_filename));
@@ -223,6 +226,10 @@ int JITList::lookupCO(BorrowedRef<PyCodeObject> code) {
   }
 
   return g_jitlist_match_line_numbers ? PySet_Contains(line_set, line_no) : 1;
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_qualname");
+  (void)code;
+#endif
 }
 
 Ref<> JITList::getList() const {

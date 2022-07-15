@@ -112,6 +112,7 @@ int try_flag_and_envvar_effect(
   return init_status;
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(CmdLineTest, BasicFlags) {
   // easy flags that don't interact with one another in tricky ways
   ASSERT_EQ(
@@ -575,3 +576,4 @@ TEST_F(CmdLineTest, DisplayHelpMessage) {
           true),
       -2);
 }
+#endif

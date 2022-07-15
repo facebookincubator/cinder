@@ -20,6 +20,8 @@ TEST_F(FrameStateCreationTest, InitialInstrOffset) {
   EXPECT_EQ(frame.instr_offset(), -1);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+
 #define EXPECT_HIR_EQ(irfunc, expected) \
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected)
 
@@ -884,6 +886,7 @@ def test(x):
 )";
   EXPECT_HIR_EQ(irfunc, expected);
 }
+#endif
 
 TEST_F(FrameStateCreationTest, GetDominatingFrameState) {
   CFG cfg;

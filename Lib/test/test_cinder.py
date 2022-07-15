@@ -1,26 +1,31 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
 import asyncio.tasks
-import cinder
 import inspect
 import sys
 import unittest
 import weakref
-from cinder import (
-    async_cached_classproperty,
-    async_cached_property,
-    cached_classproperty,
-    cached_property,
-    strict_module_patch,
-    StrictModule,
-)
+if unittest.cinder_enable_broken_tests():
+    import cinder
+    from cinder import (
+        async_cached_classproperty,
+        async_cached_property,
+        cached_classproperty,
+        cached_property,
+        strict_module_patch,
+        StrictModule,
+    )
+    from test.support import gc_collect, requires_type_collecting, temp_dir, TESTFN, unlink
+    from test.support.cinder import get_await_stack, verify_stack
+else:
+    def requires_type_collecting(x):
+        return x
 from functools import wraps
 from textwrap import dedent
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
 
-from test.support import gc_collect, requires_type_collecting, temp_dir, TESTFN, unlink
-from test.support.cinder import get_await_stack, verify_stack
+
 from test.support.script_helper import assert_python_ok, make_script
 
 
@@ -47,6 +52,7 @@ def strict_module_from_module(mod, enable_patching=False):
     return StrictModule(dict(mod.__dict__), enable_patching)
 
 
+@unittest.cinderPortingBrokenTest()
 class CinderTest(unittest.TestCase):
     def test_type_cache(self):
         class C:
@@ -1156,6 +1162,7 @@ def async_test(f):
     return impl
 
 
+@unittest.cinderPortingBrokenTest()
 class AsyncCinderTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -1600,6 +1607,7 @@ class C:
         return G.y
 
 
+@unittest.cinderPortingBrokenTest()
 class CodeObjectQualnameTest(unittest.TestCase):
     def test_qualnames(self):
         self.assertEqual(cinder._get_qualname(f.__code__), "f")
@@ -1649,6 +1657,7 @@ class CodeObjectQualnameTest(unittest.TestCase):
         self.assertEqual(g["clsname"], "C")
 
 
+@unittest.cinderPortingBrokenTest()
 class TestNoShadowingInstances(unittest.TestCase):
     def check_no_shadowing(self, typ, expected):
         got = cinder._has_no_shadowing_instances(typ)
@@ -1788,6 +1797,7 @@ class TestNoShadowingInstances(unittest.TestCase):
         self.check_no_shadowing(Derived, False)
 
 
+@unittest.cinderPortingBrokenTest()
 class GetCallStackTest(unittest.TestCase):
     def a(self):
         return self.b()
@@ -1814,6 +1824,7 @@ class GetCallStackTest(unittest.TestCase):
         self.assertEqual(stack[-5:], expected)
 
 
+@unittest.cinderPortingBrokenTest()
 class GetEntireCallStackTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -1962,6 +1973,7 @@ class GetEntireCallStackTest(unittest.TestCase):
         verify_stack(self, stack, ["a2", "a3"])
 
 
+@unittest.cinderPortingBrokenTest()
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):
     def tearDown(self):
@@ -2010,6 +2022,7 @@ class TestInterpProfiling(unittest.TestCase):
         self.assertEqual(item["normvector"]["types"], ["float", "int"])
 
 
+@unittest.cinderPortingBrokenTest()
 class TestWaitForAwaiter(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -2066,6 +2079,7 @@ class Rendez:
         self.barrier = asyncio.Future()
 
 
+@unittest.cinderPortingBrokenTest()
 class TestClearAwaiter(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -2108,6 +2122,7 @@ class TestClearAwaiter(unittest.TestCase):
         self.assertIs(cinder._get_coro_awaiter(outer_coro), None)
 
 
+@unittest.cinderPortingBrokenTest()
 class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()

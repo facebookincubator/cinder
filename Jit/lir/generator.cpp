@@ -7,6 +7,8 @@
 #include "internal/pycore_shadow_frame.h"
 #include "listobject.h"
 
+#include "cinder/porting-support.h"
+
 #include "Jit/codegen/x86_64.h"
 #include "Jit/containers.h"
 #include "Jit/deopt.h"
@@ -1187,10 +1189,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto tmp = cond->name();
 
         if (instr->opcode() == Opcode::kCondBranchIterNotDone) {
+#ifdef CINDER_PORTING_DONE
           tmp = GetSafeTempName();
           auto iter_done_addr =
               reinterpret_cast<uint64_t>(&jit::g_iterDoneSentinel);
           bbb.AppendCode("Sub {}, {}, {}", tmp, cond, iter_done_addr);
+#else
+    PORT_ASSERT("Needs g_iterDoneSentinel from runtime_support.cpp");
+#endif
         }
 
         bbb.AppendCode(
@@ -1472,6 +1478,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kCompare: {
+#ifdef CINDER_PORTING_DONE
         auto instr = static_cast<const Compare*>(&i);
 
         bbb.AppendCall(
@@ -1482,6 +1489,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             static_cast<int>(instr->readonly_flags()),
             instr->left(),
             instr->right());
+#else
+        PORT_ASSERT("Need to support new comparison opcodes");
+#endif
         break;
       }
       case Opcode::kLongCompare: {
@@ -1615,6 +1625,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kRaiseAwaitableError: {
+#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const RaiseAwaitableError&>(i);
         bbb.AppendInvoke(
             format_awaitable_error,
@@ -1622,6 +1633,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr.GetOperand(0),
             static_cast<int>(instr.with_opcode()));
         AppendGuard(bbb, "AlwaysFail", instr);
+#else
+        PORT_ASSERT("format_awaitable_error needs prev prev opcode");
+#endif
         break;
       }
       case Opcode::kCheckExc:
@@ -2334,6 +2348,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadEvalBreaker: {
+#ifdef CINDER_PORTING_DONE
         // NB: This corresponds to an atomic load with
         // std::memory_order_relaxed. It's correct on x86-64 but probably isn't
         // on other architectures.
@@ -2346,6 +2361,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             i.GetOutput()->type() == TCInt32,
             "eval breaker output should be int");
         bbb.AppendCode("Load {}, {:#x}", i.GetOutput(), eval_breaker);
+#else
+        PORT_ASSERT("eval_breaker probably lives somewhere else in 3.10");
+#endif
         break;
       }
       case Opcode::kRunPeriodicTasks: {
@@ -2365,6 +2383,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kBeginInlinedFunction: {
+#ifdef CINDER_PORTING_DONE
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
         // TODO(emacs): Link all shadow frame prev pointers in function
@@ -2427,9 +2446,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (py_debug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
+#else
+        PORT_ASSERT("Needs shadow frame support");
+#endif
         break;
       }
       case Opcode::kEndInlinedFunction: {
+#ifdef CINDER_PORTING_DONE
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
         if (py_debug) {
@@ -2479,6 +2502,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (py_debug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
+#else
+        PORT_ASSERT("Needs shadow frame support");
+#endif
         break;
       }
       case Opcode::kIsTruthy: {
@@ -2578,24 +2604,33 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kWaitHandleLoadWaiter: {
+#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleLoadWaiter&>(i);
         bbb.AppendCode(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
             offsetof(PyWaitHandleObject, wh_waiter));
+#else
+        PORT_ASSERT("Needs eager coroutine execution support");
+#endif
         break;
       }
       case Opcode::kWaitHandleLoadCoroOrResult: {
+#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleLoadCoroOrResult&>(i);
         bbb.AppendCode(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
             offsetof(PyWaitHandleObject, wh_coro_or_result));
+#else
+        PORT_ASSERT("Needs eager coroutine execution support");
+#endif
         break;
       }
       case Opcode::kWaitHandleRelease: {
+#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleRelease&>(i);
         std::string null_var = GetSafeTempName();
         bbb.AppendCode(
@@ -2606,6 +2641,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Store 0, {}, {}",
             instr.reg(),
             offsetof(PyWaitHandleObject, wh_waiter));
+#else
+        PORT_ASSERT("Needs eager coroutine execution support");
+#endif
         break;
       }
       case Opcode::kDeleteSubscr: {

@@ -1,13 +1,14 @@
 import asyncio
 import unittest
 
-from test.support import import_module
-from test.support.cinder import verify_stack
+if unittest.cinder_enable_broken_tests():
+    from test.support import import_module
+    from test.support.cinder import verify_stack
+
+    _testinternalcapi = import_module("_testinternalcapi")
 
 
-_testinternalcapi = import_module("_testinternalcapi")
-
-
+@unittest.cinderPortingBrokenTest()
 class WalkShadowFramesTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()

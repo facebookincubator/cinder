@@ -60,9 +60,18 @@ static constexpr x86::Mem kInFrameOrigDataPtr = x86::ptr(
     x86::rbp,
     -kJITShadowFrameSize + JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
 
+
+#ifdef CINDER_PORTING_DONE
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
   return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));
 }
+#else
+static x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
+  PORT_ASSERT("Needs shadow frames");
+  (void)tstate_reg;
+}
+#endif
+
 } // namespace shadow_frame
 
 } // namespace
@@ -1125,6 +1134,7 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
 }
 
 void NativeGenerator::generateResumeEntry() {
+#ifdef CINDER_PORTING_DONE
   // Arbitrary scratch register for use throughout this function. Can be changed
   // to pretty much anything which doesn't conflict with arg registers.
   const auto scratch_r = x86::r8;
@@ -1176,6 +1186,9 @@ void NativeGenerator::generateResumeEntry() {
   as_->jmp(x86::ptr(scratch_r, resume_target_offset));
 
   env_.addAnnotation("Resume entry point", cursor);
+#else
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data");
+#endif
 }
 
 void NativeGenerator::generateStaticEntryPoint(
@@ -1422,6 +1435,7 @@ static void releaseRefs(
 
 static PyFrameObject*
 prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
+#ifdef CINDER_PORTING_DONE
   JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
@@ -1484,6 +1498,12 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
     }
   }
   return frame;
+#else
+  PORT_ASSERT("Needs shadow frames");
+  (void)regs;
+  (void)runtime;
+  (void)deopt_idx;
+#endif
 }
 
 static PyObject* resumeInInterpreter(
@@ -1496,7 +1516,11 @@ static PyObject* resumeInInterpreter(
     // through _PyJIT_GenDealloc. Ownership of all references have been
     // transferred to the frame.
     JITRT_GenJitDataFree(gen);
+#ifdef CINDER_PORTING_DONE
     gen->gi_jit_data = nullptr;
+#else
+    PORT_ASSERT("Needs PyGenObject::gi_jit_data");
+#endif
   }
   PyThreadState* tstate = PyThreadState_Get();
   PyObject* result = nullptr;
@@ -1514,7 +1538,12 @@ static PyObject* resumeInInterpreter(
     // a generator, the interpreter will insert a new entry on the shadow stack
     // when execution resumes there, so we remove our entry.
     if (!frame->f_gen) {
+#ifdef CINDER_PORTING_DONE
       _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
+#else
+      PORT_ASSERT("Needs shadow frames");
+      (void)tstate;
+#endif
     }
 
     // Resume one frame.
@@ -1530,11 +1559,15 @@ static PyObject* resumeInInterpreter(
     // after resuming because f_stacktop is NULL during execution of a frame.
     if (!err_occurred) {
       if (inline_depth > 0) {
+#ifdef CINDER_PORTING_DONE
         // The caller is at inline depth 0, so we only attempt to push the
         // result onto the stack in the deeper (> 0) frames. Otherwise, we
         // should just return the value from the native code in the way our
         // native calling convention requires.
         *(frame->f_stacktop)++ = result;
+#else
+        PORT_ASSERT("3.10 doesn't have PyFrameObject::f_stacktop");
+#endif
       }
     }
     inline_depth--;

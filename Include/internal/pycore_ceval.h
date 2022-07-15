@@ -1,8 +1,5 @@
 #ifndef Py_INTERNAL_CEVAL_H
 #define Py_INTERNAL_CEVAL_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef Py_BUILD_CORE
 #  error "this header requires Py_BUILD_CORE define"
@@ -13,6 +10,10 @@ struct pyruntimestate;
 struct _ceval_runtime_state;
 
 #include "pycore_interp.h"   /* PyInterpreterState.eval_frame */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 extern void _Py_FinishPendingCalls(PyThreadState *tstate);
 extern void _PyEval_InitRuntimeState(struct _ceval_runtime_state *);

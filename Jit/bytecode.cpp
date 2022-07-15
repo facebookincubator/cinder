@@ -7,6 +7,8 @@
 
 namespace jit {
 
+#ifdef CINDER_PORTING_DONE
+
 // TODO(mpage): Flesh this out
 const std::unordered_set<int> kBranchOpcodes = {
     CALL_FINALLY,
@@ -29,5 +31,7 @@ const std::unordered_set<int> kRelBranchOpcodes = {
     JUMP_FORWARD,
     SETUP_FINALLY,
 };
+
+#endif
 
 } // namespace jit

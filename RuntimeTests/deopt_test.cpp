@@ -27,6 +27,7 @@ using namespace jit::hir;
 using namespace jit::codegen;
 using jit::kPointerSize;
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 class ReifyFrameTest : public RuntimeTest {};
 
 TEST_F(ReifyFrameTest, ReifyAtEntry) {
@@ -274,6 +275,7 @@ def test(num):
 }
 
 TEST_F(ReifyFrameTest, ReifyStaticCompareWithBool) {
+#ifdef CINDER_PORTING_DONE
   const char* src = R"(
 from __static__ import size_t, unbox
 def test(x, y):
@@ -327,6 +329,9 @@ def test(x, y):
     ASSERT_TRUE(PyBool_Check(result));
     ASSERT_EQ(result, i ? Py_True : Py_False);
   }
+#else
+  PORT_ASSERT("Needs PyCodeObject::co_rawcode");
+#endif
 }
 
 class DeoptStressTest : public RuntimeTest {
@@ -735,6 +740,7 @@ def test(n):
   _PyJIT_EnableHIRInliner();
   runTest(src, args, 1, result);
 }
+#endif
 
 using DeoptTest = RuntimeTest;
 
