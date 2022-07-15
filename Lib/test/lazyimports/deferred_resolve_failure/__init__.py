@@ -1,3 +1,3 @@
-from . import type
+from test.lazyimports.deferred_resolve_failure import type
 
-from .utilities import type_from_ast
+from test.lazyimports.deferred_resolve_failure.utilities import type_from_ast

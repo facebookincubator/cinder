@@ -11,18 +11,13 @@ class LazyImportsTest(unittest.TestCase):
     def assertNotStartswith(self, str1, str2):
         self.assertFalse(str1.startswith(str2), f"not {str1!r}.startswith({str2!r})")
 
-    def python_run(self, m, lazy=True, warmup=False):
+    def python_run(self, m, lazy=True):
         args = []
         if lazy:
             args += [
-                "-X",
-                "lazyimportsall",
+                "-L"
             ]
-        if warmup:
-            args += [
-                "-X",
-                "lazyimportswarmup",
-            ]
+
         args += [
             "-m",
             m,
@@ -41,9 +36,6 @@ class LazyImportsTest(unittest.TestCase):
 
     def test_deferred_resolve_failure(self):
         rc, out, err = self.python_run("test.lazyimports.deferred_resolve_failure")
-        self.assertStartswith(out, "<function type_from_ast at ")
-
-        rc, out, err = self.python_run("test.lazyimports.deferred_resolve_failure", warmup=True)
         self.assertStartswith(out, "<function type_from_ast at ")
 
         rc, out, err = self.python_run("test.lazyimports.deferred_resolve_failure", lazy=False)

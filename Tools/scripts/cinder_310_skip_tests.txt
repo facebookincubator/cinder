@@ -4,7 +4,6 @@ test_cinder
 test_cinderjit
 test_compiler
 test_jitlist
-test_lazyimports
 test_memoize
 test_shadow_stack_walk
 test_shadowcode
