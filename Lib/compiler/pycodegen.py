@@ -1806,6 +1806,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("LOAD_CONST", node.value.value)
 
         self.emit("RETURN_VALUE")
+        self.nextBlock()
 
     def visitYield(self, node):
         if not isinstance(

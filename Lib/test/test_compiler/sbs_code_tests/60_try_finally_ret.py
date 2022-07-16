@@ -9,7 +9,7 @@ def f():
 [
     ...,
     CODE_START("f"),
-    SETUP_FINALLY(Block(2)),
+    SETUP_FINALLY(Block(3)),
     LOAD_GLOBAL("a"),
     POP_TOP(0),
     POP_BLOCK(0),
