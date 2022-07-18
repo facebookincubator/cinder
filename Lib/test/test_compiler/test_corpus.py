@@ -7,7 +7,7 @@ from os import path
 from tokenize import detect_encoding
 from unittest import TestCase
 
-from .common import get_repo_root, glob_test
+from .common import glob_test
 
 
 class SbsCorpusCompileTests(TestCase):
