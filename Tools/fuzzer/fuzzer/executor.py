@@ -4,17 +4,22 @@ import sys
 
 
 def run_fuzzer(code_str: str, subprocesses: int) -> None:
+    subprocess_arr = []
     for i in range(subprocesses):
-        subprocess.run(
-            [
-                sys.executable,
-                "-X",
-                "jit",
-                __file__.replace("executor.py", "fuzzer.py"),
-                "--codestr",
-                code_str,
-            ]
+        subprocess_arr.append(
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    "-X",
+                    "jit",
+                    __file__.replace("executor.py", "fuzzer.py"),
+                    "--codestr",
+                    code_str,
+                ]
+            )
         )
+    for i in subprocess_arr:
+        i.wait()
 
 
 if __name__ == "__main__":
