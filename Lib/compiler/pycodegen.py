@@ -1349,7 +1349,8 @@ class CodeGenerator(ASTVisitor):
         else:
             self.visit(node.body)
 
-        self.set_no_lineno()
+        if kind == WITH:
+            self.set_no_lineno()
         self.setups.pop()
         self.emit("POP_BLOCK")
 
