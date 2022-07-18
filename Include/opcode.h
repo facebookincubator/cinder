@@ -248,9 +248,11 @@ static uint32_t _PyOpcode_Jump[8] = {
 #endif /* OPCODE_TABLES */
 
 
-#define OP(op, value) static const int op = value;
+enum {
+#define OP(op, value) op = value,
 PY_OPCODES(OP)
 #undef OP
+};
 
 /* EXCEPT_HANDLER is a special, implicit block type which is created when
    entering an except handler. It is not an opcode but we define it here
