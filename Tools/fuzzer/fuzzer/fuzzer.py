@@ -34,9 +34,11 @@ except ImportError:
 # Bounds for size of randomized strings and integers
 # Can be changed as necessary
 STR_LEN_UPPER_BOUND: int = 100
-STR_LEN_LOWER_BOUND: int = 2
+STR_LEN_LOWER_BOUND: int = 0
 INT_UPPER_BOUND = sys.maxsize
 INT_LOWER_BOUND = -sys.maxsize - 1
+OPARG_LOWER_BOUND = 0
+OPARG_UPPER_BOUND = 2**32 - 1
 
 
 class Fuzzer(pycodegen.CinderCodeGenerator):
@@ -62,26 +64,27 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
             return
 
         ioparg = self.graph.convertArg(opcode, oparg)
+        self.randomize_oparg(opcode, oparg, ioparg)
 
+        if opcode == "SET_LINENO" and not self.graph.first_inst_lineno:
+            self.graph.first_inst_lineno = ioparg
+
+    def randomize_oparg(self, opcode: str, oparg: object, ioparg: int) -> None:
         if not self.graph.do_not_emit_bytecode:
             # storing oparg to randomized version as a key value pair
             if oparg in self.oparg_randomizations:
                 randomized_oparg = self.oparg_randomizations[oparg]
             else:
-                randomized_oparg = self.randomize_variable(oparg)
+                randomized_oparg = randomize_variable(oparg)
                 self.oparg_randomizations[oparg] = randomized_oparg
 
             if opcode in Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
-                ioparg = self.randomize_name(
-                    opcode, oparg, randomized_oparg, self.graph.names
-                )
+                ioparg = replace_name_var(oparg, randomized_oparg, self.graph.names)
                 self.graph.current.emit(
                     pyassem.Instruction(opcode, randomized_oparg, ioparg)
                 )
             elif opcode in Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
-                ioparg = self.randomize_name(
-                    opcode, oparg, randomized_oparg, self.graph.varnames
-                )
+                ioparg = replace_name_var(oparg, randomized_oparg, self.graph.varnames)
                 self.graph.current.emit(
                     pyassem.Instruction(opcode, randomized_oparg, ioparg)
                 )
@@ -89,63 +92,31 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
                 opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS
                 and oparg != randomized_oparg
             ):
-                ioparg = self.randomize_const(opcode, oparg, randomized_oparg)
+                ioparg = replace_const_var(
+                    self.graph.get_const_key(oparg),
+                    self.graph.get_const_key(randomized_oparg),
+                    self.graph.consts,
+                )
+                self.graph.current.emit(
+                    pyassem.Instruction(opcode, randomized_oparg, ioparg)
+                )
+            elif (
+                opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE
+                or opcode == "LOAD_CLOSURE"
+            ):
+                ioparg = replace_closure_var(
+                    oparg,
+                    randomized_oparg,
+                    ioparg,
+                    self.graph.freevars,
+                    self.graph.cellvars,
+                )
                 self.graph.current.emit(
                     pyassem.Instruction(opcode, randomized_oparg, ioparg)
                 )
             else:
+                ioparg = generate_random_ioparg(opcode, ioparg)
                 self.graph.current.emit(pyassem.Instruction(opcode, oparg, ioparg))
-
-        if opcode == "SET_LINENO" and not self.graph.first_inst_lineno:
-            self.graph.first_inst_lineno = ioparg
-
-    # swaps a name with a randomized one, returns index of new name
-    def randomize_name(
-        self, opcode: str, name: str, randomized_name: str, location: pyassem.IndexedSet
-    ) -> int:
-        if name in location:
-            del location.keys[name]
-        location.get_index(randomized_name)
-        return self.graph.convertArg(opcode, randomized_name)
-
-    def randomize_const(
-        self, opcode: str, oparg: object, randomized_oparg: object
-    ) -> int:
-        key = self.graph.get_const_key(oparg)
-        oparg_index = self.graph.consts[key]
-        del self.graph.consts[key]
-        self.graph.consts[self.graph.get_const_key(randomized_oparg)] = oparg_index
-        return oparg_index
-
-    def randomize_variable(self, var: object) -> object:
-        if isinstance(var, str):
-            return self.generate_random_string(
-                var, STR_LEN_LOWER_BOUND, STR_LEN_UPPER_BOUND
-            )
-        elif isinstance(var, int):
-            return self.generate_random_integer(var, INT_LOWER_BOUND, INT_UPPER_BOUND)
-        elif isinstance(var, tuple):
-            return tuple(self.randomize_variable(i) for i in var)
-        else:
-            return var
-
-    # generates random string within bounds
-    def generate_random_string(self, original: str, lower: int, upper: int) -> str:
-        newlen = random.randint(lower, upper)
-        random_str = "".join(
-            random.choice(string.ascii_letters + string.digits + string.punctuation)
-            for i in range(newlen)
-        )
-        # ensuring random str is not the same as original
-        if random_str == original:
-            return self.generate_random_string(original, lower, upper)
-        return random_str
-
-    def generate_random_integer(self, original: int, lower: int, upper: int) -> int:
-        random_int = random.randint(lower, upper)
-        if random_int == original:
-            return self.generate_random_integer(original, lower, upper)
-        return random_int
 
     INSTRS_WITH_OPARG_IN_CONSTS = {
         "LOAD_CONST",
@@ -192,11 +163,49 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "LOAD_METHOD",
     }
 
-    DEREF_INSTRS = {
+    INSTRS_WITH_OPARG_IN_CLOSURE = {
         "LOAD_DEREF",
         "STORE_DEREF",
         "DELETE_DEREF",
         "LOAD_CLASSDEREF",
+    }
+
+    INSTRS_WITH_BRANCHES = {
+        "FOR_ITER",
+        "JUMP_ABSOLUTE",
+        "JUMP_FORWARD",
+        "JUMP_IF_FALSE_OR_POP",
+        "JUMP_IF_TRUE_OR_POP",
+        "POP_JUMP_IF_FALSE",
+        "POP_JUMP_IF_TRUE",
+        "RETURN_VALUE",
+        "RAISE_VARARGS",
+        "JUMP_ABSOLUTE",
+        "JUMP_FORWARD",
+    }
+
+    # these are instructions where the oparg directly informs stack depth
+    # will not randomize these opargs
+    INSTRS_WITH_OPARG_AFFECTING_STACK = {
+        "MAKE_FUNCTION",
+        "CALL_FUNCTION",
+        "BUILD_MAP",
+        "BUILD_MAP_UNPACK",
+        "BUILD_MAP_UNPACK_WITH_CALL",
+        "BUILD_CONST_KEY_MAP",
+        "UNPACK_SEQUENCE",
+        "UNPACK_EX",
+        "BUILD_TUPLE",
+        "BUILD_LIST",
+        "BUILD_SET",
+        "BUILD_STRING",
+        "BUILD_LIST_UNPACK",
+        "BUILD_TUPLE_UNPACK",
+        "BUILD_TUPLE_UNPACK_WITH_CALL",
+        "BUILD_SET_UNPACK",
+        "CALL_FUNCTION_KW",
+        "CALL_FUNCTION_EX",
+        "CALL_METHOD",
     }
 
 
@@ -247,6 +256,82 @@ def print_code_object(code: types.CodeType) -> None:
         for i in code_obj.co_consts:
             if isinstance(i, types.CodeType):
                 stack.append((i, level + 1))
+
+
+def replace_closure_var(
+    name: str,
+    randomized_name: str,
+    ioparg: int,
+    freevars: pyassem.IndexedSet,
+    cellvars: pyassem.IndexedSet,
+) -> int:
+    if name in freevars:
+        del freevars.keys[name]
+        return freevars.get_index(randomized_name)
+    else:
+        del cellvars.keys[name]
+        return cellvars.get_index(randomized_name)
+
+
+def replace_name_var(
+    name: str, randomized_name: str, location: pyassem.IndexedSet
+) -> int:
+    if name in location:
+        del location.keys[name]
+    return location.get_index(randomized_name)
+
+
+def replace_const_var(
+    old_key: tuple,
+    new_key: tuple,
+    consts: dict,
+) -> int:
+    oparg_index = consts[old_key]
+    del consts[old_key]
+    consts[new_key] = oparg_index
+    return oparg_index
+
+
+def generate_random_ioparg(opcode: str, ioparg: int):
+    if (
+        opcode in Fuzzer.INSTRS_WITH_BRANCHES
+        or opcode in Fuzzer.INSTRS_WITH_OPARG_AFFECTING_STACK
+        or opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS
+    ):
+        return ioparg
+    return generate_random_integer(ioparg, OPARG_LOWER_BOUND, OPARG_UPPER_BOUND)
+
+
+def randomize_variable(var: object) -> object:
+    if isinstance(var, str):
+        return generate_random_string(var, STR_LEN_LOWER_BOUND, STR_LEN_UPPER_BOUND)
+    elif isinstance(var, int):
+        return generate_random_integer(var, INT_LOWER_BOUND, INT_UPPER_BOUND)
+    elif isinstance(var, tuple):
+        return tuple(randomize_variable(i) for i in var)
+    elif isinstance(var, frozenset):
+        return frozenset(randomize_variable(i) for i in var)
+    else:
+        return var
+
+
+def generate_random_string(original: str, lower: int, upper: int) -> str:
+    newlen = random.randint(lower, upper)
+    random_str = "".join(
+        random.choice(string.ascii_letters + string.digits + string.punctuation)
+        for i in range(newlen)
+    )
+    # ensuring random str is not the same as original
+    if random_str == original:
+        return generate_random_string(original, lower, upper)
+    return random_str
+
+
+def generate_random_integer(original: int, lower: int, upper: int) -> int:
+    random_int = random.randint(lower, upper)
+    if random_int == original:
+        return generate_random_integer(original, lower, upper)
+    return random_int
 
 
 if __name__ == "__main__":

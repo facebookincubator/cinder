@@ -1,11 +1,12 @@
 import os
 import sys
 import unittest
+from compiler import compile, pyassem
 from inspect import cleandoc
 
 sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
 import fuzzer
-from fuzzer import FuzzerReturnTypes
+from fuzzer import Fuzzer, FuzzerReturnTypes
 
 try:
     import cinderjit
@@ -25,94 +26,69 @@ class FuzzerSyntaxTest(unittest.TestCase):
             fuzzer.fuzzer_compile(codestr)[1], FuzzerReturnTypes.SYNTAX_ERROR
         )
 
-    def test_code_str_valid_syntax_returns_SUCCESS(self):
-        codestr = cleandoc(
-            """
-        def f():
-            return 4+5
-        """
+
+class FuzzerOpargsFuzzingTest(unittest.TestCase):
+    def test_randomized_string_is_different_from_original(self):
+        original_string = "hello"
+        self.assertNotEqual(original_string, fuzzer.randomize_variable(original_string))
+
+    def test_randomized_int_is_different_from_original(self):
+        original_int = 5
+        self.assertNotEqual(original_int, fuzzer.randomize_variable(original_int))
+
+    def test_randomized_tuple_is_different_from_original(self):
+        original_tuple = ("hello", 6)
+        randomized_tuple = fuzzer.randomize_variable(original_tuple)
+        # checking that every element of the tuple is fuzzed
+        self.assertNotEqual(original_tuple, randomized_tuple)
+        for i in range(len(original_tuple)):
+            self.assertNotEqual(original_tuple[i], randomized_tuple[i])
+
+    def test_randomized_frozen_set_is_different_from_original(self):
+        original_frozenset = frozenset(["hello", 6])
+        randomized_frozenset = fuzzer.randomize_variable(original_frozenset)
+        self.assertNotEqual(original_frozenset, randomized_frozenset)
+        # checking that they have no elements in common
+        self.assertEqual(
+            original_frozenset.intersection(randomized_frozenset), frozenset()
         )
-        self.assertEqual(fuzzer.fuzzer_compile(codestr)[1], FuzzerReturnTypes.SUCCESS)
 
+    def test_replace_name_var_replaces_str(self):
+        name = "foo"
+        randomized_name = fuzzer.randomize_variable(name)
+        names = pyassem.IndexedSet(["hello", name])
+        idx = fuzzer.replace_name_var("foo", randomized_name, names)
+        self.assertEqual(names.index(randomized_name), 1)
+        self.assertEqual(idx, 1)
 
-class FuzzerNameFuzzingTest(unittest.TestCase):
-    def test_function_name_is_changed(self):
-        codestr = cleandoc(
-            """
-        def f():
-            return 4+5
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_names[0], "f")
+    def test_replace_const_var_replaces_const(self):
+        const = "HELLO"
+        consts = {(str, const): 0}
+        randomized_const = fuzzer.randomize_variable(const)
+        idx = fuzzer.replace_const_var((str, const), (str, randomized_const), consts)
+        self.assertEqual(consts, {(str, randomized_const): 0})
+        self.assertEqual(idx, 0)
 
-    def test_variable_name_is_changed(self):
-        codestr = cleandoc(
-            """
-        x = 6
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_varnames[0], "x")
+    def test_replace_closure_var_replaces_str(self):
+        var = "foo"
+        randomized_var = fuzzer.randomize_variable(var)
+        freevars = pyassem.IndexedSet(["hello", var])
+        cellvars = pyassem.IndexedSet()
+        idx = fuzzer.replace_closure_var(var, randomized_var, 1, freevars, cellvars)
+        self.assertEqual(freevars.index(randomized_var), 1)
+        self.assertEqual(idx, 1)
 
-    def test_embedded_function_name_is_changed(self):
-        codestr = cleandoc(
-            """
-            def foo():
-                x = 6
-                def f():
-                    return 4+5
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_varnames[1], "f")
+    def test_int_opargs_that_impact_stack_not_changed(self):
+        # oparg to BUILD_LIST affects stack directly, and thus should not be fuzzed
+        opcode = "BUILD_LIST"
+        ioparg = 5
+        self.assertEqual(ioparg, fuzzer.generate_random_ioparg(opcode, ioparg))
 
-    def test_embedded_variable_name_is_changed(self):
-        codestr = cleandoc(
-            """
-            def foo():
-                x = 6
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_varnames[0], "x")
-
-
-class FuzzerConstFuzzingTest(unittest.TestCase):
-    def test_const_int_is_changed(self):
-        codestr = cleandoc(
-            """
-            x = 6
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_consts[1], 6)
-
-    def test_const_str_is_changed(self):
-        codestr = cleandoc(
-            """
-            x = "hello"
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_consts[1], "hello")
-
-    def test_const_tuple_is_changed(self):
-        codestr = cleandoc(
-            """
-            x = ("hello", 6)
-        """
-        )
-        code_obj, fuzzer_return_type = fuzzer.fuzzer_compile(codestr)
-        self.assertEqual(fuzzer_return_type, FuzzerReturnTypes.SUCCESS)
-        self.assertNotEqual(code_obj.co_consts[0].co_consts[1], ("hello", 6))
-
+    def test_int_opargs_changed(self):
+        # oparg to SET_ADD does not impact stack at all, and should be fuzzed
+        opcode = "SET_ADD"
+        ioparg = 5
+        self.assertNotEqual(ioparg, fuzzer.generate_random_ioparg(opcode, ioparg))
 
 if __name__ == "__main__":
     unittest.main()
