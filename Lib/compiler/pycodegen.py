@@ -850,6 +850,7 @@ class CodeGenerator(ASTVisitor):
                 self.emit(
                     "POP_JUMP_IF_TRUE" if is_if_true else "POP_JUMP_IF_FALSE", next
                 )
+                self.nextBlock()
                 end = self.newBlock()
                 self.emit_noline("JUMP_FORWARD", end)
                 self.nextBlock(cleanup)
