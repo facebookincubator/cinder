@@ -2005,10 +2005,12 @@ class CodeGenerator(ASTVisitor):
                 else:
                     self.visit(elt)
             return
-
-        return self._visitSequenceLoad(
-            node.elts, build_op, add_op, extend_op, num_pushed=0, is_tuple=is_tuple
-        )
+        elif isinstance(ctx, ast.Load):
+            return self._visitSequenceLoad(
+                node.elts, build_op, add_op, extend_op, num_pushed=0, is_tuple=is_tuple
+            )
+        else:
+            return self.visit(node.elts)
 
     def visitStarred(self, node):
         if isinstance(node.ctx, ast.Store):
