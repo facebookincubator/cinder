@@ -26,6 +26,30 @@ IGNORE_PATTERNS = (
     "test/bad_coding",
     # run separately via test_corpus.py
     "test/test_compiler/testcorpus",
+    # Burn-down for full Python 3.10 compatibility
+    "test/test_cinderjit.py",
+    "test/test_grammar.py",
+    "test/test_aifc.py",
+    "test/test_tarfile.py",
+    "test/test_socket.py",
+    "test/test_compile.py",
+    "test/test_patma.py",
+    "test/test_sunau.py",
+    "tempfile.py",
+    "test/test_doctest.py",
+    "lib2to3/pytree.py",
+    "subprocess.py",
+    "test/test_sys_settrace.py",
+    "test/test_coroutines.py",
+    "test/test_json/__init__.py",
+    "nntplib.py",
+    "test/test_functools.py",
+    "tarfile.py",
+    "test/test_wave.py",
+    "test/test_asyncio/test_tasks.py",
+    "test/test_nntplib.py",
+    "test/test_poplib.py",
+    "test/test_urllib.py",
 )
 
 SbsCompileTests = []
