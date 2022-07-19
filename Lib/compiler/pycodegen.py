@@ -973,7 +973,7 @@ class CodeGenerator(ASTVisitor):
             gen.emit(opcode, oparg)
 
         gen.compile_comprehension_generator(
-            node.generators, 0, elt, val, type(node), True
+            node.generators, 0, 0, elt, val, type(node), True
         )
 
         if not isinstance(node, ast.GeneratorExp):
@@ -1015,19 +1015,19 @@ class CodeGenerator(ASTVisitor):
         )
 
     def compile_comprehension_generator(
-        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+        self, generators, gen_index, depth, elt, val, type, outermost_gen_is_param
     ):
         if generators[gen_index].is_async:
             self.compile_async_comprehension(
-                generators, gen_index, elt, val, type, outermost_gen_is_param
+                generators, gen_index, depth, elt, val, type, outermost_gen_is_param
             )
         else:
             self.compile_sync_comprehension(
-                generators, gen_index, elt, val, type, outermost_gen_is_param
+                generators, gen_index, depth, elt, val, type, outermost_gen_is_param
             )
 
     def compile_async_comprehension(
-        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+        self, generators, gen_index, depth, elt, val, type, outermost_gen_is_param
     ):
         start = self.newBlock("start")
         except_ = self.newBlock("except")
@@ -1052,10 +1052,11 @@ class CodeGenerator(ASTVisitor):
             self.compileJumpIf(if_, if_cleanup, False)
             self.newBlock()
 
+        depth += 1
         gen_index += 1
         if gen_index < len(generators):
             self.compile_comprehension_generator(
-                generators, gen_index, elt, val, type, False
+                generators, gen_index, depth, elt, val, type, False
             )
         elif type is ast.GeneratorExp:
             self.visit(elt)
@@ -1063,13 +1064,13 @@ class CodeGenerator(ASTVisitor):
             self.emit("POP_TOP")
         elif type is ast.ListComp:
             self.visit(elt)
-            self.emit("LIST_APPEND", gen_index + 1)
+            self.emit("LIST_APPEND", depth + 1)
         elif type is ast.SetComp:
             self.visit(elt)
-            self.emit("SET_ADD", gen_index + 1)
+            self.emit("SET_ADD", depth + 1)
         elif type is ast.DictComp:
             self.compile_dictcomp_element(elt, val)
-            self.emit("MAP_ADD", gen_index + 1)
+            self.emit("MAP_ADD", depth + 1)
         else:
             raise NotImplementedError("unknown comprehension type")
 
@@ -1080,7 +1081,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("END_ASYNC_FOR")
 
     def compile_sync_comprehension(
-        self, generators, gen_index, elt, val, type, outermost_gen_is_param
+        self, generators, gen_index, depth, elt, val, type, outermost_gen_is_param
     ):
         start = self.newBlock("start")
         skip = self.newBlock("skip")
@@ -1091,12 +1092,20 @@ class CodeGenerator(ASTVisitor):
         if gen_index == 0 and outermost_gen_is_param:
             self.loadName(".0")
         else:
-            self.visit(gen.iter)
-            self.emit("GET_ITER")
+            if isinstance(gen.iter, (ast.Tuple, ast.List)):
+                elts = gen.iter.elts
+                if len(elts) == 1 and not isinstance(elts[0], ast.Starred):
+                    self.visit(elts[0])
+                    start = None
+            if start:
+                self.visit(gen.iter)
+                self.emit("GET_ITER")
 
-        self.nextBlock(start)
-        self.emit("FOR_ITER", anchor)
-        self.nextBlock()
+        if start:
+            depth += 1
+            self.nextBlock(start)
+            self.emit("FOR_ITER", anchor)
+            self.nextBlock()
         self.visit(gen.target)
 
         for if_ in gen.ifs:
@@ -1106,7 +1115,7 @@ class CodeGenerator(ASTVisitor):
         gen_index += 1
         if gen_index < len(generators):
             self.compile_comprehension_generator(
-                generators, gen_index, elt, val, type, False
+                generators, gen_index, depth, elt, val, type, False
             )
         else:
             if type is ast.GeneratorExp:
@@ -1115,20 +1124,21 @@ class CodeGenerator(ASTVisitor):
                 self.emit("POP_TOP")
             elif type is ast.ListComp:
                 self.visit(elt)
-                self.emit("LIST_APPEND", gen_index + 1)
+                self.emit("LIST_APPEND", depth + 1)
             elif type is ast.SetComp:
                 self.visit(elt)
-                self.emit("SET_ADD", gen_index + 1)
+                self.emit("SET_ADD", depth + 1)
             elif type is ast.DictComp:
                 self.compile_dictcomp_element(elt, val)
-                self.emit("MAP_ADD", gen_index + 1)
+                self.emit("MAP_ADD", depth + 1)
             else:
                 raise NotImplementedError("unknown comprehension type")
 
             self.nextBlock(skip)
         self.nextBlock(if_cleanup)
-        self.emit("JUMP_ABSOLUTE", start)
-        self.nextBlock(anchor)
+        if start:
+            self.emit("JUMP_ABSOLUTE", start)
+            self.nextBlock(anchor)
 
     def compile_dictcomp_element(self, elt, val):
         self.visit(elt)
@@ -2533,7 +2543,7 @@ class CinderCodeGenerator(CodeGenerator):
             gen.emit(opcode, oparg)
 
         gen.compile_comprehension_generator(
-            node.generators, 0, elt, val, type(node), not scope.inlined
+            node.generators, 0, 0, elt, val, type(node), not scope.inlined
         )
 
         if scope.inlined:
