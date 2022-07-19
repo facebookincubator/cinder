@@ -1,16 +1,13 @@
 import ast
 import dis
-import glob
-import re
-import sys
 from compiler.dis_stable import Disassembler
 from compiler.pycodegen import compile as py_compile
-from io import StringIO, TextIOWrapper
+from io import StringIO
 from os import path
 from tokenize import detect_encoding
 from unittest import TestCase
 
-from .common import get_repo_root, glob_test
+from .common import glob_test
 
 
 # This must match the same global in runtest.py. Unfortuantely there isn't

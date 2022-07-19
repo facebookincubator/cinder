@@ -1,6 +1,7 @@
 import dis
 import glob
 import inspect
+import sys
 from compiler.pycodegen import make_compiler
 from io import StringIO
 from os import path
