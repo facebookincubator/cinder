@@ -844,9 +844,8 @@ class PyFlowGraph(FlowGraph):
         self.lnotab = lnotab = LineAddrTable(self.opcode)
         lnotab.setFirstLine(self.firstline)
 
-        prev_lineno = lnotab.prev_line
         for t in self.insts:
-            if prev_lineno != t.lineno:
+            if lnotab.current_line != t.lineno:
                 lnotab.nextLine(t.lineno)
             oparg = t.ioparg
             assert 0 <= oparg <= 0xFFFFFFFF, oparg
@@ -857,7 +856,6 @@ class PyFlowGraph(FlowGraph):
             if oparg > 0xFF:
                 lnotab.addCode(self.opcode.EXTENDED_ARG, (oparg >> 8) & 0xFF)
             lnotab.addCode(self.opcode.opmap[t.opname], oparg & 0xFF)
-            prev_lineno = t.lineno
 
         # Since the linetable format writes the end offset of bytecodes, we can't commit the
         # last write until all the instructions are iterated over.
