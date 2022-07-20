@@ -81,8 +81,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_MAP,
-    BUILD_MAP_UNPACK,
-    BUILD_MAP_UNPACK_WITH_CALL,
     BUILD_SET,
     BUILD_SLICE,
     BUILD_STRING,
@@ -921,12 +919,6 @@ void HIRBuilder::translate(
           emitBuildMap(tc, bc_instr);
           break;
         }
-        case BUILD_MAP_UNPACK:
-          emitBuildMapUnpack(tc, bc_instr, false);
-          break;
-        case BUILD_MAP_UNPACK_WITH_CALL:
-          emitBuildMapUnpack(tc, bc_instr, true);
-          break;
         case BUILD_SET: {
           emitBuildSet(tc, bc_instr);
           break;
@@ -3340,27 +3332,6 @@ void HIRBuilder::emitBuildMap(
   }
   stack.discard(dict_size * 2);
   stack.push(dict);
-}
-
-void HIRBuilder::emitBuildMapUnpack(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr,
-    bool with_call) {
-  Register* sum = temps_.AllocateStack();
-  tc.emit<MakeDict>(sum, 0, tc.frame);
-
-  int oparg = bc_instr.oparg();
-  auto& stack = tc.frame.stack;
-  Register* func = with_call ? stack.peek(oparg + 2) : temps_.AllocateStack();
-
-  for (int i = oparg; i > 0; i--) {
-    auto arg = stack.peek(i);
-    auto result = temps_.AllocateStack();
-    tc.emit<MergeDictUnpack>(result, sum, arg, func, tc.frame);
-  }
-
-  stack.discard(oparg);
-  stack.push(sum);
 }
 
 void HIRBuilder::emitBuildSet(

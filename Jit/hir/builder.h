@@ -248,10 +248,6 @@ class HIRBuilder {
   void emitBuildMap(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitBuildMapUnpack(
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr,
-      bool with_call);
   void emitBuildSet(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
