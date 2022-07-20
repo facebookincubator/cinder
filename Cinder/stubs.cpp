@@ -129,6 +129,13 @@ STUB(PyObject *, _PyCoro_NewNoFrame, PyThreadState *, PyCodeObject *)
 STUB(PyObject *, _PyAsyncGen_NewNoFrame, PyCodeObject *)
 STUB(PyObject *, _PyGen_NewNoFrame, PyCodeObject *)
 
+PyTypeObject PyWaitHandle_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "wait handle NOT IMPLEMENTED",
+    .tp_basicsize = sizeof(PyWaitHandleObject),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+};
+
 
 // Include/genobject.h
 STUB(void, _PyAwaitable_SetAwaiter, PyObject *, PyObject *)
