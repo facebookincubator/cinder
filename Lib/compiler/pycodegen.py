@@ -581,7 +581,6 @@ class CodeGenerator(ASTVisitor):
 
         first_lineno = node.lineno if first_lineno is None else first_lineno
         gen = self.make_class_codegen(node, first_lineno)
-        gen.graph.set_lineno(first_lineno)
         gen.emit("LOAD_NAME", "__name__")
         gen.storeName("__module__")
         gen.emit("LOAD_CONST", gen.get_qual_prefix(gen) + gen.name)
@@ -598,7 +597,7 @@ class CodeGenerator(ASTVisitor):
 
         self.walkClassBody(node, gen)
 
-        gen.nextBlock(label="exit")
+        gen.set_no_lineno()
         if "__class__" in gen.scope.cells:
             gen.emit("LOAD_CLOSURE", "__class__")
             gen.emit("DUP_TOP")

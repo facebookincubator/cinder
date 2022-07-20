@@ -32,7 +32,6 @@ IGNORE_PATTERNS = (
     "test/test_compile.py",
     "test/test_patma.py",
     "test/test_sunau.py",
-    "tempfile.py",
     "test/test_doctest.py",
     "lib2to3/pytree.py",
     "subprocess.py",
