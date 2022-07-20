@@ -131,6 +131,12 @@ class FlowGraph:
         # If non-zero, do not emit bytecode
         self.do_not_emit_bytecode = 0
 
+    def blocks_in_reverse_allocation_order(self):
+        for block in sorted(
+            self.ordered_blocks, key=lambda b: b.alloc_id, reverse=True
+        ):
+            yield block
+
     @contextmanager
     def new_compile_scope(self) -> Generator[CompileScope, None, None]:
         prev_current = self.current
@@ -537,7 +543,7 @@ class PyFlowGraph(FlowGraph):
 
         for block in self.ordered_blocks:
             self.normalize_basic_block(block)
-        for block in self.ordered_blocks:
+        for block in self.blocks_in_reverse_allocation_order():
             self.extend_block(block)
         self.optimizeCFG()
         self.duplicate_exits_without_lineno()
@@ -970,9 +976,7 @@ class PyFlowGraph(FlowGraph):
         """
         # Copy all exit blocks without line number that are targets of a jump.
         append_after = {}
-        for block in sorted(
-            self.ordered_blocks, key=lambda b: b.alloc_id, reverse=True
-        ):
+        for block in self.blocks_in_reverse_allocation_order():
             if block.insts and (last := block.insts[-1]).is_jump():
                 if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
                     continue
@@ -1022,7 +1026,7 @@ class PyFlowGraph(FlowGraph):
             optimizer.optimize_basic_block(block)
             optimizer.clean_basic_block(block, -1)
 
-        for block in self.ordered_blocks:
+        for block in self.blocks_in_reverse_allocation_order():
             self.extend_block(block)
 
         prev_block = None
