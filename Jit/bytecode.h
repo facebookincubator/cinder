@@ -60,16 +60,10 @@ class BytecodeInstruction {
   }
 
   bool IsBranch() const {
-#ifdef CINDER_PORTING_DONE
     return kBranchOpcodes.count(opcode()) || IsReadonlyBranch();
-#else
-    PORT_ASSERT("Need to correct kBranchOpcodes");
-#endif
   }
 
   bool IsCondBranch() const {
-#ifdef CINDER_PORTING_DONE
-    // TODO(mpage): Fill this out
     switch (opcode_) {
       case FOR_ITER:
       case POP_JUMP_IF_FALSE:
@@ -80,6 +74,7 @@ class BytecodeInstruction {
         return true;
       }
       case READONLY_OPERATION: {
+#ifdef CINDER_PORTING_DONE
         switch (ReadonlyOpcode()) {
           case READONLY_FOR_ITER: {
             return true;
@@ -88,14 +83,14 @@ class BytecodeInstruction {
             return false;
           }
         }
+#else
+        PORT_ASSERT("Needs Static Python + Readonly feature");
+#endif
       }
       default: {
         return false;
       }
     }
-#else
-    PORT_ASSERT("Needs Static Python + Readonly feature");
-#endif
   }
 
   bool IsRaiseVarargs() const {
@@ -111,7 +106,6 @@ class BytecodeInstruction {
   }
 
   Py_ssize_t GetJumpTarget() const {
-#ifdef CINDER_PORTING_DONE
     if (kRelBranchOpcodes.count(opcode())) {
       return NextInstrOffset() + oparg();
     }
@@ -119,9 +113,6 @@ class BytecodeInstruction {
       return ReadonlyJumpTarget();
     }
     return oparg();
-#else
-    PORT_ASSERT("Need to correct kBranchOpcodes");
-#endif
   }
 
   Py_ssize_t GetJumpTargetAsIndex() const {
@@ -144,27 +135,23 @@ class BytecodeInstruction {
     if (code == nullptr) {
       return nullptr;
     }
-#ifdef CINDER_PORTING_DONE
     switch (opcode()) {
       case READONLY_OPERATION: {
+#ifdef CINDER_PORTING_DONE
         PyObject* consts = code->co_consts;
         PyObject* op_tuple = PyTuple_GET_ITEM(consts, oparg());
         return BorrowedRef<PyTupleObject>(op_tuple);
+#else
+        PORT_ASSERT("Privacy features not yet ported");
+#endif
       }
       default:
         return nullptr;
     }
-#else
-    PORT_ASSERT("Privacy features not yet ported");
-#endif
   }
 
   bool IsReadonlyOp() const {
-#ifdef CINDER_PORTING_DONE
     return opcode() == READONLY_OPERATION;
-#else
-    PORT_ASSERT("Privacy features not yet ported");
-#endif
   }
 
   int ReadonlyOpcode() const {
@@ -192,7 +179,10 @@ class BytecodeInstruction {
       }
     }
 #else
-    PORT_ASSERT("Privacy features not yet ported");
+    if (IsReadonlyOp()) {
+      PORT_ASSERT("Privacy features not yet ported");
+    }
+    return false;
 #endif
   }
 
@@ -230,15 +220,13 @@ class BytecodeInstruction {
 // they will not appear in the stream of `BytecodeInstruction`s.
 class BytecodeInstructionBlock {
  public:
+  // TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
+  // CinderVM work.
   explicit BytecodeInstructionBlock(PyCodeObject* code)
-      : instrs_(code->co_rawcode_NOT_IMPLEMENTED),
+      : instrs_(code->co_rawcode),
         start_idx_(0),
-        end_idx_(code->co_codelen_NOT_IMPLEMENTED / sizeof(_Py_CODEUNIT)),
-        code_(code) {
- #ifndef CINDER_PORTING_DONE
-    PORT_ASSERT("Missing PyCodeObject features");
- #endif
-  }
+        end_idx_(code->co_codelen / sizeof(_Py_CODEUNIT)),
+        code_(code) {}
 
   BytecodeInstructionBlock(
       _Py_CODEUNIT* instrs,

@@ -1352,7 +1352,6 @@ int _PyJIT_Initialize() {
   INTERNED_STRINGS(INTERN_STR)
 #undef INTERN_STR
 
-#ifdef CINDER_PORTING_DONE
 #define MAKE_OPNAME(opname, opnum)                                   \
   if ((s_opnames.at(opnum) = PyUnicode_InternFromString(#opname)) == \
       nullptr) {                                                     \
@@ -1360,9 +1359,6 @@ int _PyJIT_Initialize() {
   }
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
-#else
-  PORT_ASSERT("Needs PY_OPCODES output from Tools/scripts/generate_opcode_h.py");
-#endif
 
   initFlagProcessor();
 
@@ -1441,7 +1437,9 @@ int _PyJIT_Initialize() {
   _PyThreadState_GetFrame =
       reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
 #else
-  PORT_ASSERT("Not sure if/how global getframe works in 3.10");
+  if (jit_config.frame_mode == SHADOW_FRAME) {
+    PORT_ASSERT("Not sure if/how global getframe works in 3.10");
+  }
 #endif
 
   total_compliation_time = 0.0;

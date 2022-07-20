@@ -184,8 +184,7 @@ PyTypeObject PyArray_Type = {
 };
 
 // Include/object.h
-STUB(int, Py_IS_IMMORTAL, PyObject*)
-
+int Py_IS_IMMORTAL(PyObject *) { return false; }
 
 // Objects/funcobject.c
 STUB(PyObject *, _PyFunction_GetSwitchboard, void)

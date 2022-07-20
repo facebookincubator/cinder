@@ -23,13 +23,14 @@
 #include "pycore_sysmodule.h"     // _PySys_Audit()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 
+#include "Jit/pyjit.h"
 #include "code.h"
 #include "dictobject.h"
 #include "frameobject.h"
 #include "opcode.h"
 #include "pydtrace.h"
 #include "setobject.h"
-#include "structmember.h"         // struct PyMemberDef, T_OFFSET_EX
+#include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
 
 #include <ctype.h>
 
@@ -6014,7 +6015,9 @@ PyEntry_LazyInit(PyFunctionObject *func,
                  Py_ssize_t nargsf,
                  PyObject *kwnames)
 {
+  if (!_PyJIT_IsEnabled() || _PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
     PyEntry_initnow(func);
+  }
     assert(func->vectorcall != (vectorcallfunc)PyEntry_LazyInit);
     return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
 }
@@ -6022,8 +6025,12 @@ PyEntry_LazyInit(PyFunctionObject *func,
 void
 PyEntry_init(PyFunctionObject *func)
 {
-    func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+  assert(!_PyJIT_IsCompiled((PyObject *)func));
+  // TODO(T126410180): Enable autojit
+  func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+  if (!_PyJIT_RegisterFunction(func)) {
     PyEntry_initnow(func);
+  }
 }
 
 /* Extract a slice index from a PyLong or an object with the

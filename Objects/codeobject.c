@@ -234,6 +234,24 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
             PyMem_Free(cell2arg);
         return NULL;
     }
+
+    /*
+     * TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
+     * CinderVM work.
+     */
+    Py_buffer codebuffer = {};
+    if (PyObject_GetBuffer(code, &codebuffer, PyBUF_SIMPLE) != 0) {
+      PyObject_DEL(co);
+      if (cell2arg)
+        PyMem_FREE(cell2arg);
+
+      PyErr_SetString(PyExc_TypeError, "Expected buffer like object");
+      return NULL;
+    }
+    co->co_rawcode = (_Py_CODEUNIT *)codebuffer.buf;
+    co->co_codelen = codebuffer.len;
+    PyBuffer_Release(&codebuffer);
+
     co->co_argcount = argcount;
     co->co_posonlyargcount = posonlyargcount;
     co->co_kwonlyargcount = kwonlyargcount;

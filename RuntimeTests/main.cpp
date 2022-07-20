@@ -10,17 +10,6 @@
 #include <cstring>
 #include <iostream>
 
-// Copied from ceval.c so this symbol exists in runtime_test build without
-// bringing in the rest of CPython.
-void _Py_NO_RETURN
-_Py_FatalError_TstateNULL(const char *func)
-{
-    _Py_FatalErrorFunc(func,
-                       "the function must be called with the GIL held, "
-                       "but the GIL is released "
-                       "(the current Python thread state is NULL)");
-}
-
 static constexpr char g_disabled_prefix[] = "@disabled";
 
 static void register_test(

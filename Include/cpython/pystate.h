@@ -147,6 +147,10 @@ struct _ts {
 
     CFrame root_cframe;
 
+    /* The current top of the shadow frame stack; analogous to the frame member
+     * up above. */
+    struct _PyShadowFrame *shadow_frame;
+
     /* XXX signal handlers should also be here */
 
 };

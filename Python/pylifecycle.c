@@ -15,6 +15,8 @@
 #include "pycore_sysmodule.h"     // _PySys_ClearAuditHooks()
 #include "pycore_traceback.h"     // _Py_DumpTracebackThreads()
 
+#include "Jit/pyjit.h"
+
 #include <locale.h>               // setlocale()
 
 #if defined(__APPLE__)
@@ -1088,6 +1090,20 @@ init_interp_main(PyThreadState *tstate)
         return _PyStatus_ERR("failed to update the Python config");
     }
 
+    /* Initialize JIT ASAP to catch functions included in bootstrap libraries.
+     * TODO(T126550863): Move this out of `init_interp_main` (potentially into
+     * `pyinit_main`).
+     */
+    if (is_main_interp) {
+      int pj_jit_status = _PyJIT_Initialize();
+      if (pj_jit_status < 0) {
+        if (pj_jit_status == -2) {
+          return PyStatus_Exit(0);
+        }
+        Py_FatalError("Can't initialize jit");
+      }
+    }
+
     status = init_importlib_external(tstate);
     if (_PyStatus_EXCEPTION(status)) {
         return status;
@@ -1839,6 +1855,8 @@ Py_FinalizeEx(void)
         _Py_PrintReferences(stderr);
     }
 #endif /* Py_TRACE_REFS */
+
+    _PyJIT_Finalize();
 
     finalize_interp_clear(tstate);
     finalize_interp_delete(tstate->interp);

@@ -21,7 +21,6 @@ using namespace jit;
 using namespace jit::codegen;
 using namespace jit::hir;
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 class ASMGeneratorTest : public RuntimeTest {
  public:
@@ -48,6 +47,8 @@ def func():
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 314159);
 }
+
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 TEST_F(ASMGeneratorTest, Fallthrough) {
   const char* src = R"(

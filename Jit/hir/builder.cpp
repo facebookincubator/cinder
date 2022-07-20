@@ -194,6 +194,13 @@ const std::unordered_set<int> kSupportedOpcodes = {
     YIELD_FROM,
     YIELD_VALUE,
 };
+#else
+const std::unordered_set<int> kSupportedOpcodes = {
+    LOAD_CONST,
+    LOAD_FAST,
+    RETURN_VALUE,
+    STORE_FAST,
+};
 #endif
 
 #ifdef CINDER_PORTING_DONE
@@ -220,7 +227,6 @@ const UnorderedMap<int, const char*> kReadonlyOperationNames = {
 #endif
 
 static bool can_translate(PyCodeObject* code) {
-#ifdef CINDER_PORTING_DONE
   static const std::unordered_set<std::string> kBannedNames{
       "eval", "exec", "locals"};
   PyObject* names = code->co_names;
@@ -243,6 +249,7 @@ static bool can_translate(PyCodeObject* code) {
       JIT_DLOG("'%s' unsupported", name_at(oparg));
       return false;
     } else if (opcode == READONLY_OPERATION) {
+#ifdef CINDER_PORTING_DONE
       int oparg = bci.oparg();
       PyObject* op_tuple = PyTuple_GET_ITEM(code->co_consts, oparg);
 
@@ -256,13 +263,14 @@ static bool can_translate(PyCodeObject* code) {
             kReadonlyOperationNames.at(op));
         return false;
       }
+#else
+      PORT_ASSERT(
+          "Need to re-review kSupportedReadonlyOperations + "
+          "kReadonlyOperationNames");
+#endif
     }
   }
   return true;
-#else
-  PORT_ASSERT("Need to re-review kSupportedOpcodes + kSupportedReadonlyOperations + kReadonlyOperationNames");
-  (void)code;
-#endif
 }
 
 void HIRBuilder::AllocateRegistersForLocals(
@@ -420,10 +428,42 @@ void HIRBuilder::addInitializeCells(
   }
 }
 
+// Opcodes that were added in 3.9 / 3.10. This can be removed once porting is
+// complete.
+static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
+    CONTAINS_OP,
+    COPY_DICT_WITHOUT_KEYS,
+    DICT_MERGE,
+    DICT_UPDATE,
+    GEN_START,
+    GET_LEN,
+    IS_OP,
+    JUMP_IF_NOT_EXC_MATCH,
+    LIST_EXTEND,
+    LIST_TO_TUPLE,
+    LOAD_ASSERTION_ERROR,
+    MATCH_CLASS,
+    MATCH_KEYS,
+    MATCH_MAPPING,
+    MATCH_SEQUENCE,
+    RERAISE,
+    ROT_N,
+    SET_UPDATE,
+    WITH_EXCEPT_START,
+};
+
 static bool should_snapshot(
     const BytecodeInstruction& bci,
     bool is_in_async_for_header_block) {
-#ifdef CINDER_PORTING_DONE
+  if (kNeedsSnapshotAnalysis.contains(bci.opcode())) {
+    fprintf(
+        stderr,
+        "Need to determine if opcode %d should be snapshotted\n",
+        bci.opcode());
+    PORT_ASSERT(
+        "Need to understand whether or not a snapshot should be take for new "
+        "opcode");
+  }
   switch (bci.opcode()) {
     // These instructions conditionally alter the operand stack based on which
     // branch is taken, thus we cannot safely take a snapshot in the same basic
@@ -498,11 +538,6 @@ static bool should_snapshot(
       return true;
     }
   }
-#else
-  PORT_ASSERT("Need to re-review opcodes for 3.10");
-  (void)bci;
-  (void)is_in_async_for_header_block;
-#endif
 }
 
 // Compute basic block boundaries and allocate corresponding HIR blocks
@@ -524,23 +559,18 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
       maybe_add_next_instr(bc_instr);
       auto target = bc_instr.GetJumpTargetAsIndex();
       block_starts.insert(target);
-    } else
-#ifdef CINDER_PORTING_DONE
-    auto opcode = bc_instr.opcode();
-    if (
-        // We always split after YIELD_FROM to handle the case where it's the
-        // top of an async-for loop and so generate a HIR conditional jump.
-        (opcode == RAISE_VARARGS) || (opcode == RETURN_VALUE) ||
-        (opcode == YIELD_FROM)) {
-      maybe_add_next_instr(bc_instr);
     } else {
-      JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
+      auto opcode = bc_instr.opcode();
+      if (
+          // We always split after YIELD_FROM to handle the case where it's the
+          // top of an async-for loop and so generate a HIR conditional jump.
+          (opcode == RAISE_VARARGS) || (opcode == RETURN_VALUE) ||
+          (opcode == YIELD_FROM)) {
+        maybe_add_next_instr(bc_instr);
+      } else {
+        JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
+      }
     }
-#else
-    {
-      PORT_ASSERT("Need to handle changed/missing opcodes");
-    }
-#endif
   }
 
   // Allocate blocks
@@ -822,12 +852,16 @@ void HIRBuilder::translate(
     Function& irfunc,
     const jit::BytecodeInstructionBlock& bc_instrs,
     const TranslationContext& tc) {
-#ifdef CINDER_PORTING_DONE
   std::deque<TranslationContext> queue = {tc};
   std::unordered_set<BasicBlock*> processed;
   std::unordered_set<BasicBlock*> loop_headers;
 
-  const CodeProfileData* profile_data = getProfileData(tc.frame.code);
+  //
+  // TODO(T126453666) - This should be the following, but
+  // relies on getting `PyCodeObject::co_qualname` working (T125853872).
+  //
+  //   profile_data = getProfileData(tc.frame.code);
+  const CodeProfileData* profile_data{nullptr};
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());
@@ -1428,12 +1462,6 @@ void HIRBuilder::translate(
   for (auto block : loop_headers) {
     insertEvalBreakerCheckForLoop(irfunc.cfg, block);
   }
-#else
-  PORT_ASSERT("Handle missing/changed opcodes");
-  (void)irfunc;
-  (void)bc_instrs;
-  (void)tc;
-#endif
 }
 
 void BlockCanonicalizer::InsertCopies(

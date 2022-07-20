@@ -3,6 +3,14 @@
 
 #include "pycore_runtime.h"   /* PyRuntimeState */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef Py_BUILD_CORE
+#error "this header requires Py_BUILD_CORE define"
+#endif
+
 /* Check if the current thread is the main thread.
    Use _Py_IsMainInterpreter() to check if it's the main interpreter. */
 static inline int
@@ -139,4 +147,7 @@ PyAPI_FUNC(int) _PyState_AddModule(
 
 PyAPI_FUNC(int) _PyOS_InterruptOccurred(PyThreadState *tstate);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* !Py_INTERNAL_PYSTATE_H */

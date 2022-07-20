@@ -62,12 +62,13 @@ struct PyCodeObject {
     int co_opcache_flag;  // used to determine when create a cache.
     unsigned char co_opcache_size;  // length of co_opcache.
 
-   /*
-    * Fields added for Cinder
-    */
+    /*
+     * Fields added for Cinder. TODO(T126419906): These should be removed as
+     * part of the CinderVM work.
+     */
 
-    _Py_CODEUNIT* co_rawcode_NOT_IMPLEMENTED;
-    Py_ssize_t co_codelen_NOT_IMPLEMENTED;
+    _Py_CODEUNIT *co_rawcode;
+    Py_ssize_t co_codelen;
 };
 
 /* Masks for co_flags above */

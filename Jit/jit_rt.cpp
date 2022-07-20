@@ -608,23 +608,17 @@ allocateFrame(PyThreadState* tstate, PyCodeObject* code, PyObject* globals) {
   if (builtins == NULL) {
     return NULL;
   }
-
-  Py_INCREF(builtins);
-  PyFrameObject* frame =
-      _PyFrame_NewWithBuiltins_NoTrack(tstate, code, globals, builtins, NULL);
-
-  if (frame == NULL) {
-    Py_DECREF(builtins);
-    return NULL;
-  }
-
-  return frame;
+  PyFrameConstructor frame_ctor = {
+      .fc_globals = globals,
+      .fc_builtins = builtins,
+      .fc_code = reinterpret_cast<PyObject*>(code),
+  };
+  return _PyFrame_New_NoTrack(tstate, &frame_ctor, nullptr);
 }
 
 PyThreadState* JITRT_AllocateAndLinkFrame(
     PyCodeObject* code,
     PyObject* globals) {
-#ifdef CINDER_PORTING_DONE
   PyThreadState* tstate = PyThreadState_GET();
   JIT_DCHECK(tstate != NULL, "thread state cannot be null");
 
@@ -632,17 +626,11 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
   if (frame == nullptr) {
     return nullptr;
   }
-  /* Set the currently-executing flag on the frame */
-  frame->f_executing = 1;
+  frame->f_state = FRAME_EXECUTING;
 
   tstate->frame = frame;
 
   return tstate;
-#else
-  PORT_ASSERT("Figure out how frame f_executing works now");
-  (void)code;
-  (void)globals;
-#endif
 }
 
 void JITRT_DecrefFrame(PyFrameObject* frame) {
@@ -658,16 +646,12 @@ void JITRT_DecrefFrame(PyFrameObject* frame) {
 }
 
 void JITRT_UnlinkFrame(PyThreadState* tstate) {
-#ifdef CINDER_PORTING_DONE
   PyFrameObject* f = tstate->frame;
-  f->f_executing = 0;
+
+  f->f_state = FRAME_RETURNED;
 
   tstate->frame = f->f_back;
   JITRT_DecrefFrame(f);
-#else
-  PORT_ASSERT("Figure out how frame f_executing works now");
-  (void)tstate;
-#endif
 }
 
 PyObject*

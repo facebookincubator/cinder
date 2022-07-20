@@ -61,16 +61,9 @@ static constexpr x86::Mem kInFrameOrigDataPtr = x86::ptr(
     -kJITShadowFrameSize + JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
 
 
-#ifdef CINDER_PORTING_DONE
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
   return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));
 }
-#else
-static x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
-  PORT_ASSERT("Needs shadow frames");
-  (void)tstate_reg;
-}
-#endif
 
 } // namespace shadow_frame
 
