@@ -61,6 +61,28 @@ Register* TempAllocator::AllocateNonStack() {
 #ifdef CINDER_PORTING_DONE
 // Needs reviewing for 3.10
 const std::unordered_set<int> kSupportedOpcodes = {
+    // CPython opcodes that were added in 3.9 / 3.10
+    CONTAINS_OP,
+    COPY_DICT_WITHOUT_KEYS, // T126141783
+    DICT_MERGE, // T126141766
+    DICT_UPDATE, // T126141847
+    GEN_START, // T126141847
+    GET_LEN, // T126141793
+    IS_OP, // T125844569
+    JUMP_IF_NOT_EXC_MATCH, // T125844569
+    LIST_EXTEND, // T126141737
+    LIST_TO_TUPLE, // T126141719
+    LOAD_ASSERTION_ERROR, // T126141711
+    MATCH_CLASS, // T126141840
+    MATCH_KEYS, // T126141817
+    MATCH_MAPPING, // T126141799
+    MATCH_SEQUENCE, // T126141809
+    RERAISE, // T126141686
+    ROT_N, // T126141852
+    SET_UPDATE, // T126141745
+    WITH_EXCEPT_START, // T126141703
+
+    // CPython opcodes that existed prior to 3.9
     BEFORE_ASYNC_WITH,
     BINARY_ADD,
     BINARY_AND,
@@ -76,8 +98,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_SUBTRACT,
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
-    BUILD_CHECKED_LIST,
-    BUILD_CHECKED_MAP,
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_MAP,
@@ -89,10 +109,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
     CALL_METHOD,
-    CAST,
-    CHECK_ARGS,
     COMPARE_OP,
-    CONVERT_PRIMITIVE,
     DELETE_ATTR,
     DELETE_FAST,
     DELETE_SUBSCR,
@@ -100,10 +117,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DUP_TOP_TWO,
     END_ASYNC_FOR,
     EXTENDED_ARG,
-    FAST_LEN,
     FORMAT_VALUE,
     FOR_ITER,
-    FUNC_CREDENTIAL,
     GET_AITER,
     GET_ANEXT,
     GET_AWAITABLE,
@@ -124,15 +139,10 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_SUBTRACT,
     INPLACE_TRUE_DIVIDE,
     INPLACE_XOR,
-    INT_LOAD_CONST_OLD,
-    INVOKE_FUNCTION,
-    INVOKE_METHOD,
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
-    JUMP_IF_NONZERO_OR_POP,
     JUMP_IF_TRUE_OR_POP,
-    JUMP_IF_ZERO_OR_POP,
     LIST_APPEND,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
@@ -140,40 +150,22 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_CONST,
     LOAD_DEREF,
     LOAD_FAST,
-    LOAD_FIELD,
     LOAD_GLOBAL,
-    LOAD_ITERABLE_ARG,
-    LOAD_LOCAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
-    LOAD_TYPE,
-    MAKE_FUNCTION,
+    MAKE_FUNCTION, // T126141867
     MAP_ADD,
     NOP,
     POP_BLOCK,
     POP_EXCEPT,
     POP_JUMP_IF_FALSE,
-    POP_JUMP_IF_NONZERO,
     POP_JUMP_IF_TRUE,
-    POP_JUMP_IF_ZERO,
     POP_TOP,
-    PRIMITIVE_BINARY_OP,
-    PRIMITIVE_BOX,
-    PRIMITIVE_COMPARE_OP,
-    PRIMITIVE_LOAD_CONST,
-    PRIMITIVE_UNARY_OP,
-    PRIMITIVE_UNBOX,
     RAISE_VARARGS,
-    READONLY_OPERATION,
-    REFINE_TYPE,
-    RETURN_PRIMITIVE,
     RETURN_VALUE,
     ROT_FOUR,
     ROT_THREE,
     ROT_TWO,
-    SEQUENCE_GET,
-    SEQUENCE_REPEAT,
-    SEQUENCE_SET,
     SETUP_ASYNC_WITH,
     SETUP_FINALLY,
     SETUP_WITH,
@@ -181,10 +173,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     STORE_ATTR,
     STORE_DEREF,
     STORE_FAST,
-    STORE_FIELD,
-    STORE_LOCAL,
     STORE_SUBSCR,
-    TP_ALLOC,
     UNARY_INVERT,
     UNARY_NEGATIVE,
     UNARY_NOT,
@@ -193,6 +182,43 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNPACK_SEQUENCE,
     YIELD_FROM,
     YIELD_VALUE,
+
+    // Static Python opcodes
+    BUILD_CHECKED_LIST,
+    BUILD_CHECKED_MAP,
+    CAST,
+    CHECK_ARGS,
+    CONVERT_PRIMITIVE,
+    FAST_LEN,
+    INT_LOAD_CONST_OLD,
+    INVOKE_FUNCTION,
+    INVOKE_METHOD,
+    JUMP_IF_NONZERO_OR_POP,
+    JUMP_IF_ZERO_OR_POP,
+    LOAD_FIELD,
+    LOAD_ITERABLE_ARG,
+    LOAD_LOCAL,
+    LOAD_TYPE,
+    POP_JUMP_IF_NONZERO,
+    POP_JUMP_IF_ZERO,
+    PRIMITIVE_BINARY_OP,
+    PRIMITIVE_BOX,
+    PRIMITIVE_COMPARE_OP,
+    PRIMITIVE_LOAD_CONST,
+    PRIMITIVE_UNARY_OP,
+    PRIMITIVE_UNBOX,
+    REFINE_TYPE,
+    RETURN_PRIMITIVE,
+    SEQUENCE_GET,
+    SEQUENCE_REPEAT,
+    SEQUENCE_SET,
+    STORE_FIELD,
+    STORE_LOCAL,
+    TP_ALLOC,
+
+    // Readonly
+    FUNC_CREDENTIAL,
+    READONLY_OPERATION,
 };
 #else
 const std::unordered_set<int> kSupportedOpcodes = {
