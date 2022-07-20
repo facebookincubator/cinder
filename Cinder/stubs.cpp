@@ -1,4 +1,5 @@
 #include "Python.h"
+#include "arraymodule.h"
 #include "classloader.h"
 #include "funccredobject.h"
 #include "switchboard.h"
@@ -172,6 +173,15 @@ STUB(int, _PyArray_SetItem, PyObject *, Py_ssize_t, PyObject *)
 STUB(int, _PyArray_AppendSigned, PyObject *, int64_t)
 STUB(int, _PyArray_AppendUnsigned, PyObject *, uint64_t)
 
+// If we decide to move the array module into CPython core we'll need to
+// figure out how we want to expose PyArray_Type to the JIT's type system.
+// 75bf107c converted the module to use heap types stored in the module's state.
+PyTypeObject PyArray_Type = {
+    .ob_base = PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "array stub NOT IMPLEMENTED",
+    .tp_basicsize = sizeof(PyStaticArrayObject),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+};
 
 // Include/object.h
 STUB(int, Py_IS_IMMORTAL, PyObject*)
