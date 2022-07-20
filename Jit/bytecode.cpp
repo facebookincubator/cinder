@@ -7,11 +7,7 @@
 
 namespace jit {
 
-#ifdef CINDER_PORTING_DONE
-
-// TODO(mpage): Flesh this out
 const std::unordered_set<int> kBranchOpcodes = {
-    CALL_FINALLY,
     FOR_ITER,
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
@@ -19,19 +15,18 @@ const std::unordered_set<int> kBranchOpcodes = {
     JUMP_IF_NONZERO_OR_POP,
     JUMP_IF_TRUE_OR_POP,
     JUMP_IF_ZERO_OR_POP,
+    JUMP_IF_NOT_EXC_MATCH,
     POP_JUMP_IF_FALSE,
     POP_JUMP_IF_TRUE,
     POP_JUMP_IF_ZERO,
     POP_JUMP_IF_NONZERO,
+    RERAISE,
 };
 
 const std::unordered_set<int> kRelBranchOpcodes = {
-    CALL_FINALLY,
     FOR_ITER,
     JUMP_FORWARD,
     SETUP_FINALLY,
 };
-
-#endif
 
 } // namespace jit
