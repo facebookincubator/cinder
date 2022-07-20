@@ -1,15 +1,9 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
-import _imp
-
 import builtins
-
-# pyre-ignore[21]: There's no stub for this one.
-import importlib._bootstrap_external
 import os
 import sys
-
 from cinder import StrictModule, watch_sys_modules
 from enum import Enum
 from importlib.abc import Loader
@@ -23,19 +17,11 @@ from importlib.machinery import (
     SourceFileLoader,
     SourcelessFileLoader,
 )
-from py_compile import (
-    _get_default_invalidation_mode,
-    PycInvalidationMode,
-    PyCompileError,
-)
-
-from importlib.util import cache_from_source, MAGIC_NUMBER as BASE_PYTHON_MAGIC_NUMBER
 from types import CodeType, ModuleType
 from typing import (
     Callable,
     cast,
     Collection,
-    Dict,
     final,
     Iterable,
     List,
@@ -48,31 +34,21 @@ from typing import (
 from _static import __build_cinder_class__
 
 from ..consts import CO_STATICALLY_COMPILED
-from .bytecode import (
-    classify_pyc,
-    code_to_pyc,
-    compile_static_bytecode,
-    validate_hash_pyc,
-    validate_timestamp_pyc,
-)
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
 
-# Force immediate resolution of Compiler and importlib.util in case it's deferred from Lazy Imports
+# Force immediate resolution of Compiler in case it's deferred from Lazy Imports
 Compiler = Compiler
 
 
-cache_from_source = cache_from_source
-code_to_pyc = code_to_pyc
-
-_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2**15).to_bytes(2, "little") + b"\r\n"
-_RAW_MAGIC_STRICT: int = int.from_bytes(_MAGIC_STRICT, "little")  # For import.c
-# We don't actually need to increment anything here unless the pyc format is changed, because the
-# strict modules AST rewrite has no impact on pycs for non-strict modules.
-_MAGIC_NONSTRICT: bytes = (1).to_bytes(2, "little") + b"\r\n"
-_RAW_MAGIC_NONSTRICT: int = int.from_bytes(_MAGIC_NONSTRICT, "little")  # For import.c
+_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
+# We don't actually need to increment anything here, because the strict modules
+# AST rewrite has no impact on pycs for non-strict modules. So we just always
+# use two zero bytes. This simplifies generating "fake" strict pycs for
+# known-not-to-be-strict third-party modules.
+_MAGIC_NONSTRICT: bytes = (0).to_bytes(2, "little") + b"\r\n"
 _MAGIC_LEN: int = len(_MAGIC_STRICT)
 
 
@@ -263,119 +239,33 @@ class StrictSourceFileLoader(SourceFileLoader):
             )
         return comp
 
-    def get_code(self, fullname: str) -> CodeType:
-        """
-        The `get_code` function is largely copied over from `importlib._bootstrap_external.SourceLoader.get_code`.
-
-        We override the implementation in order to be able to have the compilation of a static module from bytecode
-        fail if one of its dependencies has been invalidated.
-        """
-        source_path: str = cast(str, self.get_filename(fullname))
-        source_mtime = None
-        source_bytes = None
-        source_hash = None
-        hash_based = False
-        check_source = True
-        try:
-            bytecode_path = cache_from_source(source_path)
-            bytecode_path = add_strict_tag(bytecode_path, self.enable_patching)
-        except NotImplementedError:
-            bytecode_path = None
-        else:
-            try:
-                st = self.path_stats(source_path)
-            except OSError:
-                pass
+    def get_data(self, path: bytes | str) -> bytes:
+        assert isinstance(path, str)
+        is_pyc = False
+        if path.endswith(tuple(BYTECODE_SUFFIXES)):
+            is_pyc = True
+            path = add_strict_tag(path, self.enable_patching)
+            self.bytecode_path = path
+        data = super().get_data(path)
+        if is_pyc:
+            self.bytecode_found = True
+            magic = data[:_MAGIC_LEN]
+            if magic == _MAGIC_NONSTRICT:
+                self.strict = False
+            elif magic == _MAGIC_STRICT:
+                self.strict = True
             else:
-                source_mtime = int(st["mtime"])
-                try:
-                    data = self.get_data(bytecode_path)
-                    self.bytecode_found = True
-                    magic = data[:_MAGIC_LEN]
-                    if magic == _MAGIC_NONSTRICT:
-                        self.strict = False
-                    elif magic == _MAGIC_STRICT:
-                        self.strict = True
-                    else:
-                        raise OSError(
-                            f"Bad magic number {data[:4]!r} in {bytecode_path}"
-                        )
-                    data = data[_MAGIC_LEN:]
-                except OSError:
-                    pass
-                else:
-                    exc_details = {
-                        "name": fullname,
-                        "path": bytecode_path,
-                    }
-                    try:
-                        flags = classify_pyc(data, fullname, exc_details)
-                        bytes_data = memoryview(data)[16:]
-                        hash_based = flags & 0b1 != 0
-                        if hash_based:
-                            check_source = flags & 0b10 != 0
-                            if _imp.check_hash_based_pycs != "never" and (
-                                check_source or _imp.check_hash_based_pycs == "always"
-                            ):
-                                source_bytes = self.get_data(source_path)
-                                # pyre-ignore[16]: This is missing from the typeshed stubs.
-                                source_hash = _imp.source_hash(
-                                    _RAW_MAGIC_STRICT
-                                    if self.strict
-                                    else _RAW_MAGIC_NONSTRICT,
-                                    source_bytes,
-                                )
-                                validate_hash_pyc(
-                                    data, source_hash, fullname, exc_details
-                                )
-                        else:
-                            assert source_mtime is not None
-                            validate_timestamp_pyc(
-                                data,
-                                source_mtime,
-                                st["size"],
-                                fullname,
-                                exc_details,
-                            )
-                    except (ImportError, EOFError):
-                        pass
-                    else:
-                        result = compile_static_bytecode(
-                            # pyre-ignore[6]: memoryview is a bytes-like object.
-                            bytes_data,
-                            name=fullname,
-                            bytecode_path=bytecode_path,
-                            source_path=source_path,
-                        )
-                        if result is not None:
-                            return result
-
-        if source_bytes is None:
-            source_bytes = self.get_data(source_path)
-        self.bytecode_path = bytecode_path
-        code_object = self.source_to_code(source_bytes, source_path)
-        if (
-            not sys.dont_write_bytecode
-            and bytecode_path is not None
-            and source_mtime is not None
-        ):
-            data = code_to_pyc(
-                code_object,
-                source_bytes,
-                source_mtime=(None if hash_based else source_mtime),
-                source_hash=(source_hash if hash_based else None),
-                checked=check_source,
-            )
-            try:
-                # pyre-ignore[16]: Missing from stubs.
-                self._cache_bytecode(source_path, bytecode_path, data)
-            except NotImplementedError:
-                pass
-        return code_object
+                # This is a bit ugly: OSError is the only kind of error that
+                # get_code() ignores from get_data(). But this is way better
+                # than the alternative of copying and modifying everything.
+                raise OSError(f"Bad magic number {data[:4]!r} in {path}")
+            data = data[_MAGIC_LEN:]
+        return data
 
     def set_data(self, path: bytes | str, data: bytes, *, _mode=0o666) -> None:
         assert isinstance(path, str)
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
+            path = add_strict_tag(path, self.enable_patching)
             magic = _MAGIC_STRICT if self.strict else _MAGIC_NONSTRICT
             data = magic + data
         return super().set_data(path, data, _mode=_mode)
@@ -386,11 +276,7 @@ class StrictSourceFileLoader(SourceFileLoader):
     # pyre-ignore[40]: Non-static method `source_to_code` cannot override a static
     #  method defined in `importlib.abc.InspectLoader`.
     def source_to_code(
-        self,
-        data: bytes | str,
-        path: str,
-        *,
-        _optimize: int = -1,
+        self, data: bytes | str, path: str, *, _optimize: int = -1
     ) -> CodeType:
         log_source_load = self.log_source_load
         if log_source_load is not None:
@@ -519,105 +405,6 @@ def _get_supported_file_loaders() -> List[Tuple[Loader, List[str]]]:
     source = StrictSourceFileLoader, SOURCE_SUFFIXES
     bytecode = SourcelessFileLoader, BYTECODE_SUFFIXES
     return cast(List[Tuple[Loader, List[str]]], [extensions, source, bytecode])
-
-
-def strict_compile(
-    file: str,
-    cfile: str,
-    dfile: str | None = None,
-    doraise: bool = False,
-    optimize: int = -1,
-    # Since typeshed doesn't yet know about PycInvalidationMode, no way to
-    # convince Pyre it's a valid type here.  T54150924
-    invalidation_mode: object = None,
-    loader_override: object = None,
-    loader_options: Dict[str, str | int | bool] | None = None,
-) -> str | None:
-    """Byte-compile one Python source file to Python bytecode, using strict loader.
-
-    :param file: The source file name.
-    :param cfile: The target byte compiled file name.
-    :param dfile: Purported file name, i.e. the file name that shows up in
-        error messages.  Defaults to the source file name.
-    :param doraise: Flag indicating whether or not an exception should be
-        raised when a compile error is found.  If an exception occurs and this
-        flag is set to False, a string indicating the nature of the exception
-        will be printed, and the function will return to the caller. If an
-        exception occurs and this flag is set to True, a PyCompileError
-        exception will be raised.
-    :param optimize: The optimization level for the compiler.  Valid values
-        are -1, 0, 1 and 2.  A value of -1 means to use the optimization
-        level of the current interpreter, as given by -O command line options.
-    :return: Path to the resulting byte compiled file.
-
-    Copied and modified from https://github.com/python/cpython/blob/3.6/Lib/py_compile.py#L65
-
-    This version does not support cfile=None, since compileall never passes that.
-
-    """
-
-    modname = file
-    for dir in sys.path:
-        if file.startswith(dir):
-            modname = file[len(dir) :]
-            break
-
-    modname = modname.replace("/", ".")
-    if modname.endswith("__init__.py"):
-        modname = modname[: -len("__init__.py")]
-    elif modname.endswith(".py"):
-        modname = modname[: -len(".py")]
-    modname = modname.strip(".")
-
-    if loader_options is None:
-        loader_options = {}
-
-    # TODO we ignore loader_override; this module should be ported to Cinder
-    loader = StrictSourceFileLoader(
-        modname,
-        file,
-        import_path=sys.path,
-        **loader_options,
-    )
-    cfile = add_strict_tag(cfile, loader.enable_patching)
-    source_bytes = loader.get_data(file)
-    try:
-        code = loader.source_to_code(source_bytes, dfile or file, _optimize=optimize)
-    except Exception as err:
-        raise
-        py_exc = PyCompileError(err.__class__, err, dfile or file)
-        if doraise:
-            raise py_exc
-        else:
-            sys.stderr.write(py_exc.msg + "\n")
-            return
-    try:
-        dirname = os.path.dirname(cfile)
-        if dirname:
-            os.makedirs(dirname)
-    except FileExistsError:
-        pass
-    # Incomplete typeshed stub.  T54150924
-    if invalidation_mode is None:
-        # Incomplete typeshed stub.  T54150924
-        invalidation_mode = _get_default_invalidation_mode()
-
-    source_stats = loader.path_stats(file)
-    bytecode = code_to_pyc(
-        code,
-        source_bytes,
-        source_mtime=(
-            int(source_stats["mtime"])
-            if invalidation_mode == PycInvalidationMode.TIMESTAMP
-            else None
-        ),
-        source_hash=None,
-        checked=(invalidation_mode == PycInvalidationMode.CHECKED_HASH),
-    )
-    # Incomplete typeshed stub.
-    # pyre-fixme[16]: `StrictSourceFileLoader` has no attribute `_cache_bytecode`.
-    loader._cache_bytecode(file, cfile, bytecode)
-    return cfile
 
 
 def install() -> None:
