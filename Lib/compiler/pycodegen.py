@@ -742,25 +742,22 @@ class CodeGenerator(ASTVisitor):
 
     def visitBreak(self, node):
         self.emit("NOP")  # for line number
-        for b in reversed(self.setups):
-            self.unwind_setup_entry(b, 0)
-            if b.kind == WHILE_LOOP or b.kind == FOR_LOOP:
-                self.emit("JUMP_ABSOLUTE", b.exit)
-                self.nextBlock()
-                return
-        raise SyntaxError("'break' outside loop", self.syntax_error_position(node))
+        loop = self.unwind_setup_entries(preserve_tos=False, stop_on_loop=True)
+        if loop is None:
+            raise SyntaxError("'break' outside loop", self.syntax_error_position(node))
+        self.unwind_setup_entry(loop, preserve_tos=False)
+        self.emit("JUMP_ABSOLUTE", loop.exit)
+        self.nextBlock()
 
     def visitContinue(self, node):
         self.emit("NOP")  # for line number
-        for e in reversed(self.setups):
-            if e.kind in (FOR_LOOP, WHILE_LOOP):
-                self.emit("JUMP_ABSOLUTE", e.block)
-                self.nextBlock()
-                return
-            self.unwind_setup_entry(e, 0)
-        raise SyntaxError(
-            "'continue' not properly in loop", self.syntax_error_position(node)
-        )
+        loop = self.unwind_setup_entries(preserve_tos=False, stop_on_loop=True)
+        if loop is None:
+            raise SyntaxError(
+                "'continue' not properly in loop", self.syntax_error_position(node)
+            )
+        self.emit("JUMP_ABSOLUTE", loop.block)
+        self.nextBlock()
 
     def syntax_error_position(self, node):
         import linecache
@@ -2145,12 +2142,15 @@ class CodeGenerator(ASTVisitor):
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
         if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER, ASYNC_COMPREHENSION_GENERATOR):
             return
+
         elif e.kind == FOR_LOOP:
             if preserve_tos:
                 self.emit("ROT_TWO")
             self.emit("POP_TOP")
+
         elif e.kind == TRY_EXCEPT:
             self.emit("POP_BLOCK")
+
         elif e.kind == FINALLY_TRY:
             self.emit("POP_BLOCK")
             if preserve_tos:
@@ -2160,6 +2160,7 @@ class CodeGenerator(ASTVisitor):
             if preserve_tos:
                 self.setups.pop()
             self.set_no_lineno()
+
         elif e.kind == FINALLY_END:
             if preserve_tos:
                 self.emit("ROT_FOUR")
@@ -2169,6 +2170,7 @@ class CodeGenerator(ASTVisitor):
             if preserve_tos:
                 self.emit("ROT_FOUR")
             self.emit("POP_EXCEPT")
+
         elif e.kind in (WITH, ASYNC_WITH):
             assert isinstance(e.unwinding_datum, AST)
             self.set_lineno(e.unwinding_datum)
@@ -2182,6 +2184,7 @@ class CodeGenerator(ASTVisitor):
                 self.emit("YIELD_FROM")
             self.emit("POP_TOP")
             self.set_no_lineno()
+
         elif e.kind == HANDLER_CLEANUP:
             datum = e.unwinding_datum
             if datum is not None:
@@ -2193,16 +2196,30 @@ class CodeGenerator(ASTVisitor):
                 self.emit("LOAD_CONST", None)
                 self.storeName(datum)
                 self.delName(datum)
+
         elif e.kind == POP_VALUE:
             if preserve_tos:
                 self.emit("ROT_TWO")
             self.emit("POP_TOP")
+
         else:
             raise Exception(f"Unexpected kind {e.kind}")
 
-    def unwind_setup_entries(self, preserve_tos: bool) -> None:
-        for e in reversed(self.setups):
-            self.unwind_setup_entry(e, preserve_tos)
+    def unwind_setup_entries(
+        self, preserve_tos: bool, stop_on_loop: bool = False
+    ) -> Entry | None:
+        if len(self.setups) == 0:
+            return None
+
+        top = self.setups[-1]
+        if stop_on_loop and top.kind in (WHILE_LOOP, FOR_LOOP):
+            return top
+
+        copy = self.setups.pop()
+        self.unwind_setup_entry(copy, preserve_tos)
+        loop = self.unwind_setup_entries(preserve_tos, stop_on_loop)
+        self.setups.push(copy)
+        return loop
 
     @property
     def name(self):
