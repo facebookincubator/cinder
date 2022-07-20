@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/ast_preprocessor.h"
 
+#include "StrictModules/pycore_dependencies.h"
 #include "StrictModules/pystrictmodule.h"
 
 namespace strictmod {
@@ -19,7 +20,7 @@ void Preprocessor::preprocess() {
 }
 
 // module level
-void Preprocessor::visitStmtSeq(const asdl_seq* seq) {
+void Preprocessor::visitStmtSeq(const asdl_stmt_seq* seq) {
   for (int i = 0; i < asdl_seq_LEN(seq); i++) {
     stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, i));
     visitStmt(elt);
@@ -53,14 +54,14 @@ void Preprocessor::visitClassDef(const stmt_ty stmt) {
     newDecorators.emplace_back(makeName(ENABLE_SLOTS_DECORATOR));
   }
   auto& classDef = stmt->v.ClassDef;
-  asdl_seq* decorators = classDef.decorator_list;
+  asdl_expr_seq* decorators = classDef.decorator_list;
   classDef.decorator_list = withNewDecorators(decorators, newDecorators);
 }
 
 void Preprocessor::visitFunctionLikeHelper(
     void* node,
-    asdl_seq* body,
-    asdl_seq* decs) {
+    asdl_stmt_seq* body,
+    asdl_expr_seq* decs) {
   scopes_.emplace_back(false);
   visitStmtSeq(body);
   scopes_.pop_back();
@@ -94,7 +95,7 @@ void Preprocessor::visitFunctionLikeHelper(
       // We need to remove the original decorator and
       // add a new one. Just replace the old one with new one
       Ref<> isAsyncObj = Ref<>(isAsync ? Py_True : Py_False);
-      asdl_seq* args = makeCallArgs({isAsyncObj.release()});
+      asdl_expr_seq* args = makeCallArgs({isAsyncObj.release()});
       expr_ty call = makeCall(CACHED_PROP_DECORATOR, args);
       asdl_seq_SET(decs, toRemove, call);
     }
@@ -117,7 +118,7 @@ static int obj2ast_object(PyObject* obj, PyObject** out, PyArena* arena) {
   if (obj == Py_None)
     obj = NULL;
   if (obj) {
-    if (PyArena_AddPyObject(arena, obj) < 0) {
+    if (_PyArena_AddPyObject(arena, obj) < 0) {
       *out = NULL;
       return -1;
     }
@@ -137,7 +138,7 @@ expr_ty Preprocessor::makeName(const char* name) {
     throw std::runtime_error("error obtaining AST from node");
   }
   Py_CLEAR(nameObj);
-  return _Py_Name(nameAst, Load, 0, 0, 0, 0, arena_);
+  return _PyAST_Name(nameAst, Load, 0, 0, 0, 0, arena_);
 }
 
 expr_ty Preprocessor::makeNameCall(
@@ -149,19 +150,19 @@ expr_ty Preprocessor::makeNameCall(
   for (auto& a : args) {
     argObjs.emplace_back(PyUnicode_FromString(a.c_str()));
   }
-  asdl_seq* argsSeq = makeCallArgs(argObjs);
+  asdl_expr_seq* argsSeq = makeCallArgs(argObjs);
   return makeCall(name, argsSeq);
 }
 
-expr_ty Preprocessor::makeCall(const char* name, asdl_seq* args) {
+expr_ty Preprocessor::makeCall(const char* name, asdl_expr_seq* args) {
   expr_ty nameNode = makeName(name);
-  return _Py_Call(
-      nameNode, args, _Py_asdl_seq_new(0, arena_), 0, 0, 0, 0, arena_);
+  return _PyAST_Call(
+      nameNode, args, _Py_asdl_keyword_seq_new(0, arena_), 0, 0, 0, 0, arena_);
 }
 
-asdl_seq* Preprocessor::makeCallArgs(const std::vector<PyObject*>& args) {
+asdl_expr_seq* Preprocessor::makeCallArgs(const std::vector<PyObject*>& args) {
   size_t size = args.size();
-  asdl_seq* argsSeq = _Py_asdl_seq_new(size, arena_);
+  auto argsSeq = _Py_asdl_expr_seq_new(size, arena_);
   for (size_t i = 0; i < size; ++i) {
     PyObject* argAst;
     int res = obj2ast_object(args[i], &argAst, arena_);
@@ -170,18 +171,18 @@ asdl_seq* Preprocessor::makeCallArgs(const std::vector<PyObject*>& args) {
       throw std::runtime_error("error obtaining AST from node");
     }
     Py_XDECREF(args[i]);
-    expr_ty arg = _Py_Constant(argAst, NULL, 0, 0, 0, 0, arena_);
+    expr_ty arg = _PyAST_Constant(argAst, NULL, 0, 0, 0, 0, arena_);
     asdl_seq_SET(argsSeq, i, arg);
   }
   return argsSeq;
 }
 
-asdl_seq* Preprocessor::withNewDecorators(
-    asdl_seq* decs,
+asdl_expr_seq* Preprocessor::withNewDecorators(
+    asdl_expr_seq* decs,
     const std::vector<expr_ty>& newDecs) {
   size_t oldSize = asdl_seq_LEN(decs);
   size_t addSize = newDecs.size();
-  asdl_seq* newDecsSeq = _Py_asdl_seq_new(oldSize + addSize, arena_);
+  auto newDecsSeq = _Py_asdl_expr_seq_new(oldSize + addSize, arena_);
   for (size_t i = 0; i < oldSize; ++i) {
     asdl_seq_SET(newDecsSeq, i, asdl_seq_GET(decs, i));
   }
@@ -212,6 +213,7 @@ void Preprocessor::visitAssert(const stmt_ty) {}
 void Preprocessor::visitBreak(const stmt_ty) {}
 void Preprocessor::visitContinue(const stmt_ty) {}
 void Preprocessor::visitGlobal(const stmt_ty) {}
+void Preprocessor::visitMatch(const stmt_ty) {}
 // expressions
 void Preprocessor::visitConstant(const expr_ty) {}
 void Preprocessor::visitName(const expr_ty) {}

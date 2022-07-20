@@ -1,8 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 #include "Python.h"
-#include "ast.h"
-#include "symtable.h"
+#include "StrictModules/pycore_dependencies.h"
 
 // remove conflicting macros from python-ast.h
 #ifdef Compare

@@ -16,11 +16,11 @@ std::string mangle(const std::string& className, const std::string& name);
 struct PySymtableDeleter {
   /**
   Symtables are created using Python's symtable_new() method
-  and must be deleted using PySymtable_Free. This is a custom
+  and must be deleted using _PySymtable_Free. This is a custom
   deleter that does that and can be used in smart pointers
   */
   void operator()(PySymtable* p) {
-    PySymtable_Free(p);
+    _PySymtable_Free(p);
   }
 };
 

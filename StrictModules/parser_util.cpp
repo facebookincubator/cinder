@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/parser_util.h"
 
+#include "StrictModules/pycore_dependencies.h"
 #include <fstream>
 
 namespace strictmod {
@@ -38,14 +39,14 @@ std::optional<AstAndSymbols> readFromFile(
     }
   }
 
-  FILE* fp = _Py_fopen(filenameStr, "rb");
-
   PyObject* filename = PyUnicode_DecodeFSDefault(filenameStr);
+  FILE* fp = _Py_fopen_obj(filename, "rb");
+
   if (fp == nullptr || arena == nullptr) {
     goto error;
   }
 
-  mod = PyParser_ASTFromFileObject(
+  mod = _PyParser_ASTFromFile(
       fp,
       filename,
       nullptr,
@@ -58,11 +59,11 @@ std::optional<AstAndSymbols> readFromFile(
 
   if (mod == nullptr)
     goto error;
-  pyFutures = PyFuture_FromASTObject(mod, filename);
+  pyFutures = _PyFuture_FromAST(mod, filename);
   if (pyFutures == nullptr)
     goto error;
   futureAnnotations = pyFutures->ff_features & CO_FUTURE_ANNOTATIONS;
-  symbols = PySymtable_BuildObject(mod, filename, pyFutures);
+  symbols = _PySymtable_Build(mod, filename, pyFutures);
   if (symbols == nullptr)
     goto error;
   fclose(fp);
@@ -79,7 +80,7 @@ error:
   if (pyFutures != nullptr)
     PyObject_Free(pyFutures);
   if (symbols != nullptr)
-    PySymtable_Free(symbols);
+    _PySymtable_Free(symbols);
 
   return {};
 }
@@ -97,16 +98,16 @@ readFromSource(const char* source, const char* filenameStr, PyArena* arena) {
     goto error;
   }
 
-  mod = PyParser_ASTFromStringObject(
+  mod = _PyParser_ASTFromString(
       source, filename, Py_file_input, &localflags, arena);
 
   if (mod == nullptr)
     goto error;
-  pyFutures = PyFuture_FromASTObject(mod, filename);
+  pyFutures = _PyFuture_FromAST(mod, filename);
   if (pyFutures == nullptr)
     goto error;
   futureAnnotations = pyFutures->ff_features & CO_FUTURE_ANNOTATIONS;
-  symbols = PySymtable_BuildObject(mod, filename, pyFutures);
+  symbols = _PySymtable_Build(mod, filename, pyFutures);
   if (symbols == nullptr)
     goto error;
   PyObject_Free(pyFutures);
@@ -119,7 +120,7 @@ error:
   if (pyFutures != nullptr)
     PyObject_Free(pyFutures);
   if (symbols != nullptr)
-    PySymtable_Free(symbols);
+    _PySymtable_Free(symbols);
   return {};
 }
 

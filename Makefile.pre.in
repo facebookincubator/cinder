@@ -574,9 +574,6 @@ STRICTM_OBJS=       \
 		StrictModules/exceptions.o \
 		StrictModules/error_sink.o
 
-# TODO(T125621044): Disable compilation of Strict Modules until they work properly.
-STRICTM_OBJS=
-
 ##########################################################################
 # Objects
 OBJECT_OBJS=	\
@@ -1434,7 +1431,8 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/error_sink.h \
 		$(srcdir)/StrictModules/py_headers.h \
 		$(srcdir)/StrictModules/caller_context.h \
-		$(srcdir)/StrictModules/caller_context_impl.h
+		$(srcdir)/StrictModules/caller_context_impl.h \
+		$(srcdir)/StrictModules/pycore_dependencies.h
 
 STRICTM_PUBLIC_HEADERS= \
 		$(srcdir)/StrictModules/pystrictmodule.h

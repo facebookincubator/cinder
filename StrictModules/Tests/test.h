@@ -33,7 +33,7 @@ class PythonTest : public ::testing::Test {
 class AnalyzerTest : public PythonTest {
  public:
   bool analyzeFile(const char* name) {
-    PyArena* arena = PyArena_New();
+    PyArena* arena = _PyArena_New();
     auto result = strictmod::readFromFile(name, arena, {});
     EXPECT_NE(result, std::nullopt);
     auto errors = std::make_unique<strictmod::ErrorSink>();
@@ -53,7 +53,7 @@ class AnalyzerTest : public PythonTest {
     }
     success = !errors->hasError();
     if (arena != nullptr) {
-      PyArena_Free(arena);
+      _PyArena_Free(arena);
     }
     return success;
   }
@@ -62,7 +62,7 @@ class AnalyzerTest : public PythonTest {
     if (filename == nullptr) {
       filename = "<string>";
     }
-    PyArena* arena = PyArena_New();
+    PyArena* arena = _PyArena_New();
     auto result = strictmod::readFromSource(source, filename, arena);
     EXPECT_NE(result, std::nullopt);
     auto errors = std::make_unique<strictmod::ErrorSink>();
@@ -82,7 +82,7 @@ class AnalyzerTest : public PythonTest {
     }
     success = !errors->hasError();
     if (arena != nullptr) {
-      PyArena_Free(arena);
+      _PyArena_Free(arena);
     }
     return success;
   }

@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+typedef struct _arena PyArena;
+
 typedef struct _ErrorInfo {
   PyObject* msg;
   PyObject* filename;

@@ -21,7 +21,6 @@ class ASTVisitor {
       case Interactive_kind:
       case Expression_kind:
       case FunctionType_kind:
-      case Suite_kind:
       default:
         return static_cast<TAnalyzer*>(this)->defaultVisitMod();
     }
@@ -80,6 +79,8 @@ class ASTVisitor {
         return static_cast<TAnalyzer*>(this)->visitBreak(stmt);
       case Continue_kind:
         return static_cast<TAnalyzer*>(this)->visitContinue(stmt);
+      case Match_kind:
+        return static_cast<TAnalyzer*>(this)->visitMatch(stmt);
     }
     return static_cast<TAnalyzer*>(this)->defaultVisitStmt();
   }
@@ -140,6 +141,8 @@ class ASTVisitor {
         return static_cast<TAnalyzer*>(this)->visitList(expr);
       case Tuple_kind:
         return static_cast<TAnalyzer*>(this)->visitTuple(expr);
+      case Slice_kind:
+        return static_cast<TAnalyzer*>(this)->visitSlice(expr);
       default:
         break;
     }

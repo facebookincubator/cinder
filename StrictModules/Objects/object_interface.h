@@ -2,9 +2,7 @@
 #pragma once
 
 #include "StrictModules/caller_context.h"
-
-#include "Python.h"
-#include "Python-ast.h"
+#include "pycore_ast.h"
 
 namespace strictmod::objects {
 class BaseStrictObject;

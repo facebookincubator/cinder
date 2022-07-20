@@ -100,7 +100,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       std::shared_ptr<objects::StrictDict> globals,
       std::shared_ptr<objects::StrictDict> locals);
   // module level
-  void visitStmtSeq(const asdl_seq* seq);
+  void visitStmtSeq(const asdl_stmt_seq* seq);
   void visitStmtSeq(std::vector<stmt_ty> seq);
   // statements
   void visitImport(const stmt_ty stmt);
@@ -125,6 +125,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitBreak(const stmt_ty stmt);
   void visitContinue(const stmt_ty stmt);
   void visitGlobal(const stmt_ty stmt);
+  void visitMatch(const stmt_ty stmt);
   // expressions
   AnalysisResult visitConstant(const expr_ty expr);
   AnalysisResult visitName(const expr_ty expr);
@@ -140,6 +141,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   AnalysisResult visitBoolOp(const expr_ty expr);
   AnalysisResult visitNamedExpr(const expr_ty expr);
   AnalysisResult visitSubscript(const expr_ty expr);
+  AnalysisResult visitSlice(const expr_ty expr);
   AnalysisResult visitStarred(const expr_ty expr);
   AnalysisResult visitLambda(const expr_ty expr);
   AnalysisResult visitIfExp(const expr_ty expr);
@@ -201,15 +203,15 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       const std::string& name);
 
   std::vector<std::shared_ptr<BaseStrictObject>> visitListLikeHelper(
-      asdl_seq* elts);
+      asdl_expr_seq* elts);
 
   objects::DictDataT visitDictUnpackHelper(expr_ty keyExpr);
 
   AnalysisResult visitFunctionDefHelper(
       std::string name,
       arguments_ty args,
-      asdl_seq* body,
-      asdl_seq* decoratorList,
+      asdl_stmt_seq* body,
+      asdl_expr_seq* decoratorList,
       expr_ty returns,
       string typeComment,
       int lineno,
@@ -226,14 +228,14 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       arg_ty arg,
       objects::DictDataT& annotations);
 
-  bool visitExceptionHandlerHelper(asdl_seq* handlers, AnalysisResult exc);
-
-  AnalysisResult visitSliceHelper(slice_ty slice);
+  bool visitExceptionHandlerHelper(
+      asdl_excepthandler_seq* handlers,
+      AnalysisResult exc);
 
   template <typename CB, typename... Args>
   void visitGeneratorHelper(
       expr_ty node,
-      asdl_seq* generators,
+      asdl_comprehension_seq* generators,
       CB callback,
       Args... targets);
 
@@ -241,13 +243,13 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
   void visitGeneratorHelperInner(
       AnalysisResult iter,
       expr_ty iterTarget,
-      asdl_seq* ifs,
+      asdl_expr_seq* ifs,
       const std::vector<comprehension_ty>& comps,
       std::size_t idx,
       CB callback,
       Args... targets);
 
-  bool checkGeneratorIfHelper(asdl_seq* ifs);
+  bool checkGeneratorIfHelper(asdl_expr_seq* ifs);
 
   AnalysisResult callMagicalSuperHelper(AnalysisResult func);
 
@@ -260,7 +262,7 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       const expr_ty name,
       std::shared_ptr<BaseStrictObject> value);
   void assignToListLike(
-      asdl_seq* elts,
+      asdl_expr_seq* elts,
       std::shared_ptr<BaseStrictObject> value);
   void assignToAttribute(
       const expr_ty attr,
@@ -291,12 +293,12 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
 
 class TryFinallyManager {
  public:
-  TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody);
+  TryFinallyManager(Analyzer& analyzer, asdl_stmt_seq* finalbody);
   ~TryFinallyManager();
 
  private:
   Analyzer& analyzer_;
-  asdl_seq* finalbody_;
+  asdl_stmt_seq* finalbody_;
 };
 
 // Scope Data for strict module analysis

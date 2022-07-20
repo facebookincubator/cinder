@@ -7,7 +7,7 @@ class ParserTest : public PythonTest {};
 
 TEST_F(ParserTest, CanParseByFilename) {
   const char* name = "StrictModules/Tests/python_tests/simple_assign.py";
-  PyArena* arena = PyArena_New();
+  PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
       strictmod::readFromFile(name, arena, {});
@@ -16,25 +16,25 @@ TEST_F(ParserTest, CanParseByFilename) {
   EXPECT_NE(result.value().symbols, nullptr);
   EXPECT_EQ(result.value().futureAnnotations, false);
   if (arena != nullptr) {
-    PyArena_Free(arena);
+    _PyArena_Free(arena);
   }
 }
 
 TEST_F(ParserTest, CanHandleNonExist) {
   const char* name = "non exist file";
-  PyArena* arena = PyArena_New();
+  PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
       strictmod::readFromFile(name, arena, {});
   ASSERT_EQ(result, std::nullopt);
   if (arena != nullptr) {
-    PyArena_Free(arena);
+    _PyArena_Free(arena);
   }
 }
 
 TEST_F(ParserTest, CanParseSource) {
   const char* s = "import foo\nx=1";
-  PyArena* arena = PyArena_New();
+  PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
       strictmod::readFromSource(s, "<string>", arena);
@@ -43,13 +43,13 @@ TEST_F(ParserTest, CanParseSource) {
   EXPECT_NE(result.value().symbols, nullptr);
   EXPECT_EQ(result.value().futureAnnotations, false);
   if (arena != nullptr) {
-    PyArena_Free(arena);
+    _PyArena_Free(arena);
   }
 }
 
 TEST_F(ParserTest, CanParseFuture) {
   const char* s = "from __future__ import annotations\nx: int = 1";
-  PyArena* arena = PyArena_New();
+  PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
       strictmod::readFromSource(s, "<string>", arena);
@@ -58,6 +58,6 @@ TEST_F(ParserTest, CanParseFuture) {
   EXPECT_NE(result.value().symbols, nullptr);
   EXPECT_EQ(result.value().futureAnnotations, true);
   if (arena != nullptr) {
-    PyArena_Free(arena);
+    _PyArena_Free(arena);
   }
 }

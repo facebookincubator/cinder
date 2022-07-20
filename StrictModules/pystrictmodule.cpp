@@ -1,7 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "StrictModules/pystrictmodule.h"
 
+#include "StrictModules/pycore_dependencies.h"
 #include "structmember.h"
+
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
 extern "C" {
@@ -271,11 +273,10 @@ StrictModuleLoaderObject_new(PyTypeObject* type, PyObject*, PyObject*) {
 
 static int
 PyListToCharArray(PyObject* pyList, const char** arr, Py_ssize_t size) {
-  PyObject** items = _PyList_ITEMS(pyList);
   int _i;
   PyObject* elem;
   for (_i = 0; _i < size; _i++) {
-    elem = items[_i];
+    elem = PyList_GetItem(pyList, _i);
     if (!PyUnicode_Check(elem)) {
       PyErr_Format(
           PyExc_TypeError,

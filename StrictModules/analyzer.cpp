@@ -7,7 +7,7 @@
 #include "StrictModules/caller_context.h"
 #include "StrictModules/caller_context_impl.h"
 #include "StrictModules/exceptions.h"
-#include "asdl.h"
+#include "StrictModules/pycore_dependencies.h"
 
 namespace strictmod {
 using namespace objects;
@@ -495,8 +495,8 @@ void Analyzer::visitArgHelper(
 AnalysisResult Analyzer::visitFunctionDefHelper(
     std::string funcName,
     arguments_ty args,
-    asdl_seq* body,
-    asdl_seq* decoratorList,
+    asdl_stmt_seq* body,
+    asdl_expr_seq* decoratorList,
     expr_ty returns,
     string, // type_comment
     int lineno,
@@ -1054,7 +1054,7 @@ void Analyzer::visitRaise(const stmt_ty stmt) {
 }
 
 bool Analyzer::visitExceptionHandlerHelper(
-    asdl_seq* handlers,
+    asdl_excepthandler_seq* handlers,
     AnalysisResult exc) {
   int handlersSize = asdl_seq_LEN(handlers);
   for (int i = 0; i < handlersSize; ++i) {
@@ -1131,6 +1131,10 @@ void Analyzer::visitContinue(const stmt_ty) {
 }
 
 void Analyzer::visitGlobal(const stmt_ty) {}
+
+void Analyzer::visitMatch(const stmt_ty) {
+  context_.error<UnsupportedException>("match statement", "");
+}
 
 // Expressions
 AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
@@ -1296,7 +1300,7 @@ AnalysisResult Analyzer::callMagicalSuperHelper(AnalysisResult func) {
       context_);
 }
 
-std::vector<AnalysisResult> Analyzer::visitListLikeHelper(asdl_seq* elts) {
+std::vector<AnalysisResult> Analyzer::visitListLikeHelper(asdl_expr_seq* elts) {
   int eltsLen = asdl_seq_LEN(elts);
   std::vector<AnalysisResult> data;
   data.reserve(eltsLen);
@@ -1454,7 +1458,7 @@ AnalysisResult Analyzer::visitNamedExpr(const expr_ty expr) {
 AnalysisResult Analyzer::visitSubscript(const expr_ty expr) {
   auto subscrExpr = expr->v.Subscript;
   AnalysisResult base = visitExpr(subscrExpr.value);
-  AnalysisResult idx = visitSliceHelper(subscrExpr.slice);
+  AnalysisResult idx = visitExpr(subscrExpr.slice);
   return iGetElement(std::move(base), std::move(idx), context_);
 }
 
@@ -1462,52 +1466,31 @@ AnalysisResult Analyzer::visitStarred(const expr_ty expr) {
   return visitExpr(expr->v.Starred.value);
 }
 
-AnalysisResult Analyzer::visitSliceHelper(slice_ty slice) {
-  switch (slice->kind) {
-    case Slice_kind: {
-      auto sliceExp = slice->v.Slice;
-      AnalysisResult start =
-          sliceExp.lower ? visitExpr(sliceExp.lower) : NoneObject();
-      AnalysisResult stop =
-          sliceExp.upper ? visitExpr(sliceExp.upper) : NoneObject();
-      AnalysisResult step =
-          sliceExp.step ? visitExpr(sliceExp.step) : NoneObject();
-      return std::make_shared<StrictSlice>(
-          SliceType(),
-          context_.caller,
-          std::move(start),
-          std::move(stop),
-          std::move(step));
-    }
-    case ExtSlice_kind: {
-      auto extSliceExp = slice->v.ExtSlice;
-      int dimSize = asdl_seq_LEN(extSliceExp.dims);
-      std::vector<AnalysisResult> extTuple;
-      extTuple.reserve(dimSize);
-      for (int i = 0; i < dimSize; ++i) {
-        slice_ty dim =
-            reinterpret_cast<slice_ty>(asdl_seq_GET(extSliceExp.dims, i));
-        extTuple.push_back(visitSliceHelper(dim));
-      }
-      return std::make_shared<StrictTuple>(
-          TupleType(), context_.caller, std::move(extTuple));
-    }
-    case Index_kind:
-      return visitExpr(slice->v.Index.value);
-  }
-  Py_UNREACHABLE();
+AnalysisResult Analyzer::visitSlice(const expr_ty expr) {
+  auto sliceExp = expr->v.Slice;
+  AnalysisResult start =
+      sliceExp.lower ? visitExpr(sliceExp.lower) : NoneObject();
+  AnalysisResult stop =
+      sliceExp.upper ? visitExpr(sliceExp.upper) : NoneObject();
+  AnalysisResult step = sliceExp.step ? visitExpr(sliceExp.step) : NoneObject();
+  return std::make_shared<StrictSlice>(
+      SliceType(),
+      context_.caller,
+      std::move(start),
+      std::move(stop),
+      std::move(step));
 }
 
 AnalysisResult Analyzer::visitLambda(const expr_ty expr) {
   auto lambdaExp = expr->v.Lambda;
-  stmt_ty returnStmt = Return(
+  stmt_ty returnStmt = _PyAST_Return(
       lambdaExp.body,
       expr->lineno,
       expr->col_offset,
       expr->end_lineno,
       expr->end_col_offset,
       loader_->getArena());
-  asdl_seq* body = _Py_asdl_seq_new(1, loader_->getArena());
+  asdl_stmt_seq* body = _Py_asdl_stmt_seq_new(1, loader_->getArena());
   asdl_seq_SET(body, 0, returnStmt);
   return visitFunctionDefHelper(
       "<lambda>",
@@ -1589,7 +1572,7 @@ AnalysisResult Analyzer::visitGeneratorExp(const expr_ty expr) {
 template <typename CB, typename... Args>
 void Analyzer::visitGeneratorHelper(
     expr_ty node,
-    asdl_seq* generators,
+    asdl_comprehension_seq* generators,
     CB callback,
     Args... targets) {
   int numComps = asdl_seq_LEN(generators);
@@ -1621,7 +1604,7 @@ template <typename CB, typename... Args>
 void Analyzer::visitGeneratorHelperInner(
     AnalysisResult iter,
     expr_ty iterTarget,
-    asdl_seq* ifs,
+    asdl_expr_seq* ifs,
     const std::vector<comprehension_ty>& comps,
     std::size_t idx,
     CB callback,
@@ -1658,7 +1641,7 @@ void Analyzer::visitGeneratorHelperInner(
   }
 }
 
-bool Analyzer::checkGeneratorIfHelper(asdl_seq* ifs) {
+bool Analyzer::checkGeneratorIfHelper(asdl_expr_seq* ifs) {
   int size = asdl_seq_LEN(ifs);
   for (int i = 0; i < size; ++i) {
     expr_ty cond = reinterpret_cast<expr_ty>(asdl_seq_GET(ifs, i));
@@ -1759,7 +1742,7 @@ AnalysisResult Analyzer::visitJoinedStr(const expr_ty expr) {
   return context_.makeStr(std::move(result));
 }
 
-void Analyzer::visitStmtSeq(const asdl_seq* seq) {
+void Analyzer::visitStmtSeq(const asdl_stmt_seq* seq) {
   for (int i = 0; i < asdl_seq_LEN(seq); i++) {
     stmt_ty elt = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, i));
     visitStmt(elt);
@@ -1830,7 +1813,7 @@ void Analyzer::assignToName(const expr_ty target, AnalysisResult value) {
   }
 }
 
-void Analyzer::assignToListLike(asdl_seq* elts, AnalysisResult value) {
+void Analyzer::assignToListLike(asdl_expr_seq* elts, AnalysisResult value) {
   int eltsSize = asdl_seq_LEN(elts);
 
   // delete case
@@ -1907,7 +1890,7 @@ void Analyzer::assignToAttribute(const expr_ty attr, AnalysisResult value) {
 void Analyzer::assignToSubscript(const expr_ty subscr, AnalysisResult value) {
   auto subExpr = subscr->v.Subscript;
   AnalysisResult base = visitExpr(subExpr.value);
-  AnalysisResult slice = visitSliceHelper(subExpr.slice);
+  AnalysisResult slice = visitExpr(subExpr.slice);
   if (value == nullptr) {
     iDelElement(std::move(base), std::move(slice), context_);
   } else {
@@ -2028,7 +2011,9 @@ std::optional<AnalysisResult> Analyzer::getFromScope(const std::string& name) {
 }
 
 // TryFinallyManager
-TryFinallyManager::TryFinallyManager(Analyzer& analyzer, asdl_seq* finalbody)
+TryFinallyManager::TryFinallyManager(
+    Analyzer& analyzer,
+    asdl_stmt_seq* finalbody)
     : analyzer_(analyzer), finalbody_(finalbody) {}
 
 TryFinallyManager::~TryFinallyManager() {

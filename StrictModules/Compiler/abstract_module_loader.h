@@ -67,7 +67,7 @@ class ModuleLoader {
         forceStrict_(forceStrict),
         errorSinkFactory_(factory),
         deletedModules_() {
-    arena_ = PyArena_New();
+    arena_ = _PyArena_New();
     if (arena_ == nullptr) {
       throw std::runtime_error(kArenaNewErrorMsg);
     }
@@ -87,7 +87,7 @@ class ModuleLoader {
         am->cleanModuleContent();
       }
     }
-    PyArena_Free(arena_);
+    _PyArena_Free(arena_);
   }
 
   /**

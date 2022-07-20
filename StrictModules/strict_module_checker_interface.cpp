@@ -4,6 +4,7 @@
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Compiler/analyzed_module.h"
 #include "StrictModules/ast_preprocessor.h"
+#include "StrictModules/pycore_dependencies.h"
 
 #include <string>
 #include <utility>

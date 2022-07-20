@@ -26,7 +26,7 @@ class Preprocessor : public ASTVisitor<void, void, void, Preprocessor> {
   Preprocessor(mod_ty root, astToResultT* astMap, PyArena* arena);
   void preprocess();
   // module level
-  void visitStmtSeq(const asdl_seq* seq);
+  void visitStmtSeq(const asdl_stmt_seq* seq);
   // statements
   void visitImport(const stmt_ty stmt);
   void visitImportFrom(const stmt_ty stmt);
@@ -50,6 +50,7 @@ class Preprocessor : public ASTVisitor<void, void, void, Preprocessor> {
   void visitBreak(const stmt_ty stmt);
   void visitContinue(const stmt_ty stmt);
   void visitGlobal(const stmt_ty stmt);
+  void visitMatch(const stmt_ty stmt);
   // expressions
   void visitConstant(const expr_ty expr);
   void visitName(const expr_ty expr);
@@ -92,22 +93,23 @@ class Preprocessor : public ASTVisitor<void, void, void, Preprocessor> {
   std::vector<PreprocessorScope> scopes_;
   PyArena* arena_;
 
-  void visitFunctionLikeHelper(void* node, asdl_seq* body, asdl_seq* decs);
+  void
+  visitFunctionLikeHelper(void* node, asdl_stmt_seq* body, asdl_expr_seq* decs);
   /** create a Name node using the given string */
   expr_ty makeName(const char* name);
   /** create a Call node with string arguments */
   expr_ty makeNameCall(const char* name, const std::vector<std::string>& args);
   /** create a Call node */
-  expr_ty makeCall(const char* name, asdl_seq* args);
+  expr_ty makeCall(const char* name, asdl_expr_seq* args);
   /** Note that ownership of PyObject* in args are
    * transferred to the Call node
    */
-  asdl_seq* makeCallArgs(const std::vector<PyObject*>& args);
+  asdl_expr_seq* makeCallArgs(const std::vector<PyObject*>& args);
   /** create a new decorator list containing those in `decs`
    * then in `newDecs`
    */
-  asdl_seq* withNewDecorators(
-      asdl_seq* decs,
+  asdl_expr_seq* withNewDecorators(
+      asdl_expr_seq* decs,
       const std::vector<expr_ty>& newDecs);
 };
 

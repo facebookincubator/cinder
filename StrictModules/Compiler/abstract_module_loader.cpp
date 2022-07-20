@@ -42,7 +42,7 @@ std::optional<ModuleKind> getModuleKindFromAlias(
 }
 
 std::optional<ModuleKind> getModuleKindFromImportNames(
-    asdl_seq* importNames,
+    asdl_alias_seq* importNames,
     const char* strictFlag,
     const char* staticFlag) {
   size_t len = asdl_seq_LEN(importNames);
@@ -58,7 +58,9 @@ std::optional<ModuleKind> getModuleKindFromImportNames(
   return std::nullopt;
 }
 
-ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
+ModuleKind getModuleKindFromStmts(
+    const asdl_stmt_seq* seq,
+    ModuleInfo* modInfo) {
   Py_ssize_t n = asdl_seq_LEN(seq);
   bool seenDocStr = false;
   std::optional<ModuleKind> modKind = std::nullopt;
@@ -152,7 +154,6 @@ ModuleKind getModuleKind(ModuleInfo* modInfo) {
     case Interactive_kind:
     case Expression_kind:
     case FunctionType_kind:
-    case Suite_kind:
     default:
       return ModuleKind::kNonStrict;
   }

@@ -2,7 +2,9 @@
 #include "StrictModules/Compiler/stub.h"
 
 #include "StrictModules/Compiler/abstract_module_loader.h"
+#include "StrictModules/pycore_dependencies.h"
 
+#include "Jit/ref.h"
 #include <unordered_map>
 
 namespace strictmod::compiler {
@@ -11,7 +13,7 @@ const std::string kFullImplicitMarker = "__implicit__";
 
 class CannotDecideSourceException {};
 
-bool hasImplicitDecorator(asdl_seq* decorators) {
+bool hasImplicitDecorator(asdl_expr_seq* decorators) {
   int size = asdl_seq_LEN(decorators);
   for (int i = 0; i < size; ++i) {
     expr_ty dec = reinterpret_cast<expr_ty>(asdl_seq_GET(decorators, i));
@@ -156,7 +158,7 @@ void buildLocToSrcHelper(
       break;
     }
     case Assign_kind: {
-      asdl_seq* targets = s->v.Assign.targets;
+      asdl_expr_seq* targets = s->v.Assign.targets;
       int targetSize = asdl_seq_LEN(targets);
       for (int i = 0; i < targetSize; ++i) {
         expr_ty target = reinterpret_cast<expr_ty>(asdl_seq_GET(targets, i));
@@ -203,7 +205,7 @@ void updateStubHelper(
     const std::unordered_map<int, stmt_ty>& srcMap) {
   switch (stubMod->kind) {
     case Module_kind: {
-      asdl_seq* body = stubMod->v.Module.body;
+      asdl_stmt_seq* body = stubMod->v.Module.body;
       for (const auto& it : srcMap) {
         asdl_seq_SET(body, it.first, it.second);
       }
@@ -293,8 +295,9 @@ std::unique_ptr<ModuleInfo> getStubModuleInfo(
   // free the original symtable and create a new symtable with
   // new AST
   const char* filename = info->getFilename().c_str();
-  auto futureFeatures = PyFuture_FromAST(mod, filename);
-  auto symbolTable = PySymtable_Build(mod, filename, futureFeatures);
+  Ref<> filenameObj = Ref<>::steal(PyUnicode_FromString(filename));
+  auto futureFeatures = _PyFuture_FromAST(mod, filenameObj.get());
+  auto symbolTable = _PySymtable_Build(mod, filenameObj.get(), futureFeatures);
   PyObject_Free(futureFeatures);
 
   return std::make_unique<ModuleInfo>(

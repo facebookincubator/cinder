@@ -28,7 +28,7 @@ class B:
         del y
         y = 5
   )*";
-  PyArena* arena = PyArena_New();
+  PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
       strictmod::readFromSource(s, "<string>", arena);
@@ -62,7 +62,7 @@ class B:
   EXPECT_EQ(scopes.at(x).value(), 1);
 
   // class B scope
-  asdl_seq* seq = ast->v.Module.body;
+  asdl_stmt_seq* seq = ast->v.Module.body;
   stmt_ty classDef = reinterpret_cast<stmt_ty>(asdl_seq_GET(seq, 1));
   {
     ScopeManager classB = scopes.enterScopeByAst(classDef);
@@ -80,7 +80,7 @@ class B:
     EXPECT_EQ(topScope->at(x), 1);
 
     // function f scope
-    asdl_seq* classSeq = classDef->v.ClassDef.body;
+    asdl_stmt_seq* classSeq = classDef->v.ClassDef.body;
     stmt_ty funcDef = reinterpret_cast<stmt_ty>(asdl_seq_GET(classSeq, 1));
     {
       ScopeManager funcF = scopes.enterScopeByAst(funcDef);
@@ -127,6 +127,6 @@ class B:
   EXPECT_EQ(scopes.getCurrentClass(), std::nullopt);
 
   if (arena != nullptr) {
-    PyArena_Free(arena);
+    _PyArena_Free(arena);
   }
 }
