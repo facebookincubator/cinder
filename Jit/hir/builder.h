@@ -146,14 +146,10 @@ class HIRBuilder {
   BasicBlock* buildHIRImpl(Function* irfunc, FrameState* frame_state);
 
   struct TranslationContext;
-  // Completes compilation of a finally block
-  using FinallyCompleter =
-      std::function<void(TranslationContext&, const jit::BytecodeInstruction&)>;
   void translate(
       Function& irfunc,
       const jit::BytecodeInstructionBlock& bc_instrs,
-      const TranslationContext& tc,
-      FinallyCompleter complete_finally = nullptr);
+      const TranslationContext& tc);
   void emitProfiledTypes(
       TranslationContext& tc,
       const CodeProfileData& profile_data,
@@ -386,33 +382,6 @@ class HIRBuilder {
       CFG& cfg,
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitBeginFinally(
-      Function& irfunc,
-      TranslationContext& tc,
-      const BytecodeInstructionBlock& bc_instrs,
-      const jit::BytecodeInstruction& bc_instr,
-      std::deque<TranslationContext>& queue);
-  void emitCallFinally(
-      Function& irfunc,
-      TranslationContext& tc,
-      const BytecodeInstructionBlock& bc_instrs,
-      const jit::BytecodeInstruction& bc_instr,
-      std::deque<TranslationContext>& queue);
-  void emitEndFinally(
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr,
-      FinallyCompleter complete_finally);
-  void emitFinallyBlock(
-      Function& irfunc,
-      TranslationContext& tc,
-      const BytecodeInstructionBlock& bc_instrs,
-      std::deque<TranslationContext>& queue,
-      Py_ssize_t finally_off,
-      BasicBlock* ret_block);
-  void emitPopFinally(
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr,
-      FinallyCompleter complete_finally);
   void emitSetupFinally(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

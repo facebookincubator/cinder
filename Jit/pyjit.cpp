@@ -1918,7 +1918,6 @@ void _PyJIT_ProfileCurrentInstr(
     case BEFORE_ASYNC_WITH:
     case DELETE_ATTR:
     case END_ASYNC_FOR:
-    case END_FINALLY:
     case FOR_ITER:
     case GET_AITER:
     case GET_ANEXT:

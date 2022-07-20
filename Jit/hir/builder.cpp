@@ -62,7 +62,6 @@ Register* TempAllocator::AllocateNonStack() {
 // Needs reviewing for 3.10
 const std::unordered_set<int> kSupportedOpcodes = {
     BEFORE_ASYNC_WITH,
-    BEGIN_FINALLY,
     BINARY_ADD,
     BINARY_AND,
     BINARY_FLOOR_DIVIDE,
@@ -92,7 +91,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_TUPLE,
     BUILD_TUPLE_UNPACK,
     BUILD_TUPLE_UNPACK_WITH_CALL,
-    CALL_FINALLY,
     CALL_FUNCTION,
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
@@ -107,7 +105,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DUP_TOP,
     DUP_TOP_TWO,
     END_ASYNC_FOR,
-    END_FINALLY,
     EXTENDED_ARG,
     FAST_LEN,
     FORMAT_VALUE,
@@ -161,7 +158,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     NOP,
     POP_BLOCK,
     POP_EXCEPT,
-    POP_FINALLY,
     POP_JUMP_IF_FALSE,
     POP_JUMP_IF_NONZERO,
     POP_JUMP_IF_TRUE,
@@ -449,9 +445,6 @@ static bool should_snapshot(
     // These are all control instructions. Taking a snapshot after them in the
     // same basic block doesn't make sense, as control immediately transfers
     // to another basic block.
-    case BEGIN_FINALLY:
-    case CALL_FINALLY:
-    case END_FINALLY:
     case JUMP_ABSOLUTE:
     case JUMP_FORWARD:
     case POP_JUMP_IF_FALSE:
@@ -475,7 +468,6 @@ static bool should_snapshot(
     case LOAD_FAST:
     case LOAD_LOCAL:
     case NOP:
-    case POP_FINALLY:
     case POP_TOP:
     case PRIMITIVE_BOX:
     case PRIMITIVE_LOAD_CONST:
@@ -543,12 +535,11 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
     } else
 #ifdef CINDER_PORTING_DONE
     auto opcode = bc_instr.opcode();
-     if (
+    if (
         // We always split after YIELD_FROM to handle the case where it's the
         // top of an async-for loop and so generate a HIR conditional jump.
-        (opcode == BEGIN_FINALLY) || (opcode == END_FINALLY) ||
-        (opcode == POP_FINALLY) || (opcode == RAISE_VARARGS) ||
-        (opcode == RETURN_VALUE) || (opcode == YIELD_FROM)) {
+        (opcode == RAISE_VARARGS) || (opcode == RETURN_VALUE) ||
+        (opcode == YIELD_FROM)) {
       maybe_add_next_instr(bc_instr);
     } else {
       JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
@@ -713,21 +704,18 @@ void HIRBuilder::emitProfiledTypes(
 
   const std::vector<BorrowedRef<PyTypeObject>> first_profile = types[0];
 
-  if (bc_instr.opcode() == WITH_CLEANUP_START ||
-      bc_instr.opcode() == END_FINALLY) {
-    // TOS for WITH_CLEANUP_START can be nullptr or a type, and TOS for
-    // END_FINALLY can be nullptr, a type, or an int. In both cases, a type TOS
+  if (bc_instr.opcode() == WITH_CLEANUP_START) {
+    // TOS for WITH_CLEANUP_START can be nullptr or a type. A type TOS
     // signals that an exception has been raised and a nullptr TOS indicates a
     // normal exit from the context manager or finally block. Since we deopt
     // when an exception is raised, the JIT statically knows that TOS for
-    // WITH_CLEANUP_START is TNullptr, and that value flows to TOS for
-    // END_FINALLY.
+    // WITH_CLEANUP_START is TNullptr.
     //
-    // TODO(T110447724): If the profiled types for either opcode's TOS is is a
-    // type, that means that during profiling, we always left this block by
-    // raising an exception. This implies that the code we're compiling is
-    // probably unreachable, and we may want to consider leaving it out of the
-    // HIR to save space (replacing it with a Deopt).
+    // TODO(T110447724): If the profiled types for TOS is is a type, that means
+    // that during profiling, we always left this block by raising an
+    // exception. This implies that the code we're compiling is probably
+    // unreachable, and we may want to consider leaving it out of the HIR to
+    // save space (replacing it with a Deopt).
     //
     // More importantly, if we emit a GuardType<TypeExact> here, the TNullptr
     // TOS value will conflict with GuardType's input type of TObject. This is
@@ -861,8 +849,7 @@ InlineResult HIRBuilder::inlineHIR(
 void HIRBuilder::translate(
     Function& irfunc,
     const jit::BytecodeInstructionBlock& bc_instrs,
-    const TranslationContext& tc,
-    FinallyCompleter complete_finally) {
+    const TranslationContext& tc) {
 #ifdef CINDER_PORTING_DONE
   std::deque<TranslationContext> queue = {tc};
   std::unordered_set<BasicBlock*> processed;
@@ -1177,24 +1164,8 @@ void HIRBuilder::translate(
           tc.emit<Return>(reg);
           break;
         }
-        case BEGIN_FINALLY: {
-          emitBeginFinally(irfunc, tc, bc_instrs, bc_instr, queue);
-          break;
-        }
-        case CALL_FINALLY: {
-          emitCallFinally(irfunc, tc, bc_instrs, bc_instr, queue);
-          break;
-        }
         case END_ASYNC_FOR: {
           emitEndAsyncFor(tc);
-          break;
-        }
-        case END_FINALLY: {
-          emitEndFinally(tc, bc_instr, complete_finally);
-          break;
-        }
-        case POP_FINALLY: {
-          emitPopFinally(tc, bc_instr, complete_finally);
           break;
         }
         case SETUP_FINALLY: {
@@ -1436,20 +1407,6 @@ void HIRBuilder::translate(
     // untouched along the other. Thus, they must be special cased.
     BytecodeInstruction last_bc_instr = bc_block.lastInstr();
     switch (last_bc_instr.opcode()) {
-      case BEGIN_FINALLY:
-      case CALL_FINALLY:
-      case END_FINALLY:
-      case POP_FINALLY: {
-        // Opcodes for handling finally blocks are handled specially because
-        // CPython does not guarantee a constant stack depth when entering a
-        // finally block. We work around the issue by "tail duplicating" the
-        // finally block at each "call site" (BEGIN_FINALLY or CALL_FINALLY) by
-        // recursing into the compiler with a fresh set of basic blocks.  The
-        // callee then links the finally block back to us and queues the
-        // appropriate block for processing. See the various `emit` functions
-        // for these opcodes for the implementation.
-        break;
-      }
       case FOR_ITER: {
         auto condbr = static_cast<CondBranchIterNotDone*>(last_instr);
         auto new_frame = tc.frame;
@@ -1527,7 +1484,6 @@ void HIRBuilder::translate(
   (void)irfunc;
   (void)bc_instrs;
   (void)tc;
-  (void)complete_finally;
 #endif
 }
 
@@ -3777,114 +3733,6 @@ void HIRBuilder::emitUnpackSequence(
     tc.emit<LoadArrayItem>(item, list_mem, idx_reg, seq, 0, TObject);
     stack.push(item);
   }
-}
-
-void HIRBuilder::emitFinallyBlock(
-    Function& irfunc,
-    TranslationContext& tc,
-    const BytecodeInstructionBlock& bc_instrs,
-    std::deque<TranslationContext>& queue,
-    Py_ssize_t finally_off,
-    BasicBlock* ret_block) {
-#ifdef CINDER_PORTING_DONE
-  // Create a new set of basic blocks to house the finally block and jump there
-  BlockMap new_block_map = createBlocks(irfunc, bc_instrs);
-  BasicBlock* finally_block = map_get(new_block_map.blocks, finally_off);
-  tc.emit<Branch>(finally_block);
-  BlockCanonicalizer().Run(tc.block, temps_, tc.frame.stack);
-
-  // Recurse into translate() to duplicate the finally block.  `comp` will be
-  // invoked in the callee to link the finally block back to us.
-  std::swap(new_block_map, block_map_);
-  auto comp = [&](TranslationContext& ftc,
-                  const jit::BytecodeInstruction& bci) {
-    BasicBlock* succ = ret_block;
-    if (succ == nullptr || bci.opcode() == POP_FINALLY) {
-      // Resume execution at the next instruction after the finally block
-      succ = map_get(new_block_map.blocks, bci.NextInstrOffset());
-    }
-    ftc.emit<Branch>(succ);
-    BlockCanonicalizer().Run(ftc.block, temps_, ftc.frame.stack);
-    queue.emplace_back(succ, ftc.frame);
-  };
-  TranslationContext new_tc{finally_block, tc.frame};
-  translate(irfunc, bc_instrs, new_tc, comp);
-  std::swap(new_block_map, block_map_);
-#else
-  PORT_ASSERT("Needs Static Python features");
-  (void)irfunc;
-  (void)tc;
-  (void)bc_instrs;
-  (void)queue;
-  (void)finally_off;
-  (void)ret_block;
-#endif
-}
-
-void HIRBuilder::emitBeginFinally(
-    Function& irfunc,
-    TranslationContext& tc,
-    const BytecodeInstructionBlock& bc_instrs,
-    const jit::BytecodeInstruction& bc_instr,
-    std::deque<TranslationContext>& queue) {
-  Register* null = temps_.AllocateStack();
-  tc.emit<LoadConst>(null, TNullptr);
-  tc.frame.stack.push(null);
-
-  Py_ssize_t finally_off = bc_instr.NextInstrOffset();
-  emitFinallyBlock(irfunc, tc, bc_instrs, queue, finally_off, nullptr);
-}
-
-void HIRBuilder::emitCallFinally(
-    Function& irfunc,
-    TranslationContext& tc,
-    const BytecodeInstructionBlock& bc_instrs,
-    const jit::BytecodeInstruction& bc_instr,
-    std::deque<TranslationContext>& queue) {
-  Register* ret_off = temps_.AllocateStack();
-  tc.emit<LoadConst>(
-      ret_off, Type::fromCInt(bc_instr.NextInstrOffset(), TCInt64));
-  tc.frame.stack.push(ret_off);
-
-  BasicBlock* succ = getBlockAtOff(bc_instr.NextInstrOffset());
-  Py_ssize_t finally_off = bc_instr.GetJumpTarget();
-  emitFinallyBlock(irfunc, tc, bc_instrs, queue, finally_off, succ);
-}
-
-void HIRBuilder::emitEndFinally(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr,
-    FinallyCompleter complete_finally) {
-  // Normally the interpreter will find either 1 value (when no
-  // exception is active) or 6 values (when an exception is active) at
-  // the top of the stack. We are guaranteed to only ever encounter 1
-  // value at the top of the stack, as we deoptimize when an exception
-  // is active.
-  //
-  // In the interpreter case, the single value is either `nullptr` (if
-  // the finally block was entered via fallthrough) or an integer (if
-  // the finally block was entered via `CALL_FINALLY`).
-  tc.frame.stack.pop();
-  complete_finally(tc, bc_instr);
-}
-
-void HIRBuilder::emitPopFinally(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr,
-    FinallyCompleter complete_finally) {
-  if (bc_instr.oparg() == 0) {
-    // If oparg is 0, TOS is `nullptr` (if the finally block was entered via
-    // `BEGIN_FINALLY`) or an integer (if the finally block was entered via
-    // `CALL_FINALLY`). Both can be discarded, since execution always continues
-    // at the next instruction.
-    tc.frame.stack.pop();
-  } else {
-    // If oparg is 1, the return value is additionally pushed on the stack
-    Register* res = tc.frame.stack.pop();
-    tc.frame.stack.pop();
-    tc.frame.stack.push(res);
-  }
-  complete_finally(tc, bc_instr);
 }
 
 void HIRBuilder::emitSetupFinally(
