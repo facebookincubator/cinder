@@ -197,8 +197,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_POSITIVE,
     UNPACK_EX,
     UNPACK_SEQUENCE,
-    WITH_CLEANUP_FINISH,
-    WITH_CLEANUP_START,
     YIELD_FROM,
     YIELD_VALUE,
 };
@@ -704,26 +702,6 @@ void HIRBuilder::emitProfiledTypes(
 
   const std::vector<BorrowedRef<PyTypeObject>> first_profile = types[0];
 
-  if (bc_instr.opcode() == WITH_CLEANUP_START) {
-    // TOS for WITH_CLEANUP_START can be nullptr or a type. A type TOS
-    // signals that an exception has been raised and a nullptr TOS indicates a
-    // normal exit from the context manager or finally block. Since we deopt
-    // when an exception is raised, the JIT statically knows that TOS for
-    // WITH_CLEANUP_START is TNullptr.
-    //
-    // TODO(T110447724): If the profiled types for TOS is is a type, that means
-    // that during profiling, we always left this block by raising an
-    // exception. This implies that the code we're compiling is probably
-    // unreachable, and we may want to consider leaving it out of the HIR to
-    // save space (replacing it with a Deopt).
-    //
-    // More importantly, if we emit a GuardType<TypeExact> here, the TNullptr
-    // TOS value will conflict with GuardType's input type of TObject. This is
-    // currently the only situation where we try to give a possibly-null value
-    // to GuardType; if we run into more we may want to consider making
-    // GuardType null-aware.
-    return;
-  }
   // TODO(T115140951): Add a more robust method of determining what type
   // information differs between interpreter runs and static JITted bytecode
   if (bc_instr.opcode() == STORE_FIELD) {
@@ -1368,14 +1346,6 @@ void HIRBuilder::translate(
         }
         case SETUP_WITH: {
           emitSetupWith(tc, bc_instr);
-          break;
-        }
-        case WITH_CLEANUP_START: {
-          emitWithCleanupStart(tc);
-          break;
-        }
-        case WITH_CLEANUP_FINISH: {
-          emitWithCleanupFinish(tc);
           break;
         }
         default: {
@@ -3846,35 +3816,6 @@ void HIRBuilder::emitSetupWith(
   tc.frame.stack.push(enter_result);
 }
 
-void HIRBuilder::emitWithCleanupStart(TranslationContext& tc) {
-  // We currently deopt when an exception is raised, so we don't have to
-  // worry about the exception case. TOS should always be NULL.
-  auto& stack = tc.frame.stack;
-  Register* null = stack.pop();
-  Register* exit = stack.pop();
-  stack.push(null);
-
-  Register* none = temps_.AllocateStack();
-  tc.emit<LoadConst>(none, TNoneType);
-  Register* exit_result = temps_.AllocateStack();
-  VectorCall* call =
-      tc.emit<VectorCall>(4, exit_result, false /* is_awaited */);
-  call->setFrameState(tc.frame);
-  call->SetOperand(0, exit);
-  call->SetOperand(1, none);
-  call->SetOperand(2, none);
-  call->SetOperand(3, none);
-
-  stack.push(none);
-  stack.push(exit_result);
-}
-
-void HIRBuilder::emitWithCleanupFinish(TranslationContext& tc) {
-  auto& stack = tc.frame.stack;
-  stack.pop(); // unused result of __exit__
-  stack.pop(); // None
-}
-
 void HIRBuilder::emitLoadField(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
@@ -4015,7 +3956,6 @@ void HIRBuilder::emitGetAwaitable(
     CFG& cfg,
     TranslationContext& tc,
     int prev_op) {
-#ifdef CINDER_PORTING_DONE
   OperandStack& stack = tc.frame.stack;
   Register* iterable = stack.pop();
   Register* iter = temps_.AllocateStack();
@@ -4026,7 +3966,7 @@ void HIRBuilder::emitGetAwaitable(
       iter,
       CallCFunc::Func::k_PyCoro_GetAwaitableIter,
       std::vector<Register*>{iterable});
-  if (prev_op == BEFORE_ASYNC_WITH || prev_op == WITH_CLEANUP_START) {
+  if (prev_op == BEFORE_ASYNC_WITH) {
     BasicBlock* error_block = cfg.AllocateBlock();
     BasicBlock* ok_block = cfg.AllocateBlock();
     tc.emit<CondBranch>(iter, ok_block, error_block);
@@ -4063,12 +4003,6 @@ void HIRBuilder::emitGetAwaitable(
   stack.push(iter);
 
   tc.block = block_done.block;
-#else
-  PORT_ASSERT("What to do about WITH_CLEANUP_START (SP?) opcode?");
-  (void)cfg;
-  (void)tc;
-  (void)prev_op;
-#endif
 }
 
 void HIRBuilder::emitBuildString(

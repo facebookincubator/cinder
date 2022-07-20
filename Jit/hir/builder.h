@@ -403,8 +403,6 @@ class HIRBuilder {
   void emitSetupWith(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitWithCleanupStart(TranslationContext& tc);
-  void emitWithCleanupFinish(TranslationContext& tc);
   void emitYieldFrom(TranslationContext& tc, Register* out);
   void emitDispatchEagerCoroResult(
       CFG& cfg,

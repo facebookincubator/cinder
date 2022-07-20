@@ -1941,7 +1941,6 @@ void _PyJIT_ProfileCurrentInstr(
     case UNARY_POSITIVE:
     case UNPACK_EX:
     case UNPACK_SEQUENCE:
-    case WITH_CLEANUP_START:
     case YIELD_FROM:
     case YIELD_VALUE: {
       profile_stack(0);
@@ -1980,8 +1979,7 @@ void _PyJIT_ProfileCurrentInstr(
     case MAP_ADD:
     case SET_ADD:
     case STORE_ATTR:
-    case STORE_FIELD:
-    case WITH_CLEANUP_FINISH: {
+    case STORE_FIELD: {
       profile_stack(1, 0);
       break;
     }
