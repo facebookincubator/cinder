@@ -80,17 +80,13 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_CHECKED_MAP,
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
-    BUILD_LIST_UNPACK,
     BUILD_MAP,
     BUILD_MAP_UNPACK,
     BUILD_MAP_UNPACK_WITH_CALL,
     BUILD_SET,
-    BUILD_SET_UNPACK,
     BUILD_SLICE,
     BUILD_STRING,
     BUILD_TUPLE,
-    BUILD_TUPLE_UNPACK,
-    BUILD_TUPLE_UNPACK_WITH_CALL,
     CALL_FUNCTION,
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
@@ -913,11 +909,6 @@ void HIRBuilder::translate(
         case BUILD_TUPLE:
           emitMakeListTuple(tc, bc_instr);
           break;
-        case BUILD_LIST_UNPACK:
-        case BUILD_TUPLE_UNPACK:
-        case BUILD_TUPLE_UNPACK_WITH_CALL:
-          emitMakeListTupleUnpack(tc, bc_instr);
-          break;
         case BUILD_CHECKED_LIST: {
           emitBuildCheckedList(tc, bc_instr);
           break;
@@ -938,10 +929,6 @@ void HIRBuilder::translate(
           break;
         case BUILD_SET: {
           emitBuildSet(tc, bc_instr);
-          break;
-        }
-        case BUILD_SET_UNPACK: {
-          emitBuildSetUnpack(tc, bc_instr);
           break;
         }
         case BUILD_CONST_KEY_MAP: {
@@ -3285,41 +3272,6 @@ void HIRBuilder::emitMakeListTuple(
   tc.frame.stack.push(new_dst);
 }
 
-void HIRBuilder::emitMakeListTupleUnpack(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-#ifdef CINDER_PORTING_DONE
-  Register* list = temps_.AllocateStack();
-  tc.emit<MakeListTuple>(false, list, 0, tc.frame);
-
-  bool with_call = bc_instr.opcode() == BUILD_TUPLE_UNPACK_WITH_CALL;
-  int oparg = bc_instr.oparg();
-  Register* func =
-      with_call ? tc.frame.stack.peek(oparg + 1) : temps_.AllocateStack();
-
-  for (int i = oparg; i > 0; i--) {
-    Register* iterable = tc.frame.stack.peek(i);
-    Register* none = temps_.AllocateStack();
-    tc.emit<ListExtend>(none, list, iterable, func, tc.frame);
-  }
-
-  Register* retval = list;
-  bool is_tuple = bc_instr.opcode() != BUILD_LIST_UNPACK;
-  if (is_tuple) {
-    Register* tuple = temps_.AllocateStack();
-    tc.emit<MakeTupleFromList>(tuple, list, tc.frame);
-    retval = tuple;
-  }
-
-  tc.frame.stack.discard(oparg);
-  tc.frame.stack.push(retval);
-#else
-  PORT_ASSERT("Needs Static Python features");
-  (void)tc;
-  (void)bc_instr;
-#endif
-}
-
 void HIRBuilder::emitBuildCheckedList(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
@@ -3427,24 +3379,6 @@ void HIRBuilder::emitBuildSet(
 
   tc.frame.stack.discard(oparg);
 
-  tc.frame.stack.push(set);
-}
-
-void HIRBuilder::emitBuildSetUnpack(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-  Register* set = temps_.AllocateStack();
-  tc.emit<MakeSet>(set, tc.frame);
-
-  int oparg = bc_instr.oparg();
-  for (int i = oparg; i > 0; i--) {
-    auto iterable = tc.frame.stack.peek(i);
-
-    auto result = temps_.AllocateStack();
-    tc.emit<MergeSetUnpack>(result, set, iterable, tc.frame);
-  }
-
-  tc.frame.stack.discard(oparg);
   tc.frame.stack.push(set);
 }
 
