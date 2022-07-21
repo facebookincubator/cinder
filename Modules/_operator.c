@@ -1137,6 +1137,7 @@ static PyMethodDef itemgetter_methods[] = {
 static PyMemberDef itemgetter_members[] = {
     {"__vectorcalloffset__", T_PYSSIZET,
      offsetof(itemgetterobject, vectorcall), READONLY},
+    {NULL}
 };
 
 PyDoc_STRVAR(itemgetter_doc,
@@ -1496,6 +1497,7 @@ static PyMethodDef attrgetter_methods[] = {
 static PyMemberDef attrgetter_members[] = {
     {"__vectorcalloffset__", T_PYSSIZET,
      offsetof(attrgetterobject, vectorcall), READONLY},
+    {NULL}
 };
 
 PyDoc_STRVAR(attrgetter_doc,
