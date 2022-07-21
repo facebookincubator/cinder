@@ -3732,11 +3732,7 @@ main_loop:
             PyObject *res;
 
             if (_PyEval_LazyImportsEnabled && lazy_imports == -1) {
-                if (co->co_flags & 0 /*CO_FUTURE_EAGER_IMPORTS*/) { /* TODO: Lazy Imports: Figure out a flag to disable per module */
-                    lazy_imports = 0;
-                } else {
-                    lazy_imports = Py_LazyImportsFlag;
-                }
+                lazy_imports = Py_LazyImportsFlag;
             }
 
             if (lazy_imports_eager_import == 0
