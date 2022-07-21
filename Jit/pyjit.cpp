@@ -1560,7 +1560,6 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
 static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
     BorrowedRef<> module,
     BorrowedRef<> root_consts) {
-#ifdef CINDER_PORTING_DONE
   std::queue<PyObject*> consts_tuples;
   std::unordered_set<PyCodeObject*> visited;
   std::vector<BorrowedRef<PyCodeObject>> result;
@@ -1584,11 +1583,6 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
   }
 
   return result;
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname");
-  (void)module;
-  (void)root_consts;
-#endif
 }
 
 int _PyJIT_RegisterFunction(PyFunctionObject* func) {

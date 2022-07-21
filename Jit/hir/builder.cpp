@@ -882,12 +882,7 @@ void HIRBuilder::translate(
   std::unordered_set<BasicBlock*> processed;
   std::unordered_set<BasicBlock*> loop_headers;
 
-  //
-  // TODO(T126453666) - This should be the following, but
-  // relies on getting `PyCodeObject::co_qualname` working (T125853872).
-  //
-  //   profile_data = getProfileData(tc.frame.code);
-  const CodeProfileData* profile_data{nullptr};
+  const CodeProfileData* profile_data = getProfileData(tc.frame.code);
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());

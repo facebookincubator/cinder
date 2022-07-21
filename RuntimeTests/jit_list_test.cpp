@@ -49,7 +49,6 @@ TEST_F(JITListTest, LookupFO) {
   EXPECT_FALSE(jitlist->lookupFO(quux, bar));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(JITListTest, LookupCO) {
   auto jitlist = JITList::create();
   ASSERT_NE(jitlist, nullptr);
@@ -63,7 +62,6 @@ TEST_F(JITListTest, LookupCO) {
 
   ASSERT_EQ(jitlist->lookupCO(code), 0);
 }
-#endif
 
 TEST_F(WildcardJITListTest, ParseLine) {
   auto jitlist = WildcardJITList::create();

@@ -122,13 +122,7 @@ static std::string fullnameImpl(PyObject* module, PyObject* qualname) {
 }
 
 std::string codeFullname(PyObject* module, PyCodeObject* code) {
-#ifdef CINDER_PORTING_DONE
   return fullnameImpl(module, code->co_qualname);
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname");
-  (void)module;
-  (void)code;
-#endif
 }
 
 std::string funcFullname(PyFunctionObject* func) {

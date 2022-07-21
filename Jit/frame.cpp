@@ -37,15 +37,10 @@ namespace jit {
 namespace {
 
 const char* codeName(PyCodeObject* code) {
-  PORT_ASSERT("Neesd PyCodeObject::co_qualname");
-#ifdef CINDER_PORTING_DONE
   if (code->co_qualname == nullptr) {
     return "<null>";
   }
   return PyUnicode_AsUTF8(code->co_qualname);
-#else
-  (void)code;
-#endif
 }
 
 PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
@@ -767,7 +762,6 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
 }
 
 PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
-#ifdef CINDER_PORTING_DONE
   PyObject* mod_name = jit::getModuleName(shadow_frame);
   if (!mod_name) {
     return NULL;
@@ -776,10 +770,6 @@ PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
   PyObject* result = PyUnicode_FromFormat("%U:%U", mod_name, code->co_qualname);
   Py_DECREF(mod_name);
   return result;
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname");
-  (void)shadow_frame;
-#endif
 }
 
 _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {

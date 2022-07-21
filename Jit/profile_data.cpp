@@ -286,7 +286,6 @@ std::string codeKey(PyCodeObject* code) {
 }
 
 std::string codeQualname(PyCodeObject* code) {
-#ifdef CINDER_PORTING_DONE
   if (code->co_qualname != nullptr) {
     return unicodeAsString(code->co_qualname);
   }
@@ -294,10 +293,6 @@ std::string codeQualname(PyCodeObject* code) {
     return unicodeAsString(code->co_name);
   }
   return "<unknown>";
-#else
-  PORT_ASSERT("Need PyCodeObject::co_qualname");
-  (void)code;
-#endif
 }
 
 void registerProfiledType(PyTypeObject* type) {

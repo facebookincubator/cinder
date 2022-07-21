@@ -68,20 +68,15 @@ void Runtime::shutdown() {
 }
 
 void Runtime::mlockProfilerDependencies() {
-#ifdef CINDER_PORTING_DONE
   for (auto& codert : code_runtimes_) {
     PyCodeObject* code = codert.frameState()->code().get();
     ::mlock(code, sizeof(PyCodeObject));
     ::mlock(code->co_qualname, Py_SIZE(code->co_qualname));
   }
   code_runtimes_.mlock();
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname");
-#endif
 }
 
 Ref<> Runtime::pageInProfilerDependencies() {
-#ifdef CINDER_PORTING_DONE
   ThreadedCompileSerialize guard;
   Ref<> qualnames = Ref<>::steal(PyList_New(0));
   if (qualnames == nullptr) {
@@ -101,9 +96,6 @@ Ref<> Runtime::pageInProfilerDependencies() {
     }
   }
   return qualnames;
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname");
-#endif
 }
 
 GlobalCache Runtime::findGlobalCache(
