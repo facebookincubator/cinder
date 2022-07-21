@@ -10,6 +10,8 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "clinic/codeobject.c.h"
 
+#include "Jit/pyjit.h"
+
 /* Holder for co_extra information */
 typedef struct {
     Py_ssize_t ce_size;
@@ -651,6 +653,7 @@ code_new_impl(PyTypeObject *type, int argcount, int posonlyargcount,
 static void
 code_dealloc(PyCodeObject *co)
 {
+    _PyJIT_CodeDestroyed(co);
     if (co->co_opcache != NULL) {
         PyMem_Free(co->co_opcache);
     }
