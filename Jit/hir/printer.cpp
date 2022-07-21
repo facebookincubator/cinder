@@ -867,7 +867,6 @@ static std::unordered_map<unsigned, const char*> kOpnames{
 
 static std::string
 reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
-#ifdef CINDER_PORTING_DONE
   ThreadedCompileSerialize guard;
   switch (opcode) {
     case BUILD_CHECKED_LIST:
@@ -956,12 +955,6 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
       return std::to_string(oparg);
   }
   JIT_CHECK(false, "unreachable");
-#else
-  PORT_ASSERT("Uses missing opcodes, particularly from Static Python");
-  (void)code;
-  (void)opcode;
-  (void)oparg;
-#endif
 }
 
 // TODO(emacs): Write basic blocks for bytecode (using BytecodeInstructionBlock
