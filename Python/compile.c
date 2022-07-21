@@ -4865,6 +4865,7 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
     if (!compiler_make_closure(c, co, 0, qualname)) {
         goto error;
     }
+    Py_DECREF(qualname);
     Py_DECREF(co);
 
     VISIT(c, expr, outermost->iter);
