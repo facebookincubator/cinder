@@ -1015,6 +1015,9 @@ class PyBuildExt(build_ext):
         # Python interface to subinterpreter C-API.
         self.add(Extension('_xxsubinterpreters', ['_xxsubinterpretersmodule.c']))
 
+        # Cinder specific module
+        self.add(Extension('cinder', ['cinder.c']) )
+
         #
         # Here ends the simple stuff.  From here on, modules need certain
         # libraries, are platform-specific, or present other surprises.

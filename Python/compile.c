@@ -2405,12 +2405,12 @@ compiler_function(struct compiler *c, stmt_ty s, int is_async)
         return 0;
     }
 
+    // steal the reference to qualname
+    co->co_qualname = qualname;
     if (!compiler_make_closure(c, co, funcflags, qualname)) {
-        Py_DECREF(qualname);
         Py_DECREF(co);
         return 0;
     }
-    Py_DECREF(qualname);
     Py_DECREF(co);
 
     /* decorators */
@@ -2814,12 +2814,12 @@ compiler_lambda(struct compiler *c, expr_ty e)
         return 0;
     }
 
+    // steal the reference to qualname
+    co->co_qualname = qualname;
     if (!compiler_make_closure(c, co, funcflags, qualname)) {
-        Py_DECREF(qualname);
         Py_DECREF(co);
         return 0;
     }
-    Py_DECREF(qualname);
     Py_DECREF(co);
 
     return 1;
@@ -4860,10 +4860,11 @@ compiler_comprehension(struct compiler *c, expr_ty e, int type,
     if (co == NULL)
         goto error;
 
+    Py_INCREF(qualname);
+    co->co_qualname = qualname;
     if (!compiler_make_closure(c, co, 0, qualname)) {
         goto error;
     }
-    Py_DECREF(qualname);
     Py_DECREF(co);
 
     VISIT(c, expr, outermost->iter);

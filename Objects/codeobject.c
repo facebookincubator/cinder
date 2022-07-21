@@ -286,6 +286,9 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
     co->co_opcache = NULL;
     co->co_opcache_flag = 0;
     co->co_opcache_size = 0;
+
+    co->co_qualname = NULL;
+
     return co;
 }
 
@@ -687,6 +690,7 @@ code_dealloc(PyCodeObject *co)
         PyObject_GC_Del(co->co_zombieframe);
     if (co->co_weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject*)co);
+    Py_XDECREF(co->co_qualname);
     PyObject_Free(co);
 }
 
@@ -772,11 +776,16 @@ code_replace_impl(PyCodeObject *self, int co_argcount,
         return NULL;
     }
 
-    return (PyObject *)PyCode_NewWithPosOnlyArgs(
+    PyCodeObject *newcode = PyCode_NewWithPosOnlyArgs(
         co_argcount, co_posonlyargcount, co_kwonlyargcount, co_nlocals,
         co_stacksize, co_flags, (PyObject*)co_code, co_consts, co_names,
         co_varnames, co_freevars, co_cellvars, co_filename, co_name,
         co_firstlineno, (PyObject*)co_linetable);
+    if (self->co_qualname  != NULL && _PyUnicode_EQ(self->co_name, co_name)) {
+        newcode->co_qualname = self->co_qualname;
+        Py_INCREF(newcode->co_qualname);
+    }
+    return (PyObject *)newcode;
 }
 
 static PyObject *

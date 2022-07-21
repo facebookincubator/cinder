@@ -3,6 +3,8 @@
 
 static const char* _Py_stdlib_module_names[] = {
 "__future__",
+"__static__",
+"__strict__",
 "_abc",
 "_aix_support",
 "_ast",
@@ -111,6 +113,7 @@ static const char* _Py_stdlib_module_names[] = {
 "cgi",
 "cgitb",
 "chunk",
+"cinder",
 "cmath",
 "cmd",
 "code",
@@ -119,6 +122,7 @@ static const char* _Py_stdlib_module_names[] = {
 "collections",
 "colorsys",
 "compileall",
+"compiler",
 "concurrent",
 "configparser",
 "contextlib",
@@ -181,7 +185,6 @@ static const char* _Py_stdlib_module_names[] = {
 "logging",
 "lzma",
 "mailbox",
-"mailcap",
 "marshal",
 "math",
 "mimetypes",

@@ -69,6 +69,8 @@ struct PyCodeObject {
 
     _Py_CODEUNIT *co_rawcode;
     Py_ssize_t co_codelen;
+
+    PyObject *co_qualname; /* qualified name */
 };
 
 /* Masks for co_flags above */

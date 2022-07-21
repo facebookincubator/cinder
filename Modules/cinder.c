@@ -8,6 +8,8 @@
 
 #include "Jit/pyjit.h"
 
+#ifdef CINDER_PORTING_DONE
+
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
 extern int _PyShadow_PolymorphicCacheEnabled;
@@ -372,6 +374,8 @@ clear_classloader_caches(PyObject *self, PyObject *obj)
     Py_RETURN_NONE;
 }
 
+#endif
+
 static PyObject *
 get_qualname_of_code(PyObject *Py_UNUSED(module), PyObject *arg)
 {
@@ -410,6 +414,8 @@ set_qualname_of_code(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t na
     }
     Py_RETURN_NONE;
 }
+
+#ifdef CINDER_PORTING_DONE
 
 static PyObject*
 set_profile_interp(PyObject *self, PyObject *arg) {
@@ -608,7 +614,18 @@ readonly_enabled(PyObject *self, PyObject *args) {
 #endif
 }
 
+#endif
+
 static struct PyMethodDef cinder_module_methods[] = {
+    {"_get_qualname",
+     get_qualname_of_code,
+     METH_O,
+     "Returns qualified name stored in code object or None if codeobject was created manually"},
+    {"_set_qualname",
+     (PyCFunction)set_qualname_of_code,
+     METH_FASTCALL,
+     "Sets the value of qualified name in code object"},
+#ifdef CINDER_PORTING_DONE
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
     {"freeze_type", cinder_freeze_type, METH_O, freeze_type_doc},
@@ -668,14 +685,6 @@ static struct PyMethodDef cinder_module_methods[] = {
      "Clears classloader caches and vtables on all accessible types. "
      "Will hurt perf; for test isolation where modules and types with "
      "identical names are dynamically created and destroyed."},
-    {"_get_qualname",
-     get_qualname_of_code,
-     METH_O,
-     "Returns qualified name stored in code object or None if codeobject was created manually"},
-    {"_set_qualname",
-     (PyCFunction)set_qualname_of_code,
-     METH_FASTCALL,
-     "Sets the value of qualified name in code object"},
     {"set_profile_interp",
      set_profile_interp,
      METH_O,
@@ -726,6 +735,7 @@ static struct PyMethodDef cinder_module_methods[] = {
         readonly_enabled,
         METH_NOARGS,
         "Return True if readonly support is enabled."},
+#endif
     {NULL, NULL} /* sentinel */
 };
 
@@ -752,6 +762,7 @@ PyInit_cinder(void)
     if (m == NULL) {
         return NULL;
     }
+#ifdef CINDER_PORTING_DONE
     PyObject* data_version = PyLong_FromLong(1);
     if (data_version == NULL) {
         return NULL;
@@ -797,6 +808,7 @@ PyInit_cinder(void)
     Py_DECREF(cached_classproperty);
 
 #undef ADDITEM
+#endif
 
     return m;
 }
