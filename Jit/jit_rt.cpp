@@ -3,6 +3,7 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "cinder/porting-support.h"
 #include "classloader.h"
 #include "frameobject.h"
 #include "listobject.h"
@@ -11,8 +12,6 @@
 #include "pyreadonly.h"
 #include "pystate.h"
 #include "switchboard.h"
-
-#include "cinder/porting-support.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/frame.h"

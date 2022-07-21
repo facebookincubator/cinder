@@ -60,7 +60,6 @@ static constexpr x86::Mem kInFrameOrigDataPtr = x86::ptr(
     x86::rbp,
     -kJITShadowFrameSize + JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
 
-
 static constexpr x86::Mem getStackTopPtr(x86::Gp tstate_reg) {
   return x86::ptr(tstate_reg, offsetof(PyThreadState, shadow_frame));
 }

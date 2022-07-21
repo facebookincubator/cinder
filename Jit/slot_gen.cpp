@@ -7,8 +7,8 @@
 
 #include "Python.h"
 #include "frameobject.h"
-#include "opcode.h"
 #include "internal/pycore_call.h"
+#include "opcode.h"
 
 #include "Jit/code_allocator.h"
 #include "Jit/jit_gdb_support.h"

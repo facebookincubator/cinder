@@ -21,7 +21,6 @@ using namespace jit;
 using namespace jit::codegen;
 using namespace jit::hir;
 
-
 class ASMGeneratorTest : public RuntimeTest {
  public:
   std::unique_ptr<CompiledFunction> GenerateCode(PyObject* func) {

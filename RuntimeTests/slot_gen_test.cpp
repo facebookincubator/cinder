@@ -34,10 +34,10 @@ class SlotGenTest : public RuntimeTest {
 
     return Ref<>::steal(_PyObject_Call_Prepend(func, type, args, kwargs));
 #else
-  PORT_ASSERT("_PyObject_Call_Prepend needs tstate in 3.10");
-  (void)type;
-  (void)args;
-  (void)kwargs;
+    PORT_ASSERT("_PyObject_Call_Prepend needs tstate in 3.10");
+    (void)type;
+    (void)args;
+    (void)kwargs;
 #endif
   }
 

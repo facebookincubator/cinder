@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/util.h"
 
+#include "cinder/port-assert.h"
+
 #include "Jit/log.h"
 #include "Jit/ref.h"
 
@@ -8,8 +10,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "cinder/port-assert.h"
 
 static constexpr size_t INITIAL_SIZE = 104;
 

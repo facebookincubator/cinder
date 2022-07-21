@@ -2,14 +2,13 @@
 #include "Jit/runtime_support.h"
 
 #include "Python.h"
+#include "cinder/port-assert.h"
 #include "internal/pycore_ceval.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
 #include "pyreadonly.h"
 
 #include "Jit/log.h"
-
-#include "cinder/port-assert.h"
 
 extern "C" {
 void take_gil(struct _ceval_runtime_state*, PyThreadState*);

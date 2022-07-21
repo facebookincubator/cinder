@@ -2,14 +2,13 @@
 #pragma once
 
 #include "Python.h"
+#include "cinder/port-assert.h"
 #include "opcode.h"
 
 #include "Jit/log.h"
 
 #include <iterator>
 #include <unordered_set>
-
-#include "cinder/port-assert.h"
 
 namespace jit {
 

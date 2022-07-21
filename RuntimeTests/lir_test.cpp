@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
+#include "cinder/porting-support.h"
+
 #include "Jit/codegen/environ.h"
 #include "Jit/compiler.h"
 #include "Jit/hir/hir.h"
@@ -16,9 +18,6 @@
 #include "RuntimeTests/testutil.h"
 
 #include <Python.h>
-
-#include "cinder/porting-support.h"
-
 #include <asm-generic/errno-base.h>
 #include <math.h>
 

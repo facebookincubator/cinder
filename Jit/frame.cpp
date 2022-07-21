@@ -180,7 +180,8 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
       return footer->yieldPoint->resumeTarget();
     }
 #else
-    PORT_ASSERT("Need PyGenObject::gi_running replacement and JIT data on generator");
+    PORT_ASSERT(
+        "Need PyGenObject::gi_running replacement and JIT data on generator");
     (void)tstate;
 #endif
   } else {
@@ -253,9 +254,9 @@ Ref<PyFrameObject> createPyFrame(
       _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
   return py_frame;
 #else
-    PORT_ASSERT("Need to figure out f_executing/gi_running");
-    (void)tstate;
-    (void)shadow_frame;
+  PORT_ASSERT("Need to figure out f_executing/gi_running");
+  (void)tstate;
+  (void)shadow_frame;
 #endif
 }
 

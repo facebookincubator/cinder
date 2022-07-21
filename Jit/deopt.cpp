@@ -208,7 +208,8 @@ void reifyFrame(
   reifyBlockStack(frame, frame_meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
 #else
-  PORT_ASSERT("Need to handle PyFrameObject::f_executing (and other 3.10 changes?)");
+  PORT_ASSERT(
+      "Need to handle PyFrameObject::f_executing (and other 3.10 changes?)");
   (void)frame;
   (void)meta;
   (void)frame_meta;

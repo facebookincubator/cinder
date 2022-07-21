@@ -4,9 +4,8 @@
 #include "Python.h"
 //#include "internal/pycore_pystate.h"
 #include "Include/internal/pycore_pystate.h"
-#include "internal/pycore_shadow_frame.h"
-
 #include "cinder/porting-support.h"
+#include "internal/pycore_shadow_frame.h"
 
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
@@ -1785,13 +1784,13 @@ PyObject* _PyJIT_GenSend(
 
   return result;
 #else
-    PORT_ASSERT("Needs PyGenObject::gi_jit_data and figure out f_executing")
-    (void)gen;
-    (void)arg;
-    (void)exc;
-    (void)f;
-    (void)tstate;
-    (void)finish_yield_from;
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data and figure out f_executing")
+  (void)gen;
+  (void)arg;
+  (void)exc;
+  (void)f;
+  (void)tstate;
+  (void)finish_yield_from;
 #endif
 }
 
@@ -1811,10 +1810,10 @@ int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
   }
   return 0;
 #else
-    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-    (void)gen;
-    (void)visit;
-    (void)arg;
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+  (void)gen;
+  (void)visit;
+  (void)arg;
 #endif
 }
 
@@ -1827,8 +1826,8 @@ void _PyJIT_GenDealloc(PyGenObject* gen) {
   }
   JITRT_GenJitDataFree(gen);
 #else
-    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-    (void)gen;
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+  (void)gen;
 #endif
 }
 
@@ -1843,8 +1842,8 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   }
   return yf;
 #else
-    PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-    (void)gen;
+  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
+  (void)gen;
 #endif
 }
 
@@ -1873,8 +1872,8 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
       static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
   return code_rt->frameState()->globals();
 #else
-    PORT_ASSERT("Needs shadow frame support")
-    (void)tstate;
+  PORT_ASSERT("Needs shadow frame support")
+  (void)tstate;
 #endif
 }
 

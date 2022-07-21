@@ -2,7 +2,6 @@
 #include "Jit/hir/type.h"
 
 #include "arraymodule.h"
-
 #include "cinder/porting-support.h"
 
 #include "Jit/hir/hir.h"

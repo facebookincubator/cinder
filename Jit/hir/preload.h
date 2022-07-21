@@ -2,9 +2,8 @@
 #pragma once
 
 #include "Python.h"
-#include "classloader.h"
-
 #include "cinder/porting-support.h"
+#include "classloader.h"
 
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
