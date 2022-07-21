@@ -150,6 +150,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_CONST,
     LOAD_DEREF,
     LOAD_FAST,
+    // TODO(T126724435): Need dictionary watchers to notify the JIT
     LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
