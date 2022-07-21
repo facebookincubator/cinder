@@ -3726,7 +3726,6 @@ main_loop:
         }
 
         case TARGET(IMPORT_NAME): {
-            _Py_IDENTIFIER(__lazy_imports__);
             PyObject *name = GETITEM(names, oparg);
             PyObject *fromlist = POP();
             PyObject *level = TOP();
@@ -3737,10 +3736,6 @@ main_loop:
                     lazy_imports = 0;
                 } else {
                     lazy_imports = Py_LazyImportsFlag;
-                }
-                if (lazy_imports) {
-                    _PyDict_SetItemId(f->f_globals,
-                                      &PyId___lazy_imports__, Py_True);
                 }
             }
 
