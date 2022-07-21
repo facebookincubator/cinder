@@ -423,7 +423,12 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
 
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
-    PyEntry_init(op);
+    // JIT-compiled functions load their defaults at runtime if needed. Others
+    // need their entrypoint recomputed.
+    // TODO(T126790232): Don't load defaults at runtime and recompile as needed.
+    if (!_PyJIT_IsCompiled((PyObject *)op)) {
+        PyEntry_init(op);
+    }
     return 0;
 }
 
