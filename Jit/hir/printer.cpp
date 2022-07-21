@@ -230,7 +230,6 @@ static std::string format_varname(const Instr& instr, int idx) {
 }
 
 static std::string format_immediates(const Instr& instr) {
-#ifdef CINDER_PORTING_DONE
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBatchDecref:
@@ -632,8 +631,15 @@ static std::string format_immediates(const Instr& instr) {
       if (ra.with_opcode() == BEFORE_ASYNC_WITH) {
         return "BEFORE_ASYNC_WITH";
       }
-      if (ra.with_opcode() == WITH_CLEANUP_START) {
-        return "WITH_CLEANUP_START";
+      if (ra.with_opcode() == RERAISE) {
+        // TODO(T125857223): Figure out what to do with RERAISE. Does it even
+        // go in this HIR opcode?
+        PORT_ASSERT("Not sure what to do with RERAISE");
+      }
+      if (ra.with_opcode() == WITH_EXCEPT_START) {
+        // TODO(T125857223): Figure out what to do with WITH_EXCEPT_START. Does
+        // it even go in this HIR opcode?
+        PORT_ASSERT("Not sure what to do with WITH_EXCEPT_START");
       }
       return fmt::format("invalid:{}", ra.with_opcode());
     }
@@ -683,10 +689,6 @@ static std::string format_immediates(const Instr& instr) {
     }
   }
   JIT_CHECK(false, "invalid opcode %d", static_cast<int>(instr.opcode()));
-#else
-  PORT_ASSERT("Uses missing opcodes, particularly from Static Python");
-  (void)instr;
-#endif // CINDER_PORTING_DONE
 }
 
 void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
