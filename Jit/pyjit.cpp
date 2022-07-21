@@ -970,7 +970,6 @@ int check(int ret) {
 }
 
 Ref<> make_deopt_stats() {
-#ifdef CINDER_PORTING_DONE
   Runtime* runtime = Runtime::get();
   auto stats = Ref<>::steal(check(PyList_New(0)));
 
@@ -981,7 +980,7 @@ Ref<> make_deopt_stats() {
     BorrowedRef<PyCodeObject> code = frame_meta.code;
 
     auto func_qualname = code->co_qualname;
-    int lineno_raw = code->co_lnotab != nullptr
+    int lineno_raw = code->co_linetable != nullptr
         ? PyCode_Addr2Line(code, frame_meta.next_instr_offset)
         : -1;
     auto lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
@@ -1028,9 +1027,6 @@ Ref<> make_deopt_stats() {
   runtime->clearDeoptStats();
 
   return stats;
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_qualname and co_lnotab");
-#endif
 }
 
 } // namespace
@@ -2059,19 +2055,13 @@ void start_code(ProfileEnv& env, PyCodeObject* code) {
 }
 
 void start_instr(ProfileEnv& env, int bcoff_raw) {
-#ifdef CINDER_PORTING_DONE
-  int lineno_raw = env.code->co_lnotab != nullptr
+  int lineno_raw = env.code->co_linetable != nullptr
       ? PyCode_Addr2Line(env.code, bcoff_raw)
       : -1;
   int opcode = _Py_OPCODE(PyBytes_AS_STRING(env.code->co_code)[bcoff_raw]);
   env.bc_offset = Ref<>::steal(check(PyLong_FromLong(bcoff_raw)));
   env.lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
   env.opname.reset(s_opnames.at(opcode));
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_lnotab");
-  (void)env;
-  (void)bcoff_raw;
-#endif
 }
 
 void append_item(
