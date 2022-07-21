@@ -1189,14 +1189,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto tmp = cond->name();
 
         if (instr->opcode() == Opcode::kCondBranchIterNotDone) {
-#ifdef CINDER_PORTING_DONE
           tmp = GetSafeTempName();
           auto iter_done_addr =
               reinterpret_cast<uint64_t>(&jit::g_iterDoneSentinel);
           bbb.AppendCode("Sub {}, {}, {}", tmp, cond, iter_done_addr);
-#else
-    PORT_ASSERT("Needs g_iterDoneSentinel from runtime_support.cpp");
-#endif
         }
 
         bbb.AppendCode(

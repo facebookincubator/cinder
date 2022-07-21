@@ -21,11 +21,14 @@ int handle_signals(_PyRuntimeState* runtime);
 
 namespace jit {
 
-#ifdef CINDER_PORTING_DONE
-static PyObject g_iterDoneSentinel = {
-  _PyObject_EXTRA_INIT kImmortalInitialCount,
-  nullptr};
-#endif
+// TODO(T125857223): Use the external immortal refcount kImmortalInitialCount
+// instead of this local copy.
+static const Py_ssize_t kImmortalBitPos = 8 * sizeof(Py_ssize_t) - 4;
+static const Py_ssize_t kImmortalBit = 1L << kImmortalBitPos;
+static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
+PyObject g_iterDoneSentinel = {
+    _PyObject_EXTRA_INIT kImmortalInitialCount,
+    nullptr};
 
 PyObject* invokeIterNext(PyObject* iterator) {
   PyObject* val = (*iterator->ob_type->tp_iternext)(iterator);
@@ -38,12 +41,8 @@ PyObject* invokeIterNext(PyObject* iterator) {
     }
     PyErr_Clear();
   }
-#ifdef CINDER_PORTING_DONE
   Py_INCREF(&g_iterDoneSentinel);
   return &g_iterDoneSentinel;
-#else
-  PORT_ASSERT("Reference to kImmortalInitialCount");
-#endif
 }
 
 PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask) {
@@ -66,12 +65,8 @@ PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask) {
     }
     PyErr_Clear();
   }
-#ifdef CINDER_PORTING_DONE
   Py_INCREF(&g_iterDoneSentinel);
   return &g_iterDoneSentinel;
-#else
-  PORT_ASSERT("Reference to kImmortalInitialCount");
-#endif
 }
 
 // This duplicates the logic found at the beginning of the dispatch loop in

@@ -1761,12 +1761,8 @@ JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
   if ((res.retval == NULL) && (res.done == 1) &&
       PyErr_ExceptionMatches(PyExc_StopAsyncIteration)) {
     _PyErr_Clear(tstate);
-#ifdef CINDER_PORTING_DONE
     Py_INCREF(&jit::g_iterDoneSentinel);
     res.retval = &jit::g_iterDoneSentinel;
-#else
-    PORT_ASSERT("Needs g_iterDoneSentinel from runtime_support.cpp");
-#endif
   }
   return res;
 }
