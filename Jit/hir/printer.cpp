@@ -805,17 +805,12 @@ void HIRPrinter::Print(std::ostream& os, const FrameState& state) {
 }
 
 static int lastLineNumber(PyCodeObject* code) {
-#ifdef CINDER_PORTING_DONE
   int last_line = -1;
   for (Py_ssize_t off = 0; off < code->co_codelen;
        off += sizeof(_Py_CODEUNIT)) {
     last_line = std::max(last_line, PyCode_Addr2Line(code, off));
   }
   return last_line;
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_codelen");
-  (void)code;
-#endif
 }
 
 nlohmann::json JSONPrinter::PrintSource(const Function& func) {
@@ -865,12 +860,10 @@ nlohmann::json JSONPrinter::PrintSource(const Function& func) {
 // associate how instructions change over time
 // TODO(emacs): Make JSON utils so we stop copying so much stuff around
 
-#ifdef CINDER_PORTING_DONE
 #define MAKE_OPNAME(opname, opnum) {opnum, #opname},
 static std::unordered_map<unsigned, const char*> kOpnames{
     PY_OPCODES(MAKE_OPNAME)};
 #undef MAKE_OPNAME
-#endif
 
 static std::string
 reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
@@ -975,7 +968,6 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
 // and BlockMap?). Need to figure out how to allocate block IDs without
 // actually modifying the HIR function in place.
 nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
-#ifdef CINDER_PORTING_DONE
   nlohmann::json result;
   result["name"] = "Bytecode";
   result["type"] = "asm";
@@ -999,10 +991,6 @@ nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
   block["instrs"] = instrs_json;
   result["blocks"] = nlohmann::json::array({block});
   return result;
-#else
-  PORT_ASSERT("Needs kOpnames + PyCodeObject::co_rawcode + co_codelen");
-  (void)func;
-#endif
 }
 
 nlohmann::json JSONPrinter::Print(const Instr& instr) {
