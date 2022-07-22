@@ -38,18 +38,17 @@ import types
 from dataclasses import dataclass
 
 from test import support
+from test.support import os_helper
 from test.libregrtest.main import Regrtest
 from test.libregrtest.runtest import (
     findtests,
     runtest,
-    format_test_result,
-    runtest,
-    CHILD_ERROR,
-    INTERRUPTED,
-    FAILED,
-    PASSED,
-    RESOURCE_DENIED,
-    SKIPPED,
+    ChildError,
+    Interrupted,
+    Failed,
+    Passed,
+    ResourceDenied,
+    Skipped,
     TestResult,
 )
 from test.libregrtest.runtest_mp import get_cinderjit_xargs
@@ -294,8 +293,8 @@ class WorkReceiver:
         # Run the tests in a context manager that temporarily changes the CWD to a
         # temporary and writable directory.  If it's not possible to create or
         # change the CWD, the original CWD will be used.  The original CWD is
-        # available from support.SAVEDCWD.
-        with support.temp_cwd(test_cwd, quiet=True):
+        # available from os_helper.SAVEDCWD.
+        with os_helper.temp_cwd(test_cwd, quiet=True):
             msg = self.pipe.recv()
             while not isinstance(msg, ShutdownWorker):
                 if isinstance(msg, RunTest):
@@ -339,7 +338,7 @@ def start_worker(
     if worker_timeout != 0:
         cmd = ["timeout", "--foreground", f"{worker_timeout}s"] + cmd
 
-    popen = subprocess.Popen(cmd, pass_fds=(w_r, w_w), cwd=support.SAVEDCWD)
+    popen = subprocess.Popen(cmd, pass_fds=(w_r, w_w), cwd=os_helper.SAVEDCWD)
     os.close(w_r)
     os.close(w_w)
 
@@ -379,7 +378,7 @@ def manage_worker(
                 break
             elif isinstance(msg, RunTest):
                 # Worker crashed while running a test
-                test_result = TestResult(msg.test_name, CHILD_ERROR, 0.0, None)
+                test_result = ChildError(msg.test_name, 0.0)
                 result = TestComplete(msg.test_name, test_result)
                 resultq.put(result)
                 worker.wait()
@@ -494,12 +493,11 @@ class JITRegrtest(Regrtest):
                 elif isinstance(msg, TestComplete):
                     ntests_remaining -= 1
                     self._ntests_done += 1
-                    result_status = msg.result.result
-                    if result_status not in (PASSED, RESOURCE_DENIED, SKIPPED):
+                    result = msg.result
+                    if not isinstance(result, (Passed, ResourceDenied, Skipped)):
                         worker_pid = active_tests[msg.test_name].worker_pid
                         rr_trace_dir = active_tests[msg.test_name].rr_trace_dir
-                        status_str = format_test_result(msg.result)
-                        err = f"TEST ERROR: {status_str} in pid {worker_pid}"
+                        err = f"TEST ERROR: {msg.result} in pid {worker_pid}"
                         if rr_trace_dir:
                             # TODO: Add link to fdb documentation
                             err += (f" Replay recording with: fdb replay debug {rr_trace_dir}")
@@ -509,7 +507,7 @@ class JITRegrtest(Regrtest):
                             worker_infos[worker_pid] = (
                                 ReplayInfo(worker_pid, log, rr_trace_dir))
                         replay_info = worker_infos[worker_pid]
-                        if result_status == CHILD_ERROR:
+                        if isinstance(result, ChildError):
                             replay_info.crashed = msg.test_name
                         else:
                             replay_info.failed.append(msg.test_name)
@@ -629,7 +627,7 @@ def read_skip_tests():
         "r",
     ) as file:
         yield from file.read().splitlines()
-    if sys._built_with_asan:
+    if support.check_sanitizer(address=True):
         with open(
             os.path.join(os.path.dirname(__file__), "asan_skip_tests.txt"),
             "r",

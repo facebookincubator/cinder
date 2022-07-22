@@ -38,6 +38,18 @@ JOIN_TIMEOUT = 30.0   # seconds
 USE_PROCESS_GROUP = (hasattr(os, "setsid") and hasattr(os, "killpg"))
 
 
+def get_cinderjit_xargs():
+    args = []
+    for k, v in sys._xoptions.items():
+        if not k.startswith("jit"):
+            continue
+        elif v is True:
+            args.extend(["-X", k])
+        else:
+            args.extend(["-X", f"{k}={v}"])
+    return args
+
+
 def must_stop(result: TestResult, ns: Namespace) -> bool:
     if isinstance(result, Interrupted):
         return True
@@ -57,7 +69,7 @@ def run_test_in_subprocess(testname: str, ns: Namespace) -> subprocess.Popen:
     worker_args = (ns_dict, testname)
     worker_args = json.dumps(worker_args)
 
-    cmd = [sys.executable, *support.args_from_interpreter_flags(),
+    cmd = [sys.executable, *get_cinderjit_xargs(), *support.args_from_interpreter_flags(),
            '-u',    # Unbuffered stdout and stderr
            '-m', 'test.regrtest',
            '--worker-args', worker_args]
