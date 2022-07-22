@@ -1,7 +1,7 @@
 import os
 import sys
 import unittest
-from compiler import compile, pyassem
+from compiler import compile, opcode_cinder, pyassem
 from inspect import cleandoc
 
 sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
@@ -25,7 +25,6 @@ class FuzzerSyntaxTest(unittest.TestCase):
         self.assertEqual(
             fuzzer.fuzzer_compile(codestr)[1], FuzzerReturnTypes.SYNTAX_ERROR
         )
-
 
 class FuzzerOpargsFuzzingTest(unittest.TestCase):
     def test_randomized_string_is_different_from_original(self):
@@ -89,6 +88,179 @@ class FuzzerOpargsFuzzingTest(unittest.TestCase):
         opcode = "SET_ADD"
         ioparg = 5
         self.assertNotEqual(ioparg, fuzzer.generate_random_ioparg(opcode, ioparg))
+
+    def test_COMPARE_OP_ioparg_changed_and_within_bounds(self):
+        opcode = "COMPARE_OP"
+        ioparg = 5
+        self.assertNotEqual(ioparg, fuzzer.generate_random_ioparg(opcode, ioparg))
+        self.assertGreaterEqual(ioparg, 0)
+        self.assertLess(ioparg, len(opcode_cinder.opcode.CMP_OP))
+
+
+class FuzzerInstrFuzzingTest(unittest.TestCase):
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_0(
+        self,
+    ):
+        original_opcode = "ROT_TWO"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        # check opcodes are different
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        # check stack effect is same
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_1(
+        self,
+    ):
+        original_opcode = "DUP_TOP"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_2(
+        self,
+    ):
+        original_opcode = "DUP_TOP_TWO"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_negative_1(
+        self,
+    ):
+        original_opcode = "POP_TOP"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_negative_2(
+        self,
+    ):
+        original_opcode = "DELETE_SUBSCR"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_randomized_opcode_is_different_from_original_and_maintains_stack_for_opcode_with_stack_effect_negative_3(
+        self,
+    ):
+        original_opcode = "STORE_SUBSCR"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertNotEqual(original_opcode, randomized_opcode)
+        self.assertEqual(
+            opcode_cinder.opcode.stack_effects.get(original_opcode),
+            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+        )
+
+    def test_branch_opcode_not_randomized(self):
+        original_opcode = "JUMP_ABSOLUTE"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertEqual(original_opcode, randomized_opcode)
+
+    def test_opcode_with_oparg_affecting_stack_not_randomized(self):
+        original_opcode = "BUILD_LIST"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertEqual(original_opcode, randomized_opcode)
+
+    def test_load_const_not_randomized(self):
+        original_opcode = "LOAD_CONST"
+        randomized_opcode = fuzzer.randomize_opcode(original_opcode)
+        self.assertEqual(original_opcode, randomized_opcode)
+
+    def test_can_replace_oparg_returns_false_when_tuple_size_less_or_equal_to_1(self):
+        # all tuples have size <= 1, so can_replace_oparg should return False
+        consts = {(str, "hello"): 0}
+        names = pyassem.IndexedSet(("hello",))
+        varnames = pyassem.IndexedSet(("hello",))
+        closure = pyassem.IndexedSet(("hello",))
+
+        self.assertFalse(
+            # oparg stored in consts
+            fuzzer.can_replace_oparg(
+                "BUILD_CHECKED_LIST", consts, names, varnames, closure
+            )
+        )
+        self.assertFalse(
+            # oparg stored in names
+            fuzzer.can_replace_oparg("LOAD_NAME", consts, names, varnames, closure)
+        )
+        self.assertFalse(
+            # oparg stored in varnames
+            fuzzer.can_replace_oparg("LOAD_FAST", consts, names, varnames, closure)
+        )
+        self.assertFalse(
+            # oparg stored in closure
+            fuzzer.can_replace_oparg("LOAD_CLOSURE", consts, names, varnames, closure)
+        )
+
+    def test_can_replace_oparg_returns_true_when_tuple_size_greater_than_1_or_oparg_not_in_tuples(
+        self,
+    ):
+        # all tuples have size > 1, so can_replace_oparg should return True
+        consts = {(str, "hello"): 0, (str, "world"): 1}
+        names = pyassem.IndexedSet(("hello", "world"))
+        varnames = pyassem.IndexedSet(("hello", "world"))
+        closure = pyassem.IndexedSet(("hello", "world"))
+
+        self.assertTrue(
+            fuzzer.can_replace_oparg(
+                "BUILD_CHECKED_LIST", consts, names, varnames, closure
+            )
+        )
+        self.assertTrue(
+            fuzzer.can_replace_oparg("LOAD_NAME", consts, names, varnames, closure)
+        )
+        self.assertTrue(
+            fuzzer.can_replace_oparg("LOAD_FAST", consts, names, varnames, closure)
+        )
+        self.assertTrue(
+            fuzzer.can_replace_oparg("LOAD_CLOSURE", consts, names, varnames, closure)
+        )
+        self.assertTrue(
+            fuzzer.can_replace_oparg("ROT_TWO", consts, names, varnames, closure)
+        )
+
+    def test_generate_oparg_for_randomized_opcode_removes_original_oparg_and_creates_new_one(
+        self,
+    ):
+        original_opcode = "LOAD_NAME"
+        original_oparg = "hi"
+        new_opcode = "LOAD_FAST"
+        freevars = pyassem.IndexedSet()
+        cellvars = pyassem.IndexedSet()
+        names = pyassem.IndexedSet(["hello", original_oparg])
+        varnames = pyassem.IndexedSet()
+        consts = {}
+
+        fuzzer.generate_oparg_for_randomized_opcode(
+            original_opcode,
+            new_opcode,
+            original_oparg,
+            consts,
+            names,
+            varnames,
+            freevars,
+            cellvars,
+        )
+        # check that original oparg for LOAD_NAME ("hi") is removed from names
+        self.assertNotIn(original_oparg, names)
+        # check that a new oparg for LOAD_FAST is inserted into varnames
+        self.assertEqual(len(varnames), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

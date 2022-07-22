@@ -5,7 +5,7 @@ import string
 import sys
 import textwrap
 import types
-from compiler import compile, pyassem, pycodegen, symbols
+from compiler import compile, opcode_cinder, pyassem, pycodegen, symbols
 from compiler.consts import (
     CO_ASYNC_GENERATOR,
     CO_COROUTINE,
@@ -39,6 +39,10 @@ INT_UPPER_BOUND = sys.maxsize
 INT_LOWER_BOUND = -sys.maxsize - 1
 OPARG_LOWER_BOUND = 0
 OPARG_UPPER_BOUND = 2**32 - 1
+CMP_OP_LENGTH = 12
+
+# % Chance of an instr being replaced (1-100)
+INSTR_RANDOMIZATION_CHANCE = 50
 
 
 class Fuzzer(pycodegen.CinderCodeGenerator):
@@ -64,11 +68,51 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
             return
 
         ioparg = self.graph.convertArg(opcode, oparg)
-        self.randomize_oparg(opcode, oparg, ioparg)
+        randomized_opcode = randomize_opcode(opcode)
+        """
+        # We can fuzz opcodes if 3 conditions are met
+        # 1. randomized_opcode != opcode (certain opcodes are left unrandomized, such as branch instructions)
+        # 2. we can safely replace the original oparg with a new one (for the new instruction)
+             without the length of a tuple (i.e. co_names, co_varnames) hitting zero (or it will fail assertions)
+        # 3. random chance based on INSTR_RANDOMIZATION_CHANCE
+        """
+        if (
+            random.randint(1, 100) <= INSTR_RANDOMIZATION_CHANCE
+            and randomized_opcode != opcode
+            and can_replace_oparg(
+                opcode,
+                self.graph.consts,
+                self.graph.names,
+                self.graph.varnames,
+                self.graph.closure,
+            )
+        ):
+            # if we are fuzzing this opcode
+            # create a new oparg corresponding to that opcode
+            # and emit
+            new_oparg = generate_oparg_for_randomized_opcode(
+                opcode,
+                randomized_opcode,
+                oparg,
+                self.graph.consts,
+                self.graph.names,
+                self.graph.varnames,
+                self.graph.freevars,
+                self.graph.cellvars,
+            )
+            # get new ioparg
+            ioparg = self.graph.convertArg(randomized_opcode, new_oparg)
+            self.graph.current.emit(
+                pyassem.Instruction(randomized_opcode, new_oparg, ioparg)
+            )
+        else:
+            # otherwise, just randomize the oparg and emit
+            self.randomize_oparg(opcode, oparg, ioparg)
 
         if opcode == "SET_LINENO" and not self.graph.first_inst_lineno:
             self.graph.first_inst_lineno = ioparg
 
+    # randomizes an existing oparg and emits an instruction with the randomized oparg and ioparg
     def randomize_oparg(self, opcode: str, oparg: object, ioparg: int) -> None:
         if not self.graph.do_not_emit_bytecode:
             # storing oparg to randomized version as a key value pair
@@ -90,7 +134,10 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
                 )
             elif (
                 opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS
-                and oparg != randomized_oparg
+                # LOAD_CONST often has embedded code objects or a code generator as its oparg
+                # If I randomize the oparg to a LOAD_CONST the code object generation could fail
+                # Therefore it is not being randomized at the moment
+                and opcode != "LOAD_CONST"
             ):
                 ioparg = replace_const_var(
                     self.graph.get_const_key(oparg),
@@ -102,7 +149,6 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
                 )
             elif (
                 opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE
-                or opcode == "LOAD_CLOSURE"
             ):
                 ioparg = replace_closure_var(
                     oparg,
@@ -168,6 +214,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "STORE_DEREF",
         "DELETE_DEREF",
         "LOAD_CLASSDEREF",
+        "LOAD_CLOSURE",
     }
 
     INSTRS_WITH_BRANCHES = {
@@ -184,8 +231,112 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "JUMP_FORWARD",
     }
 
-    # these are instructions where the oparg directly informs stack depth
-    # will not randomize these opargs
+    INSTRS_WITH_STACK_EFFECT_0 = {
+        "ROT_TWO",
+        "ROT_THREE",
+        "ROT_FOUR",
+        "NOP",
+        "UNARY_POSITIVE",
+        "UNARY_NEGATIVE",
+        "UNARY_NOT",
+        "UNARY_INVERT",
+        "GET_AITER",
+        "GET_ITER",
+        "GET_YIELD_FROM_ITER",
+        "GET_AWAITABLE",
+        "SETUP_ANNOTATIONS",
+        "YIELD_VALUE",
+        "POP_BLOCK",
+        "DELETE_NAME",
+        "DELETE_GLOBAL",
+        "LOAD_ATTR",
+        "JUMP_FORWARD",
+        "JUMP_ABSOLUTE",
+        "DELETE_FAST",
+        "DELETE_DEREF",
+        "EXTENDED_ARG",
+    }
+
+    INSTRS_WITH_STACK_EFFECT_1 = {
+        "DUP_TOP",
+        "GET_ANEXT",
+        "BEFORE_ASYNC_WITH",
+        "LOAD_BUILD_CLASS",
+        "LOAD_NAME",
+        "IMPORT_FROM",
+        "LOAD_GLOBAL",
+        "LOAD_FAST",
+        "LOAD_CLOSURE",
+        "LOAD_DEREF",
+        "FUNC_CREDENTIAL",
+        "LOAD_CLASSDEREF",
+        "LOAD_METHOD",
+    }
+
+    INSTRS_WITH_STACK_EFFECT_2 = {
+        "DUP_TOP_TWO",
+        "WITH_CLEANUP_START",
+    }
+
+    INSTRS_WITH_STACK_EFFECT_NEG_1 = {
+        "POP_TOP",
+        "BINARY_MATRIX_MULTIPLY",
+        "INPLACE_MATRIX_MULTIPLY",
+        "BINARY_POWER",
+        "BINARY_MULTIPLY",
+        "BINARY_MODULO",
+        "BINARY_ADD",
+        "BINARY_SUBTRACT",
+        "BINARY_SUBSCR",
+        "BINARY_FLOOR_DIVIDE",
+        "BINARY_TRUE_DIVIDE",
+        "INPLACE_FLOOR_DIVIDE",
+        "INPLACE_TRUE_DIVIDE",
+        "INPLACE_ADD",
+        "INPLACE_SUBTRACT",
+        "INPLACE_MULTIPLY",
+        "INPLACE_MODULO",
+        "BINARY_LSHIFT",
+        "BINARY_RSHIFT",
+        "BINARY_AND",
+        "BINARY_XOR",
+        "BINARY_OR",
+        "INPLACE_POWER",
+        "PRINT_EXPR",
+        "YIELD_FROM",
+        "INPLACE_LSHIFT",
+        "INPLACE_RSHIFT",
+        "INPLACE_AND",
+        "INPLACE_XOR",
+        "INPLACE_OR",
+        "RETURN_VALUE",
+        "IMPORT_STAR",
+        "STORE_NAME",
+        "DELETE_ATTR",
+        "STORE_GLOBAL",
+        "IMPORT_NAME",
+        "POP_JUMP_IF_FALSE",
+        "POP_JUMP_IF_TRUE",
+        "STORE_FAST",
+        "STORE_DEREF",
+        "LIST_APPEND",
+        "SET_ADD",
+        "LOAD_METHOD_SUPER",
+    }
+
+    INSTRS_WITH_STACK_EFFECT_NEG_2 = {
+        "DELETE_SUBSCR",
+        "STORE_ATTR",
+        "MAP_ADD",
+        "LOAD_ATTR_SUPER",
+    }
+
+    INSTRS_WITH_STACK_EFFECT_NEG_3 = {
+        "STORE_SUBSCR",
+        "WITH_CLEANUP_FINISH",
+        "POP_EXCEPT",
+    }
+
     INSTRS_WITH_OPARG_AFFECTING_STACK = {
         "MAKE_FUNCTION",
         "CALL_FUNCTION",
@@ -206,8 +357,8 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "CALL_FUNCTION_KW",
         "CALL_FUNCTION_EX",
         "CALL_METHOD",
+        "RAISE_VARARGS",
     }
-
 
 class FuzzerReturnTypes(enum.Enum):
     SYNTAX_ERROR = 0
@@ -220,15 +371,12 @@ def fuzzer_compile(code_str: str) -> tuple:
     # wrapping all code in a function for JIT compilation
     # since the cinderjit "force_compile" method requires a function object
     wrapped_code_str = "def wrapper_function():\n" + textwrap.indent(code_str, "  ")
-    # if the code_str is already a function, keep it as is
-    if len(code_str) > 3 and code_str[:3] == "def":
-        wrapped_code_str = code_str
     try:
         code = compile(wrapped_code_str, "", "exec", compiler=Fuzzer)
         # validating the code object
         Verifier.validate_code(code)
         # the original code is wrapped in a function, extracting it for jit compilation
-        func = types.FunctionType(code.co_consts[0], globals())
+        func = types.FunctionType(code.co_consts[0], {})
         if cinderjit:
             try:
                 jit_compiled_function = cinderjit.force_compile(func)
@@ -299,6 +447,8 @@ def generate_random_ioparg(opcode: str, ioparg: int):
         or opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS
     ):
         return ioparg
+    elif opcode == "COMPARE_OP":
+        return generate_random_integer(ioparg, 0, CMP_OP_LENGTH)
     return generate_random_integer(ioparg, OPARG_LOWER_BOUND, OPARG_UPPER_BOUND)
 
 
@@ -332,6 +482,125 @@ def generate_random_integer(original: int, lower: int, upper: int) -> int:
     if random_int == original:
         return generate_random_integer(original, lower, upper)
     return random_int
+
+
+# return random opcode with same stack effect as original
+def randomize_opcode(opcode: str) -> str:
+    if (
+        opcode in Fuzzer.INSTRS_WITH_BRANCHES
+        or opcode in Fuzzer.INSTRS_WITH_OPARG_AFFECTING_STACK
+        # LOAD_CONST often has embedded code objects or a code generator as its oparg
+        # If I replace LOAD_CONST instructions the code object generation can fail
+        # Therefore it is not being replaced at the moment
+        or opcode == "LOAD_CONST"
+    ):
+        return opcode
+
+    stack_depth_sets = (
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_0,
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_1,
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_2,
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_1,
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_2,
+        Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_3,
+    )
+    for stack_depth_set in stack_depth_sets:
+        if opcode in stack_depth_set:
+            return generate_random_opcode(opcode, stack_depth_set)
+    return opcode
+
+
+# generate random opcode given a set of possible options
+def generate_random_opcode(opcode: str, options: set) -> str:
+    new_op = random.choice(tuple(options))
+    if new_op == opcode:
+        return generate_random_opcode(opcode, options)
+    return new_op
+
+
+# ensures that consts, names, varnames, closure don't reach length 0
+# when randomizing an opcode and replacing the oparg
+# otherwise they will fail certain assertions and/or jit checks
+def can_replace_oparg(
+    opcode: str,
+    consts: dict,
+    names: pyassem.IndexedSet,
+    varnames: pyassem.IndexedSet,
+    closure: pyassem.IndexedSet,
+):
+    if opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
+        return len(consts) > 1
+    if opcode in Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
+        return len(names) > 1
+    elif opcode in Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
+        return len(varnames) > 1
+    elif opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
+        return len(closure) > 1
+    else:
+        return True
+
+
+# generates a new oparg for a newly generated random opcode
+# and removes the old oparg
+def generate_oparg_for_randomized_opcode(
+    original_opcode: str,
+    randomized_opcode: str,
+    oparg: object,
+    consts: dict,
+    names: pyassem.IndexedSet,
+    varnames: pyassem.IndexedSet,
+    freevars: pyassem.IndexedSet,
+    cellvars: pyassem.IndexedSet,
+) -> object:
+    # delete the original oparg
+    if original_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
+        del consts[get_const_key(oparg)]
+    elif original_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
+        del names.keys[oparg]
+    elif original_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
+        del varnames.keys[oparg]
+    elif original_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
+        if oparg in freevars:
+            del freevars.keys[oparg]
+        else:
+            del cellvars.keys[oparg]
+
+    # replace with a new oparg that corresponds with the new instruction
+    if randomized_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
+        new_oparg = randomize_variable(oparg)
+        consts[get_const_key(new_oparg)] = len(consts)
+        return new_oparg
+    elif randomized_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
+        new_oparg = randomize_variable("")  # random string
+        names.get_index(new_oparg)
+        return new_oparg
+    elif randomized_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
+        new_oparg = randomize_variable("")
+        varnames.get_index(new_oparg)
+        return new_oparg
+    elif randomized_opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
+        new_oparg = randomize_variable("")
+        freevars.get_index(new_oparg)
+        return new_oparg
+    else:
+        # if it isn't in one of the tuples, just return a random integer within oparg bounds
+        return generate_random_integer(-1, OPARG_LOWER_BOUND, OPARG_UPPER_BOUND)
+
+
+# get_const_key from pyassem
+# modified to possess no state
+def get_const_key(value: object):
+    if isinstance(value, float):
+        return type(value), value, pyassem.sign(value)
+    elif isinstance(value, complex):
+        return type(value), value, pyassem.sign(value.real), pyassem.sign(value.imag)
+    elif isinstance(value, (tuple, frozenset)):
+        return (
+            type(value),
+            value,
+            tuple(get_const_key(const) for const in value),
+        )
+    return type(value), value
 
 
 if __name__ == "__main__":
