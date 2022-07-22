@@ -14,6 +14,7 @@ import unittest
 test_tools.skip_if_missing('clinic')
 with test_tools.imports_under_tool('clinic'):
     import clinic
+    from clinic import cpp
     from clinic import DSLParser
 
 

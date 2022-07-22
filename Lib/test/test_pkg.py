@@ -5,7 +5,7 @@ import os
 import tempfile
 import textwrap
 import unittest
-
+import importlib
 
 # Helpers to create and destroy hierarchies.
 
@@ -191,10 +191,16 @@ class TestPkg(unittest.TestCase):
         self.mkhier(hier)
 
         import t5
-        s = """
-            from t5 import *
-            self.assertEqual(dir(), ['foo', 'self', 'string', 't5'])
-            """
+        if importlib.is_lazy_imports_enabled():
+            s = """
+                from t5 import *
+                self.assertEqual(dir(), ['foo', 'self', 't5'])
+                """
+        else:
+            s = """
+                from t5 import *
+                self.assertEqual(dir(), ['foo', 'self', 'string', 't5'])
+                """
         self.run_code(s)
 
         import t5

@@ -3,6 +3,7 @@ from test import support
 from test.support import warnings_helper
 import os
 import sys
+import importlib
 
 
 if support.check_sanitizer(address=True, memory=True):
@@ -30,6 +31,9 @@ class AllTest(unittest.TestCase):
             quiet=True):
             try:
                 exec("import %s" % modname, names)
+                # Force loading `modname` to trigger FailedImport earlier
+                if importlib.is_lazy_imports_enabled():
+                    exec("%s" % modname)
             except:
                 # Silent fail here seems the best route since some modules
                 # may not be available or not initialize properly in all
