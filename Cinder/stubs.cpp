@@ -87,10 +87,6 @@ STUB(PyObject *, builtin_next, PyObject *, PyObject *const *, Py_ssize_t)
 STUB(PyObject *, _PyBuiltin_Next, PyObject *, PyObject *)
 
 
-// Objects/abstract.c
-STUB(Py_ssize_t, _PySequence_CheckBounds, PyObject *, Py_ssize_t)
-
-
 // Objects/listobject.c
 STUB(PyObject *, _PyList_Repeat, PyListObject *, Py_ssize_t)
 STUB(int, _PyList_APPEND, PyObject *, PyObject *)

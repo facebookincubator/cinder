@@ -557,3 +557,13 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
 
 /* perform a batch decref to the objects in args */
 void JITRT_BatchDecref(PyObject** args, int nargs);
+
+/* Check that `i` is within the bounds of `seq`.
+ *
+ * A negative value of `i` is an index relative to the end of the
+ * sequence (e.g. -1 refers to the last element in the sequence).
+ *
+ * Returns 0-based index that `i` refers to on success.
+ * Returns -1 and raises IndexError on error.
+ **/
+Py_ssize_t JITRT_CheckSequenceBounds(PyObject* seq, Py_ssize_t i);

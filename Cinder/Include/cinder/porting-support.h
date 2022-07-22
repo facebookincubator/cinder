@@ -172,7 +172,6 @@ int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
       _Py_VECTORCALL_INVOKED_STATICALLY | _Py_VECTORCALL_INVOKED_METHOD |     \
       _Py_VECTORCALL_INVOKED_CLASSMETHOD)
 
-PyAPI_FUNC(Py_ssize_t) _PySequence_CheckBounds(PyObject *a, Py_ssize_t i);
 
 // This needs to be "static inline" when implemented.
 Py_ssize_t PyVectorcall_FLAGS(size_t n);

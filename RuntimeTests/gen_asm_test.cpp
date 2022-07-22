@@ -457,6 +457,7 @@ def test(f):
   ASSERT_NE(res.get(), nullptr);
   ASSERT_EQ(PyObject_IsInstance(res, klass), 1);
 }
+#endif
 
 TEST_F(ASMGeneratorTest, InvokeBinaryAdd) {
   const char* pycode = R"(
@@ -742,6 +743,7 @@ def test(a, b):
   EXPECT_EQ(PyLong_AsLong(res.get()), 2);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, ReplaceReassignedFirstArgInExceptionFrame) {
   const char* pycode = R"(
 def test(x, y):

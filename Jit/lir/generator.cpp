@@ -2009,7 +2009,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           src = tmp;
         }
         bbb.AppendCall(
-            instr->dst(), _PySequence_CheckBounds, instr->GetOperand(0), src);
+            instr->dst(), JITRT_CheckSequenceBounds, instr->GetOperand(0), src);
         break;
       }
       case Opcode::kLoadArrayItem: {
