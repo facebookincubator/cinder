@@ -69,6 +69,7 @@ class StatsTestCase(unittest.TestCase):
                           SortKey.TIME,
                           'calls')
 
+    @unittest.skipUnderCinderJIT("setprofile unsupported for jitted funcs")
     def test_get_stats_profile(self):
         def pass1(): pass
         def pass2(): pass
