@@ -1530,9 +1530,10 @@ class CodeGenerator(ASTVisitor):
     def checkAnnSubscr(self, node):
         if isinstance(node, ast.Slice):
             self.checkAnnSlice(node)
-        elif isinstance(node, ast.ExtSlice):
-            for v in node.dims:
-                self.checkAnnSlice(v)
+        elif isinstance(node, ast.Tuple):
+            # extended slice
+            for v in node.elts:
+                self.checkAnnSubscr(v)
         else:
             self.checkAnnExpr(node)
 
