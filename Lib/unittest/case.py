@@ -198,16 +198,38 @@ def skipUnderCinderJITNotFullFrame(reason):
         return skip(reason)
     return _id
 
+try:
+    from cinderjit import get_supported_opcodes
+    CINDERJIT_SUPPORTED_OPCODES = get_supported_opcodes()
+except ImportError:
+    CINDERJIT_SUPPORTED_OPCODES = set()
+
+def _should_compile(func):
+    import dis
+    for instr in dis.get_instructions(func):
+        if instr.opcode not in CINDERJIT_SUPPORTED_OPCODES:
+            return False
+    return True
+
 def failUnlessJITCompiled(func):
     """
     Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
     """
-    force_compile(func)
-    if not CINDERJIT_ENABLED or is_jit_compiled(func):
+    if not CINDERJIT_ENABLED:
         return func
-    def decorator(*args, **kwargs):
-        raise AssertionError(f"Function '{func.__qualname__}' is not JIT-compiled")
-    return decorator
+    # TODO(T126841029): Remove this conditional as well as the supporting code
+    # above once we are finished with opcode support.
+    #
+    # Usage of `failUnlessJITCompiled` was based on the assumption that the JIT
+    # was able to compile the function that it decorates. That may no longer
+    # hold while we are in the middle of porting. This tries to preserve the
+    # intent by only attempting to compile the function if we support all
+    # of its opcodes.
+    if not _should_compile(func):
+        return func
+    # force_compile raises a RuntimeError if compilation fails for any reason.
+    force_compile(func)
+    return func
 
 def cinderPortingBrokenTest():
     return skipUnless(
