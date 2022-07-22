@@ -25,8 +25,6 @@ IGNORE_PATTERNS = (
     "test/test_grammar.py",
     "test/test_compile.py",
     "test/test_patma.py",
-    "test/test_sys_settrace.py",
-    "test/test_coroutines.py",
 )
 
 SbsCompileTests = []

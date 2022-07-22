@@ -730,11 +730,12 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_BLOCK")
         self.visit(node.target)
         self.visit(node.body)
+        self.set_no_lineno()
         self.emit("JUMP_ABSOLUTE", start)
         self.setups.pop()
 
         self.nextBlock(except_)
-        self.set_lineno(node)
+        self.set_lineno(node.iter)
         self.emit("END_ASYNC_FOR")
         if node.orelse:
             self.visit(node.orelse)
