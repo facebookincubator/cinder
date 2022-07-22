@@ -90,9 +90,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BUILD_SLICE,
     BUILD_STRING,
     BUILD_TUPLE,
-    CALL_FUNCTION,
-    CALL_FUNCTION_EX,
-    CALL_FUNCTION_KW,
     CALL_METHOD,
     COMPARE_OP,
     DELETE_ATTR,
@@ -207,6 +204,9 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
     BUILD_LIST,
+    CALL_FUNCTION,
+    CALL_FUNCTION_EX,
+    CALL_FUNCTION_KW,
     INPLACE_ADD,
     INPLACE_AND,
     INPLACE_FLOOR_DIVIDE,
@@ -1643,7 +1643,6 @@ void HIRBuilder::emitAnyCall(
     TranslationContext& tc,
     jit::BytecodeInstructionBlock::Iterator& bc_it,
     const jit::BytecodeInstructionBlock& bc_instrs) {
-#ifdef CINDER_PORTING_DONE
   BytecodeInstruction bc_instr = *bc_it;
   int idx = bc_instr.index();
   bool is_awaited = code_->co_flags & CO_COROUTINE &&
@@ -1678,10 +1677,12 @@ void HIRBuilder::emitAnyCall(
       break;
     }
     case INVOKE_FUNCTION: {
+      PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
       call_used_is_awaited = emitInvokeFunction(tc, bc_instr, is_awaited);
       break;
     }
     case INVOKE_METHOD: {
+      PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
       call_used_is_awaited = emitInvokeMethod(tc, bc_instr, is_awaited);
       break;
     }
@@ -1711,13 +1712,6 @@ void HIRBuilder::emitAnyCall(
 
     tc.block = post_await_block.block;
   }
-#else
-  PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
-  (void)cfg;
-  (void)tc;
-  (void)bc_it;
-  (void)bc_instrs;
-#endif
 }
 
 void HIRBuilder::emitBinaryOp(

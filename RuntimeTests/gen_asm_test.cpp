@@ -120,37 +120,6 @@ def test(x):
   ASSERT_EQ(PyLong_AsLong(res), 1);
 }
 
-TEST_F(ASMGeneratorTest, KWArgCall) {
-  const char* pycode = R"(
-def test(a, b):
-    return a + b;
-)";
-
-  Ref<PyFunctionObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  ASSERT_NE(compiled, nullptr);
-
-  auto arg0 = Ref<>::steal(PyLong_FromLong(16));
-  ASSERT_NE(arg0, nullptr);
-
-  auto arg1 = Ref<>::steal(PyLong_FromLong(32));
-  ASSERT_NE(arg1, nullptr);
-
-  auto kwnames = Ref<>::steal(Py_BuildValue("(s)", "b"));
-  ASSERT_NE(kwnames, nullptr);
-
-  vectorcallfunc cfunc = compiled->entry_point();
-  pyfunc->vectorcall = cfunc;
-  auto pfunc = reinterpret_cast<PyObject*>(pyfunc.get());
-  PyObject* args[] = {arg0, arg1};
-  auto result = Ref<>::steal(cfunc(pfunc, args, 1, kwnames));
-
-  ASSERT_NE(result, nullptr);
-  ASSERT_EQ(PyLong_AsLong(result), 48);
-}
-
 TEST_F(ASMGeneratorTest, Compare) {
   const char* pycode = R"(
 def test(a, b):
@@ -406,6 +375,64 @@ def test(l):
   EXPECT_EQ(PyLong_AsLong(elem), 123);
 }
 
+#endif
+
+TEST_F(ASMGeneratorTest, DefaultArgTest) {
+  const char* pycode = R"(
+def test(a, b, c=100):
+    return a + b + c
+)";
+
+  Ref<PyFunctionObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  pyfunc->vectorcall = compiled->entry_point();
+  ASSERT_NE(compiled, nullptr);
+
+  PyObject* args[] = {
+      PyLong_FromLong(1), PyLong_FromLong(2), PyLong_FromLong(3)};
+  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+
+  ASSERT_NE(res.get(), nullptr);
+  ASSERT_EQ(PyLong_AsLong(res.get()), 103);
+
+  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 3));
+  ASSERT_NE(res2.get(), nullptr);
+  ASSERT_EQ(PyLong_AsLong(res2.get()), 6);
+}
+
+TEST_F(ASMGeneratorTest, KWArgCall) {
+  const char* pycode = R"(
+def test(a, b):
+    return a + b;
+)";
+
+  Ref<PyFunctionObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  ASSERT_NE(compiled, nullptr);
+
+  auto arg0 = Ref<>::steal(PyLong_FromLong(16));
+  ASSERT_NE(arg0, nullptr);
+
+  auto arg1 = Ref<>::steal(PyLong_FromLong(32));
+  ASSERT_NE(arg1, nullptr);
+
+  auto kwnames = Ref<>::steal(Py_BuildValue("(s)", "b"));
+  ASSERT_NE(kwnames, nullptr);
+
+  vectorcallfunc cfunc = compiled->entry_point();
+  pyfunc->vectorcall = cfunc;
+  auto pfunc = reinterpret_cast<PyObject*>(pyfunc.get());
+  PyObject* args[] = {arg0, arg1};
+  auto result = Ref<>::steal(cfunc(pfunc, args, 1, kwnames));
+
+  ASSERT_NE(result, nullptr);
+  ASSERT_EQ(PyLong_AsLong(result), 48);
+}
+
 TEST_F(ASMGeneratorTest, CallPythonFunction) {
   const char* pycode = R"(
 def meaning_of_life():
@@ -457,7 +484,6 @@ def test(f):
   ASSERT_NE(res.get(), nullptr);
   ASSERT_EQ(PyObject_IsInstance(res, klass), 1);
 }
-#endif
 
 TEST_F(ASMGeneratorTest, InvokeBinaryAdd) {
   const char* pycode = R"(
@@ -838,30 +864,6 @@ def test_list(a):
   }
 }
 
-TEST_F(ASMGeneratorTest, DefaultArgTest) {
-  const char* pycode = R"(
-def test(a, b, c=100):
-    return a + b + c
-)";
-
-  Ref<PyFunctionObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  pyfunc->vectorcall = compiled->entry_point();
-  ASSERT_NE(compiled, nullptr);
-
-  PyObject* args[] = {
-      PyLong_FromLong(1), PyLong_FromLong(2), PyLong_FromLong(3)};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
-
-  ASSERT_NE(res.get(), nullptr);
-  ASSERT_EQ(PyLong_AsLong(res.get()), 103);
-
-  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 3));
-  ASSERT_NE(res2.get(), nullptr);
-  ASSERT_EQ(PyLong_AsLong(res2.get()), 6);
-}
 #endif
 
 static void
