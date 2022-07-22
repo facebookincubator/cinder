@@ -1626,6 +1626,7 @@ class CodeGenerator(ASTVisitor):
     # augmented assignment
 
     def visitAugAssign(self, node):
+        self.set_lineno(node.target)
         if isinstance(node.target, ast.Attribute):
             self.emitAugAttribute(node)
         elif isinstance(node.target, ast.Name):
@@ -1650,21 +1651,25 @@ class CodeGenerator(ASTVisitor):
     }
 
     def emitAugRHS(self, node):
-        self.visit(node.value)
-        self.emit(self._augmented_opcode[type(node.op)])
+        with self.temp_lineno(node.lineno):
+            self.visit(node.value)
+            self.emit(self._augmented_opcode[type(node.op)])
 
     def emitAugName(self, node):
         target = node.target
         self.loadName(target.id)
         self.emitAugRHS(node)
+        self.set_lineno(target)
         self.storeName(target.id)
 
     def emitAugAttribute(self, node):
         target = node.target
         self.visit(target.value)
         self.emit("DUP_TOP")
-        self.emit("LOAD_ATTR", self.mangle(target.attr))
+        with self.temp_lineno(node.target.end_lineno):
+            self.emit("LOAD_ATTR", self.mangle(target.attr))
         self.emitAugRHS(node)
+        self.graph.set_lineno(node.target.end_lineno)
         self.emit("ROT_TWO")
         self.emit("STORE_ATTR", self.mangle(target.attr))
 
