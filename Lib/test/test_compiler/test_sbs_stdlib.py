@@ -22,7 +22,6 @@ IGNORE_PATTERNS = (
     # run separately via test_corpus.py
     "test/test_compiler/testcorpus",
     # Burn-down for full Python 3.10 compatibility
-    "test/test_grammar.py",
     "test/test_patma.py",
 )
 

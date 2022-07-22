@@ -1520,22 +1520,21 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_TOP")
 
     def checkAnnSlice(self, node):
-        if isinstance(node, ast.Index):
-            self.checkAnnExpr(node.value)
-        else:
-            if node.lower:
-                self.checkAnnExpr(node.lower)
-            if node.upper:
-                self.checkAnnExpr(node.upper)
-            if node.step:
-                self.checkAnnExpr(node.step)
+        if node.lower:
+            self.checkAnnExpr(node.lower)
+        if node.upper:
+            self.checkAnnExpr(node.upper)
+        if node.step:
+            self.checkAnnExpr(node.step)
 
     def checkAnnSubscr(self, node):
-        if isinstance(node, (ast.Index, ast.Slice)):
+        if isinstance(node, ast.Slice):
             self.checkAnnSlice(node)
         elif isinstance(node, ast.ExtSlice):
             for v in node.dims:
                 self.checkAnnSlice(v)
+        else:
+            self.checkAnnExpr(node)
 
     def checkAnnotation(self, node):
         if isinstance(self.tree, (ast.Module, ast.ClassDef)):
