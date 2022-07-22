@@ -339,6 +339,7 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     }
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
+    _PyJIT_FuncModified(op);
     return 0;
 }
 
