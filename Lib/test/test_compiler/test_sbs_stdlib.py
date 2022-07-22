@@ -10,10 +10,8 @@ from unittest import TestCase
 from .common import glob_test
 
 
-# This must match the same global in runtest.py. Unfortuantely there isn't
-# a place to put this which can be imported by both users without either
-# disrupting tests with unexpected imports, or being unavailable in some of our
-# CI setups.
+# Don't change this without adding or removing the appropriate
+# `test_compiler_sbs_stdlib_N.py` file(s) in `Lib/test/`
 N_SBS_TEST_CLASSES = 10
 
 IGNORE_PATTERNS = (

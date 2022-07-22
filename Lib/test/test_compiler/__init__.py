@@ -8,7 +8,6 @@ from .test_optimizer import AstOptimizerTests
 from .test_py310 import Python310Tests
 from .test_py37 import Python37Tests
 from .test_py38 import Python38Tests
-from .test_sbs_stdlib import *
 from .test_symbols import SymbolVisitorTests
 from .test_unparse import UnparseTests
 from .test_visitor import VisitorTests
