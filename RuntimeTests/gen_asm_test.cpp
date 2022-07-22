@@ -1000,6 +1000,7 @@ def test(c, s, v):
     PyErr_Clear();
   }
 }
+#endif
 
 static void InPlaceOpTest(
     ASMGeneratorTest* test,
@@ -1239,6 +1240,7 @@ def test():
   EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_UnboundLocalError));
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, TestDeepRegUsage) {
   const char* helpercode = R"(
 def f(*args):
