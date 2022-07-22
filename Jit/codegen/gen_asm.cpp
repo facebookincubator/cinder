@@ -1427,7 +1427,6 @@ static void releaseRefs(
 
 static PyFrameObject*
 prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
-#ifdef CINDER_PORTING_DONE
   JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
@@ -1482,6 +1481,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
 #endif
         break;
       case jit::DeoptReason::kRaiseStatic:
+        PORT_ASSERT("Needs static python feature");
         JIT_CHECK(false, "Lost exception when raising static exception");
         break;
       case DeoptReason::kReraise:
@@ -1490,12 +1490,6 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
     }
   }
   return frame;
-#else
-  PORT_ASSERT("Needs shadow frames");
-  (void)regs;
-  (void)runtime;
-  (void)deopt_idx;
-#endif
 }
 
 static PyObject* resumeInInterpreter(
@@ -1530,12 +1524,7 @@ static PyObject* resumeInInterpreter(
     // a generator, the interpreter will insert a new entry on the shadow stack
     // when execution resumes there, so we remove our entry.
     if (!frame->f_gen) {
-#ifdef CINDER_PORTING_DONE
       _PyShadowFrame_Pop(tstate, tstate->shadow_frame);
-#else
-      PORT_ASSERT("Needs shadow frames");
-      (void)tstate;
-#endif
     }
 
     // Resume one frame.

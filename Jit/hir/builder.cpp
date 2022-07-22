@@ -175,10 +175,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     STORE_DEREF,
     STORE_FAST,
     STORE_SUBSCR,
-    UNARY_INVERT,
-    UNARY_NEGATIVE,
-    UNARY_NOT,
-    UNARY_POSITIVE,
     UNPACK_EX,
     UNPACK_SEQUENCE,
     YIELD_FROM,
@@ -223,10 +219,15 @@ const std::unordered_set<int> kSupportedOpcodes = {
 };
 #else
 const std::unordered_set<int> kSupportedOpcodes = {
+    // CPython opcodes that existed prior to 3.9
     LOAD_CONST,
     LOAD_FAST,
     RETURN_VALUE,
     STORE_FAST,
+    UNARY_INVERT,
+    UNARY_NEGATIVE,
+    UNARY_NOT,
+    UNARY_POSITIVE,
 };
 #endif
 

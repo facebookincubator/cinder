@@ -123,7 +123,6 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
 std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
     PyThreadState* tstate,
     _PyShadowFrame* needle) {
-#ifdef CINDER_PORTING_DONE
   PyFrameObject* prev_py_frame = nullptr;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   while (shadow_frame) {
@@ -135,26 +134,15 @@ std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
     shadow_frame = shadow_frame->prev;
   }
   return {};
-#else
-  PORT_ASSERT("Needs working shadow frames");
-  (void)tstate;
-  (void)needle;
-#endif
 }
 
 // Return whether or not needle is linked into a call stack
 bool isShadowFrameLinked(PyThreadState* tstate, _PyShadowFrame* needle) {
-#ifdef CINDER_PORTING_DONE
   if (tstate->shadow_frame == needle || needle->prev != nullptr) {
     return true;
   }
   // Handle the case where needle is the last frame on the call stack
   return findInnermostPyFrameForShadowFrame(tstate, needle).has_value();
-#else
-  PORT_ASSERT("Needs working shadow frames");
-  (void)tstate;
-  (void)needle;
-#endif
 }
 
 // Return the instruction pointer for the JIT-compiled function that is
@@ -472,7 +460,6 @@ using FrameHandler =
     std::function<bool(const CodeObjLoc&, PyFrameMaterializer)>;
 
 void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
-#ifdef CINDER_PORTING_DONE
   BorrowedRef<PyFrameObject> prev_py_frame;
   for (_PyShadowFrame* shadow_frame = tstate->shadow_frame;
        shadow_frame != nullptr;
@@ -529,11 +516,6 @@ void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
       }
     }
   }
-#else
-  PORT_ASSERT("Needs working shadow frames");
-  (void)tstate;
-  (void)handler;
-#endif // CINDER_PORTING_DONE
 }
 
 // Invoke handler for each frame on the shadow stack
@@ -609,14 +591,9 @@ const char* shadowFrameKind(_PyShadowFrame* sf) {
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
-#ifdef CINDER_PORTING_DONE
   UnitState unit_state = getUnitState(tstate, tstate->shadow_frame);
   materializePyFrames(tstate, unit_state, nullptr);
   return Ref<PyFrameObject>::steal(tstate->frame);
-#else
-  PORT_ASSERT("Needs working shadow frames");
-  (void)tstate;
-#endif // CINDER_PORTING_DONE
 }
 
 void assertShadowCallStackConsistent(PyThreadState* tstate) {

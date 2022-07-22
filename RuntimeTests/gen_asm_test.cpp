@@ -860,6 +860,7 @@ def test(a, b, c=100):
   ASSERT_NE(res2.get(), nullptr);
   ASSERT_EQ(PyLong_AsLong(res2.get()), 6);
 }
+#endif
 
 static void
 UnaryTest(ASMGeneratorTest* test, const char* pycode, int inp, int expected) {
@@ -956,6 +957,7 @@ def test(a):
   UnaryTest(this, pycode, 1, -2);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, StoreSubscr) {
   const char* pycode = R"(
 def test(c, s, v):

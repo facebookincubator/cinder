@@ -129,8 +129,7 @@ static void reifyStack(
     const DeoptMetadata& meta,
     const DeoptFrameMetadata& frame_meta,
     const MemoryView& mem) {
-#ifdef CINDER_PORTING_DONE
-  frame->f_stacktop = frame->f_valuestack + frame_meta.stack.size();
+  frame->f_stackdepth = frame_meta.stack.size();
   for (int i = frame_meta.stack.size() - 1; i >= 0; i--) {
     const auto& value = meta.getStackValue(i, frame_meta);
     if (value.isLoadMethodResult()) {
@@ -150,13 +149,6 @@ static void reifyStack(
       frame->f_valuestack[i] = obj;
     }
   }
-#else
-  PORT_ASSERT("3.10 doesn't have PyFrameObject::f_stacktop");
-  (void)frame;
-  (void)meta;
-  (void)frame_meta;
-  (void)mem;
-#endif
 }
 
 Ref<> profileDeopt(
@@ -188,12 +180,16 @@ void reifyFrame(
     const DeoptMetadata& meta,
     const DeoptFrameMetadata& frame_meta,
     const uint64_t* regs) {
-#ifdef CINDER_PORTING_DONE
   frame->f_locals = NULL;
   frame->f_trace = NULL;
   frame->f_trace_opcodes = 0;
   frame->f_trace_lines = 1;
-  frame->f_executing = 0;
+  if (meta.reason == DeoptReason::kGuardFailure) {
+    frame->f_state = FRAME_EXECUTING;
+  } else {
+    frame->f_state = FRAME_UNWINDING;
+  }
+
   // Interpreter loop will handle filling this in
   frame->f_lineno = frame->f_code->co_firstlineno;
   // Instruction pointer
@@ -207,14 +203,6 @@ void reifyFrame(
   reifyStack(frame, meta, frame_meta, mem);
   reifyBlockStack(frame, frame_meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
-#else
-  PORT_ASSERT(
-      "Need to handle PyFrameObject::f_executing (and other 3.10 changes?)");
-  (void)frame;
-  (void)meta;
-  (void)frame_meta;
-  (void)regs;
-#endif
 }
 
 static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {

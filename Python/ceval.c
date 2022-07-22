@@ -20,6 +20,7 @@
 #include "pycore_pylifecycle.h"   // _PyErr_Print()
 #include "pycore_pymem.h"         // _PyMem_IsPtrFreed()
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
+#include "pycore_shadow_frame.h"  // _PyShadowFrame_{PushInterp,Pop}
 #include "pycore_sysmodule.h"     // _PySys_Audit()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 
@@ -1596,6 +1597,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     PyObject *retval = NULL;            /* Return value */
     _Py_atomic_int * const eval_breaker = &tstate->interp->ceval.eval_breaker;
     PyCodeObject *co;
+    _PyShadowFrame shadow_frame;
 
     int lazy_imports = -1;
 
@@ -1628,6 +1630,11 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     /* push frame */
     tstate->frame = f;
     co = f->f_code;
+
+    // Generator shadow frames are managed by the send implementation.
+    if (f->f_gen == NULL) {
+        _PyShadowFrame_PushInterp(tstate, &shadow_frame, f);
+    }
 
     if (trace_info.cframe.use_tracing) {
         if (tstate->c_tracefunc != NULL) {
@@ -4612,6 +4619,10 @@ exit_eval_frame:
     /* Restore previous cframe */
     tstate->cframe = trace_info.cframe.previous;
     tstate->cframe->use_tracing = trace_info.cframe.use_tracing;
+
+    if (f->f_gen == NULL) {
+        _PyShadowFrame_Pop(tstate, &shadow_frame);
+    }
 
     if (PyDTrace_FUNCTION_RETURN_ENABLED())
         dtrace_function_return(f);
