@@ -1158,7 +1158,7 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 
 /* Handle signals, pending calls, GIL drop request
    and asynchronous exception */
-static int
+int
 eval_frame_handle_pending(PyThreadState *tstate)
 {
     _PyRuntimeState * const runtime = &_PyRuntime;

@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "cinder/porting-support.h"
+#include "internal/pycore_interp.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
@@ -27,6 +28,10 @@
 
 #include <functional>
 #include <sstream>
+
+extern "C" {
+int eval_frame_handle_pending(PyThreadState*);
+}
 
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from
@@ -2349,26 +2354,32 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadEvalBreaker: {
-#ifdef CINDER_PORTING_DONE
         // NB: This corresponds to an atomic load with
         // std::memory_order_relaxed. It's correct on x86-64 but probably isn't
         // on other architectures.
         static_assert(
-            sizeof(_PyRuntime.ceval.eval_breaker._value) == 4,
+            sizeof(reinterpret_cast<PyInterpreterState*>(0)
+                       ->ceval.eval_breaker._value) == 4,
             "Eval breaker is not a 4 byte value");
-        auto eval_breaker =
-            reinterpret_cast<uint64_t>(&_PyRuntime.ceval.eval_breaker._value);
         JIT_CHECK(
             i.GetOutput()->type() == TCInt32,
             "eval breaker output should be int");
-        bbb.AppendCode("Load {}, {:#x}", i.GetOutput(), eval_breaker);
-#else
-        PORT_ASSERT("eval_breaker probably lives somewhere else in 3.10");
-#endif
+        // tstate->interp->ceval.eval_breaker
+        auto interp = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, __asm_tstate, {}",
+            interp,
+            offsetof(PyThreadState, interp));
+        bbb.AppendCode(
+            "Load {}, {}, {}",
+            i.GetOutput(),
+            interp,
+            offsetof(PyInterpreterState, ceval.eval_breaker));
         break;
       }
       case Opcode::kRunPeriodicTasks: {
-        bbb.AppendCall(i.GetOutput(), jit::runPeriodicTasks);
+        bbb.AppendCall(
+            i.GetOutput(), eval_frame_handle_pending, "__asm_tstate");
         break;
       }
       case Opcode::kSnapshot: {

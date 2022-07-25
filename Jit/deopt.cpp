@@ -190,8 +190,6 @@ void reifyFrame(
     frame->f_state = FRAME_UNWINDING;
   }
 
-  // Interpreter loop will handle filling this in
-  frame->f_lineno = frame->f_code->co_firstlineno;
   // Instruction pointer
   // TODO(T126927333): Match upstream and use number of instructions instead
   // of byte offsets.

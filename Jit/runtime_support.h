@@ -15,10 +15,4 @@ PyObject* invokeIterNext(PyObject* iterator);
 // Invoke __next__ on iterator with readonly checks
 PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask);
 
-// Run periodic tasks and give other threads a chance to run.
-//
-// Returns a borrowed reference to Py_True on success. On error, returns
-// nullptr with an exception set.
-PyObject* runPeriodicTasks();
-
 } // namespace jit

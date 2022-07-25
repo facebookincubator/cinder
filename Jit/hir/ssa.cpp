@@ -405,8 +405,9 @@ Type outputType(
     }
     case Opcode::kLongCompare:
     case Opcode::kUnicodeCompare:
-    case Opcode::kRunPeriodicTasks:
       return TBool;
+    case Opcode::kRunPeriodicTasks:
+      return TCInt32;
 
     // TODO(bsimmers): These wrap C functions that return 0 for success and -1
     // for an error, which is converted into Py_None or nullptr,
