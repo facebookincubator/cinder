@@ -70,7 +70,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     GEN_START, // T126141847
     GET_LEN, // T126141793
     IS_OP, // T125844569
-    JUMP_IF_NOT_EXC_MATCH, // T125844569
+    JUMP_IF_NOT_EXC_MATCH, // T125844569, T125899460
     LIST_EXTEND, // T126141737
     LIST_TO_TUPLE, // T126141719
     LOAD_ASSERTION_ERROR, // T126141711
@@ -78,60 +78,77 @@ const std::unordered_set<int> kSupportedOpcodes = {
     MATCH_KEYS, // T126141817
     MATCH_MAPPING, // T126141799
     MATCH_SEQUENCE, // T126141809
-    RERAISE, // T126141686
+    RERAISE, // T126141686, T125899460
     ROT_N, // T126141852
     SET_UPDATE, // T126141745
-    WITH_EXCEPT_START, // T126141703
+    WITH_EXCEPT_START, // T126141703, T125899460
 
     // CPython opcodes that existed prior to 3.9
+    // TODO(T125854918): coroutine / generator support
     BEFORE_ASYNC_WITH,
+    END_ASYNC_FOR,
+    GET_AITER,
+    GET_ANEXT,
+    GET_AWAITABLE,
+    GET_YIELD_FROM_ITER,
+    SETUP_ASYNC_WITH,
+    YIELD_FROM,
+    YIELD_VALUE,
+
+    // TODO(T127134006): Containers
     BUILD_CONST_KEY_MAP,
     BUILD_MAP,
     BUILD_SET,
     BUILD_SLICE,
     BUILD_STRING,
     BUILD_TUPLE,
-    CALL_METHOD,
-    COMPARE_OP,
-    DELETE_ATTR,
-    DELETE_FAST,
-    DELETE_SUBSCR,
-    END_ASYNC_FOR,
-    EXTENDED_ARG,
-    FORMAT_VALUE,
-    FOR_ITER,
-    GET_AITER,
-    GET_ANEXT,
-    GET_AWAITABLE,
-    GET_ITER,
-    GET_YIELD_FROM_ITER,
-    IMPORT_FROM,
-    IMPORT_NAME,
     LIST_APPEND,
+    MAP_ADD,
+    SET_ADD,
+
+    // TODO(T127134261): Load/call method
+    LOAD_METHOD_SUPER,
+    LOAD_METHOD,
+    CALL_METHOD,
+
+    // TODO(T127134376): Attribute load/store/delete
+    DELETE_ATTR,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
+    STORE_ATTR,
+
+    // TODO(T127134538): For loops
+    FOR_ITER,
+    GET_ITER,
+    POP_BLOCK,
+
+    // TODO(T127134659): Imports
+    IMPORT_FROM,
+    IMPORT_NAME,
+
+    // TODO(T127134768): Closures
     LOAD_CLOSURE,
     LOAD_DEREF,
-    // TODO(T126724435): Need dictionary watchers to notify the JIT
-    LOAD_GLOBAL,
-    LOAD_METHOD,
-    LOAD_METHOD_SUPER,
-    MAKE_FUNCTION, // T126141867
-    MAP_ADD,
-    POP_BLOCK,
+    STORE_DEREF,
+
+    // TODO(T125899460): Exception handling
     POP_EXCEPT,
     RAISE_VARARGS,
-    SETUP_ASYNC_WITH,
     SETUP_FINALLY,
     SETUP_WITH,
-    SET_ADD,
-    STORE_ATTR,
-    STORE_DEREF,
+
+    // TODO(T127134900): Grab-bag of remaining opcodes
+    COMPARE_OP,
+    DELETE_FAST,
+    DELETE_SUBSCR,
+    EXTENDED_ARG,
+    FORMAT_VALUE,
+    // TODO(T126724435): Need dictionary watchers to notify the JIT
+    LOAD_GLOBAL,
+    MAKE_FUNCTION, // T126141867
     STORE_SUBSCR,
     UNPACK_EX,
     UNPACK_SEQUENCE,
-    YIELD_FROM,
-    YIELD_VALUE,
 
     // Static Python opcodes
     BUILD_CHECKED_LIST,
