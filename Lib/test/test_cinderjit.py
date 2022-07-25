@@ -1,12 +1,14 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import _testcapi
 import asyncio
+import dis
+import functools
 import unittest
 import warnings
 from functools import cmp_to_key
+
 if unittest.cinder_enable_broken_tests():
     import builtins
-    import dis
     import gc
     import sys
     import tempfile
@@ -39,6 +41,29 @@ except:
 
     def jit_suppress(func):
         return func
+
+
+def failUnlessHasOpcodes(*required_opnames):
+    """Fail a test unless func has all of the opcodes in `required` in its code
+    object.
+    """
+
+    def decorator(func):
+        opnames = {i.opname for i in dis.get_instructions(func)}
+        missing = set(required_opnames) - opnames
+        if missing:
+
+            @functools.wraps(func)
+            def fail(*args, **kwargs):
+                raise AssertionError(
+                    f"Function {func.__qualname__} missing required opcodes: {missing}"
+                )
+
+            return fail
+        return func
+
+    return decorator
+
 
 @unittest.cinderPortingBrokenTest()
 class GetFrameLineNumberTests(unittest.TestCase):
@@ -3603,6 +3628,71 @@ class OtherTests(unittest.TestCase):
     def test_page_in_profiler_dependencies(self):
         qualnames = cinderjit.page_in_profiler_dependencies()
         self.assertTrue(len(qualnames) > 0)
+
+
+class GetIterForIterTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("FOR_ITER", "GET_ITER")
+    def doit(self, iterable):
+        for _ in iterable:
+            pass
+        return 42
+
+    def test_iterate_through_builtin(self):
+        self.assertEqual(self.doit([1, 2, 3]), 42)
+
+    def test_custom_iterable(self):
+        class MyIterable:
+            def __init__(self, limit):
+                self.idx = 0
+                self.limit = limit
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self.idx == self.limit:
+                    raise StopIteration
+                retval = self.idx
+                self.idx += 1
+                return retval
+
+        it = MyIterable(5)
+        self.assertEqual(self.doit(it), 42)
+        self.assertEqual(it.idx, it.limit)
+
+    def test_iteration_raises_error(self):
+        class MyException(Exception):
+            pass
+
+        class MyIterable:
+            def __init__(self):
+                self.idx = 0
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self.idx == 3:
+                    raise MyException(f"raised error on idx {self.idx}")
+                self.idx += 1
+                return 1
+
+        with self.assertRaisesRegexp(MyException, "raised error on idx 3"):
+            self.doit(MyIterable())
+
+    def test_iterate_generator(self):
+        x = None
+
+        def gen():
+            nonlocal x
+            yield 1
+            yield 2
+            yield 3
+            x = 42
+
+        self.doit(gen())
+        self.assertEqual(x, 42)
 
 
 if __name__ == "__main__":

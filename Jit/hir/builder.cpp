@@ -117,11 +117,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_ATTR_SUPER,
     STORE_ATTR,
 
-    // TODO(T127134538): For loops
-    FOR_ITER,
-    GET_ITER,
-    POP_BLOCK,
-
     // TODO(T127134659): Imports
     IMPORT_FROM,
     IMPORT_NAME,
@@ -210,6 +205,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_KW,
     DUP_TOP,
     DUP_TOP_TWO,
+    FOR_ITER,
+    GET_ITER,
     INPLACE_ADD,
     INPLACE_AND,
     INPLACE_FLOOR_DIVIDE,
@@ -230,6 +227,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_CONST,
     LOAD_FAST,
     NOP,
+    POP_BLOCK,
     POP_JUMP_IF_FALSE,
     POP_JUMP_IF_TRUE,
     POP_TOP,
