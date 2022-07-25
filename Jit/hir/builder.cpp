@@ -59,8 +59,8 @@ Register* TempAllocator::AllocateNonStack() {
 
 // Opcodes that we know how to translate into HIR
 #ifdef CINDER_PORTING_DONE
-// Move opcodes from this set into the one in the `#else` block below to enable
-// them in the JIT.
+// This contains the set of unsupported opcodes. Move opcodes from this set
+// into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kSupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     CONTAINS_OP,
@@ -109,10 +109,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     GET_YIELD_FROM_ITER,
     IMPORT_FROM,
     IMPORT_NAME,
-    JUMP_ABSOLUTE,
-    JUMP_FORWARD,
-    JUMP_IF_FALSE_OR_POP,
-    JUMP_IF_TRUE_OR_POP,
     LIST_APPEND,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
@@ -127,8 +123,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     NOP,
     POP_BLOCK,
     POP_EXCEPT,
-    POP_JUMP_IF_FALSE,
-    POP_JUMP_IF_TRUE,
     POP_TOP,
     RAISE_VARARGS,
     ROT_FOUR,
@@ -217,8 +211,14 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_SUBTRACT,
     INPLACE_TRUE_DIVIDE,
     INPLACE_XOR,
+    JUMP_ABSOLUTE,
+    JUMP_FORWARD,
+    JUMP_IF_FALSE_OR_POP,
+    JUMP_IF_TRUE_OR_POP,
     LOAD_CONST,
     LOAD_FAST,
+    POP_JUMP_IF_FALSE,
+    POP_JUMP_IF_TRUE,
     RETURN_VALUE,
     STORE_FAST,
     UNARY_INVERT,
@@ -2258,7 +2258,6 @@ void HIRBuilder::emitCompareOp(
 void HIRBuilder::emitJumpIf(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-#ifdef CINDER_PORTING_DONE
   Register* var = tc.frame.stack.top();
 
   Py_ssize_t true_offset, false_offset;
@@ -2266,15 +2265,17 @@ void HIRBuilder::emitJumpIf(
   switch (bc_instr.opcode()) {
     case JUMP_IF_NONZERO_OR_POP:
       check_truthy = false;
+      PORT_ASSERT("Needs Static Python features");
     case JUMP_IF_TRUE_OR_POP: {
-      true_offset = bc_instr.oparg();
+      true_offset = bc_instr.GetJumpTarget();
       false_offset = bc_instr.NextInstrOffset();
       break;
     }
     case JUMP_IF_ZERO_OR_POP:
       check_truthy = false;
+      PORT_ASSERT("Needs Static Python features");
     case JUMP_IF_FALSE_OR_POP: {
-      false_offset = bc_instr.oparg();
+      false_offset = bc_instr.GetJumpTarget();
       true_offset = bc_instr.NextInstrOffset();
       break;
     }
@@ -2301,11 +2302,6 @@ void HIRBuilder::emitJumpIf(
   } else {
     tc.emit<CondBranch>(var, true_block, false_block);
   }
-#else
-  PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
-  (void)tc;
-  (void)bc_instr;
-#endif
 }
 
 void HIRBuilder::emitDeleteAttr(
@@ -3420,19 +3416,20 @@ void HIRBuilder::emitBuildConstKeyMap(
 void HIRBuilder::emitPopJumpIf(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-#ifdef CINDER_PORTING_DONE
   Register* var = tc.frame.stack.pop();
   Py_ssize_t true_offset, false_offset;
   switch (bc_instr.opcode()) {
     case POP_JUMP_IF_ZERO:
+      PORT_ASSERT("Needs Static Python features");
     case POP_JUMP_IF_FALSE: {
       true_offset = bc_instr.NextInstrOffset();
-      false_offset = bc_instr.oparg();
+      false_offset = bc_instr.GetJumpTarget();
       break;
     }
     case POP_JUMP_IF_NONZERO:
+      PORT_ASSERT("Needs Static Python features");
     case POP_JUMP_IF_TRUE: {
-      true_offset = bc_instr.oparg();
+      true_offset = bc_instr.GetJumpTarget();
       false_offset = bc_instr.NextInstrOffset();
       break;
     }
@@ -3457,11 +3454,6 @@ void HIRBuilder::emitPopJumpIf(
   } else {
     tc.emit<CondBranch>(var, true_block, false_block);
   }
-#else
-  PORT_ASSERT("Needs Static Python features");
-  (void)tc;
-  (void)bc_instr;
-#endif
 }
 
 void HIRBuilder::emitStoreAttr(

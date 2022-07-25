@@ -54,10 +54,6 @@ class BytecodeInstruction {
     return oparg_;
   }
 
-  int opargAsIndex() const {
-    return oparg() / sizeof(_Py_CODEUNIT);
-  }
-
   bool IsBranch() const {
     return kBranchOpcodes.count(opcode()) || IsReadonlyBranch();
   }
@@ -104,18 +100,21 @@ class BytecodeInstruction {
     return IsBranch() || IsReturn() || IsRaiseVarargs();
   }
 
+  // TODO(T126927333): Match upstream and use number of instructions instead
+  // of byte offsets. Additionally, audit all uses of these and convert the
+  // code that uses them.
   Py_ssize_t GetJumpTarget() const {
+    return GetJumpTargetAsIndex() * sizeof(_Py_CODEUNIT);
+  }
+
+  Py_ssize_t GetJumpTargetAsIndex() const {
     if (kRelBranchOpcodes.count(opcode())) {
-      return NextInstrOffset() + oparg();
+      return NextInstrIndex() + oparg();
     }
     if (IsReadonlyOp()) {
       return ReadonlyJumpTarget();
     }
     return oparg();
-  }
-
-  Py_ssize_t GetJumpTargetAsIndex() const {
-    return GetJumpTarget() / sizeof(_Py_CODEUNIT);
   }
 
   Py_ssize_t NextInstrOffset() const {

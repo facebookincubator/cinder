@@ -47,7 +47,6 @@ def func():
   ASSERT_EQ(PyLong_AsLong(res), 314159);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 TEST_F(ASMGeneratorTest, Fallthrough) {
   const char* src = R"(
@@ -99,6 +98,81 @@ def func2(x):
   ASSERT_NE(res2, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res2), 0);
 }
+
+TEST_F(ASMGeneratorTest, UnboundLocalError) {
+  const char* pycode = R"(
+def test(x):
+    if x:
+        y = 1
+    z = 100
+    return y
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  ASSERT_NE(compiled, nullptr);
+
+  auto arg = Ref<>::steal(PyLong_FromLong(0));
+  ASSERT_NE(arg, nullptr);
+
+  PyObject* args[] = {arg.get()};
+  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  ASSERT_EQ(res, nullptr);
+
+  PyObject *etyp, *eval, *etb;
+  PyErr_Fetch(&etyp, &eval, &etb);
+  ASSERT_NE(etyp, nullptr);
+
+  auto typ = Ref<>::steal(etyp);
+  auto val = Ref<>::steal(eval);
+  auto tb = Ref<>::steal(etb);
+  EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_UnboundLocalError));
+  ASSERT_NE(val.get(), nullptr);
+  ASSERT_TRUE(PyUnicode_Check(val));
+  std::string msg = PyUnicode_AsUTF8(val);
+  ASSERT_EQ(msg, "local variable 'y' referenced before assignment");
+
+  auto tb_frame = Ref<>::steal(PyObject_GetAttrString(tb, "tb_frame"));
+  ASSERT_NE(tb_frame.get(), nullptr);
+
+  auto locals = Ref<>::steal(PyObject_GetAttrString(tb_frame, "f_locals"));
+  ASSERT_NE(locals.get(), nullptr);
+  EXPECT_EQ(PyObject_Length(locals), 2);
+  PyObject* x = PyDict_GetItemString(locals, "x");
+  ASSERT_TRUE(PyLong_CheckExact(x));
+  EXPECT_EQ(PyLong_AsLong(x), 0);
+  PyObject* y = PyDict_GetItemString(locals, "z");
+  ASSERT_TRUE(PyLong_CheckExact(y));
+  EXPECT_EQ(PyLong_AsLong(y), 100);
+}
+
+TEST_F(ASMGeneratorTest, InsertXDecrefForMaybeAssignedRegisters) {
+  const char* pycode = R"(
+def test(x):
+    if x:
+        y = 1
+    z = y
+    return z
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  ASSERT_NE(compiled, nullptr);
+
+  auto arg = Ref<>::steal(PyLong_FromLong(133));
+  ASSERT_NE(arg, nullptr);
+
+  PyObject* args[] = {arg};
+  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  ASSERT_NE(res, nullptr);
+  EXPECT_EQ(PyLong_AsLong(res), 1);
+}
+
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 TEST_F(ASMGeneratorTest, LoadAttr) {
   const char* pycode = R"(
@@ -191,79 +265,6 @@ def test(x):
   PyObject* y = PyDict_GetItemString(locals, "y");
   ASSERT_TRUE(PyLong_CheckExact(y));
   EXPECT_EQ(PyLong_AsLong(y), 100);
-}
-
-TEST_F(ASMGeneratorTest, UnboundLocalError) {
-  const char* pycode = R"(
-def test(x):
-    if x:
-        y = 1
-    z = 100
-    return y
-)";
-
-  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  ASSERT_NE(compiled, nullptr);
-
-  auto arg = Ref<>::steal(PyLong_FromLong(0));
-  ASSERT_NE(arg, nullptr);
-
-  PyObject* args[] = {arg.get()};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
-  ASSERT_EQ(res, nullptr);
-
-  PyObject *etyp, *eval, *etb;
-  PyErr_Fetch(&etyp, &eval, &etb);
-  ASSERT_NE(etyp, nullptr);
-
-  auto typ = Ref<>::steal(etyp);
-  auto val = Ref<>::steal(eval);
-  auto tb = Ref<>::steal(etb);
-  EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_UnboundLocalError));
-  ASSERT_NE(val.get(), nullptr);
-  ASSERT_TRUE(PyUnicode_Check(val));
-  std::string msg = PyUnicode_AsUTF8(val);
-  ASSERT_EQ(msg, "local variable 'y' referenced before assignment");
-
-  auto tb_frame = Ref<>::steal(PyObject_GetAttrString(tb, "tb_frame"));
-  ASSERT_NE(tb_frame.get(), nullptr);
-
-  auto locals = Ref<>::steal(PyObject_GetAttrString(tb_frame, "f_locals"));
-  ASSERT_NE(locals.get(), nullptr);
-  EXPECT_EQ(PyObject_Length(locals), 2);
-  PyObject* x = PyDict_GetItemString(locals, "x");
-  ASSERT_TRUE(PyLong_CheckExact(x));
-  EXPECT_EQ(PyLong_AsLong(x), 0);
-  PyObject* y = PyDict_GetItemString(locals, "z");
-  ASSERT_TRUE(PyLong_CheckExact(y));
-  EXPECT_EQ(PyLong_AsLong(y), 100);
-}
-
-TEST_F(ASMGeneratorTest, InsertXDecrefForMaybeAssignedRegisters) {
-  const char* pycode = R"(
-def test(x):
-    if x:
-        y = 1
-    z = y
-    return z
-)";
-
-  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  ASSERT_NE(compiled, nullptr);
-
-  auto arg = Ref<>::steal(PyLong_FromLong(133));
-  ASSERT_NE(arg, nullptr);
-
-  PyObject* args[] = {arg};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
-  ASSERT_NE(res, nullptr);
-  EXPECT_EQ(PyLong_AsLong(res), 1);
 }
 
 TEST_F(ASMGeneratorTest, LoadGlobalTest) {
@@ -1244,7 +1245,6 @@ def test():
   EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_UnboundLocalError));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, TestDeepRegUsage) {
   const char* helpercode = R"(
 def f(*args):
@@ -1272,6 +1272,7 @@ def test(a, func):
   ASSERT_EQ(PyLong_AsLong(res), 20);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 // This can't be tested in the pure Python test suite as it messes with
 // __import__.
 TEST_F(ASMGeneratorTest, TestImportNameWithImportOverride) {
@@ -1328,7 +1329,6 @@ class NewASMGeneratorTest : public RuntimeTest {
   }
 };
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(NewASMGeneratorTest, Linear) {
   const char* src = R"(
 def func(x):
@@ -1353,10 +1353,10 @@ TEST_F(NewASMGeneratorTest, DiamondControlBlock) {
   const char* src = R"(
 def func(a, b):
   c = 0
-  if a > 4:
-    c = b + 4
-  else:
+  if a:
     c = b + 100
+  else:
+    c = b + 4
 
   return a + c
 )";
@@ -1376,7 +1376,6 @@ def func(a, b):
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 106);
 }
-#endif
 
 TEST_F(NewASMGeneratorTest, BlockSorter) {
   jit::lir::Function func;

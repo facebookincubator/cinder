@@ -193,10 +193,12 @@ void reifyFrame(
   // Interpreter loop will handle filling this in
   frame->f_lineno = frame->f_code->co_firstlineno;
   // Instruction pointer
+  // TODO(T126927333): Match upstream and use number of instructions instead
+  // of byte offsets.
   if (frame_meta.next_instr_offset == 0) {
     frame->f_lasti = -1;
   } else {
-    frame->f_lasti = frame_meta.next_instr_offset - sizeof(_Py_CODEUNIT);
+    frame->f_lasti = (frame_meta.next_instr_offset / sizeof(_Py_CODEUNIT)) - 1;
   }
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, frame_meta, mem);
