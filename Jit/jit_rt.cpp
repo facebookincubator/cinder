@@ -2173,3 +2173,12 @@ Py_ssize_t JITRT_CheckSequenceBounds(PyObject* s, Py_ssize_t i) {
   }
   return i;
 }
+
+PyObject* JITRT_GetLength(PyObject* obj) {
+  // Same as GET_LEN handler in Python/ceval.c
+  Py_ssize_t len = PyObject_Length(obj);
+  if (len < 0) {
+    return nullptr;
+  }
+  return PyLong_FromSsize_t(len);
+}

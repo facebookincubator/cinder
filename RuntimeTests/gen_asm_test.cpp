@@ -1322,6 +1322,53 @@ def test_override_builtin_import(locals):
 }
 #endif
 
+TEST_F(ASMGeneratorTest, GetLength) {
+  //  0 LOAD_FAST  0
+  //  2 GET_LENGTH
+  //  4 RETURN_VALUE
+  const char bc[] = {LOAD_FAST, 0, GET_LEN, 0, RETURN_VALUE, 0};
+  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
+  ASSERT_NE(bytecode.get(), nullptr);
+  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
+  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
+  auto consts = Ref<>::steal(PyTuple_New(1));
+  Py_INCREF(Py_None);
+  PyTuple_SET_ITEM(consts.get(), 0, Py_None);
+  auto varnames = Ref<>::steal(PyTuple_Pack(1, PyUnicode_FromString("param")));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto code = Ref<PyCodeObject>::steal(PyCode_New(
+      /*argcount=*/1,
+      0,
+      /*nlocals=*/1,
+      0,
+      0,
+      bytecode,
+      consts,
+      empty_tuple,
+      varnames,
+      empty_tuple,
+      empty_tuple,
+      filename,
+      funcname,
+      0,
+      PyBytes_FromString("")));
+  ASSERT_NE(code.get(), nullptr);
+
+  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
+  ASSERT_NE(func.get(), nullptr);
+
+  auto compiled = GenerateCode(func);
+  ASSERT_NE(compiled, nullptr);
+
+  auto arg = Ref<>::steal(PyList_New(3));
+  PyList_SET_ITEM(arg.get(), 0, PyLong_FromLong(4));
+  PyList_SET_ITEM(arg.get(), 1, PyLong_FromLong(5));
+  PyList_SET_ITEM(arg.get(), 2, PyLong_FromLong(6));
+  PyObject* args[] = {arg.get()};
+  auto result = Ref<>::steal(compiled->Invoke(func, args, ARRAYSIZE(args)));
+  EXPECT_TRUE(isIntEquals(result, 3));
+}
+
 class NewASMGeneratorTest : public RuntimeTest {
  public:
   std::unique_ptr<CompiledFunction> GenerateCode(PyObject* func) {

@@ -243,6 +243,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDeopt:
     case Opcode::kDictSubscr:
     case Opcode::kEndInlinedFunction:
+    case Opcode::kGetLength:
     case Opcode::kGetTuple:
     case Opcode::kGuard:
     case Opcode::kIncref:

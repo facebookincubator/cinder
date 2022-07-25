@@ -192,6 +192,7 @@ class HIRBuilder {
       bool is_awaited);
   void
   emitCompareOp(TranslationContext& tc, int compare_op, uint8_t readonly_mask);
+  void emitGetLen(TranslationContext& tc);
   void emitJumpIf(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);

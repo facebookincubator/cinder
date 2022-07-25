@@ -2246,6 +2246,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         break;
       }
+      case Opcode::kGetLength: {
+        auto instr = static_cast<const GetLength*>(&i);
+        bbb.AppendCall(
+            instr->GetOutput(), JITRT_GetLength, instr->GetOperand(0));
+        break;
+      }
       case Opcode::kPhi: {
         auto instr = static_cast<const Phi*>(&i);
 

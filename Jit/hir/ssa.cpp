@@ -308,6 +308,8 @@ Type outputType(
       return TObject;
     case Opcode::kBuildString:
       return TMortalUnicode;
+    case Opcode::kGetLength:
+      return TLongExact;
     // Many opcodes just return a possibly-null PyObject*. Some of these will
     // be further specialized based on the input types in the hopefully near
     // future.

@@ -225,6 +225,9 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_NEGATIVE,
     UNARY_NOT,
     UNARY_POSITIVE,
+
+    // New CPython 3.10 opcodes
+    GET_LEN,
 };
 #endif
 
@@ -461,7 +464,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     DICT_MERGE,
     DICT_UPDATE,
     GEN_START,
-    GET_LEN,
     IS_OP,
     JUMP_IF_NOT_EXC_MATCH,
     LIST_EXTEND,
@@ -995,6 +997,10 @@ void HIRBuilder::translate(
           break;
         case COMPARE_OP: {
           emitCompareOp(tc, bc_instr.oparg(), 0);
+          break;
+        }
+        case GET_LEN: {
+          emitGetLen(tc);
           break;
         }
         case DELETE_ATTR: {
@@ -2252,6 +2258,15 @@ void HIRBuilder::emitCompareOp(
   Register* result = temps_.AllocateStack();
   CompareOp op = static_cast<CompareOp>(compare_op);
   tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
+  stack.push(result);
+}
+
+void HIRBuilder::emitGetLen(TranslationContext& tc) {
+  FrameState state = tc.frame;
+  auto& stack = tc.frame.stack;
+  Register* obj = stack.pop();
+  Register* result = temps_.AllocateStack();
+  tc.emit<GetLength>(result, obj, state);
   stack.push(result);
 }
 

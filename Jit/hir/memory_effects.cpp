@@ -104,6 +104,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCompareBool:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
+    case Opcode::kGetLength:
     case Opcode::kInPlaceOp:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeStaticFunction:

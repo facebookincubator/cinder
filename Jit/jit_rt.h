@@ -567,3 +567,7 @@ void JITRT_BatchDecref(PyObject** args, int nargs);
  * Returns -1 and raises IndexError on error.
  **/
 Py_ssize_t JITRT_CheckSequenceBounds(PyObject* seq, Py_ssize_t i);
+
+/* Call obj.__len__(). Return LongExact on success or NULL with an exception
+ * set if there was an error. */
+PyObject* JITRT_GetLength(PyObject* obj);

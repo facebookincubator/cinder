@@ -321,6 +321,7 @@ struct FrameState {
   V(FillTypeAttrCache)                 \
   V(FormatValue)                       \
   V(GetIter)                           \
+  V(GetLength)                         \
   V(GetLoadMethodInstance)             \
   V(GetTuple)                          \
   V(Guard)                             \
@@ -3463,6 +3464,9 @@ class INSTR_CLASS(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase) {
  private:
   uint8_t readonly_flags_;
 };
+
+// Get the length of an object by calling __len__.
+DEFINE_SIMPLE_INSTR(GetLength, (TObject), HasOutput, Operands<1>, DeoptBase);
 
 // Invoke next() on the iterator.
 //

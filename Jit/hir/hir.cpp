@@ -192,6 +192,7 @@ bool Instr::isReplayable() const {
     case Opcode::kEndInlinedFunction:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
+    case Opcode::kGetLength:
     case Opcode::kGetTuple:
     case Opcode::kImportName:
     case Opcode::kImportFrom:

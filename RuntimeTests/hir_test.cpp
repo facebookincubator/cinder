@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "opcode.h"
 
+#include "Jit/compiler.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/parser.h"
@@ -495,6 +496,78 @@ fun foo {
 }
 )";
   EXPECT_EQ(HIRPrinter{}.ToString(*func), expected);
+}
+
+class HIRBuilderTest : public RuntimeTest {};
+
+TEST_F(HIRBuilderTest, GetLength) {
+  //  0 LOAD_FAST  0
+  //  2 GET_LENGTH
+  //  4 RETURN_VALUE
+  const char bc[] = {LOAD_FAST, 0, GET_LEN, 0, RETURN_VALUE, 0};
+  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
+  ASSERT_NE(bytecode.get(), nullptr);
+  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
+  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
+  auto consts = Ref<>::steal(PyTuple_New(1));
+  Py_INCREF(Py_None);
+  PyTuple_SET_ITEM(consts.get(), 0, Py_None);
+  auto varnames = Ref<>::steal(PyTuple_Pack(1, PyUnicode_FromString("param")));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto code = Ref<PyCodeObject>::steal(PyCode_New(
+      /*argcount=*/1,
+      0,
+      /*nlocals=*/1,
+      0,
+      0,
+      bytecode,
+      consts,
+      empty_tuple,
+      varnames,
+      empty_tuple,
+      empty_tuple,
+      filename,
+      funcname,
+      0,
+      PyBytes_FromString("")));
+  ASSERT_NE(code.get(), nullptr);
+
+  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
+  ASSERT_NE(func.get(), nullptr);
+
+  std::unique_ptr<Function> irfunc(buildHIR(func));
+  ASSERT_NE(irfunc.get(), nullptr);
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    v0 = LoadArg<0; "param">
+    Snapshot {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v0 = CheckVar<"param"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
+    }
+    v1 = GetLength v0 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+        Stack<1> v0
+      }
+    }
+    Snapshot {
+      NextInstrOffset 4
+      Locals<1> v0
+      Stack<1> v1
+    }
+    Return v1
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
 #ifdef CINDER_ENABLE_BROKEN_TESTS
