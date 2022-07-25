@@ -199,6 +199,14 @@ CONV_REPR = ord("r")
 CONV_ASCII = ord("a")
 
 
+class PatternContext:
+    def __init__(self) -> None:
+        self.stores: list[str] = []
+        self.allow_irrefutable: bool = False
+        self.fail_pop: list[Block] = []
+        self.on_top: int = 0
+
+
 class CodeGenerator(ASTVisitor):
     """Defines basic code generator for Python bytecode
 
@@ -2145,6 +2153,125 @@ class CodeGenerator(ASTVisitor):
         if not have_dict:
             self.emit("BUILD_MAP")
 
+    def visitMatch(self, node: ast.Match) -> None:
+        pc = PatternContext()
+        self.visit(node.subject)
+        end = self.newBlock("match_end")
+        assert node.cases, node.cases
+        last_case = node.cases[-1]
+        has_default = self._wildcard_check(node.cases[-1]) and len(node.cases) > 1
+        cases = list(node.cases)
+        if has_default:
+            cases.pop()
+        for case in cases:
+            self.set_lineno(case.pattern)
+            # Only copy the subject if we're *not* on the last case:
+            is_last_non_default_case = case is cases[-1]
+            if not is_last_non_default_case:
+                self.emit("DUP_TOP")
+            # Irrefutable cases must be either guarded, last, or both:
+            pc.allow_irrefutable = case.guard is not None or case is last_case
+            self.visit(case.pattern, pc)
+            assert not pc.on_top
+            # It's a match! Store all of the captured names (they're on the stack).
+            for name in pc.stores:
+                self.storeName(name)
+            guard = case.guard
+            if guard:
+                self._ensure_fail_pop(pc, 0)
+                self.compileJumpIf(guard, pc.fail_pop[0], False)
+            # Success! Pop the subject off, we're done with it:
+            if not is_last_non_default_case:
+                self.emit("POP_TOP")
+            self.visit(case.body)
+            self.emit("JUMP_FORWARD", end)
+            # If the pattern fails to match, we want the line number of the
+            # cleanup to be associated with the failed pattern, not the last line
+            # of the body
+            self.set_lineno(case.pattern)
+            self._emit_and_reset_fail_pop(pc)
+
+        if has_default:
+            # A trailing "case _" is common, and lets us save a bit of redundant
+            # pushing and popping in the loop above:
+            self.set_lineno(last_case.pattern)
+            if len(node.cases) == 1:
+                # No matches. Done with the subject:
+                self.emit("POP_TOP")
+            else:
+                # Show line coverage for default case (it doesn't create bytecode)
+                self.emit("NOP")
+            if last_case.guard:
+                self.compileJumpIf(last_case.guard, end, False)
+            self.visit(last_case.body)
+        self.nextBlock(end)
+
+    def visitMatchValue(self, node: ast.MatchValue, pc: PatternContext) -> None:
+        value = node.value
+        if not isinstance(value, ast.Constant | ast.Attribute):
+            raise SyntaxError("patterns may only match literals and attribute lookups")
+        self.visit(value)
+        self.emit("COMPARE_OP", "==")
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+
+    def visitMatchSingleton(self, node: ast.MatchSingleton, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchSequence(self, node: ast.MatchSequence, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchMapping(self, node: ast.MatchMapping, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchClass(self, node: ast.MatchClass, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchStar(self, node: ast.MatchStar, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchAs(self, node: ast.MatchAs, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def visitMatchOr(self, node: ast.MatchOr, pc: PatternContext) -> None:
+        # TODO
+        pass
+
+    def _ensure_fail_pop(self, pc: PatternContext, n: int) -> None:
+        """Resize pc.fail_pop to allow for n items to be popped on failure."""
+        size = n + 1
+        if size <= len(pc.fail_pop):
+            return
+
+        while len(pc.fail_pop) < size:
+            pc.fail_pop.append(self.newBlock(f"match_fail_pop_{len(pc.fail_pop)}"))
+
+    def _jump_to_fail_pop(self, pc: PatternContext, op: str) -> None:
+        """Use op to jump to the correct fail_pop block."""
+        # Pop any items on the top of the stack, plus any objects we were going to
+        # capture on success:
+        pops = pc.on_top + len(pc.stores)
+        self._ensure_fail_pop(pc, pops)
+        self.emit(op, pc.fail_pop[pops])
+        self.nextBlock()
+
+    def _emit_and_reset_fail_pop(self, pc: PatternContext) -> None:
+        """Build all o fthe fail_pop blocks and reset fail_pop."""
+        if not pc.fail_pop:
+            self.nextBlock()
+        while pc.fail_pop:
+            self.nextBlock(pc.fail_pop.pop())
+            if pc.fail_pop:
+                self.emit("POP_TOP")
+
+    def _wildcard_check(self, case: ast.match_case) -> bool:
+        return bool(isinstance(case.pattern, ast.MatchAs) and not case.pattern.name)
+
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
         if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER, ASYNC_COMPREHENSION_GENERATOR):
             return
@@ -2419,7 +2546,7 @@ class CodeGenerator(ASTVisitor):
         if isinstance(node, ast.expr):
             old_lineno = self.graph.lineno
             self.set_lineno(node)
-        elif isinstance(node, ast.stmt):
+        elif isinstance(node, (ast.stmt, ast.pattern)):
             self.set_lineno(node)
 
         ret = super().visit(node, *args)
