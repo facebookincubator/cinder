@@ -59,7 +59,8 @@ Register* TempAllocator::AllocateNonStack() {
 
 // Opcodes that we know how to translate into HIR
 #ifdef CINDER_PORTING_DONE
-// Needs reviewing for 3.10
+// Move opcodes from this set into the one in the `#else` block below to enable
+// them in the JIT.
 const std::unordered_set<int> kSupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     CONTAINS_OP,
@@ -116,9 +117,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
     LOAD_CLOSURE,
-    LOAD_CONST,
     LOAD_DEREF,
-    LOAD_FAST,
     // TODO(T126724435): Need dictionary watchers to notify the JIT
     LOAD_GLOBAL,
     LOAD_METHOD,
@@ -132,7 +131,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     POP_JUMP_IF_TRUE,
     POP_TOP,
     RAISE_VARARGS,
-    RETURN_VALUE,
     ROT_FOUR,
     ROT_THREE,
     ROT_TWO,
@@ -142,7 +140,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     SET_ADD,
     STORE_ATTR,
     STORE_DEREF,
-    STORE_FAST,
     STORE_SUBSCR,
     UNPACK_EX,
     UNPACK_SEQUENCE,
