@@ -1540,15 +1540,11 @@ static PyObject* resumeInInterpreter(
     // after resuming because f_stacktop is NULL during execution of a frame.
     if (!err_occurred) {
       if (inline_depth > 0) {
-#ifdef CINDER_PORTING_DONE
         // The caller is at inline depth 0, so we only attempt to push the
         // result onto the stack in the deeper (> 0) frames. Otherwise, we
         // should just return the value from the native code in the way our
         // native calling convention requires.
-        *(frame->f_stacktop)++ = result;
-#else
-        PORT_ASSERT("3.10 doesn't have PyFrameObject::f_stacktop");
-#endif
+        frame->f_valuestack[frame->f_stackdepth++] = result;
       }
     }
     inline_depth--;
