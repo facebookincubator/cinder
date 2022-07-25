@@ -2243,8 +2243,25 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def visitMatchAs(self, node: ast.MatchAs, pc: PatternContext) -> None:
-        # TODO
-        pass
+        pat = node.pattern
+        if pat is None:
+            # An irrefutable match:
+            if not pc.allow_irrefutable:
+                if node.name:
+                    raise SyntaxError(
+                        f"name capture {node.name!r} makes remaining patterns unreachable"
+                    )
+                raise SyntaxError("wildcard makes remaining patterns unreachable")
+            self._pattern_helper_store_name(node.name, pc)
+            return
+
+        # Need to make a copy for (possibly) storing later:
+        pc.on_top += 1
+        self.emit("DUP_TOP")
+        self.visit(pat, pc)
+        # Success! Store it:
+        pc.on_top -= 1
+        self._pattern_helper_store_name(node.name, pc)
 
     def visitMatchOr(self, node: ast.MatchOr, pc: PatternContext) -> None:
         end = self.newBlock("match_or_end")
@@ -2329,10 +2346,35 @@ class CodeGenerator(ASTVisitor):
             name = control[i]
             dupe = name in pc.stores
             if dupe:
-                raise SyntaxError(f"multiple assignments to name {name!r} in pattern")
+                raise self._error_duplicate_store(name)
             pc.stores.append(name)
         # Pop the copy of the subject:
         self.emit("POP_TOP")
+
+    def _pattern_helper_store_name(self, name: str | None, pc: PatternContext) -> None:
+        if name is None:
+            self.emit("POP_TOP")
+            return
+
+        self._check_forbidden_name(name, ast.Store)
+
+        # Can't assign to the same name twice:
+        duplicate = name in pc.stores
+        if duplicate:
+            raise self._error_duplicate_store(name)
+
+        # Rotate this object underneath any items we need to preserve:
+        self.emit("ROT_N", pc.on_top + len(pc.stores) + 1)
+        pc.stores.append(name)
+
+    def _check_forbidden_name(self, name: str, ctx: type[ast.expr_context]) -> None:
+        if ctx is ast.Store and name == "__debug__":
+            raise SyntaxError("cannot assign to __debug__")
+        if ctx is ast.Del and name == "__debug__":
+            raise SyntaxError("cannot delete __debug__")
+
+    def _error_duplicate_store(self, name: str) -> SyntaxError:
+        return SyntaxError(f"multiple assignments to name {name!r} in pattern")
 
     def _ensure_fail_pop(self, pc: PatternContext, n: int) -> None:
         """Resize pc.fail_pop to allow for n items to be popped on failure."""
