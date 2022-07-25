@@ -228,6 +228,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
 
     // New CPython 3.10 opcodes
     GET_LEN,
+    LOAD_ASSERTION_ERROR,
 };
 #endif
 
@@ -468,7 +469,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     JUMP_IF_NOT_EXC_MATCH,
     LIST_EXTEND,
     LIST_TO_TUPLE,
-    LOAD_ASSERTION_ERROR,
     MATCH_CLASS,
     MATCH_KEYS,
     MATCH_MAPPING,
@@ -522,6 +522,7 @@ static bool should_snapshot(
     case DUP_TOP_TWO:
     case EXTENDED_ARG:
     case INT_LOAD_CONST_OLD:
+    case LOAD_ASSERTION_ERROR:
     case LOAD_CLOSURE:
     case LOAD_CONST:
     case LOAD_FAST:
@@ -1017,6 +1018,10 @@ void HIRBuilder::translate(
         }
         case LOAD_METHOD_SUPER: {
           emitLoadMethodOrAttrSuper(tc, bc_instr, true);
+          break;
+        }
+        case LOAD_ASSERTION_ERROR: {
+          emitLoadAssertionError(tc, irfunc.env);
           break;
         }
         case LOAD_ATTR_SUPER: {
@@ -2410,6 +2415,17 @@ void HIRBuilder::emitStoreDeref(
   Register* src = tc.frame.stack.pop();
   tc.emit<StealCellItem>(old, dst);
   tc.emit<SetCellItem>(dst, src, old);
+}
+
+void HIRBuilder::emitLoadAssertionError(
+    TranslationContext& tc,
+    Environment& env) {
+  Register* result = temps_.AllocateStack();
+  ThreadedCompileSerialize guard;
+  Ref<> obj(PyExc_AssertionError);
+  tc.emit<LoadConst>(
+      result, Type::fromObject(env.addReference(std::move(obj))));
+  tc.frame.stack.push(result);
 }
 
 void HIRBuilder::emitLoadClass(

@@ -570,6 +570,52 @@ TEST_F(HIRBuilderTest, GetLength) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
+TEST_F(HIRBuilderTest, LoadAssertionError) {
+  //  0 LOAD_ASSERTION_ERROR
+  //  2 RETURN_VALUE
+  const char bc[] = {LOAD_ASSERTION_ERROR, 0, RETURN_VALUE, 0};
+  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
+  ASSERT_NE(bytecode.get(), nullptr);
+  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
+  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto code = Ref<PyCodeObject>::steal(PyCode_New(
+      0,
+      0,
+      0,
+      0,
+      0,
+      bytecode,
+      empty_tuple,
+      empty_tuple,
+      empty_tuple,
+      empty_tuple,
+      empty_tuple,
+      filename,
+      funcname,
+      0,
+      PyBytes_FromString("")));
+  ASSERT_NE(code.get(), nullptr);
+
+  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
+  ASSERT_NE(func.get(), nullptr);
+
+  std::unique_ptr<Function> irfunc(buildHIR(func));
+  ASSERT_NE(irfunc.get(), nullptr);
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    Snapshot {
+      NextInstrOffset 0
+    }
+    v0 = LoadConst<MortalTypeExact[AssertionError:obj]>
+    Return v0
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
+}
+
 #ifdef CINDER_ENABLE_BROKEN_TESTS
 class EdgeCaseTest : public RuntimeTest {};
 
