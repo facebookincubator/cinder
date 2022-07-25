@@ -101,6 +101,8 @@ class FlowGraphOptimizer:
             return self.opt_jump(instr_index, instr, next_instr, target, block)
         elif instr.opname == "FOR_ITER":
             return self.opt_for_iter(instr_index, instr, next_instr, target, block)
+        elif instr.opname == "ROT_N":
+            return self.opt_rot_n(instr_index, instr, next_instr, target, block)
         elif instr.opname == "LOAD_CONST":
             return self.opt_load_const(instr_index, instr, next_instr, target, block)
         elif instr.opname == "BUILD_TUPLE":
@@ -233,6 +235,47 @@ class FlowGraphOptimizer:
         assert target is not None
         if target.opname == "JUMP_FORWARD":
             return instr_index + self.jump_thread(instr, target, "FOR_ITER")
+
+    def opt_rot_n(
+        self,
+        instr_index: int,
+        instr: Instruction,
+        next_instr: Instruction | None,
+        target: Instruction | None,
+        block: Block,
+    ) -> Optional[int]:
+        if instr.ioparg < 2:
+            pass
+            instr.opname = "NOP"
+            return
+        elif instr.ioparg == 2:
+            instr.opname = "ROT_TWO"
+        elif instr.ioparg == 3:
+            instr.opname = "ROT_THREE"
+        elif instr.ioparg == 4:
+            instr.opname = "ROT_FOUR"
+        if instr_index >= instr.ioparg - 1:
+            self.fold_rotations(
+                block.insts[instr_index - instr.ioparg + 1 : instr_index + 1],
+                instr.ioparg,
+            )
+
+    def fold_rotations(self, instrs: list[Instruction], n: int) -> None:
+        for instr in instrs:
+            if instr.opname == "ROT_N":
+                rot = instr.ioparg
+            elif instr.opname == "ROT_FOUR":
+                rot = 4
+            elif instr.opname == "ROT_THREE":
+                rot = 3
+            elif instr.opname == "ROT_TWO":
+                rot = 2
+            else:
+                return
+            if rot != n:
+                return
+        for instr in instrs:
+            instr.opname = "NOP"
 
     def opt_load_const(
         self,
