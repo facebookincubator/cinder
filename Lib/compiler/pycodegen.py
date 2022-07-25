@@ -206,6 +206,14 @@ class PatternContext:
         self.fail_pop: list[Block] = []
         self.on_top: int = 0
 
+    def clone(self) -> PatternContext:
+        pc = PatternContext()
+        pc.stores = list(self.stores)
+        pc.allow_irrefutable = self.allow_irrefutable
+        pc.fail_pop = list(self.fail_pop)
+        pc.on_top = self.on_top
+        return pc
+
 
 class CodeGenerator(ASTVisitor):
     """Defines basic code generator for Python bytecode
@@ -2239,8 +2247,92 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def visitMatchOr(self, node: ast.MatchOr, pc: PatternContext) -> None:
-        # TODO
-        pass
+        end = self.newBlock("match_or_end")
+        size = len(node.patterns)
+        assert size > 1
+        # We're going to be messing with pc. Keep the original info handy:
+        old_pc = pc
+        pc = pc.clone()
+        # control is the list of names bound by the first alternative. It is used
+        # for checking different name bindings in alternatives, and for correcting
+        # the order in which extracted elements are placed on the stack.
+        control: list[str] | None = None
+        for alt in node.patterns:
+            self.set_lineno(alt)
+            pc.stores = []
+            # An irrefutable sub-pattern must be last, if it is allowed at all:
+            pc.allow_irrefutable = (
+                alt is node.patterns[-1]
+            ) and old_pc.allow_irrefutable
+            pc.fail_pop = []
+            pc.on_top = 0
+            self.emit("DUP_TOP")
+            self.visit(alt, pc)
+            # Success!
+            nstores = len(pc.stores)
+            if alt is node.patterns[0]:
+                # This is the first alternative, so save its stores as a "control"
+                # for the others (they can't bind a different set of names, and
+                # might need to be reordered):
+                assert control is None
+                control = pc.stores
+            elif nstores != len(control or []):
+                raise SyntaxError("alternative patterns bind different names")
+            elif nstores:
+                # There were captures. Check to see if we differ from control:
+                icontrol = nstores
+                assert control is not None
+                while icontrol:
+                    icontrol -= 1
+                    name = control[icontrol]
+                    istores = pc.stores.index(name)
+                    if icontrol != istores:
+                        # Reorder the names on the stack to match the order of the
+                        # names n control. There's probably a better way of doing
+                        # this; the current solution is potentially very
+                        # inefficient when each alternative subpattern binds lots
+                        # of names in different orders. It's fine for reasonable
+                        # cases, though.
+                        assert istores < icontrol
+                        rotations = istores + 1
+                        # Perform the same rotation on pc.stores:
+                        rotated = pc.stores[:rotations]
+                        del pc.stores[:rotations]
+                        pc.stores[(icontrol - istores) : (icontrol - istores)] = rotated
+                        # Do the same to the stack, using several ROT_Ns:
+                        for _ in range(rotations):
+                            self.emit("ROT_N", icontrol + 1)
+            assert control is not None
+            self.emit("JUMP_FORWARD", end)
+            self.nextBlock()
+            self._emit_and_reset_fail_pop(pc)
+        assert control is not None
+        pc = old_pc
+        old_pc.fail_pop = []
+        # No match. Pop the remaining copy of the subject and fail:
+        self.emit("POP_TOP")
+        self._jump_to_fail_pop(pc, "JUMP_FORWARD")
+        self.nextBlock(end)
+        nstores = len(control)
+        # There's a bunch of stuff on the stack between any where the new stores
+        # are and where they need to be:
+        # - The other stores.
+        # - A copy of the subject.
+        # - Anything else that may be on top of the stack.
+        # - Any previous stores we've already stashed away on the stack.
+        nrots = nstores + 1 + pc.on_top + len(pc.stores)
+        for i in range(nstores):
+            # Rotate this capture to its proper place on the stack:
+            self.emit("ROT_N", nrots)
+            # Update the list of previous stores with this new name, checking for
+            # duplicates:
+            name = control[i]
+            dupe = name in pc.stores
+            if dupe:
+                raise SyntaxError(f"multiple assignments to name {name!r} in pattern")
+            pc.stores.append(name)
+        # Pop the copy of the subject:
+        self.emit("POP_TOP")
 
     def _ensure_fail_pop(self, pc: PatternContext, n: int) -> None:
         """Resize pc.fail_pop to allow for n items to be popped on failure."""
