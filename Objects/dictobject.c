@@ -119,6 +119,9 @@ converting the dict to the combined table.
 #include "dict-common.h"
 #include "stringlib/eq.h"    // unicode_eq()
 
+/* TODO(T113261295): Remove this once dict watchers are upstreamed. */
+#include "Jit/pyjit.h"
+
 /*[clinic input]
 class dict "PyDictObject *" "&PyDict_Type"
 [clinic start generated code]*/
@@ -278,8 +281,9 @@ dict_modify_key(PyDictObject *dict, PyObject *key, PyObject *new_value)
 {
     if (UNLIKELY(dict_is_watched(dict))) {
         dict->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
-        // TODO uncomment when this JIT API exists
-        //_PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+        _PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
     } else {
         dict->ma_version_tag = DICT_NEXT_VERSION();
     }
@@ -289,8 +293,9 @@ static inline void
 dict_set_lookup(PyDictObject *dict, dict_lookup_func new_lookup)
 {
     if (UNLIKELY(dict_is_watched(dict))) {
-        // TODO uncomment when this JIT API exists
-        //_PyJIT_NotifyDictUnwatch((PyObject *)dict);
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+        _PyJIT_NotifyDictUnwatch((PyObject *)dict);
         dict->ma_version_tag = DICT_NEXT_VERSION();
     }
     dict->ma_keys->dk_lookup = new_lookup;
@@ -2146,8 +2151,9 @@ PyDict_Clear(PyObject *op)
         return;
     if (UNLIKELY(dict_is_watched(mp))) {
         mp->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
-        // TODO uncomment when this JIT API exists
-        //_PyJIT_NotifyDictClear((PyObject *)mp);
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+        _PyJIT_NotifyDictClear((PyObject *)mp);
     } else {
         mp->ma_version_tag = DICT_NEXT_VERSION();
     }
@@ -2472,8 +2478,9 @@ dict_dealloc(PyDictObject *mp)
     Py_ssize_t i, n;
 
     if (UNLIKELY(dict_is_watched(mp))) {
-        // TODO uncomment when this JIT API exists
-        //_PyJIT_NotifyDictUnwatch((PyObject *)mp);
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+        _PyJIT_NotifyDictUnwatch((PyObject *)mp);
     }
 
     /* bpo-31095: UnTrack is needed before calling any callbacks */
@@ -3187,6 +3194,11 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 }
 
                 mp->ma_used = other->ma_used;
+                if (UNLIKELY(dict_is_watched(mp))) {
+                  /* TODO(T113261295): Replace this with the generic hook once
+                   * dict watchers are upstreamed. */
+                    _PyJIT_NotifyDictUnwatch((PyObject *)mp);
+                }
                 mp->ma_version_tag = DICT_NEXT_VERSION();
                 ASSERT_CONSISTENT(mp);
 
