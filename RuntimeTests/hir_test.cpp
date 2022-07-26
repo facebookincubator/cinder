@@ -499,54 +499,76 @@ fun foo {
   EXPECT_EQ(HIRPrinter{}.ToString(*func), expected);
 }
 
-class HIRBuilderTest : public RuntimeTest {};
+class HIRBuilderTest : public RuntimeTest {
+ public:
+  std::unique_ptr<Function> build_test(
+      const char* bc,
+      size_t bc_size,
+      const std::vector<PyObject*>& locals /* borrowed */) {
+    auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, bc_size));
+    assert(bytecode.get());
+    const int nlocals = locals.size();
+
+    auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
+    auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
+    auto consts = Ref<>::steal(PyTuple_New(nlocals));
+    auto varnames = Ref<>::steal(PyTuple_New(nlocals));
+    for (int i = 0; i < nlocals; i++) {
+      PyObject* local = locals.at(i);
+      Py_INCREF(local);
+      PyTuple_SET_ITEM(consts.get(), i, local);
+      PyTuple_SET_ITEM(
+          varnames.get(),
+          i,
+          PyUnicode_FromString(fmt::format("param{}", i).c_str()));
+    }
+
+    auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+    auto code = Ref<PyCodeObject>::steal(PyCode_New(
+        /*argcount=*/1,
+        0,
+        /*nlocals=*/nlocals,
+        0,
+        0,
+        bytecode,
+        consts,
+        empty_tuple,
+        varnames,
+        empty_tuple,
+        empty_tuple,
+        filename,
+        funcname,
+        0,
+        PyBytes_FromString("")));
+    assert(code.get());
+
+    auto func =
+        Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
+    assert(func.get());
+
+    std::unique_ptr<Function> irfunc(buildHIR(func));
+    assert(irfunc.get());
+
+    return irfunc;
+  }
+};
 
 TEST_F(HIRBuilderTest, GetLength) {
   //  0 LOAD_FAST  0
   //  2 GET_LENGTH
   //  4 RETURN_VALUE
   const char bc[] = {LOAD_FAST, 0, GET_LEN, 0, RETURN_VALUE, 0};
-  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
-  ASSERT_NE(bytecode.get(), nullptr);
-  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
-  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
-  auto consts = Ref<>::steal(PyTuple_New(1));
-  Py_INCREF(Py_None);
-  PyTuple_SET_ITEM(consts.get(), 0, Py_None);
-  auto varnames = Ref<>::steal(PyTuple_Pack(1, PyUnicode_FromString("param")));
-  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
-  auto code = Ref<PyCodeObject>::steal(PyCode_New(
-      /*argcount=*/1,
-      0,
-      /*nlocals=*/1,
-      0,
-      0,
-      bytecode,
-      consts,
-      empty_tuple,
-      varnames,
-      empty_tuple,
-      empty_tuple,
-      filename,
-      funcname,
-      0,
-      PyBytes_FromString("")));
-  ASSERT_NE(code.get(), nullptr);
-
-  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
-  ASSERT_NE(func.get(), nullptr);
-
-  std::unique_ptr<Function> irfunc(buildHIR(func));
+  std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
   ASSERT_NE(irfunc.get(), nullptr);
 
   const char* expected = R"(fun jittestmodule:funcname {
   bb 0 {
-    v0 = LoadArg<0; "param">
+    v0 = LoadArg<0; "param0">
     Snapshot {
       NextInstrOffset 0
       Locals<1> v0
     }
-    v0 = CheckVar<"param"> v0 {
+    v0 = CheckVar<"param0"> v0 {
       FrameState {
         NextInstrOffset 2
         Locals<1> v0
@@ -893,47 +915,8 @@ TEST_F(HIRBuilderTest, ROT_N) {
       RETURN_VALUE,
       0};
 
-  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
-
-  ASSERT_NE(bytecode.get(), nullptr);
-  constexpr int nlocals = 4;
-  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
-  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
-  auto consts = Ref<>::steal(PyTuple_New(nlocals));
-  auto varnames = Ref<>::steal(PyTuple_New(nlocals));
-  for (int i = 0; i < nlocals; i++) {
-    Py_INCREF(Py_None);
-    PyTuple_SET_ITEM(consts.get(), i, Py_None);
-    PyTuple_SET_ITEM(
-        varnames.get(),
-        i,
-        PyUnicode_FromString(fmt::format("param{}", i).c_str()));
-  }
-
-  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
-  auto code = Ref<PyCodeObject>::steal(PyCode_New(
-      /*argcount=*/1,
-      0,
-      /*nlocals=*/nlocals,
-      0,
-      0,
-      bytecode,
-      consts,
-      empty_tuple,
-      varnames,
-      empty_tuple,
-      empty_tuple,
-      filename,
-      funcname,
-      0,
-      PyBytes_FromString("")));
-  ASSERT_NE(code.get(), nullptr);
-
-  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
-  ASSERT_NE(func.get(), nullptr);
-
-  std::unique_ptr<Function> irfunc(buildHIR(func));
-  ASSERT_NE(irfunc.get(), nullptr);
+  std::unique_ptr<Function> irfunc =
+      build_test(bc, sizeof(bc), {Py_None, Py_None, Py_None, Py_None});
 
   const char* expected = R"(fun jittestmodule:funcname {
   bb 0 {
@@ -1009,5 +992,103 @@ TEST_F(HIRBuilderTest, ROT_N) {
 }
 )";
 
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
+}
+
+TEST_F(HIRBuilderTest, MatchMapping) {
+  const char bc[] = {LOAD_FAST, 0, MATCH_MAPPING, 0, RETURN_VALUE, 0};
+
+  std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    v0 = LoadArg<0; "param0">
+    Snapshot {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v0 = CheckVar<"param0"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
+    }
+    v1 = LoadField<ob_type@8, Type, borrowed> v0
+    v2 = LoadField<tp_flags@168, CUInt64, borrowed> v1
+    v3 = LoadConst<CUInt64[64]>
+    v4 = IntBinaryOp<And> v2 v3
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<MortalBool[True]>
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v5 = LoadConst<MortalBool[False]>
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    Snapshot {
+      NextInstrOffset 4
+      Locals<1> v0
+      Stack<2> v0 v5
+    }
+    v1 = Assign v0
+    Return v5
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
+}
+
+TEST_F(HIRBuilderTest, MatchSequence) {
+  const char bc[] = {LOAD_FAST, 0, MATCH_SEQUENCE, 0, RETURN_VALUE, 0};
+
+  std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    v0 = LoadArg<0; "param0">
+    Snapshot {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v0 = CheckVar<"param0"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
+    }
+    v1 = LoadField<ob_type@8, Type, borrowed> v0
+    v2 = LoadField<tp_flags@168, CUInt64, borrowed> v1
+    v3 = LoadConst<CUInt64[32]>
+    v4 = IntBinaryOp<And> v2 v3
+    CondBranch<1, 2> v4
+  }
+
+  bb 1 (preds 0) {
+    v5 = LoadConst<MortalBool[True]>
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v5 = LoadConst<MortalBool[False]>
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    Snapshot {
+      NextInstrOffset 4
+      Locals<1> v0
+      Stack<2> v0 v5
+    }
+    v1 = Assign v0
+    Return v5
+  }
+}
+)";
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }

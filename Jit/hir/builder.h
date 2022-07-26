@@ -417,6 +417,9 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
 
+  void
+  emitMatchMappingSequence(CFG& cfg, TranslationContext& tc, uint64_t tf_flag);
+
   void emitReadonlyOperation(
       CFG& cfg,
       TranslationContext& tc,

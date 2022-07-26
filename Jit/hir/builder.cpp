@@ -3,6 +3,7 @@
 
 #include "Python.h"
 #include "arraymodule.h"
+#include "boolobject.h"
 #include "ceval.h"
 #include "opcode.h"
 #include "pyreadonly.h"
@@ -244,6 +245,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     // New CPython 3.10 opcodes
     GET_LEN,
     LOAD_ASSERTION_ERROR,
+    MATCH_MAPPING,
+    MATCH_SEQUENCE,
     ROT_N,
 };
 #endif
@@ -487,8 +490,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     LIST_TO_TUPLE,
     MATCH_CLASS,
     MATCH_KEYS,
-    MATCH_MAPPING,
-    MATCH_SEQUENCE,
     RERAISE,
     SET_UPDATE,
     WITH_EXCEPT_START,
@@ -1420,6 +1421,12 @@ void HIRBuilder::translate(
           emitSetupWith(tc, bc_instr);
           break;
         }
+        case MATCH_MAPPING:
+          emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_MAPPING);
+          break;
+        case MATCH_SEQUENCE:
+          emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_SEQUENCE);
+          break;
         default: {
           // NOTREACHED
           JIT_CHECK(false, "unhandled opcode: %d", bc_instr.opcode());
@@ -4090,6 +4097,41 @@ void HIRBuilder::emitDispatchEagerCoroResult(
 
   res_block.emit<Assign>(out, wh_coro_or_result);
   res_block.emit<Branch>(post_await_block);
+}
+
+void HIRBuilder::emitMatchMappingSequence(
+    CFG& cfg,
+    TranslationContext& tc,
+    uint64_t tf_flag) {
+  Register* top = tc.frame.stack.top();
+  auto type = temps_.AllocateStack();
+  tc.emit<LoadField>(type, top, "ob_type", offsetof(PyObject, ob_type), TType);
+  auto tp_flags = temps_.AllocateStack();
+  tc.emit<LoadField>(
+      tp_flags, type, "tp_flags", offsetof(PyTypeObject, tp_flags), TCUInt64);
+  auto flag = temps_.AllocateStack();
+  tc.emit<LoadConst>(flag, Type::fromCUInt(tf_flag, TCUInt64));
+
+  auto and_result = temps_.AllocateStack();
+  tc.emit<IntBinaryOp>(and_result, BinaryOpKind::kAnd, tp_flags, flag);
+
+  auto true_block = cfg.AllocateBlock();
+  auto false_block = cfg.AllocateBlock();
+  tc.emit<CondBranch>(and_result, true_block, false_block);
+
+  auto result = temps_.AllocateStack();
+  tc.block = true_block;
+  tc.emit<LoadConst>(result, Type::fromObject(Py_True));
+  auto done = cfg.AllocateBlock();
+  tc.emit<Branch>(done);
+
+  tc.block = false_block;
+  tc.emit<LoadConst>(result, Type::fromObject(Py_False));
+  tc.emit<Branch>(done);
+
+  tc.block = done;
+
+  tc.frame.stack.push(result);
 }
 
 void HIRBuilder::insertEvalBreakerCheck(
