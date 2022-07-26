@@ -104,18 +104,18 @@ PyObject *_PyDict_GetItem_StackKnownHash(PyObject *op,
 
 /* Return 1 if the given dict has unicode-only keys and can be watched, or 0
  * otherwise. */
-int _PyDict_CanWatch(PyObject *);
+PyAPI_FUNC(int) _PyDict_CanWatch(PyObject *);
 
 /* Return 1 if the given dict is watched, or 0 otherwise. */
-int _PyDict_IsWatched(PyObject *);
+PyAPI_FUNC(int) _PyDict_IsWatched(PyObject *);
 
 /* Watch the given dict for changes, calling
  * _PyJIT_NotifyDict{Key,Clear,Unwatch}() as appropriate for any
  * changes to it. */
-void _PyDict_Watch(PyObject *);
+PyAPI_FUNC(void) _PyDict_Watch(PyObject *);
 
 /* Stop watching the given dict. */
-void _PyDict_Unwatch(PyObject *);
+PyAPI_FUNC(void) _PyDict_Unwatch(PyObject *);
 
 /* Increment the given dict's version tag for a set operation, notifying any
  * watchers of the new value.
@@ -126,12 +126,12 @@ _PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
 PyObject *_PyDict_GetAttrItem(PyObject *op, PyObject *key);
 
 /* Return 1 if the given dict has deferred objects, or 0 otherwise. */
-int _PyDict_HasDeferredObjects(PyObject *);
+PyAPI_FUNC(int) _PyDict_HasDeferredObjects(PyObject *);
 
 /* Flag dictionary as having deferred objects in it */
-void _PyDict_SetHasDeferredObjects(PyObject *);
+PyAPI_FUNC(void) _PyDict_SetHasDeferredObjects(PyObject *);
 
 /* Unflag dictionary as having deferred objects in it */
-void _PyDict_UnsetHasDeferredObjects(PyObject *);
+PyAPI_FUNC(void) _PyDict_UnsetHasDeferredObjects(PyObject *);
 
-int _PyDict_LoadDeferred(PyDictObject *, int);
+PyAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *, int);

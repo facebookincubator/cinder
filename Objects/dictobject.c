@@ -311,7 +311,8 @@ _PyDict_IncVersionForSet(PyDictObject *d, PyObject *key, PyObject *value)
 int
 _PyDict_CanWatch(PyObject *dict)
 {
-    return ((PyDictObject *)dict)->ma_keys->dk_lookup != lookdict;
+    dict_lookup_func lookup = ((PyDictObject *)dict)->ma_keys->dk_lookup;
+    return lookup != lookdict && lookup != lookdict_with_lazy_imports;
 }
 
 int
@@ -588,6 +589,7 @@ _PyDict_SetHasDeferredObjects(PyObject *dict)
 
     if (!DICT_HAS_DEFERRED(mp)) {
         if (mp->ma_keys->dk_lookup == lookdict) {
+            assert(!dict_is_watched(mp));
             mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
         }
         else
@@ -609,6 +611,7 @@ _PyDict_UnsetHasDeferredObjects(PyObject *dict)
 
     if (DICT_HAS_DEFERRED(mp)) {
         if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports) {
+            assert(!dict_is_watched(mp));
             mp->ma_keys->dk_lookup = lookdict;
         }
         else
@@ -1080,7 +1083,6 @@ lookdict_unicode(PyDictObject *mp, PyObject *key,
        unicodes is to override __eq__, and for speed we don't cater to
        that here. */
     if (!PyUnicode_CheckExact(key)) {
-        mp->ma_keys->dk_lookup = lookdict;
         return lookdict(mp, key, hash, value_addr, resolve_lazy_imports);
     }
 
@@ -1130,7 +1132,6 @@ lookdict_with_lazy_imports_unicode(PyDictObject *mp, PyObject *key,
        unicodes is to override __eq__, and for speed we don't cater to
        that here. */
     if (!PyUnicode_CheckExact(key)) {
-        mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
         return lookdict_with_lazy_imports(mp, key, hash, value_addr, resolve_lazy_imports);
     }
 
@@ -1205,7 +1206,6 @@ lookdict_unicode_nodummy(PyDictObject *mp, PyObject *key,
        unicodes is to override __eq__, and for speed we don't cater to
        that here. */
     if (!PyUnicode_CheckExact(key)) {
-        mp->ma_keys->dk_lookup = lookdict;
         return lookdict(mp, key, hash, value_addr, resolve_lazy_imports);
     }
 
@@ -1390,9 +1390,6 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
     if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         goto Fail;
 
-    assert(PyUnicode_CheckExact(key)
-           || mp->ma_keys->dk_lookup == lookdict
-           || mp->ma_keys->dk_lookup == lookdict_with_lazy_imports);
     MAINTAIN_TRACKING(mp, key, value);
 
     /* When insertion order is different from shared key, we can't share
@@ -1414,8 +1411,13 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
             if (insertion_resize(mp) < 0)
                 goto Fail;
         }
-        if (!PyUnicode_CheckExact(key) && mp->ma_keys->dk_lookup != lookdict) {
-            dict_set_lookup(mp, lookdict);
+        if (!PyUnicode_CheckExact(key)) {
+            if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
+                dict_set_lookup(mp, lookdict_with_lazy_imports);
+            }
+            else if (mp->ma_keys->dk_lookup != lookdict) {
+                dict_set_lookup(mp, lookdict);
+            }
         }
         Py_ssize_t hashpos = find_empty_slot(mp->ma_keys, hash);
         ep = &DK_ENTRIES(mp->ma_keys)[mp->ma_keys->dk_nentries];
@@ -1475,17 +1477,18 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
     if (newkeys == NULL) {
         return -1;
     }
-    if (!PyUnicode_CheckExact(key)) {
-        if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
-            newkeys->dk_lookup = lookdict_with_lazy_imports;
-        }
-        else {
-            newkeys->dk_lookup = lookdict;
-        }
-    }
     dictkeys_decref(Py_EMPTY_KEYS);
     mp->ma_keys = newkeys;
     mp->ma_values = NULL;
+
+    if (!PyUnicode_CheckExact(key)) {
+        if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
+            dict_set_lookup(mp, lookdict_with_lazy_imports);
+        }
+        else {
+            dict_set_lookup(mp, lookdict);
+        }
+    }
 
     Py_INCREF(key);
     Py_INCREF(value);

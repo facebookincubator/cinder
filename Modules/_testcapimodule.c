@@ -5626,6 +5626,79 @@ cinder_enable_broken_tests(PyObject *self, PyObject *Py_UNUSED(ignored))
 #endif
 }
 
+static PyObject *
+test_dict_can_watch(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+    PyObject *dict = NULL, *five = NULL;
+
+    dict = PyDict_New();
+    if (dict == NULL) {
+        goto error;
+    }
+    five = PyLong_FromLong(5);
+    if (five == NULL) {
+        goto error;
+    }
+    if (!_PyDict_CanWatch(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Empty dict can't be watched");
+        goto error;
+    }
+
+    if (PyDict_SetItemString(dict, "some_key", Py_None) < 0) {
+        goto error;
+    }
+    if (!_PyDict_CanWatch(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Dict with str key can't be watched");
+        goto error;
+    }
+
+    if (PyDict_GetItem(dict, five) != NULL) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Dict shouldn't contain key 5 yet");
+        goto error;
+    }
+    if (!_PyDict_CanWatch(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Dict can't be watched after non-str key lookup");
+        goto error;
+    }
+
+    if (PyDict_SetItem(dict, five, Py_None) < 0) {
+        goto error;
+    }
+    if (_PyDict_CanWatch(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Dict with int key can be watched");
+        goto error;
+    }
+
+    _PyDict_SetHasDeferredObjects(dict);
+    if (_PyDict_CanWatch(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_can_watch: Dict with int key and deferred imports can be watched");
+        goto error;
+    }
+
+    int error = 0;
+    goto done;
+error:
+    error = 1;
+done:
+    Py_XDECREF(dict);
+    Py_XDECREF(five);
+    if (error) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 
 static PyObject *test_buildvalue_issue38913(PyObject *, PyObject *);
 static PyObject *getargs_s_hash_int(PyObject *, PyObject *, PyObject*);
@@ -5963,6 +6036,7 @@ static PyMethodDef TestMethods[] = {
     {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
     {"get_context_indirect", get_context, METH_VARARGS},
     {"cinder_enable_broken_tests", cinder_enable_broken_tests, METH_NOARGS},
+    {"test_dict_can_watch", test_dict_can_watch, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 
