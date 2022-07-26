@@ -32,6 +32,10 @@ class Stack {
     return at(size() - idx - 1);
   }
 
+  void topPut(std::size_t idx, const T& value) {
+    atPut(size() - idx - 1, value);
+  }
+
   void push(const T& value) {
     stack_.push_back(value);
   }

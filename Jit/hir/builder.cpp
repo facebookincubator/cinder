@@ -244,6 +244,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     // New CPython 3.10 opcodes
     GET_LEN,
     LOAD_ASSERTION_ERROR,
+    ROT_N,
 };
 #endif
 
@@ -489,7 +490,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     MATCH_MAPPING,
     MATCH_SEQUENCE,
     RERAISE,
-    ROT_N,
     SET_UPDATE,
     WITH_EXCEPT_START,
 };
@@ -552,6 +552,7 @@ static bool should_snapshot(
     case ROT_FOUR:
     case ROT_THREE:
     case ROT_TWO:
+    case ROT_N:
     case STORE_FAST:
     case STORE_LOCAL: {
       return false;
@@ -1199,6 +1200,18 @@ void HIRBuilder::translate(
               tc.frame.block_stack.isEmpty(),
               "Returning with non-empty block stack");
           tc.emit<Return>(reg);
+          break;
+        }
+        case ROT_N: {
+          int oparg = bc_instr.oparg();
+          if (oparg <= 1) {
+            break;
+          }
+          OperandStack& stack = tc.frame.stack;
+          Register* top = stack.top();
+
+          std::copy_backward(stack.end() - oparg, stack.end() - 1, stack.end());
+          stack.topPut(oparg - 1, top);
           break;
         }
         case END_ASYNC_FOR: {
