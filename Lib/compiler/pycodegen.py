@@ -56,6 +56,8 @@ callfunc_opcode_info = {
     (1, 1): "CALL_FUNCTION_VAR_KW",
 }
 
+INT_MAX = (2**31) - 1
+
 # enum fblocktype
 WHILE_LOOP = 1
 FOR_LOOP = 2
@@ -2162,12 +2164,15 @@ class CodeGenerator(ASTVisitor):
             self.emit("BUILD_MAP")
 
     def visitMatch(self, node: ast.Match) -> None:
+        """See compiler_match_inner in compile.c"""
         pc = PatternContext()
         self.visit(node.subject)
         end = self.newBlock("match_end")
         assert node.cases, node.cases
         last_case = node.cases[-1]
-        has_default = self._wildcard_check(node.cases[-1]) and len(node.cases) > 1
+        has_default = (
+            self._wildcard_check(node.cases[-1].pattern) and len(node.cases) > 1
+        )
         cases = list(node.cases)
         if has_default:
             cases.pop()
@@ -2215,6 +2220,7 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(end)
 
     def visitMatchValue(self, node: ast.MatchValue, pc: PatternContext) -> None:
+        """See compiler_pattern_value in compile.c"""
         value = node.value
         if not isinstance(value, ast.Constant | ast.Attribute):
             raise SyntaxError("patterns may only match literals and attribute lookups")
@@ -2227,8 +2233,125 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def visitMatchSequence(self, node: ast.MatchSequence, pc: PatternContext) -> None:
-        # TODO
-        pass
+        """See compiler_pattern_sequence in compile.c"""
+        patterns = node.patterns
+        size = len(patterns)
+        star = -1
+        only_wildcard = True
+        star_wildcard = False
+        # Find a starred name, if it exists. There may be at most one:
+        for i, pattern in enumerate(patterns):
+            if isinstance(pattern, ast.MatchStar):
+                if star >= 0:
+                    raise SyntaxError("multiple starred names in sequence pattern")
+                star_wildcard = self._wildcard_star_check(pattern)
+                only_wildcard = only_wildcard and star_wildcard
+                star = i
+                continue
+            only_wildcard = only_wildcard and self._wildcard_check(pattern)
+
+        # We need to keep the subject on top during the sequence and length checks:
+        pc.on_top += 1
+        self.emit("MATCH_SEQUENCE")
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        if star < 0:
+            # No star: len(subject) == size
+            self.emit("GET_LEN")
+            self.emit("LOAD_CONST", size)
+            self.emit("COMPARE_OP", "==")
+            self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        elif size > 1:
+            # Star: len(subject) >= size - 1
+            self.emit("GET_LEN")
+            self.emit("LOAD_CONST", size - 1)
+            self.emit("COMPARE_OP", ">=")
+            self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        # Whatever comes next should consume the subject
+        pc.on_top -= 1
+        if only_wildcard:
+            # Patterns like: [] / [_] / [_, _] / [*_] / [_, *_] / [_, _, *_] / etc.
+            self.emit("POP_TOP")
+        elif star_wildcard:
+            self._pattern_helper_sequence_subscr(patterns, star, pc)
+        else:
+            self._pattern_helper_sequence_unpack(patterns, star, pc)
+
+    def _pattern_helper_sequence_unpack(
+        self, patterns: list[ast.pattern], star: int, pc: PatternContext
+    ) -> None:
+        self._pattern_unpack_helper(patterns)
+        size = len(patterns)
+        pc.on_top += size
+        for pattern in patterns:
+            pc.on_top -= 1
+            self._pattern_subpattern(pattern, pc)
+
+    def _pattern_helper_sequence_subscr(
+        self, patterns: list[ast.pattern], star: int, pc: PatternContext
+    ) -> None:
+        """
+        Like _pattern_helper_sequence_unpack, but uses BINARY_SUBSCR instead of
+        UNPACK_SEQUENCE / UNPACK_EX. This is more efficient for patterns with a
+        starred wildcard like [first, *_] / [first, *_, last] / [*_, last] / etc.
+        """
+        # We need to keep the subject around for extracting elements:
+        pc.on_top += 1
+        size = len(patterns)
+        for i, pattern in enumerate(patterns):
+            if self._wildcard_check(pattern):
+                continue
+            if i == star:
+                assert self._wildcard_star_check(pattern)
+                continue
+            self.emit("DUP_TOP")
+            if i < star:
+                self.emit("LOAD_CONST", i)
+            else:
+                # The subject may not support negative indexing! Compute a
+                # nonnegative index:
+                self.emit("GET_LEN")
+                self.emit("LOAD_CONST", size - i)
+                self.emit("BINARY_SUBTRACT")
+            self.emit("BINARY_SUBSCR")
+            self._pattern_subpattern(pattern, pc)
+
+        # Pop the subject, we're done with it:
+        pc.on_top -= 1
+        self.emit("POP_TOP")
+
+    def _pattern_unpack_helper(self, elts: list[ast.pattern]) -> None:
+        n = len(elts)
+        seen_star = 0
+        for i, elt in enumerate(elts):
+            if isinstance(elt, ast.MatchStar) and not seen_star:
+                if (i >= (1 << 8)) or (n - i - 1 >= (INT_MAX >> 8)):
+                    raise SyntaxError(
+                        "too many expressions in star-unpacking sequence pattern"
+                    )
+                self.emit("UNPACK_EX", (i + ((n - i - 1) << 8)))
+                seen_star = 1
+            elif isinstance(elt, ast.MatchStar):
+                raise SyntaxError("multiple starred expressions in sequence pattern")
+        if not seen_star:
+            self.emit("UNPACK_SEQUENCE", n)
+
+    def _wildcard_check(self, pattern: ast.pattern) -> bool:
+        return isinstance(pattern, ast.MatchAs) and not pattern.name
+
+    def _wildcard_star_check(self, pattern: ast.pattern) -> bool:
+        return isinstance(pattern, ast.MatchStar) and not pattern.name
+
+    def _pattern_subpattern(self, pattern: ast.pattern, pc: PatternContext) -> None:
+        """Visit a pattern, but turn off checks for irrefutability.
+
+        See compiler_pattern_subpattern in compile.c
+        """
+        allow_irrefutable = pc.allow_irrefutable
+        pc.allow_irrefutable = True
+        try:
+            self.visit(pattern, pc)
+        finally:
+            pc.allow_irrefutable = allow_irrefutable
 
     def visitMatchMapping(self, node: ast.MatchMapping, pc: PatternContext) -> None:
         # TODO
@@ -2243,6 +2366,7 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def visitMatchAs(self, node: ast.MatchAs, pc: PatternContext) -> None:
+        """See compiler_pattern_as in compile.c"""
         pat = node.pattern
         if pat is None:
             # An irrefutable match:
@@ -2264,6 +2388,7 @@ class CodeGenerator(ASTVisitor):
         self._pattern_helper_store_name(node.name, pc)
 
     def visitMatchOr(self, node: ast.MatchOr, pc: PatternContext) -> None:
+        """See compiler_pattern_or in compile.c"""
         end = self.newBlock("match_or_end")
         size = len(node.patterns)
         assert size > 1
@@ -2402,9 +2527,6 @@ class CodeGenerator(ASTVisitor):
             self.nextBlock(pc.fail_pop.pop())
             if pc.fail_pop:
                 self.emit("POP_TOP")
-
-    def _wildcard_check(self, case: ast.match_case) -> bool:
-        return bool(isinstance(case.pattern, ast.MatchAs) and not case.pattern.name)
 
     def unwind_setup_entry(self, e: Entry, preserve_tos: int) -> None:
         if e.kind in (WHILE_LOOP, EXCEPTION_HANDLER, ASYNC_COMPREHENSION_GENERATOR):
