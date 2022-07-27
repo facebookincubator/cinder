@@ -2441,7 +2441,7 @@ class CodeGenerator(ASTVisitor):
         if star_target:
             # If we have a starred name, bind a dict of remaining items to it:
             self.emit("COPY_DICT_WITHOUT_KEYS")
-            self._pattern_helper_store_name(star_target, pc)
+            self._pattern_helper_store_name(star_target, pc, node)
         else:
             # Otherwise, we don't care about this tuple of keys anymore:
             self.emit("POP_TOP")
@@ -2450,11 +2450,67 @@ class CodeGenerator(ASTVisitor):
         self.emit("POP_TOP")
 
     def visitMatchClass(self, node: ast.MatchClass, pc: PatternContext) -> None:
-        # TODO
-        raise NotImplementedError()
+        patterns = node.patterns
+        kwd_attrs = node.kwd_attrs
+        kwd_patterns = node.kwd_patterns
+        nargs = len(patterns)
+        nattrs = len(kwd_attrs)
+        nkwd_patterns = len(kwd_patterns)
+        if nattrs != nkwd_patterns:
+            # AST validator shouldn't let this happen, but if it does,
+            # just fail, don't crash out of the interpreter
+            raise self.syntax_error(
+                f"kwd_attrs ({nattrs}) / kwd_patterns ({nkwd_patterns}) length mismatch in class pattern",
+                node,
+            )
+        if INT_MAX < nargs or INT_MAX < (nargs + nattrs - 1):
+            raise self.syntax_error(
+                f"too many sub-patterns in class pattern {node.cls}", node
+            )
+        if nattrs:
+            self._validate_kwd_attrs(kwd_attrs, kwd_patterns)
+        self.visit(node.cls)
+        attr_names = tuple(name for name in kwd_attrs)
+        self.emit("LOAD_CONST", attr_names)
+        self.emit("MATCH_CLASS", nargs)
+        # TOS is now a tuple of (nargs + nattrs) attributes. Preserve it:
+        pc.on_top += 1
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        for i in range(nargs + nattrs):
+            if i < nargs:
+                pattern = patterns[i]
+            else:
+                pattern = kwd_patterns[i - nargs]
+            if self._wildcard_check(pattern):
+                continue
+            self.emit("DUP_TOP")
+            self.emit("LOAD_CONST", i)
+            self.emit("BINARY_SUBSCR")
+            self._visit_subpattern(pattern, pc)
+        # Success! Pop the tuple of attributes:
+        pc.on_top -= 1
+        self.emit("POP_TOP")
+
+    def _validate_kwd_attrs(
+        self, attrs: list[str], patterns: list[ast.pattern]
+    ) -> None:
+        # Any errors will point to the pattern rather than the arg name as the
+        # parser is only supplying identifiers
+        nattrs = len(attrs)
+        for i, attr in enumerate(attrs):
+            pattern = patterns[i]
+            self.set_lineno(pattern)
+            self._check_forbidden_name(attr, ast.Store, pattern)
+            for j in range(i + 1, nattrs):
+                other = attrs[j]
+                if attr == other:
+                    self.set_lineno(patterns[j])
+                    raise self.syntax_error(
+                        f"attribute name repeated in class pattern: {attr}", patterns[j]
+                    )
 
     def visitMatchStar(self, node: ast.MatchStar, pc: PatternContext) -> None:
-        self._pattern_helper_store_name(node.name, pc)
+        self._pattern_helper_store_name(node.name, pc, node)
 
     def visitMatchAs(self, node: ast.MatchAs, pc: PatternContext) -> None:
         """See compiler_pattern_as in compile.c"""
@@ -2467,7 +2523,7 @@ class CodeGenerator(ASTVisitor):
                         f"name capture {node.name!r} makes remaining patterns unreachable"
                     )
                 raise SyntaxError("wildcard makes remaining patterns unreachable")
-            self._pattern_helper_store_name(node.name, pc)
+            self._pattern_helper_store_name(node.name, pc, node)
             return
 
         # Need to make a copy for (possibly) storing later:
@@ -2476,7 +2532,7 @@ class CodeGenerator(ASTVisitor):
         self.visit(pat, pc)
         # Success! Store it:
         pc.on_top -= 1
-        self._pattern_helper_store_name(node.name, pc)
+        self._pattern_helper_store_name(node.name, pc, node)
 
     def visitMatchOr(self, node: ast.MatchOr, pc: PatternContext) -> None:
         """See compiler_pattern_or in compile.c"""
@@ -2566,12 +2622,14 @@ class CodeGenerator(ASTVisitor):
         # Pop the copy of the subject:
         self.emit("POP_TOP")
 
-    def _pattern_helper_store_name(self, name: str | None, pc: PatternContext) -> None:
+    def _pattern_helper_store_name(
+        self, name: str | None, pc: PatternContext, loc: ast.AST
+    ) -> None:
         if name is None:
             self.emit("POP_TOP")
             return
 
-        self._check_forbidden_name(name, ast.Store)
+        self._check_forbidden_name(name, ast.Store, loc)
 
         # Can't assign to the same name twice:
         duplicate = name in pc.stores
@@ -2582,11 +2640,13 @@ class CodeGenerator(ASTVisitor):
         self.emit("ROT_N", pc.on_top + len(pc.stores) + 1)
         pc.stores.append(name)
 
-    def _check_forbidden_name(self, name: str, ctx: type[ast.expr_context]) -> None:
+    def _check_forbidden_name(
+        self, name: str, ctx: type[ast.expr_context], loc: ast.AST
+    ) -> None:
         if ctx is ast.Store and name == "__debug__":
-            raise SyntaxError("cannot assign to __debug__")
+            raise SyntaxError("cannot assign to __debug__", loc)
         if ctx is ast.Del and name == "__debug__":
-            raise SyntaxError("cannot delete __debug__")
+            raise SyntaxError("cannot delete __debug__", loc)
 
     def _error_duplicate_store(self, name: str) -> SyntaxError:
         return SyntaxError(f"multiple assignments to name {name!r} in pattern")
