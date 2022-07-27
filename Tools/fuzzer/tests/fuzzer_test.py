@@ -262,5 +262,39 @@ class FuzzerInstrFuzzingTest(unittest.TestCase):
         self.assertEqual(len(varnames), 1)
 
 
+class FuzzerBlockInsertionTest(unittest.TestCase):
+    def test_random_blocks_have_zero_stack_effect(self):
+        consts = {}
+        names = pyassem.IndexedSet()
+        varnames = pyassem.IndexedSet()
+        freevars = pyassem.IndexedSet()
+        block = fuzzer.generate_random_block(consts, names, varnames, freevars)
+        block_stack_effect = sum(
+            [opcode_cinder.opcode.stack_effects.get(i.opname) for i in block.insts]
+        )
+        err_message = f"Block stack effect is {block_stack_effect}, should be zero\n Each instruction with individual stack effect listed below:\n"
+        for i in block.insts:
+            err_message += f"{i.opname} with stack effect {opcode_cinder.opcode.stack_effects.get(i.opname)}\n"
+        self.assertEqual(block_stack_effect, 0, err_message)
+
+    def test_random_blocks_insert_generated_opargs_into_tuples(self):
+        consts = {}
+        names = pyassem.IndexedSet()
+        varnames = pyassem.IndexedSet()
+        freevars = pyassem.IndexedSet()
+        block = fuzzer.generate_random_block(consts, names, varnames, freevars)
+        for i in block.insts:
+            name = i.opname
+            arg = i.oparg
+            if name in fuzzer.Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
+                self.assertIn(fuzzer.get_const_key(arg), consts)
+            elif name in fuzzer.Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
+                self.assertIn(arg, names)
+            elif name in fuzzer.Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
+                self.assertIn(arg, varnames)
+            elif name in fuzzer.Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
+                self.assertIn(arg, freevars)
+
+
 if __name__ == "__main__":
     unittest.main()

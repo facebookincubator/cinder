@@ -1,4 +1,5 @@
 import argparse
+import dis
 import enum
 import random
 import string
@@ -43,11 +44,16 @@ CMP_OP_LENGTH = 12
 
 # % Chance of an instr being replaced (1-100)
 INSTR_RANDOMIZATION_CHANCE = 50
+# % Chance of a random basic block being added (1-100)
+CHANCE_TO_EMIT_BLOCK = 10
+# Size of a randomly generated basic block
+GENERATED_BLOCK_SIZE = 4
 
 
 class Fuzzer(pycodegen.CinderCodeGenerator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.flow_graph = PyFlowGraphFuzzer
         self.oparg_randomizations = {}
 
     # overriding to set definitions
@@ -257,6 +263,8 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "EXTENDED_ARG",
     }
 
+    INSTRS_WITH_STACK_EFFECT_0_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_0)
+
     INSTRS_WITH_STACK_EFFECT_1 = {
         "DUP_TOP",
         "GET_ANEXT",
@@ -273,10 +281,14 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "LOAD_METHOD",
     }
 
+    INSTRS_WITH_STACK_EFFECT_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_1)
+
     INSTRS_WITH_STACK_EFFECT_2 = {
         "DUP_TOP_TWO",
         "WITH_CLEANUP_START",
     }
+
+    INSTRS_WITH_STACK_EFFECT_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_2)
 
     INSTRS_WITH_STACK_EFFECT_NEG_1 = {
         "POP_TOP",
@@ -324,6 +336,8 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "LOAD_METHOD_SUPER",
     }
 
+    INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_1)
+
     INSTRS_WITH_STACK_EFFECT_NEG_2 = {
         "DELETE_SUBSCR",
         "STORE_ATTR",
@@ -331,11 +345,15 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "LOAD_ATTR_SUPER",
     }
 
+    INSTRS_WITH_STACK_EFFECT_NEG_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_2)
+
     INSTRS_WITH_STACK_EFFECT_NEG_3 = {
         "STORE_SUBSCR",
         "WITH_CLEANUP_FINISH",
         "POP_EXCEPT",
     }
+
+    INSTRS_WITH_STACK_EFFECT_NEG_3_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_3)
 
     INSTRS_WITH_OPARG_AFFECTING_STACK = {
         "MAKE_FUNCTION",
@@ -360,11 +378,32 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "RAISE_VARARGS",
     }
 
+
 class FuzzerReturnTypes(enum.Enum):
     SYNTAX_ERROR = 0
     ERROR_CAUGHT_BY_JIT = 1
     VERIFICATION_ERROR = 2
     SUCCESS = 3
+
+class PyFlowGraphFuzzer(pyassem.PyFlowGraphCinder):
+    # Overriding nextBlock from FlowGraph in pyassem
+    # Modified to insert a new block based on CHANCE_TO_EMIT_BLOCK
+    def nextBlock(self, block=None, label=""):
+        if self.do_not_emit_bytecode:
+            return
+
+        if block is None:
+            block = self.newBlock(label=label)
+
+        self.current.addNext(block)
+        self.startBlock(block)
+
+        if random.randint(1, 100) <= CHANCE_TO_EMIT_BLOCK:
+            self.nextBlock(
+                generate_random_block(
+                    self.consts, self.names, self.varnames, self.freevars
+                )
+            )
 
 
 def fuzzer_compile(code_str: str) -> tuple:
@@ -396,6 +435,16 @@ def print_code_object(code: types.CodeType) -> None:
         code_obj, level = stack.pop()
         print(f"Code object at level {level}")
         print(f"Bytecode: {code_obj.co_code}")
+        print(f"Formatted bytecode:")
+        bytecode = code_obj.co_code
+        i = 0
+        while i < len(bytecode):
+            if i % 2 == 0:
+                print(dis.opname[bytecode[i]], end=": ")
+            else:
+                print(bytecode[i], end=", ")
+            i += 1
+        print("")
         print(f"Consts: {code_obj.co_consts}")
         print(f"Names: {code_obj.co_names}")
         print(f"Varnames: {code_obj.co_varnames}")
@@ -466,21 +515,21 @@ def randomize_variable(var: object) -> object:
 
 
 def generate_random_string(original: str, lower: int, upper: int) -> str:
+    random_str = original
     newlen = random.randint(lower, upper)
-    random_str = "".join(
-        random.choice(string.ascii_letters + string.digits + string.punctuation)
-        for i in range(newlen)
-    )
     # ensuring random str is not the same as original
-    if random_str == original:
-        return generate_random_string(original, lower, upper)
+    while random_str == original:
+        random_str = "".join(
+            random.choice(string.ascii_letters + string.digits + string.punctuation)
+            for i in range(newlen)
+        )
     return random_str
 
 
 def generate_random_integer(original: int, lower: int, upper: int) -> int:
-    random_int = random.randint(lower, upper)
-    if random_int == original:
-        return generate_random_integer(original, lower, upper)
+    random_int = original
+    while random_int == original:
+        random_int = random.randint(lower, upper)
     return random_int
 
 
@@ -601,6 +650,46 @@ def get_const_key(value: object):
             tuple(get_const_key(const) for const in value),
         )
     return type(value), value
+
+
+def generate_random_block(
+    consts: dict,
+    names: pyassem.IndexedSet,
+    varnames: pyassem.IndexedSet,
+    freevars: pyassem.IndexedSet,
+) -> pyassem.Block:
+    block = pyassem.Block("random")
+    # Generate random instructions and corresponding opargs
+    # That result in a net 0 stack change
+    # By combining instructions with stack effect 1 and stack effect -1
+    # TODO: Will modify this function to include combinations of more instructions (with varying stack depths) later on
+    for i in range(GENERATED_BLOCK_SIZE):
+        oparg, ioparg, instr = None, None, None
+        if i % 2 == 0:
+            instr = random.choice(Fuzzer.INSTRS_WITH_STACK_EFFECT_1_SEQ)
+        else:
+            instr = random.choice(Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ)
+        if instr in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
+            oparg = randomize_variable(0)
+            ioparg = len(consts)
+            consts[get_const_key(oparg)] = ioparg
+        elif instr in Fuzzer.INSTRS_WITH_OPARG_IN_NAMES:
+            oparg = randomize_variable("")
+            ioparg = names.get_index(oparg)
+        elif instr in Fuzzer.INSTRS_WITH_OPARG_IN_VARNAMES:
+            oparg = randomize_variable("")
+            ioparg = varnames.get_index(oparg)
+        elif instr in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
+            oparg = randomize_variable("")
+            ioparg = freevars.get_index(oparg)
+        else:
+            random_int_oparg = generate_random_integer(
+                0, OPARG_LOWER_BOUND, OPARG_UPPER_BOUND
+            )
+            oparg = random_int_oparg
+            ioparg = random_int_oparg
+        block.emit(pyassem.Instruction(instr, oparg, ioparg))
+    return block
 
 
 if __name__ == "__main__":
