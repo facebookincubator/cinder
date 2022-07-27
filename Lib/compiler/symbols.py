@@ -525,6 +525,22 @@ class SymbolVisitor(ASTVisitor):
 
     # operations that bind new names
 
+    def visitMatchAs(self, node, scope):
+        if node.pattern:
+            self.visit(node.pattern, scope)
+        if node.name:
+            scope.add_def(node.name)
+
+    def visitMatchStar(self, node, scope):
+        if node.name:
+            scope.add_def(node.name)
+
+    def visitMatchMapping(self, node, scope):
+        self.visit(node.keys, scope)
+        self.visit(node.patterns, scope)
+        if node.rest:
+            scope.add_def(node.rest)
+
     def visitNamedExpr(self, node, scope):
         if scope.comp_iter_expr:
             # Assignment isn't allowed in a comprehension iterable expression

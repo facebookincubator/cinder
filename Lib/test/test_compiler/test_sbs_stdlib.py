@@ -21,8 +21,6 @@ IGNORE_PATTERNS = (
     "test/bad_coding",
     # run separately via test_corpus.py
     "test/test_compiler/testcorpus",
-    # Burn-down for full Python 3.10 compatibility
-    "test/test_patma.py",
 )
 
 SbsCompileTests = []
