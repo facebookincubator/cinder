@@ -2185,6 +2185,8 @@ class CodeGenerator(ASTVisitor):
             pc.stores = []
             # Irrefutable cases must be either guarded, last, or both:
             pc.allow_irrefutable = case.guard is not None or case is last_case
+            pc.fail_pop = []
+            pc.on_top = 0
             self.visit(case.pattern, pc)
             assert not pc.on_top
             # It's a match! Store all of the captured names (they're on the stack).
@@ -2224,14 +2226,16 @@ class CodeGenerator(ASTVisitor):
         """See compiler_pattern_value in compile.c"""
         value = node.value
         if not isinstance(value, ast.Constant | ast.Attribute):
-            raise SyntaxError("patterns may only match literals and attribute lookups")
+            raise self.syntax_error(
+                "patterns may only match literals and attribute lookups", node
+            )
         self.visit(value)
         self.emit("COMPARE_OP", "==")
         self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
 
     def visitMatchSingleton(self, node: ast.MatchSingleton, pc: PatternContext) -> None:
         # TODO
-        pass
+        raise NotImplementedError()
 
     def visitMatchSequence(self, node: ast.MatchSequence, pc: PatternContext) -> None:
         """See compiler_pattern_sequence in compile.c"""
@@ -2244,7 +2248,9 @@ class CodeGenerator(ASTVisitor):
         for i, pattern in enumerate(patterns):
             if isinstance(pattern, ast.MatchStar):
                 if star >= 0:
-                    raise SyntaxError("multiple starred names in sequence pattern")
+                    raise self.syntax_error(
+                        "multiple starred names in sequence pattern", pattern
+                    )
                 star_wildcard = self._wildcard_star_check(pattern)
                 only_wildcard = only_wildcard and star_wildcard
                 star = i
@@ -2285,7 +2291,7 @@ class CodeGenerator(ASTVisitor):
         pc.on_top += size
         for pattern in patterns:
             pc.on_top -= 1
-            self._pattern_subpattern(pattern, pc)
+            self._visit_subpattern(pattern, pc)
 
     def _pattern_helper_sequence_subscr(
         self, patterns: list[ast.pattern], star: int, pc: PatternContext
@@ -2314,7 +2320,7 @@ class CodeGenerator(ASTVisitor):
                 self.emit("LOAD_CONST", size - i)
                 self.emit("BINARY_SUBTRACT")
             self.emit("BINARY_SUBSCR")
-            self._pattern_subpattern(pattern, pc)
+            self._visit_subpattern(pattern, pc)
 
         # Pop the subject, we're done with it:
         pc.on_top -= 1
@@ -2326,13 +2332,15 @@ class CodeGenerator(ASTVisitor):
         for i, elt in enumerate(elts):
             if isinstance(elt, ast.MatchStar) and not seen_star:
                 if (i >= (1 << 8)) or (n - i - 1 >= (INT_MAX >> 8)):
-                    raise SyntaxError(
-                        "too many expressions in star-unpacking sequence pattern"
+                    raise self.syntax_error(
+                        "too many expressions in star-unpacking sequence pattern", elt
                     )
                 self.emit("UNPACK_EX", (i + ((n - i - 1) << 8)))
                 seen_star = 1
             elif isinstance(elt, ast.MatchStar):
-                raise SyntaxError("multiple starred expressions in sequence pattern")
+                raise self.syntax_error(
+                    "multiple starred expressions in sequence pattern", elt
+                )
         if not seen_star:
             self.emit("UNPACK_SEQUENCE", n)
 
@@ -2342,7 +2350,7 @@ class CodeGenerator(ASTVisitor):
     def _wildcard_star_check(self, pattern: ast.pattern) -> bool:
         return isinstance(pattern, ast.MatchStar) and not pattern.name
 
-    def _pattern_subpattern(self, pattern: ast.pattern, pc: PatternContext) -> None:
+    def _visit_subpattern(self, pattern: ast.pattern, pc: PatternContext) -> None:
         """Visit a pattern, but turn off checks for irrefutability.
 
         See compiler_pattern_subpattern in compile.c
@@ -2355,12 +2363,94 @@ class CodeGenerator(ASTVisitor):
             pc.allow_irrefutable = allow_irrefutable
 
     def visitMatchMapping(self, node: ast.MatchMapping, pc: PatternContext) -> None:
-        # TODO
-        pass
+        keys = node.keys
+        patterns = node.patterns
+        size = len(keys)
+        npatterns = len(patterns)
+        if size != npatterns:
+            # AST validator shouldn't let this happen, but if it does,
+            # just fail, don't crash out of the interpreter
+            raise self.syntax_error(
+                f"keys ({size}) / patterns ({npatterns}) length mismatch in mapping pattern",
+                node,
+            )
+        # We have a double-star target if "rest" is set
+        star_target = node.rest
+        # We need to keep the subject on top during the mapping and length checks:
+        pc.on_top += 1
+        self.emit("MATCH_MAPPING")
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        if not size and not star_target:
+            # If the pattern is just "{}", we're done! Pop the subject:
+            pc.on_top -= 1
+            self.emit("POP_TOP")
+            return
+        if size:
+            # If the pattern has any keys in it, perform a length check:
+            self.emit("GET_LEN")
+            self.emit("LOAD_CONST", size)
+            self.emit("COMPARE_OP", ">=")
+            self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        if INT_MAX < size - 1:
+            raise self.syntax_error("too many sub-patterns in mapping pattern", node)
+        # Collect all of the keys into a tuple for MATCH_KEYS and
+        # COPY_DICT_WITHOUT_KEYS. They can either be dotted names or literals:
+
+        # Maintaining a set of Constant keys allows us to raise a
+        # SyntaxError in the case of duplicates.
+        seen = set()
+
+        for i, key in enumerate(keys):
+            if key is None:
+                raise self.syntax_error(
+                    "Can't use NULL keys in MatchMapping (set 'rest' parameter instead)",
+                    patterns[i],
+                )
+            if isinstance(key, ast.Constant):
+                if key.value in seen:
+                    raise self.syntax_error(
+                        f"mapping pattern checks duplicate key ({key.value})", node
+                    )
+                seen.add(key.value)
+            elif not isinstance(key, ast.Attribute):
+                raise self.syntax_error(
+                    "mapping pattern keys may only match literals and attribute lookups",
+                    node,
+                )
+            self.visit(key)
+
+        self.emit("BUILD_TUPLE", size)
+        self.emit("MATCH_KEYS")
+        # There's now a tuple of keys and a tuple of values on top of the subject:
+        pc.on_top += 2
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
+        # So far so good. Use that tuple of values on the stack to match
+        # sub-patterns against:
+        for i, pattern in enumerate(patterns):
+            if self._wildcard_check(pattern):
+                continue
+            self.emit("DUP_TOP")
+            self.emit("LOAD_CONST", i)
+            self.emit("BINARY_SUBSCR")
+            self._visit_subpattern(pattern, pc)
+        # If we get this far, it's a match! We're done with the tuple of values,
+        # and whatever happens next should consume the tuple of keys underneath it:
+        pc.on_top -= 2
+        self.emit("POP_TOP")
+        if star_target:
+            # If we have a starred name, bind a dict of remaining items to it:
+            self.emit("COPY_DICT_WITHOUT_KEYS")
+            self._pattern_helper_store_name(star_target, pc)
+        else:
+            # Otherwise, we don't care about this tuple of keys anymore:
+            self.emit("POP_TOP")
+        # Pop the subject:
+        pc.on_top -= 1
+        self.emit("POP_TOP")
 
     def visitMatchClass(self, node: ast.MatchClass, pc: PatternContext) -> None:
         # TODO
-        pass
+        raise NotImplementedError()
 
     def visitMatchStar(self, node: ast.MatchStar, pc: PatternContext) -> None:
         self._pattern_helper_store_name(node.name, pc)
@@ -2450,7 +2540,6 @@ class CodeGenerator(ASTVisitor):
             self._emit_and_reset_fail_pop(pc)
         assert control is not None
         pc = old_pc
-        old_pc.fail_pop = []
         # No match. Pop the remaining copy of the subject and fail:
         self.emit("POP_TOP")
         self._jump_to_fail_pop(pc, "JUMP_FORWARD")
@@ -2520,7 +2609,7 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock()
 
     def _emit_and_reset_fail_pop(self, pc: PatternContext) -> None:
-        """Build all o fthe fail_pop blocks and reset fail_pop."""
+        """Build all of the fail_pop blocks and reset fail_pop."""
         if not pc.fail_pop:
             self.nextBlock()
         while pc.fail_pop:
