@@ -2,7 +2,6 @@
 import _testcapi
 import asyncio
 import dis
-import functools
 import unittest
 import warnings
 from functools import cmp_to_key
@@ -52,14 +51,9 @@ def failUnlessHasOpcodes(*required_opnames):
         opnames = {i.opname for i in dis.get_instructions(func)}
         missing = set(required_opnames) - opnames
         if missing:
-
-            @functools.wraps(func)
-            def fail(*args, **kwargs):
-                raise AssertionError(
-                    f"Function {func.__qualname__} missing required opcodes: {missing}"
-                )
-
-            return fail
+            raise AssertionError(
+                f"Function {func.__qualname__} missing required opcodes: {missing}"
+            )
         return func
 
     return decorator
@@ -74,7 +68,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers(self):
         """Verify that line numbers are correct"""
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def g():
             return sys._getframe()
 
@@ -83,7 +77,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def g(x, y):
             yield sys._getframe()
             z = x + y
@@ -101,7 +95,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers_for_suspended_generators(self):
         """Verify that line numbers are correct for suspended generator functions"""
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def g(x):
             x = x + 1
             yield x
@@ -123,18 +117,18 @@ class GetFrameLineNumberTests(unittest.TestCase):
         an exception is thrown into them.
         """
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def f1(g):
             yield from g
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def f2(g):
             yield from g
 
         gen1, gen2 = None, None
         gen1_frame, gen2_frame = None, None
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def f3():
             nonlocal gen1_frame, gen2_frame
             try:
@@ -163,7 +157,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
                 nonlocal stack
                 stack = traceback.extract_stack()
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def double(x):
             ret = x
             tmp = StackGetter()
@@ -177,14 +171,14 @@ class GetFrameLineNumberTests(unittest.TestCase):
         self.assertEqual(stack[-2].lineno, 142)
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_stack():
     z = 1 + 1
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_stack_twice():
     stacks = []
     stacks.append(get_stack())
@@ -192,19 +186,19 @@ def get_stack_twice():
     return stacks
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_stack2():
     z = 2 + 2
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_stack_siblings():
     return [get_stack(), get_stack2()]
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_stack_multi():
     stacks = []
     stacks.append(traceback.extract_stack())
@@ -213,7 +207,7 @@ def get_stack_multi():
     return stacks
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def call_get_stack_multi():
     x = 1 + 1
     return get_stack_multi()
@@ -289,7 +283,7 @@ def with_globals(gbls):
     return decorator
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_meaning_of_life(obj):
     return obj.meaning_of_life()
 
@@ -309,12 +303,12 @@ class _CallableObj:
 
 @unittest.cinderPortingBrokenTest()
 class CallKWArgsTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_basic_function_pos_and_kw(self):
         r = _simpleFunc(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_basic_function_kw_only(self):
         r = _simpleFunc(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -326,12 +320,12 @@ class CallKWArgsTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_class_static_pos_and_kw(self):
         r = CallKWArgsTests._f1(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -339,48 +333,48 @@ class CallKWArgsTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_method_kw_and_pos(self):
         r = self._f2(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_method_kw_only(self):
         r = self._f2(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(1, b=2)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(b=2, a=1)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_c_func(self):
         self.assertEqual(__import__("sys", globals=None), sys)
 
 
 @unittest.cinderPortingBrokenTest()
 class CallExTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -392,27 +386,27 @@ class CallExTests(unittest.TestCase):
         def __getitem__(self, k):
             return {"a": 1, "b": 2}[k]
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**CallExTests._DummyMapping())
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_dynamic_pos_tuple(self):
         r = _simpleFunc(*(1, 2))
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_dynamic_pos_list(self):
         r = _simpleFunc(*[1, 2])
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_dynamic_pos_and_kw(self):
         r = _simpleFunc(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _doCall(self, args, kwargs):
         return _simpleFunc(*args, **kwargs)
 
@@ -431,12 +425,12 @@ class CallExTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_class_static_pos_and_kw(self):
         r = CallExTests._f1(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -444,45 +438,45 @@ class CallExTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_method_kw_and_pos(self):
         r = self._f2(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_method_kw_only(self):
         r = self._f2(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(*(1,), **{"b": 2})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(**{"b": 2, "a": 1})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_c_func_pos_only(self):
         self.assertEqual(len(*([2],)), 1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_call_c_func_pos_and_kw(self):
         self.assertEqual(__import__(*("sys",), **{"globals": None}), sys)
 
@@ -656,7 +650,7 @@ class LoadMethodCacheTests(unittest.TestCase):
         self.assertEqual(get_meaning_of_life(obj), 0)
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_foo(obj):
     return obj.foo
 
@@ -738,7 +732,7 @@ class LoadAttrCacheTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class SetNonDataDescrAttrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def set_foo(self, obj, val):
         obj.foo = val
 
@@ -781,7 +775,7 @@ class SetNonDataDescrAttrTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class GetSetNonDataDescrAttrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def get_foo(self, obj):
         return obj.foo
 
@@ -868,7 +862,7 @@ class GetSetNonDataDescrAttrTests(unittest.TestCase):
         self.assertEqual(self.descr.invoked_count, 2)
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def set_foo(x, val):
     x.foo = val
 
@@ -1001,7 +995,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         a_global = value
 
     @staticmethod
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def get_global():
         return a_global
 
@@ -1020,7 +1014,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         global license
         del license
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_simple(self):
         global a_global
         self.set_global(123)
@@ -1028,7 +1022,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.set_global(456)
         self.assertEqual(a_global, 456)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_shadow_builtin(self):
         self.assertIs(license, builtins.license)
         self.set_license(0xDEADBEEF)
@@ -1036,7 +1030,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.del_license()
         self.assertIs(license, builtins.license)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_shadow_fake_builtin(self):
         self.assertRaises(NameError, self.get_global)
         builtins.a_global = "poke"
@@ -1061,7 +1055,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         def __eq__(self, other):
             return (self.prefix + self) == other
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_weird_key_in_globals(self):
         global a_global
         self.assertRaises(NameError, self.get_global)
@@ -1082,7 +1076,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
     def test_dict_subclass_globals(self):
         self.assertEqual(self.return_knock_knock(), "who's there?")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _test_unwatch_builtins(self):
         self.set_global("hey")
         self.assertEqual(self.get_global(), "hey")
@@ -1247,7 +1241,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class ClosureTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_cellvar(self):
         a = 1
 
@@ -1256,7 +1250,7 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(foo(), 1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_two_cellvars(self):
         a = 1
         b = 2
@@ -1266,14 +1260,14 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(g(), 3)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_cellvar_argument(self):
         def foo():
             self.assertEqual(1, 1)
 
         foo()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_cellvar_argument_modified(self):
         self_ = self
 
@@ -1287,7 +1281,7 @@ class ClosureTests(unittest.TestCase):
 
         self_.assertEqual(self, 1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _cellvar_unbound(self):
         b = a
         a = 1
@@ -1306,7 +1300,7 @@ class ClosureTests(unittest.TestCase):
     def test_freevars(self):
         x = 1
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def nested():
             return x
 
@@ -1316,7 +1310,7 @@ class ClosureTests(unittest.TestCase):
 
     def test_freevars_multiple_closures(self):
         def get_func(a):
-            @unittest.failUnlessJITCompiled
+            @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
             def f():
                 return a
 
@@ -1329,7 +1323,7 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(f2(), 2)
 
     def test_nested_func(self):
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def add(a, b):
             return a + b
 
@@ -1338,7 +1332,7 @@ class ClosureTests(unittest.TestCase):
 
     @staticmethod
     def make_adder(a):
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def add(b):
             return a + b
 
@@ -1355,7 +1349,7 @@ class ClosureTests(unittest.TestCase):
             add_3("ok")
 
     def test_nested_func_with_different_globals(self):
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         @with_globals({"A_GLOBAL_CONSTANT": 0xDEADBEEF})
         def return_global():
             return A_GLOBAL_CONSTANT
@@ -1371,9 +1365,9 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(return_other_global(), 0xFACEB00C)
 
     def test_nested_func_outlives_parent(self):
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         def nested(x):
-            @unittest.failUnlessJITCompiled
+            @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
             def inner(y):
                 return x + y
 
@@ -1388,7 +1382,7 @@ class ClosureTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class TempNameTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _tmp_name(self, a, b):
         tmp1 = "hello"
         c = a + b
@@ -1397,7 +1391,7 @@ class TempNameTests(unittest.TestCase):
     def test_tmp_name(self):
         self.assertEqual(self._tmp_name(1, 2), "hello")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_tmp_name2(self):
         v0 = 5
         self.assertEqual(v0, 5)
@@ -1410,7 +1404,7 @@ class DummyContainer:
 
 @unittest.cinderPortingBrokenTest()
 class ExceptionInConditional(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def doit(self, x):
         if x:
             return 1
@@ -1422,7 +1416,7 @@ class ExceptionInConditional(unittest.TestCase):
 
 
 class JITCompileCrasherRegressionTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _fstring(self, flag, it1, it2):
         for a in it1:
             for b in it2:
@@ -1432,7 +1426,7 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
     def test_fstring_no_fmt_spec_in_nested_loops_and_if(self):
         self.assertEqual(self._fstring(True, [1], [1]), "1")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _sharedAwait(self, x, y, z):
         return await (x() if y else z())
 
@@ -1472,7 +1466,7 @@ class UnwindStateTests(unittest.TestCase):
     def get_del_observer(self, id):
         return DelObserver(id, lambda i: self.DELETED.append(i))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _copied_locals(self, a):
         b = c = a
         raise RuntimeError()
@@ -1486,7 +1480,7 @@ class UnwindStateTests(unittest.TestCase):
                 f_locals, {"self": self, "a": "hello", "b": "hello", "c": "hello"}
             )
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _raise_with_del_observer_on_stack(self):
         for x in (1 for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -1501,7 +1495,7 @@ class UnwindStateTests(unittest.TestCase):
             self.fail("should have raised RuntimeError")
         self.assertEqual(deleted, [1])
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _raise_with_del_observer_on_stack_and_cell_arg(self):
         for x in (self for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -1521,13 +1515,13 @@ class UnwindStateTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class ImportTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_import_name(self):
         import math
 
         self.assertEqual(int(math.pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _fail_to_import_name(self):
         import non_existent_module
 
@@ -1535,13 +1529,13 @@ class ImportTests(unittest.TestCase):
         with self.assertRaises(ModuleNotFoundError):
             self._fail_to_import_name()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_import_from(self):
         from math import pow as math_pow
 
         self.assertEqual(int(math_pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _fail_to_import_from(self):
         from math import non_existent_attr
 
@@ -1552,15 +1546,15 @@ class ImportTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class RaiseTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _jitRaise(self, exc):
         raise exc
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _jitRaiseCause(self, exc, cause):
         raise exc from cause
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _jitReraise(self):
         raise
 
@@ -1598,7 +1592,7 @@ class RaiseTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class GeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f1(self):
         yield 1
 
@@ -1609,7 +1603,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsNone(exc.exception.value)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f2(self):
         yield 1
         yield 2
@@ -1623,7 +1617,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 3)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f3(self):
         a = yield 1
         b = yield 2
@@ -1637,7 +1631,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(1000)
         self.assertEqual(exc.exception.value, 1100)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f4(self, a):
         yield a
         yield a
@@ -1651,7 +1645,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 10)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f5(
         self, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16
     ):
@@ -1773,7 +1767,7 @@ class GeneratorsTest(unittest.TestCase):
             l.append(x)
         self.assertEqual(l, [1, 2])
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f6(self):
         i = 0
         while i < 1000:
@@ -1791,7 +1785,7 @@ class GeneratorsTest(unittest.TestCase):
     def _f_raises(self):
         raise ValueError
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f7(self):
         self._f_raises()
         yield 1
@@ -1821,7 +1815,7 @@ class GeneratorsTest(unittest.TestCase):
         self.assertEqual(g.send(None), 1)
         g.close()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f8(self, a):
         x += yield a
 
@@ -1830,7 +1824,7 @@ class GeneratorsTest(unittest.TestCase):
         with self.assertRaises(UnboundLocalError):
             g.send(None)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f9(self, a):
         yield
         return a
@@ -1845,7 +1839,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsInstance(exc.exception.value, X)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f10(self, X):
         x = X()
         yield weakref.ref(x)
@@ -1888,7 +1882,7 @@ class GeneratorsTest(unittest.TestCase):
         del g
         self.assertEqual(sys.getrefcount(o), base_count)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _f12(self, g):
         a = yield from g
         return a
@@ -1991,7 +1985,7 @@ class GeneratorsTest(unittest.TestCase):
             bc.send(None)
         del bc
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def big_coro(self):
         # This currently results in a max spill size of ~100, but that could
         # change with JIT register allocation improvements. This test is only
@@ -2009,7 +2003,7 @@ class GeneratorsTest(unittest.TestCase):
             h=dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9),
         )
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def small_coro(self):
         return 1
 
@@ -2034,7 +2028,7 @@ class GeneratorsTest(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class GeneratorFrameTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def gen1(self):
         a = 1
         yield a
@@ -2056,7 +2050,7 @@ class GeneratorFrameTest(unittest.TestCase):
         self.assertEqual(next(g), 2)
         self.assertEqual(g.gi_frame, f)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def gen2(self):
         me = yield
         f = me.gi_frame
@@ -2073,11 +2067,11 @@ class GeneratorFrameTest(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class CoroutinesTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _f1(self):
         return 1
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _f2(self, await_target):
         return await await_target
 
@@ -2105,7 +2099,7 @@ class CoroutinesTest(unittest.TestCase):
             # This is needed to avoid an "environment changed" error
             asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @asyncio.coroutine
     def _f3(self):
         yield 1
@@ -2119,7 +2113,7 @@ class CoroutinesTest(unittest.TestCase):
         self.assertEqual(exc.exception.value, 2)
 
     @staticmethod
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _use_async_with(mgr_type):
         async with mgr_type():
             pass
@@ -2167,7 +2161,7 @@ class CoroutinesTest(unittest.TestCase):
         async def eager_suspend(suffix):
             await self.FakeFuture("hello, " + suffix)
 
-        @unittest.failUnlessJITCompiled
+        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
         async def jit_coro():
             await eager_suspend("bob")
 
@@ -2286,48 +2280,48 @@ class EagerCoroutineDispatch(StaticTestBase):
         self.assertFalse(awaited_capturer.last_awaited())
         self.assertIsNone(awaited_capturer.last_awaited())
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_ex(self, t):
         t(*[1])
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_ex_awaited(self, t):
         await t(*[1])
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_ex_kw(self, t):
         t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_ex_kw_awaited(self, t):
         await t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_method(self, t):
         # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
         o = type("", (), {})()
         o.t = t
         o.t()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _call_method_awaited(self, t):
         o = type("", (), {})()
         o.t = t
         await o.t()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _vector_call(self, t):
         t()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _vector_call_awaited(self, t):
         await t()
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _vector_call_kw(self, t):
         t(a=1)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _vector_call_kw_awaited(self, t):
         await t(a=1)
 
@@ -2458,7 +2452,7 @@ class EagerCoroutineDispatch(StaticTestBase):
 
 @unittest.cinderPortingBrokenTest()
 class AsyncGeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _f1(self, awaitable):
         x = yield 1
         yield x
@@ -2491,7 +2485,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
         with self.assertRaises(StopAsyncIteration):
             async_itt3.send(None)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _f2(self, asyncgen):
         res = []
         async for x in asyncgen:
@@ -2527,7 +2521,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
         else:
             self.fail("Expected ValueError to be raised")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def _f3(self, asyncgen):
         return [x async for x in asyncgen]
 
@@ -2562,7 +2556,7 @@ class Err2(Exception):
 
 @unittest.cinderPortingBrokenTest()
 class ExceptionHandlingTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def try_except(self, func):
         try:
             func()
@@ -2581,7 +2575,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertFalse(self.try_except(g))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def catch_multiple(self, func):
         try:
             func()
@@ -2601,7 +2595,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.catch_multiple(g), 2)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def reraise(self, func):
         try:
             func()
@@ -2615,7 +2609,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "hello"):
             self.reraise(f)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def try_except_in_loop(self, niters, f):
         for i in range(niters):
             try:
@@ -2634,7 +2628,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.try_except_in_loop(20, f), 10)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def nested_try_except(self, f):
         try:
             try:
@@ -2653,7 +2647,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.nested_try_except(f), 100)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def try_except_in_generator(self, f):
         try:
             yield f(0)
@@ -2672,7 +2666,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         next(g)
         self.assertEqual(next(g), 123)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def try_finally(self, should_raise):
         result = None
         try:
@@ -2687,7 +2681,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "testing 123"):
             self.try_finally(True)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def try_except_finally(self, should_raise):
         result = None
         try:
@@ -2704,28 +2698,28 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.try_except_finally(False), 100)
         self.assertEqual(self.try_except_finally(True), 200)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def return_in_finally(self, v):
         try:
             pass
         finally:
             return v
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def return_in_finally2(self, v):
         try:
             return v
         finally:
             return 100
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def return_in_finally3(self, v):
         try:
             1 / 0
         finally:
             return v
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def return_in_finally4(self, v):
         try:
             return 100
@@ -2741,7 +2735,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_finally3(300), 300)
         self.assertEqual(self.return_in_finally4(400), 400)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def break_in_finally_after_return(self, x):
         for count in [0, 1]:
             count2 = 0
@@ -2754,7 +2748,7 @@ class ExceptionHandlingTests(unittest.TestCase):
                         break
         return "end", count, count2
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def break_in_finally_after_return2(self, x):
         for count in [0, 1]:
             for count2 in [10, 20]:
@@ -2771,7 +2765,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.break_in_finally_after_return2(False), 10)
         self.assertEqual(self.break_in_finally_after_return2(True), ("end", 1, 10))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def continue_in_finally_after_return(self, x):
         count = 0
         while count < 100:
@@ -2783,7 +2777,7 @@ class ExceptionHandlingTests(unittest.TestCase):
                     continue
         return "end", count
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def continue_in_finally_after_return2(self, x):
         for count in [0, 1]:
             try:
@@ -2799,7 +2793,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.continue_in_finally_after_return2(False), 0)
         self.assertEqual(self.continue_in_finally_after_return2(True), ("end", 1))
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def return_in_loop_in_finally(self, x):
         try:
             for _ in [1, 2, 3]:
@@ -2813,7 +2807,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_loop_in_finally(True), True)
         self.assertEqual(self.return_in_loop_in_finally(False), 100)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def conditional_return_in_finally(self, x, y, z):
         try:
             if x:
@@ -2829,7 +2823,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.conditional_return_in_finally(False, 200, False), 200)
         self.assertEqual(self.conditional_return_in_finally(False, False, 300), 300)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def nested_finally(self, x):
         try:
             if x:
@@ -2848,7 +2842,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class UnpackSequenceTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _unpack_arg(self, seq, which):
         a, b, c, d = seq
         if which == "a":
@@ -2859,7 +2853,7 @@ class UnpackSequenceTests(unittest.TestCase):
             return c
         return d
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _unpack_ex_arg(self, seq, which):
         a, b, *c, d = seq
         if which == "a":
@@ -2893,15 +2887,15 @@ class UnpackSequenceTests(unittest.TestCase):
 
         self.assertEqual(self._unpack_arg(gen(), "d"), "fourth")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _unpack_not_iterable(self):
         (a, b, *c) = 1
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _unpack_insufficient_values(self):
         (a, b, *c) = [1]
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _unpack_insufficient_values_after(self):
         (a, *b, c, d) = [1, 2]
 
@@ -2923,7 +2917,7 @@ class UnpackSequenceTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class DeleteSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _delit(self, container, key):
         del container[key]
 
@@ -2965,34 +2959,34 @@ class DeleteSubscrTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class DeleteFastTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del(self):
         x = 2
         del x
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del_arg(self, a):
         del a
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del_and_raise(self):
         x = 2
         del x
         return x
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del_arg_and_raise(self, a):
         del a
         return a
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del_ex_no_raise(self):
         try:
             return min(1, 2)
         except Exception as e:
             pass
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def _del_ex_raise(self):
         try:
             raise Exception()
@@ -3044,11 +3038,11 @@ class DictSubscrTests(unittest.TestCase):
 
 @unittest.cinderPortingBrokenTest()
 class KeywordOnlyArgTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f1(self, *, val=10):
         return val
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f2(self, which, *, y=10, z=20):
         if which == 0:
             return y
@@ -3056,7 +3050,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f3(self, which, *, y, z=20):
         if which == 0:
             return y
@@ -3064,7 +3058,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f4(self, which, *, y, z=20, **kwargs):
         if which == 0:
             return y
@@ -3140,21 +3134,21 @@ class ClassB(ClassA):
 
 @unittest.cinderPortingBrokenTest()
 class SuperAccessTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_super_method(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(99), 199)
         self.assertEqual(ClassB.cls_f_2arg(99), 199)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_super_method_kwarg(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(1), 101)
         self.assertEqual(ClassB.cls_f_2arg(1), 101)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def test_super_attr(self):
         self.assertEqual(ClassB().x, 42)
         self.assertEqual(ClassB().x_2arg, 42)
@@ -3266,7 +3260,7 @@ def _inner(*args, **kwargs):
     return kwargs
 
 
-@unittest.failUnlessJITCompiled
+@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def _outer(args, kwargs):
     return _inner(*args, **kwargs)
 
@@ -3289,15 +3283,15 @@ class TestException(Exception):
 
 @unittest.cinderPortingBrokenTest()
 class GetFrameTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f1(self, leaf):
         return self.f2(leaf)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f2(self, leaf):
         return self.f3(leaf)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def f3(self, leaf):
         return leaf()
 
@@ -3306,7 +3300,7 @@ class GetFrameTests(unittest.TestCase):
             self.assertEqual(frame.f_code.co_name, name)
             frame = frame.f_back
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def simple_getframe(self):
         return sys._getframe()
 
@@ -3315,7 +3309,7 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.simple_getframe)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def consecutive_getframe(self):
         f1 = sys._getframe()
         f2 = sys._getframe()
@@ -3332,7 +3326,7 @@ class GetFrameTests(unittest.TestCase):
             frame1 = frame1.f_back
             frame2 = frame2.f_back
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def getframe_then_deopt(self):
         f = sys._getframe()
         try:
@@ -3347,7 +3341,7 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.getframe_then_deopt)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def getframe_in_except(self):
         try:
             raise Exception("testing 123")
@@ -3372,7 +3366,7 @@ class GetFrameTests(unittest.TestCase):
         del x
         raise Exception("testing 123")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def getframe_in_dtor_during_deopt(self):
         ref = ["notaframe"]
         try:
@@ -3393,7 +3387,7 @@ class GetFrameTests(unittest.TestCase):
         ]
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     def getframe_in_dtor_after_deopt(self):
         ref = ["notaframe"]
         frame_getter = self.FrameGetter(ref)
@@ -3544,11 +3538,11 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
         self.loop.close()
         asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def outer_propagates_exc(self, inner):
         return await inner
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     async def outer_handles_exc(self, inner):
         try:
             await inner
