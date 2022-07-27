@@ -104,7 +104,6 @@ STUB(PyObject *, _PyCheckedList_GetItem, PyObject *, Py_ssize_t)
 STUB(PyObject *, _PyCheckedList_New, PyTypeObject *, Py_ssize_t)
 STUB(int, _PyCheckedList_TypeCheck, PyTypeObject *)
 STUB(int, _PyDict_SetItem, PyObject *, PyObject *, PyObject *)
-STUB(PyObject *, _PyDict_GetItemId, PyObject *, struct _Py_Identifier *)
 STUB(int, _PyCheckedDict_TypeCheck, PyTypeObject *)
 
 
@@ -113,10 +112,6 @@ STUB(int, _Py_DoRaise, PyThreadState *, PyObject *, PyObject *)
 STUB(PyObject *, _PyEval_SuperLookupMethodOrAttr, PyThreadState *, PyObject *, PyTypeObject *, PyObject *, PyObject *, int, int *)
 STUB(PyObject *, _PyEval_GetAIter, PyObject *)
 STUB(PyObject *, _PyEval_GetANext, PyObject *)
-STUB(PyObject *, special_lookup, PyThreadState *, PyObject *, _Py_Identifier *)
-STUB(int, check_args_iterable, PyThreadState *, PyObject *, PyObject *)
-STUB(void, format_kwargs_error, PyThreadState *, PyObject *, PyObject *)
-STUB(void, format_awaitable_error, PyThreadState *, PyTypeObject *, int)
 
 
 // Objects/genobject.c
@@ -147,10 +142,6 @@ STUB(PyObject *, _PyObject_Call1Arg, PyObject *, PyObject *)
 STUB(PyFrameObject *, _PyFrame_NewWithBuiltins_NoTrack, PyThreadState *, PyCodeObject *, PyObject *, PyObject *, PyObject *)
 
 
-// Include/errors.h
-STUB(int, _PyErr_OCCURRED, )
-
-
 // Objects/call.c
 STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 
@@ -178,9 +169,6 @@ PyTypeObject PyArray_Type = {
     .tp_basicsize = sizeof(PyStaticArrayObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
 };
-
-// Include/object.h
-int Py_IS_IMMORTAL(PyObject *) { return false; }
 
 // Objects/funcobject.c
 STUB(PyObject *, _PyFunction_GetSwitchboard, void)

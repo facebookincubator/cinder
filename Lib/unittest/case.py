@@ -222,9 +222,12 @@ def failUnlessJITCompiled(func):
     force_compile(func)
     return func
 
-def cinderPortingBrokenTest():
+def cinderPortingBrokenTest(reason=""):
+    if reason != "":
+        reason = f": {reason}"
     return skipUnless(
-        cinder_enable_broken_tests(), "Cinder tests broken by porting not enabled")
+        cinder_enable_broken_tests(),
+        f"Cinder tests broken by porting not enabled{reason}")
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

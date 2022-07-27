@@ -576,6 +576,38 @@ extern "C" {
 #  define _Py_NO_INLINE
 #endif
 
+/* _Py_ALWAYS_INLINE
+ * Always inline on a function.
+ *
+ * Usage:
+ *    int _Py_ALWAYS_INLINE x(void) { return 3; }
+ */
+
+#ifdef Py_DEBUG
+#define _Py_ALWAYS_INLINE
+#else
+#if defined(_MSC_VER)
+#define _Py_ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+#define _Py_ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+#define _Py_ALWAYS_INLINE
+#endif
+#endif
+
+/*
+ * _Py_UNLIKELY/_Py_LIKELY Branch is likely/not likely to be taken
+ *
+ * Usage:
+ *    if (Py_LIKELY(something)) {
+ *        this_usually_happens();
+ *    }
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define _Py_UNLIKELY(x) __builtin_expect((x), 0)
+#define _Py_LIKELY(x) __builtin_expect((x), 1)
+#endif
+
 /**************************************************************************
 Prototypes that are missing from the standard include files on some systems
 (and possibly only some versions of such systems.)

@@ -657,7 +657,7 @@ PyObject*
 JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
   PyObject* result =
       _PyDict_LoadGlobal((PyDictObject*)globals, (PyDictObject*)builtins, name);
-  if ((result == NULL) && !_PyErr_OCCURRED()) {
+  if ((result == NULL) && !PyErr_Occurred()) {
     PyErr_Format(PyExc_NameError, "name '%.200U' is not defined", name);
   }
   Py_XINCREF(result);
@@ -1419,7 +1419,7 @@ static T checkedUnboxImpl(PyObject* obj) {
   } else {
     res = PyLong_AsSize_t(obj);
   }
-  if (T(res) == res || (!is_signed && res == T(-1) && _PyErr_OCCURRED())) {
+  if (T(res) == res || (!is_signed && res == T(-1) && PyErr_Occurred())) {
     return res;
   }
   PyErr_SetString(PyExc_OverflowError, "int overflow");
@@ -1479,7 +1479,10 @@ PyObject* JITRT_ImportName(
   PyObject* globals = PyEval_GetGlobals();
   PyObject* builtins = tstate->interp->builtins;
 
-  import_func = _PyDict_GetItemId(builtins, &PyId___import__);
+  import_func = _PyDict_GetItemIdWithError(builtins, &PyId___import__);
+  JIT_DCHECK(
+      import_func || !PyErr_Occurred(),
+      "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
   if (import_func == NULL) {
     PyErr_SetString(PyExc_ImportError, "__import__ not found");
     return NULL;

@@ -421,6 +421,7 @@ PYTHON_OBJS=	\
 		Python/pythonrun.o \
 		Python/pytime.o \
 		Python/bootstrap_hash.o \
+		Python/shadowcode.o \
 		Python/structmember.o \
 		Python/symtable.o \
 		Python/sysmodule.o \
@@ -1444,7 +1445,8 @@ STRICTM_HEADERS = \
 
 CINDER_HEADERS= \
 		$(srcdir)/Cinder/Include/cinder/porting-support.h \
-		$(srcdir)/Cinder/Include/cinder/port-assert.h
+		$(srcdir)/Cinder/Include/cinder/port-assert.h \
+		$(srcdir)/Cinder/Include/cinder/exports.h
 
 I386_DASM_HEADERS = \
         $(srcdir)/ThirdParty/i386-dis/dis-asm.h

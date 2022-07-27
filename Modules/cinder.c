@@ -8,14 +8,13 @@
 
 #include "Jit/pyjit.h"
 
-#ifdef CINDER_PORTING_DONE
-
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
-extern int _PyShadow_PolymorphicCacheEnabled;
+#ifdef CINDER_PORTING_DONE
 extern int _Py_SkipFinalCleanup;
 extern int _Py_SetShortcutTypeCall;
 extern int _PyImmortal_RecursiveHeapWalk;
+#endif
 
 /* facebook begin */
 static PyObject *
@@ -38,6 +37,7 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _PyEval_LazyImportsEnabled = enabled != -1 && enabled;
     }
 
+#ifdef CINDER_PORTING_DONE
     PyObject *genfreelist = PyDict_GetItemString(o, "genfreelist");
     if (genfreelist != NULL) {
         int enabled = PyObject_IsTrue(genfreelist);
@@ -46,6 +46,7 @@ cinder_setknobs(PyObject *self, PyObject *o)
             _PyGen_ClearFreeList();
         }
     }
+#endif
 
     PyObject *polymorphic = PyDict_GetItemString(o, "polymorphiccache");
     if (polymorphic != NULL) {
@@ -53,6 +54,7 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _PyShadow_PolymorphicCacheEnabled = enabled != -1 && enabled;
     }
 
+#ifdef CINDER_PORTING_DONE
     PyObject *skip_final_cleanup = PyDict_GetItemString(o, "skipfinalcleanup");
     if (skip_final_cleanup) {
         int skip_cleanup = PyObject_IsTrue(skip_final_cleanup);
@@ -69,6 +71,7 @@ cinder_setknobs(PyObject *self, PyObject *o)
         int enabled = PyObject_IsTrue(immortlization_recursive_heap_walk);
         _PyImmortal_RecursiveHeapWalk = enabled != -1 && enabled;
     }
+#endif
     Py_RETURN_NONE;
 }
 
@@ -98,6 +101,7 @@ cinder_getknobs(PyObject *self, PyObject *args)
     if (err == -1)
         return NULL;
 
+#ifdef CINDER_PORTING_DONE
     err = PyDict_SetItemString(
         res, "genfreelist", _PyGen_FreeListEnabled ? Py_True : Py_False);
     if (err == -1) {
@@ -112,6 +116,7 @@ cinder_getknobs(PyObject *self, PyObject *args)
     if (err == -1) {
         return NULL;
     }
+#endif
 
     err = PyDict_SetItemString(res,
                                "polymorphiccache",
@@ -131,6 +136,7 @@ PyDoc_STRVAR(getknobs_doc,
 Gets the available knobs and their current status.");
 /* facebook end */
 
+#ifdef CINDER_PORTING_DONE
 
 static PyObject *
 cinder_freeze_type(PyObject *self, PyObject *o)
@@ -292,6 +298,7 @@ PyDoc_STRVAR(cinder_flush_immutable_warnings_doc, "flush_immutable_warnings()\n\
 Manually flush the a immutability warning buffer.");
 
 PyAPI_FUNC(void) _PyJIT_ClearDictCaches(void);
+#endif
 
 static PyObject *
 clear_caches(PyObject *self, PyObject *obj)
@@ -308,6 +315,7 @@ clear_shadow_cache(PyObject *self, PyObject *obj)
 }
 
 
+#ifdef CINDER_PORTING_DONE
 PyDoc_STRVAR(strict_module_patch_doc,
 "strict_module_patch(mod, name, value)\n\
 Patch a field in a strict module\n\
@@ -625,9 +633,9 @@ static struct PyMethodDef cinder_module_methods[] = {
      (PyCFunction)set_qualname_of_code,
      METH_FASTCALL,
      "Sets the value of qualified name in code object"},
-#ifdef CINDER_PORTING_DONE
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
+#ifdef CINDER_PORTING_DONE
     {"freeze_type", cinder_freeze_type, METH_O, freeze_type_doc},
     {"warn_on_inst_dict",
      cinder_warn_on_inst_dict,
@@ -661,12 +669,14 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_flush_immutable_warnings,
      METH_NOARGS,
      cinder_flush_immutable_warnings_doc},
+#endif
     {"clear_caches",
      clear_caches,
      METH_NOARGS,
      "Clears caches associated with the JIT.  This may have a negative effect "
      "on performance of existing JIT compiled code."},
     {"clear_shadow_cache", clear_shadow_cache, METH_O, ""},
+#ifdef CINDER_PORTING_DONE
     {"strict_module_patch",
      strict_module_patch,
      METH_VARARGS,

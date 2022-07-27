@@ -17,8 +17,12 @@
 #include "wordcode_helpers.h"
 #include "structmember.h"
 #include "structmember.h"
-#include "Jit/pyjit.h"
 #include <stddef.h>
+#include "cinder/exports.h"
+
+#define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
+#define _PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)
+#define _PyWrapperDescr_Check(d) (Py_TYPE(d) == &PyWrapperDescr_Type)
 
 extern inline PyCodeCacheRef *_PyShadow_FindCache(PyObject *from);
 extern inline PyCodeCacheRef *_PyShadow_GetCache(PyObject *from);
@@ -1072,7 +1076,9 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         PyObject *mod_dict = ((PyModuleObject *)obj)->md_dict;
         if (mod_dict) {
             _Py_IDENTIFIER(__name__);
-            mod_name = _PyDict_GetItemId(mod_dict, &PyId___name__);
+            mod_name = _PyDict_GetItemIdWithError(mod_dict, &PyId___name__);
+            assert((mod_name || !PyErr_Occurred()) &&
+                   "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
             if (mod_name && PyUnicode_Check(mod_name)) {
                 PyErr_Format(PyExc_AttributeError,
                              "module '%U' has no attribute '%U'",
@@ -1083,12 +1089,16 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         }
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
-    } else if (PyStrictModule_CheckExact(obj)) {
+    } else
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
+    if (PyStrictModule_CheckExact(obj)) {
         PyErr_Clear();
         PyStrictModuleObject *m = (PyStrictModuleObject *)obj;
         if (m->globals) {
             _Py_IDENTIFIER(__name__);
             mod_name = _PyDict_GetItemId(m->globals, &PyId___name__);
+            assert((mod_name || !PyErr_Occurred()) &&
+                   "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
             if (mod_name && PyUnicode_Check(mod_name)) {
                 PyErr_Format(PyExc_AttributeError,
                             "module '%U' has no attribute '%U'", mod_name, name);
@@ -1097,7 +1107,9 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         }
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
-    } else {
+    } else
+#endif
+    {
         PyErr_Format(PyExc_AttributeError,
                      "'%.50s' object has no attribute '%U'",
                      tp->tp_name,
@@ -1193,13 +1205,13 @@ get_load_method_type_data(PyObject *descr)
 
     PyObject *obj = NULL;
     _PyShadow_MethCallKind kind;
-    if (PyClassMethod_Check(descr)) {
-        obj = _PyClassMethod_GetFunc(descr);
+    if (_PyClassMethod_Check(descr)) {
+        obj = Ci_PyClassMethod_GetFunc(descr);
         kind = PYSHADOW_CALL_UNBOUND;
     } else if (_PyStaticMethod_Check(descr)) {
-        obj = _PyStaticMethod_GetFunc(descr);
+        obj = Ci_PyStaticMethod_GetFunc(descr);
         kind = PYSHADOW_CALL_NOT_UNBOUND;
-    } else if (PyWrapperDescr_Check(descr) ||
+    } else if (_PyWrapperDescr_Check(descr) ||
                _PyShadow_IsMethod(descr) ||
                PyCFunction_Check(descr)) {
         obj = descr;
@@ -1310,10 +1322,13 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
     }
 
     /* Inline _PyObject_GetDictPtr */
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
     if (PyType_IsSubtype(tp, &PyStrictModule_Type)) {
         dictoffset = strictmodule_dictoffset;
-    } else {
-        dictoffset = tp->tp_dictoffset;
+    } else
+#endif
+    {
+      dictoffset = tp->tp_dictoffset;
     }
 
     if (descr != NULL) {
@@ -1330,7 +1345,9 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                     cache_type = &_PyShadow_InstanceCacheSlot;
                     goto done;
                 }
-            } else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
+            }
+#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
+            else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
                 PyCachedPropertyDescrObject *member =
                     (PyCachedPropertyDescrObject *)descr;
                 if (Py_TYPE(member->name_or_descr) == &PyMemberDescr_Type) {
@@ -1346,6 +1363,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                 cache_type = &_PyShadow_InstanceCacheDictNoDescr;
                 goto done;
             }
+#endif
 
             /* not a special data descriptor */
             cache_type = &_PyShadow_InstanceCacheNoDictDescr;
@@ -1548,16 +1566,19 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
         if (PyStrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = _PyDict_GetAttrItem_Unicode(dict, name);
+                value = _PyDict_GetAttrItem(dict, name);
             } else {
                 value = NULL;
             }
-        } else {
+        } else
+#endif
+        {
             version = PYCACHE_MODULE_VERSION(owner);
-            value = _PyDict_GetAttrItem_Unicode(dict, name);
+            value = _PyDict_GetAttrItem(dict, name);
         }
 
         if (value != NULL) {
@@ -1566,10 +1587,13 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
             *res = value;
 
             _PyShadow_ModuleAttrEntry *entry;
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
             if (PyStrictModule_Check(owner)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
-            } else {
+            } else
+#endif
+            {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_ModuleAttrEntryType);
             }
@@ -1599,7 +1623,11 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
              * dict which matches the string w/ a custom __eq__/__hash__ */
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
                                   PyStrictModule_Check(owner) ? LOAD_ATTR_S_MODULE : LOAD_ATTR_MODULE,
+#else
+                                  LOAD_ATTR_MODULE,
+#endif
                                   (PyObject *)entry,
                                   name,
                                   &_PyShadow_LoadAttrMiss);
@@ -1614,7 +1642,9 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         }
 
         _Py_IDENTIFIER(__getattr__);
-        getattr = _PyDict_GetItemId(dict, &PyId___getattr__);
+        getattr = _PyDict_GetItemIdWithError(dict, &PyId___getattr__);
+        assert((getattr || !PyErr_Occurred()) &&
+               "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
         if (getattr) {
             PyObject *stack[1] = {name};
             *res = _PyObject_FastCall(getattr, stack, 1);
@@ -1663,8 +1693,11 @@ _PyShadow_LoadAttrWithCache(_PyShadow_EvalState *state,
             }
             return res;
         } else if (
-            type->tp_getattro == PyModule_Type.tp_getattro ||
-              type->tp_getattro == PyStrictModule_Type.tp_getattro) {
+            type->tp_getattro == PyModule_Type.tp_getattro
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
+            || type->tp_getattro == PyStrictModule_Type.tp_getattro
+#endif
+        ) {
             PyObject *descr = _PyType_Lookup(type, name);
             if (descr == NULL) {
                 if (_PyShadow_GetAttrModule(
@@ -1724,11 +1757,14 @@ _PyShadow_LoadMethodRunCacheEntry(_PyShadow_EvalState *state,
         if (cache_type == &_PyShadow_InstanceCacheNoDictMethod) {
             // No instance dictionary so shadowing cannot occur
             opcode = LOAD_METHOD_UNSHADOWED_METHOD;
-        } else if (PyType_HasFeature(Py_TYPE(owner), Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
+        }
+#ifdef CINDER_PORTING_HAVE_NOSHADOWING
+        else if (PyType_HasFeature(Py_TYPE(owner), Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
                    ((cache_type == &_PyShadow_InstanceCacheDictMethod) ||
                     (cache_type == &_PyShadow_InstanceCacheSplitDictMethod))) {
             opcode = LOAD_METHOD_UNSHADOWED_METHOD;
         }
+#endif
     }
 
     _PyShadow_PatchOrMiss(
@@ -1851,25 +1887,31 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
         if (PyStrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = _PyDict_GetAttrItem_Unicode(dict, name);
+                value = _PyDict_GetAttrItem(dict, name);
             } else {
                 value = NULL;
             }
-        } else {
+        } else
+#endif
+        {
             version = PYCACHE_MODULE_VERSION(obj);
-            value = _PyDict_GetAttrItem_Unicode(dict, name);
+            value = _PyDict_GetAttrItem(dict, name);
         }
 
         if (value != NULL) {
 
             _PyShadow_ModuleAttrEntry *entry;
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
             if (PyStrictModule_Check(obj)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
-            } else {
+            } else
+#endif
+            {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_ModuleAttrEntryType);
             }
@@ -1894,7 +1936,11 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
 
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
                                   PyStrictModule_Check(obj) ? LOAD_METHOD_S_MODULE : LOAD_METHOD_MODULE,
+#else
+                                  LOAD_METHOD_MODULE,
+#endif
                                   (PyObject *)entry,
                                   name,
                                   &_PyShadow_LoadMethodMiss);
@@ -1931,8 +1977,11 @@ _PyShadow_LoadMethodWithCache(_PyShadow_EvalState *state,
             if (*method != NULL) {
                 return meth_found;
             }
-        } else if (tp->tp_getattro == PyModule_Type.tp_getattro ||
-                    tp->tp_getattro == PyStrictModule_Type.tp_getattro) {
+        } else if (tp->tp_getattro == PyModule_Type.tp_getattro
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
+                   || tp->tp_getattro == PyStrictModule_Type.tp_getattro
+#endif
+        ) {
             if (_PyType_Lookup(tp, name) == NULL) {
                 int meth_found = _PyShadow_LoadMethodFromModule(
                     state, next_instr, obj, name, method);
@@ -2115,11 +2164,11 @@ _PyShadow_BinarySubscrWithCache(_PyShadow_EvalState *shadow,
             }
         } else {
             shadow_op = BINARY_SUBSCR_DICT;
-            res = _PyDict_GetItemMissing(container, sub);
+            res = Ci_dict_subscript(container, sub);
         }
     } else if (PyList_CheckExact(container)) {
         shadow_op = BINARY_SUBSCR_LIST;
-        res = _PyList_Subscript(container, sub);
+        res = Ci_list_subscript(container, sub);
     } else if (PyTuple_CheckExact(container)) {
         _Py_CODEUNIT prev_word = next_instr[-2];
         int prev_opcode = _Py_OPCODE(prev_word);
@@ -2128,7 +2177,7 @@ _PyShadow_BinarySubscrWithCache(_PyShadow_EvalState *shadow,
             if (i == -1 && PyErr_Occurred()) {
                 PyErr_Clear();
             } else {
-                res = _PyTuple_Subscript(container, sub);
+                res = Ci_tuple_subscript(container, sub);
                 // patch the load const
                 shadow_op = BINARY_SUBSCR_TUPLE_CONST_INT;
                 if (_PyShadow_PatchByteCode(
@@ -2139,7 +2188,7 @@ _PyShadow_BinarySubscrWithCache(_PyShadow_EvalState *shadow,
                 return res;
             }
         }
-        res = _PyTuple_Subscript(container, sub);
+        res = Ci_tuple_subscript(container, sub);
         shadow_op = BINARY_SUBSCR_TUPLE;
     } else {
         res = PyObject_GetItem(container, sub);

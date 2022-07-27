@@ -869,6 +869,12 @@ tuplesubscript(PyTupleObject* self, PyObject* item)
     }
 }
 
+PyObject *
+Ci_tuple_subscript(PyObject *self, PyObject *item)
+{
+    return tuplesubscript((PyTupleObject *)self, item);
+}
+
 /*[clinic input]
 tuple.__getnewargs__
 [clinic start generated code]*/

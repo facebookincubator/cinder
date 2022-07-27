@@ -2640,6 +2640,11 @@ dict_subscript(PyDictObject *mp, PyObject *key)
     return value;
 }
 
+PyObject *Ci_dict_subscript(PyObject *mp, PyObject *key)
+{
+    return dict_subscript((PyDictObject *)mp, key);
+}
+
 static int
 dict_ass_sub(PyDictObject *mp, PyObject *v, PyObject *w)
 {
@@ -6165,4 +6170,16 @@ _PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key) {
         perturb >>= PERTURB_SHIFT;
         i = mask & (i*5 + perturb + 1);
     }
+}
+
+int
+Ci_PyDict_ForceCombined(PyObject *dict) {
+    if ((dict == NULL) || !PyDict_Check(dict)) {
+        return 0;
+    }
+    PyDictObject *dictobj = (PyDictObject *) dict;
+    if (!_PyDict_HasSplitTable(dictobj)) {
+        return 0;
+    }
+    return dictresize(dictobj, calculate_keysize(dictobj->ma_keys->dk_size));
 }

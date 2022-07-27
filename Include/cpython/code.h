@@ -14,6 +14,15 @@ typedef uint16_t _Py_CODEUNIT;
 
 typedef struct _PyOpcache _PyOpcache;
 
+/* facebook begin t39538061 */
+struct _PyShadowCode;
+
+typedef struct {
+    unsigned int ncalls, curcalls; /* incremented for each execution */
+    struct _PyShadowCode *shadow;
+} PyCode_Cache;
+/* facebook end */
+
 /* Bytecode object */
 struct PyCodeObject {
     PyObject_HEAD
@@ -47,30 +56,16 @@ struct PyCodeObject {
        people to go through the proper APIs. */
     void *co_extra;
 
-    /* Per opcodes just-in-time cache
-     *
-     * To reduce cache size, we use indirect mapping from opcode index to
-     * cache object:
-     *   cache = co_opcache[co_opcache_map[next_instr - first_instr] - 1]
-     */
-
-    // co_opcache_map is indexed by (next_instr - first_instr).
-    //  * 0 means there is no cache for this opcode.
-    //  * n > 0 means there is cache in co_opcache[n-1].
-    unsigned char *co_opcache_map;
-    _PyOpcache *co_opcache;
-    int co_opcache_flag;  // used to determine when create a cache.
-    unsigned char co_opcache_size;  // length of co_opcache.
-
-    /*
-     * Fields added for Cinder. TODO(T126419906): These should be removed as
+   /*
+    * Fields added for Cinder. TODO(T126419906): These should be removed as
      * part of the CinderVM work.
-     */
-
-    _Py_CODEUNIT *co_rawcode;
-    Py_ssize_t co_codelen;
+    */
 
     PyObject *co_qualname; /* qualified name */
+    _Py_CODEUNIT* co_rawcode;
+    Py_ssize_t co_codelen;
+
+    PyCode_Cache co_cache; /* cache of opcode results */
 };
 
 /* Masks for co_flags above */

@@ -10,15 +10,14 @@ from collections import UserDict
 from test.support.script_helper import assert_python_ok, run_python_until_end
 from unittest import skipIf
 from unittest.case import CINDERJIT_ENABLED
+import cinder
 try:
-    import cinder
     from cinder import (
         cached_property,
         StrictModule,
         strict_module_patch,
     )
 except ImportError:
-    cinder = None
     cached_property = None
     StrictModule = None
 
@@ -30,16 +29,18 @@ class ShadowError(Exception):
     pass
 
 
-if cinder is not None:
-    knobs = cinder.getknobs()
-    if "shadowcode" in knobs:
-        cinder.setknobs({"shadowcode":True})
-        cinder.setknobs({"polymorphiccache":True})
+knobs = cinder.getknobs()
+if "shadowcode" in knobs:
+    cinder.setknobs({"shadowcode":True})
+    cinder.setknobs({"polymorphiccache":True})
 
 
 # Tests with immortalizaiton will cause expected leaks
 # This function skips return code check for ASAN build
 def skip_ret_code_check_for_leaking_test_in_asan_mode(*args, **env_vars):
+    # TODO(T126940174): Remove this
+    raise unittest.SkipTest("sys._built_with_asan not yet ported")
+
     if sys._built_with_asan:
         res, _ = run_python_until_end(*args, **env_vars)
         return res
@@ -47,7 +48,6 @@ def skip_ret_code_check_for_leaking_test_in_asan_mode(*args, **env_vars):
         return assert_python_ok(*args, **env_vars)
 
 
-@unittest.cinderPortingBrokenTest()
 class ShadowCodeTests(unittest.TestCase):
     def test_type_error(self):
         class Desc:
@@ -694,7 +694,7 @@ function grab those instances from the L2 cache'''
         for _ in range(REPETITION):
             self.assertEqual(f(a), 42)
 
-        if cinder is not None and not CINDERJIT_ENABLED:
+        if not CINDERJIT_ENABLED:
             self.assertNotEqual(len(weakref.getweakrefs(C)), 0)
         del a, C, metafin
 
@@ -706,7 +706,7 @@ function grab those instances from the L2 cache'''
         self.assertEqual(f(a), 100)
         for _ in range(REPETITION):
             self.assertEqual(g(a), 200)
-        if cinder is not None and not CINDERJIT_ENABLED:
+        if not CINDERJIT_ENABLED:
             self.assertNotEqual(len(weakref.getweakrefs(C)), 0)
 
     def test_type_resurrection_2(self):
@@ -810,7 +810,6 @@ def f(x):
 
                 self.assertEqual(res, 42)
 
-    @skipIf(cinder is None, "no cinder")
     def test_knob(self):
         # Its on because we enabled it for the test
         try:
@@ -2889,6 +2888,7 @@ def f(x):
         rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"True")
 
+    @unittest.cinderPortingBrokenTest("Uses gc.immortalize_heap()")
     def test_load_unshadowed_immortal_method_split_dict(self):
         code = f"""if 1:
             class Oracle:
@@ -2941,6 +2941,7 @@ def f(x):
         rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'42')
 
+    @unittest.cinderPortingBrokenTest("Uses gc.immortalize_heap()")
     def test_load_unshadowed_immortal_method_combineddict(self):
         code = f"""if 1:
             class Oracle:

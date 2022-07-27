@@ -2866,6 +2866,12 @@ list_subscript(PyListObject* self, PyObject* item)
     }
 }
 
+PyObject *
+Ci_list_subscript(PyObject *self, PyObject *item)
+{
+    return list_subscript((PyListObject *)self, item);
+}
+
 static int
 list_ass_subscript(PyListObject* self, PyObject* item, PyObject* value)
 {

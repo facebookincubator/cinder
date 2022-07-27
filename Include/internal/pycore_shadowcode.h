@@ -9,7 +9,10 @@
 #include "pystate.h"
 #include "Objects/dict-common.h"
 #include "pystate.h"
+#include "pycore_moduleobject.h"
 #include "pycore_object.h"
+
+#include "cinder/porting-support.h"
 
 #include <stdint.h>
 
@@ -575,6 +578,7 @@ _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
                                         PyObject *owner)
 {
     PyObject *res;
+#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
     if (entry->value != NULL) {
         /* cached_property descriptor, we need to create the value */
         assert(Py_TYPE(entry->value) == &PyCachedProperty_Type);
@@ -588,7 +592,9 @@ _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
                                                  res)) {
             return NULL;
         }
-    } else {
+    } else
+#endif
+    {
         _PyShadow_SetLoadAttrError(owner, entry->name);
         return NULL;
     }
@@ -648,6 +654,7 @@ _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
 {
     PyObject *res = *(PyObject **)((char *)owner + entry->splitoffset);
     if (res == NULL) {
+#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
         if (entry->value != NULL &&
             Py_TYPE(entry->value) == &PyCachedProperty_Type) {
             /* cached_property descriptor, we need to create the value */
@@ -659,7 +666,9 @@ _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
                 return NULL;
             }
             *(PyObject **)((char *)owner + entry->splitoffset) = res;
-        } else {
+        } else
+#endif
+        {
             PyErr_SetObject(PyExc_AttributeError, entry->name);
             return NULL;
         }
@@ -1429,7 +1438,9 @@ _PyShadow_StoreAttrDictMethod(_PyShadow_EvalState *shadow,
             Py_DECREF(dict);
         }
 
+#ifdef CINDER_PORTING_HAVE_NOSHADOWING
         _PyType_ClearNoShadowingInstances(tp, entry->value);
+#endif
         return PyDict_SetItem(dict, entry->name, v);
     } else {
         STORE_ATTR_CACHE_MISS(STORE_ATTR_DICT_METHOD, entry->type, v)
@@ -1549,7 +1560,9 @@ _PyShadow_StoreAttrSplitDictMethod(_PyShadow_EvalState *shadow,
                                    PyObject *v)
 {
     if (entry->type == Py_TYPE(owner)) {
-        _PyType_ClearNoShadowingInstances(entry->type, entry->value);
+#ifdef CINDER_PORTING_HAVE_NOSHADOWING
+      _PyType_ClearNoShadowingInstances(entry->type, entry->value);
+#endif
         return _PyShadow_StoreAttrSplitDictSet(
             shadow, next_instr, entry, owner, v);
     } else {

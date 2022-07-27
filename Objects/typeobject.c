@@ -11,6 +11,8 @@
 #include "pycore_unionobject.h"   // _Py_union_type_or
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
+#include "pycore_shadowcode.h"
+#include "cinder/exports.h"
 
 #include <ctype.h>
 
@@ -350,6 +352,7 @@ PyType_Modified(PyTypeObject *type)
     }
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
+    _PyShadow_TypeModified(type);
 }
 
 static void
@@ -2325,6 +2328,16 @@ subtype_setdict(PyObject *obj, PyObject *value, void *context)
 {
     PyObject **dictptr;
     PyTypeObject *base;
+
+    /* Inline caches assume that all instances of a type that use split
+     * dictionaries for attribute storage share the same dict keys object. We
+     * could verify that for the new dictionary (if it's split), however, dict
+     * assignment should happen so rarely that it's easier to just force the
+     * dictionary to be combined.
+     */
+    if (Ci_PyDict_ForceCombined(value) < 0) {
+        return -1;
+    }
 
     base = get_builtin_base_with_dict(Py_TYPE(obj));
     if (base != NULL) {
@@ -4783,6 +4796,19 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
         Py_SET_TYPE(self, newto);
         if (oldto->tp_flags & Py_TPFLAGS_HEAPTYPE)
             Py_DECREF(oldto);
+
+        /* Inline caches assume that all instances of a type that use split
+         * dictionaries for attribute storage share the same dict keys object.
+         * Force the instance dictionary, if it exists, to use combined storage.
+         */
+        PyObject **dictptr = _PyObject_GetDictPtr(self);
+        if (dictptr != NULL) {
+            PyObject *dict = *dictptr;
+            if (Ci_PyDict_ForceCombined(dict) < 0) {
+                return -1;
+            }
+        }
+
         return 0;
     }
     else {

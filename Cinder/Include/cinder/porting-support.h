@@ -4,8 +4,6 @@
 
 #include "internal/pycore_moduleobject.h"
 
-#include "Jit/log.h"
-
 #include "cinder/port-assert.h"
 
 /*
@@ -79,11 +77,6 @@ PyAPI_FUNC(PyObject *) _PyEval_SuperLookupMethodOrAttr(
 PyAPI_FUNC(PyObject *) _PyEval_GetAIter(PyObject *obj);
 PyAPI_FUNC(PyObject *) _PyEval_GetANext(PyObject *aiter);
 
-PyObject *special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id);
-int check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args);
-void format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs);
-void format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevopcode);
-
 
 // Include/genobject.h
 typedef enum {
@@ -131,8 +124,9 @@ PyAPI_FUNC(void) _PyType_ResetMethodCacheStats(void);
 PyAPI_FUNC(void) _PyType_SetReadonlyProperties(struct _typeobject *);
 PyAPI_FUNC(PyObject *) _PyType_GetSwitchboard(void);
 
-// This will probably end up back as a macro
-int Py_IS_IMMORTAL(PyObject*);
+// TODO(T124996749): Until we port immortal objects, it's safe to always say
+// nothing is immortal.
+#define Py_IS_IMMORTAL(v) ((void)v, 0)
 
 
 // Include/moduleobject.h
@@ -145,7 +139,11 @@ typedef struct {
     PyObject *imported_from;
 } PyStrictModuleObject;
 
+#ifdef CINDER_PORTING_HAVE_STRICTMODULES
 #define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
+#else
+#define PyModule_Dict(op) (((PyModuleObject *)op)->md_dict)
+#endif
 extern Py_ssize_t strictmodule_dictoffset;
 
 int strictmodule_is_unassigned(PyObject *dict, PyObject *name);
@@ -188,7 +186,6 @@ PyAPI_FUNC(PyObject *) _PyTuple_Repeat(PyTupleObject *, Py_ssize_t);
 // Include/cpython/dictobject.h
 int _PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value);
 //PyAPI_FUNC(int) _PyDict_DelItemId(PyObject *mp, struct _Py_Identifier *key);
-PyAPI_FUNC(PyObject *) _PyDict_GetItemId(PyObject *dp, struct _Py_Identifier *key);
 
 
 // Include/frameobject.h
@@ -196,10 +193,6 @@ PyFrameObject * _PyFrame_NewWithBuiltins_NoTrack(PyThreadState *,
                                                  PyCodeObject *,
                                                  PyObject *, PyObject *,
                                                  PyObject *);
-
-// Include/errors.h
-int _PyErr_OCCURRED();
-
 
 // Include/pystate.h
 void _PyThreadState_SetProfileInterpAll(int enabled);

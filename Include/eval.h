@@ -23,6 +23,11 @@ PyAPI_FUNC(PyObject *) PyEval_EvalCodeEx(PyObject *co,
 
 #ifndef Py_LIMITED_API
 PyAPI_FUNC(PyObject *) _PyEval_CallTracing(PyObject *func, PyObject *args);
+
+PyAPI_DATA(int) _PyEval_LazyImportsEnabled;
+PyAPI_DATA(int) _PyEval_ShadowByteCodeEnabled;
+PyAPI_DATA(int) _PyShadow_PolymorphicCacheEnabled;
+
 #endif
 
 #ifdef __cplusplus
