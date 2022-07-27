@@ -4781,6 +4781,221 @@ main_loop:
             goto dispatch_opcode;
         }
 
+        case TARGET(FUNC_CREDENTIAL): {
+            PORT_ASSERT("Unsupported: FUNC_CREDENTIAL");
+        }
+
+        case TARGET(READONLY_OPERATION): {
+            PORT_ASSERT("Unsupported: READONLY_OPERATION");
+        }
+
+        case TARGET(INVOKE_METHOD): {
+            PORT_ASSERT("Unsupported: INVOKE_METHOD");
+        }
+
+        case TARGET(LOAD_FIELD): {
+            PORT_ASSERT("Unsupported: LOAD_FIELD");
+        }
+
+        case TARGET(STORE_FIELD): {
+            PORT_ASSERT("Unsupported: STORE_FIELD");
+        }
+
+        case TARGET(SEQUENCE_REPEAT): {
+            PORT_ASSERT("Unsupported: SEQUENCE_REPEAT");
+        }
+
+        case TARGET(CAST): {
+            PORT_ASSERT("Unsupported: CAST");
+        }
+
+        case TARGET(LOAD_LOCAL): {
+            PORT_ASSERT("Unsupported: LOAD_LOCAL");
+        }
+
+        case TARGET(STORE_LOCAL): {
+            PORT_ASSERT("Unsupported: STORE_LOCAL");
+        }
+
+        case TARGET(INT_LOAD_CONST_OLD): {
+            PORT_ASSERT("Unsupported: INT_LOAD_CONST_OLD");
+        }
+
+        case TARGET(PRIMITIVE_BOX): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_BOX");
+        }
+
+        case TARGET(POP_JUMP_IF_ZERO): {
+            PORT_ASSERT("Unsupported: POP_JUMP_IF_ZERO");
+        }
+
+        case TARGET(POP_JUMP_IF_NONZERO): {
+            PORT_ASSERT("Unsupported: POP_JUMP_IF_NONZERO");
+        }
+
+        case TARGET(PRIMITIVE_UNBOX): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX");
+        }
+
+        case TARGET(PRIMITIVE_BINARY_OP): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_BINARY_OP");
+        }
+
+        case TARGET(PRIMITIVE_UNARY_OP): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_UNARY_OP");
+        }
+
+        case TARGET(PRIMITIVE_COMPARE_OP): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_COMPARE_OP");
+        }
+
+        case TARGET(LOAD_ITERABLE_ARG): {
+            PORT_ASSERT("Unsupported: LOAD_ITERABLE_ARG");
+        }
+
+        case TARGET(LOAD_MAPPING_ARG): {
+            PORT_ASSERT("Unsupported: LOAD_MAPPING_ARG");
+        }
+
+        case TARGET(INVOKE_FUNCTION): {
+            PORT_ASSERT("Unsupported: INVOKE_FUNCTION");
+        }
+
+        case TARGET(JUMP_IF_ZERO_OR_POP): {
+            PORT_ASSERT("Unsupported: JUMP_IF_ZERO_OR_POP");
+        }
+
+        case TARGET(JUMP_IF_NONZERO_OR_POP): {
+            PORT_ASSERT("Unsupported: JUMP_IF_NONZERO_OR_POP");
+        }
+
+        case TARGET(FAST_LEN): {
+            PORT_ASSERT("Unsupported: FAST_LEN");
+        }
+
+        case TARGET(CONVERT_PRIMITIVE): {
+            PORT_ASSERT("Unsupported: CONVERT_PRIMITIVE");
+        }
+
+        case TARGET(CHECK_ARGS): {
+            PORT_ASSERT("Unsupported: CHECK_ARGS");
+        }
+
+        case TARGET(LOAD_CLASS): {
+            PORT_ASSERT("Unsupported: LOAD_CLASS");
+        }
+
+        case TARGET(BUILD_CHECKED_MAP): {
+            PORT_ASSERT("Unsupported: BUILD_CHECKED_MAP");
+        }
+
+        case TARGET(SEQUENCE_GET): {
+            PORT_ASSERT("Unsupported: SEQUENCE_GET");
+        }
+
+        case TARGET(SEQUENCE_SET): {
+            PORT_ASSERT("Unsupported: SEQUENCE_SET");
+        }
+
+        case TARGET(LIST_DEL): {
+            PORT_ASSERT("Unsupported: LIST_DEL");
+        }
+
+        case TARGET(REFINE_TYPE): {
+            PORT_ASSERT("Unsupported: REFINE_TYPE");
+        }
+
+        case TARGET(PRIMITIVE_LOAD_CONST): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_LOAD_CONST");
+        }
+
+        case TARGET(RETURN_PRIMITIVE): {
+            PORT_ASSERT("Unsupported: RETURN_PRIMITIVE");
+        }
+
+        case TARGET(LOAD_METHOD_SUPER): {
+            PORT_ASSERT("Unsupported: LOAD_METHOD_SUPER");
+        }
+
+        case TARGET(LOAD_ATTR_SUPER): {
+            PORT_ASSERT("Unsupported: LOAD_ATTR_SUPER");
+        }
+
+        case TARGET(TP_ALLOC): {
+            PORT_ASSERT("Unsupported: TP_ALLOC");
+        }
+
+        case TARGET(BUILD_CHECKED_LIST): {
+            PORT_ASSERT("Unsupported: BUILD_CHECKED_LIST");
+        }
+
+        case TARGET(LOAD_TYPE): {
+            PORT_ASSERT("Unsupported: LOAD_TYPE");
+        }
+
+        case TARGET(BUILD_CHECKED_LIST_CACHED): {
+            PORT_ASSERT("Unsupported: BUILD_CHECKED_LIST_CACHED");
+        }
+
+        case TARGET(TP_ALLOC_CACHED): {
+            PORT_ASSERT("Unsupported: TP_ALLOC_CACHED");
+        }
+
+        case TARGET(INVOKE_FUNCTION_CACHED): {
+            PORT_ASSERT("Unsupported: INVOKE_FUNCTION_CACHED");
+        }
+
+        case TARGET(INVOKE_FUNCTION_INDIRECT_CACHED): {
+            PORT_ASSERT("Unsupported: INVOKE_FUNCTION_INDIRECT_CACHED");
+        }
+
+        case TARGET(BUILD_CHECKED_MAP_CACHED): {
+            PORT_ASSERT("Unsupported: BUILD_CHECKED_MAP_CACHED");
+        }
+
+        case TARGET(CHECK_ARGS_CACHED): {
+            PORT_ASSERT("Unsupported: CHECK_ARGS_CACHED");
+        }
+
+        case TARGET(PRIMITIVE_STORE_FAST): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_STORE_FAST");
+        }
+
+        case TARGET(CAST_CACHED_OPTIONAL): {
+            PORT_ASSERT("Unsupported: CAST_CACHED_OPTIONAL");
+        }
+
+        case TARGET(CAST_CACHED): {
+            PORT_ASSERT("Unsupported: CAST_CACHED");
+        }
+
+        case TARGET(CAST_CACHED_EXACT): {
+            PORT_ASSERT("Unsupported: CAST_CACHED_EXACT");
+        }
+
+        case TARGET(CAST_CACHED_OPTIONAL_EXACT): {
+            PORT_ASSERT("Unsupported: CAST_CACHED_OPTIONAL_EXACT");
+        }
+
+        case TARGET(LOAD_PRIMITIVE_FIELD): {
+            PORT_ASSERT("Unsupported: LOAD_PRIMITIVE_FIELD");
+        }
+
+        case TARGET(STORE_PRIMITIVE_FIELD): {
+            PORT_ASSERT("Unsupported: STORE_PRIMITIVE_FIELD");
+        }
+
+        case TARGET(LOAD_OBJ_FIELD): {
+            PORT_ASSERT("Unsupported: LOAD_OBJ_FIELD");
+        }
+
+        case TARGET(STORE_OBJ_FIELD): {
+            PORT_ASSERT("Unsupported: STORE_OBJ_FIELD");
+        }
+
+        case TARGET(INVOKE_METHOD_CACHED): {
+            PORT_ASSERT("Unsupported: INVOKE_METHOD_CACHED");
+        }
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
