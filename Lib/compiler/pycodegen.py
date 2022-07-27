@@ -2182,6 +2182,7 @@ class CodeGenerator(ASTVisitor):
             is_last_non_default_case = case is cases[-1]
             if not is_last_non_default_case:
                 self.emit("DUP_TOP")
+            pc.stores = []
             # Irrefutable cases must be either guarded, last, or both:
             pc.allow_irrefutable = case.guard is not None or case is last_case
             self.visit(case.pattern, pc)
@@ -2362,8 +2363,7 @@ class CodeGenerator(ASTVisitor):
         pass
 
     def visitMatchStar(self, node: ast.MatchStar, pc: PatternContext) -> None:
-        # TODO
-        pass
+        self._pattern_helper_store_name(node.name, pc)
 
     def visitMatchAs(self, node: ast.MatchAs, pc: PatternContext) -> None:
         """See compiler_pattern_as in compile.c"""
