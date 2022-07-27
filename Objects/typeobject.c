@@ -13,6 +13,7 @@
 #include "structmember.h"         // PyMemberDef
 #include "pycore_shadowcode.h"
 #include "cinder/exports.h"
+#include "Jit/pyjit.h"
 
 #include <ctype.h>
 
@@ -313,6 +314,63 @@ _PyType_Fini(PyInterpreterState *interp)
     }
 }
 
+void
+_PyType_SetNoShadowingInstances(PyTypeObject *type)
+{
+    PyObject *bases = type->tp_bases;
+    Py_ssize_t nbases = PyTuple_GET_SIZE(bases);
+
+    if (!PyType_Check(Py_TYPE(type)) ||
+        (type->tp_setattro != PyObject_GenericSetAttr)) {
+        return;
+    }
+
+    for (Py_ssize_t i = 0; i < nbases; i++) {
+        PyTypeObject *base = (PyTypeObject *)PyTuple_GET_ITEM(bases, i);
+        if (!PyType_HasFeature(base, Py_TPFLAGS_NO_SHADOWING_INSTANCES)) {
+            return;
+        }
+    }
+
+    type->tp_flags |= Py_TPFLAGS_NO_SHADOWING_INSTANCES;
+}
+
+static void
+do_clear_shadowing_flag(PyTypeObject *type)
+{
+    PyObject *raw = type->tp_subclasses;
+    if (raw != NULL) {
+        assert(PyDict_CheckExact(raw));
+        Py_ssize_t i = 0;
+        PyObject *ref;
+        while (PyDict_Next(raw, &i, NULL, &ref)) {
+            assert(PyWeakref_CheckRef(ref));
+            ref = PyWeakref_GET_OBJECT(ref);
+            if (ref != Py_None) {
+                _PyType_ClearNoShadowingInstances((PyTypeObject *)ref, NULL);
+            }
+        }
+    }
+    type->tp_flags &= ~Py_TPFLAGS_NO_SHADOWING_INSTANCES;
+}
+
+static int
+is_func_or_method(PyObject *obj)
+{
+    return PyFunction_Check(obj) || (Py_TYPE(obj) == &PyMethodDescr_Type);
+}
+
+void
+_PyType_ClearNoShadowingInstances(PyTypeObject *type, PyObject *value)
+{
+    if (!PyType_HasFeature(type, Py_TPFLAGS_NO_SHADOWING_INSTANCES) ||
+        ((value != NULL) && !is_func_or_method(value))) {
+        return;
+    }
+    do_clear_shadowing_flag(type);
+    PyType_Modified(type);
+}
+
 
 void
 PyType_Modified(PyTypeObject *type)
@@ -353,6 +411,7 @@ PyType_Modified(PyTypeObject *type)
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
     _PyShadow_TypeModified(type);
+    _PyJIT_TypeModified(type);
 }
 
 static void
@@ -852,6 +911,8 @@ type_set_bases(PyTypeObject *type, PyObject *new_bases, void *context)
     Py_DECREF(old_base);
 
     assert(_PyType_CheckConsistency(type));
+    _PyType_ClearNoShadowingInstances(type, NULL);
+
     return res;
 
   undo:
@@ -2305,6 +2366,8 @@ subtype_dict(PyObject *obj, void *context)
 {
     PyTypeObject *base;
 
+    _PyType_ClearNoShadowingInstances(Py_TYPE(obj), NULL);
+
     base = get_builtin_base_with_dict(Py_TYPE(obj));
     if (base != NULL) {
         descrgetfunc func;
@@ -2338,6 +2401,7 @@ subtype_setdict(PyObject *obj, PyObject *value, void *context)
     if (Ci_PyDict_ForceCombined(value) < 0) {
         return -1;
     }
+    _PyType_ClearNoShadowingInstances(Py_TYPE(obj), NULL);
 
     base = get_builtin_base_with_dict(Py_TYPE(obj));
     if (base != NULL) {
@@ -3214,8 +3278,17 @@ type_new_impl(type_new_ctx *ctx)
         goto error;
     }
 
+    Py_ssize_t orig_refcount = Py_REFCNT(type);
     if (type_new_init_subclass(type, ctx->kwds) < 0) {
         goto error;
+    }
+
+    if (orig_refcount == Py_REFCNT(type)) {
+        /* Instances of heap types hold a strong reference to their type.
+         * The refcount of type hasn't changed, therefore no instances of
+         * it are live, and thus no shadowing can occur.
+         */
+        _PyType_SetNoShadowingInstances(type);
     }
 
     assert(_PyType_CheckConsistency(type));
@@ -4034,6 +4107,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         if (is_dunder_name(name)) {
             res = update_slot(type, name);
         }
+        _PyType_ClearNoShadowingInstances(type, value);
         assert(_PyType_CheckConsistency(type));
     }
     Py_DECREF(name);
@@ -4808,6 +4882,7 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
                 return -1;
             }
         }
+        _PyType_ClearNoShadowingInstances(newto, NULL);
 
         return 0;
     }
@@ -6399,6 +6474,8 @@ PyType_Ready(PyTypeObject *type)
         type->tp_flags &= ~Py_TPFLAGS_READYING;
         return -1;
     }
+
+    _PyType_SetNoShadowingInstances(type);
 
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;

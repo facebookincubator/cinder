@@ -372,6 +372,57 @@ given type object has a specified feature.
 /* Objects behave like an unbound method */
 #define Py_TPFLAGS_METHOD_DESCRIPTOR (1UL << 17)
 
+/*
+  No instances of this class have attributes that shadow a method.  When this
+  flag is set, it allows us to potentially skip one dictionary lookup during an
+  instance method call.
+
+  Normally, method lookup for an instance method call proceeds as follows:
+
+  1. Look for the method in the mro of the instance's type.
+  2. If the result from (1) is a data descriptor, invoke it and return the
+     result.
+  3. Look in the instance dictionary.
+  4. If (3) returned a value, return it.
+  5. If (1) returned a non-data descriptor, invoke it and return the result.
+  6. If (1) returned a value, return it.
+  7. Raise an AttributeError
+
+  We can bypass step 3 of this process if this flag is set on the instance's
+  type and step 1 returned anything. Fortunately, this is the common case
+  for method calls.
+
+  The flag is set when a type is first created; no instances of the type exist,
+  therefore no shadowing can occur. The flag maintains the invariant that it is
+  set if and only if it is also set on all bases. The flag is cleared when
+  shadowing may have occurred and is never reset. It must also be cleared on
+  all descendent types in the hierarchy in order to maintain the invariant.
+
+  Shadowing can occur in the following scenarios:
+
+  1. An attribute is assigned to an instance and it shadows a method. This can
+     be efficiently detected when an attribute is set on an instance.
+  2. An attribute is assigned to an instance through its __dict__. We cannot
+     efficiently detect when this occurs, so we assume that shadowing occurs
+     whenever an instance's __dict__ is retrieved.
+  3. An attribute's __dict__ is replaced. We could check for shadowing using
+     each member in the __dict__, however, this should so rarely that the
+     optimization is not worth the effort. We assume shadowing occurs
+     whenever the __dict__ is replaced.
+  4. The __class__ of an instance is re-assigned. This is effectively the
+     same as (3).
+  5. A method is assigned to a type. This may cause shadowing between instances
+     of the type or any subtype. Knowing whether or not shadowing occurred is
+     challenging to implement efficiently and would likely require keeping
+     track of all the instance attribute names that were ever assigned to
+     instances of a given inheritance hierarchy. However, we can be
+     conservative and assume that any assignment of a method to a type causes
+     shadowing.
+  6. A type's __bases__ are modified. This should happen rarely and, as such,
+     does not need to be handled efficiently. This is handled by (5).
+*/
+#define Py_TPFLAGS_NO_SHADOWING_INSTANCES (1UL << 18)
+
 /* Object has up-to-date type attribute cache */
 #define Py_TPFLAGS_VALID_VERSION_TAG  (1UL << 19)
 
@@ -746,6 +797,9 @@ static inline int _PyType_CheckExact(PyObject *op) {
     return Py_IS_TYPE(op, &PyType_Type);
 }
 #define PyType_CheckExact(op) _PyType_CheckExact(_PyObject_CAST(op))
+
+PyAPI_FUNC(void) _PyType_ClearNoShadowingInstances(struct _typeobject *, PyObject *obj);
+PyAPI_FUNC(void) _PyType_SetNoShadowingInstances(struct _typeobject *);
 
 #ifdef __cplusplus
 }

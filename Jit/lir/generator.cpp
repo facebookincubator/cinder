@@ -1306,15 +1306,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
 
-        auto func = reinterpret_cast<uint64_t>(JITRT_GetMethod);
+        auto func = reinterpret_cast<uint64_t>(LoadMethodCache::lookupHelper);
         auto cache_entry = Runtime::get()->allocateLoadMethodCache();
         bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}, {:#x}",
+            "Call {}, {:#x}, {:#x}, {}, {}",
             instr->dst(),
             func,
+            reinterpret_cast<uint64_t>(cache_entry),
             instr->receiver(),
-            tmp_id,
-            reinterpret_cast<uint64_t>(cache_entry));
+            tmp_id);
 
         break;
       }

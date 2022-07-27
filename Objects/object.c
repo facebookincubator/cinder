@@ -1411,6 +1411,9 @@ _PyObject_GenericSetAttrWithDict(PyObject *obj, PyObject *name,
     }
     if (res < 0 && PyErr_ExceptionMatches(PyExc_KeyError))
         PyErr_SetObject(PyExc_AttributeError, name);
+    if (descr != NULL) {
+        _PyType_ClearNoShadowingInstances(tp, descr);
+    }
 
   done:
     Py_XDECREF(descr);

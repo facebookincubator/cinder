@@ -1758,13 +1758,11 @@ _PyShadow_LoadMethodRunCacheEntry(_PyShadow_EvalState *state,
             // No instance dictionary so shadowing cannot occur
             opcode = LOAD_METHOD_UNSHADOWED_METHOD;
         }
-#ifdef CINDER_PORTING_HAVE_NOSHADOWING
         else if (PyType_HasFeature(Py_TYPE(owner), Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
                    ((cache_type == &_PyShadow_InstanceCacheDictMethod) ||
                     (cache_type == &_PyShadow_InstanceCacheSplitDictMethod))) {
             opcode = LOAD_METHOD_UNSHADOWED_METHOD;
         }
-#endif
     }
 
     _PyShadow_PatchOrMiss(

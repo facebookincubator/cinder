@@ -283,7 +283,7 @@ def with_globals(gbls):
     return decorator
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiled
 def get_meaning_of_life(obj):
     return obj.meaning_of_life()
 
@@ -481,7 +481,6 @@ class CallExTests(unittest.TestCase):
         self.assertEqual(__import__(*("sys",), **{"globals": None}), sys)
 
 
-@unittest.cinderPortingBrokenTest()
 class LoadMethodCacheTests(unittest.TestCase):
     def test_type_modified(self):
         class Oracle:

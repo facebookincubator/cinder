@@ -114,11 +114,6 @@ void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter);
 
 // Include/object.h
 
-// Bit 22 is no longer available
-#define Py_TPFLAGS_NO_SHADOWING_INSTANCES [](){PORT_ASSERT("need a new bit for flag"); return 0;}()
-
-PyAPI_FUNC(void) _PyType_ClearNoShadowingInstances(struct _typeobject *, PyObject *obj);
-PyAPI_FUNC(void) _PyType_SetNoShadowingInstances(struct _typeobject *);
 PyAPI_FUNC(PyObject *) _PyType_GetMethodCacheStats(void);
 PyAPI_FUNC(void) _PyType_ResetMethodCacheStats(void);
 PyAPI_FUNC(void) _PyType_SetReadonlyProperties(struct _typeobject *);

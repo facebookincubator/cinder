@@ -350,6 +350,8 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(res), 0);
 }
 
+#endif
+
 TEST_F(ASMGeneratorTest, CallBoundMethod) {
   const char* pycode = R"(
 def test(l):
@@ -375,8 +377,6 @@ def test(l):
   ASSERT_TRUE(PyLong_Check(elem));
   EXPECT_EQ(PyLong_AsLong(elem), 123);
 }
-
-#endif
 
 TEST_F(ASMGeneratorTest, DefaultArgTest) {
   const char* pycode = R"(

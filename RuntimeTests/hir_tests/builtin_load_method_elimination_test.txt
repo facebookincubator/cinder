@@ -129,7 +129,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoadMethodCallMethodAwaitedTurnsIntoVectorCallStaticAwaited
+@disabled_CINDER_PORTING_NEEDS_ASYNC_LoadMethodCallMethodAwaitedTurnsIntoVectorCallStaticAwaited
 ---
 async def test():
     return await "Hello".upper()
@@ -219,7 +219,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoadMethodOnTypeObjectDoesNotChange
+@disabled_CINDER_PORTING_NEEDS_LOAD_GLOBAL_LoadMethodOnTypeObjectDoesNotChange
 ---
 def test():
     return str.upper("Hello")

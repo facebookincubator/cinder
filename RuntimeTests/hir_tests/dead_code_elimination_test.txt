@@ -17,7 +17,7 @@ fun jittestmodule:test {
   }
 }
 ---
-DeadCodeEliminationCannotRemoveIter
+@disabled_CINDER_PORTING_NEEDS_BUILD_TUPLE_DeadCodeEliminationCannotRemoveIter
 ---
 def test():
     x = 4
@@ -79,7 +79,7 @@ fun jittestmodule:test {
   }
 }
 ---
-DeadCodeEliminationDoesNotRemoveInitFunction
+@disabled_CINDER_PORTING_NEEDS_MAKE_FUNCTION_DeadCodeEliminationDoesNotRemoveInitFunction
 ---
 def test():
     def inner():

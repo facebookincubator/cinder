@@ -11,17 +11,6 @@ namespace jit {
 class CodeRuntime;
 }
 
-struct JITRT_LoadMethodCacheEntry {
-  PyTypeObject* type{nullptr};
-  PyObject* value{nullptr};
-};
-
-const size_t kLoadMethodCacheSize = 4;
-
-struct JITRT_LoadMethodCache {
-  std::array<JITRT_LoadMethodCacheEntry, kLoadMethodCacheSize> entries{};
-};
-
 struct JITRT_LoadMethodResult {
   PyObject* func;
   PyObject* inst;
@@ -198,15 +187,6 @@ PyObject* JITRT_CallMethodAwaited(
     PyObject** args,
     Py_ssize_t nargs,
     PyObject* kwnames);
-
-/*
- * Perform an attribute lookup.
- *
- * This is used to avoid bound method creation for attribute lookups that
- * correspond to method calls (e.g. `self.foo()`).
- */
-JITRT_LoadMethodResult
-JITRT_GetMethod(PyObject* obj, PyObject* name, JITRT_LoadMethodCache* cache);
 
 /*
  * Perform an attribute lookup in a super class

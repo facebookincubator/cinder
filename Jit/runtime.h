@@ -339,7 +339,7 @@ class Runtime {
     return load_type_attr_caches_.allocate();
   }
 
-  JITRT_LoadMethodCache* allocateLoadMethodCache() {
+  LoadMethodCache* allocateLoadMethodCache() {
     return load_method_caches_.allocate();
   }
 
@@ -371,7 +371,7 @@ class Runtime {
   // casualties.
   SlabArena<LoadAttrCache> load_attr_caches_;
   SlabArena<LoadTypeAttrCache> load_type_attr_caches_;
-  SlabArena<JITRT_LoadMethodCache> load_method_caches_;
+  SlabArena<LoadMethodCache> load_method_caches_;
   SlabArena<StoreAttrCache> store_attr_caches_;
   SlabArena<void*> pointer_caches_;
 

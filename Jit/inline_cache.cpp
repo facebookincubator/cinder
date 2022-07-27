@@ -3,7 +3,6 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
-#include "switchboard.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/dict_watch.h"
@@ -42,6 +41,7 @@ struct TypeWatcher {
 
 TypeWatcher<AttributeCache> ac_watcher;
 TypeWatcher<LoadTypeAttrCache> ltac_watcher;
+TypeWatcher<LoadMethodCache> lm_watcher;
 
 } // namespace
 
@@ -742,9 +742,145 @@ void GlobalCache::disable() const {
   jit::Runtime::get()->forgetLoadGlobalCache(*this);
 }
 
+void LoadMethodCache::typeChanged(PyTypeObject* type) {
+  for (auto& entry : entries_) {
+    if (entry.type == type) {
+      entry.type = nullptr;
+      entry.value = nullptr;
+    }
+  }
+}
+
+void LoadMethodCache::fill(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> value) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    // The type must have a valid version tag in order for us to be able to
+    // invalidate the cache when the type is modified. See the comment at
+    // the top of `PyType_Modified` for more details.
+    return;
+  }
+
+  if (!PyType_HasFeature(type, Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
+      (type->tp_dictoffset != 0)) {
+    return;
+  }
+
+  for (auto& entry : entries_) {
+    if (entry.type == nullptr) {
+      lm_watcher.watch(type, this);
+      entry.type = type;
+      entry.value = value;
+      return;
+    }
+  }
+}
+
+JITRT_LoadMethodResult __attribute__((noinline))
+LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
+  PyTypeObject* tp = Py_TYPE(obj);
+  PyObject* descr;
+  descrgetfunc f = nullptr;
+  PyObject **dictptr, *dict;
+  PyObject* attr;
+  bool is_method = false;
+
+  if ((tp->tp_getattro != PyObject_GenericGetAttr)) {
+    PyObject* res = PyObject_GetAttr(obj, name);
+    if (res != nullptr) {
+      Py_INCREF(Py_None);
+      return {Py_None, res};
+    }
+    return {nullptr, nullptr};
+  } else if (tp->tp_dict == nullptr && PyType_Ready(tp) < 0) {
+    return {nullptr, nullptr};
+  }
+
+  descr = _PyType_Lookup(tp, name);
+  if (descr != nullptr) {
+    Py_INCREF(descr);
+    if (PyFunction_Check(descr) || Py_TYPE(descr) == &PyMethodDescr_Type ||
+        PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR)) {
+      is_method = true;
+    } else {
+      f = descr->ob_type->tp_descr_get;
+      if (f != nullptr && PyDescr_IsData(descr)) {
+        PyObject* result = f(descr, obj, (PyObject*)obj->ob_type);
+        Py_DECREF(descr);
+        Py_INCREF(Py_None);
+        return {Py_None, result};
+      }
+    }
+  }
+
+  dictptr = _PyObject_GetDictPtr(obj);
+  if (dictptr != nullptr && (dict = *dictptr) != nullptr) {
+    Py_INCREF(dict);
+    attr = PyDict_GetItem(dict, name);
+    if (attr != nullptr) {
+      Py_INCREF(attr);
+      Py_DECREF(dict);
+      Py_XDECREF(descr);
+      Py_INCREF(Py_None);
+      return {Py_None, attr};
+    }
+    Py_DECREF(dict);
+  }
+
+  if (is_method) {
+    fill(tp, descr);
+    Py_INCREF(obj);
+    return {descr, obj};
+  }
+
+  if (f != nullptr) {
+    PyObject* result = f(descr, obj, (PyObject*)Py_TYPE(obj));
+    Py_DECREF(descr);
+    Py_INCREF(Py_None);
+    return {Py_None, result};
+  }
+
+  if (descr != nullptr) {
+    Py_INCREF(Py_None);
+    return {Py_None, descr};
+  }
+
+  PyErr_Format(
+      PyExc_AttributeError,
+      "'%.50s' object has no attribute '%U'",
+      tp->tp_name,
+      name);
+  return {nullptr, nullptr};
+}
+
+JITRT_LoadMethodResult LoadMethodCache::lookup(
+    BorrowedRef<> obj,
+    BorrowedRef<> name) {
+  BorrowedRef<PyTypeObject> tp = Py_TYPE(obj);
+
+  for (auto& entry : entries_) {
+    if (entry.type == tp) {
+      PyObject* result = entry.value;
+      Py_INCREF(result);
+      Py_INCREF(obj);
+      return {result, obj};
+    }
+  }
+
+  return lookupSlowPath(obj, name);
+}
+
+JITRT_LoadMethodResult LoadMethodCache::lookupHelper(
+    LoadMethodCache* cache,
+    BorrowedRef<> obj,
+    BorrowedRef<> name) {
+  return cache->lookup(obj, name);
+}
+
 void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type) {
   ac_watcher.typeChanged(type);
   ltac_watcher.typeChanged(type);
+  lm_watcher.typeChanged(type);
 }
 
 } // namespace jit

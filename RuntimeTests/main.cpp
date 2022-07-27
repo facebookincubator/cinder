@@ -101,9 +101,9 @@ static void register_json_test(const char* path) {
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/cleancfg_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/dynamic_comparison_elimination_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
   register_test(
       "RuntimeTests/hir_tests/hir_builder_static_test.txt",
@@ -131,8 +131,8 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
 #endif
   register_test("RuntimeTests/hir_tests/simplify_uses_guard_types.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/dead_code_elimination_and_simplify_test.txt",
       HIRTest::kCompileStatic);
@@ -146,10 +146,8 @@ int main(int argc, char* argv[]) {
       HIRTest::kUseProfileData | HIRTest::kCompileStatic);
 #endif
   register_json_test("RuntimeTests/hir_tests/json_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/builtin_load_method_elimination_test.txt");
-#endif
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {

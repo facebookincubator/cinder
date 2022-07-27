@@ -71,8 +71,6 @@ STUB(int, Switchboard_UnsubscribeAll, Switchboard *, PyObject *)
 
 
 // Objects/typeobject.c
-STUB(void, _PyType_ClearNoShadowingInstances, struct _typeobject *, PyObject *)
-STUB(void, _PyType_SetNoShadowingInstances, struct _typeobject *)
 STUB(PyObject *, _PyType_GetMethodCacheStats, void)
 STUB(void, _PyType_ResetMethodCacheStats, void)
 STUB(void, _PyType_SetReadonlyProperties, struct _typeobject *)

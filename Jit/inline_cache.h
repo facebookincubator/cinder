@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "classloader.h"
 
+#include "Jit/jit_rt.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
@@ -169,6 +170,26 @@ class LoadTypeAttrCache {
  private:
   void fill(PyTypeObject* type, PyObject* value);
   void reset();
+};
+
+class LoadMethodCache {
+ public:
+  struct Entry {
+    BorrowedRef<PyTypeObject> type{nullptr};
+    BorrowedRef<> value{nullptr};
+  };
+
+  static JITRT_LoadMethodResult
+  lookupHelper(LoadMethodCache* cache, BorrowedRef<> obj, BorrowedRef<> name);
+  JITRT_LoadMethodResult lookup(BorrowedRef<> obj, BorrowedRef<> name);
+
+  void typeChanged(PyTypeObject* type);
+
+ private:
+  JITRT_LoadMethodResult lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name);
+  void fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> value);
+
+  std::array<Entry, 4> entries_;
 };
 
 struct GlobalCacheKey {
