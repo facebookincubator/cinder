@@ -2234,8 +2234,9 @@ class CodeGenerator(ASTVisitor):
         self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
 
     def visitMatchSingleton(self, node: ast.MatchSingleton, pc: PatternContext) -> None:
-        # TODO
-        raise NotImplementedError()
+        self.emit("LOAD_CONST", node.value)
+        self.emit("IS_OP")
+        self._jump_to_fail_pop(pc, "POP_JUMP_IF_FALSE")
 
     def visitMatchSequence(self, node: ast.MatchSequence, pc: PatternContext) -> None:
         """See compiler_pattern_sequence in compile.c"""
