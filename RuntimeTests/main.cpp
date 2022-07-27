@@ -15,7 +15,6 @@ static constexpr char g_disabled_prefix[] = "@disabled";
 static void register_test(
     const char* path,
     HIRTest::Flags flags = HIRTest::Flags{}) {
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   auto suite = ReadHIRTestSuite(path);
   if (suite == nullptr) {
     std::exit(1);
@@ -64,11 +63,6 @@ static void register_test(
           return test;
         });
   }
-#else
-  (void)path;
-  (void)flags;
-  (void)g_disabled_prefix;
-#endif
 }
 
 static void register_json_test(const char* path) {
@@ -107,13 +101,16 @@ static void register_json_test(const char* path) {
 int main(int argc, char* argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/cleancfg_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/dynamic_comparison_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
   register_test(
       "RuntimeTests/hir_tests/hir_builder_static_test.txt",
       HIRTest::kCompileStatic);
+#endif
   register_test("RuntimeTests/hir_tests/guard_type_removal_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test("RuntimeTests/hir_tests/inliner_test.txt");
   register_test(
       "RuntimeTests/hir_tests/inliner_static_test.txt",
@@ -122,7 +119,9 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/inliner_elimination_static_test.txt",
       HIRTest::kCompileStatic);
+#endif
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
   register_test(
       "RuntimeTests/hir_tests/refcount_insertion_static_test.txt",
@@ -130,7 +129,9 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/super_access_test.txt", HIRTest::kCompileStatic);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
+#endif
   register_test("RuntimeTests/hir_tests/simplify_uses_guard_types.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
   register_test(
       "RuntimeTests/hir_tests/dead_code_elimination_and_simplify_test.txt",
@@ -143,9 +144,12 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/profile_data_static_test.txt",
       HIRTest::kUseProfileData | HIRTest::kCompileStatic);
+#endif
   register_json_test("RuntimeTests/hir_tests/json_test.txt");
+#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/builtin_load_method_elimination_test.txt");
+#endif
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {
