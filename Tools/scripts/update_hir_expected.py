@@ -29,6 +29,7 @@ def parse_arguments():
 TEST_RUN_RE = re.compile(r"^\[ RUN +\] ([^.]+)\.(.+)$")
 ACTUAL_TEXT_RE = re.compile(r'^    Which is: "(.+)\\n"$')
 EXPECTED_VAR_RE = re.compile(r"^  ([^ ]+)$")
+SUITE_NAME_RE = re.compile(r"[A-Z][a-z0-9]+")
 FINISHED_LINE = "[----------] Global test environment tear-down"
 
 
@@ -118,7 +119,7 @@ def map_suite_to_file(suite_name):
     elif suite_name == "HIRBuilderStaticTest":
         snake_name = "hir_builder_static_test"
     else:
-        snake_name = "_".join(map(str.lower, re.findall(r"[A-Z][a-z]+", suite_name)))
+        snake_name = "_".join(map(str.lower, SUITE_NAME_RE.findall(suite_name)))
     return os.path.join(TESTS_DIR, "hir_tests", snake_name + ".txt")
 
 
