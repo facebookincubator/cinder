@@ -677,7 +677,7 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         args = classmethod_args;
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
     } else if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
-        Py_ssize_t awaited = nargsf & _Py_AWAITED_CALL_MARKER;
+        Py_ssize_t awaited = nargsf & Ci_Py_AWAITED_CALL_MARKER;
         // In this case, we have a patched class method, and the self has been
         // handled via descriptors already.
         coro = _PyObject_Vectorcall(callable,
@@ -1694,12 +1694,12 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
     }
 
     if (thunk->thunk_coroutine) {
-        PyObject *coro = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+        PyObject *coro = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
 
         return _PyClassLoader_NewAwaitableWrapper(coro, 0, (PyObject *)thunk, rettype_cb, NULL);
     }
 
-    PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~_Py_AWAITED_CALL_MARKER, kwnames);
+    PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
     return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
 }
 
@@ -2484,7 +2484,7 @@ type_vtable_lazyinit(PyObject *name,
 {
     PyObject *self = args[0];
     PyTypeObject *type;
-    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+    if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
         type = (PyTypeObject *)self;
     }
     else {

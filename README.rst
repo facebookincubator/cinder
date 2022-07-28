@@ -169,7 +169,7 @@ trigger hundreds of thousands of async tasks, many of which can be completed
 without suspension (e.g. thanks to memoized values).
 
 We extended the vectorcall protocol to pass a new flag,
-``_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
+``Ci_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
 this call.
 
 When used with async function calls that are immediately awaited, we can
@@ -185,7 +185,7 @@ futures, memoized values, etc.
 These optimizations resulted in a significant (~5%) CPU efficiency improvement.
 
 This is mostly implemented in ``Python/ceval.c``, via a new vectorcall flag
-``_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
+``Ci_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
 this call. Look for uses of the ``IS_AWAITED()`` macro and this vectorcall
 flag, as well as the ``_PyEval_EvalEagerCoro`` function.
 

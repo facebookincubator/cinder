@@ -648,6 +648,12 @@ class LoadMethodCacheTests(unittest.TestCase):
 
         self.assertEqual(get_meaning_of_life(obj), 0)
 
+    def _index_long(self):
+        return (6).__index__()
+
+    def test_call_wrapper_descriptor(self):
+        self.assertEqual(self._index_long(), 6)
+
 
 @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
 def get_foo(obj):

@@ -376,10 +376,10 @@ ctxmgrwrp_exit(int is_coroutine, PyObject *ctxmgr,
         if (ctxmgr != NULL) {
             assert(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR);
             PyObject* stack[] = {(PyObject *)ctxmgr, exc, val, tb};
-            ret =  _PyObject_Vectorcall(exit, stack, 4 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+            ret =  _PyObject_Vectorcall(exit, stack, 4 | Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
         } else {
             PyObject* stack[] = {exc, val, tb};
-            ret =  _PyObject_Vectorcall(exit, stack, 3 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+            ret =  _PyObject_Vectorcall(exit, stack, 3 | Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
         }
         if (ret == NULL) {
             Py_DECREF(exc);
@@ -424,10 +424,10 @@ ctxmgrwrp_exit(int is_coroutine, PyObject *ctxmgr,
             /* we picked up a method like object and have self for it */
             assert(Py_TYPE(exit)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR);
             PyObject *stack[] = {(PyObject *) ctxmgr, Py_None, Py_None, Py_None};
-            ret = _PyObject_Vectorcall(exit, stack, 4 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+            ret = _PyObject_Vectorcall(exit, stack, 4 | Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
         } else {
             PyObject *stack[] = {Py_None, Py_None, Py_None};
-            ret = _PyObject_Vectorcall(exit, stack, 3 | _Py_VECTORCALL_INVOKED_METHOD, NULL);
+            ret = _PyObject_Vectorcall(exit, stack, 3 | Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
         }
         if (ret == NULL) {
             goto error;
@@ -473,13 +473,13 @@ call_with_self(PyThreadState *tstate, PyObject *func, PyObject *self)
 {
     if (Py_TYPE(func)->tp_flags & Py_TPFLAGS_METHOD_DESCRIPTOR) {
         PyObject *args[1] = { self };
-        return _PyObject_VectorcallTstate(tstate, func, args, 1|_Py_VECTORCALL_INVOKED_METHOD, NULL);
+        return _PyObject_VectorcallTstate(tstate, func, args, 1|Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
     } else {
         func = get_descr(func, self);
         if (func == NULL) {
             return NULL;
         }
-        PyObject *ret = _PyObject_VectorcallTstate(tstate, func, NULL, 0|_Py_VECTORCALL_INVOKED_METHOD, NULL);
+        PyObject *ret = _PyObject_VectorcallTstate(tstate, func, NULL, 0|Ci_Py_VECTORCALL_INVOKED_METHOD, NULL);
         Py_DECREF(func);
         return ret;
     }
@@ -632,7 +632,7 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
      * of the coroutine.  Otherwise we're not a co-routine or we're eagerly
      * awaited in which case we'll call __enter__ now and capture __exit__
      * before any possible side effects to match the normal eval loop */
-    if (!self->is_coroutine || nargsf & _Py_AWAITED_CALL_MARKER) {
+    if (!self->is_coroutine || nargsf & Ci_Py_AWAITED_CALL_MARKER) {
         exit = ctxmgrwrp_enter(self, &ctx_mgr);
         if (exit == NULL) {
             return NULL;
@@ -648,7 +648,7 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
         if (eager) {
             PyWaitHandleObject *handle = (PyWaitHandleObject *)res;
             if (handle->wh_waiter == NULL) {
-                assert(nargsf & _Py_AWAITED_CALL_MARKER && exit != NULL);
+                assert(nargsf & Ci_Py_AWAITED_CALL_MARKER && exit != NULL);
                 res = ctxmgrwrp_exit(1, ctx_mgr, res, exit);
                 Py_DECREF(exit);
                 Py_XDECREF(ctx_mgr);

@@ -154,19 +154,6 @@ int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
 
 
 // Include/cpython/abstract.h
-#define PY_VECTORCALL_ARGUMENTS_OFFSET ((size_t)1 << (8 * sizeof(size_t) - 1))
-#define _Py_AWAITED_CALL_MARKER  ((size_t)1 << (8 * sizeof(size_t) - 2))
-#define _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS  (8 * sizeof(size_t) - 3)
-#define _Py_VECTORCALL_INVOKED_STATICALLY                                     \
-    ((size_t)1 << _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS)
-#define _Py_VECTORCALL_INVOKED_METHOD ((size_t)1 << (8 * sizeof(size_t) - 4))
-#define _Py_VECTORCALL_INVOKED_CLASSMETHOD ((size_t)1 << (8 * sizeof(size_t) - 5))
-#define PY_VECTORCALL_ARGUMENT_MASK                                           \
-    ~(PY_VECTORCALL_ARGUMENTS_OFFSET | _Py_AWAITED_CALL_MARKER |              \
-      _Py_VECTORCALL_INVOKED_STATICALLY | _Py_VECTORCALL_INVOKED_METHOD |     \
-      _Py_VECTORCALL_INVOKED_CLASSMETHOD)
-
-
 // This needs to be "static inline" when implemented.
 Py_ssize_t PyVectorcall_FLAGS(size_t n);
 

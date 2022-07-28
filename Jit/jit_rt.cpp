@@ -219,7 +219,7 @@ PyObject* JITRT_CallWithKeywordArgs(
     return JITRT_GET_REENTRY(func->vectorcall)(
         (PyObject*)func,
         arg_space,
-        total_args | (nargsf & (_Py_AWAITED_CALL_MARKER)),
+        total_args | (nargsf & (Ci_Py_AWAITED_CALL_MARKER)),
         nullptr);
   }
 
@@ -275,7 +275,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
       JITRT_GET_REENTRY(func->vectorcall))(
       (PyObject*)func,
       arg_space,
-      argcount | (nargsf & (_Py_AWAITED_CALL_MARKER)),
+      argcount | (nargsf & (Ci_Py_AWAITED_CALL_MARKER)),
       // We lie to C++ here, and smuggle in the number of defaulted args filled
       // in.
       (PyObject*)defaulted_args);
@@ -318,7 +318,7 @@ JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
       JITRT_GET_REENTRY(func->vectorcall))(
       (PyObject*)func,
       arg_space,
-      argcount | (nargsf & (_Py_AWAITED_CALL_MARKER)),
+      argcount | (nargsf & (Ci_Py_AWAITED_CALL_MARKER)),
       // We lie to C++ here, and smuggle in the number of defaulted args filled
       // in.
       (PyObject*)defaulted_args);
@@ -450,7 +450,7 @@ static TRetType call_statically_with_primitive_signature_worker(
     _PyTypedArgsInfo* arg_info) {
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   void* arg_space[nargs];
-  bool invoked_statically = (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) != 0;
+  bool invoked_statically = (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) != 0;
   if (pack_static_args(args, arg_info, arg_space, nargs, invoked_statically)) {
     goto fail;
   }
@@ -480,7 +480,7 @@ static TRetType call_statically_with_primitive_signature_template(
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   PyCodeObject* co = (PyCodeObject*)func->func_code;
 
-  int invoked_statically = (nargsf & _Py_VECTORCALL_INVOKED_STATICALLY) != 0;
+  int invoked_statically = (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) != 0;
   if (!invoked_statically &&
       (kwnames || nargs != co->co_argcount ||
        co->co_flags & (CO_VARARGS | CO_VARKEYWORDS))) {
@@ -668,7 +668,7 @@ template <bool is_awaited>
 static inline PyObject*
 call_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {
   size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
-      (is_awaited ? _Py_AWAITED_CALL_MARKER : 0);
+      (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, NULL);
 }
 
@@ -692,7 +692,7 @@ call_function_kwargs(PyObject* func, PyObject** args, Py_ssize_t nargs) {
   JIT_DCHECK(nkwargs < nargs, "Kwargs map too large");
   nargs -= nkwargs;
   size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
-      (is_awaited ? _Py_AWAITED_CALL_MARKER : 0);
+      (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, kwargs);
 }
 
@@ -770,11 +770,11 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   if (PyCFunction_Check(func)) {
     // TODO(jbower): For completeness we should use a vector-call if possible to
     // take into account is_awaited. My guess is there aren't going to be many C
-    // functions which handle _Py_AWAITED_CALL_MARKER.
+    // functions which handle Ci_Py_AWAITED_CALL_MARKER.
     return PyCFunction_Call(func, pargs, kwargs);
   }
   if (is_awaited && _PyVectorcall_Function(func) != NULL) {
-    return _PyVectorcall_Call(func, pargs, kwargs, _Py_AWAITED_CALL_MARKER);
+    return _PyVectorcall_Call(func, pargs, kwargs, Ci_Py_AWAITED_CALL_MARKER);
   }
   return PyObject_Call(func, pargs, kwargs);
 }
@@ -802,9 +802,9 @@ JITRT_CallFunctionExAwaited(PyObject* func, PyObject* pargs, PyObject* kwargs) {
 template <bool is_awaited>
 static inline PyObject*
 invoke_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {
-  size_t flags = _Py_VECTORCALL_INVOKED_STATICALLY |
+  size_t flags = Ci_Py_VECTORCALL_INVOKED_STATICALLY |
       PY_VECTORCALL_ARGUMENTS_OFFSET |
-      (is_awaited ? _Py_AWAITED_CALL_MARKER : 0);
+      (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, NULL);
 }
 
@@ -824,7 +824,7 @@ static inline PyObject* call_method(
     PyObject** args,
     Py_ssize_t nargs,
     PyObject* kwnames) {
-  size_t is_awaited_flag = is_awaited ? _Py_AWAITED_CALL_MARKER : 0;
+  size_t is_awaited_flag = is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0;
   if (callable != Py_None) {
     PyObject* res = _PyObject_Vectorcall(
         callable,
@@ -996,7 +996,7 @@ PyObject* JITRT_InvokeMethod(
 
   PyObject* func = vtable->vt_entries[slot].vte_state;
   return vtable->vt_entries[slot].vte_entry(
-      func, args, nargs | _Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
+      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
 }
 
 PyObject* JITRT_InvokeClassMethod(
@@ -1011,8 +1011,8 @@ PyObject* JITRT_InvokeClassMethod(
   return vtable->vt_entries[slot].vte_entry(
       func,
       args,
-      nargs | _Py_VECTORCALL_INVOKED_STATICALLY |
-          _Py_VECTORCALL_INVOKED_CLASSMETHOD,
+      nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY |
+          Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD,
       kwnames);
 }
 

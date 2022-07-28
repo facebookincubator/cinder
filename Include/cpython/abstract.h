@@ -51,11 +51,21 @@ PyAPI_FUNC(PyObject *) _PyObject_MakeTpCall(
     PyObject *keywords);
 
 #define PY_VECTORCALL_ARGUMENTS_OFFSET ((size_t)1 << (8 * sizeof(size_t) - 1))
+#define Ci_Py_AWAITED_CALL_MARKER  ((size_t)1 << (8 * sizeof(size_t) - 2))
+#define Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS  (8 * sizeof(size_t) - 3)
+#define Ci_Py_VECTORCALL_INVOKED_STATICALLY                                     \
+    ((size_t)1 << Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS)
+#define Ci_Py_VECTORCALL_INVOKED_METHOD ((size_t)1 << (8 * sizeof(size_t) - 4))
+#define Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD ((size_t)1 << (8 * sizeof(size_t) - 5))
+#define Ci_PY_VECTORCALL_ARGUMENT_MASK                                           \
+    ~(PY_VECTORCALL_ARGUMENTS_OFFSET | Ci_Py_AWAITED_CALL_MARKER |              \
+      Ci_Py_VECTORCALL_INVOKED_STATICALLY | Ci_Py_VECTORCALL_INVOKED_METHOD |     \
+      Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD)
 
 static inline Py_ssize_t
 PyVectorcall_NARGS(size_t n)
 {
-    return n & ~PY_VECTORCALL_ARGUMENTS_OFFSET;
+    return n & Ci_PY_VECTORCALL_ARGUMENT_MASK;
 }
 
 static inline vectorcallfunc

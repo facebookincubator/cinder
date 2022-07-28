@@ -653,7 +653,7 @@ void NativeGenerator::generatePrologue(
       Label box_int = as_->newLabel();
       as_->pop(x86::rdx);
       as_->pop(x86::rdx);
-      as_->bt(x86::rdx, _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
+      as_->bt(x86::rdx, Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
       as_->jb(box_int);
 
       as_->mov(x86::rsi, reinterpret_cast<uint64_t>(ret_type.typeSpec()));
@@ -718,7 +718,7 @@ void NativeGenerator::generatePrologue(
       as_->leave();
       as_->ret();
     } else {
-      as_->bt(x86::rdx, _Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
+      as_->bt(x86::rdx, Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
       as_->jb(setup_frame);
     }
   }

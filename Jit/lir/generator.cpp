@@ -1712,13 +1712,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (TranslateSpecializedCall(bbb, instr)) {
           break;
         }
-        size_t flags = instr.isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
+        size_t flags = instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
         emitVectorCall(bbb, instr, flags, false);
         break;
       }
       case Opcode::kVectorCallKW: {
         auto& instr = static_cast<const VectorCallBase&>(i);
-        size_t flags = instr.isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
+        size_t flags = instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
         emitVectorCall(bbb, instr, flags, true);
         break;
       }
@@ -1727,8 +1727,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (TranslateSpecializedCall(bbb, instr)) {
           break;
         }
-        size_t flags = _Py_VECTORCALL_INVOKED_STATICALLY |
-            (instr.isAwaited() ? _Py_AWAITED_CALL_MARKER : 0);
+        size_t flags = Ci_Py_VECTORCALL_INVOKED_STATICALLY |
+            (instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0);
         emitVectorCall(bbb, instr, flags, false);
         break;
       }
@@ -1768,7 +1768,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const CallMethod*>(&i);
 
         std::string s = fmt::format("Vectorcall {}", *instr->dst());
-        size_t flags = instr->isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
+        size_t flags = instr->isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
         format_to(
             s,
             ", {}, {}, {}, {}",
@@ -1878,7 +1878,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const InvokeMethod*>(&i);
 
         std::stringstream ss;
-        size_t flags = instr->isAwaited() ? _Py_AWAITED_CALL_MARKER : 0;
+        size_t flags = instr->isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
         if (instr->isClassmethod()) {
           ss << "Vectorcall " << *instr->dst() << ", "
              << reinterpret_cast<uint64_t>(JITRT_InvokeClassMethod) << ", "
