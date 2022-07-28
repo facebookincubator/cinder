@@ -77,5 +77,9 @@ class LazyImportsTest(unittest.TestCase):
         self.run_and_check("test.lazyimports.attr_side_effect", False)
         self.run_and_check("test.lazyimports.attr_side_effect")
 
+    def test_dict_changes_when_loading(self):
+        self.run_and_check("test.lazyimports.check_dict_changes_when_loading", False)
+        self.run_and_check("test.lazyimports.check_dict_changes_when_loading")
+
 if __name__ == '__main__':
     unittest.main()
