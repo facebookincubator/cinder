@@ -755,7 +755,7 @@ class PyFlowGraph(FlowGraph):
             return (
                 type(value),
                 value,
-                tuple(self.get_const_key(const) for const in value),
+                type(value)(self.get_const_key(const) for const in value),
             )
 
         return type(value), value

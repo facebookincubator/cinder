@@ -186,11 +186,13 @@ class Disassembler:
         print("co_flags:", hex(co.co_flags), "(" + " | ".join(flags) + ")", file=file)
         print(
             "co_consts:",
-            tuple(
-                [
-                    self.co_repr(x) if hasattr(x, "co_code") else _stable_repr(x)
-                    for x in co.co_consts
-                ]
+            pformat(
+                tuple(
+                    [
+                        self.co_repr(x) if hasattr(x, "co_code") else _stable_repr(x)
+                        for x in co.co_consts
+                    ]
+                )
             ),
             file=file,
         )
