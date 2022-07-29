@@ -24,11 +24,9 @@ def get_repo_root():
     return completed_process.stdout.strip().decode("utf8")
 
 
-def glob_test(dir, pattern, adder):
-    base_path = path.dirname(__file__)
-    target_dir = path.join(base_path, dir)
+def glob_test(target_dir, pattern, adder):
     for fname in glob.glob(path.join(target_dir, pattern), recursive=True):
-        modname = path.relpath(fname, base_path)
+        modname = path.relpath(fname, target_dir)
         adder(modname, fname)
 
 

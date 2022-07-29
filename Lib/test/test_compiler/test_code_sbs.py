@@ -281,7 +281,9 @@ def add_test(modname, fname):
     setattr(CodeTests, test_code.__name__, test_code)
 
 
-glob_test("sbs_code_tests", "**/*.py", add_test)
+glob_test(
+    os.path.join(os.path.dirname(__file__), "sbs_code_tests"), "**/*.py", add_test
+)
 
 
 class Matcher:
