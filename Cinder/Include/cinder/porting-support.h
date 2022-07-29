@@ -58,8 +58,6 @@ PyAPI_FUNC(int) _PyList_APPEND(PyObject *, PyObject *);
 
 
 // Include/cpython/object.h
-PyObject **
-_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 
 
 // Python/ceval.h

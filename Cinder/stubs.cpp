@@ -76,10 +76,6 @@ STUB(void, _PyType_ResetMethodCacheStats, void)
 STUB(void, _PyType_SetReadonlyProperties, struct _typeobject *)
 
 
-// Objects/object.c
-STUB(PyObject **, _PyObject_GetDictPtrAtOffset, PyObject *, Py_ssize_t)
-
-
 // Python/bltinmodule.c
 STUB(PyObject *, builtin_next, PyObject *, PyObject *const *, Py_ssize_t)
 STUB(PyObject *, _PyBuiltin_Next, PyObject *, PyObject *)

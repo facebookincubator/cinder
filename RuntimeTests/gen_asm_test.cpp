@@ -172,8 +172,6 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(res), 1);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 TEST_F(ASMGeneratorTest, LoadAttr) {
   const char* pycode = R"(
 def test(x):
@@ -192,33 +190,6 @@ def test(x):
   auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 1);
-}
-
-TEST_F(ASMGeneratorTest, Compare) {
-  const char* pycode = R"(
-def test(a, b):
-    return a is b;
-)";
-
-  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  ASSERT_NE(compiled, nullptr);
-
-  auto arg0 = Ref<>::steal(PyLong_FromLong(16));
-  auto arg1 = Ref<>::steal(PyLong_FromLong(32));
-  PyObject* args[] = {arg0, arg1};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
-  ASSERT_NE(res, nullptr);
-  ASSERT_EQ(PyObject_IsTrue(res), 0);
-
-  auto arg2 = Ref<>::steal(PyLong_FromLong(0));
-  args[0] = arg2;
-  args[1] = arg2;
-  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
-  ASSERT_NE(res2, nullptr);
-  ASSERT_EQ(PyObject_IsTrue(res2), 1);
 }
 
 TEST_F(ASMGeneratorTest, LoadAttrRaisesError) {
@@ -267,6 +238,64 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(y), 100);
 }
 
+TEST_F(ASMGeneratorTest, StoreAttr) {
+  const char* klasscode = R"(
+class TestClass:
+  pass
+)";
+  Ref<PyObject> klass(compileAndGet(klasscode, "TestClass"));
+  ASSERT_NE(klass, nullptr);
+
+  const char* pycode = R"(
+def test(x):
+  x.foo = 100
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  ASSERT_NE(compiled, nullptr);
+
+  PyObject* args[] = {klass};
+  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  ASSERT_NE(res, nullptr);
+
+  auto val = Ref<>::steal(PyObject_GetAttrString(klass, "foo"));
+  ASSERT_NE(val.get(), nullptr);
+  ASSERT_TRUE(PyLong_CheckExact(val));
+  EXPECT_EQ(PyLong_AsLong(val), 100);
+}
+
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+
+TEST_F(ASMGeneratorTest, Compare) {
+  const char* pycode = R"(
+def test(a, b):
+    return a is b;
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto compiled = GenerateCode(pyfunc);
+  ASSERT_NE(compiled, nullptr);
+
+  auto arg0 = Ref<>::steal(PyLong_FromLong(16));
+  auto arg1 = Ref<>::steal(PyLong_FromLong(32));
+  PyObject* args[] = {arg0, arg1};
+  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  ASSERT_NE(res, nullptr);
+  ASSERT_EQ(PyObject_IsTrue(res), 0);
+
+  auto arg2 = Ref<>::steal(PyLong_FromLong(0));
+  args[0] = arg2;
+  args[1] = arg2;
+  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  ASSERT_NE(res2, nullptr);
+  ASSERT_EQ(PyObject_IsTrue(res2), 1);
+}
+
 TEST_F(ASMGeneratorTest, LoadGlobalTest) {
   const char* pycode = R"(
 def test():
@@ -296,35 +325,6 @@ def test():
 
   PyObject* len = PyDict_GetItemString(builtins, "len");
   ASSERT_EQ(res, len);
-}
-
-TEST_F(ASMGeneratorTest, StoreAttr) {
-  const char* klasscode = R"(
-class TestClass:
-  pass
-)";
-  Ref<PyObject> klass(compileAndGet(klasscode, "TestClass"));
-  ASSERT_NE(klass, nullptr);
-
-  const char* pycode = R"(
-def test(x):
-  x.foo = 100
-)";
-
-  Ref<PyObject> pyfunc(compileAndGet(pycode, "test"));
-  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
-
-  auto compiled = GenerateCode(pyfunc);
-  ASSERT_NE(compiled, nullptr);
-
-  PyObject* args[] = {klass};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
-  ASSERT_NE(res, nullptr);
-
-  auto val = Ref<>::steal(PyObject_GetAttrString(klass, "foo"));
-  ASSERT_NE(val.get(), nullptr);
-  ASSERT_TRUE(PyLong_CheckExact(val));
-  EXPECT_EQ(PyLong_AsLong(val), 100);
 }
 
 TEST_F(ASMGeneratorTest, CallCFunction) {

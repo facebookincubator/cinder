@@ -26,6 +26,9 @@ PyAPI_FUNC(PyObject *) Ci_tuple_subscript(PyObject *self, PyObject *item);
  */
 PyAPI_FUNC(int) Ci_PyDict_ForceCombined(PyObject *);
 
+PyObject **
+Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
+
 PyAPI_FUNC(PyObject *) special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id);
 PyAPI_FUNC(int) check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args);
 PyAPI_FUNC(void) format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs);

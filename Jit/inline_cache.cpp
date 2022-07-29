@@ -10,6 +10,7 @@
 #include <algorithm>
 
 // clang-format off
+#include "cinder/exports.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_object.h"
 #include "structmember.h"
@@ -363,7 +364,7 @@ PyObject* DescrOrClassVarMutator::setAttr(
     int st = setter(descr, obj, value);
     return (st == -1) ? nullptr : Py_None;
   }
-  PyObject** dictptr = _PyObject_GetDictPtrAtOffset(obj, dictoffset);
+  PyObject** dictptr = Ci_PyObject_GetDictPtrAtOffset(obj, dictoffset);
   if (dictptr == nullptr) {
     PyErr_Format(
         PyExc_AttributeError,
@@ -393,7 +394,7 @@ PyObject* DescrOrClassVarMutator::getAttr(PyObject* obj, PyObject* name) {
   }
 
   Ref<> dict;
-  PyObject** dictptr = _PyObject_GetDictPtrAtOffset(obj, dictoffset);
+  PyObject** dictptr = Ci_PyObject_GetDictPtrAtOffset(obj, dictoffset);
   if (dictptr != nullptr) {
     dict.reset(*dictptr);
   }

@@ -306,6 +306,7 @@ class TestIsInstanceIsSubclass(unittest.TestCase):
 
         self.assertEqual(True, issubclass(B(), int))
 
+    @unittest.skipUnderCinderJIT("JIT doesn't support recursion checks")
     def test_infinite_recursion_in_bases(self):
         class X:
             @property

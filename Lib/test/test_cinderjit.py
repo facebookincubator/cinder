@@ -655,12 +655,12 @@ class LoadMethodCacheTests(unittest.TestCase):
         self.assertEqual(self._index_long(), 6)
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiled
+@failUnlessHasOpcodes("LOAD_ATTR")
 def get_foo(obj):
     return obj.foo
 
 
-@unittest.cinderPortingBrokenTest()
 class LoadAttrCacheTests(unittest.TestCase):
     def test_dict_reassigned(self):
         class Base:
@@ -735,9 +735,9 @@ class LoadAttrCacheTests(unittest.TestCase):
         self.assertEqual(get_foo(obj4), 600)
 
 
-@unittest.cinderPortingBrokenTest()
 class SetNonDataDescrAttrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("STORE_ATTR")
     def set_foo(self, obj, val):
         obj.foo = val
 
@@ -778,9 +778,9 @@ class SetNonDataDescrAttrTests(unittest.TestCase):
         self.assertTrue(self.descr.invoked)
 
 
-@unittest.cinderPortingBrokenTest()
 class GetSetNonDataDescrAttrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_ATTR")
     def get_foo(self, obj):
         return obj.foo
 
@@ -867,7 +867,8 @@ class GetSetNonDataDescrAttrTests(unittest.TestCase):
         self.assertEqual(self.descr.invoked_count, 2)
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiled
+@failUnlessHasOpcodes("STORE_ATTR")
 def set_foo(x, val):
     x.foo = val
 
@@ -884,7 +885,6 @@ class DataDescr:
         self.invoked = True
 
 
-@unittest.cinderPortingBrokenTest()
 class StoreAttrCacheTests(unittest.TestCase):
     def test_data_descr_attached(self):
         class Base:
@@ -3581,8 +3581,12 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
         self.assertEqual(cm.exception.value, 123)
 
 
-@unittest.cinderPortingBrokenTest()
 class DeleteAttrTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_ATTR")
+    def del_foo(self, obj):
+        del obj.foo
+
     def test_delete_attr(self):
         class C:
             pass
@@ -3590,7 +3594,7 @@ class DeleteAttrTests(unittest.TestCase):
         c = C()
         c.foo = "bar"
         self.assertEqual(c.foo, "bar")
-        del c.foo
+        self.del_foo(c)
         with self.assertRaises(AttributeError):
             c.foo
 
@@ -3603,7 +3607,7 @@ class DeleteAttrTests(unittest.TestCase):
         c = C()
         self.assertEqual(c.foo, "hi")
         with self.assertRaises(AttributeError):
-            del c.foo
+            self.del_foo(c)
 
 
 _cmp_key = cmp_to_key(lambda x, y: 0)

@@ -1110,6 +1110,27 @@ _PyObject_GetDictPtr(PyObject *obj)
     return (PyObject **) ((char *)obj + dictoffset);
 }
 
+PyObject **
+Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset)
+{
+    if (dictoffset == 0)
+        return NULL;
+    if (dictoffset < 0) {
+        Py_ssize_t tsize;
+        size_t size;
+
+        tsize = ((PyVarObject *)obj)->ob_size;
+        if (tsize < 0)
+            tsize = -tsize;
+        size = _PyObject_VAR_SIZE(Py_TYPE(obj), tsize);
+
+        dictoffset += (long)size;
+        _PyObject_ASSERT(obj, dictoffset > 0);
+        _PyObject_ASSERT(obj, dictoffset % SIZEOF_VOID_P == 0);
+    }
+    return (PyObject **) ((char *)obj + dictoffset);
+}
+
 PyObject *
 PyObject_SelfIter(PyObject *obj)
 {

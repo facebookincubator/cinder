@@ -107,12 +107,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     MAP_ADD,
     SET_ADD,
 
-    // TODO(T127134376): Attribute load/store/delete
-    DELETE_ATTR,
-    LOAD_ATTR,
-    LOAD_ATTR_SUPER,
-    STORE_ATTR,
-
     // TODO(T127134659): Imports
     IMPORT_FROM,
     IMPORT_NAME,
@@ -200,6 +194,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
     CALL_METHOD,
+    DELETE_ATTR,
     DUP_TOP,
     DUP_TOP_TWO,
     FOR_ITER,
@@ -221,6 +216,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
     JUMP_IF_TRUE_OR_POP,
+    LOAD_ATTR,
+    LOAD_ATTR_SUPER,
     LOAD_CONST,
     LOAD_FAST,
     LOAD_METHOD,
@@ -234,6 +231,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_FOUR,
     ROT_THREE,
     ROT_TWO,
+    STORE_ATTR,
     STORE_FAST,
     UNARY_INVERT,
     UNARY_NEGATIVE,
