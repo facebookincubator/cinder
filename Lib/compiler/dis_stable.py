@@ -13,6 +13,7 @@ import dis as _dis
 import opcode
 import re
 import sys
+from pprint import pformat
 from types import CodeType
 from typing import Dict, Generator, Iterable, List, Optional, Pattern, TextIO, Tuple
 
@@ -198,8 +199,7 @@ class Disassembler:
         print("co_varnames:", co.co_varnames, file=file)
         print("co_cellvars:", co.co_cellvars, file=file)
         print("co_freevars:", co.co_freevars, file=file)
-        print("co_linetable:", repr(co.co_linetable), file=file)
-        print("co_lines:", repr(list(co.co_lines())), file=file)
+        print("co_lines:", pformat(list(co.co_lines())), file=file)
         print(file=file)
         for c in co.co_consts:
             if hasattr(c, "co_code"):
