@@ -27,7 +27,7 @@ IGNORE_PATTERNS = filter(
 
 
 class SbsCompileTests(unittest.TestCase):
-    maxDiff = None
+    pass
 
 
 # Add a test case for each external file to SbsCompileTests.

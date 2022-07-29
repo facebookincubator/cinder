@@ -28,7 +28,6 @@ SbsCompileTests = []
 for i in range(N_SBS_TEST_CLASSES):
     class_name = f"SbsCompileTests{i}"
     new_class = type(class_name, (TestCase,), {})
-    new_class.maxDiff = None
     SbsCompileTests.append(new_class)
     globals()[class_name] = new_class
 
