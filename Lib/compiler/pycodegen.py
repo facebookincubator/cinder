@@ -884,7 +884,7 @@ class CodeGenerator(ASTVisitor):
         elseblock = self.newBlock()
         self.compileJumpIf(node.test, elseblock, False)
         self.visit(node.body)
-        self.emit("JUMP_FORWARD", endblock)
+        self.emit_noline("JUMP_FORWARD", endblock)
         self.nextBlock(elseblock)
         self.visit(node.orelse)
         self.nextBlock(endblock)
