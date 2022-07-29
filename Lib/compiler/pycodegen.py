@@ -1164,10 +1164,7 @@ class CodeGenerator(ASTVisitor):
     def visitAssert(self, node):
         if not self.optimization_lvl:
             end = self.newBlock()
-            self.nextBlock()
             self.compileJumpIf(node.test, end, True)
-
-            self.nextBlock()
             self.emit("LOAD_ASSERTION_ERROR")
             if node.msg:
                 self.visit(node.msg)
