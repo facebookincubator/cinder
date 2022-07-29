@@ -190,6 +190,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
     BUILD_LIST,
+    BUILD_SET,
     CALL_FUNCTION,
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
@@ -244,6 +245,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     MATCH_MAPPING,
     MATCH_SEQUENCE,
     ROT_N,
+    SET_UPDATE,
 };
 #endif
 
@@ -487,7 +489,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     MATCH_CLASS,
     MATCH_KEYS,
     RERAISE,
-    SET_UPDATE,
     WITH_EXCEPT_START,
 };
 
@@ -1383,6 +1384,10 @@ void HIRBuilder::translate(
         }
         case SET_ADD: {
           emitSetAdd(tc, bc_instr);
+          break;
+        }
+        case SET_UPDATE: {
+          emitSetUpdate(tc, bc_instr);
           break;
         }
         case UNPACK_EX: {
@@ -4059,6 +4064,17 @@ void HIRBuilder::emitSetAdd(
 
   auto result = temps_.AllocateStack();
   tc.emit<SetSetItem>(result, set, v, tc.frame);
+}
+
+void HIRBuilder::emitSetUpdate(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  auto oparg = bc_instr.oparg();
+  auto& stack = tc.frame.stack;
+  auto* iterable = stack.pop();
+  auto* set = stack.peek(oparg);
+  auto result = temps_.AllocateStack();
+  tc.emit<SetUpdate>(result, set, iterable, tc.frame);
 }
 
 void HIRBuilder::emitDispatchEagerCoroResult(

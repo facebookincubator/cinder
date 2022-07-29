@@ -192,6 +192,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto receiver = ParseRegister();
     auto item = ParseRegister();
     NEW_INSTR(SetSetItem, dst, receiver, item);
+  } else if (strcmp(opcode, "SetUpdate") == 0) {
+    auto receiver = ParseRegister();
+    auto item = ParseRegister();
+    NEW_INSTR(SetUpdate, dst, receiver, item);
   } else if (strcmp(opcode, "LoadArg") == 0) {
     expect("<");
     int idx = GetNextNameIdx();

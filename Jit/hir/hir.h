@@ -394,6 +394,7 @@ struct FrameState {
   V(SetDictItem)                       \
   V(SetFunctionAttr)                   \
   V(SetSetItem)                        \
+  V(SetUpdate)                         \
   V(Snapshot)                          \
   V(StealCellItem)                     \
   V(StoreArrayItem)                    \
@@ -3380,6 +3381,15 @@ DEFINE_SIMPLE_INSTR(
 // Takes a key as operand 1
 DEFINE_SIMPLE_INSTR(
     SetSetItem,
+    (TSet, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase);
+
+// Takes a set as operand 0
+// Takes an iterable as operand 1
+DEFINE_SIMPLE_INSTR(
+    SetUpdate,
     (TSet, TObject),
     HasOutput,
     Operands<2>,

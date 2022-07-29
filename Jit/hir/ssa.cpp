@@ -421,6 +421,7 @@ Type outputType(
     case Opcode::kListAppend:
     case Opcode::kMergeSetUnpack:
     case Opcode::kSetSetItem:
+    case Opcode::kSetUpdate:
     case Opcode::kSetDictItem:
     case Opcode::kStoreSubscr:
       return TCInt32;

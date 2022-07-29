@@ -145,6 +145,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMergeSetUnpack:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
+    case Opcode::kSetUpdate:
     case Opcode::kStoreAttr:
     case Opcode::kStoreSubscr:
       return {true, AEmpty, {}, AManagedHeapAny};

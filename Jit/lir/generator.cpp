@@ -2163,6 +2163,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->GetOperand(1));
         break;
       }
+      case Opcode::kSetUpdate: {
+        auto instr = static_cast<const SetUpdate*>(&i);
+        bbb.AppendCall(
+            instr->GetOutput(),
+            _PySet_Update,
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kStoreSubscr: {
         auto instr = static_cast<const StoreSubscr*>(&i);
         bbb.AppendCall(

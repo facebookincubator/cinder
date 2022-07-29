@@ -416,6 +416,9 @@ class HIRBuilder {
   void emitSetAdd(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
+  void emitSetUpdate(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
 
   void
   emitMatchMappingSequence(CFG& cfg, TranslationContext& tc, uint64_t tf_flag);

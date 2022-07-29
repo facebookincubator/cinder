@@ -235,6 +235,7 @@ bool Instr::isReplayable() const {
     case Opcode::kSetCurrentAwaiter:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
+    case Opcode::kSetUpdate:
     case Opcode::kSetFunctionAttr:
     case Opcode::kStoreField:
     case Opcode::kSnapshot:

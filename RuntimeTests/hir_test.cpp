@@ -639,6 +639,112 @@ TEST_F(HIRBuilderTest, LoadAssertionError) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
+TEST_F(HIRBuilderTest, SetUpdate) {
+  //  0 LOAD_FAST    0
+  //  2 LOAD_FAST    1
+  //  4 LOAD_FAST    2
+  //  6 SET_UPDATE   1
+  //  8 ROT_TWO
+  //  10 POP_TOP
+  //  12 RETURN_VALUE
+  const char bc[] = {
+      LOAD_FAST,
+      0,
+      LOAD_FAST,
+      1,
+      LOAD_FAST,
+      2,
+      static_cast<char>(SET_UPDATE),
+      1,
+      ROT_TWO,
+      0,
+      POP_TOP,
+      0,
+      RETURN_VALUE,
+      0,
+  };
+  auto bytecode = Ref<>::steal(PyBytes_FromStringAndSize(bc, sizeof(bc)));
+  ASSERT_NE(bytecode.get(), nullptr);
+  auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
+  auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto varnames = Ref<>::steal(PyTuple_Pack(
+      3,
+      PyUnicode_FromString("param0"),
+      PyUnicode_FromString("param1"),
+      PyUnicode_FromString("param2")));
+  auto code = Ref<PyCodeObject>::steal(PyCode_New(
+      /*argcount=*/3,
+      0,
+      /*nlocals=*/3,
+      0,
+      0,
+      bytecode,
+      empty_tuple,
+      empty_tuple,
+      varnames,
+      empty_tuple,
+      empty_tuple,
+      filename,
+      funcname,
+      0,
+      PyBytes_FromString("")));
+  ASSERT_NE(code.get(), nullptr);
+
+  auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
+  ASSERT_NE(func.get(), nullptr);
+
+  std::unique_ptr<Function> irfunc(buildHIR(func));
+  ASSERT_NE(irfunc.get(), nullptr);
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    v0 = LoadArg<0; "param0">
+    v1 = LoadArg<1; "param1">
+    v2 = LoadArg<2; "param2">
+    Snapshot {
+      NextInstrOffset 0
+      Locals<3> v0 v1 v2
+    }
+    v0 = CheckVar<"param0"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<3> v0 v1 v2
+      }
+    }
+    v1 = CheckVar<"param1"> v1 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<3> v0 v1 v2
+        Stack<1> v0
+      }
+    }
+    v2 = CheckVar<"param2"> v2 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<3> v0 v1 v2
+        Stack<2> v0 v1
+      }
+    }
+    v3 = SetUpdate v1 v2 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<3> v0 v1 v2
+        Stack<2> v0 v1
+      }
+    }
+    Snapshot {
+      NextInstrOffset 8
+      Locals<3> v0 v1 v2
+      Stack<2> v0 v1
+    }
+    Return v1
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
+}
+
 #ifdef CINDER_ENABLE_BROKEN_TESTS
 class EdgeCaseTest : public RuntimeTest {};
 

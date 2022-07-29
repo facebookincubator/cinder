@@ -3698,5 +3698,45 @@ class GetIterForIterTests(unittest.TestCase):
         self.assertEqual(x, 42)
 
 
+class SetUpdateTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("BUILD_SET", "SET_UPDATE")
+    def doit_unchecked(self, iterable):
+        return {*iterable}
+
+    def doit(self, iterable):
+        result = self.doit_unchecked(iterable)
+        self.assertIs(type(result), set)
+        return result
+
+    def test_iterate_non_iterable_raises_type_error(self):
+        with self.assertRaisesRegexp(TypeError, "'int' object is not iterable"):
+            self.doit(42)
+
+    def test_iterate_set_builds_set(self):
+        self.assertEqual(self.doit({1, 2, 3}), {1, 2, 3})
+
+    def test_iterate_dict_builds_set(self):
+        self.assertEqual(
+            self.doit({"hello": "world", "goodbye": "world"}), {"hello", "goodbye"}
+        )
+
+    def test_iterate_getitem_iterable_builds_set(self):
+        class C:
+            def __getitem__(self, index):
+                if index < 4:
+                    return index
+                raise IndexError
+
+        self.assertEqual(self.doit(C()), {0, 1, 2, 3})
+
+    def test_iterate_iter_iterable_builds_set(self):
+        class C:
+            def __iter__(self):
+                return iter([1, 2, 3])
+
+        self.assertEqual(self.doit(C()), {1, 2, 3})
+
+
 if __name__ == "__main__":
     unittest.main()
