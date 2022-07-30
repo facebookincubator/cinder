@@ -15,7 +15,7 @@ fun jittestmodule:test {
   }
 }
 ---
-IfIsinstanceEmitsLoadFieldAndIsInstance
+@disabled_CINDER_PORTING_DONE_IfIsinstanceEmitsLoadFieldAndIsInstance
 ---
 def test(x):
   if isinstance(x, str):
