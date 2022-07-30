@@ -3738,5 +3738,35 @@ class SetUpdateTests(unittest.TestCase):
         self.assertEqual(self.doit(C()), {1, 2, 3})
 
 
+class UnpackSequenceTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("UNPACK_SEQUENCE")
+    def doit(self, iterable):
+        x, y = iterable
+        return x
+
+    def test_unpack_sequence_with_tuple(self):
+        self.assertEqual(self.doit((1, 2)), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit(())
+
+    def test_unpack_sequence_with_list(self):
+        self.assertEqual(self.doit([1, 2]), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit([])
+
+    def test_unpack_sequence_with_iterable(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __iter__(self):
+                return iter(self.value)
+
+        self.assertEqual(self.doit(C((1, 2))), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit(C(()))
+
+
 if __name__ == "__main__":
     unittest.main()
