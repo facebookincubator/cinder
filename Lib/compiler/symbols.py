@@ -637,7 +637,9 @@ class SymbolVisitor(ASTVisitor):
     def visitAnnAssign(self, node, scope):
         target = node.target
         if isinstance(target, ast.Name):
-            if target.id in scope.nonlocals or target.id in scope.explicit_globals:
+            if not isinstance(scope, ModuleScope) and (
+                target.id in scope.nonlocals or target.id in scope.explicit_globals
+            ):
                 is_nonlocal = target.id in scope.nonlocals
                 raise SyntaxError(
                     f"annotated name '{target.id}' can't be {'nonlocal' if is_nonlocal else 'global'}"
