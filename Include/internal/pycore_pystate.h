@@ -45,6 +45,13 @@ _Py_ThreadCanHandlePendingCalls(void)
     return _Py_IsMainThread();
 }
 
+/* Return true if and only if the given thread state has any form of tracing or
+ * profiling active. Generally used to set CFrame.use_tracing. */
+static inline int
+_Py_ThreadStateHasTracing(PyThreadState* ts)
+{
+    return ts->c_tracefunc != NULL || ts->c_profilefunc != NULL;
+}
 
 /* Variable and macro for in-line access to current thread
    and interpreter state */
