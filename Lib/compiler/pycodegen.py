@@ -438,10 +438,19 @@ class CodeGenerator(ASTVisitor):
     visitAsyncFunctionDef = visitFunctionDef
 
     def visitJoinedStr(self, node):
-        for value in node.values:
-            self.visit(value)
-        if len(node.values) != 1:
-            self.emit("BUILD_STRING", len(node.values))
+        if len(node.values) > STACK_USE_GUIDELINE:
+            self.emit("LOAD_CONST", "")
+            self.emit("LOAD_METHOD", "join")
+            self.emit("BUILD_LIST")
+            for value in node.values:
+                self.visit(value)
+                self.emit("LIST_APPEND", 1)
+            self.emit("CALL_METHOD", 1)
+        else:
+            for value in node.values:
+                self.visit(value)
+            if len(node.values) != 1:
+                self.emit("BUILD_STRING", len(node.values))
 
     def visitFormattedValue(self, node):
         self.visit(node.value)
