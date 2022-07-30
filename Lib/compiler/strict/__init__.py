@@ -137,7 +137,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         if parent and isinstance(parent, StrictCodeGenerator):
             self.feature_extractor: FeatureExtractor = parent.feature_extractor
         else:
-            self.feature_extractor = FeatureExtractor(builtins)
+            self.feature_extractor = FeatureExtractor(builtins, self.future_flags)
             self.feature_extractor.visit(node)
 
     @classmethod
@@ -157,7 +157,7 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
             tree = cls.optimize_tree(
                 optimize, tree, bool(future_flags & consts.CO_FUTURE_ANNOTATIONS)
             )
-        s = cls._SymbolVisitor()
+        s = cls._SymbolVisitor(future_flags)
         walk(tree, s)
 
         binder = ReadonlyTypeBinder(tree, filename, s)

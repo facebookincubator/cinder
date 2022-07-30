@@ -7,6 +7,7 @@ import ast
 import sys
 
 from .consts import (
+    CO_FUTURE_ANNOTATIONS,
     SC_CELL,
     SC_FREE,
     SC_GLOBAL_EXPLICIT,
@@ -286,9 +287,10 @@ class SymbolVisitor(ASTVisitor):
     _GenExprScope = GenExprScope
     _LambdaScope = LambdaScope
 
-    def __init__(self):
+    def __init__(self, future_flags: int):
         super().__init__()
-        self.scopes: Dict[ast.AST, Scope] = {}
+        self.future_annotations = future_flags & CO_FUTURE_ANNOTATIONS
+        self.scopes: dict[ast.AST, Scope] = {}
         self.klass = None
 
     # node that define new scopes
@@ -317,7 +319,8 @@ class SymbolVisitor(ASTVisitor):
         self.scopes[node] = scope
         self._do_args(scope, node.args)
         if node.returns:
-            self.visit(node.returns, parent)
+            if not self.future_annotations:
+                self.visit(node.returns, parent)
         self.visit(node.body, scope)
         self.handle_free_vars(scope, parent)
 
@@ -438,25 +441,25 @@ class SymbolVisitor(ASTVisitor):
         for arg in args.args:
             name = arg.arg
             scope.add_param(name)
-            if arg.annotation:
+            if arg.annotation and not self.future_annotations:
                 self.visit(arg.annotation, scope.parent)
         for arg in getattr(args, "posonlyargs", ()):
             name = arg.arg
             scope.add_param(name)
-            if arg.annotation:
+            if arg.annotation and not self.future_annotations:
                 self.visit(arg.annotation, scope.parent)
         for arg in args.kwonlyargs:
             name = arg.arg
             scope.add_param(name)
-            if arg.annotation:
+            if arg.annotation and not self.future_annotations:
                 self.visit(arg.annotation, scope.parent)
         if args.vararg:
             scope.add_param(args.vararg.arg)
-            if args.vararg.annotation:
+            if args.vararg.annotation and not self.future_annotations:
                 self.visit(args.vararg.annotation, scope.parent)
         if args.kwarg:
             scope.add_param(args.kwarg.arg)
-            if args.kwarg.annotation:
+            if args.kwarg.annotation and not self.future_annotations:
                 self.visit(args.kwarg.annotation, scope.parent)
 
     def handle_free_vars(self, scope, parent):
@@ -643,7 +646,8 @@ class SymbolVisitor(ASTVisitor):
                 scope.add_def(target.id)
         else:
             self.visit(node.target, scope)
-        self.visit(node.annotation, scope)
+        if not self.future_annotations:
+            self.visit(node.annotation, scope)
         if node.value:
             self.visit(node.value, scope)
 

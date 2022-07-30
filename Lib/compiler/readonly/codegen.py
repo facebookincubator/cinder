@@ -77,7 +77,8 @@ class ReadonlyCodeGenerator(CinderCodeGenerator):
         optimize: int,
         ast_optimizer_enabled: bool = True,
     ) -> ReadonlyCodeGenerator:
-        s = cls._SymbolVisitor()
+        # TODO get actual future flags here? also run AST optimizer?
+        s = cls._SymbolVisitor(future_flags=0)
         s.visit(tree)
         binder = ReadonlyTypeBinder(tree, filename, s)
         graph = cls.flow_graph(

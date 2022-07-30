@@ -2925,7 +2925,7 @@ class CodeGenerator(ASTVisitor):
             tree = cls.optimize_tree(
                 optimize, tree, bool(future_flags & consts.CO_FUTURE_ANNOTATIONS)
             )
-        s = cls._SymbolVisitor()
+        s = cls._SymbolVisitor(future_flags)
         walk(tree, s)
 
         graph = cls.flow_graph(

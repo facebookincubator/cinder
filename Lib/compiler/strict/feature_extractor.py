@@ -73,9 +73,12 @@ _IMPLICIT_GLOBALS = [
 @final
 class FeatureExtractor(SymbolVisitor):
     def __init__(
-        self, builtins: Dict[str, Any], ignore_names: Iterable[str] = ALL_INDICATORS
+        self,
+        builtins: Dict[str, Any],
+        future_flags: int,
+        ignore_names: Iterable[str] = ALL_INDICATORS,
     ) -> None:
-        super().__init__()
+        super().__init__(future_flags)
         self.builtins = builtins
         self.ignore_names: Iterable[str] = ignore_names
         self.globals: Set[str] = set()

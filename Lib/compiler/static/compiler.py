@@ -12,6 +12,7 @@ from _static import posix_clock_gettime_ns, rand, RAND_MAX
 from .. import consts
 from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
+from ..pycodegen import find_futures
 from ..readonly.type_binder import ReadonlyTypeBinder
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
@@ -496,7 +497,8 @@ class Compiler:
         else:
             tree = cached_tree
         # Analyze variable scopes
-        s = self.code_generator._SymbolVisitor()
+        future_flags = find_futures(0, tree)
+        s = self.code_generator._SymbolVisitor(future_flags)
         s.visit(tree)
 
         # Analyze the types of objects within local scopes

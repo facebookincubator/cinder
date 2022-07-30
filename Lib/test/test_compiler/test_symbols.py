@@ -24,7 +24,7 @@ class SymbolVisitorTests(CompilerTest):
         ]
         for stmt in stmts:
             module = ast.parse(stmt)
-            visitor = SymbolVisitor()
+            visitor = SymbolVisitor(0)
             walk(module, visitor)
             self.assertIn("foo", visitor.scopes[module].defs)
 
@@ -37,7 +37,7 @@ class SymbolVisitorTests(CompilerTest):
         ]
         for stmt in stmts:
             module = ast.parse(stmt)
-            visitor = SymbolVisitor()
+            visitor = SymbolVisitor(0)
             walk(module, visitor)
             gen = module.body[0].value
             self.assertIn("foo", visitor.scopes[gen].defs)
@@ -48,7 +48,7 @@ class SymbolVisitorTests(CompilerTest):
                 class C(x=foo):
                     pass"""
         module = ast.parse(code)
-        visitor = SymbolVisitor()
+        visitor = SymbolVisitor(0)
         walk(module, visitor)
         for node, scope in visitor.scopes.items():
             if isinstance(node, FunctionDef) and node.name == "f":
@@ -64,7 +64,7 @@ class SymbolVisitorTests(CompilerTest):
                 class C:
                     pass"""
         module = ast.parse(code)
-        visitor = SymbolVisitor()
+        visitor = SymbolVisitor(0)
         walk(module, visitor)
         for node, scope in visitor.scopes.items():
             if isinstance(node, FunctionDef) and node.name == "f":
