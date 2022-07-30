@@ -1790,6 +1790,7 @@ class CodeGenerator(ASTVisitor):
             or not isinstance(node.func, ast.Attribute)
             or not isinstance(node.func.ctx, ast.Load)
             or any(isinstance(arg, ast.Starred) for arg in node.args)
+            or len(node.args) >= STACK_USE_GUIDELINE
         ):
             # We cannot optimize this call
             self.visit(node.func)
