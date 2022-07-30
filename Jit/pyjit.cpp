@@ -4,6 +4,7 @@
 #include "Python.h"
 //#include "internal/pycore_pystate.h"
 #include "Include/internal/pycore_pystate.h"
+#include "cinder/exports.h"
 #include "cinder/porting-support.h"
 #include "internal/pycore_shadow_frame.h"
 
@@ -1380,19 +1381,15 @@ int _PyJIT_Initialize() {
   }
 
   if (!write_profile_file.empty() || jit_profile_interp == 1) {
-#ifdef CINDER_PORTING_DONE
     if (use_jit) {
       use_jit = 0;
       JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
     }
     g_profile_new_interp_threads = 1;
-    _PyThreadState_SetProfileInterpAll(1);
+    Ci_ThreadState_SetProfileInterpAll(1);
     if (!write_profile_file.empty()) {
       g_write_profile_file = write_profile_file;
     }
-#else
-    PORT_ASSERT("Needs _PyThreadState_SetProfileInterpAll");
-#endif
   }
 
   if (use_jit) {
@@ -1882,11 +1879,10 @@ void _PyJIT_ProfileCurrentInstr(
     PyObject** stack_top,
     int opcode,
     int oparg) {
-#ifdef CINDER_PORTING_DONE
   auto profile_stack = [&](auto... stack_offsets) {
     CodeProfile& code_profile =
         jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
-    int opcode_offset = frame->f_lasti;
+    int opcode_offset = frame->f_lasti * sizeof(_Py_CODEUNIT);
 
     auto pair = code_profile.typed_hits.emplace(opcode_offset, nullptr);
     if (pair.second) {
@@ -1901,6 +1897,8 @@ void _PyJIT_ProfileCurrentInstr(
     pair.first->second->recordTypes(get_type(stack_offsets)...);
   };
 
+  // TODO(T127457244): Centralize the information about which stack inputs are
+  // interesting for which opcodes.
   switch (opcode) {
     case BEFORE_ASYNC_WITH:
     case DELETE_ATTR:
@@ -1910,12 +1908,16 @@ void _PyJIT_ProfileCurrentInstr(
     case GET_ANEXT:
     case GET_AWAITABLE:
     case GET_ITER:
+    case GET_LEN:
     case GET_YIELD_FROM_ITER:
     case JUMP_IF_FALSE_OR_POP:
     case JUMP_IF_TRUE_OR_POP:
+    case LIST_TO_TUPLE:
     case LOAD_ATTR:
     case LOAD_FIELD:
     case LOAD_METHOD:
+    case MATCH_MAPPING:
+    case MATCH_SEQUENCE:
     case POP_JUMP_IF_FALSE:
     case POP_JUMP_IF_TRUE:
     case RETURN_VALUE:
@@ -1948,7 +1950,11 @@ void _PyJIT_ProfileCurrentInstr(
     case BINARY_TRUE_DIVIDE:
     case BINARY_XOR:
     case COMPARE_OP:
+    case CONTAINS_OP:
+    case COPY_DICT_WITHOUT_KEYS:
     case DELETE_SUBSCR:
+    case DICT_MERGE:
+    case DICT_UPDATE:
     case INPLACE_ADD:
     case INPLACE_AND:
     case INPLACE_FLOOR_DIVIDE:
@@ -1962,14 +1968,21 @@ void _PyJIT_ProfileCurrentInstr(
     case INPLACE_SUBTRACT:
     case INPLACE_TRUE_DIVIDE:
     case INPLACE_XOR:
+    case IS_OP:
+    case JUMP_IF_NOT_EXC_MATCH:
     case LIST_APPEND:
+    case LIST_EXTEND:
     case MAP_ADD:
+    case MATCH_KEYS:
     case SET_ADD:
+    case SET_UPDATE:
     case STORE_ATTR:
     case STORE_FIELD: {
       profile_stack(1, 0);
       break;
     }
+    case MATCH_CLASS:
+    case RERAISE:
     case STORE_SUBSCR: {
       profile_stack(2, 1, 0);
       break;
@@ -1979,17 +1992,14 @@ void _PyJIT_ProfileCurrentInstr(
       break;
     };
     case CALL_METHOD: {
-      profile_stack(oparg, oparg + 1);
+      profile_stack(oparg + 1, oparg);
       break;
     }
+    case WITH_EXCEPT_START: {
+      // TOS6 is a function to call; the other values aren't interesting.
+      profile_stack(6);
+    }
   }
-#else
-  PORT_ASSERT("Using some missing opcodes (maybe from Static Python?)");
-  (void)frame;
-  (void)stack_top;
-  (void)opcode;
-  (void)oparg;
-#endif
 }
 
 void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
@@ -2058,9 +2068,11 @@ void start_instr(ProfileEnv& env, int bcoff_raw) {
       ? PyCode_Addr2Line(env.code, bcoff_raw)
       : -1;
   int opcode = _Py_OPCODE(PyBytes_AS_STRING(env.code->co_code)[bcoff_raw]);
+  JIT_CHECK(opcode != 0, "invalid opcode at offset %d", bcoff_raw);
   env.bc_offset = Ref<>::steal(check(PyLong_FromLong(bcoff_raw)));
   env.lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
   env.opname.reset(s_opnames.at(opcode));
+  JIT_CHECK(env.opname != nullptr, "no opname for op %d", opcode);
 }
 
 void append_item(

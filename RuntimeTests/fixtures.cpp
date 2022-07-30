@@ -1,5 +1,7 @@
 #include "RuntimeTests/fixtures.h"
 
+#include "cinder/exports.h"
+
 #include "Jit/profile_data.h"
 
 #include <sstream>
@@ -12,7 +14,7 @@ void HIRTest::TestBody() {
     // profile data, then tear down and set up again for a normal HIR test with
     // the profile data.
     _PyJIT_Disable();
-    _PyThreadState_SetProfileInterpAll(1);
+    Ci_ThreadState_SetProfileInterpAll(1);
     if (compile_static_) {
       ASSERT_TRUE(runStaticCode(src_.c_str()));
     } else {

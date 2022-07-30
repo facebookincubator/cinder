@@ -34,6 +34,15 @@ PyAPI_FUNC(int) check_args_iterable(PyThreadState *tstate, PyObject *func, PyObj
 PyAPI_FUNC(void) format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs);
 PyAPI_FUNC(void) format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode);
 
+/* Enable or disable interpreter type profiling for all threads or for a
+   specific thread. */
+PyAPI_FUNC(void) Ci_ThreadState_SetProfileInterpAll(int);
+PyAPI_FUNC(void) Ci_ThreadState_SetProfileInterp(PyThreadState *, int);
+
+/* Set the profile period for interpreter type profiling, in bytecode
+   instructions. */
+PyAPI_FUNC(void) Ci_RuntimeState_SetProfileInterpPeriod(long);
+
 #ifdef __cplusplus
 }
 #endif

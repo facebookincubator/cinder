@@ -47,7 +47,6 @@ def func():
   ASSERT_EQ(PyLong_AsLong(res), 314159);
 }
 
-
 TEST_F(ASMGeneratorTest, Fallthrough) {
   const char* src = R"(
 def func2(x):

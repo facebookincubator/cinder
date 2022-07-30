@@ -10,6 +10,9 @@
 #include "pycore_pymem.h"         // _PyMem_SetDefaultAllocator()
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "pycore_sysmodule.h"
+#include "cinder/exports.h"
+
+#include "Jit/pyjit.h"
 
 /* --------------------------------------------------------------------------
 CAUTION
@@ -629,6 +632,12 @@ new_threadstate(PyInterpreterState *interp, int init)
     tstate->recursion_depth = 0;
     tstate->recursion_headroom = 0;
     tstate->stackcheck_counter = 0;
+
+    tstate->profile_interp = 0;
+    if (g_profile_new_interp_threads) {
+      Ci_ThreadState_SetProfileInterp(tstate, 1);
+    }
+
     tstate->tracing = 0;
     tstate->root_cframe.use_tracing = 0;
     tstate->cframe = &tstate->root_cframe;
@@ -1309,6 +1318,33 @@ fail:
 done:
     HEAD_UNLOCK(runtime);
     return result;
+}
+
+void Ci_ThreadState_SetProfileInterpAll(int enabled) {
+    PyThreadState *tstate;
+    _PyRuntimeState *runtime = &_PyRuntime;
+
+    HEAD_LOCK(runtime);
+    for (tstate = _PyThreadState_GET()->interp->tstate_head;
+         tstate != NULL;
+         tstate = tstate->next) {
+        Ci_ThreadState_SetProfileInterp(tstate, enabled);
+    }
+    HEAD_UNLOCK(runtime);
+}
+
+void
+Ci_ThreadState_SetProfileInterp(PyThreadState *tstate, int enabled) {
+    if (!tstate->profile_interp == !enabled) {
+        return;
+    }
+    tstate->profile_interp = !!enabled;
+    tstate->cframe->use_tracing = _Py_ThreadStateHasTracing(tstate);
+}
+
+void
+Ci_RuntimeState_SetProfileInterpPeriod(long period) {
+    PyThreadState_Get()->interp->ceval.profile_instr_period = period;
 }
 
 /* Python "auto thread state" API. */

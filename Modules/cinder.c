@@ -2,6 +2,7 @@
 #include "Python.h"
 
 #include "boolobject.h"
+#include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
 #include "pyreadonly.h"
@@ -423,8 +424,6 @@ set_qualname_of_code(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t na
     Py_RETURN_NONE;
 }
 
-#ifdef CINDER_PORTING_DONE
-
 static PyObject*
 set_profile_interp(PyObject *self, PyObject *arg) {
     int is_true = PyObject_IsTrue(arg);
@@ -434,7 +433,7 @@ set_profile_interp(PyObject *self, PyObject *arg) {
 
     PyThreadState* tstate = PyThreadState_Get();
     int old_flag = tstate->profile_interp;
-    _PyThreadState_SetProfileInterp(tstate, is_true);
+    Ci_ThreadState_SetProfileInterp(tstate, is_true);
 
     if (old_flag) {
       Py_RETURN_TRUE;
@@ -449,7 +448,7 @@ set_profile_interp_all(PyObject *self, PyObject *arg) {
         return NULL;
     }
     g_profile_new_interp_threads = is_true;
-    _PyThreadState_SetProfileInterpAll(is_true);
+    Ci_ThreadState_SetProfileInterpAll(is_true);
 
     Py_RETURN_NONE;
 }
@@ -467,7 +466,7 @@ set_profile_interp_period(PyObject *self, PyObject *arg) {
         return NULL;
     }
 
-    _PyRuntimeState_SetProfileInterpPeriod(val);
+    Ci_RuntimeState_SetProfileInterpPeriod(val);
     Py_RETURN_NONE;
 }
 
@@ -481,6 +480,8 @@ clear_type_profiles(PyObject *self, PyObject *obj) {
     _PyJIT_ClearTypeProfiles();
     Py_RETURN_NONE;
 }
+
+#ifdef CINDER_PORTING_DONE
 
 static PyObject*
 get_frame_gen(PyObject *self, PyObject *frame) {
@@ -695,6 +696,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      "Clears classloader caches and vtables on all accessible types. "
      "Will hurt perf; for test isolation where modules and types with "
      "identical names are dynamically created and destroyed."},
+#endif
     {"set_profile_interp",
      set_profile_interp,
      METH_O,
@@ -715,6 +717,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      clear_type_profiles,
      METH_NOARGS,
      "Clear accumulated interpreter type profiles."},
+#ifdef CINDER_PORTING_DONE
     {"_get_frame_gen",
      get_frame_gen,
      METH_O,

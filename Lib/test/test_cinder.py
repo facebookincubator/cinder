@@ -1974,7 +1974,6 @@ class GetEntireCallStackTest(unittest.TestCase):
         verify_stack(self, stack, ["a2", "a3"])
 
 
-@unittest.cinderPortingBrokenTest()
 @unittest.skipUnderCinderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):
     def tearDown(self):

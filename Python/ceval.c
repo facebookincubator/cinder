@@ -93,6 +93,8 @@ static void format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyOb
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
+static void try_profile_next_instr(PyFrameObject* f, PyObject** stack_pointer,
+                                   const _Py_CODEUNIT* next_instr);
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -829,6 +831,9 @@ _PyEval_InitState(struct _ceval_state *ceval)
     _gil_initialize(&ceval->gil);
 #endif
 
+    ceval->profile_instr_counter = 0;
+    ceval->profile_instr_period = 1;
+
     return 0;
 }
 
@@ -1504,6 +1509,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _Py_atomic_int * const eval_breaker = &tstate->interp->ceval.eval_breaker;
     PyCodeObject *co;
     _PyShadowFrame shadow_frame;
+    Py_ssize_t profiled_instrs = 0;
 
     int lazy_imports = -1;
 
@@ -1584,7 +1590,8 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 
     /* facebook begin t39538061 */
     /* Initialize the inline cache after the code object is "hot enough" */
-    if (co->co_cache.shadow == NULL && _PyEval_ShadowByteCodeEnabled) {
+    if (!tstate->profile_interp && co->co_cache.shadow == NULL &&
+        _PyEval_ShadowByteCodeEnabled) {
         if (++(co->co_cache.ncalls) > PYSHADOW_INIT_THRESHOLD) {
             if (_PyShadow_InitCache(co) == -1) {
                 goto error;
@@ -1727,6 +1734,14 @@ main_loop:
         int instr_prev = f->f_lasti;
         f->f_lasti = INSTR_OFFSET();
         NEXTOPARG();
+
+        struct _ceval_state *ceval = &tstate->interp->ceval;
+        if (tstate->profile_interp &&
+            ++ceval->profile_instr_counter == ceval->profile_instr_period) {
+            ceval->profile_instr_counter = 0;
+            profiled_instrs++;
+            try_profile_next_instr(f, stack_pointer, next_instr - 1);
+        }
 
         if (PyDTrace_LINE_ENABLED())
             maybe_dtrace_line(f, &trace_info, instr_prev);
@@ -5126,6 +5141,10 @@ exit_eval_frame:
     tstate->cframe = trace_info.cframe.previous;
     tstate->cframe->use_tracing = trace_info.cframe.use_tracing;
 
+    if (profiled_instrs != 0) {
+        _PyJIT_CountProfiledInstrs(f->f_code, profiled_instrs);
+    }
+
     if (f->f_gen == NULL) {
         _PyShadowFrame_Pop(tstate, &shadow_frame);
     }
@@ -6970,6 +6989,35 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
     res = v;
     PyUnicode_Append(&res, w);
     return res;
+}
+
+static inline void try_profile_next_instr(PyFrameObject* f,
+                                          PyObject** stack_pointer,
+                                          const _Py_CODEUNIT* next_instr) {
+    int opcode, oparg;
+    NEXTOPARG();
+    while (opcode == EXTENDED_ARG) {
+        int oldoparg = oparg;
+        NEXTOPARG();
+        oparg |= oldoparg << 8;
+    }
+
+    /* _PyJIT_ProfileCurrentInstr owns the canonical list of which instructions
+     * we want to record types for. To save a little work, filter out a few
+     * opcodes that we know the JIT will never care about and account for
+     * roughly 50% of dynamic bytecodes. */
+    switch (opcode) {
+        case LOAD_FAST:
+        case STORE_FAST:
+        case LOAD_CONST:
+        case RETURN_VALUE: {
+            break;
+        }
+        default: {
+          _PyJIT_ProfileCurrentInstr(f, stack_pointer, opcode, oparg);
+          break;
+        }
+    }
 }
 
 #ifdef DYNAMIC_EXECUTION_PROFILE

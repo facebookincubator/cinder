@@ -144,10 +144,6 @@ STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 STUB(PyObject *, _PyType_GetSwitchboard, void)
 
 
-// Python/pystate.c
-STUB(void, _PyThreadState_SetProfileInterpAll, int)
-
-
 // Python/arraymodule.c
 STUB(PyObject *, _PyArray_GetItem, PyObject *, Py_ssize_t)
 STUB(int, _PyArray_SetItem, PyObject *, Py_ssize_t, PyObject *)

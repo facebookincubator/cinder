@@ -175,10 +175,6 @@ PyFrameObject * _PyFrame_NewWithBuiltins_NoTrack(PyThreadState *,
                                                  PyObject *, PyObject *,
                                                  PyObject *);
 
-// Include/pystate.h
-void _PyThreadState_SetProfileInterpAll(int enabled);
-
-
 // Include/funcobject.h
 PyAPI_FUNC(PyObject *) _PyFunction_GetSwitchboard(void);
 PyAPI_FUNC(PyObject *) _PyFunction_GetBuiltins(PyFunctionObject *func);

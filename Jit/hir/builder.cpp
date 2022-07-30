@@ -778,11 +778,16 @@ void HIRBuilder::emitProfiledTypes(
     }
   }
 
-  // Except for function calls, all instructions profile all of their inputs,
-  // with deeper stack elements first.
+  // Except for a few special cases, all instructions profile all of their
+  // inputs, with deeper stack elements first.
+  // TODO(T127457244): Centralize this information.
   ssize_t stack_idx = first_profile.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
+  } else if (bc_instr.opcode() == CALL_METHOD) {
+    stack_idx = bc_instr.oparg() + 1;
+  } else if (bc_instr.opcode() == WITH_EXCEPT_START) {
+    stack_idx = 6;
   }
   if (types.size() == 1) {
     for (auto type : first_profile) {
