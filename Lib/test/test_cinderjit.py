@@ -2998,29 +2998,33 @@ class DeleteSubscrTests(unittest.TestCase):
             self._delit(c, "foo")
 
 
-@unittest.cinderPortingBrokenTest()
 class DeleteFastTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del(self):
         x = 2
         del x
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg(self, a):
         del a
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del_and_raise(self):
         x = 2
         del x
         return x
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg_and_raise(self, a):
         del a
         return a
 
     @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del_ex_no_raise(self):
         try:
             return min(1, 2)
@@ -3028,6 +3032,7 @@ class DeleteFastTests(unittest.TestCase):
             pass
 
     @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("DELETE_FAST")
     def _del_ex_raise(self):
         try:
             raise Exception()
