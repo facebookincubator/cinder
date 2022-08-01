@@ -57,9 +57,9 @@ TEST_F(ModuleLoaderTest, ASTPreprocessLooseSlots) {
 
   std::string astStrPreprocessedExpected =
       "Module(body=["
-      "Import(names=[alias(name='__strict__', asname=None)]), "
+      "Import(names=[alias(name='__strict__')]), "
       "ImportFrom(module='__strict__', "
-      "names=[alias(name='loose_slots', asname=None)], level=0), "
+      "names=[alias(name='loose_slots')], level=0), "
       "ClassDef(name='C', bases=[], keywords=[], body=[Pass()], "
       "decorator_list=[Name(id='loose_slots', ctx=Load()), "
       "Name(id='<loose_slots>', ctx=Load()), Name(id='<enable_slots>', "
@@ -106,9 +106,9 @@ TEST_F(ModuleLoaderTest, ASTPreprocessStrictSlots) {
 
   std::string astStrPreprocessedExpected =
       "Module(body=["
-      "Import(names=[alias(name='__strict__', asname=None)]), "
+      "Import(names=[alias(name='__strict__')]), "
       "ImportFrom(module='__strict__', "
-      "names=[alias(name='strict_slots', asname=None)], level=0), "
+      "names=[alias(name='strict_slots')], level=0), "
       "ClassDef(name='C', bases=[], keywords=[], body=[Pass()], "
       "decorator_list=[Name(id='strict_slots', ctx=Load()), "
       "Name(id='<enable_slots>', ctx=Load())"
@@ -136,8 +136,8 @@ TEST_F(ModuleLoaderTest, ASTPreprocessExtraSlots) {
       "ClassDef(name='C', bases=[], keywords=[], "
       "body=[Pass()], decorator_list=[Name(id='strict_slots', ctx=Load()), "
       "Call(func=Name(id='<extra_slots>', "
-      "ctx=Load()), args=[Constant(value='a', kind=None), Constant(value='b', "
-      "kind=None)], keywords=[]), Name(id='<enable_slots>', ctx=Load())]), ";
+      "ctx=Load()), args=[Constant(value='a'), Constant(value='b')], "
+      "keywords=[]), Name(id='<enable_slots>', ctx=Load())]), ";
 
   Ref<> astStr = getPreprocessedASTDump(source, "m", "m.py");
 
@@ -160,8 +160,8 @@ TEST_F(ModuleLoaderTest, ASTPreprocessExtraSlotsNoSlots) {
   std::string astStrPreprocessedExpected =
       "ClassDef(name='C', bases=[], keywords=[], "
       "body=[Pass()], decorator_list=[Call(func=Name(id='<extra_slots>', "
-      "ctx=Load()), args=[Constant(value='a', kind=None), Constant(value='b', "
-      "kind=None)], keywords=[])]), ";
+      "ctx=Load()), args=[Constant(value='a'), Constant(value='b')], "
+      "keywords=[])]), ";
 
   Ref<> astStr = getPreprocessedASTDump(source, "m", "m.py");
 
@@ -188,17 +188,16 @@ TEST_F(ModuleLoaderTest, ASTPreprocessCachedProperty) {
   std::string astStrPreprocessedExpected =
       "ClassDef(name='C', bases=[], keywords=[], body=[FunctionDef(name='p', "
       "args=arguments(posonlyargs=[], "
-      "args=[arg(arg='self', annotation=None, type_comment=None)], "
-      "vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]), "
-      "body=[Return(value=Constant(value=42, kind=None))], "
+      "args=[arg(arg='self')], kwonlyargs=[], kw_defaults=[], defaults=[]), "
+      "body=[Return(value=Constant(value=42))], "
       "decorator_list=[Call(func=Name(id='<cached_property>', ctx=Load()), "
-      "args=[Constant(value=False, kind=None)], keywords=[])], returns=None, "
-      "type_comment=None)], decorator_list=[Name(id='strict_slots', "
+      "args=[Constant(value=False)], keywords=[])])], "
+      "decorator_list=[Name(id='strict_slots', "
       "ctx=Load()), Name(id='<enable_slots>', ctx=Load())])], type_ignores=[])";
 
   Ref<> astStr = getPreprocessedASTDump(source, "m", "m.py");
 
   std::string preprocessedStr = PyUnicode_AsUTF8(astStr);
   std::size_t found = preprocessedStr.find(astStrPreprocessedExpected);
-  ASSERT_NE(found, std::string::npos);
+  ASSERT_NE(found, std::string::npos) << preprocessedStr;
 }

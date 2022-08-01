@@ -73,6 +73,9 @@ std::optional<AstAndSymbols> readFromFile(
       mod, symbols, futureAnnotations, true);
 
 error:
+  if (PyErr_Occurred()) {
+    PyErr_Clear();
+  }
   // do not free `mod` since its allocated via arena
   if (fp != nullptr)
     fclose(fp);
