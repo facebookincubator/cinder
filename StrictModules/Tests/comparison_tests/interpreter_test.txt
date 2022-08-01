@@ -721,7 +721,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, _y")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 378 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 80 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_keyword_name
 ---
@@ -729,7 +729,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, def")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 372 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 74 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_non_identifier_name
 ---
@@ -737,7 +737,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, ?")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 369 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 71 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_duplicate_name
 ---
@@ -745,7 +745,7 @@ from collections import namedtuple
 P = namedtuple("P", "x x")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 381 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 83 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_fields
 ---
@@ -1268,7 +1268,7 @@ class C:
     a: int = field(default_factory=fact, default=1)
 ---
 ---
-6 13 StrictModuleUnhandledException(ValueError) 337 8 StrictModuleUserException ValueError
+6 13 StrictModuleUnhandledException(ValueError) 365 8 StrictModuleUserException ValueError
 ---
 test_dataclass_default_order
 ---
@@ -1281,7 +1281,7 @@ class C:
     b: int
 ---
 ---
-4 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 278 27 StrictModuleUserException TypeError 502 16 StrictModuleUserException TypeError
+4 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 329 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
 ---
 test_dataclass_field_pos_arg
 ---
@@ -1300,7 +1300,7 @@ C.__annotations__[2] = 3
 c = dataclass(C)
 ---
 ---
-5 4 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 251 18 StrictModuleUserException TypeError 152 14 StrictModuleUserException TypeError
+5 4 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 298 30 StrictModuleUserException TypeError 172 14 StrictModuleUserException TypeError
 ---
 test_dataclass_corrupted_fields
 ---
@@ -1314,7 +1314,7 @@ class D(C):
     b: int
 ---
 ---
-6 1 StrictModuleUnhandledException(AttributeError) 1019 11 StrictModuleUserException AttributeError 1011 15 StrictModuleUserException AttributeError 245 21 StrictModuleUserException AttributeError
+6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 274 21 StrictModuleUserException AttributeError
 ---
 test_dataclass_corrupted_fields_1
 ---
@@ -1328,7 +1328,7 @@ class D(C):
     b: int
 ---
 ---
-6 1 StrictModuleUnhandledException(AttributeError) 1019 11 StrictModuleUserException AttributeError 1011 15 StrictModuleUserException AttributeError 246 23 StrictModuleUserException AttributeError
+6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 275 23 StrictModuleUserException AttributeError
 ---
 test_dataclass_init_var_post_init
 ---
@@ -1409,7 +1409,7 @@ c = C()
 c1 = replace(c, a=2)
 ---
 ---
-6 5 StrictModuleUnhandledException(TypeError) 1264 8 StrictModuleUserException TypeError
+6 5 StrictModuleUnhandledException(TypeError) 1425 8 StrictModuleUserException TypeError
 ---
 test_dataclass_replace_no_initvar
 ---
@@ -1423,7 +1423,7 @@ c = C(1, 2)
 c1 = replace(c, a=2)
 ---
 ---
-8 5 StrictModuleUnhandledException(ValueError) 1284 16 StrictModuleUserException ValueError
+8 5 StrictModuleUnhandledException(ValueError) 1445 16 StrictModuleUserException ValueError
 ---
 test_dataclass_replace_no_init
 ---
@@ -1437,7 +1437,7 @@ c = C(1)
 c1 = replace(c, a=2, b=1)
 ---
 ---
-8 5 StrictModuleUnhandledException(ValueError) 1277 16 StrictModuleUserException ValueError
+8 5 StrictModuleUnhandledException(ValueError) 1438 16 StrictModuleUserException ValueError
 ---
 test_dataclass_replace_partial
 ---
@@ -1465,21 +1465,7 @@ c = C(1, 2)
 d = replace(c, 1)
 ---
 ---
-7 4 StrictModuleUnhandledException(TypeError) 1249 8 StrictModuleUserException TypeError
----
-test_dataclass_replace_named_obj
----
-from dataclasses import dataclass, replace
-@dataclass
-class C:
-    a: int
-    b: int
-c = C(1, 2)
-d = replace(obj=c, a=2)
-a = d.a
----
-a
----
+7 4 StrictModuleUnhandledException(TypeError)
 ---
 test_dataclass_make
 ---
@@ -1746,7 +1732,7 @@ from typing import NamedTuple
 Employee = NamedTuple('Employee', [('name', str), ('id', int)], name=str, id=int)
 ---
 ---
-2 11 StrictModuleUnhandledException(TypeError) 1706 12 StrictModuleUserException TypeError
+2 11 StrictModuleUnhandledException(TypeError) 328 8 StrictModuleUserException TypeError
 ---
 test_typing_namedtuple_meta_no_get
 ---
@@ -1754,7 +1740,7 @@ from typing import NamedTupleMeta
 NamedTupleMeta('foo', (), 42)
 ---
 ---
-2 0 StrictModuleUnhandledException(AttributeError) 1620 11 StrictModuleUserException AttributeError
+2 0 StrictModuleUnhandledException(AttributeError) 2268 16 StrictModuleUserException AttributeError
 ---
 test_typing_namedtuple_inheritance
 ---
@@ -1784,7 +1770,7 @@ l
 ---
 test_typing_typeddict
 ---
-from typing_extensions import TypedDict
+from typing import TypedDict
 class Employee(TypedDict, total=False):
     age: int
 
@@ -1798,7 +1784,7 @@ age total
 ---
 test_typing_literal_single_value
 ---
-from typing_extensions import Literal
+from typing import Literal
 
 Mode = Literal[2]
 x = Mode.__args__[0]
@@ -1808,20 +1794,12 @@ x
 ---
 test_typing_literal
 ---
-from typing_extensions import Literal
+from typing import Literal
 
 Mode = Literal[1, 2]
 x = Mode.__args__[0]
 ---
 x
----
----
-test_typing_literal_call_type
----
-from typing_extensions import Literal
-
-type(Literal)("NewLiteral", "some doc")
----
 ---
 ---
 test_dataclass_classvar
@@ -1882,7 +1860,7 @@ class C:
     a: int
 ---
 ---
-7 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 251 18 StrictModuleUserException TypeError 180 12 StrictModuleUserException TypeError
+7 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 298 30 StrictModuleUserException TypeError 200 12 StrictModuleUserException TypeError
 ---
 test_dataclass_classvar_fields
 ---
@@ -1917,7 +1895,7 @@ c = C(1, 2)
 d = replace(c, c=4)
 ---
 ---
-9 4 StrictModuleUnhandledException(TypeError) 1293 11 StrictModuleUserException TypeError
+9 4 StrictModuleUnhandledException(TypeError) 1454 11 StrictModuleUserException TypeError
 ---
 test_isinstance
 ---
@@ -6733,6 +6711,26 @@ z = str('abc')
 x y z
 ---
 ---
+test_native_generic_alias
+---
+t = list[int]
+a = t.__origin__
+---
+a
+---
+---
+test_native_generic_alias_args
+---
+from typing import TypeVar
+T = TypeVar("T")
+t = list[T]
+t1 = t[int]
+a = t1.__origin__
+b = t1.__args__
+---
+a b
+---
+---
 test_union_builtin_syntax_0
 ---
 t = int | str
@@ -6832,9 +6830,8 @@ is_str_instance = isinstance('a', t)
 is_None_instance = isinstance(None, t)
 has_int = issubclass(int, t)
 has_str = issubclass(str, t)
-arg_size = len(t.__args__)
 ---
-is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+is_int_instance is_str_instance is_None_instance has_int has_str
 ---
 ---
 test_union_builtin_syntax_8
@@ -6845,17 +6842,16 @@ is_str_instance = isinstance('a', t)
 is_None_instance = isinstance(None, t)
 has_int = issubclass(int, t)
 has_str = issubclass(str, t)
-arg_size = len(t.__args__)
 ---
-is_int_instance is_str_instance is_None_instance has_int has_str arg_size
+is_int_instance is_str_instance is_None_instance has_int has_str
 ---
 ---
 test_union_builtin_with_typing_0
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = int | str
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6864,9 +6860,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_1
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = int | List[str]
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6875,9 +6871,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_2
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = List[int] | str
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6886,9 +6882,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_3
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = Union[int, str] | float
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6897,9 +6893,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_4
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = float | Union[int, str]
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6908,9 +6904,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_5
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = float | Union[int, str] | float
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6919,9 +6915,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_6
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = Union[str, int] | None
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6930,9 +6926,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_7
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = None | Union[str, int]
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6941,9 +6937,9 @@ is_types_union arg_size
 test_union_builtin_with_typing_8
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = Union[int, None] | str
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
@@ -6952,23 +6948,22 @@ is_types_union arg_size
 test_union_builtin_with_typing_9
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = None | Union[str, None]
-is_types_union = isinstance(t, TypesUnion)
+is_types_union = isinstance(t, UnionType)
 arg_size = len(t.__args__)
 ---
 is_types_union arg_size
 ---
 ---
-test_union_builtin_with_typing_10
+test_union_builtin_with_typing_10 @disabled
 ---
 from typing import Union, List
-from types import Union as TypesUnion
+from types import UnionType
 t = Union[int, int] | int
-is_types_union = isinstance(t, TypesUnion)
-arg_size = len(t.__args__)
+is_types_union = isinstance(t, UnionType)
 ---
-is_types_union arg_size
+is_types_union
 ---
 ---
 test_import_usage
@@ -8324,7 +8319,7 @@ class C(Generic[TypeVar("T")], x):
 
 ---
 ---
-3 0 UnsafeCallException __mro_entries__ 761 15 UnknownValueAttributeException <x imported from unknown> __eq__
+3 0 UnsafeCallException __mro_entries__ 1113 15 UnknownValueAttributeException <x imported from unknown> __eq__
 3 0 UnknownValueNotIterableException __mro_entries__(<_GenericAlias instance>,(<_GenericAlias instance>,<x imported from unknown>),)
 ---
 test_typing_typevar
@@ -8945,7 +8940,7 @@ X = namedtuple("P", "x y")
 X.__new__(object)
 ---
 ---
-3 0 StrictModuleUnhandledException(TypeError)
+3 0 StrictModuleUnhandledException(TypeError) 113 15 StrictModuleUserException TypeError
 ---
 test_namedtuple_index
 ---
@@ -9000,6 +8995,13 @@ p.y.attr
 ---
 5 0 UnknownValueAttributeException <unknown imported from outside> attr
 ---
+test_collections_abc_mutable_mapping
+---
+import _collections_abc
+x = _collections_abc.MutableMapping
+---
+---
+---
 test_namedtuple_rename
 ---
 from collections import namedtuple
@@ -9031,7 +9033,7 @@ P = namedtuple("P", 1)
 p = P(1)
 ---
 ---
-2 4 StrictModuleUnhandledException(TypeError) 352 23 StrictModuleUserException TypeError
+2 4 StrictModuleUnhandledException(TypeError) 54 23 StrictModuleUserException TypeError
 ---
 test_namedtuple_asdict
 ---
@@ -9155,7 +9157,7 @@ class C:
     b: int
 ---
 ---
-2 1 StrictModuleUnhandledException(TypeError) 1019 11 StrictModuleUserException TypeError 1011 15 StrictModuleUserException TypeError 278 27 StrictModuleUserException TypeError 502 16 StrictModuleUserException TypeError
+2 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 329 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
 ---
 test_dataclass_field
 ---
@@ -9745,7 +9747,7 @@ x = 1
 ---
 1 0 BadStrictFlagException strict flag may not be combined with other imports
 ---
-test_flag_after_doc
+test_flag_after_doc @disabled
 ---
 '''First docstring.'''
 import __strict__
