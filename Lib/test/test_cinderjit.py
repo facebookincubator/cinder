@@ -3878,5 +3878,47 @@ class StoreSubscrTests(unittest.TestCase):
             self.doit(obj, 1, 2)
 
 
+class FormatValueTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
+    def doit(self, obj):
+        return f"hello{obj}world"
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
+    def doit_repr(self, obj):
+        return f"hello{obj!r}world"
+
+    def test_format_value_calls_str(self):
+        class C:
+            def __str__(self):
+                return "foo"
+
+        self.assertEqual(self.doit(C()), "hellofooworld")
+
+    def test_format_value_calls_str_with_exception(self):
+        class C:
+            def __str__(self):
+                raise TestException("no")
+
+        with self.assertRaisesRegex(TestException, "no"):
+            self.assertEqual(self.doit(C()))
+
+    def test_format_value_calls_repr(self):
+        class C:
+            def __repr__(self):
+                return "bar"
+
+        self.assertEqual(self.doit_repr(C()), "hellobarworld")
+
+    def test_format_value_calls_repr_with_exception(self):
+        class C:
+            def __repr__(self):
+                raise TestException("no")
+
+        with self.assertRaisesRegex(TestException, "no"):
+            self.assertEqual(self.doit_repr(C()))
+
+
 if __name__ == "__main__":
     unittest.main()
