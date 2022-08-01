@@ -286,6 +286,10 @@ std::shared_ptr<BaseStrictObject> StrictObjectType::getElement(
     std::shared_ptr<StrictType> typ =
         std::dynamic_pointer_cast<StrictType>(obj);
     if (typ) {
+      // special case type[<idx>] which always work
+      if (typ == TypeType()) {
+        return std::make_shared<StrictGenericAlias>(caller.caller, typ, index);
+      }
       getItem = typ->typeLookup(kDunderClassGetItem, caller);
       if (getItem) {
         return iCall(getItem, {obj, index}, kEmptyArgNames, caller);

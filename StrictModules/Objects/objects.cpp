@@ -364,6 +364,12 @@ std::shared_ptr<StrictType> UnionType() {
   return t;
 }
 
+std::shared_ptr<StrictType> GenericAliasType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictGenericAliasType>(
+      "GenericAlias", kBuiltinsModule, objectTypeVec(), TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> NotImplementedType() {
   static std::shared_ptr<StrictType> t = makeType<StrictObjectType>(
       "NotImplementedType", kBuiltinsModule, objectTypeVec(), TypeType());

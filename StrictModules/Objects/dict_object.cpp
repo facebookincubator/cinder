@@ -400,6 +400,8 @@ void StrictDictType::addMethods() {
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PyDict_Type),
       StrictString::strFromPyObj);
+
+  addMethod(kDunderClassGetItem, createGenericAlias);
 }
 
 std::unique_ptr<BaseStrictObject> StrictDictType::constructInstance(

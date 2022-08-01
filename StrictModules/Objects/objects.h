@@ -8,6 +8,7 @@
 #include "StrictModules/Objects/dict_object.h"
 #include "StrictModules/Objects/exception_object.h"
 #include "StrictModules/Objects/function.h"
+#include "StrictModules/Objects/genericalias_object.h"
 #include "StrictModules/Objects/helper.h"
 #include "StrictModules/Objects/instance.h"
 #include "StrictModules/Objects/iterable_objects.h"
@@ -46,6 +47,7 @@ std::shared_ptr<StrictType> ByteArrayType();
 
 std::shared_ptr<StrictType> SuperType();
 std::shared_ptr<StrictType> UnionType();
+std::shared_ptr<StrictType> GenericAliasType();
 
 std::shared_ptr<StrictType> ListType();
 std::shared_ptr<StrictType> TupleType();

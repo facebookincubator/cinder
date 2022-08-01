@@ -89,6 +89,16 @@ std::shared_ptr<BaseStrictObject> StrictUnion::union__subclasscheck__(
   return StrictFalse();
 }
 
+bool isTypingType(
+    std::shared_ptr<BaseStrictObject> arg,
+    const std::string& name) {
+  auto argType = arg->getType();
+  if (argType->getCreator().lock()->getModuleName() == "typing") {
+    return argType->getName() == name;
+  }
+  return false;
+}
+
 static bool isUnionableHelper(const std::shared_ptr<BaseStrictObject>& arg) {
   if (arg == NoneObject()) {
     return true;

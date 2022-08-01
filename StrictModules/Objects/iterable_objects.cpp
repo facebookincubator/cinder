@@ -460,6 +460,8 @@ void StrictListType::addMethods() {
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PyList_Type),
       StrictString::strFromPyObj);
+
+  addMethod(kDunderClassGetItem, createGenericAlias);
 }
 
 // -------------------------Tuple-------------------------
@@ -663,6 +665,8 @@ void StrictTupleType::addMethods() {
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PyTuple_Type),
       StrictString::strFromPyObj);
+
+  addMethod(kDunderClassGetItem, createGenericAlias);
 }
 
 // -------------------------Set Like-------------------------
@@ -1067,6 +1071,8 @@ void StrictSetType::addMethods() {
       kDunderRepr,
       reinterpret_cast<PyObject*>(&PySet_Type),
       StrictString::strFromPyObj);
+
+  addMethod(kDunderClassGetItem, createGenericAlias);
 }
 
 // -------------------------FrozenSet-------------------------

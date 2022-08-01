@@ -711,10 +711,11 @@ void Analyzer::visitClassDef(const stmt_ty stmt) {
         newBases.push_back(base);
         continue;
       }
-      auto mroEntriesFunc = baseType->typeLookup("__mro_entries__", context_);
+      auto mroEntriesFunc =
+          iLoadAttr(base, "__mro_entries__", nullptr, context_);
       if (mroEntriesFunc != nullptr) {
         auto newBaseEntries =
-            iCall(mroEntriesFunc, {base, baseTuple}, kEmptyArgNames, context_);
+            iCall(mroEntriesFunc, {baseTuple}, kEmptyArgNames, context_);
         if (newBaseEntries != nullptr) {
           auto newBaseVec =
               iGetElementsVec(std::move(newBaseEntries), context_);
