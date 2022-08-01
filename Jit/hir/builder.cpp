@@ -196,6 +196,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_KW,
     CALL_METHOD,
     DELETE_ATTR,
+    DELETE_SUBSCR,
     DUP_TOP,
     DUP_TOP_TWO,
     FOR_ITER,

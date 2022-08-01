@@ -2956,9 +2956,9 @@ class UnpackSequenceTests(unittest.TestCase):
             self._unpack_ex_arg(C(()), "a")
 
 
-@unittest.cinderPortingBrokenTest()
 class DeleteSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("DELETE_SUBSCR")
     def _delit(self, container, key):
         del container[key]
 
