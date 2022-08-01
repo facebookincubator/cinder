@@ -230,6 +230,11 @@ class StrictType : public StrictInstance {
       std::shared_ptr<StrictType> type,
       const CallerContext& caller);
 
+  static std::shared_ptr<BaseStrictObject> type__qualname__Getter(
+      std::shared_ptr<BaseStrictObject> inst,
+      std::shared_ptr<StrictType>,
+      const CallerContext& caller);
+
   // helpers to add builtin methods to types
 
   template <typename T>

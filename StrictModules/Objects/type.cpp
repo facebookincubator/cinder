@@ -556,4 +556,12 @@ std::shared_ptr<BaseStrictObject> StrictType::type__mro__Getter(
   return StrictType::typeMro(std::move(cls), caller);
 }
 
+std::shared_ptr<BaseStrictObject> StrictType::type__qualname__Getter(
+    std::shared_ptr<BaseStrictObject> inst,
+    std::shared_ptr<StrictType>,
+    const CallerContext& caller) {
+  auto cls = assertStaticCast<StrictType>(std::move(inst));
+  return caller.makeStr(cls->getName());
+}
+
 } // namespace strictmod::objects

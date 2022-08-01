@@ -108,6 +108,8 @@ void StrictTypeType::addMethods() {
       nullptr);
   addGetSetDescriptor(
       "__mro__", StrictType::type__mro__Getter, nullptr, nullptr);
+  addGetSetDescriptor(
+      "__qualname__", StrictType::type__qualname__Getter, nullptr, nullptr);
   addStringMemberDescriptor<StrictType, &StrictType::name_>("__name__");
 }
 
