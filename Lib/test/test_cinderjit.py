@@ -3840,5 +3840,43 @@ class UnpackExTests(unittest.TestCase):
             self.doit(C(()))
 
 
+class StoreSubscrTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("STORE_SUBSCR")
+    def doit(self, obj, key, value):
+        obj[key] = value
+
+    def test_store_subscr_with_list_sets_item(self):
+        obj = [1, 2, 3]
+        self.doit(obj, 1, "hello")
+        self.assertEqual(obj, [1, "hello", 3])
+
+    def test_store_subscr_with_dict_sets_item(self):
+        obj = {"hello": "cinder"}
+        self.doit(obj, "hello", "world")
+        self.assertEqual(obj, {"hello": "world"})
+
+    def test_store_subscr_calls_setitem(self):
+        class C:
+            def __init__(self):
+                self.called = None
+
+            def __setitem__(self, key, value):
+                self.called = (key, value)
+
+        obj = C()
+        self.doit(obj, "hello", "world")
+        self.assertEqual(obj.called, ("hello", "world"))
+
+    def test_store_subscr_deopts_on_exception(self):
+        class C:
+            def __setitem__(self, key, value):
+                raise TestException("hello")
+
+        obj = C()
+        with self.assertRaisesRegex(TestException, "hello"):
+            self.doit(obj, 1, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

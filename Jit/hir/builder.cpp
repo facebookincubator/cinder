@@ -234,6 +234,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_TWO,
     STORE_ATTR,
     STORE_FAST,
+    STORE_SUBSCR,
     UNARY_INVERT,
     UNARY_NEGATIVE,
     UNARY_NOT,
