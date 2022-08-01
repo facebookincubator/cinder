@@ -2845,9 +2845,9 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.nested_finally(False), 10)
 
 
-@unittest.cinderPortingBrokenTest()
 class UnpackSequenceTests(unittest.TestCase):
     @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("UNPACK_SEQUENCE")
     def _unpack_arg(self, seq, which):
         a, b, c, d = seq
         if which == "a":
@@ -2859,6 +2859,7 @@ class UnpackSequenceTests(unittest.TestCase):
         return d
 
     @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_ex_arg(self, seq, which):
         a, b, *c, d = seq
         if which == "a":
@@ -2892,15 +2893,18 @@ class UnpackSequenceTests(unittest.TestCase):
 
         self.assertEqual(self._unpack_arg(gen(), "d"), "fourth")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_not_iterable(self):
         (a, b, *c) = 1
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values(self):
         (a, b, *c) = [1]
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values_after(self):
         (a, *b, c, d) = [1, 2]
 
@@ -2918,6 +2922,38 @@ class UnpackSequenceTests(unittest.TestCase):
         self.assertEqual(self._unpack_ex_arg(seq, "b"), 2)
         self.assertEqual(self._unpack_ex_arg(seq, "c"), [3, 4, 5])
         self.assertEqual(self._unpack_ex_arg(seq, "d"), 6)
+
+    def test_unpack_sequence_with_iterable(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __iter__(self):
+                return iter(self.value)
+
+        seq = (1, 2, 3, 4)
+        self.assertEqual(self._unpack_arg(C(seq), "a"), 1)
+        self.assertEqual(self._unpack_arg(C(seq), "b"), 2)
+        self.assertEqual(self._unpack_arg(C(seq), "c"), 3)
+        self.assertEqual(self._unpack_arg(C(seq), "d"), 4)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self._unpack_arg(C(()), "a")
+
+    def test_unpack_ex_with_iterable(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __iter__(self):
+                return iter(self.value)
+
+        seq = (1, 2, 3, 4, 5, 6)
+        self.assertEqual(self._unpack_ex_arg(C(seq), "a"), 1)
+        self.assertEqual(self._unpack_ex_arg(C(seq), "b"), 2)
+        self.assertEqual(self._unpack_ex_arg(C(seq), "c"), [3, 4, 5])
+        self.assertEqual(self._unpack_ex_arg(C(seq), "d"), 6)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self._unpack_ex_arg(C(()), "a")
 
 
 @unittest.cinderPortingBrokenTest()
@@ -3738,7 +3774,10 @@ class SetUpdateTests(unittest.TestCase):
         self.assertEqual(self.doit(C()), {1, 2, 3})
 
 
-class UnpackSequenceTests(unittest.TestCase):
+# TODO(T125845248): After D38227343 is landed and support for COMPARE_OP is in,
+# remove UnpackSequenceTests entirely. It will then be covered by the other
+# UnpackSequenceTests above.
+class UnpackSequenceTestsWithoutCompare(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
     def doit(self, iterable):
@@ -3756,6 +3795,39 @@ class UnpackSequenceTests(unittest.TestCase):
             self.doit([])
 
     def test_unpack_sequence_with_iterable(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __iter__(self):
+                return iter(self.value)
+
+        self.assertEqual(self.doit(C((1, 2))), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit(C(()))
+
+
+# TODO(T125845248): After D38227343 is landed and support for COMPARE_OP is in,
+# remove UnpackExTests entirely. It will then be covered by UnpackSequenceTests
+# above.
+class UnpackExTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("UNPACK_EX")
+    def doit(self, iterable):
+        x, *y = iterable
+        return x
+
+    def test_unpack_ex_with_tuple(self):
+        self.assertEqual(self.doit((1, 2)), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit(())
+
+    def test_unpack_ex_with_list(self):
+        self.assertEqual(self.doit([1, 2]), 1)
+        with self.assertRaisesRegex(ValueError, "not enough values to unpack"):
+            self.doit([])
+
+    def test_unpack_ex_with_iterable(self):
         class C:
             def __init__(self, value):
                 self.value = value

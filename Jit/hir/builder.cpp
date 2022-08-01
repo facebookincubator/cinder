@@ -238,6 +238,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_NEGATIVE,
     UNARY_NOT,
     UNARY_POSITIVE,
+    UNPACK_EX,
     UNPACK_SEQUENCE,
 
     // New CPython 3.10 opcodes
