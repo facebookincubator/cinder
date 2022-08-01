@@ -17,6 +17,9 @@ CO_ASYNC_GENERATOR=512
 OrderedDict = dict
 
 @implicit
+def get_annotations(): ...
+
+@implicit
 def isbuiltin(object):
     ...
 

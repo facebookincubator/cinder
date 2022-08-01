@@ -17,6 +17,10 @@ def _is_sunder():
     ...
 
 @implicit
+def _is_private():
+    ...
+
+@implicit
 def _is_dunder():
     ...
 
@@ -149,8 +153,4 @@ def unique():
 
 @implicit
 def _decompose():
-    ...
-
-@implicit
-def _power_of_two():
     ...

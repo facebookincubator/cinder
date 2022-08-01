@@ -1,4 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+import sys
+
 class _C:
     def _m(self): pass
 MethodType = type(_C()._m)
@@ -10,13 +12,18 @@ FunctionType = type(f)
 
 
 MappingProxyType = type(type.__dict__)
+GenericAlias = type(list[int])
 
-Union = type(int | str)
+UnionType = type(int | str)
 
 BuiltinFunctionType = type(len)
 BuiltinMethodType = type([].append)     # Same as BuiltinFunctionType
+WrapperDescriptorType = type(object.__init__)
+MethodWrapperType = type(object().__repr__)
+MethodDescriptorType = type(str.join)
 GetSetDescriptorType = type(MethodType.__func__)
 MemberDescriptorType = type(MethodType.__func__)
+ModuleType = type(sys)
 
 @implicit
 def new_class():

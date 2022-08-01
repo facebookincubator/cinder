@@ -40,6 +40,9 @@ class ABCMeta(type):
 
 
 @implicit
+def update_abstractmethods(): ...
+
+@implicit
 class ABC:
     pass
 

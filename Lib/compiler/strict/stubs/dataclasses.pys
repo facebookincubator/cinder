@@ -1,7 +1,9 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+import abc
 import types
 import keyword
 import functools
+from types import FunctionType, GenericAlias
 
 
 _bltin_isinstance = isinstance
@@ -27,6 +29,10 @@ MISSING = _MISSING_TYPE()
 _EMPTY_METADATA = types.MappingProxyType({})
 
 @implicit
+class _KW_ONLY_TYPE: ...
+KW_ONLY = _KW_ONLY_TYPE()
+
+@implicit
 class _FIELD_BASE:
     def __init__(self, name):
         self.name = name
@@ -41,11 +47,7 @@ _PARAMS = '__dataclass_params__'
 _POST_INIT_NAME = '__post_init__'
 
 @implicit
-class _InitVarMeta:
-    ...
-
-@implicit
-class InitVar(metaclass=_InitVarMeta):
+class InitVar:
     ...
 
 @implicit
@@ -58,6 +60,10 @@ class _DataclassParams:
 
 @implicit
 def field():
+    ...
+
+@implicit
+def _fields_in_init_order():
     ...
 
 @implicit
@@ -110,6 +116,9 @@ def _repr_fn():
     ...
 
 @implicit
+def _frozen_get_del_attr(): ...
+
+@implicit
 def _cmp_fn():
     ...
 
@@ -145,10 +154,21 @@ def _str_isinitvar(a_type):
         varName = parts[0]
     return varName.startswith("InitVar")
 
+def _str_iskwonly(a_type):
+    parts = a_type.split(".", 1)
+    if len(parts) == 2:
+        varName = parts[1]
+    else:
+        varName = parts[0]
+    return varName.startswith("KW_ONLY")
+
+@implicit
+def _is_kw_only(): ...
+
 # [strict modules]: Here we used __strict_tryimport__
 # to simulate checking sys.modules and only get the module
 # if it is already imported
-def _get_field(cls, a_name, a_type):
+def _get_field(cls, a_name, a_type, default_kw_only):
     default = getattr(cls, a_name, MISSING)
     if isinstance(default, Field):
         f = default
@@ -180,10 +200,18 @@ def _get_field(cls, a_name, a_type):
             raise TypeError(f'field {f.name} cannot have a '
                             'default factory')
 
+    if f._field_type in (_FIELD, _FIELD_INITVAR):
+        if f.kw_only is MISSING:
+            f.kw_only = default_kw_only
+
     if f._field_type is _FIELD and isinstance(f.default, (list, dict, set)):
         raise ValueError(f'mutable default {type(f.default)} for field '
                          f'{f.name} is not allowed: use default_factory')
     return f
+
+@implicit
+def _set_qualname():
+    ...
 
 @implicit
 def _set_new_attribute():
@@ -224,7 +252,8 @@ _hash_action = {(False, False, False, False): None,
 
 # [strict modules]: here we used __strict_tryimport__ for
 # checking sys.modules
-def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen):
+def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen,
+    match_args, kw_only, slots):
     fields = {}
 
     _cls_module = __strict_tryimport__(cls.__module__)
@@ -240,7 +269,7 @@ def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen):
     has_dataclass_bases = False
     for b in cls.__mro__[-1:0:-1]:
         base_fields = getattr(b, _FIELDS, None)
-        if base_fields:
+        if base_fields is not None:
             has_dataclass_bases = True
             for f in base_fields.values():
                 fields[f.name] = f
@@ -248,8 +277,26 @@ def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen):
                 any_frozen_base = True
 
     cls_annotations = cls.__dict__.get('__annotations__', {})
-    cls_fields = [_get_field(cls, name, type)
-                  for name, type in cls_annotations.items()]
+
+    cls_fields = []
+
+    KW_ONLY_seen = False
+    dataclasses = __strict_tryimport__("dataclasses")
+    for name, type in cls_annotations.items():
+        # See if this is a marker to change the value of kw_only.
+        if (_is_kw_only(type, dataclasses)
+            or (isinstance(type, str) and _str_iskwonly(type))):
+            # Switch the default to kw_only=True, and ignore this
+            # annotation: it's not a real field.
+            if KW_ONLY_seen:
+                raise TypeError(f'{name!r} is KW_ONLY, but KW_ONLY '
+                                'has already been specified')
+            KW_ONLY_seen = True
+            kw_only = True
+        else:
+            # Otherwise it's a field of some type.
+            cls_fields.append(_get_field(cls, name, type, kw_only))
+
     for f in cls_fields:
         fields[f.name] = f
         if isinstance(getattr(cls, f.name, None), Field):
@@ -270,17 +317,24 @@ def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen):
     if order and not eq:
         raise ValueError('eq must be true if order is true')
 
+    all_init_fields = [f for f in fields.values()
+                       if f._field_type in (_FIELD, _FIELD_INITVAR)]
+    (std_init_fields,
+     kw_only_init_fields) = _fields_in_init_order(all_init_fields)
+
     if init:
         has_post_init = hasattr(cls, _POST_INIT_NAME)
-        flds = [f for f in fields.values()
-                if f._field_type in (_FIELD, _FIELD_INITVAR)]
+
         _set_new_attribute(cls, '__init__',
-                           _init_fn(flds,
+                           _init_fn(all_init_fields,
+                                    std_init_fields,
+                                    kw_only_init_fields,
                                     frozen,
                                     has_post_init,
                                     '__dataclass_self__' if 'self' in fields
                                             else 'self',
                                     globals,
+                                    slots,
                           ))
 
     field_list = [f for f in fields.values() if f._field_type is _FIELD]
@@ -320,6 +374,15 @@ def _process_class(cls, init, repr, eq, order, unsafe_hash, frozen):
                                has_explicit_hash]
     if hash_action:
         cls.__hash__ = hash_action(cls, field_list, globals)
+
+    if match_args:
+        _set_new_attribute(cls, '__match_args__',
+                           tuple(f.name for f in std_init_fields))
+
+    if slots:
+        cls = _add_slots(cls, frozen)
+
+    abc.update_abstractmethods(cls)
 
     return cls
 

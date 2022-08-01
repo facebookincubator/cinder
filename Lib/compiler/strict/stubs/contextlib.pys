@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from functools import wraps
 import abc
+from types import GenericAlias
 
 @implicit
 def contextmanager(): ...
