@@ -201,6 +201,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DELETE_SUBSCR,
     DUP_TOP,
     DUP_TOP_TWO,
+    EXTENDED_ARG,
     FOR_ITER,
     FORMAT_VALUE,
     GET_ITER,
