@@ -584,9 +584,11 @@ TEST_F(HIRBuilderTest, GetLength) {
     Snapshot {
       NextInstrOffset 4
       Locals<1> v0
-      Stack<1> v1
+      Stack<2> v0 v1
     }
-    Return v1
+    v2 = Assign v1
+    v1 = Assign v0
+    Return v2
   }
 }
 )";

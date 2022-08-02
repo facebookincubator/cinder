@@ -2318,7 +2318,7 @@ void HIRBuilder::emitCompareOp(
 void HIRBuilder::emitGetLen(TranslationContext& tc) {
   FrameState state = tc.frame;
   auto& stack = tc.frame.stack;
-  Register* obj = stack.pop();
+  Register* obj = stack.top();
   Register* result = temps_.AllocateStack();
   tc.emit<GetLength>(result, obj, state);
   stack.push(result);
