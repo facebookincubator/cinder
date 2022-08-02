@@ -568,7 +568,7 @@ class CinderTest(unittest.TestCase):
             def f(self):
                 return 42
 
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(TypeError):
             a = C().f
 
         with self.assertRaises(AttributeError):
@@ -820,6 +820,20 @@ class CinderTest(unittest.TestCase):
     def test_cached_property_readonly_descriptor(self):
         with self.assertRaises(TypeError):
             cached_property(lambda self: 42, range.start)
+
+    def test_cached_property_set_name_on_slot_backed_property(self):
+        class ItemWithSlots:
+            __slots__ = "cost"
+
+            def cost_impl(self):
+                return 42
+
+        cp = ItemWithSlots.cost = cached_property(
+            ItemWithSlots.cost_impl, ItemWithSlots.cost
+        )
+
+        with self.assertRaises(RuntimeError):
+            cp.__set_name__(cp, "new")
 
     def test_warn_on_type(self):
         class C:
@@ -2260,6 +2274,139 @@ class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
         self.assertIs(cinder._get_coro_awaiter(coro2), None)
         coro2_rendez.barrier.set_result(None)
         await coro2_task
+
+
+# NOTE: These tests ensure that Cinder's implementation of cached
+# properties is as close to the upstream implementation as possible.
+# As such, the tests are duplicates, but the Cinder implementation differs
+# a little (supports slots, does not support multi-threaded scenarios), so
+# we skip these tests:
+#   - test_immutable_dict
+#   - test_set_name_not_called
+#   - test_threaded
+# and add one:
+#   - test_object_with_slots_supported
+# and rename one:
+#   - test_object_with_slots ==> test_object_with_slots_inline_decorator
+
+
+class CachedCostItem:
+    _cost = 1
+
+    @cached_property
+    def cost(self):
+        """The cost of the item."""
+        self._cost += 1
+        return self._cost
+
+
+class OptionallyCachedCostItem:
+    _cost = 1
+
+    def get_cost(self):
+        """The cost of the item."""
+        self._cost += 1
+        return self._cost
+
+    cached_cost = cached_property(get_cost)
+
+
+class CachedCostItemWithSlotsInlineDecorator:
+    __slots__ = "_cost"
+
+    def __init__(self):
+        self._cost = 1
+
+    @cached_property
+    def cost(self):
+        raise RuntimeError("never called, slots not supported this way")
+
+
+class CachedCostItemWithSlots:
+    __slots__ = "cost"
+
+    def cost_impl(self):
+        return 42
+
+
+CachedCostItemWithSlots.cost = cached_property(
+    CachedCostItemWithSlots.cost_impl, CachedCostItemWithSlots.cost
+)
+
+
+class TestCinderCachedPropertyCompatibility(unittest.TestCase):
+    def test_cached(self):
+        item = CachedCostItem()
+        self.assertEqual(item.cost, 2)
+        self.assertEqual(item.cost, 2)  # not 3
+
+    def test_cached_attribute_name_differs_from_func_name(self):
+        item = OptionallyCachedCostItem()
+        self.assertEqual(item.get_cost(), 2)
+        self.assertEqual(item.cached_cost, 3)
+        self.assertEqual(item.get_cost(), 4)
+        self.assertEqual(item.cached_cost, 3)
+
+    def test_object_with_slots_inline_decorator(self):
+        item = CachedCostItemWithSlotsInlineDecorator()
+        with self.assertRaisesRegex(
+            TypeError,
+            "No '__dict__' attribute on 'CachedCostItemWithSlotsInlineDecorator' instance to cache 'cost' property.",
+        ):
+            item.cost
+
+    def test_object_with_slots_supported(self):
+        item = CachedCostItemWithSlots()
+        self.assertEqual(item.cost, 42)
+
+    def test_reuse_different_names(self):
+        """Disallow this case because decorated function a would not be cached."""
+        with self.assertRaises(RuntimeError) as ctx:
+
+            class ReusedCachedProperty:
+                @cached_property
+                def a(self):
+                    pass
+
+                b = a
+
+        self.assertEqual(
+            str(ctx.exception.__context__),
+            str(
+                TypeError(
+                    "Cannot assign the same cached_property to two different names ('a' and 'b')."
+                )
+            ),
+        )
+
+    def test_reuse_same_name(self):
+        """Reusing a cached_property on different classes under the same name is OK."""
+        counter = 0
+
+        @cached_property
+        def _cp(_self):
+            nonlocal counter
+            counter += 1
+            return counter
+
+        class A:
+            cp = _cp
+
+        class B:
+            cp = _cp
+
+        a = A()
+        b = B()
+
+        self.assertEqual(a.cp, 1)
+        self.assertEqual(b.cp, 2)
+        self.assertEqual(a.cp, 1)
+
+    def test_access_from_class(self):
+        self.assertIsInstance(CachedCostItem.cost, cached_property)
+
+    def test_doc(self):
+        self.assertEqual(CachedCostItem.cost.__doc__, "The cost of the item.")
 
 
 if __name__ == "__main__":

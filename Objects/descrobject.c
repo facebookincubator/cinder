@@ -2221,13 +2221,8 @@ cached_property_init(PyObject *self, PyObject *args, PyObject *kwds)
         }
 
         Py_TYPE(self) = &PyCachedPropertyWithDescr_Type;
-    } else if (PyFunction_Check(func)) {
-        name_or_descr = ((PyFunctionObject *)func)->func_name;
     } else {
-        name_or_descr = PyObject_GetAttrString(func, "__name__");
-        if (name_or_descr == NULL) {
-            return -1;
-        }
+        name_or_descr = Py_None;
     }
 
     cp->func = func;
@@ -2291,6 +2286,14 @@ cached_property_get(PyObject *self, PyObject *obj, PyObject *cls)
     } else {
         dict = PyObject_GenericGetDict(obj, NULL);
         if (dict == NULL) {
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+                PyErr_Format(
+                    PyExc_TypeError,
+                    "No '__dict__' attribute on '%s' instance to cache '%U' property.",
+                    Py_TYPE(obj)->tp_name, cp->name_or_descr
+                );
+            }
             return NULL;
         }
 
@@ -2454,6 +2457,50 @@ cached_property_has_value(PyCachedPropertyDescrObject *self, PyObject *obj)
     Py_RETURN_TRUE;
 }
 
+static PyObject *
+cached_property___set_name__(PyObject* self, PyObject* const* args, Py_ssize_t nargs)
+{
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_TypeError, "cached_property.__set_name__: 2 arguments expected");
+        return NULL;
+    }
+    PyCachedPropertyDescrObject *cp = (PyCachedPropertyDescrObject *)self;
+    PyObject *Py_UNUSED(owner) = args[0];
+    PyObject *name = args[1];
+
+    // Perform error checks if the name wasn't initialized (i.e, not None)
+    if (cp->name_or_descr != Py_None) {
+        if (PyUnicode_CheckExact(cp->name_or_descr)) {
+            // Check for naming conflicts
+            if (PyUnicode_Compare(cp->name_or_descr, name) != 0) {
+                if (!_PyErr_OCCURRED()) {
+                    // Avoid masking existing errors
+                    PyErr_Format(
+                        PyExc_TypeError,
+                        "Cannot assign the same cached_property to two different names (%R and %R).",
+                        cp->name_or_descr, name
+                    );
+                }
+                return NULL;
+            }
+        } else {
+            // This cannot normally happen in managed code, unless someone manually calls `__set_name__`
+            // after a slot-backed property was defined (see test_cached_property_set_name_on_slot_backed_property)
+            PyErr_Format(
+                PyExc_RuntimeError,
+                "Cannot set name (%R) for a cached property backed by a slot (%R)",
+                name, cp
+            );
+            return NULL;
+        }
+    }
+
+    Py_SETREF(cp->name_or_descr, name);
+    Py_INCREF(name);
+    Py_RETURN_NONE;
+}
+
+
 static PyGetSetDef cached_property_getsetlist[] = {
     {"__doc__", (getter)cached_property_get___doc__, NULL, NULL, NULL},
     {"__name__", (getter)cached_property_get_name, NULL, NULL, NULL},
@@ -2472,6 +2519,7 @@ static PyMemberDef cached_property_members[] = {
 static PyMethodDef cached_property_methods[] = {
     {"clear", (PyCFunction)cached_property_clear, METH_O, NULL},
     {"has_value", (PyCFunction)cached_property_has_value, METH_O, NULL},
+    {"__set_name__", (PyCFunction)cached_property___set_name__, METH_FASTCALL, NULL},
     {NULL, NULL}
 };
 
