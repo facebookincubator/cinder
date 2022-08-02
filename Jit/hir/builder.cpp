@@ -5,6 +5,7 @@
 #include "arraymodule.h"
 #include "boolobject.h"
 #include "ceval.h"
+#include "object.h"
 #include "opcode.h"
 #include "pyreadonly.h"
 #include "structmember.h"
@@ -250,6 +251,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     // New CPython 3.10 opcodes
     GET_LEN,
     LOAD_ASSERTION_ERROR,
+    MATCH_KEYS,
     MATCH_MAPPING,
     MATCH_SEQUENCE,
     ROT_N,
@@ -495,7 +497,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     LIST_EXTEND,
     LIST_TO_TUPLE,
     MATCH_CLASS,
-    MATCH_KEYS,
     RERAISE,
     WITH_EXCEPT_START,
 };
@@ -1435,6 +1436,9 @@ void HIRBuilder::translate(
           emitSetupWith(tc, bc_instr);
           break;
         }
+        case MATCH_KEYS:
+          emitMatchKeys(irfunc.cfg, tc);
+          break;
         case MATCH_MAPPING:
           emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_MAPPING);
           break;
@@ -4157,6 +4161,44 @@ void HIRBuilder::emitMatchMappingSequence(
   tc.block = done;
 
   tc.frame.stack.push(result);
+}
+
+void HIRBuilder::emitMatchKeys(CFG& cfg, TranslationContext& tc) {
+  auto& stack = tc.frame.stack;
+  Register* keys = stack.top();
+  Register* subject = stack.top(1);
+
+  auto values_or_none = temps_.AllocateStack();
+
+  auto match_keys_call = tc.emit<CallStatic>(
+      2, values_or_none, reinterpret_cast<void*>(JITRT_MatchKeys), TOptObject);
+  match_keys_call->SetOperand(0, keys);
+  match_keys_call->SetOperand(1, subject);
+  tc.emit<Guard>(values_or_none);
+  stack.push(values_or_none);
+
+  auto none = temps_.AllocateStack();
+  tc.emit<LoadConst>(none, Type::fromObject(Py_None));
+  auto is_none = temps_.AllocateStack();
+  tc.emit<PrimitiveCompare>(
+      is_none, PrimitiveCompareOp::kEqual, values_or_none, none);
+
+  auto true_block = cfg.AllocateBlock();
+  auto false_block = cfg.AllocateBlock();
+  auto done = cfg.AllocateBlock();
+
+  tc.emit<CondBranch>(is_none, true_block, false_block);
+  auto obj = temps_.AllocateStack();
+  tc.block = true_block;
+  tc.emit<LoadConst>(obj, Type::fromObject(Py_True));
+  tc.emit<Branch>(done);
+
+  tc.block = false_block;
+  tc.emit<LoadConst>(obj, Type::fromObject(Py_False));
+  tc.emit<Branch>(done);
+
+  stack.push(obj);
+  tc.block = done;
 }
 
 void HIRBuilder::insertEvalBreakerCheck(

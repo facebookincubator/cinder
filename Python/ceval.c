@@ -905,7 +905,7 @@ _Py_CheckRecursiveCall(PyThreadState *tstate, const char *where)
 
 // Return a tuple of values corresponding to keys, with error checks for
 // duplicate/missing keys.
-static PyObject*
+PyObject*
 match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys)
 {
     assert(PyTuple_CheckExact(keys));

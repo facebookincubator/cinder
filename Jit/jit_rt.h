@@ -551,3 +551,9 @@ Py_ssize_t JITRT_CheckSequenceBounds(PyObject* seq, Py_ssize_t i);
 /* Call obj.__len__(). Return LongExact on success or NULL with an exception
  * set if there was an error. */
 PyObject* JITRT_GetLength(PyObject* obj);
+
+/* Call match_keys() in ceval.c
+ * NOTE: This function is here only because tstate cannot be expressed in HIR
+ * for now. This function should be removed when it can in the future.
+ */
+PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject);

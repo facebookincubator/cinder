@@ -3,6 +3,7 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "cinder/exports.h"
 #include "cinder/porting-support.h"
 #include "classloader.h"
 #include "frameobject.h"
@@ -2020,4 +2021,8 @@ PyObject* JITRT_GetLength(PyObject* obj) {
     return nullptr;
   }
   return PyLong_FromSsize_t(len);
+}
+
+PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject) {
+  return match_keys(PyThreadState_Get(), keys, subject);
 }
