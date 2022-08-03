@@ -2,6 +2,7 @@
 #include "Jit/codegen/gen_asm.h"
 
 #include "Python.h"
+#include "cinder/exports.h"
 #include "classloader.h"
 #include "frameobject.h"
 #include "internal/pycore_pystate.h"
@@ -1385,16 +1386,20 @@ bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr) {
 }
 
 static void raiseUnboundLocalError(BorrowedRef<> name) {
-  PyErr_Format(
+  // name is converted into a `char*` in format_exc_check_arg
+  format_exc_check_arg(
+      _PyThreadState_GET(),
       PyExc_UnboundLocalError,
-      "local variable '%.200U' referenced before assignment",
+      "local variable '%.200s' referenced before assignment",
       name);
 }
 
 static void raiseUnboundFreevarError(BorrowedRef<> name) {
-  PyErr_Format(
+  // name is converted into a `char*` in format_exc_check_arg
+  format_exc_check_arg(
+      _PyThreadState_GET(),
       PyExc_NameError,
-      "free variable '%.200U' referenced before assignment in enclosing scope",
+      "free variable '%.200s' referenced before assignment in enclosing scope",
       name);
 }
 

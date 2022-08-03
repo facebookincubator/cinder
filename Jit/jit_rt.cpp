@@ -659,7 +659,12 @@ JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
   PyObject* result =
       _PyDict_LoadGlobal((PyDictObject*)globals, (PyDictObject*)builtins, name);
   if ((result == NULL) && !PyErr_Occurred()) {
-    PyErr_Format(PyExc_NameError, "name '%.200U' is not defined", name);
+    // name is converted to a `char*` by format_exc_check_arg
+    format_exc_check_arg(
+        _PyThreadState_GET(),
+        PyExc_NameError,
+        "name '%.200s' is not defined",
+        name);
   }
   Py_XINCREF(result);
   return result;

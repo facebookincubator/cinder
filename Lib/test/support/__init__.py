@@ -995,7 +995,11 @@ def refcount_test(test):
     unexpected refcounts caused by the trace function.
 
     """
-    return no_tracing(cpython_only(test))
+    try:
+        import cinderjit
+        return unittest.skip("tests refcounting implementation details of CPython, which may differ from the JIT")
+    except ImportError:
+        return no_tracing(cpython_only(test))
 
 
 def _filter_suite(suite, pred):

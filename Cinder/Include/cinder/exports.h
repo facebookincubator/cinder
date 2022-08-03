@@ -33,6 +33,8 @@ PyAPI_FUNC(PyObject *) special_lookup(PyThreadState *tstate, PyObject *o, _Py_Id
 PyAPI_FUNC(int) check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args);
 PyAPI_FUNC(void) format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs);
 PyAPI_FUNC(void) format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode);
+PyAPI_FUNC(void)
+    format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
 
 /* Enable or disable interpreter type profiling for all threads or for a
    specific thread. */

@@ -128,8 +128,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DELETE_SUBSCR,
     EXTENDED_ARG,
     FORMAT_VALUE,
-    // TODO(T126724435): Need dictionary watchers to notify the JIT
-    LOAD_GLOBAL,
     MAKE_FUNCTION, // T126141867
     STORE_SUBSCR,
     UNPACK_EX,
@@ -226,6 +224,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_ATTR_SUPER,
     LOAD_CONST,
     LOAD_FAST,
+    LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
     NOP,

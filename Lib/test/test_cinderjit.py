@@ -1,13 +1,15 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import _testcapi
 import asyncio
+import builtins
 import dis
 import unittest
 import warnings
 from functools import cmp_to_key
+from pathlib import Path
+from textwrap import dedent
 
 if unittest.cinder_enable_broken_tests():
-    import builtins
     import gc
     import sys
     import tempfile
@@ -18,8 +20,6 @@ if unittest.cinder_enable_broken_tests():
     from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
     from compiler.static import StaticCodeGenerator
     from contextlib import contextmanager
-    from pathlib import Path
-    from textwrap import dedent
 
     try:
         with warnings.catch_warnings():
@@ -981,7 +981,6 @@ class StoreAttrCacheTests(unittest.TestCase):
         self.assertEqual(obj1.foo, 300)
 
 
-@unittest.cinderPortingBrokenTest()
 class LoadGlobalCacheTests(unittest.TestCase):
     def setUp(self):
         global license, a_global
@@ -1000,7 +999,8 @@ class LoadGlobalCacheTests(unittest.TestCase):
         a_global = value
 
     @staticmethod
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def get_global():
         return a_global
 
@@ -1020,6 +1020,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         del license
 
     @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_simple(self):
         global a_global
         self.set_global(123)
@@ -1027,7 +1028,8 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.set_global(456)
         self.assertEqual(a_global, 456)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_shadow_builtin(self):
         self.assertIs(license, builtins.license)
         self.set_license(0xDEADBEEF)
@@ -1106,6 +1108,9 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 sys.path[:] = _orig_sys_path
                 sys.modules = _orig_sys_modules
 
+    @unittest.cinderPortingBrokenTest()
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1170,6 +1175,9 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 ]
                 self.assertEqual(relevant_deopts, [])
 
+    @unittest.cinderPortingBrokenTest()
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1209,6 +1217,9 @@ class LoadGlobalCacheTests(unittest.TestCase):
             if cinderjit:
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
+    @unittest.cinderPortingBrokenTest()
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(

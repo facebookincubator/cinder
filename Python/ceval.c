@@ -89,7 +89,6 @@ static void dtrace_function_entry(PyFrameObject *);
 static void dtrace_function_return(PyFrameObject *);
 
 static int import_all_from(PyThreadState *, PyFrameObject *, PyObject *);
-static void format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
@@ -6861,7 +6860,7 @@ format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs)
     }
 }
 
-static void
+void
 format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
                      const char *format_str, PyObject *obj)
 {

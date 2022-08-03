@@ -310,8 +310,6 @@ void Preloader::preload() {
   for (auto bc_instr : bc_instrs) {
     switch (bc_instr.opcode()) {
       case LOAD_GLOBAL: {
-#ifdef CINDER_PORTING_DONE
-        // TODO(T126724435): Need dictionary watchers to notify the JIT
         if (_PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_)) {
           int name_idx = bc_instr.oparg();
           BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
@@ -323,7 +321,6 @@ void Preloader::preload() {
           getGlobalCache(name);
           global_names_.emplace(name_idx, name);
         }
-#endif
         break;
       }
       case CHECK_ARGS: {

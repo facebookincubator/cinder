@@ -1444,6 +1444,7 @@ test case
             with self.assertRaises(RuntimeWarning):
                 self.assertWarns(DeprecationWarning, _runtime_warn)
 
+    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def testAssertWarnsContext(self):
         # Believe it or not, it is preferable to duplicate all tests above,
         # to make sure the __warningregistry__ $@ is circumvented correctly.
@@ -1539,6 +1540,7 @@ test case
                 self.assertWarnsRegex(RuntimeWarning, "o+",
                                       _runtime_warn, "barz")
 
+    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def testAssertWarnsRegexContext(self):
         # Same as above, but with assertWarnsRegex as a context manager
         def _runtime_warn(msg):
