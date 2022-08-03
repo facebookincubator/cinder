@@ -2,8 +2,6 @@
 #include "Jit/pyjit.h"
 
 #include "Python.h"
-//#include "internal/pycore_pystate.h"
-#include "Include/internal/pycore_pystate.h"
 #include "cinder/exports.h"
 #include "cinder/porting-support.h"
 #include "internal/pycore_shadow_frame.h"
