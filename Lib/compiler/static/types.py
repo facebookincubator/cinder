@@ -6329,6 +6329,7 @@ class Slot(Object[TClassInv]):
             code_gen.emit_invoke_method(
                 self.container_type.type_descr + ((self.slot_name, "fset"),), 1
             )
+            code_gen.emit("POP_TOP")
             return
 
         type_descr = self.container_type.type_descr
