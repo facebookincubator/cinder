@@ -133,6 +133,7 @@ from _static import (  # noqa: F401
     TYPED_UINT8,
 )
 
+from ..consts import CO_STATICALLY_COMPILED
 from ..errors import TypedSyntaxError
 from ..optimizer import AstOptimizer
 from ..pyassem import Block, FVC_REPR
@@ -4539,6 +4540,7 @@ class CachedPropertyMethod(PropertyMethod):
             )
         return super().resolve_attr(node, visitor)
 
+
 class AsyncCachedPropertyMethod(PropertyMethod):
     def __init__(self, function: Function | DecoratedMethod, decorator: expr) -> None:
         super().__init__(
@@ -5462,10 +5464,12 @@ class Dataclass(Class):
         code_gen: Static38CodeGenerator,
         func: str,
         args: Tuple[str, ...],
+        return_type_descr: TypeDescr,
     ) -> PyFlowGraph38Static:
         scope = FunctionScope(func, code_gen.cur_mod, code_gen.scope.klass)
         scope.parent = code_gen.scope
-        return code_gen.flow_graph(
+
+        graph = code_gen.flow_graph(
             func,
             code_gen.graph.filename,
             scope,
@@ -5473,6 +5477,9 @@ class Dataclass(Class):
             optimized=1,
             firstline=node.lineno,
         )
+        graph.setFlag(CO_STATICALLY_COMPILED)
+        graph.extra_consts.append(return_type_descr)
+        return graph
 
     def emit_method(
         self,
@@ -5493,7 +5500,13 @@ class Dataclass(Class):
         method_name: str,
         op: str,
     ) -> None:
-        graph = self.flow_graph(node, code_gen, method_name, ("self", "other"))
+        graph = self.flow_graph(
+            node,
+            code_gen,
+            method_name,
+            ("self", "other"),
+            self.type_env.object.type_descr,
+        )
         false = graph.newBlock()
 
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
@@ -5536,7 +5549,9 @@ class Dataclass(Class):
             args = ("self", "name", "value")
             msg = "cannot assign to field "
 
-        graph = self.flow_graph(node, code_gen, method_name, args)
+        graph = self.flow_graph(
+            node, code_gen, method_name, args, self.type_env.none.type_descr
+        )
         error = graph.newBlock()
         super_call = graph.newBlock()
 
@@ -5589,7 +5604,9 @@ class Dataclass(Class):
         node: ClassDef,
         code_gen: Static38CodeGenerator,
     ) -> None:
-        graph = self.flow_graph(node, code_gen, "__hash__", ("self",))
+        graph = self.flow_graph(
+            node, code_gen, "__hash__", ("self",), self.type_env.int.type_descr
+        )
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_GLOBAL", "hash")
 
@@ -5622,6 +5639,7 @@ class Dataclass(Class):
             code_gen,
             "__init__",
             args=(self_name, *self.init_fields),
+            return_type_descr=self.type_env.none.type_descr,
         )
 
         args = [0, self.inexact_type().type_descr]
@@ -5703,7 +5721,9 @@ class Dataclass(Class):
         node: ClassDef,
         code_gen: Static38CodeGenerator,
     ) -> None:
-        graph = self.flow_graph(node, code_gen, "__repr__", ("self",))
+        graph = self.flow_graph(
+            node, code_gen, "__repr__", ("self",), self.type_env.str.type_descr
+        )
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_TYPE")

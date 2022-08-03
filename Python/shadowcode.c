@@ -1051,6 +1051,9 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
 
 int _PyShadow_CacheFunction(_PyShadow_EvalState *state, PyObject **func)
 {
+    if (func == NULL) {
+        return -1;
+    }
     _PyShadowCode *shadow = state->shadow;
     for (Py_ssize_t i = 0; i < shadow->functions_size; i++) {
         if (shadow->functions[i] == func || shadow->functions[i] == NULL) {

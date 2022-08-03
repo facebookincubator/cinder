@@ -1,6 +1,5 @@
 from compiler.pycodegen import PythonCodeGenerator
 from compiler.static.types import ParamStyle
-from unittest import skip
 
 from .common import StaticTestBase
 
@@ -325,7 +324,6 @@ class PerfLintTests(StaticTestBase):
         errors = self.perf_lint(codestr)
         errors.check_warnings()
 
-    @skip("Static dataclasses are disabled, tracking at T127970370")
     def test_dataclass_dynamic_base(self) -> None:
         codestr = """
         class SuperClass:
