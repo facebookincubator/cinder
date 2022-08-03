@@ -362,6 +362,7 @@ class Compiler:
                 "box": BoxFunction(self.type_env.function),
                 "cast": CastFunction(self.type_env.function),
                 "clen": LenFunction(self.type_env.function, boxed=False),
+                "dataclass": self.type_env.dataclass,
                 "ExcContextDecorator": self.type_env.exc_context_decorator.exact_type(),
                 "ContextDecorator": self.type_env.context_decorator.exact_type(),
                 "dynamic_return": self.type_env.dynamic_return,
@@ -405,6 +406,7 @@ class Compiler:
             },
         )
 
+        # TODO(T127970370): The "dataclass" decorator needs to be re-added here.
         self.modules["dataclasses"] = ModuleTable(
             "dataclasses",
             "Lib/dataclasses.py",
@@ -412,7 +414,6 @@ class Compiler:
             {
                 "Field": self.type_env.dataclass_field,
                 "InitVar": self.type_env.initvar,
-                "dataclass": self.type_env.dataclass,
                 "field": self.type_env.dataclass_field_function,
             },
         )

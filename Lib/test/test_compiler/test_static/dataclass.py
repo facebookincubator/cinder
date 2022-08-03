@@ -10,10 +10,12 @@ from dataclasses import (
     MISSING,
 )
 from typing import Mapping
+from unittest import skip
 
 from .common import StaticTestBase
 
 
+@skip("Static dataclasses are disabled, tracking at T127970370")
 class DataclassTests(StaticTestBase):
     def test_static_dataclass_is_not_dynamic(self) -> None:
         for call in [True, False]:

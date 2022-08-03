@@ -6,6 +6,7 @@ import functools
 import random
 import time
 from asyncio import iscoroutinefunction
+from dataclasses import dataclass as dataclass
 from types import FunctionType, Union as typesUnion
 from typing import (
     _GenericAlias,
