@@ -1329,12 +1329,11 @@ DEFINE_SIMPLE_INSTR(
 // extend the list with the elements in iterable
 // Takes a list as operand 0
 // Takes an iterable as operand 1
-// Takes a func as operand 2
 DEFINE_SIMPLE_INSTR(
     ListExtend,
-    (Constraint::kListOrChkList, TObject, TOptObject),
+    (Constraint::kListOrChkList, TObject),
     HasOutput,
-    Operands<3>,
+    Operands<2>,
     DeoptBase);
 
 // Gets a tuple representation from a sequence.

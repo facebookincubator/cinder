@@ -57,13 +57,17 @@ _Invoke_PySlice_New(PyObject* start, PyObject* stop, PyObject* step) {
 extern "C" PyObject* __Invoke_PyList_Extend(
     PyThreadState* tstate,
     PyListObject* list,
-    PyObject* iterable,
-    PyObject* func) {
+    PyObject* iterable) {
   PyObject* none_val = _PyList_Extend(list, iterable);
-  bool with_call = func != nullptr;
   if (none_val == nullptr) {
-    if (with_call && _PyErr_ExceptionMatches(tstate, PyExc_TypeError)) {
-      check_args_iterable(tstate, func, iterable);
+    if (_PyErr_ExceptionMatches(tstate, PyExc_TypeError) &&
+        Py_TYPE(iterable)->tp_iter == nullptr && !PySequence_Check(iterable)) {
+      _PyErr_Clear(tstate);
+      _PyErr_Format(
+          tstate,
+          PyExc_TypeError,
+          "Value after * must be an iterable, not %.200s",
+          Py_TYPE(iterable)->tp_name);
     }
   }
 
@@ -2333,8 +2337,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             __Invoke_PyList_Extend,
             "__asm_tstate",
             instr->GetOperand(0),
-            instr->GetOperand(1),
-            instr->GetOperand(2));
+            instr->GetOperand(1));
         break;
       }
       case Opcode::kMakeTupleFromList: {

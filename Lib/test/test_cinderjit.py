@@ -3722,7 +3722,7 @@ class GetIterForIterTests(unittest.TestCase):
                 self.idx += 1
                 return 1
 
-        with self.assertRaisesRegexp(MyException, "raised error on idx 3"):
+        with self.assertRaisesRegex(MyException, "raised error on idx 3"):
             self.doit(MyIterable())
 
     def test_iterate_generator(self):
@@ -3751,7 +3751,7 @@ class SetUpdateTests(unittest.TestCase):
         return result
 
     def test_iterate_non_iterable_raises_type_error(self):
-        with self.assertRaisesRegexp(TypeError, "'int' object is not iterable"):
+        with self.assertRaisesRegex(TypeError, "'int' object is not iterable"):
             self.doit(42)
 
     def test_iterate_set_builds_set(self):
@@ -3923,6 +3923,33 @@ class FormatValueTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TestException, "no"):
             self.assertEqual(self.doit_repr(C()))
+
+
+class ListExtendTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LIST_EXTEND")
+    def extend_list(self, it):
+        return [1, *it]
+
+    def test_list_extend_with_list(self):
+        self.assertEqual(self.extend_list([2, 3, 4]), [1, 2, 3, 4])
+
+    def test_list_extend_with_iterable(self):
+        class A:
+            def __init__(self, value):
+                self.value = value
+
+            def __iter__(self):
+                return iter(self.value)
+
+        extended_list = self.extend_list(A([2, 3]))
+        self.assertEqual(type(extended_list), list)
+        self.assertEqual(extended_list, [1, 2, 3])
+
+    def test_list_extend_with_non_iterable_raises_type_error(self):
+        err_msg = r"Value after \* must be an iterable, not int"
+        with self.assertRaisesRegex(TypeError, err_msg):
+            self.extend_list(1)
 
 
 if __name__ == "__main__":

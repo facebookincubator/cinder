@@ -285,6 +285,9 @@ class HIRBuilder {
   void emitListAppend(
       TranslationContext& tc,
       const BytecodeInstruction& bc_instr);
+  void emitListExtend(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitForIter(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,

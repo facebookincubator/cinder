@@ -73,7 +73,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     GET_LEN, // T126141793
     IS_OP, // T125844569
     JUMP_IF_NOT_EXC_MATCH, // T125844569, T125899460
-    LIST_EXTEND, // T126141737
     LIST_TO_TUPLE, // T126141719
     LOAD_ASSERTION_ERROR, // T126141711
     MATCH_CLASS, // T126141840
@@ -247,6 +246,9 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_POSITIVE,
     UNPACK_EX,
     UNPACK_SEQUENCE,
+
+    // New CPython 3.9 opcodes
+    LIST_EXTEND,
 
     // New CPython 3.10 opcodes
     GET_LEN,
@@ -494,7 +496,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     GEN_START,
     IS_OP,
     JUMP_IF_NOT_EXC_MATCH,
-    LIST_EXTEND,
     LIST_TO_TUPLE,
     MATCH_CLASS,
     RERAISE,
@@ -1276,6 +1277,10 @@ void HIRBuilder::translate(
         }
         case LIST_APPEND: {
           emitListAppend(tc, bc_instr);
+          break;
+        }
+        case LIST_EXTEND: {
+          emitListExtend(tc, bc_instr);
           break;
         }
         case LOAD_ITERABLE_ARG: {
@@ -3384,6 +3389,15 @@ void HIRBuilder::emitMakeListTuple(
   auto new_dst = temps_.AllocateStack();
   tc.emit<Assign>(new_dst, dst);
   tc.frame.stack.push(new_dst);
+}
+
+void HIRBuilder::emitListExtend(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  Register* iterable = tc.frame.stack.pop();
+  Register* list = tc.frame.stack.peek(bc_instr.oparg());
+  Register* none = temps_.AllocateStack();
+  tc.emit<ListExtend>(none, list, iterable, tc.frame);
 }
 
 void HIRBuilder::emitBuildCheckedList(
