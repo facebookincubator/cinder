@@ -1435,6 +1435,32 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(mod.invoke(a), 42)
             self.assertEqual(mod.invoke(b), 0)
 
+    def test_compat_override_redeclared_kwarg(self):
+        codestr = """
+            import __static__
+
+            class A:
+                def m(
+                    self, x: int | None = None, **kwargs: object
+                ) -> int:
+                    return 1
+
+            class B(A):
+                def m(
+                    self, x: int | None = None, **kwargs: object
+                ) -> int:
+                    return 2
+
+            def invoke(o: A) -> int:
+                return o.m()
+        """
+        with self.in_module(codestr) as mod:
+            a = mod.A()
+            b = mod.B()
+
+            self.assertEqual(mod.invoke(a), 1)
+            self.assertEqual(mod.invoke(b), 2)
+
     def test_incompat_override_method_kwonly_mismatch(self):
         codestr = """
             class A:
