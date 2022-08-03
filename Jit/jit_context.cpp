@@ -289,6 +289,20 @@ jit::CompiledFunction* lookupCompiledCode(
   return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
 }
 
+bool freevarsContainsClass(BorrowedRef<PyCodeObject> code) {
+  BorrowedRef<PyTupleObject> freevars{code->co_freevars};
+  if (freevars == nullptr) {
+    return false;
+  }
+  for (Py_ssize_t i = 0; i < PyTuple_Size(freevars); i++) {
+    if (PyUnicode_CompareWithASCIIString(
+            PyTuple_GET_ITEM(freevars, i), "__class__") == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CompilationResult compilePreloader(
     _PyJITContext* ctx,
     const jit::hir::Preloader& preloader) {
@@ -305,11 +319,7 @@ CompilationResult compilePreloader(
       // TODO(T127678238) Remove this condition once we port LOAD_METHOD_SUPER
       // and family. Right now we disallow compilation of any function with
       // __class__ in its closure (which are functions that use super()).
-      (code->co_freevars != nullptr && PyTuple_Size(code->co_freevars) > 0 &&
-       !strncmp(
-           PyUnicode_AsUTF8(PyTuple_GET_ITEM(code->co_freevars, 0)),
-           "__class__",
-           9))) {
+      freevarsContainsClass(code)) {
     return {nullptr, PYJIT_RESULT_CANNOT_SPECIALIZE};
   }
 
