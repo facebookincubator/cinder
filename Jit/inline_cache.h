@@ -94,6 +94,8 @@ class AttributeMutator {
 
 class AttributeCache {
  public:
+  virtual ~AttributeCache();
+
   void typeChanged(PyTypeObject* type);
 
  protected:
@@ -159,6 +161,7 @@ class LoadAttrCache : public AttributeCache {
 class LoadTypeAttrCache {
  public:
   LoadTypeAttrCache();
+  ~LoadTypeAttrCache();
 
   static PyObject*
   invoke(LoadTypeAttrCache* cache, PyObject* obj, PyObject* name);
@@ -178,6 +181,7 @@ class LoadMethodCache {
     BorrowedRef<PyTypeObject> type{nullptr};
     BorrowedRef<> value{nullptr};
   };
+  ~LoadMethodCache();
 
   static JITRT_LoadMethodResult
   lookupHelper(LoadMethodCache* cache, BorrowedRef<> obj, BorrowedRef<> name);

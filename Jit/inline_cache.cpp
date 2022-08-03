@@ -8,6 +8,7 @@
 #include "Jit/dict_watch.h"
 
 #include <algorithm>
+#include <unordered_set>
 
 // clang-format off
 #include "cinder/exports.h"
@@ -21,10 +22,18 @@ namespace {
 
 template <class T>
 struct TypeWatcher {
-  std::unordered_map<BorrowedRef<PyTypeObject>, std::vector<T*>> caches;
+  std::unordered_map<BorrowedRef<PyTypeObject>, std::unordered_set<T*>> caches;
 
   void watch(BorrowedRef<PyTypeObject> type, T* cache) {
-    caches[type].emplace_back(cache);
+    caches[type].emplace(cache);
+  }
+
+  void unwatch(BorrowedRef<PyTypeObject> type, T* cache) {
+    auto it = caches.find(type);
+    if (it == caches.end()) {
+      return;
+    }
+    it->second.erase(cache);
   }
 
   void typeChanged(BorrowedRef<PyTypeObject> type) {
@@ -32,7 +41,7 @@ struct TypeWatcher {
     if (it == caches.end()) {
       return;
     }
-    std::vector<T*> to_notify = std::move(it->second);
+    std::unordered_set<T*> to_notify = std::move(it->second);
     caches.erase(it);
     for (T* cache : to_notify) {
       cache->typeChanged(type);
@@ -99,6 +108,15 @@ void AttributeMutator::set_descr_or_classvar(
   type_ = type;
   descr_or_cvar_.descr = descr;
   descr_or_cvar_.dictoffset = type->tp_dictoffset;
+}
+
+AttributeCache::~AttributeCache() {
+  for (auto& entry : entries_) {
+    if (entry.type() != nullptr) {
+      ac_watcher.unwatch(entry.type(), this);
+      entry.reset();
+    }
+  }
 }
 
 void AttributeCache::typeChanged(PyTypeObject* type) {
@@ -569,6 +587,10 @@ LoadTypeAttrCache::LoadTypeAttrCache() {
   reset();
 }
 
+LoadTypeAttrCache::~LoadTypeAttrCache() {
+  ltac_watcher.unwatch(items[0], this);
+}
+
 PyObject*
 LoadAttrCache::invoke(LoadAttrCache* cache, PyObject* obj, PyObject* name) {
   return cache->doInvoke(obj, name);
@@ -741,6 +763,16 @@ void GlobalCache::update(
 void GlobalCache::disable() const {
   *valuePtr() = nullptr;
   jit::Runtime::get()->forgetLoadGlobalCache(*this);
+}
+
+LoadMethodCache::~LoadMethodCache() {
+  for (auto& entry : entries_) {
+    if (entry.type != nullptr) {
+      lm_watcher.unwatch(entry.type, this);
+      entry.type = nullptr;
+      entry.value = nullptr;
+    }
+  }
 }
 
 void LoadMethodCache::typeChanged(PyTypeObject* type) {
