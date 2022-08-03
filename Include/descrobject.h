@@ -118,6 +118,7 @@ PyAPI_DATA(PyType_Spec) _PyCachedClassProperty_TypeSpec;     /* fb t46346203 */
 PyAPI_DATA(PyTypeObject) PyCachedProperty_Type;     /* fb T46346203 */
 PyAPI_DATA(PyTypeObject) PyCachedPropertyWithDescr_Type;     /* fb T46346203 */
 PyAPI_DATA(PyTypeObject) PyAsyncCachedProperty_Type;     /* fb T82701047 */
+PyAPI_DATA(PyTypeObject) PyAsyncCachedPropertyWithDescr_Type;
 PyAPI_DATA(PyTypeObject) PyAsyncCachedClassProperty_Type;     /* fb T82701047 */
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyWrapperDescr_Type;
@@ -149,4 +150,3 @@ PyAPI_DATA(PyTypeObject) PyProperty_Type;
 }
 #endif
 #endif /* !Py_DESCROBJECT_H */
-

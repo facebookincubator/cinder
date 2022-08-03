@@ -192,7 +192,7 @@ async_cachedpropthunk_get(_Py_AsyncCachedPropertyThunk *thunk, PyObject *const *
         return NULL;
     }
 
-    descrgetfunc f = PyAsyncCachedProperty_Type.tp_descr_get;
+    descrgetfunc f = PyAsyncCachedPropertyWithDescr_Type.tp_descr_get;
 
     PyObject *res = f(thunk->propthunk_target, args[0], (PyObject *)Py_TYPE(args[0]));
     return res;
@@ -1331,7 +1331,7 @@ classloader_get_property_fget(PyTypeObject *type, PyObject *name, PyObject *prop
         thunk->propthunk_target = property;
         Py_INCREF(property);
         return classloader_cache_new_special(type, name, (PyObject *)thunk);
-    } else if (Py_TYPE(property) == &PyAsyncCachedProperty_Type) {
+    } else if (Py_TYPE(property) == &PyAsyncCachedPropertyWithDescr_Type) {
         _Py_AsyncCachedPropertyThunk *thunk = PyObject_GC_New(_Py_AsyncCachedPropertyThunk, &_PyType_AsyncCachedPropertyThunk);
         if (thunk == NULL) {
             return NULL;
@@ -1373,7 +1373,7 @@ classloader_get_property_fset(PyTypeObject *type, PyObject *name, PyObject *prop
         Py_XINCREF(func);
         return func;
     } else if (Py_TYPE(property) == &PyCachedPropertyWithDescr_Type ||
-               Py_TYPE(property) == &PyAsyncCachedProperty_Type) {
+               Py_TYPE(property) == &PyAsyncCachedPropertyWithDescr_Type) {
         PyObject *func = classloader_get_property_missing_fset();
         Py_XINCREF(func);
         return func;
@@ -1807,7 +1807,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
         if (_PyClassLoader_IsStaticFunction(property->func)) {
             res = resolve_function_rettype(property->func, optional, exact, coroutine);
         }
-    } else if (Py_TYPE(func) == &PyAsyncCachedProperty_Type) {
+    } else if (Py_TYPE(func) == &PyAsyncCachedPropertyWithDescr_Type) {
         PyAsyncCachedPropertyDescrObject *property = (PyAsyncCachedPropertyDescrObject *)func;
         if (_PyClassLoader_IsStaticFunction(property->func)) {
             res = resolve_function_rettype(property->func, optional, exact, coroutine);
@@ -2316,7 +2316,7 @@ _PyClassLoader_UpdateSlot(PyTypeObject *type,
     // if this is a property slot, also update the getter and setter slots
     if (Py_TYPE(original) == &PyProperty_Type ||
         Py_TYPE(original) == &PyCachedPropertyWithDescr_Type ||
-        Py_TYPE(original) == &PyAsyncCachedProperty_Type ||
+        Py_TYPE(original) == &PyAsyncCachedPropertyWithDescr_Type ||
         Py_TYPE(original) == &_PyTypedDescriptorWithDefaultValue_Type) {
         if (new_value) {
             // If we have a new value, and it's not a descriptor, we can type-check it
@@ -2418,7 +2418,7 @@ type_vtable_setslot(PyTypeObject *tp,
                 (vectorcallfunc)cachedpropthunk_get;
             Py_INCREF(value);
             return 0;
-        } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+        } else if (Py_TYPE(value) == &PyAsyncCachedPropertyWithDescr_Type) {
             Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)async_cachedpropthunk_get;
@@ -2604,7 +2604,7 @@ used_in_vtable(PyObject *value)
         if (used_in_vtable_worker(func)) {
             return 1;
         }
-    } else if (Py_TYPE(value) == &PyAsyncCachedProperty_Type) {
+    } else if (Py_TYPE(value) == &PyAsyncCachedPropertyWithDescr_Type) {
         PyObject *func = ((PyAsyncCachedPropertyDescrObject *)value)->func;
         if (used_in_vtable_worker(func)) {
             return 1;
@@ -2663,7 +2663,7 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
         PyTypeObject *val_type = Py_TYPE(value);
         if (val_type == &PyProperty_Type ||
                 val_type == &PyCachedPropertyWithDescr_Type ||
-                val_type == &PyAsyncCachedProperty_Type) {
+                val_type == &PyAsyncCachedPropertyWithDescr_Type) {
             PyObject *getter_index = PyLong_FromLong(slot_index++);
             PyObject *getter_tuple = get_property_getter_descr_tuple(key);
             err = PyDict_SetItem(slotmap, getter_tuple, getter_index);

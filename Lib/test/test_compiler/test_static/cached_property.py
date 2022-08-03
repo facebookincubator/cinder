@@ -1,7 +1,9 @@
 import asyncio
 import unittest
+
 from cinder import async_cached_property, cached_property
 from compiler.errors import TypedSyntaxError
+from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     CACHED_PROPERTY_IMPL_PREFIX,
@@ -685,3 +687,89 @@ class CachedPropertyTests(StaticTestBase):
         self.type_error(
             codestr, "cached_property <module>.C.fn does not support setters"
         )
+
+    def test_cached_property_reset(self):
+        nonstatic_codestr = """
+        class A:
+            pass
+        """
+        with self.in_module(
+            nonstatic_codestr, code_gen=PythonCodeGenerator
+        ) as nonstatic_mod:
+
+            codestr = f"""
+            from {nonstatic_mod.__name__} import A
+            from cinder import cached_property
+
+            class C(A):
+                def __init__(self):
+                    self.ctr = 0
+
+                @cached_property
+                def x(self):
+                    self.ctr += 1
+                    return 3
+            """
+            with self.in_strict_module(
+                codestr, enable_patching=True, freeze=False
+            ) as mod:
+                C = mod.C
+                c = C()
+
+                # First access, should bump ctr
+                self.assertEqual(c.x, 3)
+                self.assertEqual(c.ctr, 1)
+
+                # Second access, should not bump ctr
+                self.assertEqual(c.x, 3)
+                self.assertEqual(c.ctr, 1)
+
+                del c.x
+                # Access after reset, should bump ctr
+                self.assertEqual(c.x, 3)
+                self.assertEqual(c.ctr, 2)
+
+    def test_async_cached_property_reset(self):
+        nonstatic_codestr = """
+        class A:
+            pass
+        """
+        with self.in_module(
+            nonstatic_codestr, code_gen=PythonCodeGenerator
+        ) as nonstatic_mod:
+
+            codestr = f"""
+            from {nonstatic_mod.__name__} import A
+            from cinder import async_cached_property
+
+            class C(A):
+                def __init__(self):
+                    self.ctr = 0
+
+                @async_cached_property
+                async def x(self):
+                    self.ctr += 1
+                    return 3
+            """
+            with self.in_strict_module(
+                codestr, enable_patching=True, freeze=False
+            ) as mod:
+                C = mod.C
+                c = C()
+
+                async def await_x(z):
+                    return await z
+
+                # First access, should bump ctr
+                self.assertEqual(asyncio.run(await_x(c.x)), 3)
+                self.assertEqual(c.ctr, 1)
+
+                # Second access, should not bump ctr
+                self.assertEqual(asyncio.run(await_x(c.x)), 3)
+                self.assertEqual(c.ctr, 1)
+
+                del c.x
+
+                # Access after reset, should bump ctr
+                self.assertEqual(asyncio.run(await_x(c.x)), 3)
+                self.assertEqual(c.ctr, 2)
