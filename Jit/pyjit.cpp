@@ -2,8 +2,6 @@
 #include "Jit/pyjit.h"
 
 #include "Python.h"
-//#include "internal/pycore_pystate.h"
-#include "Include/internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 
 #include "Jit/code_allocator.h"
