@@ -172,7 +172,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
 };
 #else
 const std::unordered_set<int> kSupportedOpcodes = {
-    // CPython opcodes that existed prior to 3.9
     BINARY_ADD,
     BINARY_AND,
     BINARY_FLOOR_DIVIDE,
@@ -200,9 +199,10 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DUP_TOP,
     DUP_TOP_TWO,
     EXTENDED_ARG,
-    FOR_ITER,
     FORMAT_VALUE,
+    FOR_ITER,
     GET_ITER,
+    GET_LEN,
     INPLACE_ADD,
     INPLACE_AND,
     INPLACE_FLOOR_DIVIDE,
@@ -220,12 +220,17 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
     JUMP_IF_TRUE_OR_POP,
+    LIST_EXTEND,
+    LOAD_ASSERTION_ERROR,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
     LOAD_CONST,
     LOAD_FAST,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
+    MATCH_KEYS,
+    MATCH_MAPPING,
+    MATCH_SEQUENCE,
     NOP,
     POP_BLOCK,
     POP_JUMP_IF_FALSE,
@@ -233,8 +238,10 @@ const std::unordered_set<int> kSupportedOpcodes = {
     POP_TOP,
     RETURN_VALUE,
     ROT_FOUR,
+    ROT_N,
     ROT_THREE,
     ROT_TWO,
+    SET_UPDATE,
     STORE_ATTR,
     STORE_FAST,
     STORE_SUBSCR,
@@ -244,18 +251,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_POSITIVE,
     UNPACK_EX,
     UNPACK_SEQUENCE,
-
-    // New CPython 3.9 opcodes
-    LIST_EXTEND,
-
-    // New CPython 3.10 opcodes
-    GET_LEN,
-    LOAD_ASSERTION_ERROR,
-    MATCH_KEYS,
-    MATCH_MAPPING,
-    MATCH_SEQUENCE,
-    ROT_N,
-    SET_UPDATE,
 };
 #endif
 
