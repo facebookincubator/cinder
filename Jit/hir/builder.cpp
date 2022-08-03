@@ -224,7 +224,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_ATTR_SUPER,
     LOAD_CONST,
     LOAD_FAST,
-    LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
     NOP,

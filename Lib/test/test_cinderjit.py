@@ -981,6 +981,7 @@ class StoreAttrCacheTests(unittest.TestCase):
         self.assertEqual(obj1.foo, 300)
 
 
+@unittest.cinderPortingBrokenTest()
 class LoadGlobalCacheTests(unittest.TestCase):
     def setUp(self):
         global license, a_global
@@ -999,7 +1000,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         a_global = value
 
     @staticmethod
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def get_global():
         return a_global
@@ -1028,7 +1029,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.set_global(456)
         self.assertEqual(a_global, 456)
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_shadow_builtin(self):
         self.assertIs(license, builtins.license)
