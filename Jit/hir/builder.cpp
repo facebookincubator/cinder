@@ -111,11 +111,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     IMPORT_FROM,
     IMPORT_NAME,
 
-    // TODO(T127134768): Closures
-    LOAD_CLOSURE,
-    LOAD_DEREF,
-    STORE_DEREF,
-
     // TODO(T125899460): Exception handling
     POP_EXCEPT,
     RAISE_VARARGS,
@@ -224,7 +219,9 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_ASSERTION_ERROR,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
+    LOAD_CLOSURE,
     LOAD_CONST,
+    LOAD_DEREF,
     LOAD_FAST,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
@@ -243,6 +240,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_TWO,
     SET_UPDATE,
     STORE_ATTR,
+    STORE_DEREF,
     STORE_FAST,
     STORE_SUBSCR,
     UNARY_INVERT,

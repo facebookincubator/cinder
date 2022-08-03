@@ -1717,6 +1717,8 @@ DEV_SKIP_TESTS  = $(srcdir)/Tools/scripts/devserver_skip_tests.txt
 # Exclude tests that are currently broken for refleak check
 REFLEAK_SKIP_TESTS = $(srcdir)/Tools/scripts/refleak_skip_tests.txt
 
+CINDER_JIT_IGNORE_TESTS = $(srcdir)/Tools/scripts/cinder_jit_ignore_tests.txt
+
 ASAN_SKIP_TESTS=
 ifneq ($(strip $(ASAN_TEST_ENV)),)
 	ASAN_SKIP_TESTS = $(srcdir)/Tools/scripts/asan_skip_tests.txt
@@ -1730,7 +1732,7 @@ endif
 ifneq ($(strip $(RECORDING_METADATA_PATH)),)
 	JIT_TEST_RR_ARGS += --recording-metadata-path=$(strip $(RECORDING_METADATA_PATH))
 endif
-JIT_TEST_RUNNER=$(srcdir)/Tools/scripts/jit_test_runner.py dispatcher $(JIT_TEST_RUNNER_ARGS) $(JIT_TEST_RR_ARGS) -- -w
+JIT_TEST_RUNNER=$(srcdir)/Tools/scripts/jit_test_runner.py dispatcher $(JIT_TEST_RUNNER_ARGS) $(JIT_TEST_RR_ARGS) -- -w --ignorefile $(CINDER_JIT_IGNORE_TESTS)
 
 testcinder: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDEROPTS)

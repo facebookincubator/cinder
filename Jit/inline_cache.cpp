@@ -257,6 +257,7 @@ raise_attribute_error(PyObject* obj, PyObject* name) {
       "'%.50s' object has no attribute '%U'",
       Py_TYPE(obj)->tp_name,
       name);
+  Ci_set_attribute_error_context(obj, name);
   return nullptr;
 }
 

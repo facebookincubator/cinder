@@ -45,8 +45,9 @@ PyAPI_FUNC(void) Ci_ThreadState_SetProfileInterp(PyThreadState *, int);
    instructions. */
 PyAPI_FUNC(void) Ci_RuntimeState_SetProfileInterpPeriod(long);
 
-
 PyAPI_FUNC(PyObject *) match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
+
+PyAPI_FUNC(void) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
 #ifdef __cplusplus
 }

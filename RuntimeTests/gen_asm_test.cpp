@@ -219,10 +219,12 @@ def test(x):
   auto val = Ref<>::steal(eval);
   auto tb = Ref<>::steal(etb);
   EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_AttributeError));
-  ASSERT_NE(val.get(), nullptr);
-  ASSERT_TRUE(PyUnicode_Check(val));
-  std::string msg = PyUnicode_AsUTF8(val);
-  ASSERT_EQ(msg, "'dict' object has no attribute 'denominator'");
+  ASSERT_NE(val, nullptr);
+  EXPECT_TRUE(PyObject_IsInstance(val, PyExc_AttributeError));
+  auto ae = reinterpret_cast<PyAttributeErrorObject*>(val.get());
+  ASSERT_TRUE(PyUnicode_Check(ae->name));
+  std::string msg = PyUnicode_AsUTF8(ae->name);
+  ASSERT_EQ(msg, "denominator");
 
   auto tb_frame = Ref<>::steal(PyObject_GetAttrString(tb, "tb_frame"));
   ASSERT_NE(tb_frame.get(), nullptr);
