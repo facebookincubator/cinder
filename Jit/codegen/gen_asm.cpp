@@ -1529,9 +1529,12 @@ static PyObject* resumeInInterpreter(
 
     // Resume one frame.
     PyFrameObject* prev_frame = frame->f_back;
+    // Delegate management of `tstate->frame` to the interpreter loop. On
+    // entry, it expects that tstate->frame points to the frame for the calling
+    // function.
+    JIT_CHECK(tstate->frame == frame, "unexpected frame at top of stack");
+    tstate->frame = prev_frame;
     result = PyEval_EvalFrameEx(frame, err_occurred);
-    // The interpreter loop handles unlinking the frame from the execution
-    // stack so we just need to decref.
     JITRT_DecrefFrame(frame);
     frame = prev_frame;
 
