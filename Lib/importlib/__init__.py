@@ -62,6 +62,18 @@ import warnings
 
 from ._bootstrap import __import__
 
+def is_lazy_imports_enabled():
+    """Check if Lazy Imports is enabled
+
+    Return True if Lazy Imports is enabled, False if not.
+    """
+    return _imp.is_lazy_imports_enabled()
+
+def set_lazy_imports(value):
+    """Programmatic API for enabling lazy imports at runtime.
+    Pass True to enable, False to disable
+    """
+    return _imp.set_lazy_imports(value)
 
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in

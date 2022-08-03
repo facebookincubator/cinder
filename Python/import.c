@@ -2410,6 +2410,40 @@ _imp_is_frozen_impl(PyObject *module, PyObject *name)
     return PyBool_FromLong((long) (p == NULL ? 0 : p->size));
 }
 
+/*[clinic input]
+_imp.set_lazy_imports
+
+    value: bool
+    /
+
+Programmatic API for enabling lazy imports at runtime.
+
+[clinic start generated code]*/
+
+static PyObject *
+_imp_set_lazy_imports_impl(PyObject *module, int value)
+/*[clinic end generated code: output=6426f14b39ec1c5c input=146d53d5021e367a]*/
+{
+    _PyEval_LazyImportsEnabled = value;
+    Py_RETURN_NONE;
+}
+
+/*[clinic input]
+_imp.is_lazy_imports_enabled
+
+Return True is lazy imports is currently enabled.
+[clinic start generated code]*/
+
+static PyObject *
+_imp_is_lazy_imports_enabled_impl(PyObject *module)
+/*[clinic end generated code: output=d9c9631b599c4b9c input=ee99e18e6db8eb61]*/
+{
+    if (_PyEval_LazyImportsEnabled) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 /* Common implementation for _imp.exec_dynamic and _imp.exec_builtin */
 static int
 exec_builtin_or_dynamic(PyObject *mod) {
@@ -2566,6 +2600,7 @@ static PyMethodDef imp_methods[] = {
     _IMP_RELEASE_LOCK_METHODDEF
     _IMP_GET_FROZEN_OBJECT_METHODDEF
     _IMP_IS_FROZEN_PACKAGE_METHODDEF
+    _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF    
     _IMP_CREATE_BUILTIN_METHODDEF
     _IMP_INIT_FROZEN_METHODDEF
     _IMP_IS_BUILTIN_METHODDEF
@@ -2575,6 +2610,7 @@ static PyMethodDef imp_methods[] = {
     _IMP_EXEC_BUILTIN_METHODDEF
     _IMP__FIX_CO_FILENAME_METHODDEF
     _IMP_SOURCE_HASH_METHODDEF
+    _IMP_SET_LAZY_IMPORTS_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 

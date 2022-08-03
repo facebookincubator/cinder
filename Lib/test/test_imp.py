@@ -376,6 +376,19 @@ class ImportTests(unittest.TestCase):
             mod = imp.load_module('mymod', file, path, description)
         self.assertEqual(mod.x, 42)
 
+    def test_lazy_imports(self):
+        enabled = importlib.is_lazy_imports_enabled()
+        if enabled:
+            importlib.set_lazy_imports(False)
+            self.assertFalse(importlib.is_lazy_imports_enabled())
+            importlib.set_lazy_imports(True)
+            self.assertTrue(importlib.is_lazy_imports_enabled())
+        else:
+            importlib.set_lazy_imports(True)
+            self.assertTrue(importlib.is_lazy_imports_enabled())
+            importlib.set_lazy_imports(False)
+            self.assertFalse(importlib.is_lazy_imports_enabled())
+
 
 class ReloadTests(unittest.TestCase):
 

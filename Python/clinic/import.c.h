@@ -297,6 +297,52 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
+"set_lazy_imports($module, value, /)\n"
+"--\n"
+"\n"
+"Programmatic API for enabling lazy imports at runtime.");
+
+#define _IMP_SET_LAZY_IMPORTS_METHODDEF    \
+    {"set_lazy_imports", (PyCFunction)_imp_set_lazy_imports, METH_O, _imp_set_lazy_imports__doc__},
+
+static PyObject *
+_imp_set_lazy_imports_impl(PyObject *module, int value);
+
+static PyObject *
+_imp_set_lazy_imports(PyObject *module, PyObject *arg)
+{
+    PyObject *return_value = NULL;
+    int value;
+
+    value = PyObject_IsTrue(arg);
+    if (value < 0) {
+        goto exit;
+    }
+    return_value = _imp_set_lazy_imports_impl(module, value);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_imp_is_lazy_imports_enabled__doc__,
+"is_lazy_imports_enabled($module, /)\n"
+"--\n"
+"\n"
+"Return True is lazy imports is currently enabled.");
+
+#define _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF    \
+    {"is_lazy_imports_enabled", (PyCFunction)_imp_is_lazy_imports_enabled, METH_NOARGS, _imp_is_lazy_imports_enabled__doc__},
+
+static PyObject *
+_imp_is_lazy_imports_enabled_impl(PyObject *module);
+
+static PyObject *
+_imp_is_lazy_imports_enabled(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _imp_is_lazy_imports_enabled_impl(module);
+}
+
 #if defined(HAVE_DYNAMIC_LOADING)
 
 PyDoc_STRVAR(_imp_create_dynamic__doc__,
@@ -454,4 +500,4 @@ exit:
 #ifndef _IMP_EXEC_DYNAMIC_METHODDEF
     #define _IMP_EXEC_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_EXEC_DYNAMIC_METHODDEF) */
-/*[clinic end generated code: output=3dc495e9c64d944e input=a9049054013a1b77]*/
+/*[clinic end generated code: output=1ac7aa69dbc7f192 input=a9049054013a1b77]*/
