@@ -51,3 +51,12 @@ class Python310Tests(CompilerTest):
                 return x
         """
         self._check(codestr)
+
+    def test_no_nested_async_comprehension(self):
+        codestr = """
+            async def foo(a):
+                return {k: [y for y in k if await bar(y)] for k in a}
+        """
+        self._check_error(
+            codestr, "asynchronous comprehension outside of an asynchronous function"
+        )

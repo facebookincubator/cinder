@@ -120,7 +120,10 @@ def compile(
     compiler=None,
     modname=_DEFAULT_MODNAME,
 ):
-    """Replacement for builtin compile() function"""
+    """Replacement for builtin compile() function
+
+    Does not yet support ast.PyCF_ALLOW_TOP_LEVEL_AWAIT flag.
+    """
     if dont_inherit is not None:
         raise RuntimeError("not implemented yet")
 
@@ -989,9 +992,21 @@ class CodeGenerator(ASTVisitor):
         opcode: str,
         oparg: object = 0,
     ) -> None:
+        is_async_function = self.scope.coroutine
         args = self.conjure_arguments([ast.arg(".0", None)])
         gen = self.make_func_codegen(node, args, name, node.lineno)
         gen.set_lineno(node)
+        is_async_generator = gen.scope.coroutine
+
+        # TODO also add check for PyCF_ALLOW_TOP_LEVEL_AWAIT
+        if (
+            is_async_generator
+            and not is_async_function
+            and not isinstance(node, ast.GeneratorExp)
+        ):
+            raise self.syntax_error(
+                "asynchronous comprehension outside of an asynchronous function", node
+            )
 
         if opcode:
             gen.emit(opcode, oparg)
