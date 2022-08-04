@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "frameobject.h"
 
+#include "Jit/bytecode_offsets.h"
 #include "Jit/ref.h"
 
 #include <asmjit/asmjit.h>
@@ -121,7 +122,7 @@ class DebugInfo {
   void addUnitCallStack(
       uintptr_t addr,
       BorrowedRef<PyCodeObject> code,
-      int bc_off,
+      BCOffset bc_off,
       const jit::hir::FrameState* caller_frame_state);
 
   // Get or assign an id for codeobj

@@ -66,7 +66,7 @@ def test(a, b):
   dm.live_values = {a_val, b_val};
   DeoptFrameMetadata dfm;
   dfm.localsplus = {0, 1};
-  dfm.next_instr_offset = 0;
+  dfm.next_instr_offset = BCOffset{0};
   dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
@@ -123,7 +123,7 @@ def test(a, b):
   DeoptFrameMetadata dfm;
   dfm.localsplus = {0, 1};
   dfm.stack = {0, 1};
-  dfm.next_instr_offset = 4;
+  dfm.next_instr_offset = BCOffset{4};
   dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
@@ -182,7 +182,7 @@ def test(a, b):
   DeoptFrameMetadata dfm;
   dfm.localsplus = {0, 1};
   dfm.stack = {0, 1};
-  dfm.next_instr_offset = 4;
+  dfm.next_instr_offset = BCOffset{4};
   dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 
@@ -252,7 +252,7 @@ def test(num):
   DeoptFrameMetadata dfm;
   dfm.localsplus = {0, 1};
   dfm.stack = {0, 2};
-  dfm.next_instr_offset = 8;
+  dfm.next_instr_offset = BCOffset{8};
   dm.frame_meta.push_back(dfm);
   dm.code_rt = &code_rt;
 

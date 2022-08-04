@@ -117,11 +117,11 @@ struct DeoptFrameMetadata {
   PyCodeObject* code{nullptr};
 
   // The offset of the next bytecode instruction to execute.
-  int next_instr_offset{0};
+  BCOffset next_instr_offset{0};
 
-  int instr_offset() const {
+  BCOffset instr_offset() const {
     return std::max(
-        next_instr_offset - static_cast<int>(sizeof(_Py_CODEUNIT)), -1);
+        next_instr_offset - int{sizeof(_Py_CODEUNIT)}, BCOffset{-1});
   }
 };
 

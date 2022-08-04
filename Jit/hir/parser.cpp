@@ -656,7 +656,7 @@ FrameState HIRParser::parseFrameState() {
   auto token = GetNextToken();
   while (strcmp(token, "}") != 0) {
     if (strcmp(token, "NextInstrOffset") == 0) {
-      fs.next_instr_offset = GetNextInteger();
+      fs.next_instr_offset = BCOffset{GetNextInteger()};
     } else if (strcmp(token, "Locals") == 0) {
       fs.locals = parseRegisterVector();
     } else if (strcmp(token, "Cells") == 0) {

@@ -137,6 +137,7 @@ struct ExecutionBlock {
   int opcode;
 
   // Offset in the bytecode of the handler for this block
+  // TODO(T128071834): This should be a BCOffset.
   int handler_off;
 
   // Level to pop the operand stack when the block is exited
@@ -156,8 +157,8 @@ struct ExecutionBlock {
   }
 
   bool isAsyncForHeaderBlock(const BytecodeInstructionBlock& instrs) const {
-    Py_ssize_t idx = handler_off / sizeof(_Py_CODEUNIT);
-    return opcode == SETUP_FINALLY && instrs.at(idx).opcode() == END_ASYNC_FOR;
+    return opcode == SETUP_FINALLY &&
+        instrs.at(BCOffset{handler_off}).opcode() == END_ASYNC_FOR;
   }
 };
 
@@ -214,7 +215,7 @@ struct FrameState {
 
   // The bytecode offset of the next instruction to be executed once control has
   // transferred to the interpreter.
-  int next_instr_offset{0};
+  BCOffset next_instr_offset{0};
 
   // Local variables
   std::vector<Register*> locals;
@@ -235,9 +236,9 @@ struct FrameState {
 
   // The bytecode offset of the current instruction, or -1 if no instruction
   // has executed. This corresponds to the `f_lasti` field of PyFrameObject.
-  int instr_offset() const {
+  BCOffset instr_offset() const {
     return std::max(
-        next_instr_offset - static_cast<int>(sizeof(_Py_CODEUNIT)), -1);
+        next_instr_offset - int{sizeof(_Py_CODEUNIT)}, BCOffset{-1});
   }
 
   bool visitUses(const std::function<bool(Register*&)>& func) {
@@ -701,10 +702,14 @@ class Instr {
   bool isReplayable() const;
 
   // Set/get the bytecode offset that this instruction is associated with
-  void setBytecodeOffset(int off) {
+  void setBytecodeOffset(BCOffset off) {
     bytecode_offset_ = off;
   }
-  int bytecodeOffset() const {
+  // TODO(T128071834): Delete this overload.
+  void setBytecodeOffset(int off) {
+    setBytecodeOffset(BCOffset{off});
+  }
+  BCOffset bytecodeOffset() const {
     return bytecode_offset_;
   }
 
@@ -717,7 +722,7 @@ class Instr {
     if (code == nullptr) {
       return -1;
     }
-    return PyCode_Addr2Line(code, bytecodeOffset());
+    return PyCode_Addr2Line(code, bytecodeOffset().value());
   }
 
   // This assumes that inlined functions have a dominating FrameState from
@@ -791,7 +796,7 @@ class Instr {
 
   BasicBlock* block_{nullptr};
 
-  int bytecode_offset_{-1};
+  BCOffset bytecode_offset_{-1};
 };
 
 using InstrPredicate = std::function<bool(const Instr&)>;
@@ -3920,7 +3925,7 @@ class BasicBlock {
   }
 
   template <typename T, typename... Args>
-  T* appendWithOff(int bc_off, Args&&... args) {
+  T* appendWithOff(BCOffset bc_off, Args&&... args) {
     auto instr = append<T>(std::forward<Args>(args)...);
     instr->setBytecodeOffset(bc_off);
     return instr;

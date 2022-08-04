@@ -4,6 +4,7 @@
 #include "Python.h"
 
 #include "Jit/bytecode.h"
+#include "Jit/bytecode_offsets.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/preload.h"
 #include "Jit/profile_data.h"
@@ -454,13 +455,13 @@ class HIRBuilder {
       TranslationContext& tc,
       long nargs);
   struct BlockMap {
-    std::unordered_map<Py_ssize_t, BasicBlock*> blocks;
+    std::unordered_map<BCOffset, BasicBlock*> blocks;
     std::unordered_map<BasicBlock*, BytecodeInstructionBlock> bc_blocks;
   };
   BlockMap createBlocks(
       Function& irfunc,
       const BytecodeInstructionBlock& bc_block);
-  BasicBlock* getBlockAtOff(Py_ssize_t off);
+  BasicBlock* getBlockAtOff(BCOffset off);
 
   // When a static function calls another static function indirectly, all args
   // are passed boxed and the return value will come back boxed, so we must

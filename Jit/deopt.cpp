@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/deopt.h"
 
+#include "Jit/bytecode_offsets.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/jit_rt.h"
@@ -191,12 +192,10 @@ void reifyFrame(
   }
 
   // Instruction pointer
-  // TODO(T126927333): Match upstream and use number of instructions instead
-  // of byte offsets.
   if (frame_meta.next_instr_offset == 0) {
     frame->f_lasti = -1;
   } else {
-    frame->f_lasti = (frame_meta.next_instr_offset / sizeof(_Py_CODEUNIT)) - 1;
+    frame->f_lasti = (BCIndex{frame_meta.next_instr_offset} - 1).value();
   }
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, frame_meta, mem);

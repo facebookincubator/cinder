@@ -5,6 +5,7 @@
 #include "cinder/port-assert.h"
 #include "opcode.h"
 
+#include "Jit/bytecode_offsets.h"
 #include "Jit/log.h"
 
 #include <iterator>
@@ -18,12 +19,9 @@ extern const std::unordered_set<int> kRelBranchOpcodes;
 // A structured, immutable representation of a CPython bytecode
 class BytecodeInstruction {
  public:
-  BytecodeInstruction(
-      _Py_CODEUNIT* instrs,
-      Py_ssize_t idx,
-      PyCodeObject* code) {
-    offset_ = idx * sizeof(_Py_CODEUNIT);
-    _Py_CODEUNIT word = instrs[idx];
+  BytecodeInstruction(_Py_CODEUNIT* instrs, BCIndex idx, PyCodeObject* code)
+      : offset_(idx) {
+    _Py_CODEUNIT word = instrs[idx.value()];
     opcode_ = _Py_OPCODE(word);
     oparg_ = _Py_OPARG(word);
     const_ = OpArgTuple(code);
@@ -32,18 +30,18 @@ class BytecodeInstruction {
   BytecodeInstruction(
       int opcode,
       int oparg,
-      Py_ssize_t offset,
+      BCOffset offset,
       PyCodeObject* code)
       : offset_(offset), opcode_(opcode), oparg_(oparg) {
     const_ = OpArgTuple(code);
   }
 
-  Py_ssize_t offset() const {
+  BCOffset offset() const {
     return offset_;
   }
 
-  Py_ssize_t index() const {
-    return offset() / sizeof(_Py_CODEUNIT);
+  BCIndex index() const {
+    return offset();
   }
 
   int opcode() const {
@@ -100,29 +98,26 @@ class BytecodeInstruction {
     return IsBranch() || IsReturn() || IsRaiseVarargs();
   }
 
-  // TODO(T126927333): Match upstream and use number of instructions instead
-  // of byte offsets. Additionally, audit all uses of these and convert the
-  // code that uses them.
-  Py_ssize_t GetJumpTarget() const {
-    return GetJumpTargetAsIndex() * sizeof(_Py_CODEUNIT);
+  BCOffset GetJumpTarget() const {
+    return GetJumpTargetAsIndex();
   }
 
-  Py_ssize_t GetJumpTargetAsIndex() const {
+  BCIndex GetJumpTargetAsIndex() const {
     if (kRelBranchOpcodes.count(opcode())) {
       return NextInstrIndex() + oparg();
     }
     if (IsReadonlyOp()) {
       return ReadonlyJumpTarget();
     }
-    return oparg();
+    return BCIndex{oparg()};
   }
 
-  Py_ssize_t NextInstrOffset() const {
-    return offset_ + sizeof(_Py_CODEUNIT);
+  BCOffset NextInstrOffset() const {
+    return NextInstrIndex();
   }
 
-  Py_ssize_t NextInstrIndex() const {
-    return NextInstrOffset() / sizeof(_Py_CODEUNIT);
+  BCIndex NextInstrIndex() const {
+    return BCIndex{offset_} + 1;
   }
 
   void ExtendOpArgWith(int changes) {
@@ -184,7 +179,7 @@ class BytecodeInstruction {
 #endif
   }
 
-  Py_ssize_t ReadonlyJumpTarget() const {
+  BCOffset ReadonlyJumpTarget() const {
 #ifdef CINDER_PORTING_DONE
     JIT_CHECK(IsReadonlyOp(), "opcode %d is not readonly opcode", opcode_);
     switch (ReadonlyOpcode()) {
@@ -205,7 +200,7 @@ class BytecodeInstruction {
   }
 
  private:
-  Py_ssize_t offset_;
+  BCOffset offset_;
   int opcode_;
   int oparg_;
   BorrowedRef<PyTupleObject> const_;
@@ -228,8 +223,8 @@ class BytecodeInstructionBlock {
 
   BytecodeInstructionBlock(
       _Py_CODEUNIT* instrs,
-      Py_ssize_t start,
-      Py_ssize_t end,
+      BCIndex start,
+      BCIndex end,
       PyCodeObject* code)
       : instrs_(instrs), start_idx_(start), end_idx_(end), code_(code) {}
 
@@ -243,23 +238,20 @@ class BytecodeInstructionBlock {
 
     Iterator(
         _Py_CODEUNIT* instr,
-        Py_ssize_t idx,
-        Py_ssize_t end_idx,
+        BCIndex idx,
+        BCIndex end_idx,
         BorrowedRef<PyCodeObject> code)
         : instr_(instr),
           idx_(idx),
           end_idx_(end_idx),
-          bci_(0, 0, 0, 0),
+          bci_(0, 0, BCOffset{0}, 0),
           code_(code) {
       if (!atEnd()) {
         // Iterator end() methods are supposed to be past the logical end
         // of the underlying data structure and should not be accessed
         // directly. Dereferencing instr would be a heap buffer overflow.
         bci_ = BytecodeInstruction(
-            _Py_OPCODE(*instr),
-            _Py_OPARG(*instr),
-            idx * sizeof(_Py_CODEUNIT),
-            code_);
+            _Py_OPCODE(*instr), _Py_OPARG(*instr), idx, code_);
         consumeExtendedArgs();
       }
     }
@@ -316,14 +308,13 @@ class BytecodeInstructionBlock {
       if (!atEnd()) {
         int opcode = _Py_OPCODE(*instr_);
         int oparg = (accum << 8) | _Py_OPARG(*instr_);
-        bci_ = BytecodeInstruction(
-            opcode, oparg, idx_ * sizeof(_Py_CODEUNIT), code_);
+        bci_ = BytecodeInstruction(opcode, oparg, idx_, code_);
       }
     }
 
     _Py_CODEUNIT* instr_;
-    Py_ssize_t idx_;
-    Py_ssize_t end_idx_;
+    BCIndex idx_;
+    BCIndex end_idx_;
     BytecodeInstruction bci_;
     BorrowedRef<PyCodeObject> code_;
   };
@@ -336,20 +327,23 @@ class BytecodeInstructionBlock {
     return Iterator(instrs_ + end_idx_, end_idx_, end_idx_, code_);
   }
 
-  Py_ssize_t startOffset() const {
-    return start_idx_ * sizeof(_Py_CODEUNIT);
+  BCOffset startOffset() const {
+    return start_idx_;
   }
 
-  Py_ssize_t endOffset() const {
-    return end_idx_ * sizeof(_Py_CODEUNIT);
+  BCOffset endOffset() const {
+    return end_idx_;
   }
 
   Py_ssize_t size() const {
     return end_idx_ - start_idx_;
   }
 
-  BytecodeInstruction at(Py_ssize_t idx) const {
-    return BytecodeInstruction(instrs_, start_idx_ + idx, code_);
+  BytecodeInstruction at(BCIndex idx) const {
+    JIT_CHECK(
+        start_idx_ == 0,
+        "Instructions can only be looked up by index when start_idx_ == 0");
+    return BytecodeInstruction(instrs_, idx, code_);
   }
 
   BytecodeInstruction lastInstr() const {
@@ -366,8 +360,8 @@ class BytecodeInstructionBlock {
 
  private:
   _Py_CODEUNIT* instrs_;
-  Py_ssize_t start_idx_;
-  Py_ssize_t end_idx_;
+  BCIndex start_idx_;
+  BCIndex end_idx_;
   BorrowedRef<PyCodeObject> code_;
 };
 

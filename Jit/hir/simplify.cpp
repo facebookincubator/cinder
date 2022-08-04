@@ -66,7 +66,7 @@ struct Env {
 
   // Bytecode instruction of the instruction being optimized, automatically set
   // on all replacement instructions.
-  int bc_off{-1};
+  BCOffset bc_off{-1};
 
   // Set to true by emit<T>() to indicate that the original instruction should
   // be removed.

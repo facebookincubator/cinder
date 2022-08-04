@@ -979,7 +979,7 @@ Ref<> make_deopt_stats() {
 
     auto func_qualname = code->co_qualname;
     int lineno_raw = code->co_linetable != nullptr
-        ? PyCode_Addr2Line(code, frame_meta.next_instr_offset)
+        ? PyCode_Addr2Line(code, frame_meta.next_instr_offset.value())
         : -1;
     auto lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
     auto reason =

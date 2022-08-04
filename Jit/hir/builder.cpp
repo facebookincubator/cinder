@@ -590,9 +590,9 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
   BlockMap block_map;
 
   // Mark the beginning of each basic block in the bytecode
-  std::set<Py_ssize_t> block_starts = {0};
+  std::set<BCIndex> block_starts = {BCIndex{0}};
   auto maybe_add_next_instr = [&](const BytecodeInstruction& bc_instr) {
-    Py_ssize_t next_instr_idx = bc_instr.NextInstrIndex();
+    BCIndex next_instr_idx = bc_instr.NextInstrIndex();
     if (next_instr_idx < bc_block.size()) {
       block_starts.insert(next_instr_idx);
     }
@@ -619,16 +619,16 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
   // Allocate blocks
   auto it = block_starts.begin();
   while (it != block_starts.end()) {
-    Py_ssize_t start_idx = *it;
+    BCIndex start_idx = *it;
     ++it;
-    Py_ssize_t end_idx;
+    BCIndex end_idx;
     if (it != block_starts.end()) {
       end_idx = *it;
     } else {
-      end_idx = bc_block.size();
+      end_idx = BCIndex{bc_block.size()};
     }
     auto block = irfunc.cfg.AllocateBlock();
-    block_map.blocks[start_idx * sizeof(_Py_CODEUNIT)] = block;
+    block_map.blocks[start_idx] = block;
     block_map.bc_blocks.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(block),
@@ -639,9 +639,9 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
   return block_map;
 }
 
-BasicBlock* HIRBuilder::getBlockAtOff(Py_ssize_t off) {
+BasicBlock* HIRBuilder::getBlockAtOff(BCOffset off) {
   auto it = block_map_.blocks.find(off);
-  JIT_DCHECK(it != block_map_.blocks.end(), "No block for offset %ld", off);
+  JIT_DCHECK(it != block_map_.blocks.end(), "No block for offset %d", off);
   return it->second;
 }
 
@@ -693,7 +693,7 @@ BasicBlock* HIRBuilder::buildHIRImpl(
   block_map_ = createBlocks(*irfunc, bc_instrs);
 
   // Ensure that the entry block isn't a loop header
-  BasicBlock* entry_block = getBlockAtOff(0);
+  BasicBlock* entry_block = getBlockAtOff(BCOffset{0});
   for (const auto& bci : bc_instrs) {
     if (bci.IsBranch() && bci.GetJumpTarget() == 0) {
       entry_block = irfunc->cfg.AllocateBlock();
@@ -737,9 +737,9 @@ BasicBlock* HIRBuilder::buildHIRImpl(
     addInitialYield(entry_tc);
   }
 
-  BasicBlock* first_block = getBlockAtOff(0);
+  BasicBlock* first_block = getBlockAtOff(BCOffset{0});
   if (entry_block != first_block) {
-    entry_block->appendWithOff<Branch>(0, first_block);
+    entry_block->appendWithOff<Branch>(BCOffset{0}, first_block);
   }
 
   entry_tc.block = first_block;
@@ -1375,8 +1375,8 @@ void HIRBuilder::translate(
           break;
         }
         case GET_AWAITABLE: {
-          Py_ssize_t idx = bc_instr.index();
-          int prev_op = idx ? bc_instrs.at(idx - 1).opcode() : 0;
+          BCIndex idx = bc_instr.index();
+          int prev_op = idx != 0 ? bc_instrs.at(idx - 1).opcode() : 0;
           emitGetAwaitable(irfunc.cfg, tc, prev_op);
           break;
         }
@@ -1701,7 +1701,7 @@ void HIRBuilder::emitAnyCall(
     jit::BytecodeInstructionBlock::Iterator& bc_it,
     const jit::BytecodeInstructionBlock& bc_instrs) {
   BytecodeInstruction bc_instr = *bc_it;
-  int idx = bc_instr.index();
+  BCIndex idx = bc_instr.index();
   bool is_awaited = code_->co_flags & CO_COROUTINE &&
       // We only need to be followed by GET_AWAITABLE to know we are awaited,
       // but we also need to ensure the following LOAD_CONST and YIELD_FROM are
@@ -2329,7 +2329,7 @@ void HIRBuilder::emitJumpIf(
     const jit::BytecodeInstruction& bc_instr) {
   Register* var = tc.frame.stack.top();
 
-  Py_ssize_t true_offset, false_offset;
+  BCOffset true_offset, false_offset;
   bool check_truthy = true;
   switch (bc_instr.opcode()) {
     case JUMP_IF_NONZERO_OR_POP:
@@ -3506,7 +3506,7 @@ void HIRBuilder::emitPopJumpIf(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   Register* var = tc.frame.stack.pop();
-  Py_ssize_t true_offset, false_offset;
+  BCOffset true_offset, false_offset;
   switch (bc_instr.opcode()) {
     case POP_JUMP_IF_ZERO:
       PORT_ASSERT("Needs Static Python features");
@@ -3736,10 +3736,10 @@ void HIRBuilder::emitUnpackSequence(
 void HIRBuilder::emitSetupFinally(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  int handler_off = bc_instr.NextInstrOffset() + bc_instr.oparg();
+  BCOffset handler_off = bc_instr.NextInstrOffset() + bc_instr.oparg();
   int stack_level = tc.frame.stack.size();
   tc.frame.block_stack.push(
-      ExecutionBlock{SETUP_FINALLY, handler_off, stack_level});
+      ExecutionBlock{SETUP_FINALLY, handler_off.value(), stack_level});
 }
 
 void HIRBuilder::emitAsyncForHeaderYieldFrom(
@@ -3756,7 +3756,7 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
   tc.frame.stack.push(out);
 
   BasicBlock* yf_cont_block = getBlockAtOff(bc_instr.NextInstrOffset());
-  int handler_off = tc.frame.block_stack.top().handler_off;
+  BCOffset handler_off{tc.frame.block_stack.top().handler_off};
   BasicBlock* yf_done_block = getBlockAtOff(handler_off);
   tc.emit<CondBranchIterNotDone>(out, yf_cont_block, yf_done_block);
 }

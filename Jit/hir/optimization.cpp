@@ -159,7 +159,7 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
       vectorcall->GetOperand(2)->type() <= TType) {
     auto obj_op = vectorcall->GetOperand(1);
     auto type_op = vectorcall->GetOperand(2);
-    int bc_off = cond_branch.bytecodeOffset();
+    BCOffset bc_off = cond_branch.bytecodeOffset();
 
     // We want to replace:
     //  if isinstance(x, some_type):
