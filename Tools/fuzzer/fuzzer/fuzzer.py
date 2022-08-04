@@ -676,16 +676,25 @@ def generate_random_block(
     freevars: pyassem.IndexedSet,
 ) -> pyassem.Block:
     block = pyassem.Block("random")
-    # Generate random instructions and corresponding opargs
-    # That result in a net 0 stack change
-    # By combining instructions with stack effect 1 and stack effect -1
-    # TODO: Will modify this function to include combinations of more instructions (with varying stack depths) later on
-    for i in range(GENERATED_BLOCK_SIZE):
+    # possible stack depths that are available, and mapping to correct set of instruction
+    stack_depth_to_instr_seq = {
+        0: Fuzzer.INSTRS_WITH_STACK_EFFECT_0_SEQ,
+        1: Fuzzer.INSTRS_WITH_STACK_EFFECT_1_SEQ,
+        2: Fuzzer.INSTRS_WITH_STACK_EFFECT_2_SEQ,
+        -1: Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ,
+        -2: Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_2_SEQ,
+        -3: Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_3_SEQ,
+    }
+    # generating all stack depth combinations of size BLOCK_SIZE that have net 0 stack effect
+    combinations = generate_stackdepth_combinations([0, 1, 2, -1, -2, -3])
+    # picking a random combination out of all that were generated
+    random_combination = combinations[random.randint(0, len(combinations) - 1)]
+    # sorting so that we don't pick a negative instruction first (preventing dip below 0 stack depth)
+    random_combination.sort(reverse=True)
+    # emit random instructions and corresponding opargs
+    for i in random_combination:
         oparg, ioparg, instr = None, None, None
-        if i % 2 == 0:
-            instr = random.choice(Fuzzer.INSTRS_WITH_STACK_EFFECT_1_SEQ)
-        else:
-            instr = random.choice(Fuzzer.INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ)
+        instr = random.choice(stack_depth_to_instr_seq[i])
         if instr in Fuzzer.INSTRS_WITH_OPARG_IN_CONSTS:
             oparg = randomize_variable(0)
             ioparg = len(consts)
@@ -707,6 +716,48 @@ def generate_random_block(
             ioparg = random_int_oparg
         block.emit(pyassem.Instruction(instr, oparg, ioparg))
     return block
+
+
+# generates all possible stack depth subsets of length BLOCK_SIZE that add up to 0 (to maintain a net 0 stack effect)
+def generate_stackdepth_combinations(possible_stack_depths):
+    result_list = []
+    _generate_stackdepth_combinations(
+        possible_stack_depths, current_idx=0, current_list=[], result_list=result_list
+    )
+    return result_list
+
+
+def _generate_stackdepth_combinations(
+    possible_stack_depths: list,
+    current_idx: int,
+    current_list: list,
+    result_list: list,
+) -> None:
+    if sum(current_list) == 0 and len(current_list) == GENERATED_BLOCK_SIZE:
+        result_list.append(current_list)
+        return
+    if len(current_list) > GENERATED_BLOCK_SIZE:
+        return
+    if current_idx > len(possible_stack_depths) - 1:
+        return
+    # take current stack depth but do not move up an index to the next one
+    _generate_stackdepth_combinations(
+        possible_stack_depths,
+        current_idx,
+        current_list + [possible_stack_depths[current_idx]],
+        result_list,
+    )
+    # take current stack depth and move up an index to next stack depth option
+    _generate_stackdepth_combinations(
+        possible_stack_depths,
+        current_idx + 1,
+        current_list + [possible_stack_depths[current_idx]],
+        result_list,
+    )
+    # do not take current stack depth, just move up an index
+    _generate_stackdepth_combinations(
+        possible_stack_depths, current_idx + 1, current_list, result_list
+    )
 
 
 if __name__ == "__main__":
