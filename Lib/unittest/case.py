@@ -11,7 +11,6 @@ import contextlib
 import importlib
 import traceback
 import types
-import _testcapi
 
 from . import result
 from .util import (strclass, safe_repr, _count_diff_all_purpose,
@@ -44,12 +43,6 @@ try:
 except ImportError:
     def readonly_enabled():
         return False
-
-
-# This wrapper seems to be needed to make
-# test.test_support.TestSupport.test_check__all__ pass
-def cinder_enable_broken_tests():
-    return _testcapi.cinder_enable_broken_tests()
 
 
 class SkipTest(Exception):
@@ -198,20 +191,6 @@ def skipUnderCinderJITNotFullFrame(reason):
         return skip(reason)
     return _id
 
-# TODO(T126841029): Remove this function once we are finished with opcode
-# support.
-def failUnlessJITCompiledIfBrokenTestsEnabled(func):
-    """
-    Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
-    """
-    if not CINDERJIT_ENABLED:
-        return func
-    if not cinder_enable_broken_tests():
-        return func
-    # force_compile raises a RuntimeError if compilation fails for any reason.
-    force_compile(func)
-    return func
-
 def failUnlessJITCompiled(func):
     """
     Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
@@ -221,13 +200,6 @@ def failUnlessJITCompiled(func):
     # force_compile raises a RuntimeError if compilation fails for any reason.
     force_compile(func)
     return func
-
-def cinderPortingBrokenTest(reason=""):
-    if reason != "":
-        reason = f": {reason}"
-    return skipUnless(
-        cinder_enable_broken_tests(),
-        f"Cinder tests broken by porting not enabled{reason}")
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True
@@ -1535,3 +1507,182 @@ class _SubTest(TestCase):
 
     def __str__(self):
         return "{} {}".format(self.test_case, self._subDescription())
+
+# TODO(T127996818) Remove from here to the end of the file when porting is done.
+import enum
+import dis
+import inspect
+import io
+import _testcapi
+
+# This wrapper seems to be needed to make
+# test.test_support.TestSupport.test_check__all__ pass
+def cinder_enable_broken_tests():
+    return _testcapi.cinder_enable_broken_tests()
+
+# List of Cinder "features" yet to be ported which can be used to mark tests to
+# be skipped. Whenever a feature is completed, remove it from this enum and
+# update all the tests skipping on it.
+class PortFeature(enum.Enum):
+    #
+    # Major missing features
+    #
+    STATIC_PYTHON = enum.auto()
+    LAZY_IMPORTS = enum.auto()
+
+    #
+    # Missing opcodes
+    #
+
+    # CPython opcodes that were added in 3.9 / 3.10
+    OPC_CONTAINS_OP = enum.auto()
+    OPC_COPY_DICT_WITHOUT_KEYS = enum.auto() # T126141783
+    OPC_DICT_MERGE = enum.auto() # T126141766
+    OPC_DICT_UPDATE = enum.auto() # T126141754
+    OPC_GEN_START = enum.auto() # T125854918
+    OPC_GET_LEN = enum.auto() # T126141793
+    OPC_IS_OP = enum.auto() # T125844569
+    OPC_JUMP_IF_NOT_EXC_MATCH = enum.auto() # T125844569, T125899460
+    OPC_LIST_TO_TUPLE = enum.auto() # T126141719
+    OPC_LOAD_ASSERTION_ERROR = enum.auto() # T126141711
+    OPC_MATCH_CLASS = enum.auto() # T126141840
+    OPC_MATCH_KEYS = enum.auto() # T126141817
+    OPC_MATCH_MAPPING = enum.auto() # T126141799
+    OPC_MATCH_SEQUENCE = enum.auto() # T126141809
+    OPC_RERAISE = enum.auto() # T126141686, T125899460
+    OPC_ROT_N = enum.auto() # T126141852
+    OPC_SET_UPDATE = enum.auto() # T126141745
+    OPC_WITH_EXCEPT_START = enum.auto() # T126141703, T125899460
+
+    # CPython opcodes that existed prior to 3.9
+    # TODO(T125854918): coroutine / generator support
+    OPC_BEFORE_ASYNC_WITH = enum.auto()
+    OPC_END_ASYNC_FOR = enum.auto()
+    OPC_GET_AITER = enum.auto()
+    OPC_GET_ANEXT = enum.auto()
+    OPC_GET_AWAITABLE = enum.auto()
+    OPC_GET_YIELD_FROM_ITER = enum.auto()
+    OPC_SETUP_ASYNC_WITH = enum.auto()
+    OPC_YIELD_FROM = enum.auto()
+    OPC_YIELD_VALUE = enum.auto()
+
+    # TODO(T127134006): Containers
+    OPC_BUILD_CONST_KEY_MAP = enum.auto()
+    OPC_BUILD_MAP = enum.auto()
+    OPC_BUILD_SET = enum.auto()
+    OPC_BUILD_SLICE = enum.auto()
+    OPC_BUILD_STRING = enum.auto()
+    OPC_BUILD_TUPLE = enum.auto()
+    OPC_LIST_APPEND = enum.auto()
+    OPC_MAP_ADD = enum.auto()
+    OPC_SET_ADD = enum.auto()
+
+    # TODO(T127134659): Imports
+    OPC_IMPORT_FROM = enum.auto()
+    OPC_IMPORT_NAME = enum.auto()
+
+    # TODO(T125899460): Exception handling
+    OPC_POP_EXCEPT = enum.auto()
+    OPC_RAISE_VARARGS = enum.auto()
+    OPC_SETUP_FINALLY = enum.auto()
+    OPC_SETUP_WITH = enum.auto()
+
+    # TODO(T127134900): Grab-bag of remaining opcodes
+    OPC_COMPARE_OP = enum.auto()
+    OPC_DELETE_FAST = enum.auto()
+    OPC_DELETE_SUBSCR = enum.auto()
+    OPC_EXTENDED_ARG = enum.auto()
+    OPC_FORMAT_VALUE = enum.auto()
+    OPC_MAKE_FUNCTION = enum.auto() # T126141867
+    OPC_STORE_SUBSCR = enum.auto()
+    OPC_UNPACK_EX = enum.auto()
+    OPC_UNPACK_SEQUENCE = enum.auto()
+
+    # Static Python opcodes
+    OPC_BUILD_CHECKED_LIST = enum.auto()
+    OPC_BUILD_CHECKED_MAP = enum.auto()
+    OPC_CAST = enum.auto()
+    OPC_CHECK_ARGS = enum.auto()
+    OPC_CONVERT_PRIMITIVE = enum.auto()
+    OPC_FAST_LEN = enum.auto()
+    OPC_INT_LOAD_CONST_OLD = enum.auto()
+    OPC_INVOKE_FUNCTION = enum.auto()
+    OPC_INVOKE_METHOD = enum.auto()
+    OPC_JUMP_IF_NONZERO_OR_POP = enum.auto()
+    OPC_JUMP_IF_ZERO_OR_POP = enum.auto()
+    OPC_LOAD_FIELD = enum.auto()
+    OPC_LOAD_ITERABLE_ARG = enum.auto()
+    OPC_LOAD_LOCAL = enum.auto()
+    OPC_LOAD_TYPE = enum.auto()
+    OPC_POP_JUMP_IF_NONZERO = enum.auto()
+    OPC_POP_JUMP_IF_ZERO = enum.auto()
+    OPC_PRIMITIVE_BINARY_OP = enum.auto()
+    OPC_PRIMITIVE_BOX = enum.auto()
+    OPC_PRIMITIVE_COMPARE_OP = enum.auto()
+    OPC_PRIMITIVE_LOAD_CONST = enum.auto()
+    OPC_PRIMITIVE_UNARY_OP = enum.auto()
+    OPC_PRIMITIVE_UNBOX = enum.auto()
+    OPC_REFINE_TYPE = enum.auto()
+    OPC_RETURN_PRIMITIVE = enum.auto()
+    OPC_SEQUENCE_GET = enum.auto()
+    OPC_SEQUENCE_REPEAT = enum.auto()
+    OPC_SEQUENCE_SET = enum.auto()
+    OPC_STORE_FIELD = enum.auto()
+    OPC_STORE_LOCAL = enum.auto()
+    OPC_TP_ALLOC = enum.auto()
+
+    # Readonly
+    OPC_FUNC_CREDENTIAL = enum.auto()
+    OPC_READONLY_OPERATION = enum.auto()
+
+    OPC_LOAD_GLOBAL = enum.auto()
+
+def dumpMissingOpcodes(func):
+    """
+    Decorate a test with this to dump out list of missing opcode features.
+    """
+    dis_str_file = io.StringIO()
+    dis.dis(func, file=dis_str_file)
+    dis_str = dis_str_file.getvalue()
+
+    missing_opcodes = set()
+    for feature_enum in list(PortFeature):
+        feature_str = feature_enum.name
+        if feature_str[:4] == 'OPC_' and  feature_str[4:] in dis_str:
+            missing_opcodes.add(feature_str)
+
+    print(f"Missing {len(missing_opcodes)} opcodes")
+    if len(missing_opcodes):
+        line_no = inspect.currentframe().f_back.f_lineno
+        with open("/tmp/headers.txt", "a+") as f:
+            body = ", ".join(f'"PortFeature.{op_str}"' for op_str in missing_opcodes)
+            f.write(f"""[{line_no}, {body}],\n""")
+
+    return func
+
+from typing import Collection
+def failUnlessJITCompiledWaitingForFeaturePort(*features: Collection[PortFeature]):
+    """
+    Decorator to mark a test as requiring JIT compilation once the set of
+    required features are implemented.
+    """
+    if len(features) == 0:
+        raise Exception("Not waiting for any features. "
+            "Change to failUnlessJITCompiled() or add a missing feature.")
+    return _id
+
+def waitingForFeaturePort(*features: Collection[PortFeature]):
+    """
+    Decorator to mark a test as waiting for specified porting features.
+    """
+    if len(features) == 0:
+        raise Exception("Not waiting for any features. "
+            "Remove this decorator or add a missing feature.")
+    return skip(f"Missing Cinder port features: {features}")
+
+def cinderPortingBrokenTest(reason=""):
+    if reason != "":
+        reason = f": {reason}"
+    return skipUnless(
+        cinder_enable_broken_tests(),
+        f"Cinder tests broken by porting not enabled{reason}")

@@ -3,23 +3,25 @@ import _testcapi
 import asyncio
 import builtins
 import dis
+import gc
+import sys
+import tempfile
+import threading
+import traceback
 import unittest
 import warnings
-from functools import cmp_to_key
+import weakref
+
+from unittest.case import PortFeature
+
+from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
+from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+
 if unittest.cinder_enable_broken_tests():
-    import gc
-    import sys
-    import tempfile
-    import threading
-    import traceback
-    import types
-    import weakref
-    from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
     from compiler.static import StaticCodeGenerator
-    from contextlib import contextmanager
 
     try:
         with warnings.catch_warnings():
@@ -68,7 +70,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers(self):
         """Verify that line numbers are correct"""
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def g():
             return sys._getframe()
 
@@ -77,7 +79,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def g(x, y):
             yield sys._getframe()
             z = x + y
@@ -95,7 +97,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
     def test_line_numbers_for_suspended_generators(self):
         """Verify that line numbers are correct for suspended generator functions"""
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def g(x):
             x = x + 1
             yield x
@@ -117,18 +119,18 @@ class GetFrameLineNumberTests(unittest.TestCase):
         an exception is thrown into them.
         """
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def f1(g):
             yield from g
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def f2(g):
             yield from g
 
         gen1, gen2 = None, None
         gen1_frame, gen2_frame = None, None
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def f3():
             nonlocal gen1_frame, gen2_frame
             try:
@@ -157,7 +159,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
                 nonlocal stack
                 stack = traceback.extract_stack()
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def double(x):
             ret = x
             tmp = StackGetter()
@@ -171,14 +173,14 @@ class GetFrameLineNumberTests(unittest.TestCase):
         self.assertEqual(stack[-2].lineno, 142)
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def get_stack():
     z = 1 + 1
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def get_stack_twice():
     stacks = []
     stacks.append(get_stack())
@@ -186,19 +188,19 @@ def get_stack_twice():
     return stacks
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def get_stack2():
     z = 2 + 2
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def get_stack_siblings():
     return [get_stack(), get_stack2()]
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def get_stack_multi():
     stacks = []
     stacks.append(traceback.extract_stack())
@@ -207,13 +209,12 @@ def get_stack_multi():
     return stacks
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
 def call_get_stack_multi():
     x = 1 + 1
     return get_stack_multi()
 
 
-@unittest.cinderPortingBrokenTest()
 class InlinedFunctionLineNumberTests(unittest.TestCase):
     @jit_suppress
     @unittest.skipIf(
@@ -301,14 +302,13 @@ class _CallableObj:
         return self, a, b
 
 
-@unittest.cinderPortingBrokenTest()
 class CallKWArgsTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_basic_function_pos_and_kw(self):
         r = _simpleFunc(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_basic_function_kw_only(self):
         r = _simpleFunc(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -320,12 +320,12 @@ class CallKWArgsTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_class_static_pos_and_kw(self):
         r = CallKWArgsTests._f1(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -333,48 +333,51 @@ class CallKWArgsTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_method_kw_and_pos(self):
         r = self._f2(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_method_kw_only(self):
         r = self._f2(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(1, b=2)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(b=2, a=1)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_c_func(self):
         self.assertEqual(__import__("sys", globals=None), sys)
 
 
-@unittest.cinderPortingBrokenTest()
 class CallExTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_CONST_KEY_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -386,27 +389,36 @@ class CallExTests(unittest.TestCase):
         def __getitem__(self, k):
             return {"a": 1, "b": 2}[k]
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**CallExTests._DummyMapping())
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_dynamic_pos_tuple(self):
         r = _simpleFunc(*(1, 2))
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_call_dynamic_pos_list(self):
         r = _simpleFunc(*[1, 2])
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_dynamic_pos_and_kw(self):
         r = _simpleFunc(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def _doCall(self, args, kwargs):
         return _simpleFunc(*args, **kwargs)
 
@@ -425,12 +437,19 @@ class CallExTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_class_static_pos_and_kw(self):
         r = CallExTests._f1(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_CONST_KEY_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -438,45 +457,75 @@ class CallExTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_method_kw_and_pos(self):
         r = self._f2(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_CONST_KEY_MAP,
+        PortFeature.OPC_DICT_MERGE,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_call_method_kw_only(self):
         r = self._f2(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_CONST_KEY_MAP,
+        PortFeature.OPC_DICT_MERGE,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(*(1,), **{"b": 2})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_DICT_MERGE,
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_BUILD_CONST_KEY_MAP,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(**{"b": 2, "a": 1})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def test_call_c_func_pos_only(self):
         self.assertEqual(len(*([2],)), 1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP,
+        PortFeature.OPC_DICT_MERGE,
+    )
     def test_call_c_func_pos_and_kw(self):
         self.assertEqual(__import__(*("sys",), **{"globals": None}), sys)
 
@@ -1000,7 +1049,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         a_global = value
 
     @staticmethod
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def get_global():
         return a_global
@@ -1020,7 +1069,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         global license
         del license
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_simple(self):
         global a_global
@@ -1029,7 +1078,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.set_global(456)
         self.assertEqual(a_global, 456)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_shadow_builtin(self):
         self.assertIs(license, builtins.license)
@@ -1038,7 +1087,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.del_license()
         self.assertIs(license, builtins.license)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_shadow_fake_builtin(self):
         self.assertRaises(NameError, self.get_global)
         builtins.a_global = "poke"
@@ -1063,7 +1112,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         def __eq__(self, other):
             return (self.prefix + self) == other
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
     def test_weird_key_in_globals(self):
         global a_global
         self.assertRaises(NameError, self.get_global)
@@ -1084,7 +1133,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
     def test_dict_subclass_globals(self):
         self.assertEqual(self.return_knock_knock(), "who's there?")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
     def _test_unwatch_builtins(self):
         self.set_global("hey")
         self.assertEqual(self.get_global(), "hey")
@@ -1109,9 +1158,11 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 sys.path[:] = _orig_sys_path
                 sys.modules = _orig_sys_modules
 
-    @unittest.cinderPortingBrokenTest()
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
+    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
+    )
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1176,9 +1227,11 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 ]
                 self.assertEqual(relevant_deopts, [])
 
-    @unittest.cinderPortingBrokenTest()
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
+    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
+    )
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1218,9 +1271,11 @@ class LoadGlobalCacheTests(unittest.TestCase):
             if cinderjit:
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
-    @unittest.cinderPortingBrokenTest()
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
+    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
+    )
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1256,9 +1311,11 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
 
-@unittest.cinderPortingBrokenTest()
 class ClosureTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_cellvar(self):
         a = 1
 
@@ -1267,7 +1324,10 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(foo(), 1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_two_cellvars(self):
         a = 1
         b = 2
@@ -1277,14 +1337,20 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(g(), 3)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_cellvar_argument(self):
         def foo():
             self.assertEqual(1, 1)
 
         foo()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def test_cellvar_argument_modified(self):
         self_ = self
 
@@ -1298,7 +1364,10 @@ class ClosureTests(unittest.TestCase):
 
         self_.assertEqual(self, 1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def _cellvar_unbound(self):
         b = a
         a = 1
@@ -1317,7 +1386,7 @@ class ClosureTests(unittest.TestCase):
     def test_freevars(self):
         x = 1
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def nested():
             return x
 
@@ -1327,7 +1396,7 @@ class ClosureTests(unittest.TestCase):
 
     def test_freevars_multiple_closures(self):
         def get_func(a):
-            @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+            @unittest.failUnlessJITCompiled
             def f():
                 return a
 
@@ -1340,7 +1409,7 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(f2(), 2)
 
     def test_nested_func(self):
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def add(a, b):
             return a + b
 
@@ -1349,7 +1418,7 @@ class ClosureTests(unittest.TestCase):
 
     @staticmethod
     def make_adder(a):
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiled
         def add(b):
             return a + b
 
@@ -1366,7 +1435,9 @@ class ClosureTests(unittest.TestCase):
             add_3("ok")
 
     def test_nested_func_with_different_globals(self):
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+            PortFeature.OPC_LOAD_GLOBAL
+        )
         @with_globals({"A_GLOBAL_CONSTANT": 0xDEADBEEF})
         def return_global():
             return A_GLOBAL_CONSTANT
@@ -1382,9 +1453,12 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(return_other_global(), 0xFACEB00C)
 
     def test_nested_func_outlives_parent(self):
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+            PortFeature.OPC_BUILD_TUPLE,
+            PortFeature.OPC_MAKE_FUNCTION,
+        )
         def nested(x):
-            @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+            @unittest.failUnlessJITCompiled
             def inner(y):
                 return x + y
 
@@ -1397,9 +1471,8 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(add_5(10), 15)
 
 
-@unittest.cinderPortingBrokenTest()
 class TempNameTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def _tmp_name(self, a, b):
         tmp1 = "hello"
         c = a + b
@@ -1408,7 +1481,7 @@ class TempNameTests(unittest.TestCase):
     def test_tmp_name(self):
         self.assertEqual(self._tmp_name(1, 2), "hello")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def test_tmp_name2(self):
         v0 = 5
         self.assertEqual(v0, 5)
@@ -1419,9 +1492,8 @@ class DummyContainer:
         raise Exception("hello!")
 
 
-@unittest.cinderPortingBrokenTest()
 class ExceptionInConditional(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def doit(self, x):
         if x:
             return 1
@@ -1433,7 +1505,7 @@ class ExceptionInConditional(unittest.TestCase):
 
 
 class JITCompileCrasherRegressionTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_FORMAT_VALUE)
     def _fstring(self, flag, it1, it2):
         for a in it1:
             for b in it2:
@@ -1443,7 +1515,9 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
     def test_fstring_no_fmt_spec_in_nested_loops_and_if(self):
         self.assertEqual(self._fstring(True, [1], [1]), "1")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def _sharedAwait(self, x, y, z):
         return await (x() if y else z())
 
@@ -1472,7 +1546,6 @@ class DelObserver:
         self.cb(self.id)
 
 
-@unittest.cinderPortingBrokenTest()
 class UnwindStateTests(unittest.TestCase):
     DELETED = []
 
@@ -1483,7 +1556,7 @@ class UnwindStateTests(unittest.TestCase):
     def get_del_observer(self, id):
         return DelObserver(id, lambda i: self.DELETED.append(i))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
     def _copied_locals(self, a):
         b = c = a
         raise RuntimeError()
@@ -1497,7 +1570,11 @@ class UnwindStateTests(unittest.TestCase):
                 f_locals, {"self": self, "a": "hello", "b": "hello", "c": "hello"}
             )
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def _raise_with_del_observer_on_stack(self):
         for x in (1 for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -1512,7 +1589,11 @@ class UnwindStateTests(unittest.TestCase):
             self.fail("should have raised RuntimeError")
         self.assertEqual(deleted, [1])
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def _raise_with_del_observer_on_stack_and_cell_arg(self):
         for x in (self for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -1530,15 +1611,14 @@ class UnwindStateTests(unittest.TestCase):
         self.assertEqual(deleted, [1])
 
 
-@unittest.cinderPortingBrokenTest()
 class ImportTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IMPORT_NAME)
     def test_import_name(self):
         import math
 
         self.assertEqual(int(math.pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IMPORT_NAME)
     def _fail_to_import_name(self):
         import non_existent_module
 
@@ -1546,13 +1626,18 @@ class ImportTests(unittest.TestCase):
         with self.assertRaises(ModuleNotFoundError):
             self._fail_to_import_name()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_IMPORT_NAME,
+        PortFeature.OPC_IMPORT_FROM,
+    )
     def test_import_from(self):
         from math import pow as math_pow
 
         self.assertEqual(int(math_pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_IMPORT_NAME, PortFeature.OPC_IMPORT_FROM
+    )
     def _fail_to_import_from(self):
         from math import non_existent_attr
 
@@ -1561,17 +1646,16 @@ class ImportTests(unittest.TestCase):
             self._fail_to_import_from()
 
 
-@unittest.cinderPortingBrokenTest()
 class RaiseTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
     def _jitRaise(self, exc):
         raise exc
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
     def _jitRaiseCause(self, exc, cause):
         raise exc from cause
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
     def _jitReraise(self):
         raise
 
@@ -1607,9 +1691,8 @@ class RaiseTests(unittest.TestCase):
         self.assertEqual(exc.exception.args, ("No active exception to reraise",))
 
 
-@unittest.cinderPortingBrokenTest()
 class GeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f1(self):
         yield 1
 
@@ -1620,7 +1703,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsNone(exc.exception.value)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f2(self):
         yield 1
         yield 2
@@ -1634,7 +1717,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 3)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f3(self):
         a = yield 1
         b = yield 2
@@ -1648,7 +1731,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(1000)
         self.assertEqual(exc.exception.value, 1100)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f4(self, a):
         yield a
         yield a
@@ -1662,7 +1745,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 10)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f5(
         self, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16
     ):
@@ -1784,7 +1867,7 @@ class GeneratorsTest(unittest.TestCase):
             l.append(x)
         self.assertEqual(l, [1, 2])
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
     def _f6(self):
         i = 0
         while i < 1000:
@@ -1802,7 +1885,7 @@ class GeneratorsTest(unittest.TestCase):
     def _f_raises(self):
         raise ValueError
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f7(self):
         self._f_raises()
         yield 1
@@ -1832,7 +1915,7 @@ class GeneratorsTest(unittest.TestCase):
         self.assertEqual(g.send(None), 1)
         g.close()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f8(self, a):
         x += yield a
 
@@ -1841,7 +1924,7 @@ class GeneratorsTest(unittest.TestCase):
         with self.assertRaises(UnboundLocalError):
             g.send(None)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f9(self, a):
         yield
         return a
@@ -1856,12 +1939,13 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsInstance(exc.exception.value, X)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def _f10(self, X):
         x = X()
         yield weakref.ref(x)
         return x
 
+    @unittest.waitingForFeaturePort(PortFeature.OPC_GEN_START)
     def test_gc_traversal(self):
         class X:
             pass
@@ -1899,7 +1983,9 @@ class GeneratorsTest(unittest.TestCase):
         del g
         self.assertEqual(sys.getrefcount(o), base_count)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_YIELD_FROM_ITER, PortFeature.OPC_YIELD_FROM
+    )
     def _f12(self, g):
         a = yield from g
         return a
@@ -2002,7 +2088,7 @@ class GeneratorsTest(unittest.TestCase):
             bc.send(None)
         del bc
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def big_coro(self):
         # This currently results in a max spill size of ~100, but that could
         # change with JIT register allocation improvements. This test is only
@@ -2020,7 +2106,7 @@ class GeneratorsTest(unittest.TestCase):
             h=dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9),
         )
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def small_coro(self):
         return 1
 
@@ -2043,9 +2129,8 @@ class GeneratorsTest(unittest.TestCase):
             g.__next__()
 
 
-@unittest.cinderPortingBrokenTest()
 class GeneratorFrameTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def gen1(self):
         a = 1
         yield a
@@ -2067,7 +2152,7 @@ class GeneratorFrameTest(unittest.TestCase):
         self.assertEqual(next(g), 2)
         self.assertEqual(g.gi_frame, f)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def gen2(self):
         me = yield
         f = me.gi_frame
@@ -2082,13 +2167,14 @@ class GeneratorFrameTest(unittest.TestCase):
         next(g)
 
 
-@unittest.cinderPortingBrokenTest()
 class CoroutinesTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def _f1(self):
         return 1
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def _f2(self, await_target):
         return await await_target
 
@@ -2116,8 +2202,9 @@ class CoroutinesTest(unittest.TestCase):
             # This is needed to avoid an "environment changed" error
             asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
-    @asyncio.coroutine
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GEN_START, PortFeature.OPC_YIELD_VALUE
+    )
     def _f3(self):
         yield 1
         return 2
@@ -2130,7 +2217,13 @@ class CoroutinesTest(unittest.TestCase):
         self.assertEqual(exc.exception.value, 2)
 
     @staticmethod
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_ASYNC_WITH,
+        PortFeature.OPC_BEFORE_ASYNC_WITH,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_WITH_EXCEPT_START,
+    )
     async def _use_async_with(mgr_type):
         async with mgr_type():
             pass
@@ -2178,7 +2271,9 @@ class CoroutinesTest(unittest.TestCase):
         async def eager_suspend(suffix):
             await self.FakeFuture("hello, " + suffix)
 
-        @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+            PortFeature.OPC_GEN_START, PortFeature.OPC_YIELD_FROM
+        )
         async def jit_coro():
             await eager_suspend("bob")
 
@@ -2297,48 +2392,58 @@ class EagerCoroutineDispatch(StaticTestBase):
         self.assertFalse(awaited_capturer.last_awaited())
         self.assertIsNone(awaited_capturer.last_awaited())
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def _call_ex(self, t):
         t(*[1])
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def _call_ex_awaited(self, t):
         await t(*[1])
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
+    )
     async def _call_ex_kw(self, t):
         t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
+    )
     async def _call_ex_kw_awaited(self, t):
         await t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_MAP)
     async def _call_method(self, t):
         # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
         o = type("", (), {})()
         o.t = t
         o.t()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_MAP)
     async def _call_method_awaited(self, t):
         o = type("", (), {})()
         o.t = t
         await o.t()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def _vector_call(self, t):
         t()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def _vector_call_awaited(self, t):
         await t()
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
     async def _vector_call_kw(self, t):
         t(a=1)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def _vector_call_kw_awaited(self, t):
         await t(a=1)
 
@@ -2467,9 +2572,12 @@ class EagerCoroutineDispatch(StaticTestBase):
         self.assertEqual(coro.send(None), 2)
 
 
-@unittest.cinderPortingBrokenTest()
 class AsyncGeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE,
+        PortFeature.OPC_YIELD_FROM,
+        PortFeature.OPC_YIELD_VALUE,
+    )
     async def _f1(self, awaitable):
         x = yield 1
         yield x
@@ -2502,7 +2610,12 @@ class AsyncGeneratorsTest(unittest.TestCase):
         with self.assertRaises(StopAsyncIteration):
             async_itt3.send(None)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AITER,
+        PortFeature.OPC_GET_ANEXT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_END_ASYNC_FOR,
+    )
     async def _f2(self, asyncgen):
         res = []
         async for x in asyncgen:
@@ -2538,7 +2651,14 @@ class AsyncGeneratorsTest(unittest.TestCase):
         else:
             self.fail("Expected ValueError to be raised")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AITER,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_MAKE_FUNCTION,
+        PortFeature.OPC_LIST_APPEND,
+        PortFeature.OPC_GET_ANEXT,
+        PortFeature.OPC_END_ASYNC_FOR,
+    )
     async def _f3(self, asyncgen):
         return [x async for x in asyncgen]
 
@@ -2571,9 +2691,10 @@ class Err2(Exception):
     pass
 
 
-@unittest.cinderPortingBrokenTest()
 class ExceptionHandlingTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def try_except(self, func):
         try:
             func()
@@ -2592,7 +2713,12 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertFalse(self.try_except(g))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+    )
     def catch_multiple(self, func):
         try:
             func()
@@ -2612,7 +2738,9 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.catch_multiple(g), 2)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_SETUP_FINALLY, PortFeature.OPC_RAISE_VARARGS
+    )
     def reraise(self, func):
         try:
             func()
@@ -2626,7 +2754,12 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "hello"):
             self.reraise(f)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+    )
     def try_except_in_loop(self, niters, f):
         for i in range(niters):
             try:
@@ -2645,7 +2778,11 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.try_except_in_loop(20, f), 10)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def nested_try_except(self, f):
         try:
             try:
@@ -2664,7 +2801,9 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.nested_try_except(f), 100)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def try_except_in_generator(self, f):
         try:
             yield f(0)
@@ -2683,7 +2822,11 @@ class ExceptionHandlingTests(unittest.TestCase):
         next(g)
         self.assertEqual(next(g), 123)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def try_finally(self, should_raise):
         result = None
         try:
@@ -2698,7 +2841,14 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "testing 123"):
             self.try_finally(True)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_IS_OP,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def try_except_finally(self, should_raise):
         result = None
         try:
@@ -2715,28 +2865,36 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.try_except_finally(False), 100)
         self.assertEqual(self.try_except_finally(True), 200)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def return_in_finally(self, v):
         try:
             pass
         finally:
             return v
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def return_in_finally2(self, v):
         try:
             return v
         finally:
             return 100
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def return_in_finally3(self, v):
         try:
             1 / 0
         finally:
             return v
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def return_in_finally4(self, v):
         try:
             return 100
@@ -2752,7 +2910,13 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_finally3(300), 300)
         self.assertEqual(self.return_in_finally4(400), 400)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_COMPARE_OP,
+    )
     def break_in_finally_after_return(self, x):
         for count in [0, 1]:
             count2 = 0
@@ -2765,7 +2929,12 @@ class ExceptionHandlingTests(unittest.TestCase):
                         break
         return "end", count, count2
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def break_in_finally_after_return2(self, x):
         for count in [0, 1]:
             for count2 in [10, 20]:
@@ -2782,7 +2951,13 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.break_in_finally_after_return2(False), 10)
         self.assertEqual(self.break_in_finally_after_return2(True), ("end", 1, 10))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_BUILD_TUPLE,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_COMPARE_OP,
+    )
     def continue_in_finally_after_return(self, x):
         count = 0
         while count < 100:
@@ -2794,7 +2969,12 @@ class ExceptionHandlingTests(unittest.TestCase):
                     continue
         return "end", count
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_BUILD_TUPLE,
+    )
     def continue_in_finally_after_return2(self, x):
         for count in [0, 1]:
             try:
@@ -2810,7 +2990,9 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.continue_in_finally_after_return2(False), 0)
         self.assertEqual(self.continue_in_finally_after_return2(True), ("end", 1))
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
+    )
     def return_in_loop_in_finally(self, x):
         try:
             for _ in [1, 2, 3]:
@@ -2824,7 +3006,9 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_loop_in_finally(True), True)
         self.assertEqual(self.return_in_loop_in_finally(False), 100)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
+    )
     def conditional_return_in_finally(self, x, y, z):
         try:
             if x:
@@ -2840,7 +3024,9 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.conditional_return_in_finally(False, 200, False), 200)
         self.assertEqual(self.conditional_return_in_finally(False, False, 300), 300)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
+    )
     def nested_finally(self, x):
         try:
             if x:
@@ -2858,8 +3044,10 @@ class ExceptionHandlingTests(unittest.TestCase):
 
 
 class UnpackSequenceTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_UNPACK_SEQUENCE, PortFeature.OPC_COMPARE_OP
+    )
     def _unpack_arg(self, seq, which):
         a, b, c, d = seq
         if which == "a":
@@ -2870,8 +3058,12 @@ class UnpackSequenceTests(unittest.TestCase):
             return c
         return d
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("UNPACK_EX")
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_EXTENDED_ARG,
+        PortFeature.OPC_COMPARE_OP,
+        PortFeature.OPC_UNPACK_EX,
+    )
     def _unpack_ex_arg(self, seq, which):
         a, b, *c, d = seq
         if which == "a":
@@ -2905,17 +3097,19 @@ class UnpackSequenceTests(unittest.TestCase):
 
         self.assertEqual(self._unpack_arg(gen(), "d"), "fourth")
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_not_iterable(self):
         (a, b, *c) = 1
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values(self):
         (a, b, *c) = [1]
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_UNPACK_EX, PortFeature.OPC_EXTENDED_ARG
+    )
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values_after(self):
         (a, *b, c, d) = [1, 2]
@@ -2969,7 +3163,7 @@ class UnpackSequenceTests(unittest.TestCase):
 
 
 class DeleteSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_SUBSCR)
     @failUnlessHasOpcodes("DELETE_SUBSCR")
     def _delit(self, container, key):
         del container[key]
@@ -3011,40 +3205,53 @@ class DeleteSubscrTests(unittest.TestCase):
 
 
 class DeleteFastTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del(self):
         x = 2
         del x
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg(self, a):
         del a
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_and_raise(self):
         x = 2
         del x
         return x
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg_and_raise(self, a):
         del a
         return a
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("DELETE_FAST")
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_DELETE_FAST,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+        PortFeature.OPC_SETUP_FINALLY,
+    )
     def _del_ex_no_raise(self):
         try:
             return min(1, 2)
         except Exception as e:
             pass
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
     @failUnlessHasOpcodes("DELETE_FAST")
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_DELETE_FAST,
+        PortFeature.OPC_RAISE_VARARGS,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+        PortFeature.OPC_SETUP_FINALLY,
+    )
     def _del_ex_raise(self):
         try:
             raise Exception()
@@ -3074,7 +3281,6 @@ class DeleteFastTests(unittest.TestCase):
             self.assertEqual(self._del_ex_raise(), 42)
 
 
-@unittest.cinderPortingBrokenTest()
 class DictSubscrTests(unittest.TestCase):
     def test_custom_class(self):
         class C:
@@ -3094,13 +3300,12 @@ class DictSubscrTests(unittest.TestCase):
             d["x"]
 
 
-@unittest.cinderPortingBrokenTest()
 class KeywordOnlyArgTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def f1(self, *, val=10):
         return val
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
     def f2(self, which, *, y=10, z=20):
         if which == 0:
             return y
@@ -3108,7 +3313,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
     def f3(self, which, *, y, z=20):
         if which == 0:
             return y
@@ -3116,7 +3321,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
     def f4(self, which, *, y, z=20, **kwargs):
         if which == 0:
             return y
@@ -3190,32 +3395,31 @@ class ClassB(ClassA):
         return super(ClassB, self).x + 1
 
 
-@unittest.cinderPortingBrokenTest()
 class SuperAccessTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_super_method(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(99), 199)
         self.assertEqual(ClassB.cls_f_2arg(99), 199)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_super_method_kwarg(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(1), 101)
         self.assertEqual(ClassB.cls_f_2arg(1), 101)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def test_super_attr(self):
         self.assertEqual(ClassB().x, 42)
         self.assertEqual(ClassB().x_2arg, 42)
 
 
-@unittest.cinderPortingBrokenTest()
 class RegressionTests(StaticTestBase):
     # Detects an issue in the backend where the Store instruction generated 32-
     # bit memory writes for 64-bit constants.
+    @unittest.waitingForFeaturePort(PortFeature.STATIC_PYTHON)
     def test_store_of_64bit_immediates(self):
         codestr = f"""
             from __static__ import int64, box
@@ -3236,7 +3440,6 @@ class RegressionTests(StaticTestBase):
                 self.assertTrue(cinderjit.is_jit_compiled(testfunc))
 
 
-@unittest.cinderPortingBrokenTest()
 @unittest.skipUnlessCinderJITEnabled("Requires cinderjit module")
 class CinderJitModuleTests(StaticTestBase):
     def test_bad_disable(self):
@@ -3267,6 +3470,7 @@ class CinderJitModuleTests(StaticTestBase):
 
         self.assertEqual(x.__code__.co_flags & CO_SUPPRESS_JIT, CO_SUPPRESS_JIT)
 
+    @unittest.waitingForFeaturePort({PortFeature.STATIC_PYTHON})
     def test_jit_suppress_static(self):
         codestr = f"""
             import cinderjit
@@ -3318,7 +3522,9 @@ def _inner(*args, **kwargs):
     return kwargs
 
 
-@unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+@unittest.failUnlessJITCompiledWaitingForFeaturePort(
+    PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
+)
 def _outer(args, kwargs):
     return _inner(*args, **kwargs)
 
@@ -3339,17 +3545,16 @@ class TestException(Exception):
     pass
 
 
-@unittest.cinderPortingBrokenTest()
 class GetFrameTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def f1(self, leaf):
         return self.f2(leaf)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def f2(self, leaf):
         return self.f3(leaf)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiled
     def f3(self, leaf):
         return leaf()
 
@@ -3358,7 +3563,7 @@ class GetFrameTests(unittest.TestCase):
             self.assertEqual(frame.f_code.co_name, name)
             frame = frame.f_back
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
     def simple_getframe(self):
         return sys._getframe()
 
@@ -3367,7 +3572,7 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.simple_getframe)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
     def consecutive_getframe(self):
         f1 = sys._getframe()
         f2 = sys._getframe()
@@ -3384,7 +3589,11 @@ class GetFrameTests(unittest.TestCase):
             frame1 = frame1.f_back
             frame2 = frame2.f_back
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def getframe_then_deopt(self):
         f = sys._getframe()
         try:
@@ -3399,7 +3608,11 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.getframe_then_deopt)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def getframe_in_except(self):
         try:
             raise Exception("testing 123")
@@ -3424,7 +3637,9 @@ class GetFrameTests(unittest.TestCase):
         del x
         raise Exception("testing 123")
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
+    )
     def getframe_in_dtor_during_deopt(self):
         ref = ["notaframe"]
         try:
@@ -3445,7 +3660,11 @@ class GetFrameTests(unittest.TestCase):
         ]
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RAISE_VARARGS,
+    )
     def getframe_in_dtor_after_deopt(self):
         ref = ["notaframe"]
         frame_getter = self.FrameGetter(ref)
@@ -3585,7 +3804,6 @@ class GetFrameTests(unittest.TestCase):
             gc.set_threshold(*thresholds)
 
 
-@unittest.cinderPortingBrokenTest()
 class GetGenFrameDuringThrowTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -3596,11 +3814,18 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
         self.loop.close()
         asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
+    )
     async def outer_propagates_exc(self, inner):
         return await inner
 
-    @unittest.failUnlessJITCompiledIfBrokenTestsEnabled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_POP_EXCEPT,
+        PortFeature.OPC_SETUP_FINALLY,
+        PortFeature.OPC_RERAISE,
+        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
+    )
     async def outer_handles_exc(self, inner):
         try:
             await inner
@@ -3663,16 +3888,7 @@ class DeleteAttrTests(unittest.TestCase):
             self.del_foo(c)
 
 
-_cmp_key = cmp_to_key(lambda x, y: 0)
-
-
-@unittest.cinderPortingBrokenTest()
 class OtherTests(unittest.TestCase):
-    def test_type_ready(self):
-        # T100786119: type(_cmp_key) should have been initialized, or JIT
-        # will fail during compilation.
-        self.cmp_key = _cmp_key
-
     @unittest.skipIf(
         not cinderjit,
         "meaningless without JIT enabled",
@@ -3752,7 +3968,9 @@ class GetIterForIterTests(unittest.TestCase):
 
 
 class SetUpdateTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_SET_UPDATE, PortFeature.OPC_BUILD_SET
+    )
     @failUnlessHasOpcodes("BUILD_SET", "SET_UPDATE")
     def doit_unchecked(self, iterable):
         return {*iterable}
@@ -3795,7 +4013,9 @@ class SetUpdateTests(unittest.TestCase):
 # remove UnpackSequenceTests entirely. It will then be covered by the other
 # UnpackSequenceTests above.
 class UnpackSequenceTestsWithoutCompare(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_UNPACK_SEQUENCE
+    )
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
     def doit(self, iterable):
         x, y = iterable
@@ -3828,7 +4048,7 @@ class UnpackSequenceTestsWithoutCompare(unittest.TestCase):
 # remove UnpackExTests entirely. It will then be covered by UnpackSequenceTests
 # above.
 class UnpackExTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
     @failUnlessHasOpcodes("UNPACK_EX")
     def doit(self, iterable):
         x, *y = iterable
@@ -3858,7 +4078,7 @@ class UnpackExTests(unittest.TestCase):
 
 
 class StoreSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
     @failUnlessHasOpcodes("STORE_SUBSCR")
     def doit(self, obj, key, value):
         obj[key] = value
@@ -3896,12 +4116,16 @@ class StoreSubscrTests(unittest.TestCase):
 
 
 class FormatValueTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_STRING, PortFeature.OPC_FORMAT_VALUE
+    )
     @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
     def doit(self, obj):
         return f"hello{obj}world"
 
-    @unittest.failUnlessJITCompiled
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
+        PortFeature.OPC_BUILD_STRING, PortFeature.OPC_FORMAT_VALUE
+    )
     @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
     def doit_repr(self, obj):
         return f"hello{obj!r}world"
