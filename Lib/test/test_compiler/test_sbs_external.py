@@ -21,8 +21,8 @@ from tokenize import detect_encoding
 from .common import glob_test
 
 
-IGNORE_PATTERNS = filter(
-    lambda p: p, os.environ.get("EXT_COMPILE_TEST_IGNORE", "").split(":")
+IGNORE_PATTERNS = list(
+    filter(lambda p: p, os.environ.get("EXT_COMPILE_TEST_IGNORE", "").split(":"))
 )
 
 
