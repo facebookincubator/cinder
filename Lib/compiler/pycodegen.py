@@ -40,13 +40,6 @@ TYPE_CHECKING = False
 if TYPE_CHECKING:
     from typing import Generator, List, Optional, Sequence, Tuple, Type, Union
 
-try:
-    import _parser  # pyre-ignore[21]
-except ImportError:
-    parse_callable = builtin_compile
-else:
-    parse_callable = _parser.parse
-
 
 callfunc_opcode_info = {
     # (Have *args, Have **args) : opcode
@@ -134,7 +127,7 @@ def compile(
 
 
 def parse(source, filename, mode, flags):
-    return parse_callable(source, filename, mode, flags | PyCF_ONLY_AST)
+    return builtin_compile(source, filename, mode, flags | PyCF_ONLY_AST)
 
 
 def make_compiler(
