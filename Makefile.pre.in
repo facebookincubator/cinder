@@ -1669,14 +1669,17 @@ testcinder_extension: @DEF_MAKE_RULE@ platform
 test_fuzzer: @DEF_MAKE_RULE@ platform
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) tests/fuzzer_test.py
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) tests/verifier_test.py
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) tests/executor_test.py
 
 test_fuzzer_jit: @DEF_MAKE_RULE@ platform
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit tests/fuzzer_test.py
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit tests/verifier_test.py
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit tests/executor_test.py
 
 test_fuzzer_jit_inliner: @DEF_MAKE_RULE@ platform
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit -X jit-enable-hir-inliner tests/fuzzer_test.py
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit -X jit-enable-hir-inliner tests/verifier_test.py
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit -X jit-enable-hir-inliner tests/executor_test.py
 
 # SSL tests
 .PHONY: multisslcompile multissltest
