@@ -34,15 +34,15 @@ class StrictGenericAlias : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> args);
 
-  //   static std::shared_ptr<BaseStrictObject> ga__instancecheck__(
-  //       std::shared_ptr<StrictGenericAlias> self,
-  //       const CallerContext& caller,
-  //       std::shared_ptr<BaseStrictObject> inst);
+  static std::shared_ptr<BaseStrictObject> ga__instancecheck__(
+      std::shared_ptr<StrictGenericAlias> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> inst);
 
-  //   static std::shared_ptr<BaseStrictObject> ga__subclasscheck__(
-  //       std::shared_ptr<StrictGenericAlias> self,
-  //       const CallerContext& caller,
-  //       std::shared_ptr<BaseStrictObject> inst);
+  static std::shared_ptr<BaseStrictObject> ga__subclasscheck__(
+      std::shared_ptr<StrictGenericAlias> self,
+      const CallerContext& caller,
+      std::shared_ptr<BaseStrictObject> inst);
 
   static std::shared_ptr<BaseStrictObject> ga__args__getter(
       std::shared_ptr<BaseStrictObject> inst,

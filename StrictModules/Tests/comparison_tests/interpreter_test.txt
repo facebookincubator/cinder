@@ -9922,3 +9922,19 @@ NotImplementedError
 ---
 ---
 ---
+test_generic_alias_instancecheck
+---
+l = list[int]
+x = isinstance([], l)
+---
+---
+2 4 StrictModuleUnhandledException(TypeError)
+---
+test_generic_alias_subclasscheck
+---
+l = list[int]
+x = issubclass(list, l)
+---
+---
+2 4 StrictModuleUnhandledException(TypeError)
+---

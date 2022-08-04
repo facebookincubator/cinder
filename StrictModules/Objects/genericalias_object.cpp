@@ -165,6 +165,24 @@ std::shared_ptr<BaseStrictObject> StrictGenericAlias::ga__mro_entries__(
       std::vector<std::shared_ptr<BaseStrictObject>>{self->origin_});
 }
 
+std::shared_ptr<BaseStrictObject> StrictGenericAlias::ga__instancecheck__(
+    std::shared_ptr<StrictGenericAlias>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject>) {
+  caller.raiseExceptionStr(
+      TypeErrorType(),
+      "isinstance() argument 2 cannot be a parameterized generic");
+}
+
+std::shared_ptr<BaseStrictObject> StrictGenericAlias::ga__subclasscheck__(
+    std::shared_ptr<StrictGenericAlias>,
+    const CallerContext& caller,
+    std::shared_ptr<BaseStrictObject>) {
+  caller.raiseExceptionStr(
+      TypeErrorType(),
+      "issubclass() argument 2 cannot be a parameterized generic");
+}
+
 std::shared_ptr<BaseStrictObject> StrictGenericAlias::ga__args__getter(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType>,
@@ -227,6 +245,8 @@ std::shared_ptr<StrictType> StrictGenericAliasType::recreate(
 void StrictGenericAliasType::addMethods() {
   addMethod(kDunderGetItem, StrictGenericAlias::ga__getitem__);
   addMethod("__mro_entries__", StrictGenericAlias::ga__mro_entries__);
+  addMethod("__instancecheck__", StrictGenericAlias::ga__instancecheck__);
+  addMethod("__subclasscheck__", StrictGenericAlias::ga__subclasscheck__);
 
   addGetSetDescriptor(
       "__args__", StrictGenericAlias::ga__args__getter, nullptr, nullptr);
