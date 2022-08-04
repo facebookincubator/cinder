@@ -19,7 +19,6 @@ class Python310Tests(CompilerTest):
         src = dedent(src).strip()
         actual = dump_code(self.compile(src, optimize=optimize))
         expected = dump_code(compile(src, "", mode="exec", optimize=optimize))
-        print(actual)
         self.assertEqual(actual, expected)
 
     def _check_error(self, src, msg_contains, *, optimize=-1):
@@ -51,6 +50,4 @@ class Python310Tests(CompilerTest):
                 x: (yield) = 1
                 return x
         """
-        # TODO use self._check once we add GEN_START support
-        # self._check(codestr)
-        self.compile(codestr)
+        self._check(codestr)
