@@ -242,7 +242,7 @@ class CodeGenerator(ASTVisitor):
         if parent is not None:
             assert future_flags is None, "Child codegen should inherit future flags"
             future_flags = parent.future_flags
-        self.future_flags = future_flags
+        self.future_flags = future_flags or 0
         graph.setFlag(self.future_flags)
         self.module_gen = self if parent is None else parent.module_gen
         self.tree = node
@@ -3061,7 +3061,7 @@ class CinderCodeGenerator(CodeGenerator):
             super().visitAttribute(node)
 
     def visitCall(self, node):
-        self.update_lineno(node)
+        self.set_lineno(node)
         if (
             not isinstance(node.func, ast.Attribute)
             or not isinstance(node.func.ctx, ast.Load)
@@ -3098,7 +3098,7 @@ class CinderCodeGenerator(CodeGenerator):
         return future_flags
 
     def compile_comprehension(self, node, name, elt, val, opcode, oparg=0):
-        self.update_lineno(node)
+        self.set_lineno(node)
         # fetch the scope that correspond to comprehension
         scope = self.scopes[node]
         if scope.inlined:
