@@ -72,10 +72,24 @@ class FindClassDef(NodeVisitor):
         pass
 
 
+def set_lineno(target: ast.AST, source: Optional[ast.AST]) -> None:
+    if not source:
+        target.lineno = -1
+        target.end_lineno = -1
+        target.col_offset = -1
+        target.end_col_offset = -1
+    else:
+        target.lineno = source.lineno
+        target.end_lineno = source.end_lineno
+        target.col_offset = source.col_offset
+        target.end_col_offset = source.end_col_offset
+
+
 class ForBodyHook(ast.stmt):
     def __init__(self, node: List[ast.stmt], target: ast.expr) -> None:
         self.body: List[ast.stmt] = node
         self.target = target
+        set_lineno(self, target)
 
 
 class TryFinallyHook(ast.stmt):
@@ -83,20 +97,20 @@ class TryFinallyHook(ast.stmt):
         self.finally_body = finally_body
         # List of (handler, builtin_name)
         self.handlers_to_restore: List[tuple[str, str]] = []
+        set_lineno(self, finally_body[0] if finally_body else None)
 
 
 class TryHandlerBodyHook(ast.stmt):
     def __init__(self, handler_body: list[ast.stmt], tracker_name: str) -> None:
-
         self.handler_body = handler_body
         self.tracker_name = tracker_name
+        set_lineno(self, handler_body[0] if handler_body else None)
 
 
 class TryBodyHook(ast.stmt):
     def __init__(self, body: list[ast.stmt]) -> None:
-
         self.body = body
-
+        set_lineno(self, body[0] if body else None)
         self.trackers: List[str] = []
 
 
@@ -244,11 +258,7 @@ class StrictCodeGenerator(CodeGenerator):
                     # to use globals as locals if it is explicitly supplied.
                     def call_function(line_node: AST, name: str) -> expr:
                         load = ast.Name(name, ast.Load())
-                        load.lineno = line_node.lineno
-                        load.col_offset = line_node.col_offset
                         call = ast.Call(load, [], [])
-                        call.lineno = line_node.lineno
-                        call.col_offset = line_node.col_offset
                         return call
 
                     node.args.append(call_function(node.args[0], "globals"))
@@ -437,6 +447,7 @@ class StrictCodeGenerator(CodeGenerator):
         func.body = body
         args = ast.arguments()
         func.args = args
+        set_lineno(func, None)
 
         args.kwonlyargs = []
         args.kw_defaults = []
@@ -644,5 +655,6 @@ def strict_compile(
         name, tree, filename, flags=0, optimize=optimize, builtins=builtins
     )
     return code_gen.getCode()
+
 
 _static_module_ported = False

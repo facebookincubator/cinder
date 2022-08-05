@@ -13,6 +13,7 @@ from ast import (
     Call,
     ClassDef,
     Constant,
+    copy_location,
     DictComp,
     expr,
     FunctionDef,
@@ -128,10 +129,15 @@ def make_arg(name: str) -> arg:
 TAst = TypeVar("TAst", bound=AST)
 
 
-def lineinfo(node: TAst) -> TAst:
-    # TODO: What effect do these line offsets have?
-    node.lineno = 0
-    node.col_offset = 0
+def lineinfo(node: TAst, target: Optional[AST] = None) -> TAst:
+    if not target:
+        # set lineno to -1 to indicate non-user code
+        node.lineno = -1
+        node.col_offset = -1
+        node.end_lineno = -1
+        node.end_col_offset = -1
+    else:
+        copy_location(node, target)
     return node
 
 
@@ -233,6 +239,7 @@ class StrictModuleRewriter:
         self.track_import_call = track_import_call
 
     def transform(self) -> ast.Module:
+        original_first_node = self.root.body[0] if self.root.body else None
         self.visitor.visit(self.root)
         self.visitor.global_sets.update(_IMPLICIT_GLOBALS)
 
@@ -246,12 +253,19 @@ class StrictModuleRewriter:
                 *self.transform_body(),
             ]
         )
+        if mod.body and original_first_node:
+            # this isn't obvious but the new mod body is empty
+            # if the original module body is empty. Therefore there
+            # is always a location to copy
+            copy_location(mod.body[0], original_first_node)
+
         mod.type_ignores = []
         return mod
 
     def load_helpers(self) -> Iterable[stmt]:
         helpers = []
-        if self.track_import_call:
+        # no need to load <track-import-call> if body is empty
+        if self.track_import_call and self.root.body:
             helpers.append(
                 lineinfo(
                     make_assign(
@@ -771,7 +785,7 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         return self.generic_visit(node)
 
     def make_base_class_dict_test_stmts(
-        self, bases: List[TAst], instance_fields: Set[str]
+        self, bases: List[TAst], instance_fields: Set[str], location_node: ast.ClassDef
     ) -> stmt:
         slots_stmt = self.make_slots_stmt(instance_fields)
         # if there are non-names in the bases of the class, give up and just create slots
@@ -847,7 +861,8 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                                     )
                                 ),
                             ],
-                        )
+                        ),
+                        target=location_node,
                     )
                 ],
                 [],
@@ -890,7 +905,7 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
             node.body.append(
                 self.make_base_class_dict_test_stmts(
-                    node.bases, scope_data.instance_fields
+                    node.bases, scope_data.instance_fields, node
                 )
             )
 
@@ -951,7 +966,9 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def mangle_cached_prop(self, name: str) -> str:
         return "_" + name + "_impl"
 
-    def _create_track_import_call(self) -> ast.Expr:
+    def _create_track_import_call(
+        self, location_node: FunctionDef | AsyncFunctionDef
+    ) -> ast.Expr:
         return lineinfo(
             ast.Expr(
                 lineinfo(
@@ -960,8 +977,9 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
                         [lineinfo(ast.Constant(self.modname))],
                         [],
                     )
-                )
-            )
+                ),
+            ),
+            target=location_node,
         )
 
     def visit_FunctionDef(self, node: FunctionDef) -> TTransformedStmt:
@@ -978,7 +996,7 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         self.check_cached_prop(node, scope_data, outer_scope)
 
         if self.track_import_call:
-            node.body.insert(0, self._create_track_import_call())
+            node.body.insert(0, self._create_track_import_call(node))
 
         return res
 
@@ -995,7 +1013,7 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         self.check_cached_prop(node, scope_data, outer_scope)
 
         if self.track_import_call:
-            node.body.insert(0, self._create_track_import_call())
+            node.body.insert(0, self._create_track_import_call(node))
 
         return node
 
