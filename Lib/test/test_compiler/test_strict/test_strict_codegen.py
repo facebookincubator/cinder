@@ -3,10 +3,15 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from .common import StrictTestBase, StrictTestWithCheckerBase
+from .common import (
+    cinder310_porting_skip_until_cinder,
+    StrictTestBase,
+    StrictTestWithCheckerBase,
+)
 
 
 class StrictCompilationTests(StrictTestBase):
+    @cinder310_porting_skip_until_cinder
     def test_strictmod_freeze_type(self):
         codestr = """
         class C:
@@ -53,9 +58,6 @@ class StrictCompilationTests(StrictTestBase):
             f = mod.f
             C = f()
             self.assertEqual(C.x, 1)
-            with self.assertRaises(TypeError):
-                C.x = 2
-            self.assertEqual(C.x, 1)
 
             code = f.__code__
             self.assertInBytecode(
@@ -67,6 +69,22 @@ class StrictCompilationTests(StrictTestBase):
                 "STORE_FAST",
                 "<classes>",
             )
+
+    @cinder310_porting_skip_until_cinder
+    def test_strictmod_freeze_class_in_function(self):
+        codestr = """
+        def f():
+            class C:
+                x = 1
+            return C
+        """
+        with self.with_freeze_type_setting(True), self.in_module(codestr) as mod:
+            f = mod.f
+            C = f()
+            self.assertEqual(C.x, 1)
+            with self.assertRaises(TypeError):
+                C.x = 2
+            self.assertEqual(C.x, 1)
 
     def test_strictmod_class_not_in_function(self):
         codestr = """
@@ -86,6 +104,7 @@ class StrictCompilationTests(StrictTestBase):
             "<classes>",
         )
 
+    @cinder310_porting_skip_until_cinder
     def test_strictmod_fixed_modules_typing(self):
         codestr = """
         from typing import final
@@ -652,6 +671,7 @@ class StrictBuiltinCompilationTests(StrictTestWithCheckerBase):
 
 
 class StrictCheckedCompilationTests(StrictTestWithCheckerBase):
+    @cinder310_porting_skip_until_cinder
     def test_strictmod_freeze_type(self):
         codestr = """
         import __strict__
