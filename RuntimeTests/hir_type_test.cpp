@@ -91,7 +91,6 @@ TEST_F(HIRTypeTest, BuiltinCouldBe) {
   EXPECT_FALSE(TImmortalLong.couldBe(TMortalObject));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRTypeTest, FromBuiltinObjects) {
   EXPECT_EQ(Type::fromObject(Py_None), TNoneType);
   EXPECT_TRUE(Type::fromObject(Py_True) < TBool);
@@ -327,7 +326,6 @@ TEST_F(HIRTypeTest, ToString) {
       len_func_type.toString(),
       "MortalObjectUser[builtin_function_or_method:len:0xdeadbeef]");
 }
-#endif
 
 static ::testing::AssertionResult
 isLongTypeWithValue(Type actual, Type expected, Py_ssize_t value) {
@@ -353,7 +351,6 @@ static Type typeParseSimple(const char* str) {
   return Type::parse(/*env=*/nullptr, str);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRTypeTest, Parse) {
   EXPECT_EQ(typeParseSimple("Top"), TTop);
   EXPECT_EQ(typeParseSimple("Bottom"), TBottom);
@@ -387,7 +384,6 @@ TEST_F(HIRTypeTest, ParsePyObject) {
   EXPECT_EQ(
       Type::parse(&env, "Long[123123123123123123123123123123123123]"), TBottom);
 }
-#endif
 
 TEST_F(HIRTypeTest, SimpleUnion) {
   auto t1 = TBytes;
@@ -443,7 +439,6 @@ TEST_F(HIRTypeTest, SimpleSubtraction) {
   EXPECT_EQ(TOptMortalList - TNullptr, TMortalList);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRTypeTest, SpecializedIntegerTypes) {
   auto five = Type::fromCInt(5, TCInt32);
   auto five64 = Type::fromCInt(5, TCInt64);
@@ -484,7 +479,6 @@ TEST_F(HIRTypeTest, SpecializedIntegerTypes) {
   EXPECT_FALSE(long_ty.hasTypeSpec());
   EXPECT_EQ(long_ty, TMortalLongExact);
 }
-#endif
 
 TEST_F(HIRTypeTest, SpecializedDoubleTypes) {
   auto five = Type::fromCDouble(5.0);
@@ -503,7 +497,6 @@ TEST_F(HIRTypeTest, SpecializedDoubleTypes) {
   EXPECT_EQ(five & Type::fromCDouble(1.0), TBottom);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRTypeTest, Metaclasses) {
   const char* py_src = R"(
 class Metaclass(type):
@@ -942,7 +935,6 @@ class IntSubObjectSub2(IntSub, ObjectSub):
   EXPECT_TRUE(int_sub_obj_sub < user_long_obj);
   EXPECT_TRUE(int_sub_obj_sub2 < user_long_obj);
 }
-#endif
 
 TEST_F(HIRTypeTest, ReflowSimpleTypes) {
   Function func;
