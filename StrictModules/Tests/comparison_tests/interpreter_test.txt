@@ -9747,7 +9747,7 @@ x = 1
 ---
 1 0 BadStrictFlagException strict flag may not be combined with other imports
 ---
-test_flag_after_doc @disabled
+test_flag_after_doc
 ---
 '''First docstring.'''
 import __strict__
