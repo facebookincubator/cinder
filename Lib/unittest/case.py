@@ -197,8 +197,19 @@ def failUnlessJITCompiled(func):
     """
     if not CINDERJIT_ENABLED:
         return func
-    # force_compile raises a RuntimeError if compilation fails for any reason.
-    force_compile(func)
+
+    try:
+        # force_compile raises a RuntimeError if compilation fails. If it does,
+        # defer raising an exception to when the decorated function runs.
+        force_compile(func)
+    except RuntimeError as re:
+        # re is cleared at the end of the except block but we need the value
+        # when wrapper() is eventually called.
+        exc = re
+        def wrapper(*args):
+            raise RuntimeError(f"JIT compilation of {func.__qualname__} failed with {exc}")
+        return wrapper
+
     return func
 
 def expectedFailure(test_item):
