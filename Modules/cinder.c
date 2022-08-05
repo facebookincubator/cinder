@@ -316,7 +316,6 @@ clear_shadow_cache(PyObject *self, PyObject *obj)
 }
 
 
-#ifdef CINDER_PORTING_DONE
 PyDoc_STRVAR(strict_module_patch_doc,
 "strict_module_patch(mod, name, value)\n\
 Patch a field in a strict module\n\
@@ -362,13 +361,16 @@ Gets whether patching is enabled on the strict module"
 );
 static PyObject * strict_module_patch_enabled(PyObject *self, PyObject *mod)
 {
-
-    if (((PyStrictModuleObject *) mod) -> global_setter != NULL) {
+    if (!PyStrictModule_Check(mod)) {
+        PyErr_SetString(PyExc_TypeError, "expected strict module object");
+        return NULL;
+    }
+    if (PyStrictModule_GetDictSetter(mod) != NULL) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
 }
-
+#ifdef CINDER_PORTING_DONE
 
 PyAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
 PyAPI_FUNC(int) _PyClassLoader_ClearGenericTypes(void);
@@ -677,7 +679,6 @@ static struct PyMethodDef cinder_module_methods[] = {
      "Clears caches associated with the JIT.  This may have a negative effect "
      "on performance of existing JIT compiled code."},
     {"clear_shadow_cache", clear_shadow_cache, METH_O, ""},
-#ifdef CINDER_PORTING_DONE
     {"strict_module_patch",
      strict_module_patch,
      METH_VARARGS,
@@ -690,6 +691,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      strict_module_patch_enabled,
      METH_O,
      strict_module_patch_enabled_doc},
+#ifdef CINDER_PORTING_DONE
     {"clear_classloader_caches",
      clear_classloader_caches,
      METH_NOARGS,

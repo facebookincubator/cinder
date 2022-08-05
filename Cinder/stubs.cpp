@@ -54,12 +54,6 @@ STUB(PyObject *, PyFunctionCredential_New, void)
 STUB(void, PyFunctionCredential_Fini, void)
 
 
-// Objects/moduleobject.c
-STUB(int, strictmodule_is_unassigned, PyObject *, PyObject *)
-STUB(PyObject *, PyStrictModule_GetOriginal, PyStrictModuleObject *, PyObject *)
-STUB(int, _Py_do_strictmodule_patch, PyObject *, PyObject *, PyObject *)
-
-
 // Python/switchboard.c
 STUB(int, Switchboard_Init, void)
 STUB(Switchboard *, Switchboard_New, void)

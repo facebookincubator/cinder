@@ -14,6 +14,7 @@
 #include "Jit/pyjit.h"
 #include "Python.h"
 #include "pycore_shadowcode.h"
+#include "pycore_moduleobject.h"
 #include "wordcode_helpers.h"
 #include "structmember.h"
 #include "structmember.h"
@@ -1096,7 +1097,7 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         PyStrictModuleObject *m = (PyStrictModuleObject *)obj;
         if (m->globals) {
             _Py_IDENTIFIER(__name__);
-            mod_name = _PyDict_GetItemId(m->globals, &PyId___name__);
+            mod_name = _PyDict_GetItemIdWithError(m->globals, &PyId___name__);
             assert((mod_name || !PyErr_Occurred()) &&
                    "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
             if (mod_name && PyUnicode_Check(mod_name)) {

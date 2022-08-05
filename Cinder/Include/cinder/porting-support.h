@@ -122,28 +122,6 @@ PyAPI_FUNC(PyObject *) _PyType_GetSwitchboard(void);
 #define Py_IS_IMMORTAL(v) ((void)v, 0)
 
 
-// Include/moduleobject.h
-typedef struct {
-    PyModuleObject base;
-    PyObject *globals;
-    PyObject *global_setter;
-    PyObject *originals;
-    PyObject *static_thunks;
-    PyObject *imported_from;
-} PyStrictModuleObject;
-
-#ifdef CINDER_PORTING_HAVE_STRICTMODULES
-#define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
-#else
-#define PyModule_Dict(op) (((PyModuleObject *)op)->md_dict)
-#endif
-extern Py_ssize_t strictmodule_dictoffset;
-
-int strictmodule_is_unassigned(PyObject *dict, PyObject *name);
-PyObject * PyStrictModule_GetOriginal(PyStrictModuleObject *self, PyObject *name);
-int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
-
-
 // Originally in Include/object.h
 /* This is a generic type instantiation */
 #define Py_TPFLAGS_GENERIC_TYPE_INST (1UL << 6)
