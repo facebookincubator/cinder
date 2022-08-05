@@ -63,23 +63,16 @@ Register* TempAllocator::AllocateNonStack() {
 #ifdef CINDER_PORTING_DONE
 // This contains the set of unsupported opcodes. Move opcodes from this set
 // into the one in the `#else` block below to enable them in the JIT.
-const std::unordered_set<int> kSupportedOpcodes = {
+const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS, // T126141783
     DICT_MERGE, // T126141766
     DICT_UPDATE, // T126141847
     GEN_START, // T126141847
-    GET_LEN, // T126141793
     IS_OP, // T125844569
     LIST_TO_TUPLE, // T126141719
-    LOAD_ASSERTION_ERROR, // T126141711
     MATCH_CLASS, // T126141840
-    MATCH_KEYS, // T126141817
-    MATCH_MAPPING, // T126141799
-    MATCH_SEQUENCE, // T126141809
-    ROT_N, // T126141852
-    SET_UPDATE, // T126141745
 
     // CPython opcodes that existed prior to 3.9
     // TODO(T125854918): coroutine / generator support
@@ -96,9 +89,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     // TODO(T127134006): Containers
     BUILD_CONST_KEY_MAP,
     BUILD_MAP,
-    BUILD_SET,
     BUILD_SLICE,
-    BUILD_STRING,
     BUILD_TUPLE,
     LIST_APPEND,
     MAP_ADD,
@@ -110,14 +101,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
 
     // TODO(T127134900): Grab-bag of remaining opcodes
     COMPARE_OP,
-    DELETE_FAST,
-    DELETE_SUBSCR,
-    EXTENDED_ARG,
-    FORMAT_VALUE,
     MAKE_FUNCTION, // T126141867
-    STORE_SUBSCR,
-    UNPACK_EX,
-    UNPACK_SEQUENCE,
 
     // Static Python opcodes
     BUILD_CHECKED_LIST,

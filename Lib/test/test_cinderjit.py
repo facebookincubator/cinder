@@ -1112,7 +1112,8 @@ class LoadGlobalCacheTests(unittest.TestCase):
         def __eq__(self, other):
             return (self.prefix + self) == other
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_weird_key_in_globals(self):
         global a_global
         self.assertRaises(NameError, self.get_global)
@@ -1133,7 +1134,8 @@ class LoadGlobalCacheTests(unittest.TestCase):
     def test_dict_subclass_globals(self):
         self.assertEqual(self.return_knock_knock(), "who's there?")
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def _test_unwatch_builtins(self):
         self.set_global("hey")
         self.assertEqual(self.get_global(), "hey")
@@ -1497,7 +1499,7 @@ class ExceptionInConditional(unittest.TestCase):
 
 
 class JITCompileCrasherRegressionTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_FORMAT_VALUE)
+    @unittest.failUnlessJITCompiled
     def _fstring(self, flag, it1, it2):
         for a in it1:
             for b in it2:
@@ -3008,9 +3010,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
 class UnpackSequenceTests(unittest.TestCase):
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_UNPACK_SEQUENCE, PortFeature.OPC_COMPARE_OP
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
     def _unpack_arg(self, seq, which):
         a, b, c, d = seq
         if which == "a":
@@ -3023,9 +3023,7 @@ class UnpackSequenceTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("UNPACK_EX")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_EXTENDED_ARG,
         PortFeature.OPC_COMPARE_OP,
-        PortFeature.OPC_UNPACK_EX,
     )
     def _unpack_ex_arg(self, seq, which):
         a, b, *c, d = seq
@@ -3060,19 +3058,17 @@ class UnpackSequenceTests(unittest.TestCase):
 
         self.assertEqual(self._unpack_arg(gen(), "d"), "fourth")
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_not_iterable(self):
         (a, b, *c) = 1
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values(self):
         (a, b, *c) = [1]
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_UNPACK_EX, PortFeature.OPC_EXTENDED_ARG
-    )
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_EX")
     def _unpack_insufficient_values_after(self):
         (a, *b, c, d) = [1, 2]
@@ -3126,7 +3122,7 @@ class UnpackSequenceTests(unittest.TestCase):
 
 
 class DeleteSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_SUBSCR)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("DELETE_SUBSCR")
     def _delit(self, container, key):
         del container[key]
@@ -3168,34 +3164,32 @@ class DeleteSubscrTests(unittest.TestCase):
 
 
 class DeleteFastTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del(self):
         x = 2
         del x
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg(self, a):
         del a
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_and_raise(self):
         x = 2
         del x
         return x
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_DELETE_FAST)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("DELETE_FAST")
     def _del_arg_and_raise(self, a):
         del a
         return a
 
     @failUnlessHasOpcodes("DELETE_FAST")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_DELETE_FAST,
-    )
+    @unittest.failUnlessJITCompiled
     def _del_ex_no_raise(self):
         try:
             return min(1, 2)
@@ -3203,9 +3197,7 @@ class DeleteFastTests(unittest.TestCase):
             pass
 
     @failUnlessHasOpcodes("DELETE_FAST")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_DELETE_FAST,
-    )
+    @unittest.failUnlessJITCompiled
     def _del_ex_raise(self):
         try:
             raise Exception()
@@ -3903,9 +3895,7 @@ class GetIterForIterTests(unittest.TestCase):
 
 
 class SetUpdateTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_SET_UPDATE, PortFeature.OPC_BUILD_SET
-    )
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("BUILD_SET", "SET_UPDATE")
     def doit_unchecked(self, iterable):
         return {*iterable}
@@ -3948,9 +3938,7 @@ class SetUpdateTests(unittest.TestCase):
 # remove UnpackSequenceTests entirely. It will then be covered by the other
 # UnpackSequenceTests above.
 class UnpackSequenceTestsWithoutCompare(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_UNPACK_SEQUENCE
-    )
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
     def doit(self, iterable):
         x, y = iterable
@@ -3983,7 +3971,7 @@ class UnpackSequenceTestsWithoutCompare(unittest.TestCase):
 # remove UnpackExTests entirely. It will then be covered by UnpackSequenceTests
 # above.
 class UnpackExTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_UNPACK_EX)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("UNPACK_EX")
     def doit(self, iterable):
         x, *y = iterable
@@ -4013,7 +4001,7 @@ class UnpackExTests(unittest.TestCase):
 
 
 class StoreSubscrTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_STORE_SUBSCR)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("STORE_SUBSCR")
     def doit(self, obj, key, value):
         obj[key] = value
@@ -4051,16 +4039,12 @@ class StoreSubscrTests(unittest.TestCase):
 
 
 class FormatValueTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_STRING, PortFeature.OPC_FORMAT_VALUE
-    )
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
     def doit(self, obj):
         return f"hello{obj}world"
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_STRING, PortFeature.OPC_FORMAT_VALUE
-    )
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("BUILD_STRING", "FORMAT_VALUE")
     def doit_repr(self, obj):
         return f"hello{obj!r}world"
