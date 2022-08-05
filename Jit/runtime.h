@@ -121,8 +121,11 @@ class GenYieldPoint {
 
 class alignas(16) RuntimeFrameState {
  public:
-  RuntimeFrameState(BorrowedRef<PyCodeObject> code, BorrowedRef<> globals)
-      : code_(code), globals_(globals) {}
+  RuntimeFrameState(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<> builtins,
+      BorrowedRef<> globals)
+      : code_(code), builtins_(builtins), globals_(globals) {}
 
   bool isGen() const {
     return code()->co_flags & kCoFlagsAnyGenerator;
@@ -130,6 +133,10 @@ class alignas(16) RuntimeFrameState {
 
   BorrowedRef<PyCodeObject> code() const {
     return code_;
+  }
+
+  BorrowedRef<> builtins() const {
+    return builtins_;
   }
 
   BorrowedRef<> globals() const {
@@ -143,6 +150,7 @@ class alignas(16) RuntimeFrameState {
  private:
   // These are owned by the CodeRuntime that owns this RuntimeFrameState.
   BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<> builtins_;
   BorrowedRef<> globals_;
 };
 
@@ -152,15 +160,24 @@ class alignas(16) CodeRuntime {
  public:
   explicit CodeRuntime(
       PyCodeObject* code,
+      PyObject* builtins,
       PyObject* globals,
       jit::hir::FrameMode frame_mode)
-      : frame_state_(code, globals), frame_mode_(frame_mode) {
-    // TODO(T88040922): Until we work out something smarter, force code and
-    // globals objects for compiled functions to live as long as the JIT is
-    // initialized.
+      : frame_state_(code, builtins, globals), frame_mode_(frame_mode) {
+    // TODO(T88040922): Until we work out something smarter, force code,
+    // globals, and builtins objects for compiled functions to live as long as
+    // the JIT is initialized.
     addReference(reinterpret_cast<PyObject*>(code));
+    addReference(builtins);
     addReference(globals);
   }
+
+  CodeRuntime(PyFunctionObject* func, jit::hir::FrameMode frame_mode)
+      : CodeRuntime(
+            reinterpret_cast<PyCodeObject*>(func->func_code),
+            func->func_builtins,
+            func->func_globals,
+            frame_mode) {}
 
   template <typename... Args>
   RuntimeFrameState* allocateRuntimeFrameState(Args&&... args) {
@@ -275,7 +292,6 @@ class Runtime {
   // builtins if the value isn't defined in this dict.
   GlobalCache
   findGlobalCache(PyObject* builtins, PyObject* globals, PyObject* name);
-  GlobalCache findGlobalCache(PyObject* globals, PyObject* name);
 
   // Create or look up a cache for a member with the given name, in the
   // context of the given dict.  This cache will not fall back to builtins

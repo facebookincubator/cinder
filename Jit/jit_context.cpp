@@ -283,9 +283,10 @@ struct CompilationResult {
 jit::CompiledFunction* lookupCompiledCode(
     _PyJITContext* ctx,
     BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> builtins,
     BorrowedRef<PyDictObject> globals) {
   jit::ThreadedCompileSerialize guard;
-  auto it = ctx->compiled_codes.find(CompilationKey{code, globals});
+  auto it = ctx->compiled_codes.find(CompilationKey{code, builtins, globals});
   return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
 }
 
@@ -303,11 +304,19 @@ bool freevarsContainsClass(BorrowedRef<PyCodeObject> code) {
   return false;
 }
 
+jit::CompiledFunction* lookupCompiledFunction(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  return lookupCompiledCode(
+      ctx, func->func_code, func->func_builtins, func->func_globals);
+}
+
 CompilationResult compilePreloader(
     _PyJITContext* ctx,
     const jit::hir::Preloader& preloader) {
   BorrowedRef<PyCodeObject> code = preloader.code();
   BorrowedRef<PyDictObject> globals = preloader.globals();
+  BorrowedRef<PyDictObject> builtins = preloader.builtins();
 
   int required_flags = CO_OPTIMIZED | CO_NEWLOCALS;
   int prohibited_flags = CO_SUPPRESS_JIT;
@@ -333,13 +342,13 @@ CompilationResult compilePreloader(
     return {nullptr, PYJIT_RESULT_RETRY};
   }
 
-  CompilationKey key{code, globals};
+  CompilationKey key{code, builtins, globals};
   {
     // Attempt to atomically transition the code from "not compiled" to "in
     // progress".
     jit::ThreadedCompileSerialize guard;
     if (jit::CompiledFunction* compiled =
-            lookupCompiledCode(ctx, code, globals)) {
+            lookupCompiledCode(ctx, code, builtins, globals)) {
       return {compiled, PYJIT_RESULT_OK};
     }
     if (!active_compiles.insert(key).second) {
@@ -374,12 +383,14 @@ CompilationResult compilePreloader(
 CompilationResult compileCode(
     _PyJITContext* ctx,
     BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> builtins,
     BorrowedRef<PyDictObject> globals,
     const std::string& fullname) {
   JIT_CHECK(
       !jit::g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
-  return compilePreloader(ctx, jit::hir::Preloader(code, globals, fullname));
+  return compilePreloader(
+      ctx, jit::hir::Preloader(code, globals, builtins, fullname));
 }
 } // namespace
 
@@ -392,7 +403,7 @@ _PyJIT_Result _PyJITContext_CompileFunction(
   BorrowedRef<PyCodeObject> code = func->func_code;
   std::string fullname = jit::funcFullname(func);
   CompilationResult result =
-      compileCode(ctx, code, func->func_globals, fullname);
+      compileCode(ctx, code, func->func_builtins, func->func_globals, fullname);
   if (result.compiled == nullptr) {
     return result.result;
   }
@@ -404,9 +415,10 @@ _PyJIT_Result _PyJITContext_CompileCode(
     _PyJITContext* ctx,
     BorrowedRef<> module,
     BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> builtins,
     BorrowedRef<PyDictObject> globals) {
   std::string fullname = jit::codeFullname(module, code);
-  return compileCode(ctx, code, globals, fullname).result;
+  return compileCode(ctx, code, builtins, globals, fullname).result;
 }
 
 _PyJIT_Result _PyJITContext_CompilePreloader(
@@ -428,8 +440,7 @@ _PyJIT_Result _PyJITContext_AttachCompiledCode(
   JIT_DCHECK(
       _PyJITContext_DidCompile(ctx, func) == 0, "Function is already compiled");
 
-  if (jit::CompiledFunction* compiled =
-          lookupCompiledCode(ctx, func->func_code, func->func_globals)) {
+  if (jit::CompiledFunction* compiled = lookupCompiledFunction(ctx, func)) {
     return finalizeCompiledFunc(ctx, func, *compiled);
   }
   return PYJIT_RESULT_CANNOT_SPECIALIZE;
@@ -470,8 +481,7 @@ int _PyJITContext_DidCompile(
 int _PyJITContext_GetCodeSize(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jitfunc =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jitfunc = lookupCompiledFunction(ctx, func);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -483,8 +493,7 @@ int _PyJITContext_GetCodeSize(
 int _PyJITContext_GetStackSize(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jitfunc =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jitfunc = lookupCompiledFunction(ctx, func);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -495,8 +504,7 @@ int _PyJITContext_GetStackSize(
 int _PyJITContext_GetSpillStackSize(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jitfunc =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jitfunc = lookupCompiledFunction(ctx, func);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -507,8 +515,7 @@ int _PyJITContext_GetSpillStackSize(
 int _PyJITContext_GetNumInlinedFunctions(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jitfunc =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jitfunc = lookupCompiledFunction(ctx, func);
   if (jitfunc == nullptr) {
     return -1;
   }
@@ -533,8 +540,7 @@ PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx) {
 int _PyJITContext_PrintHIR(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jit_func =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jit_func = lookupCompiledFunction(ctx, func);
   if (jit_func == nullptr) {
     return -1;
   }
@@ -546,8 +552,7 @@ int _PyJITContext_PrintHIR(
 int _PyJITContext_Disassemble(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  jit::CompiledFunction* jit_func =
-      lookupCompiledCode(ctx, func->func_code, func->func_globals);
+  jit::CompiledFunction* jit_func = lookupCompiledFunction(ctx, func);
   if (jit_func == nullptr) {
     return -1;
   }

@@ -201,6 +201,7 @@ Ref<PyFrameObject> createPyFrame(
         static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
     JIT_CHECK(!frame_state->isGen(), "unexpected generator in inlined frame");
   }
+  PORT_ASSERT("Use _PyFrame_New_NoTrack and pull builtins from frame_state");
   Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(PyFrame_New(
       tstate, frame_state->code(), frame_state->globals(), nullptr));
   JIT_CHECK(py_frame != nullptr, "failed allocating frame");

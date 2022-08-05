@@ -35,7 +35,7 @@ TEST_F(ReifyFrameTest, ReifyAtEntry) {
 def test(a, b):
   return a + b
 )";
-  Ref<PyObject> func(compileAndGet(src, "test"));
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
   ASSERT_NE(func, nullptr);
 
   uint64_t regs[PhyLocation::NUM_GP_REGS];
@@ -60,7 +60,7 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{code, PyFunction_GetGlobals(func), FrameMode::kNormal};
+  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -91,7 +91,7 @@ TEST_F(ReifyFrameTest, ReifyMidFunction) {
 def test(a, b):
   return a + b
 )";
-  Ref<PyObject> func(compileAndGet(src, "test"));
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
   ASSERT_NE(func, nullptr);
 
   uint64_t regs[PhyLocation::NUM_GP_REGS];
@@ -116,7 +116,7 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{code, PyFunction_GetGlobals(func), FrameMode::kNormal};
+  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -148,7 +148,7 @@ TEST_F(ReifyFrameTest, ReifyWithMemoryValues) {
 def test(a, b):
   return a + b
 )";
-  Ref<PyObject> func(compileAndGet(src, "test"));
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
   ASSERT_NE(func, nullptr);
 
   uint64_t mem[2];
@@ -175,7 +175,7 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{code, PyFunction_GetGlobals(func), FrameMode::kNormal};
+  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -212,7 +212,7 @@ def test(num):
     num -= 1
   return fact
 )";
-  Ref<PyObject> func(compileAndGet(src, "test"));
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
   ASSERT_NE(func, nullptr);
 
   uint64_t regs[PhyLocation::NUM_GP_REGS];
@@ -245,7 +245,7 @@ def test(num):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{code, PyFunction_GetGlobals(func), FrameMode::kNormal};
+  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {num_val, fact_val, tmp_val};
@@ -286,7 +286,7 @@ def test(x, y):
         return True
     return False
 )";
-  Ref<PyObject> func(compileStaticAndGet(src, "test"));
+  Ref<PyFunctionObject> func(compileStaticAndGet(src, "test"));
   if (PyErr_Occurred()) {
     PyErr_Print();
   }
@@ -307,7 +307,7 @@ def test(x, y):
     const int jump_index = 20;
     ASSERT_EQ(((unsigned char*)code->co_rawcode)[24], POP_JUMP_IF_ZERO);
 
-    CodeRuntime code_rt{code, PyFunction_GetGlobals(func), FrameMode::kNormal};
+    CodeRuntime code_rt{func, FrameMode::kNormal};
 
     DeoptMetadata dm;
     dm.live_values = {a_val};

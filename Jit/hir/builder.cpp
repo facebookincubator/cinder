@@ -223,6 +223,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_CONST,
     LOAD_DEREF,
     LOAD_FAST,
+    LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
     MATCH_KEYS,
@@ -3301,7 +3302,8 @@ void HIRBuilder::emitLoadGlobal(
     if (value == nullptr) {
       return false;
     }
-    tc.emit<LoadGlobalCached>(result, code_, preloader_.globals(), name_idx);
+    tc.emit<LoadGlobalCached>(
+        result, code_, preloader_.builtins(), preloader_.globals(), name_idx);
     auto guard_is = tc.emit<GuardIs>(result, value, result);
     BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
     guard_is->setDescr(fmt::format("LOAD_GLOBAL: {}", PyUnicode_AsUTF8(name)));

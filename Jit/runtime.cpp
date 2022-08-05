@@ -115,10 +115,6 @@ GlobalCache Runtime::findGlobalCache(
   return cache;
 }
 
-GlobalCache Runtime::findGlobalCache(PyObject* globals, PyObject* name) {
-  return findGlobalCache(PyEval_GetBuiltins(), globals, name);
-}
-
 GlobalCache Runtime::findDictCache(PyObject* dict, PyObject* name) {
   return findGlobalCache(dict, dict, name);
 }

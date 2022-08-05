@@ -92,9 +92,11 @@ unsigned int _PyJIT_GetJitConfigAuto_jit_threshold() {
 namespace {
 // Extra information needed to compile a PyCodeObject.
 struct CodeData {
-  CodeData(PyObject* m, PyObject* g) : module{m}, globals{g} {}
+  CodeData(PyObject* m, PyObject* b, PyObject* g)
+      : module{m}, builtins{b}, globals{g} {}
 
   Ref<> module;
+  Ref<PyDictObject> builtins;
   Ref<PyDictObject> globals;
 };
 
@@ -618,7 +620,8 @@ static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
   JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
   BorrowedRef<PyCodeObject> code(unit);
   const CodeData& data = map_get(jit_code_data, code);
-  return _PyJITContext_CompileCode(jit_ctx, data.module, code, data.globals);
+  return _PyJITContext_CompileCode(
+      jit_ctx, data.module, code, data.builtins, data.globals);
 }
 
 // Compile the given function or code object with preloader from jit_preloaders
@@ -1601,6 +1604,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
   // well.
   if (g_jit_list != nullptr) {
     PyObject* module = func->func_module;
+    PyObject* builtins = func->func_builtins;
     PyObject* globals = func->func_globals;
     for (auto code : findNestedCodes(
              module,
@@ -1609,7 +1613,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
       jit_code_data.emplace(
           std::piecewise_construct,
           std::forward_as_tuple(code),
-          std::forward_as_tuple(module, globals));
+          std::forward_as_tuple(module, builtins, globals));
     }
   }
   return result;

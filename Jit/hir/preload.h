@@ -74,14 +74,15 @@ class Preloader {
             func,
             func->func_code,
             func->func_globals,
-            PyEval_GetBuiltins(),
+            func->func_builtins,
             funcFullname(func)} {};
 
   explicit Preloader(
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyDictObject> globals,
+      BorrowedRef<PyDictObject> builtins,
       const std::string& fullname)
-      : Preloader{nullptr, code, globals, PyEval_GetBuiltins(), fullname} {};
+      : Preloader{nullptr, code, globals, builtins, fullname} {};
 
   explicit Preloader(
       BorrowedRef<PyFunctionObject> func,

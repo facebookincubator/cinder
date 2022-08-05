@@ -1035,7 +1035,7 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
         return;
     }
 
-    PyObject **cache = _PyJIT_GetGlobalCache(globals, name);
+    PyObject **cache = _PyJIT_GetGlobalCache(builtins, globals, name);
     if (cache == NULL) {
         return;
     }

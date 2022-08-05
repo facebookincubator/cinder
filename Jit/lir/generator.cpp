@@ -1673,9 +1673,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadGlobalCached*>(&i);
         PyObject* globals = instr->globals();
         env_->code_rt->addReference(globals);
+        PyObject* builtins = instr->builtins();
+        env_->code_rt->addReference(builtins);
         PyObject* name =
             PyTuple_GET_ITEM(instr->code()->co_names, instr->name_idx());
-        auto cache = env_->rt->findGlobalCache(globals, name);
+        auto cache = env_->rt->findGlobalCache(builtins, globals, name);
         bbb.AppendCode(
             "Load {}, {:#x}",
             instr->GetOutput(),

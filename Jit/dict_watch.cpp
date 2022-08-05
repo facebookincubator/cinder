@@ -151,9 +151,10 @@ void _PyJIT_NotifyDictClear(PyObject* dict) {
   jit::disableCaches(to_disable);
 }
 
-PyObject** _PyJIT_GetGlobalCache(PyObject* globals, PyObject* key) {
+PyObject**
+_PyJIT_GetGlobalCache(PyObject* builtins, PyObject* globals, PyObject* key) {
   try {
-    auto cache = jit::Runtime::get()->findGlobalCache(globals, key);
+    auto cache = jit::Runtime::get()->findGlobalCache(builtins, globals, key);
     return cache.valuePtr();
   } catch (std::bad_alloc& ba) {
     return nullptr;

@@ -595,18 +595,13 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
   return _PyFunction_Vectorcall(func, args, nargs | flags, new_kwnames);
 }
 
-static PyFrameObject*
-allocateFrame(PyThreadState* tstate, PyCodeObject* code, PyObject* globals) {
+static PyFrameObject* allocateFrame(
+    PyThreadState* tstate,
+    PyCodeObject* code,
+    PyObject* builtins,
+    PyObject* globals) {
   if (code->co_zombieframe != NULL) {
     __builtin_prefetch(code->co_zombieframe);
-  }
-  /* TODO(T45035726) - This is doing more work than it needs to. Compiled code
-   * doesn't use the frame object at all. It's only there to ensure PyPerf works
-   * correctly, and PyPerf only needs access to the first argument.
-   */
-  PyObject* builtins = PyEval_GetBuiltins();
-  if (builtins == NULL) {
-    return NULL;
   }
   PyFrameConstructor frame_ctor = {
       .fc_globals = globals,
@@ -618,11 +613,12 @@ allocateFrame(PyThreadState* tstate, PyCodeObject* code, PyObject* globals) {
 
 PyThreadState* JITRT_AllocateAndLinkFrame(
     PyCodeObject* code,
+    PyObject* builtins,
     PyObject* globals) {
   PyThreadState* tstate = PyThreadState_GET();
   JIT_DCHECK(tstate != NULL, "thread state cannot be null");
 
-  PyFrameObject* frame = allocateFrame(tstate, code, globals);
+  PyFrameObject* frame = allocateFrame(tstate, code, builtins, globals);
   if (frame == nullptr) {
     return nullptr;
   }
@@ -1461,8 +1457,11 @@ static inline PyObject* make_gen_object(
       gen = reinterpret_cast<PyGenObject*>(_PyGen_NewNoFrame(code));
     }
   } else {
-    PyFrameObject* f =
-        allocateFrame(tstate, code, code_rt->frameState()->globals());
+    PyFrameObject* f = allocateFrame(
+        tstate,
+        code,
+        code_rt->frameState()->builtins(),
+        code_rt->frameState()->globals());
     // This clearing of f_back only when returning a generator matches
     // CPython's generator handling in _PyEval_EvalCodeWithName; it also avoids
     // keeping the parent frame alive longer than necessary if the caller

@@ -2934,12 +2934,21 @@ class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
   LoadGlobalCached(
       Register* dst,
       BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> builtins,
       BorrowedRef<PyDictObject> globals,
       int name_idx)
-      : InstrT(dst), code_(code), globals_(globals), name_idx_(name_idx) {}
+      : InstrT(dst),
+        code_(code),
+        builtins_(builtins),
+        globals_(globals),
+        name_idx_(name_idx) {}
 
   virtual BorrowedRef<PyCodeObject> code() const {
     return code_;
+  }
+
+  BorrowedRef<PyDictObject> builtins() const {
+    return builtins_;
   }
 
   BorrowedRef<PyDictObject> globals() const {
@@ -2952,6 +2961,7 @@ class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
 
  private:
   BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<PyDictObject> builtins_;
   BorrowedRef<PyDictObject> globals_;
   int name_idx_;
 };
@@ -4211,6 +4221,7 @@ class Function {
   ~Function();
 
   Ref<PyCodeObject> code;
+  Ref<PyDictObject> builtins;
   Ref<PyDictObject> globals;
 
   // for primitive args only, null if there are none

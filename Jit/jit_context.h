@@ -19,16 +19,18 @@
 // Lookup key for _PyJITContext::compiled_codes: a code object and a globals
 // dict it was JIT-compiled with.
 struct CompilationKey {
-  // These are both weak references; the values are kept alive by strong
+  // These three are borrowed references; the values are kept alive by strong
   // references in the corresponding jit::CodeRuntime.
   PyObject* code;
+  PyObject* builtins;
   PyObject* globals;
 
-  CompilationKey(PyObject* code, PyObject* globals)
-      : code(code), globals(globals) {}
+  CompilationKey(PyObject* code, PyObject* builtins, PyObject* globals)
+      : code(code), builtins(builtins), globals(globals) {}
 
   bool operator==(const CompilationKey& other) const {
-    return code == other.code && globals == other.globals;
+    return code == other.code && globals == other.globals &&
+        builtins == other.builtins;
   }
 };
 
@@ -36,7 +38,9 @@ template <>
 struct std::hash<CompilationKey> {
   std::size_t operator()(const CompilationKey& key) const {
     std::hash<PyObject*> hasher;
-    return jit::combineHash(hasher(key.code), hasher(key.globals));
+    return jit::combineHash(
+        jit::combineHash(hasher(key.code), hasher(key.globals)),
+        hasher(key.builtins));
   }
 };
 
@@ -138,6 +142,7 @@ _PyJIT_Result _PyJITContext_CompileCode(
     _PyJITContext* ctx,
     BorrowedRef<> module,
     BorrowedRef<PyCodeObject> code,
+    BorrowedRef<PyDictObject> builtins,
     BorrowedRef<PyDictObject> globals);
 
 /*

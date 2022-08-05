@@ -240,7 +240,7 @@ void* NativeGenerator::GetEntryPoint() {
   env_.rt = Runtime::get();
   PyCodeObject* code_obj = func->code;
   env_.code_rt = env_.rt->allocateCodeRuntime(
-      code_obj, GetFunction()->globals, func->frameMode);
+      code_obj, func->builtins, func->globals, func->frameMode);
 
   for (auto& ref : func->env.references()) {
     env_.code_rt->addReference(ref);
@@ -541,6 +541,10 @@ void NativeGenerator::loadOrGenerateLinkFrame(
               codeRuntime()->frameState()->code().get()));
       as_->mov(
           x86::rsi,
+          reinterpret_cast<intptr_t>(
+              codeRuntime()->frameState()->builtins().get()));
+      as_->mov(
+          x86::rdx,
           reinterpret_cast<intptr_t>(
               codeRuntime()->frameState()->globals().get()));
 

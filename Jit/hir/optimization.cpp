@@ -840,12 +840,11 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
         Py_TYPE(globals)->tp_name);
     return;
   }
-  PyObject* builtins = PyEval_GetBuiltins();
-  if (!PyDict_CheckExact(builtins)) {
+  if (!PyDict_CheckExact(func->func_builtins)) {
     JIT_DLOG(
         "Refusing to inline %s: builtins is a %.200s, not a dict",
         fullname,
-        Py_TYPE(builtins)->tp_name);
+        Py_TYPE(func->func_builtins)->tp_name);
     return;
   }
   if (!canInline(call_instr, func, fullname)) {

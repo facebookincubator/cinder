@@ -261,7 +261,7 @@ Type Preloader::checkArgType(long local_idx) const {
 }
 
 GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
-  return jit::Runtime::get()->findGlobalCache(globals_, name);
+  return jit::Runtime::get()->findGlobalCache(builtins_, globals_, name);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {
@@ -279,6 +279,7 @@ std::unique_ptr<Function> Preloader::makeFunction() const {
   auto irfunc = std::make_unique<Function>();
   irfunc->fullname = fullname_;
   irfunc->setCode(code_);
+  irfunc->builtins.reset(builtins_);
   irfunc->globals.reset(globals_);
   irfunc->prim_args_info.reset(prim_args_info_);
   irfunc->return_type = return_type_;

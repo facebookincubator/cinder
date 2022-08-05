@@ -141,8 +141,8 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     return nullptr;
   }
 
-  PyObject* builtins = PyEval_GetBuiltins();
-  if (!PyDict_CheckExact(preloader.builtins())) {
+  PyObject* builtins = preloader.builtins();
+  if (!PyDict_CheckExact(builtins)) {
     JIT_DLOG(
         "Refusing to compile %s: builtins is a %.200s, not a dict",
         fullname,

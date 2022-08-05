@@ -38,6 +38,7 @@ typedef struct {
  */
 PyThreadState* JITRT_AllocateAndLinkFrame(
     PyCodeObject* code,
+    PyObject* builtins,
     PyObject* globals);
 
 /*

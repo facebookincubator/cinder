@@ -228,14 +228,15 @@ PyAPI_FUNC(void) _PyJIT_NotifyDictClear(PyObject* dict);
 PyAPI_FUNC(void) _PyJIT_NotifyDictUnwatch(PyObject* dict);
 
 /*
- * Gets the global cache for the given globals dictionary and key.  The global
- * that is pointed to will automatically be updated as builtins and globals
- * change.  The value that is pointed to will be NULL if the dictionaries can
- * no longer be tracked or if the value is no longer defined, in which case
- * the dictionaries need to be consulted.  This will return NULL if the required
- * tracking cannot be initialized.
+ * Gets the global cache for the given builtins and globals dictionaries and
+ * key.  The global that is pointed to will automatically be updated as
+ * builtins and globals change.  The value that is pointed to will be NULL if
+ * the dictionaries can no longer be tracked or if the value is no longer
+ * defined, in which case the dictionaries need to be consulted.  This will
+ * return NULL if the required tracking cannot be initialized.
  */
-PyAPI_FUNC(PyObject**) _PyJIT_GetGlobalCache(PyObject* globals, PyObject* key);
+PyAPI_FUNC(PyObject**)
+    _PyJIT_GetGlobalCache(PyObject* builtins, PyObject* globals, PyObject* key);
 
 /*
  * Gets the cache for the given dictionary and key.  The value that is pointed

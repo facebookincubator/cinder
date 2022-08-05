@@ -1635,8 +1635,6 @@ class PortFeature(enum.Enum):
     OPC_FUNC_CREDENTIAL = enum.auto()
     OPC_READONLY_OPERATION = enum.auto()
 
-    OPC_LOAD_GLOBAL = enum.auto()
-
 def dumpMissingOpcodes(func):
     """
     Decorate a test with this to dump out list of missing opcode features.

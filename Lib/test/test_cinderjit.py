@@ -173,14 +173,14 @@ class GetFrameLineNumberTests(unittest.TestCase):
         self.assertEqual(stack[-2].lineno, 142)
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def get_stack():
     z = 1 + 1
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def get_stack_twice():
     stacks = []
     stacks.append(get_stack())
@@ -188,19 +188,19 @@ def get_stack_twice():
     return stacks
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def get_stack2():
     z = 2 + 2
     stack = traceback.extract_stack()
     return stack
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def get_stack_siblings():
     return [get_stack(), get_stack2()]
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def get_stack_multi():
     stacks = []
     stacks.append(traceback.extract_stack())
@@ -209,7 +209,7 @@ def get_stack_multi():
     return stacks
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+@unittest.failUnlessJITCompiled
 def call_get_stack_multi():
     x = 1 + 1
     return get_stack_multi()
@@ -303,12 +303,12 @@ class _CallableObj:
 
 
 class CallKWArgsTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_basic_function_pos_and_kw(self):
         r = _simpleFunc(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_basic_function_kw_only(self):
         r = _simpleFunc(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -320,12 +320,12 @@ class CallKWArgsTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_class_static_pos_and_kw(self):
         r = CallKWArgsTests._f1(1, b=2)
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(b=2, a=1)
         self.assertEqual(r, (1, 2))
@@ -367,7 +367,7 @@ class CallKWArgsTests(unittest.TestCase):
         r = o(b=2, a=1)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_c_func(self):
         self.assertEqual(__import__("sys", globals=None), sys)
 
@@ -397,12 +397,12 @@ class CallExTests(unittest.TestCase):
         r = _simpleFunc(**CallExTests._DummyMapping())
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_dynamic_pos_tuple(self):
         r = _simpleFunc(*(1, 2))
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_call_dynamic_pos_list(self):
         r = _simpleFunc(*[1, 2])
         self.assertEqual(r, (1, 2))
@@ -1030,7 +1030,6 @@ class StoreAttrCacheTests(unittest.TestCase):
         self.assertEqual(obj1.foo, 300)
 
 
-@unittest.cinderPortingBrokenTest()
 class LoadGlobalCacheTests(unittest.TestCase):
     def setUp(self):
         global license, a_global
@@ -1049,7 +1048,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         a_global = value
 
     @staticmethod
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def get_global():
         return a_global
@@ -1069,7 +1068,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         global license
         del license
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_simple(self):
         global a_global
@@ -1078,7 +1077,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.set_global(456)
         self.assertEqual(a_global, 456)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_shadow_builtin(self):
         self.assertIs(license, builtins.license)
@@ -1087,7 +1086,8 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.del_license()
         self.assertIs(license, builtins.license)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LOAD_GLOBAL")
     def test_shadow_fake_builtin(self):
         self.assertRaises(NameError, self.get_global)
         builtins.a_global = "poke"
@@ -1160,9 +1160,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1229,9 +1227,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1273,9 +1269,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.LAZY_IMPORTS, PortFeature.OPC_LOAD_GLOBAL
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1435,9 +1429,7 @@ class ClosureTests(unittest.TestCase):
             add_3("ok")
 
     def test_nested_func_with_different_globals(self):
-        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-            PortFeature.OPC_LOAD_GLOBAL
-        )
+        @unittest.failUnlessJITCompiled
         @with_globals({"A_GLOBAL_CONSTANT": 0xDEADBEEF})
         def return_global():
             return A_GLOBAL_CONSTANT
@@ -3396,21 +3388,21 @@ class ClassB(ClassA):
 
 
 class SuperAccessTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_super_method(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(99), 199)
         self.assertEqual(ClassB.cls_f_2arg(99), 199)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_super_method_kwarg(self):
         self.assertEqual(ClassB().f(1), 43)
         self.assertEqual(ClassB().f_2arg(1), 43)
         self.assertEqual(ClassB.cls_f(1), 101)
         self.assertEqual(ClassB.cls_f_2arg(1), 101)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def test_super_attr(self):
         self.assertEqual(ClassB().x, 42)
         self.assertEqual(ClassB().x_2arg, 42)
@@ -3563,7 +3555,7 @@ class GetFrameTests(unittest.TestCase):
             self.assertEqual(frame.f_code.co_name, name)
             frame = frame.f_back
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_LOAD_GLOBAL)
+    @unittest.failUnlessJITCompiled
     def simple_getframe(self):
         return sys._getframe()
 
