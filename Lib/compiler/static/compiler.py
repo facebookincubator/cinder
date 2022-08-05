@@ -7,13 +7,12 @@ from ast import AST
 from types import CodeType
 from typing import Any, Dict, Optional, Tuple, Type, TYPE_CHECKING
 
-from _static import posix_clock_gettime_ns, rand, RAND_MAX
-
 from .. import consts
 from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
 from ..pycodegen import find_futures
 from ..readonly.type_binder import ReadonlyTypeBinder
+from ..strict import _static_module_ported
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
 from .module_table import ModuleTable
@@ -39,6 +38,13 @@ from .types import (
     UnboxFunction,
     Value,
 )
+
+if _static_module_ported:
+    from _static import posix_clock_gettime_ns, rand, RAND_MAX
+else:
+    # pyre-fixme [21]: Could not find a name posix_clock_gettime_ns
+    from __static__ import posix_clock_gettime_ns, rand, RAND_MAX
+
 
 if TYPE_CHECKING:
     from . import Static38CodeGenerator

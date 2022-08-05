@@ -31,19 +31,23 @@ from typing import (
     Type,
 )
 
-from _static import __build_cinder_class__
-
 from ..consts import CO_STATICALLY_COMPILED
+from ..strict import _static_module_ported
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
+
+if _static_module_ported:
+    from _static import __build_cinder_class__
+else:
+    from __static__ import __build_cinder_class__
 
 
 # Force immediate resolution of Compiler in case it's deferred from Lazy Imports
 Compiler = Compiler
 
 
-_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
+_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2**15).to_bytes(2, "little") + b"\r\n"
 # We don't actually need to increment anything here, because the strict modules
 # AST rewrite has no impact on pycs for non-strict modules. So we just always
 # use two zero bytes. This simplifies generating "fake" strict pycs for

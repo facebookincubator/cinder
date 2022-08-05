@@ -6,7 +6,7 @@ import functools
 import random
 import time
 from asyncio import iscoroutinefunction
-from types import FunctionType, Union as typesUnion
+from types import FunctionType, UnionType as typesUnion
 from typing import (
     _GenericAlias,
     _tp_cache,

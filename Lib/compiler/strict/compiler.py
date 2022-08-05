@@ -22,7 +22,6 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from _static import __build_cinder_class__
 from _strictmodule import (
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
@@ -35,10 +34,15 @@ from ..errors import TypedSyntaxError
 from ..pycodegen import compile as python_compile
 from ..readonly import is_readonly_compiler_used, readonly_compile
 from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerator
-from . import strict_compile
+from . import _static_module_ported, strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
 from .rewriter import remove_annotations, rewrite
+
+if _static_module_ported:
+    from _static import __build_cinder_class__
+else:
+    from __static__ import __build_cinder_class__
 
 if TYPE_CHECKING:
     from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory

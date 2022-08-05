@@ -30,7 +30,6 @@ from ..pycodegen import (
     find_futures,
     FOR_LOOP,
 )
-from ..readonly import ReadonlyCodeGenerator, ReadonlyTypeBinder
 from ..symbols import FunctionScope, SymbolVisitor
 from ..visitor import walk
 from .common import FIXED_MODULES
@@ -106,7 +105,7 @@ def get_is_assigned_tracking_name(name: str) -> str:
     return f"<assigned:{name}>"
 
 
-class StrictCodeGenerator(ReadonlyCodeGenerator):
+class StrictCodeGenerator(CodeGenerator):
     flow_graph = PyFlowGraphCinder
     class_list_name: str = "<classes>"
 
@@ -116,7 +115,6 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         node: AST,
         symbols: SymbolVisitor,
         graph: PyFlowGraph,
-        binder: ReadonlyTypeBinder,
         flags: int = 0,
         optimization_lvl: int = 0,
         builtins: Dict[str, Any] = builtins.__dict__,
@@ -126,7 +124,6 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
             node,
             symbols,
             graph,
-            binder,
             flags=flags,
             optimization_lvl=optimization_lvl,
         )
@@ -160,15 +157,12 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         s = cls._SymbolVisitor(future_flags)
         walk(tree, s)
 
-        binder = ReadonlyTypeBinder(tree, filename, s)
-
         graph = cls.flow_graph(module_name, filename, s.scopes[tree])
         code_gen = cls(
             None,
             tree,
             s,
             graph,
-            binder,
             flags=flags,
             optimization_lvl=optimize,
             builtins=builtins,
@@ -255,7 +249,6 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
                         call = ast.Call(load, [], [])
                         call.lineno = line_node.lineno
                         call.col_offset = line_node.col_offset
-                        self.binder.visitCall(call)
                         return call
 
                     node.args.append(call_function(node.args[0], "globals"))
@@ -458,7 +451,6 @@ class StrictCodeGenerator(ReadonlyCodeGenerator):
         self.feature_extractor.scopes[func] = scope
         self.scopes[func] = scope
 
-        self.binder.visitFunctionDef(func)
         self.visitFunctionDef(func)
 
     def emit_globals_function(self) -> None:
@@ -652,3 +644,5 @@ def strict_compile(
         name, tree, filename, flags=0, optimize=optimize, builtins=builtins
     )
     return code_gen.getCode()
+
+_static_module_ported = False
