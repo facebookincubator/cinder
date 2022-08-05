@@ -554,7 +554,6 @@ class StrictCodeGenerator(CodeGenerator):
     def processBody(
         self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator
     ) -> None:
-        # TODO needs updating for 3.10 handling of try/finally
         if (
             isinstance(node, (FunctionDef, AsyncFunctionDef))
             and isinstance(gen, StrictCodeGenerator)
@@ -565,33 +564,11 @@ class StrictCodeGenerator(CodeGenerator):
                 gen.emit_create_class_list()
             # create a try + finally structure where we freeze all classes
             # in the finally block
-            try_body = gen.newBlock("try_finally_body")
-            end = gen.newBlock("try_finally_end")
-            break_finally = True
-
-            # copied logic from emit_try_finally
-            with gen.graph.new_compile_scope() as compile_end_finally:
-                gen.nextBlock(end)
-                gen.setups.push(Entry(FINALLY_TRY, end, None, None))
-                gen.emit_freeze_class_list()
-                gen.emit("FINALLY_END")
-                break_finally = gen.setups[-1].exit is None
-                if break_finally:
-                    gen.emit("POP_TOP")
-                gen.setups.pop()
-
-            if break_finally:
-                gen.emit("LOAD_CONST", None)
-            gen.emit("SETUP_FINALLY", end)
-            gen.nextBlock(try_body)
-            gen.setups.push(Entry(FINALLY_END, try_body, end, None))
-            # normal function body here
-            super().processBody(node, body, gen)
-            gen.emit("POP_BLOCK")
-            gen.emit("BEGIN_FINALLY")
-            gen.setups.pop()
-
-            gen.graph.apply_from_scope(compile_end_finally)
+            gen.emit_try_finally(
+                None,
+                lambda: super(StrictCodeGenerator, self).processBody(node, body, gen),
+                lambda: gen.emit_freeze_class_list(),
+            )
         else:
             super().processBody(node, body, gen)
 
