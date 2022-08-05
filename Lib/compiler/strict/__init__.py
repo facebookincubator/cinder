@@ -132,6 +132,7 @@ class StrictCodeGenerator(CodeGenerator):
         flags: int = 0,
         optimization_lvl: int = 0,
         builtins: Dict[str, Any] = builtins.__dict__,
+        future_flags: Optional[int] = None,
     ) -> None:
         super().__init__(
             parent,
@@ -140,6 +141,7 @@ class StrictCodeGenerator(CodeGenerator):
             graph,
             flags=flags,
             optimization_lvl=optimization_lvl,
+            future_flags=future_flags,
         )
         self.has_class: bool = self.has_classDef(node)
         self.made_class_list = False
@@ -180,6 +182,7 @@ class StrictCodeGenerator(CodeGenerator):
             flags=flags,
             optimization_lvl=optimize,
             builtins=builtins,
+            future_flags=future_flags,
         )
         code_gen._qual_name = module_name
         walk(tree, code_gen)

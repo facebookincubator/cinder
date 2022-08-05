@@ -21,6 +21,9 @@ from ast import (
 from symtable import SymbolTable
 from typing import final, List, MutableMapping, Optional, Set
 
+from ..consts import CO_FUTURE_ANNOTATIONS
+from ..pycodegen import find_futures
+
 from .common import (
     get_symbol_map,
     imported_name,
@@ -117,6 +120,7 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
         symbols: SymbolTable,
         symbol_map: SymbolMap,
         filename: str,
+        flags: int,
     ) -> None:
         super().__init__(
             ScopeStack(
@@ -127,6 +131,7 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
             ALL_INDICATORS,
         )
         self.filename = filename
+        self.flags = flags
 
     def error(self, names: List[str], lineno: int, col: int, filename: str) -> None:
         MSG: str = "Class member conflicts with instance member: {names}"
@@ -218,8 +223,12 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
     def visit_AnnAssign(self, node: AnnAssign) -> None:
 
         self.scopes.scopes[-1].scope_data.visit_AnnAssign(node)
-        if node.value is not None:
-            self.generic_visit(node)
+        value = node.value
+        if value is not None:
+            self.visit(node.target)
+            self.visit(value)
+            if not (self.flags & CO_FUTURE_ANNOTATIONS):
+                self.visit(node.annotation)
 
 
 def check_class_conflict(
@@ -228,5 +237,6 @@ def check_class_conflict(
     symbols: SymbolTable,
 ) -> None:
     symbol_map = get_symbol_map(node, symbols)
-    visitor = ClassConflictChecker(symbols, symbol_map, filename=filename)
+    flags = find_futures(0, node)
+    visitor = ClassConflictChecker(symbols, symbol_map, filename=filename, flags=flags)
     visitor.visit(node)

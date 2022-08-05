@@ -553,6 +553,12 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
         self.global_dels: Set[str] = set()
         self.future_imports: Set[alias] = set()
 
+    def future_annotations(self) -> bool:
+        for a in self.future_imports:
+            if a.name == "annotations":
+                return True
+        return False
+
     def load_name(self, name: str) -> None:
         if self.is_global(name):
             self.globals.add(name)
@@ -632,6 +638,14 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
         self.store_name(node.name)
 
         self.visit_Func_Inner(node)
+
+    def visit_AnnAssign(self, node: AnnAssign) -> None:
+        self.visit(node.target)
+        if not self.future_annotations():
+            self.visit(node.annotation)
+        value = node.value
+        if value:
+            self.visit(value)
 
 
 class ScopeData:
