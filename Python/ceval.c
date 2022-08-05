@@ -1115,7 +1115,6 @@ fail:
 }
 
 
-static int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
 
@@ -5774,7 +5773,7 @@ special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
 
 /* Logic for the raise statement (too complicated for inlining).
    This *consumes* a reference count to each of its arguments. */
-static int
+int
 do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause)
 {
     PyObject *type = NULL, *value = NULL;

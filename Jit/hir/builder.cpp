@@ -72,17 +72,14 @@ const std::unordered_set<int> kSupportedOpcodes = {
     GEN_START, // T126141847
     GET_LEN, // T126141793
     IS_OP, // T125844569
-    JUMP_IF_NOT_EXC_MATCH, // T125844569, T125899460
     LIST_TO_TUPLE, // T126141719
     LOAD_ASSERTION_ERROR, // T126141711
     MATCH_CLASS, // T126141840
     MATCH_KEYS, // T126141817
     MATCH_MAPPING, // T126141799
     MATCH_SEQUENCE, // T126141809
-    RERAISE, // T126141686, T125899460
     ROT_N, // T126141852
     SET_UPDATE, // T126141745
-    WITH_EXCEPT_START, // T126141703, T125899460
 
     // CPython opcodes that existed prior to 3.9
     // TODO(T125854918): coroutine / generator support
@@ -110,12 +107,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     // TODO(T127134659): Imports
     IMPORT_FROM,
     IMPORT_NAME,
-
-    // TODO(T125899460): Exception handling
-    POP_EXCEPT,
-    RAISE_VARARGS,
-    SETUP_FINALLY,
-    SETUP_WITH,
 
     // TODO(T127134900): Grab-bag of remaining opcodes
     COMPARE_OP,
@@ -214,6 +205,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
+    JUMP_IF_NOT_EXC_MATCH,
     JUMP_IF_TRUE_OR_POP,
     LIST_EXTEND,
     LOAD_ASSERTION_ERROR,
@@ -231,15 +223,20 @@ const std::unordered_set<int> kSupportedOpcodes = {
     MATCH_SEQUENCE,
     NOP,
     POP_BLOCK,
+    POP_EXCEPT,
     POP_JUMP_IF_FALSE,
     POP_JUMP_IF_TRUE,
     POP_TOP,
+    RAISE_VARARGS,
+    RERAISE,
     RETURN_VALUE,
     ROT_FOUR,
     ROT_N,
     ROT_THREE,
     ROT_TWO,
     SET_UPDATE,
+    SETUP_FINALLY,
+    SETUP_WITH,
     STORE_ATTR,
     STORE_DEREF,
     STORE_FAST,
@@ -250,6 +247,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNARY_POSITIVE,
     UNPACK_EX,
     UNPACK_SEQUENCE,
+    WITH_EXCEPT_START,
 };
 #endif
 
@@ -487,11 +485,8 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     DICT_UPDATE,
     GEN_START,
     IS_OP,
-    JUMP_IF_NOT_EXC_MATCH,
     LIST_TO_TUPLE,
     MATCH_CLASS,
-    RERAISE,
-    WITH_EXCEPT_START,
 };
 
 static bool should_snapshot(
@@ -574,6 +569,15 @@ static bool should_snapshot(
         default:
           return true;
       };
+    }
+    case JUMP_IF_NOT_EXC_MATCH:
+    case RERAISE:
+    case WITH_EXCEPT_START: {
+      JIT_CHECK(
+          false,
+          "should not be compiling except blocks (opcode %d)\n",
+          bci.opcode());
+      break;
     }
     // Take a snapshot after translating all other bytecode instructions. This
     // may generate unnecessary deoptimization metadata but will always be
@@ -3738,7 +3742,8 @@ void HIRBuilder::emitUnpackSequence(
 void HIRBuilder::emitSetupFinally(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  BCOffset handler_off = bc_instr.NextInstrOffset() + bc_instr.oparg();
+  BCOffset handler_off =
+      bc_instr.NextInstrOffset() + bc_instr.oparg() * sizeof(_Py_CODEUNIT);
   int stack_level = tc.frame.stack.size();
   tc.frame.block_stack.push(
       ExecutionBlock{SETUP_FINALLY, handler_off.value(), stack_level});

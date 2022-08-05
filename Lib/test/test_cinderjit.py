@@ -1528,7 +1528,7 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
             self._sharedAwait(zero, False, one).send(None)
         self.assertEqual(exc.exception.value, 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_SETUP_FINALLY)
+    @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("LOAD_METHOD")
     def load_method_on_maybe_defined_value(self):
         # This function exists to make sure that we don't crash the compiler
@@ -1564,7 +1564,8 @@ class UnwindStateTests(unittest.TestCase):
     def get_del_observer(self, id):
         return DelObserver(id, lambda i: self.DELETED.append(i))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("RAISE_VARARGS")
     def _copied_locals(self, a):
         b = c = a
         raise RuntimeError()
@@ -1581,7 +1582,6 @@ class UnwindStateTests(unittest.TestCase):
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
         PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_RAISE_VARARGS,
     )
     def _raise_with_del_observer_on_stack(self):
         for x in (1 for i in [self.get_del_observer(1)]):
@@ -1600,7 +1600,6 @@ class UnwindStateTests(unittest.TestCase):
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_BUILD_TUPLE,
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_RAISE_VARARGS,
     )
     def _raise_with_del_observer_on_stack_and_cell_arg(self):
         for x in (self for i in [self.get_del_observer(1)]):
@@ -1655,15 +1654,18 @@ class ImportTests(unittest.TestCase):
 
 
 class RaiseTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("RAISE_VARARGS")
     def _jitRaise(self, exc):
         raise exc
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("RAISE_VARARGS")
     def _jitRaiseCause(self, exc, cause):
         raise exc from cause
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_RAISE_VARARGS)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("RAISE_VARARGS")
     def _jitReraise(self):
         raise
 
@@ -2226,11 +2228,8 @@ class CoroutinesTest(unittest.TestCase):
 
     @staticmethod
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
         PortFeature.OPC_SETUP_ASYNC_WITH,
         PortFeature.OPC_BEFORE_ASYNC_WITH,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_WITH_EXCEPT_START,
     )
     async def _use_async_with(mgr_type):
         async with mgr_type():
@@ -2621,7 +2620,6 @@ class AsyncGeneratorsTest(unittest.TestCase):
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_GET_AITER,
         PortFeature.OPC_GET_ANEXT,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_END_ASYNC_FOR,
     )
     async def _f2(self, asyncgen):
@@ -2661,7 +2659,6 @@ class AsyncGeneratorsTest(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_GET_AITER,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_MAKE_FUNCTION,
         PortFeature.OPC_LIST_APPEND,
         PortFeature.OPC_GET_ANEXT,
@@ -2700,9 +2697,8 @@ class Err2(Exception):
 
 
 class ExceptionHandlingTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def try_except(self, func):
         try:
             func()
@@ -2721,12 +2717,8 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertFalse(self.try_except(g))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY", "JUMP_IF_NOT_EXC_MATCH")
     def catch_multiple(self, func):
         try:
             func()
@@ -2746,9 +2738,8 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.catch_multiple(g), 2)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_SETUP_FINALLY, PortFeature.OPC_RAISE_VARARGS
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def reraise(self, func):
         try:
             func()
@@ -2762,12 +2753,8 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "hello"):
             self.reraise(f)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def try_except_in_loop(self, niters, f):
         for i in range(niters):
             try:
@@ -2786,11 +2773,8 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.try_except_in_loop(20, f), 10)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RAISE_VARARGS,
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def nested_try_except(self, f):
         try:
             try:
@@ -2809,9 +2793,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.nested_try_except(f), 100)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
     def try_except_in_generator(self, f):
         try:
             yield f(0)
@@ -2830,11 +2812,8 @@ class ExceptionHandlingTests(unittest.TestCase):
         next(g)
         self.assertEqual(next(g), 123)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RAISE_VARARGS,
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY", "RERAISE")
     def try_finally(self, should_raise):
         result = None
         try:
@@ -2850,12 +2829,7 @@ class ExceptionHandlingTests(unittest.TestCase):
             self.try_finally(True)
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RERAISE,
         PortFeature.OPC_IS_OP,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-        PortFeature.OPC_RAISE_VARARGS,
     )
     def try_except_finally(self, should_raise):
         result = None
@@ -2873,36 +2847,32 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.try_except_finally(False), 100)
         self.assertEqual(self.try_except_finally(True), 200)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def return_in_finally(self, v):
         try:
             pass
         finally:
             return v
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def return_in_finally2(self, v):
         try:
             return v
         finally:
             return 100
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def return_in_finally3(self, v):
         try:
             1 / 0
         finally:
             return v
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def return_in_finally4(self, v):
         try:
             return 100
@@ -2919,10 +2889,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_finally4(400), 400)
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_RERAISE,
         PortFeature.OPC_COMPARE_OP,
     )
     def break_in_finally_after_return(self, x):
@@ -2938,9 +2905,6 @@ class ExceptionHandlingTests(unittest.TestCase):
         return "end", count, count2
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_BUILD_TUPLE,
     )
     def break_in_finally_after_return2(self, x):
@@ -2960,10 +2924,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.break_in_finally_after_return2(True), ("end", 1, 10))
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_RERAISE,
         PortFeature.OPC_COMPARE_OP,
     )
     def continue_in_finally_after_return(self, x):
@@ -2978,9 +2939,6 @@ class ExceptionHandlingTests(unittest.TestCase):
         return "end", count
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
         PortFeature.OPC_BUILD_TUPLE,
     )
     def continue_in_finally_after_return2(self, x):
@@ -2998,9 +2956,8 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.continue_in_finally_after_return2(False), 0)
         self.assertEqual(self.continue_in_finally_after_return2(True), ("end", 1))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def return_in_loop_in_finally(self, x):
         try:
             for _ in [1, 2, 3]:
@@ -3014,9 +2971,8 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_loop_in_finally(True), True)
         self.assertEqual(self.return_in_loop_in_finally(False), 100)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def conditional_return_in_finally(self, x, y, z):
         try:
             if x:
@@ -3032,9 +2988,8 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.conditional_return_in_finally(False, 200, False), 200)
         self.assertEqual(self.conditional_return_in_finally(False, False, 300), 300)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_RERAISE, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_FINALLY")
     def nested_finally(self, x):
         try:
             if x:
@@ -3239,11 +3194,7 @@ class DeleteFastTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("DELETE_FAST")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
         PortFeature.OPC_DELETE_FAST,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-        PortFeature.OPC_SETUP_FINALLY,
     )
     def _del_ex_no_raise(self):
         try:
@@ -3253,12 +3204,7 @@ class DeleteFastTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("DELETE_FAST")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
         PortFeature.OPC_DELETE_FAST,
-        PortFeature.OPC_RAISE_VARARGS,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-        PortFeature.OPC_SETUP_FINALLY,
     )
     def _del_ex_raise(self):
         try:
@@ -3597,11 +3543,7 @@ class GetFrameTests(unittest.TestCase):
             frame1 = frame1.f_back
             frame2 = frame2.f_back
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RAISE_VARARGS,
-    )
+    @unittest.failUnlessJITCompiled
     def getframe_then_deopt(self):
         f = sys._getframe()
         try:
@@ -3616,11 +3558,7 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.getframe_then_deopt)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RAISE_VARARGS,
-    )
+    @unittest.failUnlessJITCompiled
     def getframe_in_except(self):
         try:
             raise Exception("testing 123")
@@ -3645,9 +3583,7 @@ class GetFrameTests(unittest.TestCase):
         del x
         raise Exception("testing 123")
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT, PortFeature.OPC_SETUP_FINALLY
-    )
+    @unittest.failUnlessJITCompiled
     def getframe_in_dtor_during_deopt(self):
         ref = ["notaframe"]
         try:
@@ -3668,11 +3604,7 @@ class GetFrameTests(unittest.TestCase):
         ]
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RAISE_VARARGS,
-    )
+    @unittest.failUnlessJITCompiled
     def getframe_in_dtor_after_deopt(self):
         ref = ["notaframe"]
         frame_getter = self.FrameGetter(ref)
@@ -3828,12 +3760,7 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
     async def outer_propagates_exc(self, inner):
         return await inner
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_POP_EXCEPT,
-        PortFeature.OPC_SETUP_FINALLY,
-        PortFeature.OPC_RERAISE,
-        PortFeature.OPC_JUMP_IF_NOT_EXC_MATCH,
-    )
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GET_AWAITABLE)
     async def outer_handles_exc(self, inner):
         try:
             await inner
@@ -4194,6 +4121,67 @@ class ListExtendTests(unittest.TestCase):
         err_msg = r"Value after \* must be an iterable, not int"
         with self.assertRaisesRegex(TypeError, err_msg):
             self.extend_list(1)
+
+
+class SetupWithException(Exception):
+    pass
+
+
+class SetupWithTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_WITH", "WITH_EXCEPT_START")
+    def with_returns_value(self, mgr):
+        with mgr as x:
+            return x
+
+    def test_with_calls_enter_and_exit(self):
+        class MyCtxMgr:
+            def __init__(self):
+                self.enter_called = False
+                self.exit_args = None
+
+            def __enter__(self):
+                self.enter_called = True
+                return self
+
+            def __exit__(self, typ, val, tb):
+                self.exit_args = (typ, val, tb)
+                return False
+
+        mgr = MyCtxMgr()
+        self.assertEqual(self.with_returns_value(mgr), mgr)
+        self.assertTrue(mgr.enter_called)
+        self.assertEqual(mgr.exit_args, (None, None, None))
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("SETUP_WITH", "WITH_EXCEPT_START")
+    def with_raises(self, mgr):
+        with mgr:
+            raise SetupWithException("foo")
+        return 100
+
+    def test_with_calls_enter_and_exit(self):
+        class MyCtxMgr:
+            def __init__(self, should_suppress_exc):
+                self.exit_args = None
+                self.should_suppress_exc = should_suppress_exc
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, typ, val, tb):
+                self.exit_args = (typ, val, tb)
+                return self.should_suppress_exc
+
+        mgr = MyCtxMgr(should_suppress_exc=False)
+        with self.assertRaisesRegex(SetupWithException, "foo"):
+            self.with_raises(mgr)
+        self.assertEqual(mgr.exit_args[0], SetupWithException)
+        self.assertTrue(isinstance(mgr.exit_args[1], SetupWithException))
+        self.assertNotEqual(mgr.exit_args[2], None)
+
+        mgr = MyCtxMgr(should_suppress_exc=True)
+        self.assertEqual(self.with_raises(mgr), 100)
 
 
 if __name__ == "__main__":

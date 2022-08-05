@@ -35,6 +35,7 @@ PyAPI_FUNC(void) format_kwargs_error(PyThreadState *tstate, PyObject *func, PyOb
 PyAPI_FUNC(void) format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode);
 PyAPI_FUNC(void)
     format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
+int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 
 /* Enable or disable interpreter type profiling for all threads or for a
    specific thread. */

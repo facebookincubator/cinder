@@ -8,7 +8,9 @@ test.test_warnings.*.test_error_after_default
 
 # TODO(T87011403): Infinite recursion
 test.test_exceptions.ExceptionTests.testInfiniteRecursion
+test.test_exceptions.ExceptionTests.test_badisinstance
 test.test_exceptions.ExceptionTests.test_recursion_error_cleanup
+test.test_exceptions.ExceptionTests.test_recursion_in_except_handler
 test.test_sys.SysModuleTest.test_recursionlimit_recovery
 test.test_traceback.TracebackFormatTests.test_recursive_traceback_cpython_internal
 test.test_traceback.TracebackFormatTests.test_recursive_traceback_python

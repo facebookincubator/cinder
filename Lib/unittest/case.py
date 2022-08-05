@@ -1542,17 +1542,14 @@ class PortFeature(enum.Enum):
     OPC_GEN_START = enum.auto() # T125854918
     OPC_GET_LEN = enum.auto() # T126141793
     OPC_IS_OP = enum.auto() # T125844569
-    OPC_JUMP_IF_NOT_EXC_MATCH = enum.auto() # T125844569, T125899460
     OPC_LIST_TO_TUPLE = enum.auto() # T126141719
     OPC_LOAD_ASSERTION_ERROR = enum.auto() # T126141711
     OPC_MATCH_CLASS = enum.auto() # T126141840
     OPC_MATCH_KEYS = enum.auto() # T126141817
     OPC_MATCH_MAPPING = enum.auto() # T126141799
     OPC_MATCH_SEQUENCE = enum.auto() # T126141809
-    OPC_RERAISE = enum.auto() # T126141686, T125899460
     OPC_ROT_N = enum.auto() # T126141852
     OPC_SET_UPDATE = enum.auto() # T126141745
-    OPC_WITH_EXCEPT_START = enum.auto() # T126141703, T125899460
 
     # CPython opcodes that existed prior to 3.9
     # TODO(T125854918): coroutine / generator support
@@ -1580,12 +1577,6 @@ class PortFeature(enum.Enum):
     # TODO(T127134659): Imports
     OPC_IMPORT_FROM = enum.auto()
     OPC_IMPORT_NAME = enum.auto()
-
-    # TODO(T125899460): Exception handling
-    OPC_POP_EXCEPT = enum.auto()
-    OPC_RAISE_VARARGS = enum.auto()
-    OPC_SETUP_FINALLY = enum.auto()
-    OPC_SETUP_WITH = enum.auto()
 
     # TODO(T127134900): Grab-bag of remaining opcodes
     OPC_COMPARE_OP = enum.auto()

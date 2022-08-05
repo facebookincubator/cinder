@@ -102,7 +102,6 @@ STUB(int, _PyCheckedDict_TypeCheck, PyTypeObject *)
 
 
 // Python/ceval.c
-STUB(int, _Py_DoRaise, PyThreadState *, PyObject *, PyObject *)
 STUB(PyObject *, _PyEval_SuperLookupMethodOrAttr, PyThreadState *, PyObject *, PyTypeObject *, PyObject *, PyObject *, int, int *)
 STUB(PyObject *, _PyEval_GetAIter, PyObject *)
 STUB(PyObject *, _PyEval_GetANext, PyObject *)

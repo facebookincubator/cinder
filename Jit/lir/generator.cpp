@@ -2579,7 +2579,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, __asm_tstate, {}, {}",
             GetSafeTempName(),
-            reinterpret_cast<uint64_t>(&_Py_DoRaise),
+            reinterpret_cast<uint64_t>(&do_raise),
             exc,
             cause);
         AppendGuard(bbb, "AlwaysFail", instr);

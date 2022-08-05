@@ -1380,7 +1380,7 @@ void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // (3) Calling tstate->c_tracefunc.
   // We don't support (3) and handle (1) + (2) between the check above and in
   // prepareForDeopt().
-  _Py_DoRaise(tstate, exc, cause);
+  do_raise(tstate, exc, cause);
 }
 
 // JIT generator data free-list globals
