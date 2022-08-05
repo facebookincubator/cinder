@@ -611,10 +611,19 @@ def main():
     if ENABLE_USER_SITE:
         execusercustomize()
 
+
+def _install_strict_loader():
+    from compiler.strict.loader import install
+    install()
+
+
 # Prevent extending of sys.path when python was started with -S and
 # site is imported later.
 if not sys.flags.no_site:
     main()
+    if os.getenv("PYTHONINSTALLSTRICTLOADER") or sys._xoptions.get('install-strict-loader') is True:
+        _install_strict_loader()
+
 
 def _script():
     help = """\
