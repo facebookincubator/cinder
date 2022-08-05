@@ -32,7 +32,7 @@ from ..pycodegen import (
 )
 from ..symbols import FunctionScope, SymbolVisitor
 from ..visitor import walk
-from .common import FIXED_MODULES
+from .common import FIXED_MODULES, lineinfo
 from .feature_extractor import _IMPLICIT_GLOBALS, FeatureExtractor
 
 # Unused but still present until we remove it from IGSRV
@@ -72,24 +72,11 @@ class FindClassDef(NodeVisitor):
         pass
 
 
-def set_lineno(target: ast.AST, source: Optional[ast.AST]) -> None:
-    if not source:
-        target.lineno = -1
-        target.end_lineno = -1
-        target.col_offset = -1
-        target.end_col_offset = -1
-    else:
-        target.lineno = source.lineno
-        target.end_lineno = source.end_lineno
-        target.col_offset = source.col_offset
-        target.end_col_offset = source.end_col_offset
-
-
 class ForBodyHook(ast.stmt):
     def __init__(self, node: List[ast.stmt], target: ast.expr) -> None:
         self.body: List[ast.stmt] = node
         self.target = target
-        set_lineno(self, target)
+        lineinfo(self, target)
 
 
 class TryFinallyHook(ast.stmt):
@@ -97,20 +84,20 @@ class TryFinallyHook(ast.stmt):
         self.finally_body = finally_body
         # List of (handler, builtin_name)
         self.handlers_to_restore: List[tuple[str, str]] = []
-        set_lineno(self, finally_body[0] if finally_body else None)
+        lineinfo(self, finally_body[0] if finally_body else None)
 
 
 class TryHandlerBodyHook(ast.stmt):
     def __init__(self, handler_body: list[ast.stmt], tracker_name: str) -> None:
         self.handler_body = handler_body
         self.tracker_name = tracker_name
-        set_lineno(self, handler_body[0] if handler_body else None)
+        lineinfo(self, handler_body[0] if handler_body else None)
 
 
 class TryBodyHook(ast.stmt):
     def __init__(self, body: list[ast.stmt]) -> None:
         self.body = body
-        set_lineno(self, body[0] if body else None)
+        lineinfo(self, body[0] if body else None)
         self.trackers: List[str] = []
 
 
@@ -146,6 +133,12 @@ class StrictCodeGenerator(CodeGenerator):
         self.has_class: bool = self.has_classDef(node)
         self.made_class_list = False
         self.builtins = builtins
+        # record the lineno of the first toplevel statement
+        # this will be the lineno for all extra generated code
+        # in the beginning of the strict module
+        self.first_body_node: Optional[ast.stmt] = None
+        if not parent and isinstance(node, ast.Module) and len(node.body) > 0:
+            self.first_body_node = node.body[0]
 
         if parent and isinstance(parent, StrictCodeGenerator):
             self.feature_extractor: FeatureExtractor = parent.feature_extractor
@@ -260,8 +253,8 @@ class StrictCodeGenerator(CodeGenerator):
                     # call locals() here because the behavior of exec/eval is
                     # to use globals as locals if it is explicitly supplied.
                     def call_function(line_node: AST, name: str) -> expr:
-                        load = ast.Name(name, ast.Load())
-                        call = ast.Call(load, [], [])
+                        load = lineinfo(ast.Name(name, ast.Load()))
+                        call = lineinfo(ast.Call(load, [], []))
                         return call
 
                     node.args.append(call_function(node.args[0], "globals"))
@@ -440,17 +433,17 @@ class StrictCodeGenerator(CodeGenerator):
             # preserve this deletion
             self.visit(target)
 
-    def make_function(self, name: str, body: List[stmt]) -> None:
-        func = ast.FunctionDef()
+    def make_function(
+        self, name: str, body: List[stmt], location_node: Optional[ast.AST] = None
+    ) -> None:
+        func = lineinfo(ast.FunctionDef(), location_node)
         func.name = name
         func.decorator_list = []
         func.returns = None
         func.type_comment = ""
-        func.lineno = 0
         func.body = body
-        args = ast.arguments()
+        args = lineinfo(ast.arguments())
         func.args = args
-        set_lineno(func, None)
 
         args.kwonlyargs = []
         args.kw_defaults = []
@@ -471,18 +464,22 @@ class StrictCodeGenerator(CodeGenerator):
         """Produces our faked out globals() which just grabs __dict__ from our
         strict module object where the actual work of collecting the globals
         comes from."""
-
         self.make_function(
             name=GLOBALS_HELPER_ALIAS,
             body=[
-                ast.Return(
-                    ast.Attribute(
-                        ast.Name("<strict_module>", ast.Load()),
-                        "__dict__",
-                        ast.Load(),
+                lineinfo(
+                    ast.Return(
+                        lineinfo(
+                            ast.Attribute(
+                                lineinfo(ast.Name("<strict_module>", ast.Load())),
+                                "__dict__",
+                                ast.Load(),
+                            )
+                        )
                     )
                 ),
             ],
+            location_node=self.first_body_node,
         )
 
     def emit_append_class_list(self) -> None:
@@ -573,6 +570,9 @@ class StrictCodeGenerator(CodeGenerator):
             super().processBody(node, body, gen)
 
     def startModule(self) -> None:
+        first_node = self.first_body_node
+        if first_node:
+            self.set_lineno(first_node)
         self.emit_load_fixed_methods()
         self.emit_init_globals()
         if self.has_class and not self.made_class_list:

@@ -53,6 +53,7 @@ from ..common import (
     AstRewriter,
     get_symbol_map,
     imported_name,
+    lineinfo,
     mangle_priv_name,
     ScopeStack,
     SymbolMap,
@@ -127,18 +128,6 @@ def make_arg(name: str) -> arg:
 
 
 TAst = TypeVar("TAst", bound=AST)
-
-
-def lineinfo(node: TAst, target: Optional[AST] = None) -> TAst:
-    if not target:
-        # set lineno to -1 to indicate non-user code
-        node.lineno = -1
-        node.col_offset = -1
-        node.end_lineno = -1
-        node.end_col_offset = -1
-    else:
-        copy_location(node, target)
-    return node
 
 
 def make_assign(*a: object, **kw: object) -> Assign:

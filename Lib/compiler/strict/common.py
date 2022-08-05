@@ -478,3 +478,15 @@ class AstRewriter(NodeVisitor):
                     setattr(ret_node, field, new_node)
 
         return ret_node
+
+
+def lineinfo(node: TAst, target: Optional[AST] = None) -> TAst:
+    if not target:
+        # set lineno to -1 to indicate non-user code
+        node.lineno = -1
+        node.col_offset = -1
+        node.end_lineno = -1
+        node.end_col_offset = -1
+    else:
+        copy_location(node, target)
+    return node
