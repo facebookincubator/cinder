@@ -11,7 +11,6 @@
 #include "pyport.h"
 #include "structmember.h"
 #include "pycore_object.h"
-#include "pycore_tupleobject.h"
 #include "classloader.h"
 
 PyDoc_STRVAR(_static__doc__,
@@ -23,19 +22,21 @@ extern PyTypeObject _PyCheckedList_Type;
 static int
 _static_exec(PyObject *m)
 {
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (PyType_Ready((PyTypeObject *)&_PyCheckedDict_Type) < 0)
         return -1;
 
     if (PyType_Ready((PyTypeObject *)&_PyCheckedList_Type) < 0)
         return -1;
-
+#endif
     PyObject *globals = ((PyStrictModuleObject *)m)->globals;
-
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&_PyCheckedDict_Type) < 0)
         return -1;
 
     if (PyDict_SetItemString(globals, "chklist", (PyObject *)&_PyCheckedList_Type) < 0)
         return -1;
+#endif
     PyObject *type_code;
 #define SET_TYPE_CODE(name)                                           \
     type_code = PyLong_FromLong(name);                                \
@@ -199,7 +200,7 @@ static struct PyModuleDef_Slot _static_slots[] = {
     {0, NULL},
 };
 
-
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 PyObject *set_type_code(PyObject *mod, PyObject *const *args, Py_ssize_t nargs) {
     PyTypeObject *type;
     Py_ssize_t code;
@@ -1260,9 +1261,10 @@ error:
     }
     return cls;
 }
-
+#endif
 
 static PyMethodDef static_methods[] = {
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
     {"rand", (PyCFunction)&static_rand_def, METH_TYPED, ""},
@@ -1281,6 +1283,7 @@ static PyMethodDef static_methods[] = {
      (PyCFunction)_static___build_cinder_class__,
      METH_FASTCALL | METH_KEYWORDS,
      ""},
+#endif
     {}
 };
 

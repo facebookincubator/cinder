@@ -368,6 +368,9 @@ _symtable symtablemodule.c
 # Another example -- the 'xxsubtype' module shows C-level subtyping in action
 xxsubtype xxsubtype.c
 
+# Static Python support
+_static _static.c
+
 # Strict Module Support
 _strictmodule _strictmodule.c
 

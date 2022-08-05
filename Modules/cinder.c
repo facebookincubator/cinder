@@ -186,6 +186,8 @@ PyDoc_STRVAR(cinder_warn_on_inst_dict_doc,
 Causes a warning to be emitted when a type dictionary is created."
 );
 
+#endif
+
 static PyObject *
 cinder_set_warn_handler(PyObject *self, PyObject *o)
 {
@@ -225,6 +227,7 @@ PyDoc_STRVAR(cinder_get_warn_handler_doc, "get_warn_handler()\n\
 \n\
 Gets the callback that receives Cinder specific warnings.");
 
+#ifdef CINDER_PORTING_DONE
 static PyObject *
 cinder_set_immutable_warn_handler(PyObject *self, PyObject *o)
 {
@@ -598,6 +601,8 @@ err:
   return NULL;
 }
 
+#endif
+
 static PyObject *
 watch_sys_modules(PyObject *self, PyObject *obj)
 {
@@ -615,6 +620,8 @@ watch_sys_modules(PyObject *self, PyObject *obj)
     Py_DECREF(modules);
     Py_RETURN_NONE;
 }
+
+#ifdef CINDER_PORTING_DONE
 
 static PyObject *
 readonly_enabled(PyObject *self, PyObject *args) {
@@ -644,6 +651,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_warn_on_inst_dict,
      METH_O,
      cinder_warn_on_inst_dict_doc},
+#endif
     {"cinder_set_warn_handler",
      cinder_set_warn_handler,
      METH_O,
@@ -656,6 +664,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_get_warn_handler,
      METH_NOARGS,
      cinder_get_warn_handler_doc},
+#ifdef CINDER_PORTING_DONE
     {"set_immutable_warn_handler",
      cinder_set_immutable_warn_handler,
      METH_O,
@@ -742,10 +751,12 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_entire_call_stack_as_qualnames,
         METH_NOARGS,
         "Return the current stack as a list of qualnames."},
+#endif
     {"watch_sys_modules",
         watch_sys_modules,
         METH_NOARGS,
         "Watch the sys.modules dict to allow invalidating Static Python's internal caches."},
+#ifdef CINDER_PORTING_DONE
     {"readonly_enabled",
         readonly_enabled,
         METH_NOARGS,
@@ -777,7 +788,7 @@ PyInit_cinder(void)
     if (m == NULL) {
         return NULL;
     }
-#ifdef CINDER_PORTING_DONE
+
     PyObject* data_version = PyLong_FromLong(1);
     if (data_version == NULL) {
         return NULL;
@@ -823,7 +834,6 @@ PyInit_cinder(void)
     Py_DECREF(cached_classproperty);
 
 #undef ADDITEM
-#endif
 
     return m;
 }
