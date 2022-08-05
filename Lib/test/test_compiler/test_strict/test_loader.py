@@ -8,6 +8,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+
 import textwrap
 from cinder import cinder_set_warn_handler, get_warn_handler
 from compiler.strict.common import FIXED_MODULES
@@ -40,10 +41,17 @@ from typing import (
     TYPE_CHECKING,
     TypeVar,
 )
+from unittest import skip
 from unittest.mock import patch
 
 from . import sandbox as base_sandbox
-from .common import init_cached_properties, StrictTestBase
+from .common import (
+    cinder310_porting_skip_until_cinder,
+    cinder310_porting_skip_until_classloader,
+    cinder310_porting_skip_until_static_python,
+    init_cached_properties,
+    StrictTestBase,
+)
 from .sandbox import (
     file_loader,
     on_sys_path,
@@ -236,6 +244,7 @@ def sandbox() -> Generator[Sandbox, None, None]:
 
 @final
 class StrictLoaderInstallTest(StrictTestBase):
+    @cinder310_porting_skip_until_classloader
     def test_install(self) -> None:
         with file_loader(NORMAL_LOADER):
             orig_hooks_len = len(sys.path_hooks)
@@ -248,6 +257,7 @@ class StrictLoaderTest(StrictTestBase):
     ONCALL_SHORTNAME = "strictmod"
 
     def setUp(self) -> None:
+        # TODO: loader test should also clear classlaoder caches
         self.sbx = base_sandbox.use_cm(sandbox, self)
 
     def test_bad_strict(self) -> None:
@@ -451,6 +461,7 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(type(mod.C), type)
         self.assertEqual(type(mod.x), mod.C)
 
+    @cinder310_porting_skip_until_static_python
     def test_cross_module_static(self) -> None:
         self.sbx.write_file(
             "astatic.py",
@@ -482,6 +493,7 @@ class StrictLoaderTest(StrictTestBase):
             dis.dis(amod.C.f, file=out)
             self.assertIn("CHECK_ARGS", out.getvalue())
 
+    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -507,6 +519,7 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("INVOKE_FUNCTION", disassembly)
 
+    @cinder310_porting_skip_until_static_python
     def test_cross_module_nonstatic_typestub(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -530,6 +543,7 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("CALL_FUNCTION", disassembly)
 
+    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub_ensure_types_untrusted(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -555,6 +569,7 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("INVOKE_FUNCTION", disassembly)
 
+    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub_missing(self) -> None:
         self.sbx.write_file(
             "astatic.py",
@@ -1332,6 +1347,7 @@ class StrictLoaderTest(StrictTestBase):
             self.assertEqual(path.split(calls[0])[-1], "b.py")
             self.assertEqual(path.split(calls[1])[-1], "a.py")
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_setter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1344,6 +1360,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 100)
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_twice(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1358,6 +1375,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 200)
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_no_attribute(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\n")
 
@@ -1372,6 +1390,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 200)
             self.assertFalse(hasattr(a, "x"))
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_set_then_del_no_attribute(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\n")
 
@@ -1386,6 +1405,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertFalse(hasattr(a, "x"))
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1401,6 +1421,8 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
+    cinder310_porting_skip_until_classloader
+
     def test_proxy_deleter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1413,6 +1435,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_deleter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1428,6 +1451,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_not_disposed(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1454,6 +1478,7 @@ class StrictLoaderTest(StrictTestBase):
                 "Patch(es) x failed to be detached from strict module 'a'\n",
             )
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_not_enabled(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1462,6 +1487,7 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(ValueError):
                 StrictModuleTestingPatchProxy(a)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_setter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1478,6 +1504,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 100)
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_setter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1501,6 +1528,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_deleter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1517,6 +1545,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertEqual(a.x, 2)
 
+    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_deleter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1588,6 +1617,7 @@ class StrictLoaderTest(StrictTestBase):
             [k for k in mod.__dict__.keys() if not k.startswith("__")], ["x", "y", "z"]
         )
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass")
         with ensure_type_patch():
@@ -1595,6 +1625,7 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 42
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze_mutate_after(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass\nC.foo = 42")
         with ensure_type_patch():
@@ -1603,6 +1634,7 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1618,6 +1650,7 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func_loop(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1636,6 +1669,7 @@ class StrictLoaderTest(StrictTestBase):
                 with self.assertRaises(TypeError):
                     C.foo = 100
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func_mutate_after(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1653,6 +1687,7 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
+    @cinder310_porting_skip_until_cinder
     def test_type_freeze_nested(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1691,6 +1726,7 @@ class StrictLoaderTest(StrictTestBase):
             C.foo = 42
             self.assertEqual(C.foo, 42)
 
+    @cinder310_porting_skip_until_cinder
     def test_loose_slots(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1748,6 +1784,7 @@ class StrictLoaderTest(StrictTestBase):
                 ],
             )
 
+    @cinder310_porting_skip_until_cinder
     def test_loose_slots_with_unknown_bases(self) -> None:
         self.sbx.write_file(
             "b.py",
@@ -2103,6 +2140,7 @@ class StrictLoaderTest(StrictTestBase):
         a = self.sbx.strict_import("a")
         self.assertTrue(isinstance(a, ModuleType))
 
+    @cinder310_porting_skip_until_static_python
     def test_static_python(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2118,6 +2156,7 @@ class StrictLoaderTest(StrictTestBase):
             a = mod.C()
             self.assertEqual(a.x, None)
 
+    @cinder310_porting_skip_until_static_python
     def test_static_python_del_builtin(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2144,6 +2183,7 @@ class StrictLoaderTest(StrictTestBase):
         with self.sbx.in_strict_module("a") as mod:
             self.assertIs(mod.List, List)
 
+    @cinder310_porting_skip_until_static_python
     def test_static_python_final_globals_patch(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2676,6 +2716,7 @@ class StrictLoaderTest(StrictTestBase):
             "ValueError: Strict module stubs path does not exist: /nonexistent", output
         )
 
+    @cinder310_porting_skip_until_static_python
     def test_static_module_patches_build_class(self) -> None:
         self.sbx.write_file(
             "a.py",

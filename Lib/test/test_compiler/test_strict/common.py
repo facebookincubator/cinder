@@ -16,6 +16,7 @@ from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Type
+from unittest import skip
 
 from test.test_compiler.common import CompilerTest
 
@@ -220,3 +221,21 @@ class StrictTestWithCheckerBase(StrictTestBase):
             yield m
         finally:
             self._finalize_module(name, d)
+
+
+def porting_skip_with_reason(reason: str):
+    def decorator(func):
+        return skip(reason)(func)
+
+    return decorator
+
+
+cinder310_porting_skip_until_static_python = porting_skip_with_reason(
+    "skiped until static python ported"
+)
+cinder310_porting_skip_until_classloader = porting_skip_with_reason(
+    "skiped until classloader ported"
+)
+cinder310_porting_skip_until_cinder = porting_skip_with_reason(
+    "skiped until cinder module fully ported"
+)
