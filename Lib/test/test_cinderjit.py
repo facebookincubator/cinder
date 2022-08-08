@@ -4168,5 +4168,17 @@ class SetupWithTests(unittest.TestCase):
         self.assertEqual(self.with_raises(mgr), 100)
 
 
+class ListToTupleTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("LIST_TO_TUPLE")
+    def it_to_tup(self, it):
+        return (*it,)
+
+    def test_list_to_tuple_returns_tuple(self):
+        new_tup = self.it_to_tup([1, 2, 3, 4])
+        self.assertEqual(type(new_tup), tuple)
+        self.assertEqual(new_tup, (1, 2, 3, 4))
+
+
 if __name__ == "__main__":
     unittest.main()

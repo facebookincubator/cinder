@@ -71,7 +71,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     DICT_UPDATE, // T126141847
     GEN_START, // T126141847
     IS_OP, // T125844569
-    LIST_TO_TUPLE, // T126141719
     MATCH_CLASS, // T126141840
 
     // CPython opcodes that existed prior to 3.9
@@ -192,6 +191,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_IF_NOT_EXC_MATCH,
     JUMP_IF_TRUE_OR_POP,
     LIST_EXTEND,
+    LIST_TO_TUPLE,
     LOAD_ASSERTION_ERROR,
     LOAD_ATTR,
     LOAD_ATTR_SUPER,
@@ -469,7 +469,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     DICT_UPDATE,
     GEN_START,
     IS_OP,
-    LIST_TO_TUPLE,
     MATCH_CLASS,
 };
 
@@ -1261,6 +1260,10 @@ void HIRBuilder::translate(
         }
         case LIST_EXTEND: {
           emitListExtend(tc, bc_instr);
+          break;
+        }
+        case LIST_TO_TUPLE: {
+          emitListToTuple(tc);
           break;
         }
         case LOAD_ITERABLE_ARG: {
@@ -3379,6 +3382,13 @@ void HIRBuilder::emitListExtend(
   Register* list = tc.frame.stack.peek(bc_instr.oparg());
   Register* none = temps_.AllocateStack();
   tc.emit<ListExtend>(none, list, iterable, tc.frame);
+}
+
+void HIRBuilder::emitListToTuple(TranslationContext& tc) {
+  Register* list = tc.frame.stack.pop();
+  Register* tuple = temps_.AllocateStack();
+  tc.emit<MakeTupleFromList>(tuple, list, tc.frame);
+  tc.frame.stack.push(tuple);
 }
 
 void HIRBuilder::emitBuildCheckedList(

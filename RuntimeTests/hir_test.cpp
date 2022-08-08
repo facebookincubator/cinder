@@ -1314,3 +1314,39 @@ TEST_F(HIRBuilderTest, ListExtend) {
 )";
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
+
+TEST_F(HIRBuilderTest, ListToTuple) {
+  const char bc[] = {LOAD_FAST, 0, LIST_TO_TUPLE, 0, RETURN_VALUE, 0};
+
+  std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
+
+  const char* expected = R"(fun jittestmodule:funcname {
+  bb 0 {
+    v0 = LoadArg<0; "param0">
+    Snapshot {
+      NextInstrOffset 0
+      Locals<1> v0
+    }
+    v0 = CheckVar<"param0"> v0 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v0
+      }
+    }
+    v1 = MakeTupleFromList v0 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
+    }
+    Snapshot {
+      NextInstrOffset 4
+      Locals<1> v0
+      Stack<1> v1
+    }
+    Return v1
+  }
+}
+)";
+  EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
+}
