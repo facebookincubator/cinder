@@ -621,6 +621,20 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
 
         self.visit_Func_Inner(node)
 
+    def visit_Func_Outer(
+        self, node: AsyncFunctionDef | FunctionDef | Lambda, update: bool = False
+    ) -> None:
+        if not self.future_annotations():
+            return super().visit_Func_Outer(node)
+
+        args = self.visit(node.args)
+        if isinstance(node, (AsyncFunctionDef, FunctionDef)):
+            self.walk_many(node.decorator_list)
+
+    def visit_arg(self, node: ast.arg) -> None:
+        if not self.future_annotations():
+            return self.generic_visit(node)
+
     def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> None:
         self.visit_Func_Outer(node)
 
