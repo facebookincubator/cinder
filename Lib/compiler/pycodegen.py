@@ -1571,7 +1571,11 @@ class CodeGenerator(ASTVisitor):
 
     def checkAnnotation(self, node):
         if isinstance(self.tree, (ast.Module, ast.ClassDef)):
-            self.checkAnnExpr(node.annotation)
+            if self.future_flags & consts.CO_FUTURE_ANNOTATIONS:
+                with self.noEmit():
+                    self._visitAnnotation(node.annotation)
+            else:
+                self.checkAnnExpr(node.annotation)
 
     def findAnn(self, stmts):
         for stmt in stmts:
