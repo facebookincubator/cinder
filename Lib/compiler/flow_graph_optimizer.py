@@ -66,6 +66,9 @@ class FlowGraphOptimizer:
                 # Skip over empty basic blocks.
                 if len(target.insts) == 0:
                     instr.target = target.next
+                # If the jumped-to block is also empty, we cannot optimize this block, bail.
+                if not target.insts:
+                    break
                 target_instr = target.insts[0]
 
             next_instr = (
