@@ -155,7 +155,11 @@ class Scope:
         free = {}
         free.update(self.frees)
         for name in self.uses.keys():
-            if name not in self.defs and name not in self.globals:
+            if (
+                name not in self.defs
+                and name not in self.globals
+                and name not in self.explicit_globals
+            ):
                 free[name] = 1
         return sorted(free.keys())
 
