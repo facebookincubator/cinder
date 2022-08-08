@@ -387,7 +387,7 @@ class CodeGenerator(ASTVisitor):
 
     def visitInteractive(self, node):
         self.interactive = True
-        self.visit(node.body)
+        self.visitStatements(node.body)
         self.emit("LOAD_CONST", None)
         self.emit("RETURN_VALUE")
 
@@ -407,7 +407,7 @@ class CodeGenerator(ASTVisitor):
             self.emit("LOAD_CONST", doc)
             self.storeName("__doc__")
         self.startModule()
-        self.visit(self.skip_docstring(node.body))
+        self.visitStatements(self.skip_docstring(node.body))
 
         # See if the was a live statement, to later set its line number as
         # module first line. If not, fall back to first line of 1.
@@ -673,12 +673,12 @@ class CodeGenerator(ASTVisitor):
             orelse = self.newBlock("if_else")
 
         self.compileJumpIf(node.test, orelse or end, False)
-        self.visit(node.body)
+        self.visitStatements(node.body)
 
         if node.orelse:
             self.emit_noline("JUMP_FORWARD", end)
             self.nextBlock(orelse)
-            self.visit(node.orelse)
+            self.visitStatements(node.orelse)
 
         self.nextBlock(end)
 
@@ -694,14 +694,14 @@ class CodeGenerator(ASTVisitor):
         self.compileJumpIf(node.test, else_, False)
 
         self.nextBlock(body)
-        self.visit(node.body)
+        self.visitStatements(node.body)
         self.set_lineno(node)
         self.compileJumpIf(node.test, body, True)
 
         self.pop_loop()
         self.nextBlock(else_)
         if node.orelse:
-            self.visit(node.orelse)
+            self.visitStatements(node.orelse)
 
         self.nextBlock(after)
 
@@ -725,14 +725,14 @@ class CodeGenerator(ASTVisitor):
         self.emit("FOR_ITER", cleanup)
         self.nextBlock(body)
         self.visit(node.target)
-        self.visit(node.body)
+        self.visitStatements(node.body)
         self.set_no_lineno()
         self.emit("JUMP_ABSOLUTE", start)
         self.nextBlock(cleanup)
         self.pop_loop()
 
         if node.orelse:
-            self.visit(node.orelse)
+            self.visitStatements(node.orelse)
         self.nextBlock(end)
 
     def visitAsyncFor(self, node):
@@ -752,7 +752,7 @@ class CodeGenerator(ASTVisitor):
         self.emit("YIELD_FROM")
         self.emit("POP_BLOCK")
         self.visit(node.target)
-        self.visit(node.body)
+        self.visitStatements(node.body)
         self.set_no_lineno()
         self.emit("JUMP_ABSOLUTE", start)
         self.setups.pop()
@@ -761,7 +761,7 @@ class CodeGenerator(ASTVisitor):
         self.set_lineno(node.iter)
         self.emit("END_ASYNC_FOR")
         if node.orelse:
-            self.visit(node.orelse)
+            self.visitStatements(node.orelse)
         self.nextBlock(end)
 
     def visitBreak(self, node):
@@ -1208,13 +1208,13 @@ class CodeGenerator(ASTVisitor):
                 self.emit_try_finally(
                     node,
                     lambda: self.visitTryExcept(node),
-                    lambda: self.visit(node.finalbody),
+                    lambda: self.visitStatements(node.finalbody),
                 )
             else:
                 self.emit_try_finally(
                     node,
-                    lambda: self.visit(node.body),
-                    lambda: self.visit(node.finalbody),
+                    lambda: self.visitStatements(node.body),
+                    lambda: self.visitStatements(node.finalbody),
                 )
             return
 
@@ -1230,7 +1230,7 @@ class CodeGenerator(ASTVisitor):
         self.nextBlock(body)
 
         self.setups.push(Entry(TRY_EXCEPT, body, None, None))
-        self.visit(node.body)
+        self.visitStatements(node.body)
         self.setups.pop()
         self.set_no_lineno()
         self.emit("POP_BLOCK")
@@ -1307,7 +1307,7 @@ class CodeGenerator(ASTVisitor):
         self.set_no_lineno()
         self.emit("RERAISE", 0)
         self.nextBlock(orElse)
-        self.visit(node.orelse)
+        self.visitStatements(node.orelse)
         self.nextBlock(end)
 
     def emit_except_local(self, handler: ast.ExceptHandler):
@@ -1387,7 +1387,7 @@ class CodeGenerator(ASTVisitor):
         if pos + 1 < len(node.items):
             self.visitWith_(node, kind, pos + 1)
         else:
-            self.visit(node.body)
+            self.visitStatements(node.body)
 
         if kind == WITH:
             self.set_no_lineno()
@@ -2976,6 +2976,10 @@ class CodeGenerator(ASTVisitor):
             self.graph.lineno = old_lineno
 
         return ret
+
+    def visitStatements(self, nodes: Sequence[AST], *args) -> None:
+        for node in nodes:
+            self.visit(node, *args)
 
 
 class Entry:
