@@ -1993,3 +1993,29 @@ PyObject* JITRT_GetLength(PyObject* obj) {
 PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject) {
   return match_keys(PyThreadState_Get(), keys, subject);
 }
+
+int JITRT_DictUpdate(PyThreadState* tstate, PyObject* dict, PyObject* update) {
+  if (PyDict_Update(dict, update) < 0) {
+    if (_PyErr_ExceptionMatches(tstate, PyExc_AttributeError)) {
+      _PyErr_Format(
+          tstate,
+          PyExc_TypeError,
+          "'%.200s' object is not a mapping",
+          Py_TYPE(update)->tp_name);
+    }
+    return -1;
+  }
+  return 0;
+}
+
+int JITRT_DictMerge(
+    PyThreadState* tstate,
+    PyObject* dict,
+    PyObject* update,
+    PyObject* func) {
+  if (_PyDict_MergeEx(dict, update, 2) < 0) {
+    format_kwargs_error(tstate, func, update);
+    return -1;
+  }
+  return 0;
+}

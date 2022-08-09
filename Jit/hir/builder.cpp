@@ -67,8 +67,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS, // T126141783
-    DICT_MERGE, // T126141766
-    DICT_UPDATE, // T126141754
     IS_OP, // T125844569
     MATCH_CLASS, // T126141840
 
@@ -79,15 +77,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     GET_AITER,
     GET_ANEXT,
     SETUP_ASYNC_WITH,
-
-    // TODO(T127134006): Containers
-    BUILD_CONST_KEY_MAP,
-    BUILD_MAP,
-    BUILD_SLICE,
-    BUILD_TUPLE,
-    LIST_APPEND,
-    MAP_ADD,
-    SET_ADD,
 
     // TODO(T127134659): Imports
     IMPORT_FROM,
@@ -150,9 +139,13 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_SUBTRACT,
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
+    BUILD_CONST_KEY_MAP,
     BUILD_LIST,
+    BUILD_MAP,
     BUILD_SET,
+    BUILD_SLICE,
     BUILD_STRING,
+    BUILD_TUPLE,
     CALL_FUNCTION,
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
@@ -160,6 +153,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DELETE_ATTR,
     DELETE_FAST,
     DELETE_SUBSCR,
+    DICT_MERGE,
+    DICT_UPDATE,
     DUP_TOP,
     DUP_TOP_TWO,
     EXTENDED_ARG,
@@ -188,6 +183,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     JUMP_IF_FALSE_OR_POP,
     JUMP_IF_NOT_EXC_MATCH,
     JUMP_IF_TRUE_OR_POP,
+    LIST_APPEND,
     LIST_EXTEND,
     LIST_TO_TUPLE,
     LOAD_ASSERTION_ERROR,
@@ -200,6 +196,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
+    MAP_ADD,
     MATCH_KEYS,
     MATCH_MAPPING,
     MATCH_SEQUENCE,
@@ -216,6 +213,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_N,
     ROT_THREE,
     ROT_TWO,
+    SET_ADD,
     SET_UPDATE,
     SETUP_FINALLY,
     SETUP_WITH,
@@ -465,8 +463,6 @@ void HIRBuilder::addInitializeCells(
 static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS,
-    DICT_MERGE,
-    DICT_UPDATE,
     IS_OP,
     MATCH_CLASS,
 };
@@ -480,7 +476,7 @@ static bool should_snapshot(
         "Need to determine if opcode %d should be snapshotted\n",
         bci.opcode());
     PORT_ASSERT(
-        "Need to understand whether or not a snapshot should be take for new "
+        "Need to understand whether or not a snapshot should be taken for new "
         "opcode");
   }
   switch (bci.opcode()) {
@@ -1423,15 +1419,18 @@ void HIRBuilder::translate(
           emitSetupWith(tc, bc_instr);
           break;
         }
-        case MATCH_KEYS:
+        case MATCH_KEYS: {
           emitMatchKeys(irfunc.cfg, tc);
           break;
-        case MATCH_MAPPING:
+        }
+        case MATCH_MAPPING: {
           emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_MAPPING);
           break;
-        case MATCH_SEQUENCE:
+        }
+        case MATCH_SEQUENCE: {
           emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_SEQUENCE);
           break;
+        }
         case GEN_START: {
           // In the interpreter this instruction behaves like POP_TOP because
           // it assumes a generator will always be sent a superflous None value
@@ -1440,6 +1439,14 @@ void HIRBuilder::translate(
           // function is started but before GEN_START. This check ensures this.
           JIT_DCHECK(
               bc_instr.index() == 0, "GEN_START must be first instruction");
+          break;
+        }
+        case DICT_UPDATE: {
+          emitDictUpdate(tc);
+          break;
+        }
+        case DICT_MERGE: {
+          emitDictMerge(tc, bc_instr);
           break;
         }
         default: {
@@ -4216,6 +4223,25 @@ void HIRBuilder::emitMatchKeys(CFG& cfg, TranslationContext& tc) {
 
   stack.push(obj);
   tc.block = done;
+}
+
+void HIRBuilder::emitDictUpdate(TranslationContext& tc) {
+  auto& stack = tc.frame.stack;
+  Register* update = stack.pop();
+  Register* dict = stack.top();
+  Register* out = temps_.AllocateStack();
+  tc.emit<DictUpdate>(out, dict, update, tc.frame);
+}
+
+void HIRBuilder::emitDictMerge(
+    TranslationContext& tc,
+    const BytecodeInstruction& bc_instr) {
+  auto& stack = tc.frame.stack;
+  Register* dict = stack.top(bc_instr.oparg());
+  Register* func = stack.top(bc_instr.oparg() + 2);
+  Register* update = stack.pop();
+  Register* out = temps_.AllocateStack();
+  tc.emit<DictMerge>(out, dict, update, func, tc.frame);
 }
 
 void HIRBuilder::insertEvalBreakerCheck(

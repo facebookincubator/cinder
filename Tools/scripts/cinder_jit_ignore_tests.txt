@@ -1,10 +1,20 @@
 # TODO(T125845107): Incorrect line numbers that might be fixed by shadow frames
+test.test_asyncio.test_events.HandleTests.test_handle_repr_debug
+test.test_asyncio.test_events.TimerTests.test_timer_repr_debug
+test.test_asyncio.test_futures.*.test_future_source_traceback
+test.test_asyncio.test_tasks.*.test_task_source_traceback
 test.test_coroutines.OriginTrackingTest.test_origin_tracking
 test.test_coroutines.OriginTrackingTest.test_origin_tracking_warning
 test.test_frame.ClearTest.test_lineno_with_tracing
 test.test_sys.SysModuleTest.test_current_exceptions
 test.test_sys.SysModuleTest.test_current_frames
 test.test_warnings.*.test_error_after_default
+
+# TODO(T125845107): Tests that use sys._getframe and need shadow frames
+test.test_tracemalloc.TestTracemallocEnabled.test_get_object_traceback
+test.test_tracemalloc.TestTracemallocEnabled.test_get_traces
+test.test_tracemalloc.TestTracemallocEnabled.test_get_traces_intern_traceback
+test.test_tracemalloc.TestTracemallocEnabled.test_set_traceback_limit
 
 # TODO(T87011403): Infinite recursion
 test.test_exceptions.ExceptionTests.testInfiniteRecursion
@@ -21,3 +31,6 @@ unittest.test.test_break.*.testSecondInterrupt
 
 # TODO(T80087792): _Py_RefTotal is incorrectly updated by JIT for immortal types
 test.test_types.UnionTests.test_or_type_operator_reference_cycle
+
+# TODO(T86183012): Incorrect coroutine naming
+test.test_asyncio.test_tasks.*.test_task_repr_coro_decorator

@@ -72,7 +72,9 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckSequenceBounds:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
+    case Opcode::kDictMerge:
     case Opcode::kDictSubscr:
+    case Opcode::kDictUpdate:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kFormatValue:
@@ -125,7 +127,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
-    case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kPrimitiveBox:

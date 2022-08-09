@@ -12,12 +12,12 @@ import unittest
 import warnings
 import weakref
 
-from unittest.case import PortFeature
-
 from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
+
+from unittest.case import PortFeature
 
 
 if unittest.cinder_enable_broken_tests():
@@ -333,35 +333,35 @@ class CallKWArgsTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_method_kw_and_pos(self):
         r = self._f2(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_method_kw_only(self):
         r = self._f2(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(1, b=2)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(b=2, a=1)
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(1, b=2)
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(b=2, a=1)
@@ -373,11 +373,7 @@ class CallKWArgsTests(unittest.TestCase):
 
 
 class CallExTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_CONST_KEY_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -389,10 +385,7 @@ class CallExTests(unittest.TestCase):
         def __getitem__(self, k):
             return {"a": 1, "b": 2}[k]
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_dynamic_kw_dict(self):
         r = _simpleFunc(**CallExTests._DummyMapping())
         self.assertEqual(r, (1, 2))
@@ -407,18 +400,12 @@ class CallExTests(unittest.TestCase):
         r = _simpleFunc(*[1, 2])
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_dynamic_pos_and_kw(self):
         r = _simpleFunc(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def _doCall(self, args, kwargs):
         return _simpleFunc(*args, **kwargs)
 
@@ -437,19 +424,12 @@ class CallExTests(unittest.TestCase):
     def _f1(a, b):
         return a, b
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_class_static_pos_and_kw(self):
         r = CallExTests._f1(*(1,), **{"b": 2})
         self.assertEqual(r, (1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_CONST_KEY_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_class_static_kw_only(self):
         r = CallKWArgsTests._f1(**{"b": 2, "a": 1})
         self.assertEqual(r, (1, 2))
@@ -457,75 +437,45 @@ class CallExTests(unittest.TestCase):
     def _f2(self, a, b):
         return self, a, b
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_method_kw_and_pos(self):
         r = self._f2(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_CONST_KEY_MAP,
-        PortFeature.OPC_DICT_MERGE,
-        PortFeature.OPC_BUILD_TUPLE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_method_kw_only(self):
         r = self._f2(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_bound_method_kw_and_pos(self):
         f = self._f2
         r = f(*(1,), **{"b": 2})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_CONST_KEY_MAP,
-        PortFeature.OPC_DICT_MERGE,
-        PortFeature.OPC_BUILD_TUPLE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_bound_method_kw_only(self):
         f = self._f2
         r = f(**{"b": 2, "a": 1})
         self.assertEqual(r, (self, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_TUPLE,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_obj_kw_and_pos(self):
         o = _CallableObj()
         r = o(*(1,), **{"b": 2})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_DICT_MERGE,
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_BUILD_CONST_KEY_MAP,
-        PortFeature.OPC_BUILD_TUPLE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_obj_kw_only(self):
         o = _CallableObj()
         r = o(**{"b": 2, "a": 1})
         self.assertEqual(r, (o, 1, 2))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def test_call_c_func_pos_only(self):
         self.assertEqual(len(*([2],)), 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP,
-        PortFeature.OPC_DICT_MERGE,
-    )
+    @unittest.failUnlessJITCompiled
     def test_call_c_func_pos_and_kw(self):
         self.assertEqual(__import__(*("sys",), **{"globals": None}), sys)
 
@@ -1310,7 +1260,6 @@ class LoadGlobalCacheTests(unittest.TestCase):
 class ClosureTests(unittest.TestCase):
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def test_cellvar(self):
         a = 1
@@ -1322,7 +1271,6 @@ class ClosureTests(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def test_two_cellvars(self):
         a = 1
@@ -1335,7 +1283,6 @@ class ClosureTests(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def test_cellvar_argument(self):
         def foo():
@@ -1345,7 +1292,6 @@ class ClosureTests(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def test_cellvar_argument_modified(self):
         self_ = self
@@ -1362,7 +1308,6 @@ class ClosureTests(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def _cellvar_unbound(self):
         b = a
@@ -1448,7 +1393,6 @@ class ClosureTests(unittest.TestCase):
 
     def test_nested_func_outlives_parent(self):
         @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-            PortFeature.OPC_BUILD_TUPLE,
             PortFeature.OPC_MAKE_FUNCTION,
         )
         def nested(x):
@@ -1581,7 +1525,6 @@ class UnwindStateTests(unittest.TestCase):
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_BUILD_TUPLE,
     )
     def _raise_with_del_observer_on_stack(self):
         for x in (1 for i in [self.get_del_observer(1)]):
@@ -1598,7 +1541,6 @@ class UnwindStateTests(unittest.TestCase):
         self.assertEqual(deleted, [1])
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_TUPLE,
         PortFeature.OPC_MAKE_FUNCTION,
     )
     def _raise_with_del_observer_on_stack_and_cell_arg(self):
@@ -2403,26 +2345,22 @@ class EagerCoroutineDispatch(StaticTestBase):
     async def _call_ex_awaited(self, t):
         await t(*[1])
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
-    )
+    @unittest.failUnlessJITCompiled
     async def _call_ex_kw(self, t):
         t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
-    )
+    @unittest.failUnlessJITCompiled
     async def _call_ex_kw_awaited(self, t):
         await t(*[1], **{2: 3})
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_MAP)
+    @unittest.failUnlessJITCompiled
     async def _call_method(self, t):
         # https://stackoverflow.com/questions/19476816/creating-an-empty-object-in-python
         o = type("", (), {})()
         o.t = t
         o.t()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_MAP)
+    @unittest.failUnlessJITCompiled
     async def _call_method_awaited(self, t):
         o = type("", (), {})()
         o.t = t
@@ -2646,7 +2584,6 @@ class AsyncGeneratorsTest(unittest.TestCase):
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
         PortFeature.OPC_GET_AITER,
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_LIST_APPEND,
         PortFeature.OPC_GET_ANEXT,
         PortFeature.OPC_END_ASYNC_FOR,
     )
@@ -2875,7 +2812,6 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_finally4(400), 400)
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_TUPLE,
         PortFeature.OPC_COMPARE_OP,
     )
     def break_in_finally_after_return(self, x):
@@ -2890,9 +2826,7 @@ class ExceptionHandlingTests(unittest.TestCase):
                         break
         return "end", count, count2
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_TUPLE,
-    )
+    @unittest.failUnlessJITCompiled
     def break_in_finally_after_return2(self, x):
         for count in [0, 1]:
             for count2 in [10, 20]:
@@ -2910,7 +2844,6 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.break_in_finally_after_return2(True), ("end", 1, 10))
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_TUPLE,
         PortFeature.OPC_COMPARE_OP,
     )
     def continue_in_finally_after_return(self, x):
@@ -2924,9 +2857,7 @@ class ExceptionHandlingTests(unittest.TestCase):
                     continue
         return "end", count
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_BUILD_TUPLE,
-    )
+    @unittest.failUnlessJITCompiled
     def continue_in_finally_after_return2(self, x):
         for count in [0, 1]:
             try:
@@ -3452,9 +3383,7 @@ def _inner(*args, **kwargs):
     return kwargs
 
 
-@unittest.failUnlessJITCompiledWaitingForFeaturePort(
-    PortFeature.OPC_BUILD_MAP, PortFeature.OPC_DICT_MERGE
-)
+@unittest.failUnlessJITCompiled
 def _outer(args, kwargs):
     return _inner(*args, **kwargs)
 
@@ -3502,12 +3431,13 @@ class GetFrameTests(unittest.TestCase):
         frame = self.f1(self.simple_getframe)
         self.assert_frames(frame, stack)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_BUILD_TUPLE)
+    @unittest.failUnlessJITCompiled
     def consecutive_getframe(self):
         f1 = sys._getframe()
         f2 = sys._getframe()
         return f1, f2
 
+    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IS_OP)
     def test_consecutive_getframe(self):
         stack = ["consecutive_getframe", "f3", "f2", "f1", "test_consecutive_getframe"]
         frame1, frame2 = self.f1(self.consecutive_getframe)

@@ -188,7 +188,9 @@ bool Instr::isReplayable() const {
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
     case Opcode::kDeoptPatchpoint:
+    case Opcode::kDictMerge:
     case Opcode::kDictSubscr:
+    case Opcode::kDictUpdate:
     case Opcode::kEndInlinedFunction:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
@@ -223,7 +225,6 @@ bool Instr::isReplayable() const {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
-    case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kRaiseAwaitableError:

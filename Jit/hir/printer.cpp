@@ -241,7 +241,9 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:
+    case Opcode::kDictMerge:
     case Opcode::kDictSubscr:
+    case Opcode::kDictUpdate:
     case Opcode::kEndInlinedFunction:
     case Opcode::kGetLength:
     case Opcode::kGetTuple:
@@ -264,7 +266,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kMakeFunction:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
-    case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
     case Opcode::kRaise:
     case Opcode::kRepeatList:

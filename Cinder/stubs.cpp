@@ -77,7 +77,6 @@ STUB(PyObject *, _PyBuiltin_Next, PyObject *, PyObject *)
 
 // Objects/listobject.c
 STUB(PyObject *, _PyList_Repeat, PyListObject *, Py_ssize_t)
-STUB(int, _PyList_APPEND, PyObject *, PyObject *)
 
 
 // Objects/tupleobject.c
@@ -91,7 +90,6 @@ STUB(int, _PyCheckedDict_Check, PyObject *)
 STUB(PyObject *, _PyCheckedList_GetItem, PyObject *, Py_ssize_t)
 STUB(PyObject *, _PyCheckedList_New, PyTypeObject *, Py_ssize_t)
 STUB(int, _PyCheckedList_TypeCheck, PyTypeObject *)
-STUB(int, _PyDict_SetItem, PyObject *, PyObject *, PyObject *)
 STUB(int, _PyCheckedDict_TypeCheck, PyTypeObject *)
 
 

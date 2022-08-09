@@ -316,7 +316,9 @@ struct FrameState {
   V(DeleteSubscr)                      \
   V(Deopt)                             \
   V(DeoptPatchpoint)                   \
+  V(DictMerge)                         \
   V(DictSubscr)                        \
+  V(DictUpdate)                        \
   V(DoubleBinaryOp)                    \
   V(EndInlinedFunction)                \
   V(FillTypeAttrCache)                 \
@@ -379,7 +381,6 @@ struct FrameState {
   V(MakeListTuple)                     \
   V(MakeSet)                           \
   V(MakeTupleFromList)                 \
-  V(MergeDictUnpack)                   \
   V(MergeSetUnpack)                    \
   V(Phi)                               \
   V(Raise)                             \
@@ -3362,10 +3363,18 @@ class INSTR_CLASS(MakeCheckedList, (), HasOutput, Operands<0>, DeoptBase) {
   Type type_;
 };
 
-// merge two maps by (ultimately) calling _PyDict_MergeEx
+// Merge two maps by (ultimately) calling PyDict_Update
 DEFINE_SIMPLE_INSTR(
-    MergeDictUnpack,
-    (TDict, TObject, TOptObject),
+    DictUpdate,
+    (TDict, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase);
+
+// Merge two maps by (ultimately) calling _PyDict_MergeEx
+DEFINE_SIMPLE_INSTR(
+    DictMerge,
+    (TDict, TObject, TObject),
     HasOutput,
     Operands<3>,
     DeoptBase);

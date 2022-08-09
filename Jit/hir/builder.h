@@ -435,6 +435,11 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
 
+  void emitDictUpdate(TranslationContext& tc);
+  void emitDictMerge(
+      TranslationContext& tc,
+      const BytecodeInstruction& bc_instr);
+
   BorrowedRef<> constArg(const jit::BytecodeInstruction& bc_instr);
 
   ExecutionBlock popBlock(CFG& cfg, TranslationContext& tc);

@@ -406,6 +406,8 @@ Type outputType(
     case Opcode::kLongCompare:
     case Opcode::kUnicodeCompare:
       return TBool;
+    case Opcode::kDictUpdate:
+    case Opcode::kDictMerge:
     case Opcode::kRunPeriodicTasks:
       return TCInt32;
 
@@ -414,7 +416,6 @@ Type outputType(
     // respectively. At some point we should get rid of this extra layer and
     // deal with the int return value directly.
     case Opcode::kListExtend:
-    case Opcode::kMergeDictUnpack:
     case Opcode::kStoreAttr:
       return TNoneType;
 

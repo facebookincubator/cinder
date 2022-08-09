@@ -50,6 +50,8 @@ PyAPI_FUNC(PyObject *) match_keys(PyThreadState *tstate, PyObject *map, PyObject
 
 PyAPI_FUNC(void) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
+extern int (*Ci_List_APPEND)(PyListObject *list, PyObject *item);
+
 #ifdef __cplusplus
 }
 #endif

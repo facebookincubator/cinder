@@ -316,6 +316,8 @@ app1(PyListObject *self, PyObject *v)
     return 0;
 }
 
+int (*Ci_List_APPEND)(PyListObject *, PyObject*) = app1;
+
 int
 PyList_Append(PyObject *op, PyObject *newitem)
 {

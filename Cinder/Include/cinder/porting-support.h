@@ -46,7 +46,6 @@ PyAPI_FUNC(PyObject *) _PyCheckedList_New(PyTypeObject *type, Py_ssize_t);
 PyAPI_FUNC(int) _PyCheckedList_TypeCheck(PyTypeObject *type);
 
 PyAPI_FUNC(PyObject *) _PyList_Repeat(PyListObject *, Py_ssize_t);
-PyAPI_FUNC(int) _PyList_APPEND(PyObject *, PyObject *);
 
 
 // Include/code.h
@@ -128,11 +127,6 @@ PyObject *_PyObject_Call1Arg(PyObject *func, PyObject *arg0);
 
 // Include/cpython/tupleobject.h
 PyAPI_FUNC(PyObject *) _PyTuple_Repeat(PyTupleObject *, Py_ssize_t);
-
-
-// Include/cpython/dictobject.h
-int _PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value);
-//PyAPI_FUNC(int) _PyDict_DelItemId(PyObject *mp, struct _Py_Identifier *key);
 
 
 // Include/frameobject.h

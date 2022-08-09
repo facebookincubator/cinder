@@ -74,32 +74,6 @@ extern "C" PyObject* __Invoke_PyList_Extend(
   return none_val;
 }
 
-extern "C" uint64_t __Invoke_PyDict_MergeEx(
-    PyThreadState* tstate,
-    PyObject* a,
-    PyObject* b,
-    PyObject* func) {
-  int result = _PyDict_MergeEx(a, b, func == nullptr ? 1 : 2);
-  if (result < 0) {
-    if (func == nullptr) {
-      // BUILD_MAP_UNPACK
-      if (_PyErr_ExceptionMatches(tstate, PyExc_AttributeError)) {
-        _PyErr_Format(
-            tstate,
-            PyExc_TypeError,
-            "'%.200s' object is not a mapping",
-            b->ob_type->tp_name);
-      }
-    } else {
-      // BUILD_MAP_UNPACK_WITH_CALL
-      format_kwargs_error(tstate, func, b);
-    }
-
-    return 0;
-  }
-  return reinterpret_cast<uint64_t>(Py_None);
-}
-
 LIRGenerator::LIRGenerator(
     const jit::hir::Function* func,
     jit::codegen::Environ* env)
@@ -2130,15 +2104,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCall(instr->GetOutput(), PySet_New, nullptr);
         break;
       }
-      case Opcode::kMergeDictUnpack: {
-        auto instr = static_cast<const MergeDictUnpack*>(&i);
+      case Opcode::kDictUpdate: {
         bbb.AppendCall(
-            instr->GetOutput(),
-            __Invoke_PyDict_MergeEx,
+            i.GetOutput(),
+            JITRT_DictUpdate,
             "__asm_tstate",
-            instr->GetOperand(0),
-            instr->GetOperand(1),
-            instr->GetOperand(2));
+            i.GetOperand(0),
+            i.GetOperand(1));
+        break;
+      }
+      case Opcode::kDictMerge: {
+        bbb.AppendCall(
+            i.GetOutput(),
+            JITRT_DictMerge,
+            "__asm_tstate",
+            i.GetOperand(0),
+            i.GetOperand(1),
+            i.GetOperand(2));
         break;
       }
       case Opcode::kMergeSetUnpack: {
@@ -2154,7 +2136,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const SetDictItem*>(&i);
         bbb.AppendCall(
             instr->GetOutput(),
-            _PyDict_SetItem,
+            PyDict_SetItem,
             instr->GetOperand(0),
             instr->GetOperand(1),
             instr->GetOperand(2));
@@ -2327,7 +2309,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         bbb.AppendCall(
             instr->dst(),
-            _PyList_APPEND,
+            Ci_List_APPEND,
             instr->GetOperand(0),
             instr->GetOperand(1));
         break;

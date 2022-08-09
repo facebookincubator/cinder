@@ -557,3 +557,11 @@ PyObject* JITRT_GetLength(PyObject* obj);
  * for now. This function should be removed when it can in the future.
  */
 PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject);
+
+/* Used by DICT_UPDATE and DICT_MERGE implementations. */
+int JITRT_DictUpdate(PyThreadState* tstate, PyObject* dict, PyObject* update);
+int JITRT_DictMerge(
+    PyThreadState* tstate,
+    PyObject* dict,
+    PyObject* update,
+    PyObject* func);

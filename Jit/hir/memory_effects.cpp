@@ -102,6 +102,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCompareBool:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
+    case Opcode::kDictMerge:
+    case Opcode::kDictUpdate:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
@@ -140,7 +142,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     // Instructions that return nullptr or a borrowed reference to a singleton
     // (usually None or True), and can invoke user code.
     case Opcode::kDictSubscr:
-    case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
     case Opcode::kRunPeriodicTasks:
     case Opcode::kSetDictItem:

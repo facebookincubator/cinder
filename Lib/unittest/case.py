@@ -1548,8 +1548,6 @@ class PortFeature(enum.Enum):
     # CPython opcodes that were added in 3.9 / 3.10
     OPC_CONTAINS_OP = enum.auto()
     OPC_COPY_DICT_WITHOUT_KEYS = enum.auto() # T126141783
-    OPC_DICT_MERGE = enum.auto() # T126141766
-    OPC_DICT_UPDATE = enum.auto() # T126141754
     OPC_IS_OP = enum.auto() # T125844569
     OPC_LIST_TO_TUPLE = enum.auto() # T126141719
     OPC_MATCH_CLASS = enum.auto() # T126141840
@@ -1561,15 +1559,6 @@ class PortFeature(enum.Enum):
     OPC_GET_AITER = enum.auto()
     OPC_GET_ANEXT = enum.auto()
     OPC_SETUP_ASYNC_WITH = enum.auto()
-
-    # TODO(T127134006): Containers
-    OPC_BUILD_CONST_KEY_MAP = enum.auto()
-    OPC_BUILD_MAP = enum.auto()
-    OPC_BUILD_SLICE = enum.auto()
-    OPC_BUILD_TUPLE = enum.auto()
-    OPC_LIST_APPEND = enum.auto()
-    OPC_MAP_ADD = enum.auto()
-    OPC_SET_ADD = enum.auto()
 
     # TODO(T127134659): Imports
     OPC_IMPORT_FROM = enum.auto()
