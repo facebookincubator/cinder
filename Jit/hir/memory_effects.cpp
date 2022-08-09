@@ -37,15 +37,11 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kDeoptPatchpoint:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
+    case Opcode::kGetLoadMethodInstance:
     case Opcode::kGuardType:
     case Opcode::kHintType:
     case Opcode::kIntBinaryOp:
-    case Opcode::kGetLoadMethodInstance:
-    case Opcode::kPrimitiveUnaryOp:
-    case Opcode::kPrimitiveBox:
-    case Opcode::kPrimitiveCompare:
     case Opcode::kIntConvert:
-    case Opcode::kPrimitiveUnbox:
     case Opcode::kIsNegativeAndErrOccurred:
     case Opcode::kLoadEvalBreaker:
     case Opcode::kLoadVarObjectSize:
@@ -58,11 +54,15 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kPrimitiveBox:
+    case Opcode::kPrimitiveCompare:
+    case Opcode::kPrimitiveUnaryOp:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kRefineType:
     case Opcode::kSnapshot:
     case Opcode::kTpAlloc:
-    case Opcode::kUnicodeRepeat:
     case Opcode::kUnicodeCompare:
+    case Opcode::kUnicodeRepeat:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
@@ -74,8 +74,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return commonEffects(inst, AAny);
 
     // Can write to fields of its operands.
-    case Opcode::kWaitHandleRelease:
     case Opcode::kSetCurrentAwaiter:
+    case Opcode::kWaitHandleRelease:
       return commonEffects(inst, AOther);
 
     // These can deopt but don't write to any memory locations when they fall
@@ -99,16 +99,18 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
     case Opcode::kCompare:
+    case Opcode::kCompareBool:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
-    case Opcode::kCompareBool:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
+    case Opcode::kImportFrom:
+    case Opcode::kImportName:
     case Opcode::kInPlaceOp:
     case Opcode::kInvokeIterNext:
-    case Opcode::kInvokeStaticFunction:
     case Opcode::kInvokeMethod:
+    case Opcode::kInvokeStaticFunction:
     case Opcode::kIsInstance:
     case Opcode::kIsTruthy:
     case Opcode::kLoadAttr:
@@ -121,8 +123,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kUnaryOp:
-    case Opcode::kImportFrom:
-    case Opcode::kImportName:
     case Opcode::kUnpackExToTuple:
     case Opcode::kVectorCall:
     case Opcode::kVectorCallKW:
@@ -140,9 +140,9 @@ MemoryEffects memoryEffects(const Instr& inst) {
     // Instructions that return nullptr or a borrowed reference to a singleton
     // (usually None or True), and can invoke user code.
     case Opcode::kDictSubscr:
-    case Opcode::kRunPeriodicTasks:
     case Opcode::kMergeDictUnpack:
     case Opcode::kMergeSetUnpack:
+    case Opcode::kRunPeriodicTasks:
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kSetUpdate:
@@ -189,8 +189,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLoadCurrentFunc:
       return borrowFrom(inst, AFuncArgs);
 
-    case Opcode::kLoadConst:
     case Opcode::kGuardIs:
+    case Opcode::kLoadConst:
       return borrowFrom(inst, AEmpty);
 
     case Opcode::kLoadCellItem:
@@ -264,8 +264,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     case Opcode::kBranch:
     case Opcode::kCondBranch:
-    case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
+    case Opcode::kCondBranchIterNotDone:
     case Opcode::kPhi:
       JIT_CHECK(
           false,
