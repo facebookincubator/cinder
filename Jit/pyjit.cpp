@@ -1740,16 +1740,15 @@ PyObject* _PyJIT_GenSend(
     PyFrameObject* f,
     PyThreadState* tstate,
     int finish_yield_from) {
-#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
 
   // state should be valid and the generator should not be completed
   JIT_DCHECK(
-      gen_footer->state == _PyJitGenState_JustStarted ||
-          gen_footer->state == _PyJitGenState_Running,
+      gen_footer->state == Ci_JITGenState_JustStarted ||
+          gen_footer->state == Ci_JITGenState_Running,
       "Invalid JIT generator state");
 
-  gen_footer->state = _PyJitGenState_Running;
+  gen_footer->state = Ci_JITGenState_Running;
 
   // JIT generators use NULL arg to indicate an exception
   if (exc) {
@@ -1766,7 +1765,7 @@ PyObject* _PyJIT_GenSend(
     // Setup tstate/frame as would be done in PyEval_EvalFrameEx() or
     // prologue of a JITed function.
     tstate->frame = f;
-    f->f_executing = 1;
+    f->f_state = FRAME_EXECUTING;
     // This compensates for the decref which occurs in JITRT_UnlinkFrame().
     Py_INCREF(f);
     // This satisfies code which uses f_lasti == -1 or < 0 to check if a
@@ -1785,19 +1784,10 @@ PyObject* _PyJIT_GenSend(
   if (!result && (gen->gi_jit_data != nullptr)) {
     // Generator jit data (gen_footer) will be freed if the generator
     // deopts
-    gen_footer->state = _PyJitGenState_Completed;
+    gen_footer->state = Ci_JITGenState_Completed;
   }
 
   return result;
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data and figure out f_executing")
-  (void)gen;
-  (void)arg;
-  (void)exc;
-  (void)f;
-  (void)tstate;
-  (void)finish_yield_from;
-#endif
 }
 
 PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
@@ -1807,50 +1797,33 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
 }
 
 int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
-#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
+  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     return reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)
         ->visitRefs(gen, visit, arg);
   }
   return 0;
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-  (void)gen;
-  (void)visit;
-  (void)arg;
-#endif
 }
 
 void _PyJIT_GenDealloc(PyGenObject* gen) {
-#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
+  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)->releaseRefs(gen);
   }
   JITRT_GenJitDataFree(gen);
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-  (void)gen;
-#endif
 }
 
 PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
-#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
   PyObject* yf = NULL;
-  if (gen_footer->state != _PyJitGenState_Completed && gen_footer->yieldPoint) {
+  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     yf = gen_footer->yieldPoint->yieldFromValue(gen_footer);
     Py_XINCREF(yf);
   }
   return yf;
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data")
-  (void)gen;
-#endif
 }
 
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {

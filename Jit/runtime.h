@@ -50,18 +50,18 @@ typedef struct _GenDataFooter {
   // RBP that was swapped out to point to this spill-data.
   uint64_t originalRbp;
 
+  // Static data specific to the current yield point. Only non-null when we are
+  // suspended.
+  GenYieldPoint* yieldPoint;
+
   // Current overall state of the JIT.
-  _PyJitGenState state;
+  CiJITGenState state;
 
   // Allocated space before this struct in 64-bit words.
   size_t spillWords;
 
   // Entry-point to resume a JIT generator.
   GenResumeFunc resumeEntry;
-
-  // Static data specific to the current yield point. Only non-null when we are
-  // suspended.
-  GenYieldPoint* yieldPoint;
 
   // Associated generator object
   PyGenObject* gen;
@@ -70,11 +70,14 @@ typedef struct _GenDataFooter {
   CodeRuntime* code_rt{nullptr};
 } GenDataFooter;
 
-// The state field needs to be at a fixed offset so it can be quickly accessed
+// These fields need to be at a fixed offset so they can be quickly accessed
 // from C code.
 static_assert(
-    offsetof(GenDataFooter, state) == _PY_GEN_JIT_DATA_STATE_OFFSET,
+    offsetof(GenDataFooter, state) == Ci_GEN_JIT_DATA_OFFSET_STATE,
     "Byte offset for state shifted");
+static_assert(
+    offsetof(GenDataFooter, yieldPoint) == Ci_GEN_JIT_DATA_OFFSET_YIELD_POINT,
+    "Byte offset for yieldPoint shifted");
 
 // The number of words for pre-allocated blocks in the generator suspend data
 // free-list. I chose this based on it covering 99% of the JIT generator

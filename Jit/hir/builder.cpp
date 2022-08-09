@@ -68,8 +68,7 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS, // T126141783
     DICT_MERGE, // T126141766
-    DICT_UPDATE, // T126141847
-    GEN_START, // T126141847
+    DICT_UPDATE, // T126141754
     IS_OP, // T125844569
     MATCH_CLASS, // T126141840
 
@@ -79,11 +78,7 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     END_ASYNC_FOR,
     GET_AITER,
     GET_ANEXT,
-    GET_AWAITABLE,
-    GET_YIELD_FROM_ITER,
     SETUP_ASYNC_WITH,
-    YIELD_FROM,
-    YIELD_VALUE,
 
     // TODO(T127134006): Containers
     BUILD_CONST_KEY_MAP,
@@ -170,8 +165,11 @@ const std::unordered_set<int> kSupportedOpcodes = {
     EXTENDED_ARG,
     FORMAT_VALUE,
     FOR_ITER,
+    GEN_START,
+    GET_AWAITABLE,
     GET_ITER,
     GET_LEN,
+    GET_YIELD_FROM_ITER,
     INPLACE_ADD,
     INPLACE_AND,
     INPLACE_FLOOR_DIVIDE,
@@ -232,6 +230,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     UNPACK_EX,
     UNPACK_SEQUENCE,
     WITH_EXCEPT_START,
+    YIELD_FROM,
+    YIELD_VALUE,
 };
 #endif
 
@@ -467,7 +467,6 @@ static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     COPY_DICT_WITHOUT_KEYS,
     DICT_MERGE,
     DICT_UPDATE,
-    GEN_START,
     IS_OP,
     MATCH_CLASS,
 };
@@ -1433,6 +1432,16 @@ void HIRBuilder::translate(
         case MATCH_SEQUENCE:
           emitMatchMappingSequence(irfunc.cfg, tc, Py_TPFLAGS_SEQUENCE);
           break;
+        case GEN_START: {
+          // In the interpreter this instruction behaves like POP_TOP because
+          // it assumes a generator will always be sent a superflous None value
+          // to start execution via the stack. We skip doing this for JIT
+          // functions. This should be fine as long as we can't de-opt after the
+          // function is started but before GEN_START. This check ensures this.
+          JIT_DCHECK(
+              bc_instr.index() == 0, "GEN_START must be first instruction");
+          break;
+        }
         default: {
           // NOTREACHED
           JIT_CHECK(false, "unhandled opcode: %d", bc_instr.opcode());
@@ -1694,13 +1703,15 @@ void HIRBuilder::emitAnyCall(
     const jit::BytecodeInstructionBlock& bc_instrs) {
   BytecodeInstruction bc_instr = *bc_it;
   BCIndex idx = bc_instr.index();
-  bool is_awaited = code_->co_flags & CO_COROUTINE &&
-      // We only need to be followed by GET_AWAITABLE to know we are awaited,
-      // but we also need to ensure the following LOAD_CONST and YIELD_FROM are
-      // inside this BytecodeInstructionBlock. This may not be the case if the
-      // 'await' is shared as in 'await (x if y else z)'.
-      bc_it.remainingInstrs() >= 3 &&
-      bc_instrs.at(idx + 1).opcode() == GET_AWAITABLE;
+  // TODO(T125856469) Enable once we support eager coroutine execution
+  bool is_awaited = false;
+  // bool is_awaited = code_->co_flags & CO_COROUTINE &&
+  //  // We only need to be followed by GET_AWAITABLE to know we are awaited,
+  //  // but we also need to ensure the following LOAD_CONST and YIELD_FROM are
+  //  // inside this BytecodeInstructionBlock. This may not be the case if the
+  //  // 'await' is shared as in 'await (x if y else z)'.
+  //  bc_it.remainingInstrs() >= 3 &&
+  //  bc_instrs.at(idx + 1).opcode() == GET_AWAITABLE;
   JIT_CHECK(
       !is_awaited ||
           (bc_instrs.at(idx + 2).opcode() == LOAD_CONST &&

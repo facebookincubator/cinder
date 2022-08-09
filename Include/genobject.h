@@ -11,6 +11,13 @@ extern "C" {
 #include "pystate.h"   /* _PyErr_StackItem */
 #include "abstract.h" /* PySendResult */
 
+#include "internal/pycore_shadow_frame_struct.h"
+
+
+/* Opaque type used by JIT internals. For more details see comments around
+   GenDataFooter in the JIT. */
+struct Ci_JITGenData;
+
 /* _PyGenObject_HEAD defines the initial segment of generator
    and coroutine objects. */
 #define _PyGenObject_HEAD(prefix)                                           \
@@ -25,7 +32,12 @@ extern "C" {
     PyObject *prefix##_name;                                                \
     /* Qualified name of the generator. */                                  \
     PyObject *prefix##_qualname;                                            \
-    _PyErr_StackItem prefix##_exc_state;
+    _PyErr_StackItem prefix##_exc_state;                                    \
+    /* Opaque JIT related data. If this is NULL then this generator is not JIT-\
+       backed. A deopt may cause this value to change to NULL in which case the\
+       generator should immediately be treated as non-JIT-backed. */        \
+    struct Ci_JITGenData *prefix##_jit_data;                                \
+    _PyShadowFrame prefix##_shadow_frame;
 
 typedef struct {
     /* The gi_ prefix is intended to remind of generator-iterator. */

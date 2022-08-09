@@ -1509,9 +1509,7 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
     def test_fstring_no_fmt_spec_in_nested_loops_and_if(self):
         self.assertEqual(self._fstring(True, [1], [1]), "1")
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     async def _sharedAwait(self, x, y, z):
         return await (x() if y else z())
 
@@ -1704,7 +1702,7 @@ class RaiseTests(unittest.TestCase):
 
 
 class GeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f1(self):
         yield 1
 
@@ -1715,7 +1713,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsNone(exc.exception.value)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f2(self):
         yield 1
         yield 2
@@ -1729,7 +1727,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 3)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f3(self):
         a = yield 1
         b = yield 2
@@ -1743,7 +1741,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(1000)
         self.assertEqual(exc.exception.value, 1100)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f4(self, a):
         yield a
         yield a
@@ -1757,7 +1755,7 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertEqual(exc.exception.value, 10)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f5(
         self, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16
     ):
@@ -1897,7 +1895,7 @@ class GeneratorsTest(unittest.TestCase):
     def _f_raises(self):
         raise ValueError
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f7(self):
         self._f_raises()
         yield 1
@@ -1927,7 +1925,7 @@ class GeneratorsTest(unittest.TestCase):
         self.assertEqual(g.send(None), 1)
         g.close()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f8(self, a):
         x += yield a
 
@@ -1936,7 +1934,7 @@ class GeneratorsTest(unittest.TestCase):
         with self.assertRaises(UnboundLocalError):
             g.send(None)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f9(self, a):
         yield
         return a
@@ -1951,13 +1949,12 @@ class GeneratorsTest(unittest.TestCase):
             g.send(None)
         self.assertIsInstance(exc.exception.value, X)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def _f10(self, X):
         x = X()
         yield weakref.ref(x)
         return x
 
-    @unittest.waitingForFeaturePort(PortFeature.OPC_GEN_START)
     def test_gc_traversal(self):
         class X:
             pass
@@ -1995,9 +1992,7 @@ class GeneratorsTest(unittest.TestCase):
         del g
         self.assertEqual(sys.getrefcount(o), base_count)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_YIELD_FROM_ITER, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     def _f12(self, g):
         a = yield from g
         return a
@@ -2100,7 +2095,7 @@ class GeneratorsTest(unittest.TestCase):
             bc.send(None)
         del bc
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def big_coro(self):
         # This currently results in a max spill size of ~100, but that could
         # change with JIT register allocation improvements. This test is only
@@ -2118,7 +2113,7 @@ class GeneratorsTest(unittest.TestCase):
             h=dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9),
         )
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def small_coro(self):
         return 1
 
@@ -2142,7 +2137,7 @@ class GeneratorsTest(unittest.TestCase):
 
 
 class GeneratorFrameTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def gen1(self):
         a = 1
         yield a
@@ -2164,7 +2159,7 @@ class GeneratorFrameTest(unittest.TestCase):
         self.assertEqual(next(g), 2)
         self.assertEqual(g.gi_frame, f)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def gen2(self):
         me = yield
         f = me.gi_frame
@@ -2180,13 +2175,15 @@ class GeneratorFrameTest(unittest.TestCase):
 
 
 class CoroutinesTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def _f1(self):
         return 1
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
+    async def _f1(self):
+        return 1
+
+    @unittest.failUnlessJITCompiled
     async def _f2(self, await_target):
         return await await_target
 
@@ -2214,9 +2211,8 @@ class CoroutinesTest(unittest.TestCase):
             # This is needed to avoid an "environment changed" error
             asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GEN_START, PortFeature.OPC_YIELD_VALUE
-    )
+    @unittest.failUnlessJITCompiled
+    @asyncio.coroutine
     def _f3(self):
         yield 1
         return 2
@@ -2280,9 +2276,7 @@ class CoroutinesTest(unittest.TestCase):
         async def eager_suspend(suffix):
             await self.FakeFuture("hello, " + suffix)
 
-        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-            PortFeature.OPC_GEN_START, PortFeature.OPC_YIELD_FROM
-        )
+        @unittest.failUnlessJITCompiled
         async def jit_coro():
             await eager_suspend("bob")
 
@@ -2401,13 +2395,11 @@ class EagerCoroutineDispatch(StaticTestBase):
         self.assertFalse(awaited_capturer.last_awaited())
         self.assertIsNone(awaited_capturer.last_awaited())
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def _call_ex(self, t):
         t(*[1])
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     async def _call_ex_awaited(self, t):
         await t(*[1])
 
@@ -2436,23 +2428,19 @@ class EagerCoroutineDispatch(StaticTestBase):
         o.t = t
         await o.t()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def _vector_call(self, t):
         t()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     async def _vector_call_awaited(self, t):
         await t()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GEN_START)
+    @unittest.failUnlessJITCompiled
     async def _vector_call_kw(self, t):
         t(a=1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     async def _vector_call_kw_awaited(self, t):
         await t(a=1)
 
@@ -2582,11 +2570,7 @@ class EagerCoroutineDispatch(StaticTestBase):
 
 
 class AsyncGeneratorsTest(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE,
-        PortFeature.OPC_YIELD_FROM,
-        PortFeature.OPC_YIELD_VALUE,
-    )
+    @unittest.failUnlessJITCompiled
     async def _f1(self, awaitable):
         x = yield 1
         yield x
@@ -2795,7 +2779,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
         self.assertEqual(self.nested_try_except(f), 100)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_YIELD_VALUE)
+    @unittest.failUnlessJITCompiled
     def try_except_in_generator(self, f):
         try:
             yield f(0)
@@ -3746,13 +3730,11 @@ class GetGenFrameDuringThrowTest(unittest.TestCase):
         self.loop.close()
         asyncio.set_event_loop_policy(None)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AWAITABLE, PortFeature.OPC_YIELD_FROM
-    )
+    @unittest.failUnlessJITCompiled
     async def outer_propagates_exc(self, inner):
         return await inner
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_GET_AWAITABLE)
+    @unittest.failUnlessJITCompiled
     async def outer_handles_exc(self, inner):
         try:
             await inner

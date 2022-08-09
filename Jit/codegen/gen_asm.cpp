@@ -985,7 +985,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
     auto state_offs = offsetof(GenDataFooter, state);
     as_->mov(
         x86::ptr(x86::rbp, state_offs, sizeof(GenDataFooter::state)),
-        _PyJitGenState_Completed);
+        Ci_JITGenState_Completed);
     as_->bind(env_.exit_for_yield_label);
     RestoreOriginalGeneratorRBP(as_->as<x86::Emitter>());
   }
@@ -1131,7 +1131,6 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
 }
 
 void NativeGenerator::generateResumeEntry() {
-#ifdef CINDER_PORTING_DONE
   // Arbitrary scratch register for use throughout this function. Can be changed
   // to pretty much anything which doesn't conflict with arg registers.
   const auto scratch_r = x86::r8;
@@ -1183,9 +1182,6 @@ void NativeGenerator::generateResumeEntry() {
   as_->jmp(x86::ptr(scratch_r, resume_target_offset));
 
   env_.addAnnotation("Resume entry point", cursor);
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data");
-#endif
 }
 
 void NativeGenerator::generateStaticEntryPoint(
@@ -1511,11 +1507,7 @@ static PyObject* resumeInInterpreter(
     // through _PyJIT_GenDealloc. Ownership of all references have been
     // transferred to the frame.
     JITRT_GenJitDataFree(gen);
-#ifdef CINDER_PORTING_DONE
     gen->gi_jit_data = nullptr;
-#else
-    PORT_ASSERT("Needs PyGenObject::gi_jit_data");
-#endif
   }
   PyThreadState* tstate = PyThreadState_Get();
   PyObject* result = nullptr;

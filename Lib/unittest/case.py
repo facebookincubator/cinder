@@ -1550,7 +1550,6 @@ class PortFeature(enum.Enum):
     OPC_COPY_DICT_WITHOUT_KEYS = enum.auto() # T126141783
     OPC_DICT_MERGE = enum.auto() # T126141766
     OPC_DICT_UPDATE = enum.auto() # T126141754
-    OPC_GEN_START = enum.auto() # T125854918
     OPC_IS_OP = enum.auto() # T125844569
     OPC_LIST_TO_TUPLE = enum.auto() # T126141719
     OPC_MATCH_CLASS = enum.auto() # T126141840
@@ -1561,11 +1560,7 @@ class PortFeature(enum.Enum):
     OPC_END_ASYNC_FOR = enum.auto()
     OPC_GET_AITER = enum.auto()
     OPC_GET_ANEXT = enum.auto()
-    OPC_GET_AWAITABLE = enum.auto()
-    OPC_GET_YIELD_FROM_ITER = enum.auto()
     OPC_SETUP_ASYNC_WITH = enum.auto()
-    OPC_YIELD_FROM = enum.auto()
-    OPC_YIELD_VALUE = enum.auto()
 
     # TODO(T127134006): Containers
     OPC_BUILD_CONST_KEY_MAP = enum.auto()

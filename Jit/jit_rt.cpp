@@ -1409,7 +1409,6 @@ static void* gen_data_allocate(size_t spill_words) {
 }
 
 void JITRT_GenJitDataFree(PyGenObject* gen) {
-#ifdef CINDER_PORTING_DONE
   auto gen_data_footer =
       reinterpret_cast<jit::GenDataFooter*>(gen->gi_jit_data);
   auto gen_data = reinterpret_cast<uint64_t*>(gen_data_footer) -
@@ -1426,11 +1425,6 @@ void JITRT_GenJitDataFree(PyGenObject* gen) {
   }
   gen_data_free_list_size++;
   gen_data_free_list_tail = gen_data;
-#else
-  PORT_ASSERT("Need PyGenObject::gi_jit_data");
-  (void)gen;
-  (void)kGenDataFreeListMaxSize;
-#endif
 }
 
 enum class MakeGenObjectMode {
@@ -1446,7 +1440,6 @@ static inline PyObject* make_gen_object(
     size_t spill_words,
     jit::CodeRuntime* code_rt,
     PyCodeObject* code) {
-#ifdef CINDER_PORTING_DONE
   PyGenObject* gen = nullptr;
   if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
@@ -1470,14 +1463,6 @@ static inline PyObject* make_gen_object(
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
           _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
-      PyFrameObject* parent_f = tstate->frame;
-      auto UTF8_name = PyUnicode_AsUTF8(parent_f->f_code->co_name);
-      if (!strcmp(UTF8_name, "<genexpr>") || !strcmp(UTF8_name, "<listcomp>") ||
-          !strcmp(UTF8_name, "<dictcomp>")) {
-        reinterpret_cast<PyCoroObject*>(gen)->creator = parent_f->f_back;
-      } else {
-        reinterpret_cast<PyCoroObject*>(gen)->creator = parent_f;
-      }
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {
       gen = reinterpret_cast<PyGenObject*>(
           PyAsyncGen_New(f, code->co_name, code->co_qualname));
@@ -1501,21 +1486,13 @@ static inline PyObject* make_gen_object(
       reinterpret_cast<uint64_t*>(suspend_data) + spill_words);
   footer->resumeEntry = resume_entry;
   footer->yieldPoint = nullptr;
-  footer->state = _PyJitGenState_JustStarted;
+  footer->state = Ci_JITGenState_JustStarted;
   footer->gen = gen;
   footer->code_rt = code_rt;
 
-  gen->gi_jit_data = reinterpret_cast<_PyJIT_GenData*>(footer);
+  gen->gi_jit_data = reinterpret_cast<Ci_JITGenData*>(footer);
 
   return reinterpret_cast<PyObject*>(gen);
-#else
-  PORT_ASSERT("Needs PyGenObject::gi_jit_data and PyCodeObject::co_qualname")
-  (void)resume_entry;
-  (void)tstate;
-  (void)spill_words;
-  (void)code_rt;
-  (void)code;
-#endif
 }
 
 PyObject* JITRT_MakeGenObject(
@@ -1548,26 +1525,21 @@ PyObject* JITRT_MakeGenObjectCoro(
       resume_entry, tstate, spill_words, code_rt, code);
 }
 
-void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
-#ifdef CINDER_PORTING_DONE
-  _PyShadowFrame* sf = ts->shadow_frame;
+void JITRT_SetCurrentAwaiter(PyObject*, PyThreadState*) {
+  // TODO(T125856226) Enable once we support setting the awaiter for a coroutine
+
+  //_PyShadowFrame* sf = ts->shadow_frame;
   // TODO(bsimmers): This may need to change when we support eager evaluation
   // of coroutines.
-  auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
-  _PyAwaitable_SetAwaiter(awaitable, awaiter);
-#else
-  PORT_ASSERT("Needs shadow frames and _PyAwaitable_SetAwaiter");
-  (void)awaitable;
-  (void)ts;
-#endif
+  // auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
+  //_PyAwaitable_SetAwaiter(awaitable, awaiter);
 }
 
 JITRT_YieldFromRes JITRT_YieldFrom(
     PyObject* gen,
     PyObject* v,
-    PyThreadState* tstate,
+    PyThreadState*,
     uint64_t finish_yield_from) {
-#ifdef CINDER_PORTING_DONE
   if (v == NULL) {
     return {NULL, 1};
   }
@@ -1576,7 +1548,7 @@ JITRT_YieldFromRes JITRT_YieldFrom(
     return {v, 1};
   }
   PyObject* retval;
-  auto gen_status = PyIter_Send(tstate, gen, v, &retval);
+  auto gen_status = PyIter_Send(gen, v, &retval);
 
   if (gen_status == PYGEN_RETURN) {
     return {retval, 1};
@@ -1586,13 +1558,6 @@ JITRT_YieldFromRes JITRT_YieldFrom(
   }
   JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
-#else
-  PORT_ASSERT("Loosk like PyIter_Send() in 3.10 doesn't need tstate");
-  (void)gen;
-  (void)v;
-  (void)tstate;
-  (void)finish_yield_from;
-#endif
 }
 
 JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(

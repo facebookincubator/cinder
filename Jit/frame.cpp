@@ -102,14 +102,10 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "shadow frame not owned by the JIT");
   if (is_shadow_frame_for_gen(shadow_frame)) {
-#ifdef CINDER_PORTING_DONE
     // The shadow frame belongs to a generator; retrieve the CodeRuntime
     // directly from the generator.
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     return reinterpret_cast<GenDataFooter*>(gen->gi_jit_data)->code_rt;
-#else
-    PORT_ASSERT("JIT data on generators needed");
-#endif
   }
   auto jit_sf = reinterpret_cast<JITShadowFrame*>(shadow_frame);
   _PyShadowFrame_PtrKind rt_ptr_kind = JITShadowFrame_GetRTPtrKind(jit_sf);
@@ -154,10 +150,10 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
       "shadow frame not executed by the JIT");
   uintptr_t frame_base;
   if (is_shadow_frame_for_gen(shadow_frame)) {
-#ifdef CINDER_PORTING_DONE
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-    if (gen->gi_running && isShadowFrameLinked(tstate, shadow_frame)) {
+    if (Ci_JITGenIsExecuting(gen) &&
+        isShadowFrameLinked(tstate, shadow_frame)) {
       // The generator is running. Under rare circumstances the generater will
       // be marked as running but won't yet be resumed. We check to make sure
       // the shadow frame in linked into the call stack to account for this
@@ -167,11 +163,6 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
       // The generator is suspended.
       return footer->yieldPoint->resumeTarget();
     }
-#else
-    PORT_ASSERT(
-        "Need PyGenObject::gi_running replacement and JIT data on generator");
-    (void)tstate;
-#endif
   } else {
     frame_base = getFrameBaseFromOnStackShadowFrame(shadow_frame);
   }
@@ -708,7 +699,6 @@ int _PyShadowFrame_HasGen(_PyShadowFrame* shadow_frame) {
 }
 
 PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
-#ifdef CINDER_PORTING_DONE
   JIT_DCHECK(
       is_shadow_frame_for_gen(shadow_frame),
       "Not shadow-frame for a generator");
@@ -718,10 +708,6 @@ PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
   return reinterpret_cast<PyGenObject*>(
       reinterpret_cast<uintptr_t>(shadow_frame) -
       offsetof(PyGenObject, gi_shadow_frame));
-#else
-  PORT_ASSERT("Needs shadow frames");
-  (void)shadow_frame;
-#endif
 }
 
 PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {

@@ -2196,8 +2196,7 @@ class BaseTaskTests:
         self.loop._run_once()
         self.assertEqual(len(self.loop._ready), 0)
 
-        # remove the future used in kill_me(), and references to the task
-        del coro.gi_frame.f_locals['future']
+        # Remove references to the task
         coro = None
         source_traceback = task._source_traceback
         task = None

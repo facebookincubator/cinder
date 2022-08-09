@@ -72,21 +72,9 @@ PyAPI_FUNC(PyObject *) _PyEval_SuperLookupMethodOrAttr(
     int call_no_args,
     int *meth_found);
 
+// Include/genobject.h
 PyAPI_FUNC(PyObject *) _PyEval_GetAIter(PyObject *obj);
 PyAPI_FUNC(PyObject *) _PyEval_GetANext(PyObject *aiter);
-
-
-// Include/genobject.h
-typedef enum {
-    /* Generator has freshly been returned from a call to the function itself.
-       Execution of user code has not yet begun. */
-    _PyJitGenState_JustStarted,
-    /* Execution is in progress and is currently active or the generator is
-       suspended. */
-    _PyJitGenState_Running,
-    /* Generator has completed execution and should not be resumed again. */
-    _PyJitGenState_Completed,
-} _PyJitGenState;
 
 typedef struct {
     PyObject_HEAD
