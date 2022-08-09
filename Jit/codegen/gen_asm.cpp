@@ -1138,14 +1138,14 @@ void NativeGenerator::generateResumeEntry() {
   // arg #1 - rdi = PyGenObject* generator
   const auto gen_r = x86::rdi;
   // arg #2 - rsi = PyObject* sent_value
-  // arg #3 - rdx = tstate
-  // arg #4 - rcx = finish_yield_from
+  // arg #3 - rdx = finish_yield_from
+  // arg #4 - rcx = tstate
   // Arg regs must not be modified as they may be used by the next resume stage.
   auto cursor = as_->cursor();
   as_->bind(env_.gen_resume_entry_label);
 
   generateFunctionEntry();
-  setupFrameAndSaveCallerRegisters(x86::rdx);
+  setupFrameAndSaveCallerRegisters(x86::rcx);
 
   // Setup RBP to use storage in generator rather than stack.
 

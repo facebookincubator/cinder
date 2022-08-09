@@ -357,8 +357,6 @@ void emitStoreGenYieldPoint(
   as->mov(x86::qword_ptr(suspend_data_r, yieldPointOffset), scratch_r);
 }
 
-// On resuming the sent in value may source depends on the type of yield, and
-// and new tstate is always in RDX from resume entry-point args.
 void emitLoadResumedYieldInputs(
     asmjit::x86::Builder* as,
     const Instruction* instr,
@@ -444,8 +442,8 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   // Resumed execution in this generator begins here
   as->bind(resume_label);
 
-  // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
-  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
+  // Sent in value is in RSI, and tstate is in RCX from resume entry-point args
+  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rcx);
 }
 
 void translateYieldValue(Environ* env, const Instruction* instr) {
@@ -472,8 +470,8 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
   // Resumed execution in this generator begins here
   as->bind(resume_label);
 
-  // Sent in value is in RSI, and tstate is in RDX from resume entry-point args
-  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rdx);
+  // Sent in value is in RSI, and tstate is in RCX from resume entry-point args
+  emitLoadResumedYieldInputs(as, instr, PhyLocation::RSI, x86::rcx);
 }
 
 void translateYieldFrom(Environ* env, const Instruction* instr) {
@@ -502,13 +500,13 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   } else {
     // Setup call to JITRT_YieldFrom
 
-    // Put tstate and the current generator into RDX and RDI respectively, and
-    // set finish_yield_from (RCX) to 0. This register setup matches that when
+    // Put tstate and the current generator into RCX and RDI respectively, and
+    // set finish_yield_from (RDX) to 0. This register setup matches that when
     // `resume_label` is reached from the resume entry.
-    as->mov(x86::rdx, tstate_phys_reg);
     auto gen_offs = offsetof(GenDataFooter, gen);
+    as->mov(x86::rcx, tstate_phys_reg);
     as->mov(x86::rdi, x86::ptr(x86::rbp, gen_offs));
-    as->xor_(x86::rcx, x86::rcx);
+    as->xor_(x86::rdx, x86::rdx);
   }
 
   // Resumed execution begins here
@@ -516,7 +514,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   as->bind(resume_label);
 
   // Save tstate from resume to callee-saved reigster.
-  as->mov(x86::rbx, x86::rdx);
+  as->mov(x86::rbx, x86::rcx);
 
   // 'send_value', and 'finish_yield_from' will already be in RSI and RCX
   // respectively, either from code above on initial start or from resume entry

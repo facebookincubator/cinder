@@ -1779,7 +1779,7 @@ PyObject* _PyJIT_GenSend(
       gen_footer->yieldPoint != nullptr,
       "Attempting to resume a generator with no yield point");
   PyObject* result =
-      gen_footer->resumeEntry((PyObject*)gen, arg, tstate, finish_yield_from);
+      gen_footer->resumeEntry((PyObject*)gen, arg, finish_yield_from, tstate);
 
   if (!result && (gen->gi_jit_data != nullptr)) {
     // Generator jit data (gen_footer) will be freed if the generator

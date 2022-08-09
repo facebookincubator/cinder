@@ -424,6 +424,7 @@ PyObject* JITRT_BuildString(
 // Per-function entry point function to resume a JIT generator. Arguments are:
 //   - Generator instance to be resumed.
 //   - A value to send in or NULL to raise the current global error on resume.
+//   - A boolean indicating if we need to break out of the current yield-from.
 //   - The current thread-state instance.
 //  Returns result of computation which is a "yielded" value unless the state of
 //  the generator is _PyJITGenState_Completed, in which case it is a "return"
@@ -431,8 +432,8 @@ PyObject* JITRT_BuildString(
 typedef PyObject* (*GenResumeFunc)(
     PyObject* gen,
     PyObject* send_value,
-    PyThreadState* tstate,
-    uint64_t finish_yield_from);
+    uint64_t finish_yield_from,
+    PyThreadState* tstate);
 
 /*
  * Create generator instance for use during InitialYield in a JIT generator.
@@ -467,9 +468,9 @@ void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts);
 // Mostly the same implementation as YIELD_FROM in ceval.c with slight tweaks to
 // make it stand alone. The argument 'v' is stolen.
 //
-// The arguments 'gen', 'v', 'tstate', 'finish_yield_from' must match positions
-// with JIT resume entry function (GenResumeFunc) so registers with their values
-// pass straight through.
+// The arguments 'gen', 'v', 'finish_yield_from' must match positions with JIT
+// resume entry function (GenResumeFunc) so registers with their values pass
+// straight through.
 struct JITRT_YieldFromRes {
   PyObject* retval;
   uint64_t done;
@@ -477,7 +478,6 @@ struct JITRT_YieldFromRes {
 JITRT_YieldFromRes JITRT_YieldFrom(
     PyObject* gen,
     PyObject* v,
-    PyThreadState* tstate,
     uint64_t finish_yield_from);
 
 // Used for the `YIELD_FROM` that appears in the bytecode of the header for
@@ -490,7 +490,6 @@ JITRT_YieldFromRes JITRT_YieldFrom(
 JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
     PyObject* gen,
     PyObject* v,
-    PyThreadState* tstate,
     uint64_t finish_yield_from);
 
 /* Unpack a sequence as in unpack_iterable(), and save the
