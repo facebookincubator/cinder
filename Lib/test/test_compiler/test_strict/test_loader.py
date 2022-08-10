@@ -1421,8 +1421,7 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
-    cinder310_porting_skip_until_classloader
-
+    @cinder310_porting_skip_until_classloader
     def test_proxy_deleter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
