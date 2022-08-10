@@ -50,12 +50,10 @@ class AnnotationRemoverTests(StrictTestBase):
         y_assign = klass.body[1]
 
         self.assertIsInstance(x_assign, ast.Assign)
-        self.assertEqual(
-            ast.dump(x_assign.value), "Constant(value=Ellipsis, kind=None)"
-        )
+        self.assertEqual(ast.dump(x_assign.value), "Constant(value=Ellipsis)")
 
         self.assertIsInstance(y_assign, ast.Assign)
-        self.assertEqual(ast.dump(y_assign.value), "Constant(value='hi', kind=None)")
+        self.assertEqual(ast.dump(y_assign.value), "Constant(value='hi')")
 
     def test_annotation_remover_methods(self) -> None:
         code = """
