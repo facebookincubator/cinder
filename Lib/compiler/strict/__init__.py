@@ -154,7 +154,6 @@ class StrictCodeGenerator(CodeGenerator):
         filename: str,
         flags: int,
         optimize: int,
-        peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
         builtins: Dict[str, Any] = builtins.__dict__,
     ) -> StrictCodeGenerator:

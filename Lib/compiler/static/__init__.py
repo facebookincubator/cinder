@@ -266,12 +266,10 @@ class Static38CodeGenerator(StrictCodeGenerator):
         filename: str,
         flags: int,
         optimize: int,
-        peephole_enabled: bool = True,
         ast_optimizer_enabled: bool = True,
         enable_patching: bool = False,
         builtins: Dict[str, Any] = builtins.__dict__,
     ) -> Static38CodeGenerator:
-        assert peephole_enabled
         assert ast_optimizer_enabled
 
         compiler = Compiler(cls)

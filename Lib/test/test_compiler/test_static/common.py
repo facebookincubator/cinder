@@ -249,11 +249,9 @@ class StaticTestBase(CompilerTest):
         generator=StaticCodeGenerator,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
         enable_patching=False,
     ):
-        assert peephole_enabled
         assert ast_optimizer_enabled
 
         if generator is not StaticCodeGenerator:
@@ -262,7 +260,6 @@ class StaticTestBase(CompilerTest):
                 generator,
                 modname,
                 optimize,
-                peephole_enabled,
                 ast_optimizer_enabled,
             )
 
@@ -341,7 +338,7 @@ class StaticTestBase(CompilerTest):
 
     def revealed_type_ctx(self, code: str, type: str) -> ContextManager[None]:
         return self.type_error_ctx(
-            code, fr"reveal_type\(.+\): '{re.escape(type)}'", at="reveal_type("
+            code, rf"reveal_type\(.+\): '{re.escape(type)}'", at="reveal_type("
         )
 
     def type_error(
@@ -479,21 +476,17 @@ class StaticTestBase(CompilerTest):
             set_freeze_enabled(old_setting)
             self._finalize_module(name, d)
 
-    def _run_code(self, code, generator, modname, peephole_enabled):
+    def _run_code(self, code, generator, modname):
         if modname is None:
             modname = self._temp_mod_name()
-        compiled = self.compile(
-            code, generator, modname, peephole_enabled=peephole_enabled
-        )
+        compiled = self.compile(code, generator, modname)
         d = {"<builtins>": builtins.__dict__}
         add_fixed_module(d)
         exec(compiled, d)
         return modname, d
 
-    def run_code(
-        self, code, generator=StaticCodeGenerator, modname=None, peephole_enabled=True
-    ):
-        _, r = self._run_code(code, generator, modname, peephole_enabled)
+    def run_code(self, code, generator=StaticCodeGenerator, modname=None):
+        _, r = self._run_code(code, generator, modname)
         return r
 
     @property
@@ -505,7 +498,7 @@ class StaticTestBase(CompilerTest):
 
     @property
     def ptr_size(self):
-        return 8 if sys.maxsize > 2 ** 32 else 4
+        return 8 if sys.maxsize > 2**32 else 4
 
     def assert_jitted(self, func):
         if cinderjit is None:

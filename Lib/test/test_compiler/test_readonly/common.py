@@ -38,7 +38,6 @@ class ReadonlyTestBase(TestBase):
         generator=ReadonlyCodeGenerator,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
         enable_patching=False,
     ):
@@ -51,7 +50,6 @@ class ReadonlyTestBase(TestBase):
                 generator,
                 modname,
                 optimize,
-                peephole_enabled,
                 ast_optimizer_enabled,
             )
 
@@ -84,7 +82,6 @@ class ReadonlyTestBase(TestBase):
         generator=StaticCodeGenerator,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
         enable_patching=False,
     ):
@@ -93,7 +90,6 @@ class ReadonlyTestBase(TestBase):
             generator,
             modname,
             optimize,
-            peephole_enabled,
             ast_optimizer_enabled,
             enable_patching,
         )

@@ -28,7 +28,6 @@ class StrictTestBase(CompilerTest):
         generator=StrictCodeGenerator,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
         builtins: Dict[str, Any] = builtins.__dict__,
     ):
@@ -38,7 +37,6 @@ class StrictTestBase(CompilerTest):
                 generator,
                 modname,
                 optimize,
-                peephole_enabled,
                 ast_optimizer_enabled,
             )
 
@@ -163,7 +161,6 @@ class StrictTestWithCheckerBase(StrictTestBase):
         generator=StrictCodeGenerator,
         modname="<module>",
         optimize=0,
-        peephole_enabled=True,
         ast_optimizer_enabled=True,
         builtins: Dict[str, Any] = builtins.__dict__,
         globals: Optional[Dict[str, Any]] = None,
@@ -173,7 +170,6 @@ class StrictTestWithCheckerBase(StrictTestBase):
             generator,
             modname,
             optimize,
-            peephole_enabled,
             ast_optimizer_enabled,
             builtins,
         )
