@@ -5204,7 +5204,31 @@ main_loop:
         }
 
         case TARGET(TP_ALLOC): {
-            PORT_ASSERT("Unsupported: TP_ALLOC");
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional, &exact);
+            assert(!optional);
+            if (type == NULL) {
+                goto error;
+            }
+
+            PyObject *inst = type->tp_alloc(type, 0);
+            if (inst == NULL) {
+                Py_DECREF(type);
+                goto error;
+            }
+            PUSH(inst);
+
+            if (shadow.shadow != NULL) {
+                int offset =
+                    _PyShadow_CacheCastType(&shadow, (PyObject *)type);
+                if (offset != -1) {
+                    _PyShadow_PatchByteCode(
+                        &shadow, next_instr, TP_ALLOC_CACHED, offset);
+                }
+            }
+            Py_DECREF(type);
+            DISPATCH();
         }
 
         case TARGET(BUILD_CHECKED_LIST): {

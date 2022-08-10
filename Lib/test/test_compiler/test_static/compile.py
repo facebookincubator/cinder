@@ -908,7 +908,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(a, 2)
             self.assertEqual(b, 4)
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_base_inited(self):
         """when the base class v-table is initialized before a derived
         class we still have a properly initialized v-table for the
@@ -1763,7 +1763,9 @@ class StaticCompilationTests(StaticTestBase):
             self.find_code(module, name="func").co_flags & CO_STATICALLY_COMPILED
         )
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip(
+        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
+    )
     def test_invoke_kws(self):
         codestr = """
         class C:
@@ -2299,7 +2301,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip("TODO(T128763597): LOAD_MAPPING_ARG not supported")
     def test_starargs_invoked_once(self):
         codestr = """
             X = 0
@@ -2320,7 +2322,7 @@ class StaticCompilationTests(StaticTestBase):
         compiled = self.compile(codestr)
         self.assertEqual(compiled.co_nlocals, 1)
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip("TODO(T128763597): LOAD_MAPPING_ARG not supported")
     def test_starargs_invoked_in_order(self):
         codestr = """
             X = 1
@@ -2559,7 +2561,7 @@ class StaticCompilationTests(StaticTestBase):
             del c
             self.assertEqual(count, 0)
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_typed_field_del(self):
         codestr = """
             class D:
@@ -2589,7 +2591,7 @@ class StaticCompilationTests(StaticTestBase):
             del a
             self.assertEqual(counter[0], 0)
 
-    @skip("TODO(T128752838): Need to support TP_ALLOC")
+    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_typed_field_deleted_attr(self):
         codestr = """
             class C:
@@ -5972,6 +5974,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(mod.MyClass.name.fget, "CAST")
             self.assertEqual(mod.MyClass().name, "MyClass")
 
+    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
     def test_unbox_binop_lhs_literal(self):
         nonstatic_codestr = """
         def f():
@@ -5992,6 +5995,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.in_module(codestr) as mod:
                 self.assertEqual(mod.g(), 43)
 
+    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
     def test_unbox_binop_rhs_literal(self):
         nonstatic_codestr = """
         def f():
