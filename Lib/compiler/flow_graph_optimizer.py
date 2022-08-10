@@ -64,11 +64,10 @@ class FlowGraphOptimizer:
                 target = instr.target
                 assert target is not None
                 # Skip over empty basic blocks.
-                if len(target.insts) == 0:
+                while len(target.insts) == 0:
                     instr.target = target.next
-                # If the jumped-to block is also empty, we cannot optimize this block, bail.
-                if not target.insts:
-                    break
+                    target = instr.target
+                    assert target is not None
                 target_instr = target.insts[0]
 
             next_instr = (
