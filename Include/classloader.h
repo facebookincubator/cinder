@@ -151,9 +151,9 @@ Py_ssize_t _PyClassLoader_PrimitiveTypeToSize(int primitive_type);
 
 int _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
 
-_PyType_VTable *_PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
-int _PyClassLoader_ClearVtables(void);
-void _PyClassLoader_ClearGenericTypes(void);
+PyAPI_FUNC(_PyType_VTable *) _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
+PyAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
+PyAPI_FUNC(void) _PyClassLoader_ClearGenericTypes(void);
 
 int
 _PyClassLoader_IsPatchedThunk(PyObject *obj);
@@ -184,7 +184,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact, int 
 
 PyMethodDescrObject *
 _PyClassLoader_ResolveMethodDef(PyObject *path);
-void _PyClassLoader_ClearCache(void);
+PyAPI_FUNC(void) _PyClassLoader_ClearCache(void);
 
 PyObject *
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func);
