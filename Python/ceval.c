@@ -4893,9 +4893,56 @@ main_loop:
         case TARGET(SEQUENCE_REPEAT): {
             PORT_ASSERT("Unsupported: SEQUENCE_REPEAT");
         }
+#define CAST_COERCE_OR_ERROR(val, type, exact)                              \
+    if (type == &PyFloat_Type && PyObject_TypeCheck(val, &PyLong_Type)) {   \
+        long lval = PyLong_AsLong(val);                                     \
+        Py_DECREF(val);                                                     \
+        SET_TOP(PyFloat_FromDouble(lval));                                  \
+    } else {                                                                \
+        PyErr_Format(PyExc_TypeError,                                       \
+                    exact ? "expected exactly '%s', got '%s'"               \
+                     : "expected '%s', got '%s'",                           \
+                    type->tp_name,                                          \
+                    Py_TYPE(val)->tp_name);                                 \
+        Py_DECREF(type);                                                    \
+        goto error;                                                         \
+    }
 
         case TARGET(CAST): {
-            PORT_ASSERT("Unsupported: CAST");
+            PyObject *val = TOP();
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(GETITEM(consts, oparg), &optional, &exact);
+            if (type == NULL) {
+                goto error;
+            }
+            if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
+                CAST_COERCE_OR_ERROR(val, type, exact);
+            }
+
+            if (shadow.shadow != NULL) {
+                int offset =
+                    _PyShadow_CacheCastType(&shadow, (PyObject *)type);
+                if (offset != -1) {
+                    if (optional) {
+                        if (exact) {
+                            _PyShadow_PatchByteCode(
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL_EXACT, offset);
+                        } else {
+                            _PyShadow_PatchByteCode(
+                                &shadow, next_instr, CAST_CACHED_OPTIONAL, offset);
+                        }
+                    } else if (exact) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, CAST_CACHED_EXACT, offset);
+                    } else {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, CAST_CACHED, offset);
+                    }
+                }
+            }
+            Py_DECREF(type);
+            DISPATCH();
         }
 
         case TARGET(LOAD_LOCAL): {

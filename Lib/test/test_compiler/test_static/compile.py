@@ -1689,7 +1689,6 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertTrue(isinstance(f(), C))
                 self.assert_jitted(f)
 
-    @skip("TODO(T128752226): We don't support CAST yet.")
     def test_cast_fail(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
             codestr = """
@@ -2480,7 +2479,6 @@ class StaticCompilationTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(test(), {"x": 2})
 
-    @skip("TODO(T128752226): We don't support CAST yet.")
     def test_pydict_arg_annotation(self):
         codestr = """
             from __static__ import PyDict
