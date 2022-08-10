@@ -3,6 +3,7 @@
 #define Py_CLASSLOADER_H
 
 #include "cinder/porting-support.h"
+#include "cinder/exports.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,6 +59,57 @@ typedef struct {
     int rt_optional;
     int rt_exact;
 } _PyClassLoader_RetTypeInfo;
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *prop_get;
+    PyObject *prop_set;
+    PyObject *prop_del;
+    PyObject *prop_doc;
+    int getter_doc;
+} Ci_propertyobject;
+
+typedef struct {
+    PyObject *init_func;
+    int type_code;
+} Ci_PyType_CinderExtra;
+
+#define Ci_PyHeapType_CINDER_EXTRA(etype) \
+    ((Ci_PyType_CinderExtra *)(((char *)etype) +  \
+      Py_TYPE(etype)->tp_basicsize + \
+      Py_SIZE(etype) * sizeof(PyMemberDef)))
+
+#define Ci_METH_TYPED 0x0400
+
+/* Flag marks this as optional */
+#define Ci_Py_SIG_OPTIONAL 0x01
+/* Flag marks this a type param, high bits are type index */
+#define Ci_Py_SIG_TYPE_PARAM 0x02
+#define Ci_Py_SIG_TYPE_PARAM_IDX(x) ((x << 2) | Ci_Py_SIG_TYPE_PARAM)
+#define Ci_Py_SIG_TYPE_PARAM_OPT(x)                                             \
+    ((x << 2) | Ci_Py_SIG_TYPE_PARAM | Ci_Py_SIG_OPTIONAL)
+
+
+typedef struct Ci_Py_SigElement {
+    int se_argtype;
+    PyObject *se_default_value;
+    const char *se_name;
+} Ci_Py_SigElement;
+
+typedef struct {
+    void *tmd_meth; /* The C function that implements it */
+    const Ci_Py_SigElement *const *tmd_sig; /* The function signature */
+    int tmd_ret;
+} Ci_PyTypedMethodDef;
+
+#define _Py_TYPED_SIGNATURE(name, ret_type, ...)                              \
+    static const Ci_Py_SigElement *const name##_sig[] = {__VA_ARGS__};          \
+    static Ci_PyTypedMethodDef name##_def = {                                   \
+        name,                                                                 \
+        name##_sig,                                                           \
+        ret_type,                                                             \
+    }
+
 
 struct _PyClassLoader_Awaitable;
 
@@ -265,21 +317,21 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define _Py_IS_TYPED_ARRAY_SIGNED(x) (x & (TYPED_INT_SIGNED << 4))
 
 
-#define _Py_SIG_INT8 (TYPED_INT8 << 2)
-#define _Py_SIG_INT16 (TYPED_INT16 << 2)
-#define _Py_SIG_INT32 (TYPED_INT32 << 2)
-#define _Py_SIG_INT64 (TYPED_INT64 << 2)
-#define _Py_SIG_UINT8 (TYPED_UINT8 << 2)
-#define _Py_SIG_UINT16 (TYPED_UINT16 << 2)
-#define _Py_SIG_UINT32 (TYPED_UINT32 << 2)
-#define _Py_SIG_UINT64 (TYPED_UINT64 << 2)
-#define _Py_SIG_OBJECT (TYPED_OBJECT << 2)
-#define _Py_SIG_VOID (TYPED_VOID << 2)
-#define _Py_SIG_STRING (TYPED_STRING << 2)
-#define _Py_SIG_ERROR (TYPED_ERROR << 2)
-#define _Py_SIG_SSIZE_T (sizeof(void*) == 8 ? _Py_SIG_INT64 : _Py_SIG_INT32)
-#define _Py_SIG_SIZE_T (sizeof(void*) == 8 ? _Py_SIG_UINT64 : _Py_SIG_UINT32)
-#define _Py_SIG_TYPE_MASK(x) ((x) >> 2)
+#define Ci_Py_SIG_INT8 (TYPED_INT8 << 2)
+#define Ci_Py_SIG_INT16 (TYPED_INT16 << 2)
+#define Ci_Py_SIG_INT32 (TYPED_INT32 << 2)
+#define Ci_Py_SIG_INT64 (TYPED_INT64 << 2)
+#define Ci_Py_SIG_UINT8 (TYPED_UINT8 << 2)
+#define Ci_Py_SIG_UINT16 (TYPED_UINT16 << 2)
+#define Ci_Py_SIG_UINT32 (TYPED_UINT32 << 2)
+#define Ci_Py_SIG_UINT64 (TYPED_UINT64 << 2)
+#define Ci_Py_SIG_OBJECT (TYPED_OBJECT << 2)
+#define Ci_Py_SIG_VOID (TYPED_VOID << 2)
+#define Ci_Py_SIG_STRING (TYPED_STRING << 2)
+#define Ci_Py_SIG_ERROR (TYPED_ERROR << 2)
+#define Ci_Py_SIG_SSIZE_T (sizeof(void*) == 8 ? Ci_Py_SIG_INT64 : Ci_Py_SIG_INT32)
+#define Ci_Py_SIG_SIZE_T (sizeof(void*) == 8 ? Ci_Py_SIG_UINT64 : Ci_Py_SIG_UINT32)
+#define Ci_Py_SIG_TYPE_MASK(x) ((x) >> 2)
 
 
 #ifndef Py_LIMITED_API
@@ -382,7 +434,7 @@ PyObject *_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
 static inline _PyGenericTypeDef *
 _PyClassLoader_GetGenericTypeDefFromType(PyTypeObject *gen_type)
 {
-    if (!(gen_type->tp_flags & Py_TPFLAGS_GENERIC_TYPE_INST)) {
+    if (!(gen_type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST)) {
         return NULL;
     }
     return ((_PyGenericTypeInst *)gen_type)->gti_gtd;
@@ -395,32 +447,32 @@ _PyClassLoader_GetGenericTypeDef(PyObject *gen_inst)
     return _PyClassLoader_GetGenericTypeDefFromType(inst_type);
 }
 
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_T0;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_T1;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_T0_Opt;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_T1_Opt;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_Object;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_Object_Opt;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_String;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_String_Opt;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0_Opt;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1_Opt;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object_Opt;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String_Opt;
 
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_SSIZET;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_SIZET;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_INT8;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_INT16;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_INT32;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_INT64;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_UINT8;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_UINT16;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_UINT32;
-PyAPI_DATA(const _Py_SigElement) _Py_Sig_UINT64;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SSIZET;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SIZET;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT8;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT16;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT32;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT64;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT8;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT16;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT32;
+PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT64;
 
 static inline int
 _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value);
 
 static inline void *
 _PyClassLoader_ConvertArg(PyObject *ctx,
-                          const _Py_SigElement *sig_elem,
+                          const Ci_Py_SigElement *sig_elem,
                           Py_ssize_t i,
                           Py_ssize_t nargsf,
                           PyObject *const *args,
@@ -429,41 +481,41 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
     PyObject *arg =
         i < PyVectorcall_NARGS(nargsf) ? args[i] : sig_elem->se_default_value;
     int argtype = sig_elem->se_argtype;
-    if ((argtype & _Py_SIG_OPTIONAL) && (arg == NULL || arg == Py_None)) {
+    if ((argtype & Ci_Py_SIG_OPTIONAL) && (arg == NULL || arg == Py_None)) {
         return arg;
     } else if (arg == NULL) {
         *error = 1;
-    } else if (argtype & _Py_SIG_TYPE_PARAM) {
+    } else if (argtype & Ci_Py_SIG_TYPE_PARAM) {
         if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
             if (!_PyClassLoader_CheckParamType(
-                    ctx, arg, _Py_SIG_TYPE_MASK(argtype))) {
+                    ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype))) {
                 *error = 1;
             }
         } else {
             assert(_PyClassLoader_CheckParamType(
-                ctx, arg, _Py_SIG_TYPE_MASK(argtype)));
+                ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype)));
         }
         return arg;
     } else {
-        switch (argtype & ~(_Py_SIG_OPTIONAL)) {
-        case _Py_SIG_OBJECT:
+        switch (argtype & ~(Ci_Py_SIG_OPTIONAL)) {
+        case Ci_Py_SIG_OBJECT:
             return arg;
-        case _Py_SIG_STRING:
+        case Ci_Py_SIG_STRING:
             if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
                 *error = !PyUnicode_Check(arg);
             } else {
                 assert(PyUnicode_Check(arg));
             }
             return arg;
-        case _Py_SIG_UINT8:
-        case _Py_SIG_UINT16:
-        case _Py_SIG_UINT32:
-        case _Py_SIG_INT8:
-        case _Py_SIG_INT16:
-        case _Py_SIG_INT32:
+        case Ci_Py_SIG_UINT8:
+        case Ci_Py_SIG_UINT16:
+        case Ci_Py_SIG_UINT32:
+        case Ci_Py_SIG_INT8:
+        case Ci_Py_SIG_INT16:
+        case Ci_Py_SIG_INT32:
             if (PyLong_Check(arg)) {
                 size_t res;
-                if (_PyClassLoader_OverflowCheck(arg, _Py_SIG_TYPE_MASK(argtype), &res)) {
+                if (_PyClassLoader_OverflowCheck(arg, Ci_Py_SIG_TYPE_MASK(argtype), &res)) {
                     return (void*)res;
                 }
                 *error = 1;
@@ -472,7 +524,7 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
                 *error = 1;
             }
             break;
-        case _Py_SIG_INT64:
+        case Ci_Py_SIG_INT64:
             if (PyLong_Check(arg)) {
                 Py_ssize_t val = PyLong_AsSsize_t(arg);
                 if (val == -1 && PyErr_Occurred()) {
@@ -483,7 +535,7 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
                 *error = 1;
             }
             break;
-        case _Py_SIG_UINT64:
+        case Ci_Py_SIG_UINT64:
             if (PyLong_Check(arg)) {
                 size_t val = PyLong_AsSize_t(arg);
                 if (val == ((size_t)-1) && PyErr_Occurred()) {
@@ -507,16 +559,16 @@ _PyClassLoader_ConvertRet(void *value, int ret_type)
     // are only used in void contexts, or explicitly emit a LOAD_CONST None
     // when not used in a void context. For now we just produce None here (and
     // in JIT HIR builder).
-    case _Py_SIG_VOID:
+    case Ci_Py_SIG_VOID:
         Py_INCREF(Py_None);
         return Py_None;
-    case _Py_SIG_INT8:
+    case Ci_Py_SIG_INT8:
         return PyLong_FromSsize_t((int8_t)(Py_ssize_t)value);
-    case _Py_SIG_INT16:
+    case Ci_Py_SIG_INT16:
         return PyLong_FromSsize_t((int16_t)(Py_ssize_t)value);
-    case _Py_SIG_INT32:
+    case Ci_Py_SIG_INT32:
         return PyLong_FromSsize_t((int32_t)(Py_ssize_t)value);
-    case _Py_SIG_INT64:
+    case Ci_Py_SIG_INT64:
 #if SIZEOF_VOID_P >= 8
         return PyLong_FromSsize_t((int64_t)value);
 #elif SIZEOF_LONG_LONG < SIZEOF_VOID_P
@@ -524,13 +576,13 @@ _PyClassLoader_ConvertRet(void *value, int ret_type)
 #else
         return PyLong_FromLongLong((long long)value);
 #endif
-    case _Py_SIG_UINT8:
+    case Ci_Py_SIG_UINT8:
         return PyLong_FromSize_t((uint8_t)(size_t)value);
-    case _Py_SIG_UINT16:
+    case Ci_Py_SIG_UINT16:
         return PyLong_FromSize_t((uint16_t)(size_t)value);
-    case _Py_SIG_UINT32:
+    case Ci_Py_SIG_UINT32:
         return PyLong_FromSize_t((uint32_t)(size_t)value);
-    case _Py_SIG_UINT64:
+    case Ci_Py_SIG_UINT64:
 #if SIZEOF_VOID_P >= 8
             return PyLong_FromSize_t((uint64_t)value);
 #elif SIZEOF_LONG_LONG < SIZEOF_VOID_P
@@ -538,7 +590,7 @@ _PyClassLoader_ConvertRet(void *value, int ret_type)
 #else
             return PyLong_FromUnsignedLongLong((unsigned long long)value);
 #endif
-    case _Py_SIG_ERROR:
+    case Ci_Py_SIG_ERROR:
         if (value) {
             return NULL;
         }
@@ -549,10 +601,10 @@ _PyClassLoader_ConvertRet(void *value, int ret_type)
     }
 }
 
-PyAPI_FUNC(void) _PyClassLoader_ArgError(const char *func_name,
+PyAPI_FUNC(void) _PyClassLoader_ArgError(PyObject *func_name,
                                          int arg,
                                          int type_param,
-                                         const _Py_SigElement *sig_elem,
+                                         const Ci_Py_SigElement *sig_elem,
                                          PyObject *ctx);
 
 static inline int
@@ -578,12 +630,12 @@ _PyClassLoader_GetMethodDef(PyObject *obj)
     return NULL;
 }
 
-static inline _PyTypedMethodDef *
+static inline Ci_PyTypedMethodDef *
 _PyClassLoader_GetTypedMethodDef(PyObject *obj)
 {
     PyMethodDef *def = _PyClassLoader_GetMethodDef(obj);
-    if (def && def->ml_flags & METH_TYPED) {
-        return (_PyTypedMethodDef *)def->ml_meth;
+    if (def && def->ml_flags & Ci_METH_TYPED) {
+      return (Ci_PyTypedMethodDef *)def->ml_meth;
     }
     return NULL;
 }

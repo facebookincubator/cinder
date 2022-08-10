@@ -793,18 +793,18 @@ PyObject *make_context_decorator_wrapper(PyObject *mod, PyObject *const *args, P
     PyMethodDef md_vector_append_##size = {                                             \
         "append",                                                                       \
         (PyCFunction)&vector_append_##size##_def,                                       \
-        METH_TYPED,                                                                     \
+        Ci_METH_TYPED,                                                                     \
         "append(value: " #size ")"                                                      \
     };                                                                                  \
 
-VECTOR_APPEND(int8, _Py_Sig_INT8, _PyArray_AppendSigned)
-VECTOR_APPEND(int16, _Py_Sig_INT16, _PyArray_AppendSigned)
-VECTOR_APPEND(int32, _Py_Sig_INT32, _PyArray_AppendSigned)
-VECTOR_APPEND(int64, _Py_Sig_INT64, _PyArray_AppendSigned)
-VECTOR_APPEND(uint8, _Py_Sig_INT8, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint16, _Py_Sig_INT16, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint32, _Py_Sig_INT32, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint64, _Py_Sig_INT64, _PyArray_AppendUnsigned)
+VECTOR_APPEND(int8, Ci_Py_Sig_INT8, _PyArray_AppendSigned)
+VECTOR_APPEND(int16, Ci_Py_Sig_INT16, _PyArray_AppendSigned)
+VECTOR_APPEND(int32, Ci_Py_Sig_INT32, _PyArray_AppendSigned)
+VECTOR_APPEND(int64, Ci_Py_Sig_INT64, _PyArray_AppendSigned)
+VECTOR_APPEND(uint8, Ci_Py_Sig_INT8, _PyArray_AppendUnsigned)
+VECTOR_APPEND(uint16, Ci_Py_Sig_INT16, _PyArray_AppendUnsigned)
+VECTOR_APPEND(uint32, Ci_Py_Sig_INT32, _PyArray_AppendUnsigned)
+VECTOR_APPEND(uint64, Ci_Py_Sig_INT64, _PyArray_AppendUnsigned)
 
 PyObject *specialize_function(PyObject *m, PyObject *const *args, Py_ssize_t nargs) {
     PyObject *type;
@@ -875,7 +875,7 @@ static_property_missing_fget(PyObject *mod, PyObject *self)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fget, _Py_SIG_ERROR, &_Py_Sig_Object, NULL);
+_Py_TYPED_SIGNATURE(static_property_missing_fget, _Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
 
 static Py_ssize_t
 static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
@@ -884,7 +884,7 @@ static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fset, _Py_SIG_ERROR, &_Py_Sig_Object, &_Py_Sig_Object, NULL);
+_Py_TYPED_SIGNATURE(static_property_missing_fset, _Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
 
 
 /*
@@ -1267,16 +1267,16 @@ static PyMethodDef static_methods[] = {
 #ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
-    {"rand", (PyCFunction)&static_rand_def, METH_TYPED, ""},
+    {"rand", (PyCFunction)&static_rand_def, Ci_METH_TYPED, ""},
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
     {"set_type_final", (PyCFunction)(void(*)(void))set_type_final, METH_O, ""},
     {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
-    {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, METH_TYPED,
+    {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, Ci_METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
-    {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, METH_TYPED, ""},
-    {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, METH_TYPED, ""},
+    {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, Ci_METH_TYPED, ""},
+    {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, Ci_METH_TYPED, ""},
     {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
     {"__build_cinder_class__",

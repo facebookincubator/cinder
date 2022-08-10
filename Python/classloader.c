@@ -1,5 +1,6 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
+#include "cinder/exports.h"
 #include "classloader.h"
 #include "descrobject.h"
 #include "dictobject.h"
@@ -8,8 +9,8 @@
 #include "structmember.h"
 #include "Jit/pyjit.h"
 #include "pycore_object.h"  // PyHeapType_CINDER_EXTRA
-#include "pycore_tupleobject.h" // _PyTuple_FromArray
-#include "pycore_unionobject.h" // _Py_Union()
+#include "pycore_tuple.h" // _PyTuple_FromArray
+#include "pycore_unionobject.h"
 #include "unicodeobject.h"
 
 static PyObject *classloader_cache;
@@ -220,6 +221,8 @@ async_cachedpropthunk_get_func(PyObject *thunk) {
     return descr->func;
 }
 
+// TODO(T128335015): Re-enable these.
+#ifdef CINDER_PORTING_DONE
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 {
@@ -279,6 +282,7 @@ awaitable_await(_PyClassLoader_Awaitable *self)
     Py_INCREF(self);
     return (PyObject *)self;
 }
+#endif
 
 static PyObject *
 rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info);
@@ -287,6 +291,8 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
 int
 used_in_vtable(PyObject *value);
 
+// TODO(T128335015): Re-enable this.
+#ifdef CINDER_PORTING_DONE
 static PySendResult
 awaitable_itersend(PyThreadState* tstate,
                    _PyClassLoader_Awaitable *self,
@@ -315,7 +321,7 @@ awaitable_itersend(PyThreadState* tstate,
 
     PyObject *result;
 
-    PySendResult status = PyIter_Send(tstate, iter, value, &result);
+    PySendResult status = PyIter_Send(iter, value, &result);
     if (status == PYGEN_RETURN) {
         result = self->cb(self, result);
         if (result == NULL) {
@@ -331,6 +337,7 @@ awaitable_itersend(PyThreadState* tstate,
     *pResult = result;
     return status;
 }
+#endif
 
 PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
     if (result == NULL) {
@@ -340,6 +347,8 @@ PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
 }
 
 
+// TODO(T128335015): Re-enable this.
+#ifdef CINDER_PORTING_DONE
 static void
 awaitable_setawaiter(_PyClassLoader_Awaitable *awaitable, PyObject *awaiter) {
     if (awaitable->iter != NULL) {
@@ -497,6 +506,7 @@ _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, a
     awaitable->iter = NULL;
     return (PyObject *)awaitable;
 }
+#endif
 
 static int
 rettype_check_traverse(_PyClassLoader_RetTypeInfo *op, visitproc visit, void *arg)
@@ -585,6 +595,8 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
     return ret;
 }
 
+// TODO(T128335015): Re-enable this.
+#ifdef CINDER_PORTING_DONE
 static PyObject *
 type_vtable_coroutine_property(_PyClassLoader_TypeCheckState *state,
                     PyObject **args,
@@ -727,6 +739,7 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
 
     return _PyClassLoader_NewAwaitableWrapper(coro, eager, (PyObject *)state, rettype_cb, NULL);
 }
+#endif
 
 static PyObject *
 type_vtable_nonfunc_property(_PyClassLoader_TypeCheckState *state,
@@ -866,6 +879,8 @@ done:
     return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
 
+// TODO(T128338759): Port and enable these.
+#ifdef CINDER_PORTING_DONE
 PyObject *_PyFunction_CallStatic(PyFunctionObject *func,
                                  PyObject **args,
                                  Py_ssize_t nargsf,
@@ -882,13 +897,18 @@ PyObject *_PyEntry_StaticEntryP0Defaults(PyFunctionObject *func,
                                          PyObject **args,
                                          Py_ssize_t nargsf,
                                          PyObject *kwnames);
+#endif
 
 static inline int
 is_static_entry(vectorcallfunc func)
 {
+  return 0;
+  // TODO(T128338759): Re-enable.
+#ifdef CINDER_PORTING_DONE
     return func == (vectorcallfunc)_PyEntry_StaticEntry ||
            func == (vectorcallfunc)_PyEntry_StaticEntryNArgs ||
            func == (vectorcallfunc)_PyEntry_StaticEntryP0Defaults;
+#endif
 }
 
 /**
@@ -915,8 +935,9 @@ type_vtable_func_lazyinit(PyTupleObject *state,
             vtable->vt_entries[index].vte_state = (PyObject *)func;
             if (is_static_entry(func->vectorcall)) {
                 /* this will always be invoked statically via the v-table */
-                vtable->vt_entries[index].vte_entry =
-                    (vectorcallfunc)_PyFunction_CallStatic;
+                // TODO(T128338759): Re-enable.
+                /* vtable->vt_entries[index].vte_entry = */
+                /*     (vectorcallfunc)_PyFunction_CallStatic; */
             } else {
                 vtable->vt_entries[index].vte_entry = func->vectorcall;
             }
@@ -949,13 +970,15 @@ type_vtable_classmethod(PyObject *state,
     return _PyObject_Vectorcall(func, stack, nargsf, kwnames);
 }
 
+#define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
+
 static PyObject *
 type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
                                     PyObject **args,
                                     size_t nargsf,
                                     PyObject *kwnames)
 {
-    if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD && PyClassMethod_Check(state->tcs_value)) {
+    if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD && _PyClassMethod_Check(state->tcs_value)) {
         PyFunctionObject *func = (PyFunctionObject *)Ci_PyClassMethod_GetFunc(state->tcs_value);
         return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
     }
@@ -1040,9 +1063,11 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
         Py_XDECREF(vtable->vt_entries[slot].vte_state);
         vtable->vt_entries[slot].vte_state = value;
         if (is_static_entry(entry)) {
+          // TODO(T128338759): Re-enable.
             /* this will always be invoked statically via the v-table */
-            vtable->vt_entries[slot].vte_entry =
-                (vectorcallfunc)_PyFunction_CallStatic;
+            /* vtable->vt_entries[slot].vte_entry = */
+            /*     (vectorcallfunc)_PyFunction_CallStatic; */
+            vtable->vt_entries[slot].vte_entry = entry;
         } else {
             vtable->vt_entries[slot].vte_entry = entry;
         }
@@ -1250,7 +1275,7 @@ classloader_maybe_unwrap_callable(PyObject *func) {
             Py_INCREF(res);
             return res;
         } else if (Py_TYPE(func) == &PyProperty_Type) {
-            propertyobject* prop = (propertyobject*)func;
+            Ci_propertyobject* prop = (Ci_propertyobject*)func;
             // A "callable" usually refers to the read path
             res = prop->prop_get;
             Py_INCREF(res);
@@ -1317,7 +1342,7 @@ classloader_cache_new_special(PyTypeObject *type, PyObject *name, PyObject *spec
 static PyObject *
 classloader_get_property_fget(PyTypeObject *type, PyObject *name, PyObject *property) {
     if (Py_TYPE(property) == &PyProperty_Type) {
-        PyObject *func = ((propertyobject *)property)->prop_get;
+        PyObject *func = ((Ci_propertyobject *)property)->prop_get;
         if (func == NULL) {
             func = classloader_get_property_missing_fget();
         }
@@ -1367,7 +1392,7 @@ classloader_get_property_fget(PyTypeObject *type, PyObject *name, PyObject *prop
 static PyObject *
 classloader_get_property_fset(PyTypeObject *type, PyObject *name, PyObject *property) {
     if (Py_TYPE(property) == &PyProperty_Type) {
-        PyObject *func = ((propertyobject *)property)->prop_set;
+        PyObject *func = ((Ci_propertyobject *)property)->prop_set;
         if (func == NULL) {
             func = classloader_get_property_missing_fset();
         }
@@ -1528,6 +1553,8 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
+        // TODO(T128335015): Re-enable this once asyncio is supported.
+#ifdef CINDER_PORTING_DONE
         if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_coroutine_property;
@@ -1535,6 +1562,9 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)type_vtable_coroutine;
         }
+#else
+        assert(0);
+#endif
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;
@@ -1685,19 +1715,25 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
             return NULL;
         }
 
+        // TODO(T128335015): Re-enable this.
+#ifdef CINDER_PORTING_DONE
         if (thunk->thunk_coroutine) {
           return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
                                        nargs, kwnames);
         }
+#endif
         PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args + 1, nargs - 1, kwnames);
         return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
     }
 
+    // TODO(T128335015): Re-enable this.
+#ifdef CINDER_PORTING_DONE
     if (thunk->thunk_coroutine) {
         PyObject *coro = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
 
         return _PyClassLoader_NewAwaitableWrapper(coro, 0, (PyObject *)thunk, rettype_cb, NULL);
     }
+#endif
 
     PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
     return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
@@ -1788,7 +1824,7 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
         }
         *classmethod = 1;
     } else if (Py_TYPE(func) == &PyProperty_Type) {
-        propertyobject *property = (propertyobject *)func;
+        Ci_propertyobject *property = (Ci_propertyobject *)func;
         PyObject *fget = property->prop_get;
         if (_PyClassLoader_IsStaticFunction(fget)) {
             res = resolve_function_rettype(fget, optional, exact, coroutine);
@@ -1854,12 +1890,12 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
         res = sthunk->thunk_tcs.tcs_rt.rt_expected;
         Py_INCREF(res);
     } else {
-        _PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
+        Ci_PyTypedMethodDef *tmd = _PyClassLoader_GetTypedMethodDef(func);
         *optional = 0;
         if (tmd != NULL) {
             switch(tmd->tmd_ret) {
-                case _Py_SIG_VOID:
-                case _Py_SIG_ERROR: {
+                case Ci_Py_SIG_VOID:
+                case Ci_Py_SIG_ERROR: {
                     // The underlying C implementations of these functions don't
                     // produce a Python object at all, but we ensure (in
                     // _PyClassLoader_ConvertRet and in JIT HIR builder) that
@@ -1868,40 +1904,40 @@ _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact,
                     res = (PyTypeObject *)&_PyNone_Type;
                     break;
                 }
-                case _Py_SIG_STRING: {
+                case Ci_Py_SIG_STRING: {
                     *exact = 0;
                     res = &PyUnicode_Type;
                     break;
                 }
-                case _Py_SIG_INT8: {
+                case Ci_Py_SIG_INT8: {
                     *exact = 1;
                     return classloader_get_static_type("int8");
                 }
-                case _Py_SIG_INT16: {
+                case Ci_Py_SIG_INT16: {
                     *exact = 1;
                     return classloader_get_static_type("int16");
                 }
-                case _Py_SIG_INT32: {
+                case Ci_Py_SIG_INT32: {
                     *exact = 1;
                     return classloader_get_static_type("int32");
                 }
-                case _Py_SIG_INT64: {
+                case Ci_Py_SIG_INT64: {
                     *exact = 1;
                     return classloader_get_static_type("int64");
                 }
-                case _Py_SIG_UINT8: {
+                case Ci_Py_SIG_UINT8: {
                     *exact = 1;
                     return classloader_get_static_type("uint8");
                 }
-                case _Py_SIG_UINT16: {
+                case Ci_Py_SIG_UINT16: {
                     *exact = 1;
                     return classloader_get_static_type("uint16");
                 }
-                case _Py_SIG_UINT32: {
+                case Ci_Py_SIG_UINT32: {
                     *exact = 1;
                     return classloader_get_static_type("uint32");
                 }
-                case _Py_SIG_UINT64: {
+                case Ci_Py_SIG_UINT64: {
                     *exact = 1;
                     return classloader_get_static_type("uint64");
                 }
@@ -2078,7 +2114,7 @@ get_final_method_names(PyTypeObject *type)
     Py_ssize_t n = PyTuple_GET_SIZE(mro);
     for (Py_ssize_t i = 0; i < n; i++) {
         PyObject *mro_type = PyTuple_GET_ITEM(mro, i);
-        if (((PyTypeObject *)mro_type)->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+        if (((PyTypeObject *)mro_type)->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
             _Py_IDENTIFIER(__final_method_names__);
             PyObject *final_method_names_string = _PyUnicode_FromId(&PyId___final_method_names__);
             PyObject *final_method_names = _PyObject_GenericGetAttrWithDict(mro_type,
@@ -2590,11 +2626,11 @@ used_in_vtable(PyObject *value)
                used_in_vtable_worker(Ci_PyClassMethod_GetFunc(value))) {
         return 1;
     } else if (Py_TYPE(value) == &PyProperty_Type) {
-        PyObject *func = ((propertyobject *)value)->prop_get;
+        PyObject *func = ((Ci_propertyobject *)value)->prop_get;
         if (func != NULL && used_in_vtable_worker(func)) {
             return 1;
         }
-        func = ((propertyobject *)value)->prop_set;
+        func = ((Ci_propertyobject *)value)->prop_set;
         if (func != NULL && used_in_vtable_worker(func)) {
             return 1;
         }
@@ -2692,7 +2728,7 @@ _PyClassLoader_UpdateSlotMap(PyTypeObject *self, PyObject *slotmap) {
 }
 
 int is_static_type(PyTypeObject *type) {
-    return (type->tp_flags & (Py_TPFLAGS_IS_STATICALLY_DEFINED|Py_TPFLAGS_GENERIC_TYPE_INST)) ||
+    return (type->tp_flags & (Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED|Ci_Py_TPFLAGS_GENERIC_TYPE_INST)) ||
         !(type->tp_flags & Py_TPFLAGS_HEAPTYPE);
 }
 
@@ -2886,23 +2922,11 @@ classloader_instantiate_generic(PyObject *gtd, PyObject *name, PyObject *path) {
             return NULL;
         }
         if (optional) {
-            PyObject *union_args = PyTuple_New(2);
-            if (union_args == NULL) {
-                Py_DECREF(tmp_tuple);
-                return NULL;
-            }
-            /* taking ref from _PyClassLoader_ResolveType */
-            PyTuple_SET_ITEM(union_args, 0, param);
-            PyTuple_SET_ITEM(union_args, 1, Py_None);
-            Py_INCREF(Py_None);
-
-            PyObject *union_obj = _Py_Union(union_args);
+            PyObject *union_obj = _Py_union_type_or(param, Py_None);
             if (union_obj == NULL) {
-                Py_DECREF(union_args);
                 Py_DECREF(tmp_tuple);
                 return NULL;
             }
-            Py_DECREF(union_args);
             param = union_obj;
         }
         PyTuple_SET_ITEM(tmp_tuple, i, param);
@@ -3059,11 +3083,11 @@ error:
 }
 
 int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
-    if (!(type->tp_flags & Py_TPFLAG_CPYTHON_ALLOCATED)) {
+    if (!(type->tp_flags & Ci_Py_TPFLAG_CPYTHON_ALLOCATED)) {
         return TYPED_OBJECT;
     }
 
-    return PyHeapType_CINDER_EXTRA(type)->type_code;
+    return Ci_PyHeapType_CINDER_EXTRA(type)->type_code;
 }
 
 /* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1
@@ -3347,7 +3371,7 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
                 }
             }
         } else if (PyStrictModule_Check(*container)) {
-            original = PyStrictModule_GetOriginal((PyStrictModuleObject*)*container, containerkey);
+            original = PyStrictModule_GetOriginal(*container, containerkey);
         }
     }
     if (original == func) {
@@ -3435,7 +3459,7 @@ int
 _PyClassLoader_IsImmutable(PyObject *container) {
     if (PyType_Check(container)) {
         PyTypeObject *type = (PyTypeObject *)container;
-        if (type->tp_flags & Py_TPFLAGS_FROZEN ||
+        if (type->tp_flags & Ci_Py_TPFLAGS_FROZEN ||
             !(type->tp_flags & Py_TPFLAGS_HEAPTYPE)) {
             return 1;
         }
@@ -4042,7 +4066,7 @@ get_optional_type(PyObject *type)
             goto done;
         }
 
-        if (Py_TYPE(type) != &_Py_UnionType) {
+        if (Py_TYPE(type) != &_PyUnion_Type) {
             origin = _PyObject_GetAttrId(type, &PyId___origin__);
             if (origin == NULL) {
                 PyErr_Clear();
@@ -4211,9 +4235,9 @@ gtd_new_inst(PyObject *type, PyObject **args, Py_ssize_t nargs)
 #undef COPY_DATA
 
     new_inst->gti_type.ht_type.tp_flags |=
-        Py_TPFLAGS_HEAPTYPE | Py_TPFLAGS_FROZEN | Py_TPFLAGS_GENERIC_TYPE_INST;
+        Py_TPFLAGS_HEAPTYPE | Ci_Py_TPFLAGS_FROZEN | Ci_Py_TPFLAGS_GENERIC_TYPE_INST;
     new_inst->gti_type.ht_type.tp_flags &=
-        ~(Py_TPFLAGS_READY | Py_TPFLAGS_GENERIC_TYPE_DEF);
+        ~(Py_TPFLAGS_READY | Ci_Py_TPFLAGS_GENERIC_TYPE_DEF);
 
     new_inst->gti_gtd = (_PyGenericTypeDef *)type;
     Py_INCREF(type);
@@ -4287,7 +4311,7 @@ _PyClassLoader_GetGenericInst(PyObject *type,
         PyErr_Format(
             PyExc_TypeError, "expected type, not %R", type);
         return NULL;
-    } else if(((PyTypeObject *)type)->tp_flags & Py_TPFLAGS_GENERIC_TYPE_DEF) {
+    } else if(((PyTypeObject *)type)->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_DEF) {
         if(gtd_validate_type(type, args, nargs)) {
             Py_DECREF(key);
             return NULL;
@@ -4370,66 +4394,66 @@ _PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args)
     (((_PyGenericTypeInst *)Py_TYPE(self))->gti_inst[i].gtp_type)
 
 void
-_PyClassLoader_ArgError(const char *func_name,
+_PyClassLoader_ArgError(PyObject *func_name,
                         int arg,
                         int type_param,
-                        const _Py_SigElement *sig_elem,
+                        const Ci_Py_SigElement *sig_elem,
                         PyObject *ctx)
 {
     const char *expected = "?";
     int argtype = sig_elem->se_argtype;
-    if (argtype & _Py_SIG_TYPE_PARAM) {
+    if (argtype & Ci_Py_SIG_TYPE_PARAM) {
         expected = ((PyTypeObject *)GENINST_GET_PARAM(
-                        ctx, _Py_SIG_TYPE_MASK(argtype)))
+                        ctx, Ci_Py_SIG_TYPE_MASK(argtype)))
                        ->tp_name;
 
     } else {
-        switch (_Py_SIG_TYPE_MASK(argtype)) {
-        case _Py_SIG_OBJECT:
+        switch (Ci_Py_SIG_TYPE_MASK(argtype)) {
+        case Ci_Py_SIG_OBJECT:
             PyErr_Format(PyExc_TypeError,
-                         "%.200s() argument %d is missing",
+                         "%U() argument %d is missing",
                          func_name,
                          arg);
             return;
-        case _Py_SIG_STRING:
+        case Ci_Py_SIG_STRING:
             expected = "str";
             break;
-        case _Py_SIG_SSIZE_T:
+        case Ci_Py_SIG_SSIZE_T:
             expected = "int";
             break;
         }
     }
 
     PyErr_Format(PyExc_TypeError,
-                 "%.200s() argument %d expected %s",
+                 "%U() argument %d expected %s",
                  func_name,
                  arg,
                  expected);
 }
 
-const _Py_SigElement _Py_Sig_T0 = {_Py_SIG_TYPE_PARAM_IDX(0)};
-const _Py_SigElement _Py_Sig_T1 = {_Py_SIG_TYPE_PARAM_IDX(1)};
-const _Py_SigElement _Py_Sig_T0_Opt = {
-    _Py_SIG_TYPE_PARAM_IDX(0) | _Py_SIG_OPTIONAL, Py_None};
-const _Py_SigElement _Py_Sig_T1_Opt = {
-    _Py_SIG_TYPE_PARAM_IDX(1) | _Py_SIG_OPTIONAL, Py_None};
-const _Py_SigElement _Py_Sig_Object = {_Py_SIG_OBJECT};
-const _Py_SigElement _Py_Sig_Object_Opt = {_Py_SIG_OBJECT | _Py_SIG_OPTIONAL,
+const Ci_Py_SigElement Ci_Py_Sig_T0 = {Ci_Py_SIG_TYPE_PARAM_IDX(0)};
+const Ci_Py_SigElement Ci_Py_Sig_T1 = {Ci_Py_SIG_TYPE_PARAM_IDX(1)};
+const Ci_Py_SigElement Ci_Py_Sig_T0_Opt = {
+    Ci_Py_SIG_TYPE_PARAM_IDX(0) | Ci_Py_SIG_OPTIONAL, Py_None};
+const Ci_Py_SigElement Ci_Py_Sig_T1_Opt = {
+    Ci_Py_SIG_TYPE_PARAM_IDX(1) | Ci_Py_SIG_OPTIONAL, Py_None};
+const Ci_Py_SigElement Ci_Py_Sig_Object = {Ci_Py_SIG_OBJECT};
+const Ci_Py_SigElement Ci_Py_Sig_Object_Opt = {Ci_Py_SIG_OBJECT | Ci_Py_SIG_OPTIONAL,
                                            Py_None};
-const _Py_SigElement _Py_Sig_String = {_Py_SIG_STRING};
-const _Py_SigElement _Py_Sig_String_Opt = {_Py_SIG_STRING | _Py_SIG_OPTIONAL,
+const Ci_Py_SigElement Ci_Py_Sig_String = {Ci_Py_SIG_STRING};
+const Ci_Py_SigElement Ci_Py_Sig_String_Opt = {Ci_Py_SIG_STRING | Ci_Py_SIG_OPTIONAL,
                                            Py_None};
 
-const _Py_SigElement _Py_Sig_SSIZET = {_Py_SIG_SSIZE_T};
-const _Py_SigElement _Py_Sig_SIZET = {_Py_SIG_SIZE_T};
-const _Py_SigElement _Py_Sig_INT8 = {_Py_SIG_INT8};
-const _Py_SigElement _Py_Sig_INT16 = {_Py_SIG_INT16};
-const _Py_SigElement _Py_Sig_INT32 = {_Py_SIG_INT32};
-const _Py_SigElement _Py_Sig_INT64 = {_Py_SIG_INT64};
-const _Py_SigElement _Py_Sig_UINT8 = {_Py_SIG_UINT8};
-const _Py_SigElement _Py_Sig_UINT16 = {_Py_SIG_UINT16};
-const _Py_SigElement _Py_Sig_UINT32 = {_Py_SIG_UINT32};
-const _Py_SigElement _Py_Sig_UINT64 = {_Py_SIG_UINT64};
+const Ci_Py_SigElement Ci_Py_Sig_SSIZET = {Ci_Py_SIG_SSIZE_T};
+const Ci_Py_SigElement Ci_Py_Sig_SIZET = {Ci_Py_SIG_SIZE_T};
+const Ci_Py_SigElement Ci_Py_Sig_INT8 = {Ci_Py_SIG_INT8};
+const Ci_Py_SigElement Ci_Py_Sig_INT16 = {Ci_Py_SIG_INT16};
+const Ci_Py_SigElement Ci_Py_Sig_INT32 = {Ci_Py_SIG_INT32};
+const Ci_Py_SigElement Ci_Py_Sig_INT64 = {Ci_Py_SIG_INT64};
+const Ci_Py_SigElement Ci_Py_Sig_UINT8 = {Ci_Py_SIG_UINT8};
+const Ci_Py_SigElement Ci_Py_Sig_UINT16 = {Ci_Py_SIG_UINT16};
+const Ci_Py_SigElement Ci_Py_Sig_UINT32 = {Ci_Py_SIG_UINT32};
+const Ci_Py_SigElement Ci_Py_Sig_UINT64 = {Ci_Py_SIG_UINT64};
 
 
 static void

@@ -16,16 +16,25 @@ if unittest.cinder_enable_broken_tests():
         strict_module_patch,
         StrictModule,
     )
-    from test.support import gc_collect, requires_type_collecting, temp_dir, TESTFN, unlink
+
+    from test.support import (
+        gc_collect,
+        requires_type_collecting,
+        temp_dir,
+        TESTFN,
+        unlink,
+    )
     from test.support.cinder import get_await_stack, verify_stack
 else:
+
     def requires_type_collecting(x):
         return x
+
+
 from functools import wraps
 from textwrap import dedent
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
-
 
 from test.support.script_helper import assert_python_ok, make_script
 

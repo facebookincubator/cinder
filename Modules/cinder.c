@@ -137,8 +137,6 @@ PyDoc_STRVAR(getknobs_doc,
 Gets the available knobs and their current status.");
 /* facebook end */
 
-#ifdef CINDER_PORTING_DONE
-
 static PyObject *
 cinder_freeze_type(PyObject *self, PyObject *o)
 {
@@ -148,7 +146,7 @@ cinder_freeze_type(PyObject *self, PyObject *o)
             "freeze_type requires a type");
         return NULL;
     }
-    ((PyTypeObject*)o)->tp_flags |= Py_TPFLAGS_FROZEN;
+    ((PyTypeObject*)o)->tp_flags |= Ci_Py_TPFLAGS_FROZEN;
     Py_INCREF(o);
     return o;
 }
@@ -159,6 +157,8 @@ PyDoc_STRVAR(freeze_type_doc,
 \n\
 Marks a type as being frozen and disallows any future mutations to it."
 );
+
+#ifdef CINDER_PORTING_DONE
 
 static PyObject *
 cinder_warn_on_inst_dict(PyObject *self, PyObject *o)
@@ -645,8 +645,8 @@ static struct PyMethodDef cinder_module_methods[] = {
      "Sets the value of qualified name in code object"},
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
-#ifdef CINDER_PORTING_DONE
     {"freeze_type", cinder_freeze_type, METH_O, freeze_type_doc},
+#ifdef CINDER_PORTING_DONE
     {"warn_on_inst_dict",
      cinder_warn_on_inst_dict,
      METH_O,

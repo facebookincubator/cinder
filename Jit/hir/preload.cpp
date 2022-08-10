@@ -124,11 +124,11 @@ static void fill_primitive_arg_types_thunk(
 static void fill_primitive_arg_types_builtin(
     BorrowedRef<> callable,
     ArgToType& map) {
-  _PyTypedMethodDef* def = _PyClassLoader_GetTypedMethodDef(callable);
+  Ci_PyTypedMethodDef* def = _PyClassLoader_GetTypedMethodDef(callable);
   JIT_CHECK(def != NULL, "expected typed method def");
   for (Py_ssize_t i = 0; def->tmd_sig[i] != NULL; i++) {
-    const _Py_SigElement* elem = def->tmd_sig[i];
-    int code = _Py_SIG_TYPE_MASK(elem->se_argtype);
+    const Ci_Py_SigElement* elem = def->tmd_sig[i];
+    int code = Ci_Py_SIG_TYPE_MASK(elem->se_argtype);
     Type typ = prim_type_to_type(code);
     if (typ <= TPrimitive) {
       map.emplace(i, typ);
@@ -163,7 +163,7 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   }
   target->is_statically_typed = _PyClassLoader_IsStaticCallable(callable);
   PyMethodDef* def;
-  _PyTypedMethodDef* tmd;
+  Ci_PyTypedMethodDef* tmd;
   bool is_thunk = false;
   if (PyFunction_Check(callable)) {
     target->is_function = true;

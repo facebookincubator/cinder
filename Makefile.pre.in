@@ -388,6 +388,7 @@ PYTHON_OBJS=	\
 		Python/ast_unparse.o \
 		Python/bltinmodule.o \
 		@CEVAL_MAYBE_PROBED@ \
+			Python/classloader.o \
 		Python/codecs.o \
 		Python/compile.o \
 		Python/context.o \
@@ -443,7 +444,6 @@ PYTHON_OBJS=	\
 # re-integrated into the 3.10 build yet.
 CINDER_PYTHON_OBJS= \
 		Python/arraymodule.o \
-		Python/classloader.o \
 		Python/immutable_global.o \
 		Python/pyreadonly.o \
 		Python/shadowcode.o \

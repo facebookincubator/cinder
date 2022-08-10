@@ -1,8 +1,11 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
+#include "cinder/exports.h"
 #include "classloader.h"
 #include "structmember.h"
 #include "pycore_initconfig.h"
+#include "pycore_interp.h"
+#include "pycore_pystate.h" // _PyInterpreterState_GET()
 
 PyDoc_STRVAR(xxclassloader__doc__,
              "xxclassloader contains helpers for testing the class loader\n");
@@ -199,54 +202,54 @@ spamobj_getstr(spamobject *self)
     return self->str;
 }
 
-_Py_TYPED_SIGNATURE(spamobj_getstate, _Py_SIG_TYPE_PARAM_OPT(0), NULL);
-_Py_TYPED_SIGNATURE(spamobj_setstate, _Py_SIG_VOID, &_Py_Sig_T0, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getstate, Ci_Py_SIG_TYPE_PARAM_OPT(0), NULL);
+_Py_TYPED_SIGNATURE(spamobj_setstate, Ci_Py_SIG_VOID, &Ci_Py_Sig_T0, NULL);
 _Py_TYPED_SIGNATURE(spamobj_setstate_optional,
-                    _Py_SIG_VOID,
-                    &_Py_Sig_T0_Opt,
+                    Ci_Py_SIG_VOID,
+                    &Ci_Py_Sig_T0_Opt,
                     NULL);
 
-_Py_TYPED_SIGNATURE(spamobj_getint, _Py_SIG_SSIZE_T, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setint, _Py_SIG_VOID, &_Py_Sig_SSIZET, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getint, Ci_Py_SIG_SSIZE_T, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setint, Ci_Py_SIG_VOID, &Ci_Py_Sig_SSIZET, NULL);
 
-_Py_TYPED_SIGNATURE(spamobj_getuint64, _Py_SIG_SIZE_T, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setuint64, _Py_SIG_VOID, &_Py_Sig_SIZET, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getuint64, Ci_Py_SIG_SIZE_T, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setuint64, Ci_Py_SIG_VOID, &Ci_Py_Sig_SIZET, NULL);
 
-_Py_TYPED_SIGNATURE(spamobj_getint8, _Py_SIG_INT8, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setint8, _Py_SIG_VOID, &_Py_Sig_INT8, NULL);
-_Py_TYPED_SIGNATURE(spamobj_getint16, _Py_SIG_INT16, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setint16, _Py_SIG_VOID, &_Py_Sig_INT16, NULL);
-_Py_TYPED_SIGNATURE(spamobj_getint32, _Py_SIG_INT32, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setint32, _Py_SIG_VOID, &_Py_Sig_INT32, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getint8, Ci_Py_SIG_INT8, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setint8, Ci_Py_SIG_VOID, &Ci_Py_Sig_INT8, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getint16, Ci_Py_SIG_INT16, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setint16, Ci_Py_SIG_VOID, &Ci_Py_Sig_INT16, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getint32, Ci_Py_SIG_INT32, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setint32, Ci_Py_SIG_VOID, &Ci_Py_Sig_INT32, NULL);
 
-_Py_TYPED_SIGNATURE(spamobj_getuint8, _Py_SIG_UINT8, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setuint8, _Py_SIG_VOID, &_Py_Sig_UINT8, NULL);
-_Py_TYPED_SIGNATURE(spamobj_getuint16, _Py_SIG_UINT16, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setuint16, _Py_SIG_VOID, &_Py_Sig_UINT16, NULL);
-_Py_TYPED_SIGNATURE(spamobj_getuint32, _Py_SIG_UINT32, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setuint32, _Py_SIG_VOID, &_Py_Sig_UINT32, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getuint8, Ci_Py_SIG_UINT8, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setuint8, Ci_Py_SIG_VOID, &Ci_Py_Sig_UINT8, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getuint16, Ci_Py_SIG_UINT16, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setuint16, Ci_Py_SIG_VOID, &Ci_Py_Sig_UINT16, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getuint32, Ci_Py_SIG_UINT32, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setuint32, Ci_Py_SIG_VOID, &Ci_Py_Sig_UINT32, NULL);
 
-_Py_TYPED_SIGNATURE(spamobj_getstr, _Py_SIG_STRING, NULL);
-_Py_TYPED_SIGNATURE(spamobj_setstr, _Py_SIG_VOID, &_Py_Sig_String, NULL);
-
-_Py_TYPED_SIGNATURE(
-    spamobj_twoargs, _Py_SIG_SSIZE_T, &_Py_Sig_SSIZET, &_Py_Sig_SSIZET, NULL);
+_Py_TYPED_SIGNATURE(spamobj_getstr, Ci_Py_SIG_STRING, NULL);
+_Py_TYPED_SIGNATURE(spamobj_setstr, Ci_Py_SIG_VOID, &Ci_Py_Sig_String, NULL);
 
 _Py_TYPED_SIGNATURE(
-    spamobj_error, _Py_SIG_ERROR, &_Py_Sig_SSIZET,NULL);
+    spamobj_twoargs, Ci_Py_SIG_SSIZE_T, &Ci_Py_Sig_SSIZET, &Ci_Py_Sig_SSIZET, NULL);
+
+_Py_TYPED_SIGNATURE(
+    spamobj_error, Ci_Py_SIG_ERROR, &Ci_Py_Sig_SSIZET,NULL);
 
 static PyMethodDef spamobj_methods[] = {
     {"error",
      (PyCFunction)&spamobj_error_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("error() -> raises")},
     {"getstate",
      (PyCFunction)&spamobj_getstate_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getstate() -> state")},
     {"setstate",
      (PyCFunction)&spamobj_setstate_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setstate(state)")},
     {"setstate_untyped",
      (PyCFunction)&spamobj_setstate_untyped,
@@ -254,86 +257,86 @@ static PyMethodDef spamobj_methods[] = {
      PyDoc_STR("setstate(state)")},
     {"setstateoptional",
      (PyCFunction)&spamobj_setstate_optional_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setstate(state|None)")},
     {"getint",
      (PyCFunction)&spamobj_getint_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getint() -> i")},
     {"setint",
      (PyCFunction)&spamobj_setint_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setint(i)")},
 
     {"getint8",
      (PyCFunction)&spamobj_getint8_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getint8() -> i")},
     {"setint8",
      (PyCFunction)&spamobj_setint8_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setint8(i)")},
     {"getint16",
      (PyCFunction)&spamobj_getint16_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getint16() -> i")},
     {"setint16",
      (PyCFunction)&spamobj_setint16_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setint16(i)")},
     {"getint32",
      (PyCFunction)&spamobj_getint32_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getint32() -> i")},
     {"setint32",
      (PyCFunction)&spamobj_setint32_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setint32(i)")},
 
     {"getuint8",
      (PyCFunction)&spamobj_getuint8_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getuint8() -> i")},
     {"setuint8",
      (PyCFunction)&spamobj_setuint8_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setuint8(i)")},
     {"getuint16",
      (PyCFunction)&spamobj_getuint16_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getuint16() -> i")},
     {"setuint16",
      (PyCFunction)&spamobj_setuint16_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setuint16(i)")},
     {"getuint32",
      (PyCFunction)&spamobj_getuint32_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getuint32() -> i")},
     {"setuint32",
      (PyCFunction)&spamobj_setuint32_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setuint32(i)")},
     {"getuint64",
      (PyCFunction)&spamobj_getuint64_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getuint64() -> i")},
     {"setuint64",
      (PyCFunction)&spamobj_setuint64_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setuint64(i)")},
 
     {"getstr",
      (PyCFunction)&spamobj_getstr_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("getstr() -> s")},
     {"setstr",
      (PyCFunction)&spamobj_setstr_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("setstr(s)")},
     {"twoargs",
      (PyCFunction)&spamobj_twoargs_def,
-     METH_TYPED,
+     Ci_METH_TYPED,
      PyDoc_STR("twoargs(s)")},
     {"__class_getitem__",
      (PyCFunction)_PyClassLoader_GtdGetItem,
@@ -387,7 +390,7 @@ _PyGenericTypeDef spamobj_type = {
             0,                           /* tp_setattro */
             0,                           /* tp_as_buffer */
             Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_GENERIC_TYPE_DEF, /* tp_flags */
+              Ci_Py_TPFLAGS_GENERIC_TYPE_DEF, /* tp_flags */
             0,                               /* tp_doc */
             (traverseproc)spamobj_traverse,  /* tp_traverse */
             (inquiry)spamobj_clear,          /* tp_clear */
@@ -440,7 +443,7 @@ xxclassloader_foo(PyObject *self)
     return 42;
 }
 
-_Py_TYPED_SIGNATURE(xxclassloader_foo, _Py_SIG_INT64, NULL);
+_Py_TYPED_SIGNATURE(xxclassloader_foo, Ci_Py_SIG_INT64, NULL);
 
 static int64_t
 xxclassloader_bar(PyObject *self, int64_t f)
@@ -448,7 +451,7 @@ xxclassloader_bar(PyObject *self, int64_t f)
     return f;
 }
 
-_Py_TYPED_SIGNATURE(xxclassloader_bar, _Py_SIG_INT64, &_Py_Sig_SIZET, NULL);
+_Py_TYPED_SIGNATURE(xxclassloader_bar, Ci_Py_SIG_INT64, &Ci_Py_Sig_SIZET, NULL);
 
 
 static int64_t
@@ -457,11 +460,11 @@ xxclassloader_neg(PyObject *self)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(xxclassloader_neg, _Py_SIG_INT64, NULL);
+_Py_TYPED_SIGNATURE(xxclassloader_neg, Ci_Py_SIG_INT64, NULL);
 
 
 static int no_op_visit(PyObject *obj, PyObject *Py_UNUSED(args)) {
-    if (PyObject_IS_GC(obj) && _PyObject_GC_IS_TRACKED(obj)) {
+    if (PyObject_IS_GC(obj) && PyObject_GC_IsTracked(obj)) {
         return 0;
     }
 
@@ -485,7 +488,8 @@ static int no_op_visit(PyObject *obj, PyObject *Py_UNUSED(args)) {
 PyObject* visit_heap(PyObject *module)
 {
 
-    struct _gc_runtime_state *state = &_PyRuntime.gc;
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    struct _gc_runtime_state *state = &interp->gc;
 
     for (int i = 0; i < NUM_GENERATIONS; i++) {
         PyGC_Head *gc, *list;
@@ -512,9 +516,9 @@ traverse_heap(PyObject *self, PyObject *Py_UNUSED(args))
 
 
 static PyMethodDef xxclassloader_methods[] = {
-    {"foo", (PyCFunction)&xxclassloader_foo_def, METH_TYPED, ""},
-    {"bar", (PyCFunction)&xxclassloader_bar_def, METH_TYPED, ""},
-    {"neg", (PyCFunction)&xxclassloader_neg_def, METH_TYPED, ""},
+    {"foo", (PyCFunction)&xxclassloader_foo_def, Ci_METH_TYPED, ""},
+    {"bar", (PyCFunction)&xxclassloader_bar_def, Ci_METH_TYPED, ""},
+    {"neg", (PyCFunction)&xxclassloader_neg_def, Ci_METH_TYPED, ""},
     {"traverse_heap", traverse_heap, METH_NOARGS},
     {}
 };

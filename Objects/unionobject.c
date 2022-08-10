@@ -5,7 +5,7 @@
 #include "structmember.h"
 
 
-static PyObject *make_union(PyObject *);
+PyObject *make_union(PyObject *);
 
 
 typedef struct {
@@ -467,7 +467,7 @@ PyTypeObject _PyUnion_Type = {
     .tp_getset = union_properties,
 };
 
-static PyObject *
+PyObject *
 make_union(PyObject *args)
 {
     assert(PyTuple_CheckExact(args));
