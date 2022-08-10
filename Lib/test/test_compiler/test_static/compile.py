@@ -31,7 +31,7 @@ from io import StringIO
 from os import path
 from types import ModuleType
 from typing import Callable, Optional, TypeVar
-from unittest import skipIf
+from unittest import skip, skipIf
 from unittest.mock import patch
 
 import xxclassloader
@@ -5186,6 +5186,9 @@ class StaticCompilationTests(StaticTestBase):
                 coro.send(None)
             loop.close()
 
+    @skip(
+        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    )
     def test_async_method_close(self):
         codestr = """
             class C:

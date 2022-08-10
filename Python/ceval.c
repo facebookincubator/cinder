@@ -4952,7 +4952,107 @@ main_loop:
         }
 
         case TARGET(CHECK_ARGS): {
-            PORT_ASSERT("Unsupported: CHECK_ARGS");
+            PyObject *checks = GETITEM(consts, oparg);
+            if (shadow.shadow != NULL) {
+                _PyTypedArgsInfo *shadow_value = _PyClassLoader_GetTypedArgsInfo(co, 0);
+                if (shadow_value != NULL) {
+                    int offset =
+                        _PyShadow_CacheCastType(&shadow, (PyObject *)shadow_value);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, CHECK_ARGS_CACHED, offset);
+                    }
+                    Py_DECREF(shadow_value);
+                }
+            }
+
+            PyObject *local;
+            PyObject *type_descr;
+            PyTypeObject *type;
+            int optional;
+            int exact;
+            for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
+                local = PyTuple_GET_ITEM(checks, i);
+                type_descr = PyTuple_GET_ITEM(checks, i + 1);
+                long idx = PyLong_AsLong(local);
+                PyObject *val;
+                // Look in freevars if necessary
+                if (idx < 0) {
+                    assert(!_PyErr_Occurred(tstate));
+                    val = PyCell_GET(freevars[-(idx + 1)]);
+                } else {
+                    val = fastlocals[idx];
+                }
+
+                type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+                if (type == NULL) {
+                    goto error;
+                }
+
+                int enum_type = _PyClassLoader_IsEnum(type);
+                int primitive = _PyClassLoader_GetTypeCode(type);
+                if (enum_type) {
+                    optional = 0;
+                } else if (primitive == TYPED_BOOL) {
+                    optional = 0;
+                    Py_DECREF(type);
+                    type = &PyBool_Type;
+                    Py_INCREF(type);
+                } else if (primitive <= TYPED_INT64) {
+                    optional = 0;
+                    Py_DECREF(type);
+                    type = &PyLong_Type;
+                    Py_INCREF(type);
+                } else if (primitive == TYPED_DOUBLE) {
+                    optional = 0;
+                    Py_DECREF(type);
+                    type = &PyFloat_Type;
+                    Py_INCREF(type);
+                } else {
+                    assert(primitive == TYPED_OBJECT);
+                }
+
+                if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
+                    PyErr_Format(
+                        PyExc_TypeError,
+                        "%U expected '%s' for argument %U, got '%s'",
+                        co->co_name,
+                        type->tp_name,
+                        idx < 0 ?
+                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
+                            PyTuple_GetItem(co->co_varnames, idx),
+                        Py_TYPE(val)->tp_name);
+                    Py_DECREF(type);
+                    goto error;
+                }
+
+                Py_DECREF(type);
+
+                if (enum_type) {
+                    PyObject *new_val = PyObject_GetAttrString(val, "value");
+                    if (new_val == NULL) {
+                        goto error;
+                    }
+                    if (idx < 0) {
+                        assert(!_PyErr_Occurred(tstate));
+                        PyCell_SET(freevars[-(idx + 1)], new_val);
+                    } else {
+                        fastlocals[idx] = new_val;
+                    }
+                    Py_SETREF(val, new_val);
+                } else if (primitive <= TYPED_INT64) {
+                    size_t value;
+                    if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
+                        PyErr_SetString(
+                            PyExc_OverflowError,
+                            "int overflow"
+                        );
+                        goto error;
+                    }
+                }
+            }
+
+            DISPATCH();
         }
 
         case TARGET(LOAD_CLASS): {
