@@ -3,7 +3,7 @@ import re
 from compiler.pycodegen import PythonCodeGenerator
 from unittest.mock import Mock, patch
 
-from test.support import import_module
+from test.support.import_helper import import_module
 
 from .common import StaticTestBase
 
