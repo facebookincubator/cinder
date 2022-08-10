@@ -9,6 +9,7 @@
 #include "methodobject.h"
 #include "object.h"
 #include "pyport.h"
+#include "pycore_tuple.h"
 #include "structmember.h"
 #include "pycore_object.h"
 #include "classloader.h"
@@ -200,7 +201,6 @@ static struct PyModuleDef_Slot _static_slots[] = {
     {0, NULL},
 };
 
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 PyObject *set_type_code(PyObject *mod, PyObject *const *args, Py_ssize_t nargs) {
     PyTypeObject *type;
     Py_ssize_t code;
@@ -211,7 +211,7 @@ PyObject *set_type_code(PyObject *mod, PyObject *const *args, Py_ssize_t nargs) 
         return NULL;
     }
 
-    PyHeapType_CINDER_EXTRA(type)->type_code = code;
+    Ci_PyHeapType_CINDER_EXTRA(type)->type_code = code;
     Py_RETURN_NONE;
 }
 
@@ -221,7 +221,7 @@ PyObject *is_type_static(PyObject *mod, PyObject *type) {
     Py_RETURN_FALSE;
   }
   pytype = (PyTypeObject *)type;
-  if (pytype->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+  if (pytype->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -235,7 +235,7 @@ PyObject *_set_type_static_impl(PyObject *type, int final) {
     return NULL;
   }
   pytype = (PyTypeObject *)type;
-  pytype->tp_flags |= Py_TPFLAGS_IS_STATICALLY_DEFINED;
+  pytype->tp_flags |= Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED;
 
   /* Inheriting a non-static type which inherits a static type is not sound, and
    * we can only catch it at runtime. The compiler can't see the static base
@@ -247,7 +247,7 @@ PyObject *_set_type_static_impl(PyObject *type, int final) {
 
   for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
     PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-    if (next->tp_flags & Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+    if (next->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
       if (nonstatic_base) {
         PyErr_Format(
           PyExc_TypeError,
@@ -303,6 +303,7 @@ PyObject *set_type_final(PyObject *mod, PyObject *type) {
   return type;
 }
 
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static PyObject *
 _recreate_cm(PyObject *self) {
     Py_INCREF(self);
@@ -868,6 +869,8 @@ static int64_t posix_clock_gettime_ns(PyObject* mod)
 
 _Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
 
+#endif
+
 static Py_ssize_t
 static_property_missing_fget(PyObject *mod, PyObject *self)
 {
@@ -875,7 +878,7 @@ static_property_missing_fget(PyObject *mod, PyObject *self)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fget, _Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
+_Py_TYPED_SIGNATURE(static_property_missing_fget, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
 
 static Py_ssize_t
 static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
@@ -884,7 +887,7 @@ static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fset, _Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
+_Py_TYPED_SIGNATURE(static_property_missing_fset, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
 
 
 /*
@@ -960,7 +963,7 @@ create_overridden_slot_descriptors_with_default(PyTypeObject *type)
     PyTypeObject *next;
     for (Py_ssize_t i = 1; i < mro_size; i++) {
         next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-        if (!(PyType_HasFeature(next,  Py_TPFLAGS_IS_STATICALLY_DEFINED))) {
+        if (!(PyType_HasFeature(next, Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED))) {
             continue;
         }
         assert(next->tp_dict != NULL);
@@ -1261,29 +1264,30 @@ error:
     }
     return cls;
 }
-#endif
 
 static PyMethodDef static_methods[] = {
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
     {"rand", (PyCFunction)&static_rand_def, Ci_METH_TYPED, ""},
+#endif
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
     {"set_type_final", (PyCFunction)(void(*)(void))set_type_final, METH_O, ""},
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
+    {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, Ci_METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
+#endif
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, Ci_METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, Ci_METH_TYPED, ""},
-    {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
     {"__build_cinder_class__",
      (PyCFunction)_static___build_cinder_class__,
      METH_FASTCALL | METH_KEYWORDS,
      ""},
-#endif
     {}
 };
 

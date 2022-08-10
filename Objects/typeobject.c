@@ -12,6 +12,7 @@
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
 #include "pycore_shadowcode.h"
+#include "classloader.h"
 #include "cinder/exports.h"
 #include "Jit/pyjit.h"
 
@@ -2835,6 +2836,7 @@ type_new_alloc(type_new_ctx *ctx)
     type->tp_as_sequence = &et->as_sequence;
     type->tp_as_mapping = &et->as_mapping;
     type->tp_as_buffer = &et->as_buffer;
+    Ci_PyHeapType_CINDER_EXTRA(type)->type_code = TYPED_OBJECT;
 
     type->tp_bases = Py_NewRef(ctx->bases);
     type->tp_base = (PyTypeObject *)Py_NewRef(ctx->base);

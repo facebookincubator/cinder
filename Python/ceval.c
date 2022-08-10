@@ -36,6 +36,7 @@
 #include "setobject.h"
 #include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
 #include "cinder/exports.h"
+#include "classloader.h"
 
 #include <ctype.h>
 
@@ -4869,9 +4870,69 @@ main_loop:
         case TARGET(LOAD_MAPPING_ARG): {
             PORT_ASSERT("Unsupported: LOAD_MAPPING_ARG");
         }
+#define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
+            while (nargs--) {                                     \
+                Py_DECREF(POP());                                 \
+            }                                                     \
+            if (res == NULL) {                                    \
+                goto error;                                       \
+            }                                                     \
+             /* if (awaited && _PyWaitHandle_CheckExact(res)) {       \ */\
+            /*     DISPATCH_EAGER_CORO_RESULT(res, PUSH);            \ */\
+            /* }                                                     \ */\
+            assert(!_PyWaitHandle_CheckExact(res));               \
+            PUSH(res);                                            \
+            DISPATCH();                                           \
 
         case TARGET(INVOKE_FUNCTION): {
-            PORT_ASSERT("Unsupported: INVOKE_FUNCTION");
+            PyObject *value = GETITEM(consts, oparg);
+            Py_ssize_t nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1));
+            PyObject *target = PyTuple_GET_ITEM(value, 0);
+            PyObject *container;
+            PyObject *func = _PyClassLoader_ResolveFunction(target, &container);
+            if (func == NULL) {
+                goto error;
+            }
+            /* Uncomment when we have custom async support.
+             * awaited = IS_AWAITED();
+             */
+            PyObject **sp = stack_pointer - nargs;
+            PyObject *res = _PyObject_Vectorcall(
+                func,
+                sp,
+                /* Uncomment when we have custom async support. */
+                /* (awaited ? _Py_AWAITED_CALL_MARKER : 0) | */
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY | nargs,
+                NULL);
+
+            if (shadow.shadow != NULL && nargs < 0x80) {
+                if (_PyClassLoader_IsImmutable(container)) {
+                    /* frozen type, we don't need to worry about indirecting */
+                    int offset =
+                        _PyShadow_CacheCastType(&shadow, func);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, INVOKE_FUNCTION_CACHED, (nargs<<8) | offset);
+                    }
+                } else {
+                    PyObject **funcptr = _PyClassLoader_GetIndirectPtr(
+                        target,
+                        func,
+                        container
+                    );
+                    int offset =
+                        _PyShadow_CacheFunction(&shadow, funcptr);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, INVOKE_FUNCTION_INDIRECT_CACHED, (nargs<<8) | offset);
+                    }
+                }
+            }
+
+            Py_DECREF(func);
+            Py_DECREF(container);
+
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, /* awaited */0, res);
         }
 
         case TARGET(JUMP_IF_ZERO_OR_POP): {
