@@ -1,9 +1,11 @@
 from __static__ import Array, chkdict, chklist, int64
 
 import inspect
+import unittest
 from cinder import freeze_type
 from compiler.errors import TypedSyntaxError
-from inspect import CO_SUPPRESS_JIT
+
+# from inspect import CO_SUPPRESS_JIT
 from re import escape
 
 from .common import StaticTestBase
@@ -480,6 +482,7 @@ class StaticObjCreationTests(StaticTestBase):
             f = mod.C.__init__
             self.assertNotInBytecode(f, "INVOKE_METHOD")
 
+    @unittest.cinderPortingBrokenTest()
     def test_super_init_no_load_attr_super(self):
         codestr = """
             x = super
