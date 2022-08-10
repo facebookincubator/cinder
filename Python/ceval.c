@@ -4803,8 +4803,83 @@ main_loop:
             PORT_ASSERT("Unsupported: READONLY_OPERATION");
         }
 
+#define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
+            while (nargs--) {                                     \
+                Py_DECREF(POP());                                 \
+            }                                                     \
+            if (res == NULL) {                                    \
+                goto error;                                       \
+            }                                                     \
+             /* if (awaited && _PyWaitHandle_CheckExact(res)) {       \ */\
+            /*     DISPATCH_EAGER_CORO_RESULT(res, PUSH);            \ */\
+            /* }                                                     \ */\
+            assert(!_PyWaitHandle_CheckExact(res));               \
+            PUSH(res);                                            \
+            DISPATCH();                                           \
+
         case TARGET(INVOKE_METHOD): {
-            PORT_ASSERT("Unsupported: INVOKE_METHOD");
+            PyObject *value = GETITEM(consts, oparg);
+            Py_ssize_t nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1)) + 1;
+            PyObject *target = PyTuple_GET_ITEM(value, 0);
+            int is_classmethod = PyTuple_GET_SIZE(value) == 3 && (PyTuple_GET_ITEM(value, 2) == Py_True);
+
+            Py_ssize_t slot = _PyClassLoader_ResolveMethod(target);
+            if (slot == -1) {
+                while (nargs--) {
+                    Py_DECREF(POP());
+                }
+                goto error;
+            }
+
+            assert(*(next_instr - 2) == EXTENDED_ARG);
+            if (shadow.shadow != NULL && nargs < 0x80) {
+                PyMethodDescrObject *method;
+                if ((method = _PyClassLoader_ResolveMethodDef(target)) != NULL) {
+                    int offset =
+                        _PyShadow_CacheCastType(&shadow, (PyObject *)method);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, INVOKE_FUNCTION_CACHED, (nargs<<8) | offset);
+                    }
+                } else {
+                  /* We smuggle in the information about whether the invocation was a classmethod
+                   * in the low bit of the oparg. This is necessary, as without, the runtime won't
+                   * be able to get the correct vtable from self when the type is passed in.
+                   */
+                    _PyShadow_PatchByteCode(&shadow,
+                                            next_instr,
+                                            INVOKE_METHOD_CACHED,
+                                            (slot << 9) | (nargs << 1) | (is_classmethod ? 1 : 0));
+                }
+            }
+
+            PyObject **stack = stack_pointer - nargs;
+            PyObject *self = *stack;
+
+
+            _PyType_VTable *vtable;
+            if (is_classmethod) {
+                vtable = (_PyType_VTable *)(((PyTypeObject *)self)->tp_cache);
+            }
+            else {
+                vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+            }
+
+            assert(!PyErr_Occurred());
+
+            /* TODO(T128335015): Uncomment when we have custom async support. */
+            /* awaited = IS_AWAITED(); */
+            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+                vtable->vt_entries[slot].vte_state,
+                stack,
+                nargs |
+                /* TODO(T128335015): Uncomment when we have custom async support. */
+                /* (awaited ? _Py_AWAITED_CALL_MARKER : 0) | */
+                (is_classmethod ? Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD : 0) |
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY,
+                NULL);
+
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0 /* TODO(T128335015): Replace with awaited */, res);
         }
 
         case TARGET(LOAD_FIELD): {
@@ -4870,20 +4945,6 @@ main_loop:
         case TARGET(LOAD_MAPPING_ARG): {
             PORT_ASSERT("Unsupported: LOAD_MAPPING_ARG");
         }
-#define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
-            while (nargs--) {                                     \
-                Py_DECREF(POP());                                 \
-            }                                                     \
-            if (res == NULL) {                                    \
-                goto error;                                       \
-            }                                                     \
-             /* if (awaited && _PyWaitHandle_CheckExact(res)) {       \ */\
-            /*     DISPATCH_EAGER_CORO_RESULT(res, PUSH);            \ */\
-            /* }                                                     \ */\
-            assert(!_PyWaitHandle_CheckExact(res));               \
-            PUSH(res);                                            \
-            DISPATCH();                                           \
-
         case TARGET(INVOKE_FUNCTION): {
             PyObject *value = GETITEM(consts, oparg);
             Py_ssize_t nargs = PyLong_AsLong(PyTuple_GET_ITEM(value, 1));
