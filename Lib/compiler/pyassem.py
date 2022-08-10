@@ -18,6 +18,7 @@ from .consts import (
     CO_SUPPRESS_JIT,
 )
 from .flow_graph_optimizer import FlowGraphOptimizer
+from .opcodebase import Opcode
 
 
 MAX_COPY_SIZE = 4
@@ -86,8 +87,8 @@ class Instruction:
 
         return f"Instruction({', '.join(args)})"
 
-    def is_jump(self) -> bool:
-        op = opcodes.opcode.opmap[self.opname]
+    def is_jump(self, opcode: Opcode) -> bool:
+        op = opcode.opmap[self.opname]
         return opcodes.opcode.has_jump(op)
 
     def copy(self) -> Instruction:
@@ -935,7 +936,7 @@ class PyFlowGraph(FlowGraph):
                 if next_instr.lineno < 0:
                     next_instr.lineno = prev_lineno
             last_instr = block.insts[-1]
-            if last_instr.is_jump() and last_instr.opname not in {
+            if last_instr.is_jump(self.opcode) and last_instr.opname not in {
                 # Only actual jumps, not exception handlers
                 "SETUP_ASYNC_WITH",
                 "SETUP_WITH",
@@ -977,7 +978,7 @@ class PyFlowGraph(FlowGraph):
         # Copy all exit blocks without line number that are targets of a jump.
         append_after = {}
         for block in self.blocks_in_reverse_allocation_order():
-            if block.insts and (last := block.insts[-1]).is_jump():
+            if block.insts and (last := block.insts[-1]).is_jump(self.opcode):
                 if last.opname in {"SETUP_ASYNC_WITH", "SETUP_WITH", "SETUP_FINALLY"}:
                     continue
                 target = last.target
@@ -1075,7 +1076,7 @@ class PyFlowGraph(FlowGraph):
             if not block.insts:
                 continue
             last = block.insts[-1]
-            if last.is_jump():
+            if last.is_jump(self.opcode):
                 target = last.target
                 while not target.insts and target.next:
                     target = target.next

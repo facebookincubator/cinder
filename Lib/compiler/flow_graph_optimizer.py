@@ -60,7 +60,7 @@ class FlowGraphOptimizer:
             instr = block.insts[instr_index]
 
             target_instr: Instruction | None = None
-            if instr.is_jump():
+            if instr.is_jump(self.graph.opcode):
                 target = instr.target
                 assert target is not None
                 # Skip over empty basic blocks.
@@ -150,8 +150,8 @@ class FlowGraphOptimizer:
         target->i_target using the provided opcode. Return 0 if successful, 1 if
         not; this makes it easier for our callers to revisit the same
         instruction again only if we changed it."""
-        assert instr.is_jump()
-        assert target.is_jump()
+        assert instr.is_jump(self.graph.opcode)
+        assert target.is_jump(self.graph.opcode)
         if instr.lineno == target.lineno and instr.target != target.target:
             instr.target = target.target
             instr.opname = opname
