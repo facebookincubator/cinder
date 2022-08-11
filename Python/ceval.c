@@ -1119,6 +1119,9 @@ fail:
 
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
+static inline void store_field(int field_type, void *addr, PyObject *value);
+static inline PyObject *load_field(int field_type, void *addr);
+
 
 PyObject *
 PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
@@ -4883,12 +4886,92 @@ main_loop:
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0 /* TODO(T128335015): Replace with awaited */, res);
         }
 
+#define FIELD_OFFSET(self, offset) (PyObject **)(((char *)self) + offset)
         case TARGET(LOAD_FIELD): {
-            PORT_ASSERT("Unsupported: LOAD_FIELD");
+            PyObject *field = GETITEM(consts, oparg);
+            int field_type;
+            Py_ssize_t offset =
+                _PyClassLoader_ResolveFieldOffset(field, &field_type);
+            if (offset == -1) {
+                goto error;
+            }
+            PyObject *self = TOP();
+            PyObject *value;
+            if (field_type == TYPED_OBJECT) {
+                value = *FIELD_OFFSET(self, offset);
+                if (shadow.shadow != NULL) {
+                    assert(offset % sizeof(PyObject *) == 0);
+                    _PyShadow_PatchByteCode(&shadow,
+                                            next_instr,
+                                            LOAD_OBJ_FIELD,
+                                            offset / sizeof(PyObject *));
+                }
+
+                if (value == NULL) {
+                    PyObject *name = PyTuple_GET_ITEM(field, PyTuple_GET_SIZE(field) - 1);
+                    PyErr_Format(PyExc_AttributeError,
+                                 "'%.50s' object has no attribute '%U'",
+                                 Py_TYPE(self)->tp_name, name);
+                    goto error;
+                }
+                Py_INCREF(value);
+            } else {
+                if (shadow.shadow != NULL) {
+                    int pos =
+                        _PyShadow_CacheFieldType(&shadow, offset, field_type);
+                    if (pos != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, LOAD_PRIMITIVE_FIELD, pos);
+                    }
+                }
+
+                value =
+                    load_field(field_type, (char *)FIELD_OFFSET(self, offset));
+                if (value == NULL) {
+                    goto error;
+                }
+            }
+            Py_DECREF(self);
+            SET_TOP(value);
+            DISPATCH();
         }
 
         case TARGET(STORE_FIELD): {
-            PORT_ASSERT("Unsupported: STORE_FIELD");
+            PyObject *field = GETITEM(consts, oparg);
+            int field_type;
+            Py_ssize_t offset =
+                _PyClassLoader_ResolveFieldOffset(field, &field_type);
+            if (offset == -1) {
+                goto error;
+            }
+
+            PyObject *self = POP();
+            PyObject *value = POP();
+            PyObject **addr = FIELD_OFFSET(self, offset);
+
+            if (field_type == TYPED_OBJECT) {
+                Py_XDECREF(*addr);
+                *addr = value;
+                if (shadow.shadow != NULL) {
+                    assert(offset % sizeof(PyObject *) == 0);
+                    _PyShadow_PatchByteCode(&shadow,
+                                           next_instr,
+                                           STORE_OBJ_FIELD,
+                                           offset / sizeof(PyObject *));
+                }
+            } else {
+                if (shadow.shadow != NULL) {
+                    int pos =
+                        _PyShadow_CacheFieldType(&shadow, offset, field_type);
+                    if (pos != -1) {
+                        _PyShadow_PatchByteCode(
+                            &shadow, next_instr, STORE_PRIMITIVE_FIELD, pos);
+                    }
+                }
+                store_field(field_type, (char *)addr, value);
+            }
+            Py_DECREF(self);
+            DISPATCH();
         }
 
         case TARGET(SEQUENCE_REPEAT): {
@@ -6245,6 +6328,23 @@ fail:
     return res;
 }
 
+static inline Py_ssize_t
+unbox_primitive_int_and_decref(PyObject *x)
+{
+    assert(PyLong_Check(x));
+    Py_ssize_t res = (Py_ssize_t)PyLong_AsVoidPtr(x);
+    Py_DECREF(x);
+    return res;
+}
+
+static inline int8_t
+unbox_primitive_bool_and_decref(PyObject *x)
+{
+    assert(PyBool_Check(x));
+    int8_t res = (x == Py_True) ? 1 : 0;
+    Py_DECREF(x);
+    return res;
+}
 
 PyObject *
 special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
@@ -7503,6 +7603,88 @@ static inline void try_profile_next_instr(PyFrameObject* f,
           _PyJIT_ProfileCurrentInstr(f, stack_pointer, opcode, oparg);
           break;
         }
+    }
+}
+
+static inline PyObject *
+load_field(int field_type, void *addr)
+{
+    PyObject *value;
+    switch (field_type) {
+    case TYPED_BOOL:
+        value = PyBool_FromLong(*(int8_t *)addr);
+        break;
+    case TYPED_INT8:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((int8_t *)addr));
+        break;
+    case TYPED_INT16:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((int16_t *)addr));
+        break;
+    case TYPED_INT32:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((int32_t *)addr));
+        break;
+    case TYPED_INT64:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((int64_t *)addr));
+        break;
+    case TYPED_UINT8:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((uint8_t *)addr));
+        break;
+    case TYPED_UINT16:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((uint16_t *)addr));
+        break;
+    case TYPED_UINT32:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((uint32_t *)addr));
+        break;
+    case TYPED_UINT64:
+        value = PyLong_FromVoidPtr((void *)(Py_ssize_t) * ((uint64_t *)addr));
+        break;
+    case TYPED_DOUBLE:
+        value = PyFloat_FromDouble(*(double *)addr);
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "unsupported field type");
+        return NULL;
+    }
+    return value;
+}
+
+static inline void
+store_field(int field_type, void *addr, PyObject *value)
+{
+    switch (field_type) {
+    case TYPED_BOOL:
+        *(int8_t *)addr = (int8_t)unbox_primitive_bool_and_decref(value);
+        break;
+    case TYPED_INT8:
+        *(int8_t *)addr = (int8_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_INT16:
+        *(int16_t *)addr = (int16_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_INT32:
+        *(int32_t *)addr = (int32_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_INT64:
+        *(int64_t *)addr = (int64_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_UINT8:
+        *(uint8_t *)addr = (uint8_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_UINT16:
+        *(uint16_t *)addr = (uint16_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_UINT32:
+        *(uint32_t *)addr = (uint32_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_UINT64:
+        *(uint64_t *)addr = (uint64_t)unbox_primitive_int_and_decref(value);
+        break;
+    case TYPED_DOUBLE:
+        *((double*)addr) = PyFloat_AsDouble(value);
+        Py_DECREF(value);
+        break;
+    default:
+        PyErr_SetString(PyExc_RuntimeError, "unsupported field type");
     }
 }
 
