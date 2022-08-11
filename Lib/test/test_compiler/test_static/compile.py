@@ -371,7 +371,7 @@ class StaticCompilationTests(StaticTestBase):
             )
             f()
 
-    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
+    @skip("TODO(T128753821): Support REFINE_TYPE")
     def test_multiply_list_exact_by_int(self):
         codestr = """
             def f() -> int:
@@ -4110,7 +4110,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(42, 42)
 
-    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
     def test_method_prologue_shadowcode(self):
         codestr = """
         def f(x, y: str):
@@ -4126,7 +4125,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f("abc", 42)
 
-    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
     def test_method_prologue_shadowcode_2(self):
         codestr = """
         def f(x: str):
@@ -5264,7 +5262,7 @@ class StaticCompilationTests(StaticTestBase):
             except StopIteration as e:
                 self.assertEqual(e.args, ())
 
-    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
+    @skip("TODO(T128832601): add INVOKE_FUNCTION_CACHED support")
     def test_invoke_frozen_type(self):
         codestr = """
             class C:
@@ -5280,7 +5278,7 @@ class StaticCompilationTests(StaticTestBase):
             for i in range(100):
                 self.assertEqual(g(), 42)
 
-    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
+    @skip("TODO(T128832601): add INVOKE_FUNCTION_CACHED support")
     def test_invoke_strict_module(self):
         codestr = """
             def f():

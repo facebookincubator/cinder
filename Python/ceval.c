@@ -5260,7 +5260,59 @@ main_loop:
         }
 
         case TARGET(CHECK_ARGS_CACHED): {
-            PORT_ASSERT("Unsupported: CHECK_ARGS_CACHED");
+            _PyTypedArgsInfo *checks =
+                (_PyTypedArgsInfo *)_PyShadow_GetCastType(&shadow, oparg);
+            for (int i = 0; i < Py_SIZE(checks); i++) {
+                _PyTypedArgInfo *check = &checks->tai_args[i];
+                long idx = check->tai_argnum;
+                PyObject *val;
+                // Look in freevars if necessary
+                if (idx < 0) {
+                  assert(!_PyErr_Occurred(tstate));
+                  val = PyCell_GET(freevars[-(idx + 1)]);
+                } else {
+                  val = fastlocals[idx];
+                }
+
+                if (!_PyObject_TypeCheckOptional(val, check->tai_type, check->tai_optional, check->tai_exact)) {
+                    PyErr_Format(
+                        PyExc_TypeError,
+                        "%U expected '%s' for argument %U, got '%s'",
+                        co->co_name,
+                        check->tai_type->tp_name,
+                        idx < 0 ?
+                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
+                            PyTuple_GetItem(co->co_varnames, idx),
+                        Py_TYPE(val)->tp_name);
+                    goto error;
+                }
+
+                if (_PyClassLoader_IsEnum(check->tai_type)) {
+                    PyObject* new_val = PyObject_GetAttrString(val, "value");
+                    if (new_val == NULL) {
+                        goto error;
+                    }
+                    if (idx < 0) {
+                        assert(!_PyErr_Occurred(tstate));
+                        PyCell_SET(freevars[-(idx + 1)], new_val);
+                    } else {
+                        fastlocals[idx] = new_val;
+                    }
+                    Py_SETREF(val, new_val);
+                } else if (check->tai_primitive_type != TYPED_OBJECT) {
+                    size_t value;
+                    if (!_PyClassLoader_OverflowCheck(val, check->tai_primitive_type, &value)) {
+                        PyErr_SetString(
+                            PyExc_OverflowError,
+                            "int overflow"
+                        );
+
+                        goto error;
+                    }
+                }
+            }
+
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_STORE_FAST): {
