@@ -1733,7 +1733,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaises(TypedSyntaxError):
             self.compile(codestr)
 
-    @skip("TODO(T128838085): Getting an unexpected 'expected Optional, got C' bug.")
     def test_cast_optional(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
             codestr = """

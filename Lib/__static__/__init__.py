@@ -478,7 +478,7 @@ def _donotcompile(func):
 
 def cast(typ, val):
     union_args = None
-    if type(typ) is _GenericAlias:
+    if isinstance(typ, _GenericAlias):
         typ, args = typ.__origin__, typ.__args__
         if typ is Union:
             union_args = args
