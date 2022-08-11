@@ -52,6 +52,9 @@ PyAPI_FUNC(void) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
 extern int (*Ci_List_APPEND)(PyListObject *list, PyObject *item);
 
+PyAPI_FUNC(PyObject *) Ci_List_Repeat(PyListObject *, Py_ssize_t);
+PyAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
+
 // Originally in Include/object.h
 #define Ci_Py_TPFLAG_CPYTHON_ALLOCATED (1UL << 2)
 #define Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED (1UL << 3)

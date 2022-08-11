@@ -586,6 +586,11 @@ list_repeat(PyListObject *a, Py_ssize_t n)
     return (PyObject *) np;
 }
 
+PyObject *
+Ci_List_Repeat(PyListObject * a, Py_ssize_t n) {
+  return list_repeat(a, n);
+}
+
 static int
 _list_clear(PyListObject *a)
 {

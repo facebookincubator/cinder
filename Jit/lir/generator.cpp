@@ -2052,13 +2052,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kRepeatList: {
         auto instr = static_cast<const RepeatList*>(&i);
         bbb.AppendCall(
-            instr->dst(), _PyList_Repeat, instr->seq(), instr->num());
+            instr->dst(), Ci_List_Repeat, instr->seq(), instr->num());
         break;
       }
       case Opcode::kRepeatTuple: {
         auto instr = static_cast<const RepeatTuple*>(&i);
         bbb.AppendCall(
-            instr->dst(), _PyTuple_Repeat, instr->seq(), instr->num());
+            instr->dst(), Ci_Tuple_Repeat, instr->seq(), instr->num());
         break;
       }
       case Opcode::kMakeCheckedList: {

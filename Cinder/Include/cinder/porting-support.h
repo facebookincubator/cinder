@@ -45,8 +45,6 @@ PyAPI_FUNC(PyObject *) _PyCheckedList_GetItem(PyObject *self, Py_ssize_t);
 PyAPI_FUNC(PyObject *) _PyCheckedList_New(PyTypeObject *type, Py_ssize_t);
 PyAPI_FUNC(int) _PyCheckedList_TypeCheck(PyTypeObject *type);
 
-PyAPI_FUNC(PyObject *) _PyList_Repeat(PyListObject *, Py_ssize_t);
-
 
 // Include/code.h
 #define CO_STATICALLY_COMPILED   0x4000000
@@ -115,10 +113,6 @@ Py_ssize_t PyVectorcall_FLAGS(size_t n);
 PyObject *_PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags);
 
 PyObject *_PyObject_Call1Arg(PyObject *func, PyObject *arg0);
-
-
-// Include/cpython/tupleobject.h
-PyAPI_FUNC(PyObject *) _PyTuple_Repeat(PyTupleObject *, Py_ssize_t);
 
 
 // Include/frameobject.h

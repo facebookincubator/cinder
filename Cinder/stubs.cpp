@@ -44,14 +44,6 @@ STUB(PyObject *, builtin_next, PyObject *, PyObject *const *, Py_ssize_t)
 STUB(PyObject *, _PyBuiltin_Next, PyObject *, PyObject *)
 
 
-// Objects/listobject.c
-STUB(PyObject *, _PyList_Repeat, PyListObject *, Py_ssize_t)
-
-
-// Objects/tupleobject.c
-STUB(PyObject *, _PyTuple_Repeat, PyTupleObject *, Py_ssize_t)
-
-
 // Objects/dictobject.c
 STUB(PyObject *, _PyCheckedDict_New, PyTypeObject *)
 STUB(PyObject *, _PyCheckedDict_NewPresized, PyTypeObject *, Py_ssize_t)

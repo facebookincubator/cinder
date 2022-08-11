@@ -592,6 +592,11 @@ tuplerepeat(PyTupleObject *a, Py_ssize_t n)
     return (PyObject *) np;
 }
 
+PyObject *
+Ci_Tuple_Repeat(PyTupleObject *a, Py_ssize_t n) {
+    return tuplerepeat(a, n);
+}
+
 /*[clinic input]
 tuple.index
 
