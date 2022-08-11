@@ -28,7 +28,6 @@ from ast import (
     IfExp,
     Import,
     ImportFrom,
-    Index,
     Is,
     IsNot,
     JoinedStr,

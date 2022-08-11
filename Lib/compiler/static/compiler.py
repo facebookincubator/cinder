@@ -69,18 +69,12 @@ class StrictBuiltins(Object[Class]):
     ) -> None:
         slice = node.slice
         type = visitor.type_env.DYNAMIC
-        if isinstance(slice, ast.Index):
-            val = slice.value
-            if isinstance(val, ast.Str):
-                builtin = self.builtins.get(val.s)
+        if isinstance(slice, ast.Constant):
+            svalue = slice.value
+            if isinstance(svalue, str):
+                builtin = self.builtins.get(svalue)
                 if builtin is not None:
                     type = builtin
-            elif isinstance(val, ast.Constant):
-                svalue = val.value
-                if isinstance(svalue, str):
-                    builtin = self.builtins.get(svalue)
-                    if builtin is not None:
-                        type = builtin
 
         visitor.set_type(node, type)
 

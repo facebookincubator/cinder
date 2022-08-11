@@ -2205,24 +2205,22 @@ class GenericClass(Class):
     ) -> Optional[Value]:
         slice = node.slice
 
-        if not isinstance(slice, ast.Index):
+        if isinstance(slice, ast.Slice):
             visitor.syntax_error("can't slice generic types", node)
             return visitor.type_env.DYNAMIC
 
-        val = slice.value
-
         expected_argnum = len(self.gen_name.args)
-        if isinstance(val, ast.Tuple):
+        if isinstance(slice, ast.Tuple):
             multiple: List[Class] = []
-            for elt in val.elts:
+            for elt in slice.elts:
                 klass = visitor.resolve_annotation(elt) or self.type_env.dynamic
                 multiple.append(klass)
 
             index = tuple(multiple)
-            actual_argnum = len(val.elts)
+            actual_argnum = len(slice.elts)
         else:
             actual_argnum = 1
-            single = visitor.resolve_annotation(val) or self.type_env.dynamic
+            single = visitor.resolve_annotation(slice) or self.type_env.dynamic
             index = (single,)
 
         if (not self.is_variadic) and actual_argnum != expected_argnum:
@@ -7758,25 +7756,23 @@ class AnnotatedType(Class):
     ) -> Optional[Value]:
         slice = node.slice
 
-        if not isinstance(slice, ast.Index):
+        if isinstance(slice, ast.Slice):
             visitor.syntax_error("can't slice generic types", node)
             return visitor.type_env.DYNAMIC
 
-        val = slice.value
-
-        if not isinstance(val, ast.Tuple) or len(val.elts) <= 1:
+        if not isinstance(slice, ast.Tuple) or len(slice.elts) <= 1:
             visitor.syntax_error(
                 "Annotated types must be parametrized by at least one annotation.", node
             )
             return None
-        actual_type, *annotations = val.elts
+        actual_type, *annotations = slice.elts
         actual_type = visitor.resolve_annotation(actual_type)
         if actual_type is None:
             return visitor.type_env.DYNAMIC
         if (
             len(annotations) == 1
             and isinstance(annotations[0], ast.Constant)
-            and annotations[0].value == "Exact"
+            and cast(ast.Constant, annotations[0]).value == "Exact"
             and isinstance(actual_type, Class)
         ):
             return self.type_env.exact.make_generic_type((actual_type,))
@@ -7792,19 +7788,17 @@ class LiteralType(Class):
     ) -> Optional[Value]:
         slice = node.slice
 
-        if not isinstance(slice, ast.Index):
+        if isinstance(slice, ast.Slice):
             visitor.syntax_error("can't slice generic types", node)
             return visitor.type_env.DYNAMIC
 
-        val = slice.value
-
-        if isinstance(val, ast.Tuple):
+        if isinstance(slice, ast.Tuple):
             # TODO support multi-value literal types
             return visitor.type_env.DYNAMIC
-        if not isinstance(val, ast.Constant):
+        if not isinstance(slice, ast.Constant):
             visitor.syntax_error("Literal must be parametrized by a constant", node)
             return visitor.type_env.DYNAMIC
-        literal_value = val.value
+        literal_value = slice.value
         if isinstance(literal_value, bool):
             return self.type_env.get_literal_type(
                 self.type_env.bool.instance, literal_value
@@ -7852,16 +7846,14 @@ class ReadonlyType(Class):
     ) -> Optional[Value]:
         slice = node.slice
 
-        if not isinstance(slice, ast.Index):
+        if isinstance(slice, ast.Slice):
             visitor.syntax_error("can't slice generic types", node)
             return visitor.type_env.DYNAMIC
 
-        val = slice.value
-
-        if isinstance(val, ast.Tuple):
+        if isinstance(slice, ast.Tuple):
             visitor.syntax_error("can't have multiple readonly indices", node)
             return visitor.type_env.DYNAMIC
-        actual_type = visitor.resolve_annotation(val)
+        actual_type = visitor.resolve_annotation(slice)
         if actual_type is None:
             actual_type = visitor.type_env.dynamic
         return actual_type.readonly_type()
