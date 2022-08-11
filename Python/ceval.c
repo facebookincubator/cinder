@@ -5167,7 +5167,43 @@ main_loop:
         }
 
         case TARGET(LOAD_MAPPING_ARG): {
-            PORT_ASSERT("Unsupported: LOAD_MAPPING_ARG");
+            PyObject *name = POP();
+            PyObject *mapping = POP();
+
+            if (!PyDict_Check(mapping) && !_PyCheckedDict_Check(mapping)) {
+                PyErr_Format(PyExc_TypeError,
+                             "argument after ** "
+                             "must be a dict, not %.200s",
+                             mapping->ob_type->tp_name);
+                Py_DECREF(name);
+                Py_DECREF(mapping);
+                goto error;
+            }
+
+            PyObject *value = PyDict_GetItemWithError(mapping, name);
+            if (value == NULL) {
+                if (_PyErr_Occurred(tstate)) {
+                    Py_DECREF(name);
+                    Py_DECREF(mapping);
+                    goto error;
+                } else if (oparg == 2) {
+                    PyErr_Format(PyExc_TypeError, "missing argument %U", name);
+                    goto error;
+                } else {
+                    /* Default value is on the stack */
+                    Py_DECREF(name);
+                    Py_DECREF(mapping);
+                    DISPATCH();
+                }
+            } else if (oparg == 3) {
+                /* Remove default value */
+                Py_DECREF(POP());
+            }
+            Py_XINCREF(value);
+            Py_DECREF(name);
+            Py_DECREF(mapping);
+            PUSH(value);
+            DISPATCH();
         }
         case TARGET(INVOKE_FUNCTION): {
             PyObject *value = GETITEM(consts, oparg);

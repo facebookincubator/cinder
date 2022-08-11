@@ -2298,7 +2298,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128763597): LOAD_MAPPING_ARG not supported")
     def test_starargs_invoked_once(self):
         codestr = """
             X = 0
@@ -2319,7 +2318,6 @@ class StaticCompilationTests(StaticTestBase):
         compiled = self.compile(codestr)
         self.assertEqual(compiled.co_nlocals, 1)
 
-    @skip("TODO(T128763597): LOAD_MAPPING_ARG not supported")
     def test_starargs_invoked_in_order(self):
         codestr = """
             X = 1
