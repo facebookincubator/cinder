@@ -5248,7 +5248,24 @@ main_loop:
         }
 
         case TARGET(INVOKE_FUNCTION_CACHED): {
-            PORT_ASSERT("Unsupported: INVOKE_FUNCTION_CACHED");
+            PyObject *func = _PyShadow_GetCastType(&shadow, oparg & 0xff);
+            Py_ssize_t nargs = oparg >> 8;
+#ifdef CINDER_DONE_PORTING
+            awaited = IS_AWAITED();
+#endif
+
+            PyObject **sp = stack_pointer - nargs;
+            PyObject *res = _PyObject_Vectorcall(
+                func,
+                sp,
+                nargs |
+#ifdef CINDER_DONE_PORTING
+                (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
+#endif
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY,
+                NULL);
+
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
 
         case TARGET(INVOKE_FUNCTION_INDIRECT_CACHED): {

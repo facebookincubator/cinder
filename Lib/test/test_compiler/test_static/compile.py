@@ -5262,7 +5262,6 @@ class StaticCompilationTests(StaticTestBase):
             except StopIteration as e:
                 self.assertEqual(e.args, ())
 
-    @skip("TODO(T128832601): add INVOKE_FUNCTION_CACHED support")
     def test_invoke_frozen_type(self):
         codestr = """
             class C:
@@ -5278,7 +5277,6 @@ class StaticCompilationTests(StaticTestBase):
             for i in range(100):
                 self.assertEqual(g(), 42)
 
-    @skip("TODO(T128832601): add INVOKE_FUNCTION_CACHED support")
     def test_invoke_strict_module(self):
         codestr = """
             def f():
