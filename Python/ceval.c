@@ -5184,7 +5184,7 @@ main_loop:
         }
 
         case TARGET(REFINE_TYPE): {
-            PORT_ASSERT("Unsupported: REFINE_TYPE");
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_LOAD_CONST): {

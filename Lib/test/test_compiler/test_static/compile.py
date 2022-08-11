@@ -357,7 +357,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), list(range(10)))
             self.assert_jitted(f)
 
-    @skip("TODO(T128753821): Support REFINE_TYPE")
     def test_exact_invoke_function(self):
         codestr = """
             def f() -> str:
@@ -371,7 +370,7 @@ class StaticCompilationTests(StaticTestBase):
             )
             f()
 
-    @skip("TODO(T128753821): Support REFINE_TYPE")
+    @skip("TODO(T128833190): Add SEQUENCE_REPEAT support")
     def test_multiply_list_exact_by_int(self):
         codestr = """
             def f() -> int:
@@ -383,7 +382,7 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), 6)
 
-    @skip("TODO(T128753821): Support REFINE_TYPE")
+    @skip("TODO(T128833190): Add SEQUENCE_REPEAT support")
     def test_multiply_list_exact_by_int_reverse(self):
         codestr = """
             def f() -> int:
@@ -5747,7 +5746,7 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertEqual(g(), 3)
 
-    @skip("TODO(T128753821): Support REFINE_TYPE")
+    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
     def test_inline_arg_type(self):
         codestr = """
             from __static__ import box, inline, int64, int32
