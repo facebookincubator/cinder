@@ -1271,7 +1271,7 @@ class StaticCompilationTests(StaticTestBase):
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(C()), 42)
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_class_method_invoke(self):
         codestr = """
             class B:
@@ -2537,7 +2537,7 @@ class StaticCompilationTests(StaticTestBase):
         f = self.find_code(self.compile(codestr))
         self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "int")))
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_field_refcount(self):
         codestr = """
             class C:
@@ -2567,7 +2567,7 @@ class StaticCompilationTests(StaticTestBase):
             del c
             self.assertEqual(count, 0)
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_typed_field_del(self):
         codestr = """
             class D:
@@ -2597,7 +2597,7 @@ class StaticCompilationTests(StaticTestBase):
             del a
             self.assertEqual(counter[0], 0)
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_typed_field_deleted_attr(self):
         codestr = """
             class C:
@@ -3920,7 +3920,7 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 C()
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_module_subclass(self):
         codestr = """
         from typing import Optional
@@ -4032,7 +4032,7 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(D())
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_dynamic_base(self):
         nonstatic_code = """
             class Foo:
@@ -4312,7 +4312,7 @@ class StaticCompilationTests(StaticTestBase):
             Richards = mod.Richards
             self.assertTrue(Richards().run(1))
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_unknown_isinstance_bool_ret(self):
         codestr = """
             from typing import Any
@@ -4331,7 +4331,7 @@ class StaticCompilationTests(StaticTestBase):
             y = C("foo")
             self.assertTrue(x == y)
 
-    @skip("TODO(T128763898): STORE_FIELD not supported")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_unknown_issubclass_bool_ret(self):
         codestr = """
             from typing import Any
