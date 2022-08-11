@@ -5004,7 +5004,55 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_BOX");
+            PyObject *type_descr = GETITEM(consts, oparg);
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+            if (type == NULL) {
+                goto error;
+            }
+
+            PyObject *val = TOP();
+            int code = _PyClassLoader_GetTypeCode(type);
+            if ((code & (TYPED_INT_SIGNED)) && code != (TYPED_DOUBLE)) {
+                /* We have a boxed value on the stack already, but we may have to
+                 * deal with sign extension */
+                size_t ival = (size_t)PyLong_AsVoidPtr(val);
+                if (ival & ((size_t)1) << 63) {
+                    PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
+                    SET_TOP(new_val);
+                    Py_SETREF(val, new_val);
+                }
+            }
+
+            if (_PyClassLoader_IsEnum(type)) {
+                PyObject *enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+                if (enum_val == NULL) {
+                    Py_DECREF(type);
+                    goto error;
+                }
+                SET_TOP(enum_val);
+                Py_DECREF(val);
+                if (shadow.shadow != NULL) {
+                   int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
+                   if (offset != -1) {
+                       _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_ENUM, offset);
+                   }
+                }
+            } else if (shadow.shadow != NULL) {
+                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_NUMERIC, code);
+            }
+
+            Py_DECREF(type);
+            DISPATCH();
+        }
+
+        case TARGET(PRIMITIVE_BOX_ENUM): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_BOX_ENUM");
+        }
+
+        case TARGET(PRIMITIVE_BOX_NUMERIC): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_BOX_NUMERIC");
         }
 
         case TARGET(POP_JUMP_IF_ZERO): {

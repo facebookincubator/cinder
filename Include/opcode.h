@@ -174,6 +174,8 @@ extern "C" {
   X(TP_ALLOC,                        200) \
   X(BUILD_CHECKED_LIST,              201) \
   X(LOAD_TYPE,                       202) \
+  X(PRIMITIVE_BOX_ENUM,              203) \
+  X(PRIMITIVE_BOX_NUMERIC,           204) \
   X(LOAD_METHOD_UNSHADOWED_METHOD,   205) \
   X(LOAD_METHOD_TYPE_METHODLIKE,     206) \
   X(BUILD_CHECKED_LIST_CACHED,       207) \

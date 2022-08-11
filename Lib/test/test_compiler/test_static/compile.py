@@ -370,7 +370,6 @@ class StaticCompilationTests(StaticTestBase):
             )
             f()
 
-    @skip("TODO(T128834914): Support PRIMITIVE_BOX")
     def test_multiply_list_exact_by_int(self):
         codestr = """
             def f() -> int:
@@ -382,7 +381,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), 6)
 
-    @skip("TODO(T128834914): Support PRIMITIVE_BOX")
     def test_multiply_list_exact_by_int_reverse(self):
         codestr = """
             def f() -> int:
