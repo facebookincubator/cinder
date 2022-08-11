@@ -737,6 +737,9 @@ class PyFlowGraph(FlowGraph):
     def sort_cellvars(self):
         self.closure = self.cellvars + self.freevars
 
+    # TODO(T128853358): pull out all converters for static/readonly opcodes into
+    # StaticPyFlowGraph and ReadonlyPyFlowGraph subclasses
+
     def _convert_LOAD_CONST(self, arg: object) -> int:
         getCode = getattr(arg, "getCode", None)
         if getCode is not None:
@@ -832,6 +835,14 @@ class PyFlowGraph(FlowGraph):
         "FUNC_CREDENTIAL": _convert_LOAD_CONST,
         "READONLY_OPERATION": _convert_LOAD_CONST,
     }
+
+    # Converters which add an entry to co_consts
+    _const_converters = {_convert_LOAD_CONST, _convert_LOAD_LOCAL, _convert_LOAD_SUPER}
+    # Opcodes which reference an entry in co_consts
+    _const_opcodes = set()
+    for op, converter in _converters.items():
+        if converter in _const_converters:
+            _const_opcodes.add(op)
 
     # Opcodes which do not add names to co_consts/co_names/co_varnames in dead code (self.do_not_emit_bytecode)
     _quiet_opcodes = {
@@ -1164,7 +1175,10 @@ class PyFlowGraph(FlowGraph):
         max_const_index = 0
         for block in self.ordered_blocks:
             for instr in block.insts:
-                if instr.opname == "LOAD_CONST" and instr.ioparg > max_const_index:
+                if (
+                    instr.opname in self._const_opcodes
+                    and instr.ioparg > max_const_index
+                ):
                     max_const_index = instr.ioparg
         self.consts = {
             key: index for key, index in self.consts.items() if index <= max_const_index

@@ -357,6 +357,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), list(range(10)))
             self.assert_jitted(f)
 
+    @skip("TODO(T128753821): Support REFINE_TYPE")
     def test_exact_invoke_function(self):
         codestr = """
             def f() -> str:
@@ -879,6 +880,7 @@ class StaticCompilationTests(StaticTestBase):
             c = C()
             self.assertEqual(x(c), 2)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived(self):
         codestr = """
             class C:
@@ -908,7 +910,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(a, 2)
             self.assertEqual(b, 4)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_base_inited(self):
         """when the base class v-table is initialized before a derived
         class we still have a properly initialized v-table for the
@@ -956,6 +957,7 @@ class StaticCompilationTests(StaticTestBase):
             a = mod.a
             self.assertEqual(a, 2)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc(self):
         codestr = """
             class C:
@@ -988,6 +990,7 @@ class StaticCompilationTests(StaticTestBase):
                 d = D()
                 self.assertEqual(x(d), 84)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_slots(self):
         codestr = """
             class C:
@@ -1021,6 +1024,7 @@ class StaticCompilationTests(StaticTestBase):
                 d = D()
                 self.assertEqual(x(d), 84)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor(self):
         codestr = """
             class C:
@@ -1055,6 +1059,7 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(x(d), 84)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_data_descriptor(self):
         codestr = """
             class C:
@@ -1092,6 +1097,7 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(x(d), 84)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor_inst_override(self):
         codestr = """
             class C:
@@ -1128,6 +1134,7 @@ class StaticCompilationTests(StaticTestBase):
             d.__dict__["f"] = lambda x: 100
             self.assertEqual(x(d), 200)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor_modified(self):
         codestr = """
             class C:
@@ -1168,6 +1175,7 @@ class StaticCompilationTests(StaticTestBase):
                 del Descr.__get__
                 self.assertEqual(x(d), 46)
 
+    @skip("TODO(T128791885): null vtable")
     def test_invoke_dict_override(self):
         codestr = """
             class C:
@@ -1248,7 +1256,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(x(mod.D()), 4)
             self.assertEqual(x(mod.E()), 2)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_unknown_annotation(self):
         codestr = """
             def foo():
@@ -1265,6 +1272,7 @@ class StaticCompilationTests(StaticTestBase):
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(C()), 42)
 
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_class_method_invoke(self):
         codestr = """
             class B:
@@ -1419,7 +1427,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_compat_override_method_extra_kwarg(self):
         codestr = """
             class A:
@@ -1763,9 +1770,6 @@ class StaticCompilationTests(StaticTestBase):
             self.find_code(module, name="func").co_flags & CO_STATICALLY_COMPILED
         )
 
-    @skip(
-        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
-    )
     def test_invoke_kws(self):
         codestr = """
         class C:
@@ -1836,7 +1840,6 @@ class StaticCompilationTests(StaticTestBase):
             )
             self.assertEqual(f(), 6)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_method_non_static_base(self):
         codestr = """
         class C(Exception):
@@ -2011,7 +2014,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_kwdefaults(self):
         codestr = """
             def x(*, b: str="hunter2"):
@@ -2021,7 +2023,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.z, "lol")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_kwdefaults_no_value(self):
         codestr = """
             def x(*, b: str="hunter2"):
@@ -2034,7 +2035,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.a, "hunter2")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_kwdefaults_with_value(self):
         codestr = """
             def x(*, b: str="hunter2"):
@@ -2047,7 +2047,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.a, "hunter3")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_lambda(self):
         codestr = """
             x = lambda x: x
@@ -2056,7 +2055,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.a, "hi")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_lambda_keyword_only(self):
         codestr = """
             x = lambda *, x: x
@@ -2081,7 +2079,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.a, "hi")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_verify_arg_dynamic_type(self):
         codestr = """
             def x(v:str):
@@ -2189,7 +2186,6 @@ class StaticCompilationTests(StaticTestBase):
             dis.dis(f, file=io)
             self.assertEqual(1, io.getvalue().count("TP_ALLOC"))
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_call_function_unknown_ret_type(self):
         codestr = """
             from __future__ import annotations
@@ -2453,7 +2449,6 @@ class StaticCompilationTests(StaticTestBase):
                 test, "INVOKE_FUNCTION", (("builtins", "tuple", "count"), 2)
             )
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_varargs_call(self):
         codestr = """
             def g(*foo):
@@ -2467,7 +2462,6 @@ class StaticCompilationTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(test(), (2,))
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_kwargs_call(self):
         codestr = """
             def g(**foo):
@@ -2531,7 +2525,7 @@ class StaticCompilationTests(StaticTestBase):
         f = self.find_code(self.compile(codestr))
         self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "int")))
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_field_refcount(self):
         codestr = """
             class C:
@@ -2591,7 +2585,7 @@ class StaticCompilationTests(StaticTestBase):
             del a
             self.assertEqual(counter[0], 0)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_typed_field_deleted_attr(self):
         codestr = """
             class C:
@@ -3385,7 +3379,6 @@ class StaticCompilationTests(StaticTestBase):
             X = mod.X
             self.assertEqual(X, 60 * 60 * 24)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_with_traceback(self):
         codestr = """
             def f():
@@ -3935,7 +3928,6 @@ class StaticCompilationTests(StaticTestBase):
             c = C()
             self.assertEqual(c.x, None)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_and_raise_shadow_frame_strictmod(self):
         codestr = """
         from __static__.compiler_flags import shadow_frame
@@ -3958,7 +3950,6 @@ class StaticCompilationTests(StaticTestBase):
                 ((mod.__name__, "x"), 0),
             )
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_override_okay(self):
         codestr = """
         class B:
@@ -4005,7 +3996,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(b), b)
             self.assertEqual(f(d), None)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_override_bad_ret(self):
         codestr = """
         class B:
@@ -4028,6 +4018,7 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(D())
 
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_dynamic_base(self):
         nonstatic_code = """
             class Foo:
@@ -4267,7 +4258,6 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.f
             self.assertInBytecode(f, "LOAD_ATTR", "foo")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_class_unknown_decorator(self):
         codestr = """
             def dec(f):
@@ -4310,7 +4300,7 @@ class StaticCompilationTests(StaticTestBase):
             Richards = mod.Richards
             self.assertTrue(Richards().run(1))
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_unknown_isinstance_bool_ret(self):
         codestr = """
             from typing import Any
@@ -4329,7 +4319,7 @@ class StaticCompilationTests(StaticTestBase):
             y = C("foo")
             self.assertTrue(x == y)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128763898): STORE_FIELD not supported")
     def test_unknown_issubclass_bool_ret(self):
         codestr = """
             from typing import Any
@@ -4474,7 +4464,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128787977): STORE_FIELD.")
     def test_unknown_param_ann(self):
         codestr = """
             from typing import Any
@@ -4493,7 +4483,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(C.__eq__, "CHECK_ARGS", (0, (mod.__name__, "C")))
             self.assertNotEqual(x, x)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_ret_type_cast(self):
         codestr = """
             from typing import Any
@@ -4514,7 +4503,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_bind_boolop_type(self):
         codestr = """
             from typing import Any
@@ -4538,7 +4526,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(c.x(), False)
             self.assertEqual(c.y(), True)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_bind_none_compare_op(self):
         codestr = """
             from typing import Any
@@ -4573,7 +4560,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), 42)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_decorated_function_ignored_class(self):
         codestr = """
             class C:
@@ -4590,7 +4576,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(C.y, "INVOKE_METHOD")
             self.assertEqual(C().y(), 42)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_decorated_function_ignored(self):
         codestr = """
             class C: pass
@@ -4872,7 +4857,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int")):
             self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_inferred_module_global_assign_subclass(self):
         codestr = """
             class MyList(list):
@@ -4959,6 +4943,9 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    @skip(
+        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    )
     def test_async_method_override(self):
         codestr = """
             class C:
@@ -5277,7 +5264,7 @@ class StaticCompilationTests(StaticTestBase):
             except StopIteration as e:
                 self.assertEqual(e.args, ())
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
     def test_invoke_frozen_type(self):
         codestr = """
             class C:
@@ -5293,7 +5280,7 @@ class StaticCompilationTests(StaticTestBase):
             for i in range(100):
                 self.assertEqual(g(), 42)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128753649) add CHECK_ARGS_CACHED support")
     def test_invoke_strict_module(self):
         codestr = """
             def f():
@@ -5308,9 +5295,6 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertEqual(g(), 42)
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
 
-    @skip(
-        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
-    )
     def test_invoke_with_cell(self):
         codestr = """
             def f(l: list):
@@ -5325,9 +5309,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(g(), [3, 4, 5])
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 1))
 
-    @skip(
-        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
-    )
     def test_invoke_with_cell_arg(self):
         codestr = """
             def f(l: list, x: int):
@@ -5375,7 +5356,6 @@ class StaticCompilationTests(StaticTestBase):
             )
             self.assertEqual(f(), 119)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_strict_module_deep(self):
         codestr = """
             def f0(): return 42
@@ -5400,7 +5380,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(g(), 42)
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f11"), 0))
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     @disable_hir_inliner
     def test_invoke_strict_module_deep_unjitable(self):
         codestr = """
@@ -5439,7 +5418,6 @@ class StaticCompilationTests(StaticTestBase):
                 ((mod.__name__, "f1"), 0),
             )
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_strict_module_deep_unjitable_many_args(self):
         codestr = """
             def f0(): return 42
@@ -5518,7 +5496,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assert_jitted(fib1)
             self.assertEqual(fib(4), 3)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_invoke_strict_module_pre_invoked(self):
         codestr = """
             def f():
@@ -5602,7 +5579,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.type_error(codestr, r"type mismatch: str cannot be assigned to int")
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_slotification_decorated(self):
         codestr = """
             class _Inner():
@@ -5667,7 +5643,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(g, "LOAD_CONST", 3)
             self.assertEqual(g(), 3)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_inline_bare_return(self):
         codestr = """
             from __static__ import inline
@@ -5776,6 +5751,7 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertEqual(g(), 3)
 
+    @skip("TODO(T128753821): Support REFINE_TYPE")
     def test_inline_arg_type(self):
         codestr = """
             from __static__ import box, inline, int64, int32
@@ -5845,7 +5821,7 @@ class StaticCompilationTests(StaticTestBase):
             at="i ==",
         )
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
+    @skip("TODO(T128790026): LOAD_PRIMITIVE_CONST")
     def test_compare_with_attr(self):
         codestr = """
         from __static__ import cbool
@@ -5906,7 +5882,6 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_except_inexact(self):
         codestr = """
         def f(unknown_exception):
@@ -5934,9 +5909,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(f, "TP_ALLOC")
             self.assertEqual(f().c, 1)
 
-    @skip(
-        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
-    )
     def test_nested_comprehension_compiles(self):
         codestr = """
         def foo():
@@ -5948,9 +5920,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.bar(), [6])
 
-    @skip(
-        "TODO(T128753428): This is crashing due to a non-tuple being passed into _PyClassLoader_ResolveFunction"
-    )
     def test_nested_dict_comprehension_compiles(self):
         codestr = """
         def foo():
@@ -5962,7 +5931,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.bar(), {1: 5})
 
-    @skip("TODO(T128751827): The bytecode generation has bugs.")
     def test_dunder_name(self):
         codestr = """
         class MyClass:
