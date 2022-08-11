@@ -132,23 +132,27 @@ static void incref(x86::Builder& as, x86::Gp reg, x86::Gp tmp) {
   as.bind(end_decref);
 }
 
-static void shiftargs_for_prepend(x86::Builder& as, PyObject* func) {
-  as.mov(x86::rcx, x86::rdx);
-  as.mov(x86::rdx, x86::rsi);
-  as.mov(x86::rsi, x86::rdi);
-  as.mov(x86::rdi, (uint64_t)func);
+static PyObject* call_PyObject_Call_Prepend_with_tstate(
+    void*, // Empty space to be filled in with tstate
+    PyObject* callable, // These args can pass right through
+    PyObject* obj,
+    PyObject* args,
+    PyObject* kwargs) {
+  return _PyObject_Call_Prepend(
+      _PyThreadState_GET(), callable, obj, args, kwargs);
 }
 
 static void gen_fused_call_slot(x86::Builder& as, PyObject* callfunc) {
-#ifdef CINDER_PORTING_DONE
-  shiftargs_for_prepend(as, callfunc);
-  as.mov(x86::rax, (uint64_t)_PyObject_Call_Prepend);
+  // Shift args along so they line up with the call below.
+  as.mov(x86::r8, x86::rdx);
+  as.mov(x86::rcx, x86::rsi);
+  as.mov(x86::rdx, x86::rdi);
+  as.mov(x86::rsi, reinterpret_cast<uint64_t>(callfunc));
+  // RDI left empty so it can be filled in with tstate in call below.
+  as.mov(
+      x86::rax,
+      reinterpret_cast<uint64_t>(call_PyObject_Call_Prepend_with_tstate));
   as.jmp(x86::rax);
-#else
-  PORT_ASSERT("_PyObject_Call_Prepend needs tstate in 3.10");
-  (void)as;
-  (void)callfunc;
-#endif
 }
 
 ternaryfunc SlotGen::genCallSlot(
@@ -192,16 +196,8 @@ reprfunc SlotGen::genReprFuncSlot(
 PyObject* getattr_fallback(PyObject* self, PyObject* func, PyObject* name) {
   if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
     PyErr_Clear();
-#ifdef CINDER_PORTING_DONE
     PyObject* args[2] = {self, name};
-    return _PyFunction_FastCallDict(func, args, 2, NULL);
-#else
-    PORT_ASSERT("Switch to PyObject_VectorcallDict?");
-    // Should work but maybe there is a perf implication?
-    (void)self;
-    (void)func;
-    (void)name;
-#endif
+    return PyObject_Vectorcall(func, args, 2, NULL);
   }
   return NULL;
 }

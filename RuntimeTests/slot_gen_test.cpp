@@ -10,8 +10,6 @@
 #include "RuntimeTests/fixtures.h"
 #include "RuntimeTests/testutil.h"
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 class SlotGenTest : public RuntimeTest {
  public:
   void SetUp() override {
@@ -21,7 +19,6 @@ class SlotGenTest : public RuntimeTest {
   }
 
   Ref<> makeRawInstance(PyObject* type, PyObject* args, PyObject* kwargs) {
-#ifdef CINDER_PORTING_DONE
     auto dunder_new = Ref<>::steal(PyUnicode_FromString("__new__"));
     if (dunder_new.get() == nullptr) {
       return Ref<>(nullptr);
@@ -32,13 +29,8 @@ class SlotGenTest : public RuntimeTest {
       return Ref<>(nullptr);
     }
 
-    return Ref<>::steal(_PyObject_Call_Prepend(func, type, args, kwargs));
-#else
-    PORT_ASSERT("_PyObject_Call_Prepend needs tstate in 3.10");
-    (void)type;
-    (void)args;
-    (void)kwargs;
-#endif
+    return Ref<>::steal(
+        _PyObject_Call_Prepend(_PyThreadState_GET(), func, type, args, kwargs));
   }
 
   void TearDown() override {
@@ -84,7 +76,7 @@ TEST_F(SlotGenTest, SimpleCallFuncGeneration) {
   const char* src = R"(
 class Foo:
     def __call__(self, *args, **kwargs):
-        return "foo is the magic number"
+        return f"{args[0]} is the magic number"
 )";
   Ref<PyTypeObject> foo(compileAndGet(src, "Foo"));
   ASSERT_NE(foo.get(), nullptr) << "Failed creating foo";
@@ -98,17 +90,21 @@ class Foo:
   ternaryfunc tp_call = slot_gen_->genCallSlot(foo, callfunc);
   ASSERT_NE(tp_call, nullptr);
 
-  auto args = Ref<>::steal(PyTuple_New(0));
-  ASSERT_NE(args, nullptr) << "Failed creating args";
+  auto new_args = Ref<>::steal(PyTuple_New(0));
+  ASSERT_NE(new_args, nullptr) << "Failed creating new_args";
 
-  Ref<PyObject> instance(
-      makeRawInstance(reinterpret_cast<PyObject*>(foo.get()), args, nullptr));
+  Ref<PyObject> instance(makeRawInstance(
+      reinterpret_cast<PyObject*>(foo.get()), new_args, nullptr));
+  ASSERT_NE(new_args, nullptr) << "Failed creating instance";
+
+  auto args = Ref<>::steal(PyTuple_Pack(1, PyLong_FromLong(42)));
+  ASSERT_NE(args, nullptr) << "Failed creating args";
 
   auto result = Ref<>::steal(tp_call(instance, args, nullptr));
   ASSERT_NE(args, nullptr);
 
   int cmp_res =
-      PyUnicode_CompareWithASCIIString(result, "foo is the magic number");
+      PyUnicode_CompareWithASCIIString(result, "42 is the magic number");
   ASSERT_EQ(cmp_res, 0);
 }
 
@@ -223,4 +219,3 @@ class Foo:
   ASSERT_EQ(Py_TYPE(result3.get()), &PyLong_Type);
   ASSERT_EQ(PyLong_AsLong(result3), 200);
 }
-#endif
