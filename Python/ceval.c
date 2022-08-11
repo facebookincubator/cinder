@@ -28,6 +28,7 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 
 #include "Jit/pyjit.h"
+#include "arraymodule.h"
 #include "code.h"
 #include "dictobject.h"
 #include "frameobject.h"
@@ -5097,7 +5098,39 @@ main_loop:
         }
 
         case TARGET(FAST_LEN): {
-            PORT_ASSERT("Unsupported: FAST_LEN");
+            PyObject *collection = POP(), *length = NULL;
+            int inexact = oparg & FAST_LEN_INEXACT;
+            oparg &= ~FAST_LEN_INEXACT;
+            assert(FAST_LEN_LIST <= oparg && oparg <= FAST_LEN_STR);
+            if (inexact) {
+              if ((oparg == FAST_LEN_LIST && PyList_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_DICT && PyDict_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_SET && PyAnySet_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_TUPLE && PyTuple_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_ARRAY && PyStaticArray_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_STR && PyUnicode_CheckExact(collection))) {
+                inexact = 0;
+              }
+            }
+            if (inexact) {
+              Py_ssize_t res = PyObject_Size(collection);
+              if (res >= 0) {
+                length = PyLong_FromSsize_t(res);
+              }
+            } else if (oparg == FAST_LEN_DICT) {
+              length = PyLong_FromLong(((PyDictObject*)collection)->ma_used);
+            } else if (oparg == FAST_LEN_SET) {
+              length = PyLong_FromLong(((PySetObject*)collection)->used);
+            } else {
+              // lists, tuples, arrays are all PyVarObject and use ob_size
+              length = PyLong_FromLong(Py_SIZE(collection));
+            }
+            Py_DECREF(collection);
+            if (length == NULL) {
+                goto error;
+            }
+            PUSH(length);
+            DISPATCH();
         }
 
         case TARGET(CONVERT_PRIMITIVE): {
