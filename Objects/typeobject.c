@@ -4097,6 +4097,18 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         /* Will fail in _PyObject_GenericSetAttrWithDict. */
         Py_INCREF(name);
     }
+    PyObject *existing = NULL;
+    if (type->tp_dict) {
+        existing = PyDict_GetItem(type->tp_dict, name);
+        Py_XINCREF(existing);
+    }
+    if (type->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+        /* We're running in an environment where we're patching types.  Prepare
+         * the type for tracking patches if it hasn't already been prepared */
+        if (_PyClassLoader_InitTypeForPatching(type)) {
+            return -1;
+        }
+    }
     res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL);
     if (res == 0) {
         /* Clear the VALID_VERSION flag of 'type' and all its
@@ -4110,8 +4122,22 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
             res = update_slot(type, name);
         }
         _PyType_ClearNoShadowingInstances(type, value);
-        assert(_PyType_CheckConsistency(type));
+       assert(_PyType_CheckConsistency(type));
+       if (existing != value) {
+            int slotupdate_res = _PyClassLoader_UpdateSlot(type, name, value);
+            if (slotupdate_res == -1) {
+                // We failed to update the slot, so restore the existing value
+                int revert_res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, existing, NULL);
+                if (revert_res == 0) {
+                    PyType_Modified(type);
+                }
+                slotupdate_res = slotupdate_res || revert_res;
+            }
+            res = res || slotupdate_res;
+        }
+
     }
+    Py_XDECREF(existing);
     Py_DECREF(name);
     return res;
 }

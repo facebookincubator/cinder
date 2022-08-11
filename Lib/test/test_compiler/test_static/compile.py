@@ -1201,7 +1201,6 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(x(d), 84)
 
-    @skip("TODO(T128836535): INVOKE_METHOD patching is incorrect.")
     def test_invoke_type_modified(self):
         codestr = """
             class C:
@@ -3973,7 +3972,6 @@ class StaticCompilationTests(StaticTestBase):
 
             f(D())
 
-    @skip("TODO(T128836535): INVOKE_METHOD patching is incorrect.")
     def test_override_override_inherited(self):
         codestr = """
         from typing import Optional
