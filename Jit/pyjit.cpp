@@ -645,7 +645,6 @@ static void compile_worker_thread() {
 }
 
 static void multithread_compile_all() {
-#ifdef CINDER_PORTING_DONE
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
   std::vector<BorrowedRef<>> compilation_units;
@@ -667,7 +666,10 @@ static void multithread_compile_all() {
             std::piecewise_construct,
             std::forward_as_tuple(unit),
             std::forward_as_tuple(
-                code, data.globals, codeFullname(data.module, code)));
+                code,
+                data.globals,
+                data.builtins,
+                codeFullname(data.module, code)));
       }
     }
   }
@@ -680,8 +682,8 @@ static void multithread_compile_all() {
   // unknown other threads. Within our group of cooperating threads we can
   // safely do any read-only operations in parallel, but we grab our own lock if
   // we do a write (e.g. an incref).
-  int old_gil_check_enabled = _PyGILState_check_enabled;
-  _PyGILState_check_enabled = 0;
+  int old_gil_check_enabled = _PyRuntime.gilstate.check_enabled;
+  _PyRuntime.gilstate.check_enabled = 0;
 
   g_threaded_compile_context.startCompile(std::move(compilation_units));
   std::vector<std::thread> worker_threads;
@@ -703,11 +705,8 @@ static void multithread_compile_all() {
   for (auto unit : retry_list) {
     compilePreloaded(unit);
   }
-  _PyGILState_check_enabled = old_gil_check_enabled;
+  _PyRuntime.gilstate.check_enabled = old_gil_check_enabled;
   jit_preloaders.clear();
-#else
-  PORT_ASSERT("Need to figure out how to 'Take the GIL' in 3.10");
-#endif
 }
 
 static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
