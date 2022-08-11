@@ -102,7 +102,7 @@ typedef struct {
     int tmd_ret;
 } Ci_PyTypedMethodDef;
 
-#define _Py_TYPED_SIGNATURE(name, ret_type, ...)                              \
+#define Ci_Py_TYPED_SIGNATURE(name, ret_type, ...)                              \
     static const Ci_Py_SigElement *const name##_sig[] = {__VA_ARGS__};          \
     static Ci_PyTypedMethodDef name##_def = {                                   \
         name,                                                                 \

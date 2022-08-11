@@ -789,7 +789,7 @@ PyObject *make_context_decorator_wrapper(PyObject *mod, PyObject *const *args, P
         return append(self, value);                                                     \
     }                                                                                   \
                                                                                         \
-    _Py_TYPED_SIGNATURE(vector_append_##size, _Py_SIG_ERROR, &sig_type, NULL);          \
+    Ci_Py_TYPED_SIGNATURE(vector_append_##size, _Py_SIG_ERROR, &sig_type, NULL);          \
                                                                                         \
     PyMethodDef md_vector_append_##size = {                                             \
         "append",                                                                       \
@@ -854,7 +854,7 @@ static_rand(PyObject *self)
     return rand();
 }
 
-_Py_TYPED_SIGNATURE(static_rand, _Py_SIG_INT32, NULL);
+Ci_Py_TYPED_SIGNATURE(static_rand, _Py_SIG_INT32, NULL);
 
 
 static int64_t posix_clock_gettime_ns(PyObject* mod)
@@ -867,7 +867,7 @@ static int64_t posix_clock_gettime_ns(PyObject* mod)
     return ret;
 }
 
-_Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
+Ci_Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
 
 #endif
 
@@ -878,7 +878,7 @@ static_property_missing_fget(PyObject *mod, PyObject *self)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fget, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
+Ci_Py_TYPED_SIGNATURE(static_property_missing_fget, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
 
 static Py_ssize_t
 static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
@@ -887,7 +887,7 @@ static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
     return -1;
 }
 
-_Py_TYPED_SIGNATURE(static_property_missing_fset, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
+Ci_Py_TYPED_SIGNATURE(static_property_missing_fset, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
 
 
 /*

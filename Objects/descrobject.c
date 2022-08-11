@@ -754,6 +754,12 @@ method_get_text_signature(PyMethodDescrObject *descr, void *closure)
 }
 
 static PyObject *
+Ci_method_get_typed_signature(PyMethodDescrObject *descr, void *closure)
+{
+    return Ci_PyMethodDef_GetTypedSignature(descr->d_method);
+}
+
+static PyObject *
 calculate_qualname(PyDescrObject *descr)
 {
     PyObject *type_qualname, *res;
@@ -813,6 +819,7 @@ static PyGetSetDef method_getset[] = {
     {"__doc__", (getter)method_get_doc},
     {"__qualname__", (getter)descr_get_qualname},
     {"__text_signature__", (getter)method_get_text_signature},
+    {"__typed_signature__", (getter)Ci_method_get_typed_signature},
     {0}
 };
 

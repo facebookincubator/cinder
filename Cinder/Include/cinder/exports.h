@@ -16,6 +16,7 @@ extern "C" {
 
 PyObject *Ci_PyClassMethod_GetFunc(PyObject *method);
 PyObject *Ci_PyStaticMethod_GetFunc(PyObject *method);
+PyObject *Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method);
 
 PyAPI_FUNC(PyObject *) Ci_dict_subscript(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) Ci_list_subscript(PyObject *list, PyObject *item);

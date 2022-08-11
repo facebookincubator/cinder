@@ -1854,9 +1854,7 @@ class StaticCompilationTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().g(), 42)
 
-    @skip(
-        "TODO(T128836403): we're emitting a dynamic/int64 mismatch from xxclassloader"
-    )
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_invoke_builtin_func(self):
         codestr = """
         from xxclassloader import foo
@@ -1873,9 +1871,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skip(
-        "TODO(T128836403): we're emitting a dynamic/int64 mismatch from xxclassloader"
-    )
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_invoke_builtin_func_ret_neg(self):
         # setup xxclassloader as a built-in function for this test, so we can
         # do a direct invoke
@@ -1896,9 +1892,7 @@ class StaticCompilationTests(StaticTestBase):
         finally:
             sys.modules["xxclassloader"] = xxclassloader
 
-    @skip(
-        "TODO(T128836403): we're emitting a dynamic/int64 mismatch from xxclassloader"
-    )
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_invoke_builtin_func_arg(self):
         codestr = """
         from xxclassloader import bar
@@ -1915,9 +1909,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skip(
-        "TODO(T128836403): we're emitting a dynamic/int64 mismatch from xxclassloader"
-    )
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_invoke_func_unexistent_module(self):
         codestr = """
         from xxclassloader import bar
@@ -4738,6 +4730,7 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_spamobj_error(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4751,6 +4744,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "no way!"):
                 f()
 
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_spamobj_no_error(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4763,9 +4757,6 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.testfunc
             self.assertEqual(f(), None)
 
-    @skip(
-        "TODO(T128836403): everything in xxclassloader is improperly treated as dynamic"
-    )
     def test_generic_type_box_box(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4780,9 +4771,7 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip(
-        "TODO(T128836403): everything in xxclassloader is improperly treated as dynamic"
-    )
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_generic_type(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4850,9 +4839,6 @@ class StaticCompilationTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(test(), None)
 
-    @skip(
-        "TODO(T128836403): everything in xxclassloader is improperly treated as dynamic"
-    )
     def test_check_override_typed_builtin_method(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4912,9 +4898,6 @@ class StaticCompilationTests(StaticTestBase):
             f = mod.myfunc
             self.assertNotInBytecode(f, "LOAD_FIELD")
 
-    @skip(
-        "TODO(T128836403): everything in xxclassloader is improperly treated as dynamic"
-    )
     def test_generic_type_error(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4952,9 +4935,6 @@ class StaticCompilationTests(StaticTestBase):
 
         self.compile(codestr)
 
-    @skip(
-        "TODO(T128836403): everything in xxclassloader is improperly treated as dynamic"
-    )
     def test_generic_optional_type_param_error(self):
         codestr = """
             from xxclassloader import spamobj
