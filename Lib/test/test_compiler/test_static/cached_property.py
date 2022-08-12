@@ -6,10 +6,17 @@ from compiler.static import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     CACHED_PROPERTY_IMPL_PREFIX,
 )
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class CachedPropertyTests(StaticTestBase):
     def test_cached_property(self):
         codestr = """
@@ -326,6 +333,7 @@ class CachedPropertyTests(StaticTestBase):
             mod.f(D())
             self.assertEqual(d.hit_count, 1)
 
+    @skip("TODO(T128973705): Auto-slotify static classes.")
     def test_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -354,6 +362,7 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(c.hit_count, 1)
 
+    @skip("TODO(T128973705): Auto-slotify static classes.")
     def test_async_cached_property_invoked(self):
         codestr = """
         from cinder import async_cached_property
@@ -382,6 +391,7 @@ class CachedPropertyTests(StaticTestBase):
             r = asyncio.run(mod.f())
             self.assertEqual(r.hit_count, 1)
 
+    @skip("TODO(T128973705): Auto-slotify static classes.")
     def test_async_cached_property_invoked_frozen(self):
         codestr = """
         from typing import final
@@ -412,6 +422,7 @@ class CachedPropertyTests(StaticTestBase):
             r = asyncio.run(mod.f())
             self.assertEqual(r.hit_count, 1)
 
+    @skip("TODO(T128973705): Auto-slotify static classes.")
     def test_multiple_async_cached_properties(self):
         codestr = """
         from cinder import async_cached_property
@@ -471,6 +482,7 @@ class CachedPropertyTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_intermediary_cleaned_up(self):
         codestr = """
         from cinder import async_cached_property
@@ -499,6 +511,7 @@ class CachedPropertyTests(StaticTestBase):
             ):
                 getattr(C, ASYNC_CACHED_PROPERTY_IMPL_PREFIX + "x")
 
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -528,6 +541,7 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_property_override_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -557,6 +571,7 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -581,6 +596,7 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(mod.async_get_x(C())), 3)
             self.assertEqual(asyncio.run(mod.async_get_x(D())), 4)
 
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_async_cached_property_non_static(self):
         codestr = """
         from cinder import async_cached_property
@@ -610,7 +626,8 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
-    def test_async_cached_property_override_async_cached_property(self):
+    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
+    def test_async_cached_property_override_async_cached_property_2(self):
         codestr = """
         from cinder import async_cached_property
 
