@@ -2828,6 +2828,7 @@ type_new_alloc(type_new_ctx *ctx)
     // All heap types need GC, since we can create a reference cycle by storing
     // an instance on one of its parents.
     type->tp_flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE |
+                      Ci_Py_TPFLAG_CPYTHON_ALLOCATED |
                       Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC);
 
     // Initialize essential fields

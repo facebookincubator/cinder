@@ -164,7 +164,7 @@ class BinopTests(StaticTestBase):
                         f(False), (res, res), f"{type} {x} {op} {y} {res} {output_type}"
                     )
 
-    @skip("TODO(T128875440): Running into type checking errors here.")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_primitive_arithmetic(self):
         cases = [
             ("int8", 127, "*", 1, 127),
@@ -265,7 +265,7 @@ class BinopTests(StaticTestBase):
                             act = f(a)
                         self.assertEqual(act, res)
 
-    @skip("TODO(T128875440): Running into type checking errors here.")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_int_binop_type_context(self):
         codestr = f"""
             from __static__ import box, int8, int16
