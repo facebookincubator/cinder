@@ -5277,8 +5277,90 @@ main_loop:
             DISPATCH();
         }
 
+#define INT_BIN_OPCODE_UNSIGNED(opid, op)                                     \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        PUSH(PyLong_FromVoidPtr((void *)(((size_t)PyLong_AsVoidPtr(l))op(     \
+            (size_t)PyLong_AsVoidPtr(r)))));                                  \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        DISPATCH();                                                           \
+    }
+
+#define INT_BIN_OPCODE_SIGNED(opid, op)                                       \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        PUSH(PyLong_FromVoidPtr((void *)(((Py_ssize_t)PyLong_AsVoidPtr(l))op( \
+            (Py_ssize_t)PyLong_AsVoidPtr(r)))));                              \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        DISPATCH();                                                           \
+    }
+
+#define DOUBLE_BIN_OPCODE(opid, op)                                           \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        PUSH((PyFloat_FromDouble((PyFloat_AS_DOUBLE(l))op(PyFloat_AS_DOUBLE(r))))); \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        DISPATCH();                                                           \
+    }
+
         case TARGET(PRIMITIVE_BINARY_OP): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_BINARY_OP");
+            PyObject *l, *r;
+            switch (oparg) {
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_ADD_INT, +)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_SUB_INT, -)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_MUL_INT, *)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_DIV_INT, /)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_MOD_INT, %)
+            case PRIM_OP_POW_INT: {
+                r = POP();
+                l = POP();
+                double power = pow((Py_ssize_t)PyLong_AsVoidPtr(l), (Py_ssize_t) PyLong_AsVoidPtr(r));
+                PUSH(PyFloat_FromDouble(power));
+                Py_DECREF(r);
+                Py_DECREF(l);
+                DISPATCH();
+              }
+            case PRIM_OP_POW_UN_INT: {
+                r = POP();
+                l = POP();
+                double power = pow((size_t)PyLong_AsVoidPtr(l), (size_t) PyLong_AsVoidPtr(r));
+                PUSH(PyFloat_FromDouble(power));
+                Py_DECREF(r);
+                Py_DECREF(l);
+                DISPATCH();
+              }
+
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_LSHIFT_INT, <<)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_RSHIFT_INT, >>)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_XOR_INT, ^)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_OR_INT, |)
+                INT_BIN_OPCODE_SIGNED(PRIM_OP_AND_INT, &)
+                INT_BIN_OPCODE_UNSIGNED(PRIM_OP_MOD_UN_INT, %)
+                INT_BIN_OPCODE_UNSIGNED(PRIM_OP_DIV_UN_INT, /)
+                INT_BIN_OPCODE_UNSIGNED(PRIM_OP_RSHIFT_UN_INT, >>)
+                DOUBLE_BIN_OPCODE(PRIM_OP_ADD_DBL, +)
+                DOUBLE_BIN_OPCODE(PRIM_OP_SUB_DBL, -)
+                DOUBLE_BIN_OPCODE(PRIM_OP_MUL_DBL, *)
+                DOUBLE_BIN_OPCODE(PRIM_OP_DIV_DBL, /)
+            case PRIM_OP_POW_DBL: {
+                r = POP();
+                l = POP();
+                double power = pow(PyFloat_AsDouble(l), PyFloat_AsDouble(r));
+                PUSH(PyFloat_FromDouble(power));
+                Py_DECREF(r);
+                Py_DECREF(l);
+                DISPATCH();
+              }
+            }
+
+            PyErr_SetString(PyExc_RuntimeError, "unknown op");
+            goto error;
         }
 
         case TARGET(PRIMITIVE_UNARY_OP): {

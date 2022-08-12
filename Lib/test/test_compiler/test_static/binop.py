@@ -30,7 +30,6 @@ class BinopTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_int_binop(self):
         tests = [
             ("int8", 1, 2, "/", 0),
@@ -310,7 +309,6 @@ class BinopTests(StaticTestBase):
             """
             )
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_mixed_binop_okay(self):
         codestr = """
             from __static__ import ssize_t, box
@@ -324,7 +322,6 @@ class BinopTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 2)
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_mixed_binop_okay_1(self):
         codestr = """
             from __static__ import ssize_t, box
@@ -443,7 +440,6 @@ class BinopTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, "cannot pow uint8 and double"):
             self.compile(codestr)
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_double_binop(self):
         tests = [
             (1.732, 2.0, "+", 3.732),
@@ -474,7 +470,6 @@ class BinopTests(StaticTestBase):
                     f = mod.testfunc
                     self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_double_binop_with_literal(self):
         codestr = f"""
             from __static__ import double, unbox
