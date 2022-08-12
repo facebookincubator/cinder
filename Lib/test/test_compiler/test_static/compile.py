@@ -878,7 +878,6 @@ class StaticCompilationTests(StaticTestBase):
             c = C()
             self.assertEqual(x(c), 2)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived(self):
         codestr = """
             class C:
@@ -955,7 +954,6 @@ class StaticCompilationTests(StaticTestBase):
             a = mod.a
             self.assertEqual(a, 2)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc(self):
         codestr = """
             class C:
@@ -988,7 +986,6 @@ class StaticCompilationTests(StaticTestBase):
                 d = D()
                 self.assertEqual(x(d), 84)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_slots(self):
         codestr = """
             class C:
@@ -1022,7 +1019,6 @@ class StaticCompilationTests(StaticTestBase):
                 d = D()
                 self.assertEqual(x(d), 84)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor(self):
         codestr = """
             class C:
@@ -1057,7 +1053,6 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(x(d), 84)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_data_descriptor(self):
         codestr = """
             class C:
@@ -1095,7 +1090,6 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(x(d), 84)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor_inst_override(self):
         codestr = """
             class C:
@@ -1132,7 +1126,6 @@ class StaticCompilationTests(StaticTestBase):
             d.__dict__["f"] = lambda x: 100
             self.assertEqual(x(d), 200)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_new_derived_nonfunc_descriptor_modified(self):
         codestr = """
             class C:
@@ -1173,7 +1166,6 @@ class StaticCompilationTests(StaticTestBase):
                 del Descr.__get__
                 self.assertEqual(x(d), 46)
 
-    @skip("TODO(T128791885): null vtable")
     def test_invoke_dict_override(self):
         codestr = """
             class C:

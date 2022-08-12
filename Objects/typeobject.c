@@ -6525,6 +6525,10 @@ add_subclass(PyTypeObject *base, PyTypeObject *type)
         return -1;
     }
 
+    if (_PyClassLoader_AddSubclass(base, type)) {
+        return -1;
+    }
+
     // Only get tp_subclasses after creating the key and value.
     // PyWeakref_NewRef() can trigger a garbage collection which can execute
     // arbitrary Python code and so modify base->tp_subclasses.
