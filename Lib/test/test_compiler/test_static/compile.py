@@ -1843,7 +1843,6 @@ class StaticCompilationTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().g(), 42)
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_invoke_builtin_func(self):
         codestr = """
         from xxclassloader import foo
@@ -1860,7 +1859,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_invoke_builtin_func_ret_neg(self):
         # setup xxclassloader as a built-in function for this test, so we can
         # do a direct invoke
@@ -1881,7 +1879,6 @@ class StaticCompilationTests(StaticTestBase):
         finally:
             sys.modules["xxclassloader"] = xxclassloader
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_invoke_builtin_func_arg(self):
         codestr = """
         from xxclassloader import bar
@@ -1898,7 +1895,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_invoke_func_unexistent_module(self):
         codestr = """
         from xxclassloader import bar
@@ -5731,7 +5727,6 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertEqual(g(), 3)
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_inline_arg_type(self):
         codestr = """
             from __static__ import box, inline, int64, int32
@@ -5922,7 +5917,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(mod.MyClass.name.fget, "CAST")
             self.assertEqual(mod.MyClass().name, "MyClass")
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_unbox_binop_lhs_literal(self):
         nonstatic_codestr = """
         def f():
@@ -5943,7 +5937,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.in_module(codestr) as mod:
                 self.assertEqual(mod.g(), 43)
 
-    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_unbox_binop_rhs_literal(self):
         nonstatic_codestr = """
         def f():

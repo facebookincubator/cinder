@@ -5111,7 +5111,18 @@ main_loop:
         }
 
         case TARGET(LOAD_LOCAL): {
-            PORT_ASSERT("Unsupported: LOAD_LOCAL");
+            int index =
+                _PyLong_AsInt(PyTuple_GET_ITEM(GETITEM(consts, oparg), 0));
+
+            PyObject *value = GETLOCAL(index);
+            if (value == NULL) {
+                value = PyLong_FromLong(0);
+                SETLOCAL(index, value); /* will steal the ref */
+            }
+            PUSH(value);
+            Py_INCREF(value);
+
+            DISPATCH();
         }
 
         case TARGET(STORE_LOCAL): {
