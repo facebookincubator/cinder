@@ -283,6 +283,8 @@ Type outputType(
     case Opcode::kDictSubscr:
     case Opcode::kBinaryOp:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kGetAIter:
+    case Opcode::kGetANext:
     case Opcode::kGetIter:
     case Opcode::kImportFrom:
     case Opcode::kImportName:

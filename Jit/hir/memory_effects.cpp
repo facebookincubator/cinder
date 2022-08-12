@@ -105,6 +105,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kDictMerge:
     case Opcode::kDictUpdate:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kGetAIter:
+    case Opcode::kGetANext:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
     case Opcode::kImportFrom:

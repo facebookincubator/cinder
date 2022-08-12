@@ -2541,11 +2541,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
         with self.assertRaises(StopAsyncIteration):
             async_itt3.send(None)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AITER,
-        PortFeature.OPC_GET_ANEXT,
-        PortFeature.OPC_END_ASYNC_FOR,
-    )
+    @unittest.failUnlessJITCompiled
     async def _f2(self, asyncgen):
         res = []
         async for x in asyncgen:
@@ -2582,10 +2578,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
             self.fail("Expected ValueError to be raised")
 
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_GET_AITER,
         PortFeature.OPC_MAKE_FUNCTION,
-        PortFeature.OPC_GET_ANEXT,
-        PortFeature.OPC_END_ASYNC_FOR,
     )
     async def _f3(self, asyncgen):
         return [x async for x in asyncgen]

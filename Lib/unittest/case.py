@@ -1555,9 +1555,6 @@ class PortFeature(enum.Enum):
     # CPython opcodes that existed prior to 3.9
     # TODO(T125854918): coroutine / generator support
     OPC_BEFORE_ASYNC_WITH = enum.auto()
-    OPC_END_ASYNC_FOR = enum.auto()
-    OPC_GET_AITER = enum.auto()
-    OPC_GET_ANEXT = enum.auto()
     OPC_SETUP_ASYNC_WITH = enum.auto()
 
     # TODO(T127134659): Imports
@@ -1639,10 +1636,13 @@ def failUnlessJITCompiledWaitingForFeaturePort(*features: Collection[PortFeature
             "Change to failUnlessJITCompiled() or add a missing feature.")
     return _id
 
-def waitingForFeaturePort(*features: Collection[PortFeature]):
+def waitingForFeaturePort(*features: Collection[PortFeature], jit_only: bool=False):
     """
     Decorator to mark a test as waiting for specified porting features.
     """
+    if jit_only and not CINDERJIT_ENABLED:
+        return _id
+
     if len(features) == 0:
         raise Exception("Not waiting for any features. "
             "Remove this decorator or add a missing feature.")

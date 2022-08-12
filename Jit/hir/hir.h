@@ -323,6 +323,8 @@ struct FrameState {
   V(EndInlinedFunction)                \
   V(FillTypeAttrCache)                 \
   V(FormatValue)                       \
+  V(GetAIter)                          \
+  V(GetANext)                          \
   V(GetIter)                           \
   V(GetLength)                         \
   V(GetLoadMethodInstance)             \
@@ -1557,8 +1559,6 @@ class INSTR_CLASS(CallCFunc, (TOptObject | TCUInt64), HasOutput, Operands<>) {
   X(_PyAsyncGenValueWrapperNew) \
   X(_PyCoro_GetAwaitableIter)   \
   X(_PyGen_yf)                  \
-  X(_PyEval_GetAIter)           \
-  X(_PyEval_GetANext)           \
   X(func_cred_new)
 
   enum class Func {
@@ -3497,6 +3497,9 @@ class INSTR_CLASS(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase) {
  private:
   uint8_t readonly_flags_;
 };
+
+DEFINE_SIMPLE_INSTR(GetAIter, (TObject), HasOutput, Operands<1>, DeoptBase);
+DEFINE_SIMPLE_INSTR(GetANext, (TObject), HasOutput, Operands<1>, DeoptBase);
 
 // Get the length of an object by calling __len__.
 DEFINE_SIMPLE_INSTR(GetLength, (TObject), HasOutput, Operands<1>, DeoptBase);

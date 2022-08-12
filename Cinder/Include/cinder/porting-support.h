@@ -70,9 +70,6 @@ PyAPI_FUNC(PyObject *) _PyEval_SuperLookupMethodOrAttr(
     int *meth_found);
 
 // Include/genobject.h
-PyAPI_FUNC(PyObject *) _PyEval_GetAIter(PyObject *obj);
-PyAPI_FUNC(PyObject *) _PyEval_GetANext(PyObject *aiter);
-
 typedef struct {
     PyObject_HEAD
     PyObject *wh_coro_or_result_NOT_IMPLEMENTED;

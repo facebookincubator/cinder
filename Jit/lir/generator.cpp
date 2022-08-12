@@ -2678,6 +2678,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->after());
         break;
       }
+      case Opcode::kGetAIter: {
+        auto& instr = static_cast<const GetAIter&>(i);
+        bbb.AppendCall(
+            instr.dst(), Ci_GetAIter, "__asm_tstate", instr.GetOperand(0));
+        break;
+      }
+      case Opcode::kGetANext: {
+        auto& instr = static_cast<const GetAIter&>(i);
+        bbb.AppendCall(
+            instr.dst(), Ci_GetANext, "__asm_tstate", instr.GetOperand(0));
+        break;
+      }
     }
 
     if (auto db = i.asDeoptBase()) {

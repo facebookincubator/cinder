@@ -78,6 +78,8 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kFormatValue:
+    case Opcode::kGetANext:
+    case Opcode::kGetAIter:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
     case Opcode::kGetLoadMethodInstance:

@@ -38,6 +38,10 @@ PyAPI_FUNC(void)
     format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
 int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 
+PyAPI_FUNC(PyObject *) Ci_GetAIter(PyThreadState *tstate, PyObject *obj);
+PyAPI_FUNC(PyObject *) Ci_GetANext(PyThreadState *tstate, PyObject *aiter);
+
+
 /* Enable or disable interpreter type profiling for all threads or for a
    specific thread. */
 PyAPI_FUNC(void) Ci_ThreadState_SetProfileInterpAll(int);

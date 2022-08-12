@@ -261,6 +261,88 @@ UNSIGNAL_ASYNC_EXC(PyInterpreterState *interp)
     COMPUTE_EVAL_BREAKER(interp, ceval, ceval2);
 }
 
+PyObject *Ci_GetAIter(PyThreadState *tstate, PyObject *obj) {
+    unaryfunc getter = NULL;
+    PyObject *iter = NULL;
+    PyTypeObject *type = Py_TYPE(obj);
+
+    if (type->tp_as_async != NULL) {
+        getter = type->tp_as_async->am_aiter;
+    }
+
+    if (getter != NULL) {
+        iter = (*getter)(obj);
+        if (iter == NULL) {
+            return NULL;
+        }
+    }
+    else {
+        _PyErr_Format(tstate, PyExc_TypeError,
+                        "'async for' requires an object with "
+                        "__aiter__ method, got %.100s",
+                        type->tp_name);
+        return NULL;
+    }
+
+    if (Py_TYPE(iter)->tp_as_async == NULL ||
+            Py_TYPE(iter)->tp_as_async->am_anext == NULL) {
+
+        _PyErr_Format(tstate, PyExc_TypeError,
+                        "'async for' received an object from __aiter__ "
+                        "that does not implement __anext__: %.100s",
+                        Py_TYPE(iter)->tp_name);
+        Py_DECREF(iter);
+        return NULL;
+    }
+    return iter;
+}
+
+PyObject *Ci_GetANext(PyThreadState *tstate, PyObject *aiter) {
+    unaryfunc getter = NULL;
+    PyObject *next_iter = NULL;
+    PyObject *awaitable = NULL;
+    PyTypeObject *type = Py_TYPE(aiter);
+
+    if (PyAsyncGen_CheckExact(aiter)) {
+        awaitable = type->tp_as_async->am_anext(aiter);
+        if (awaitable == NULL) {
+            return NULL;
+        }
+    } else {
+        if (type->tp_as_async != NULL){
+            getter = type->tp_as_async->am_anext;
+        }
+
+        if (getter != NULL) {
+            next_iter = (*getter)(aiter);
+            if (next_iter == NULL) {
+                return NULL;
+            }
+        }
+        else {
+            _PyErr_Format(tstate, PyExc_TypeError,
+                            "'async for' requires an iterator with "
+                            "__anext__ method, got %.100s",
+                            type->tp_name);
+            return NULL;
+        }
+
+        awaitable = _PyCoro_GetAwaitableIter(next_iter);
+        if (awaitable == NULL) {
+            _PyErr_FormatFromCause(
+                PyExc_TypeError,
+                "'async for' received an invalid object "
+                "from __anext__: %.100s",
+                Py_TYPE(next_iter)->tp_name);
+
+            Py_DECREF(next_iter);
+            return NULL;
+        } else {
+            Py_DECREF(next_iter);
+        }
+    }
+    return awaitable;
+}
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -2419,95 +2501,21 @@ main_loop:
         }
 
         case TARGET(GET_AITER): {
-            unaryfunc getter = NULL;
-            PyObject *iter = NULL;
             PyObject *obj = TOP();
-            PyTypeObject *type = Py_TYPE(obj);
-
-            if (type->tp_as_async != NULL) {
-                getter = type->tp_as_async->am_aiter;
-            }
-
-            if (getter != NULL) {
-                iter = (*getter)(obj);
-                Py_DECREF(obj);
-                if (iter == NULL) {
-                    SET_TOP(NULL);
-                    goto error;
-                }
-            }
-            else {
-                SET_TOP(NULL);
-                _PyErr_Format(tstate, PyExc_TypeError,
-                              "'async for' requires an object with "
-                              "__aiter__ method, got %.100s",
-                              type->tp_name);
-                Py_DECREF(obj);
-                goto error;
-            }
-
-            if (Py_TYPE(iter)->tp_as_async == NULL ||
-                    Py_TYPE(iter)->tp_as_async->am_anext == NULL) {
-
-                SET_TOP(NULL);
-                _PyErr_Format(tstate, PyExc_TypeError,
-                              "'async for' received an object from __aiter__ "
-                              "that does not implement __anext__: %.100s",
-                              Py_TYPE(iter)->tp_name);
-                Py_DECREF(iter);
-                goto error;
-            }
-
+            PyObject *iter = Ci_GetAIter(tstate, obj);
+            Py_DECREF(obj);
             SET_TOP(iter);
+            if (iter == NULL) {
+                goto error;
+            }
             DISPATCH();
         }
 
         case TARGET(GET_ANEXT): {
-            unaryfunc getter = NULL;
-            PyObject *next_iter = NULL;
-            PyObject *awaitable = NULL;
-            PyObject *aiter = TOP();
-            PyTypeObject *type = Py_TYPE(aiter);
-
-            if (PyAsyncGen_CheckExact(aiter)) {
-                awaitable = type->tp_as_async->am_anext(aiter);
-                if (awaitable == NULL) {
-                    goto error;
-                }
-            } else {
-                if (type->tp_as_async != NULL){
-                    getter = type->tp_as_async->am_anext;
-                }
-
-                if (getter != NULL) {
-                    next_iter = (*getter)(aiter);
-                    if (next_iter == NULL) {
-                        goto error;
-                    }
-                }
-                else {
-                    _PyErr_Format(tstate, PyExc_TypeError,
-                                  "'async for' requires an iterator with "
-                                  "__anext__ method, got %.100s",
-                                  type->tp_name);
-                    goto error;
-                }
-
-                awaitable = _PyCoro_GetAwaitableIter(next_iter);
-                if (awaitable == NULL) {
-                    _PyErr_FormatFromCause(
-                        PyExc_TypeError,
-                        "'async for' received an invalid object "
-                        "from __anext__: %.100s",
-                        Py_TYPE(next_iter)->tp_name);
-
-                    Py_DECREF(next_iter);
-                    goto error;
-                } else {
-                    Py_DECREF(next_iter);
-                }
+            PyObject *awaitable = Ci_GetANext(tstate, TOP());
+            if (awaitable == NULL) {
+                goto error;
             }
-
             PUSH(awaitable);
             PREDICT(LOAD_CONST);
             DISPATCH();

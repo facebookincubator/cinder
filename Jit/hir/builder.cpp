@@ -73,9 +73,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that existed prior to 3.9
     // TODO(T125854918): coroutine / generator support
     BEFORE_ASYNC_WITH,
-    END_ASYNC_FOR,
-    GET_AITER,
-    GET_ANEXT,
     SETUP_ASYNC_WITH,
 
     // TODO(T127134659): Imports
@@ -157,10 +154,13 @@ const std::unordered_set<int> kSupportedOpcodes = {
     DICT_UPDATE,
     DUP_TOP,
     DUP_TOP_TWO,
+    END_ASYNC_FOR,
     EXTENDED_ARG,
     FORMAT_VALUE,
     FOR_ITER,
     GEN_START,
+    GET_AITER,
+    GET_ANEXT,
     GET_AWAITABLE,
     GET_ITER,
     GET_LEN,
@@ -3795,16 +3795,14 @@ void HIRBuilder::emitEndAsyncFor(TranslationContext& tc) {
 void HIRBuilder::emitGetAIter(TranslationContext& tc) {
   Register* obj = tc.frame.stack.pop();
   Register* out = temps_.AllocateStack();
-  tc.emitChecked<CallCFunc>(
-      1, out, CallCFunc::Func::k_PyEval_GetAIter, std::vector<Register*>{obj});
+  tc.emit<GetAIter>(out, obj, tc.frame);
   tc.frame.stack.push(out);
 }
 
 void HIRBuilder::emitGetANext(TranslationContext& tc) {
   Register* obj = tc.frame.stack.top();
   Register* out = temps_.AllocateStack();
-  tc.emitChecked<CallCFunc>(
-      1, out, CallCFunc::Func::k_PyEval_GetANext, std::vector<Register*>{obj});
+  tc.emit<GetANext>(out, obj, tc.frame);
   tc.frame.stack.push(out);
 }
 
