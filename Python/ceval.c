@@ -5542,7 +5542,74 @@ main_loop:
         }
 
         case TARGET(SEQUENCE_GET): {
-            PORT_ASSERT("Unsupported: SEQUENCE_GET");
+          PyObject *idx = POP(), *sequence, *item;
+
+          Py_ssize_t val = (Py_ssize_t)PyLong_AsVoidPtr(idx);
+
+          if (val == -1 && _PyErr_Occurred(tstate)) {
+            Py_DECREF(idx);
+            goto error;
+          }
+
+          sequence = POP();
+
+          // Adjust index
+          if (val < 0) {
+            val += Py_SIZE(sequence);
+          }
+
+          oparg &= ~SEQ_SUBSCR_UNCHECKED;
+
+          if (_Py_IS_TYPED_ARRAY(oparg)) {
+            // We have an array
+            item = _PyArray_GetItem(sequence, val);
+            Py_DECREF(sequence);
+
+            if (item == NULL) {
+              Py_DECREF(idx);
+              goto error;
+            }
+          } else if (oparg == SEQ_LIST) {
+            item = PyList_GetItem(sequence, val);
+            Py_DECREF(sequence);
+            if (item == NULL) {
+              Py_DECREF(idx);
+              goto error;
+            }
+            Py_INCREF(item);
+          } else if (oparg == SEQ_LIST_INEXACT) {
+              if (PyList_CheckExact(sequence) ||
+                  Py_TYPE(sequence)->tp_as_sequence->sq_item == PyList_Type.tp_as_sequence->sq_item) {
+                item = PyList_GetItem(sequence, val);
+                Py_DECREF(sequence);
+                if (item == NULL) {
+                    Py_DECREF(idx);
+                    goto error;
+                }
+                Py_INCREF(item);
+              } else {
+                  item = PyObject_GetItem(sequence, idx);
+                  Py_DECREF(sequence);
+                  if (item == NULL) {
+                      Py_DECREF(idx);
+                      goto error;
+                  }
+              }
+          } else if (oparg == SEQ_CHECKED_LIST) {
+            item = _PyCheckedList_GetItem(sequence, val);
+            Py_DECREF(sequence);
+            if (item == NULL) {
+              goto error;
+            }
+          } else {
+            PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d", oparg);
+            Py_DECREF(idx);
+            goto error;
+          }
+
+          Py_DECREF(idx);
+          PUSH(item);
+          DISPATCH();
         }
 
         case TARGET(SEQUENCE_SET): {

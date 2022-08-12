@@ -307,7 +307,7 @@ class ArrayTests(StaticTestBase):
             self.assertEqual(f(a), 10)
             self.assertEqual(f(None), 42)
 
-    @skip("TODO(T128940309): SEQUENCE_GET")
+    @skip("TODO(T128952376): Hit stubbed function: _PyArray_GetItem")
     def test_array_get_primitive_idx(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -326,7 +326,7 @@ class ArrayTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 111)
 
-    @skip("TODO(T128940309): SEQUENCE_GET")
+    @skip("TODO(T128952376): Hit stubbed function: _PyArray_GetItem")
     def test_array_get_nonprimitive_idx(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -365,7 +365,7 @@ class ArrayTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 33)
 
-    @skip("TODO(T128940309): SEQUENCE_GET")
+    @skip("TODO(T128952376): Hit stubbed function: _PyArray_GetItem")
     def test_array_get_failure(self):
         codestr = """
             from __static__ import Array, int8, box
