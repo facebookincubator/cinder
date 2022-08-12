@@ -28,8 +28,6 @@ class PyJITContextTest : public RuntimeTest {
   _PyJITContext* jit_ctx_;
 };
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 TEST_F(PyJITContextTest, CompiledFunctionsAreDeoptimizedWhenCodeChanges) {
   const char* src = R"(
 def func():
@@ -49,7 +47,7 @@ def func():
 def func2():
     return 2
 
-func.__code__ = func.__code__
+func.__code__ = func2.__code__
 )";
   auto globals = Ref<>::steal(PyDict_New());
   ASSERT_NE(globals.get(), nullptr) << "Failed creating globals";
@@ -64,7 +62,6 @@ func.__code__ = func.__code__
   // original value
   ASSERT_EQ(func->vectorcall, old_entrypoint) << "entrypoint wasn't restored";
 }
-#endif
 
 TEST_F(PyJITContextTest, UnwatchableBuiltins) {
   // This is a C++ test rather than in test_cinderjit so we can guarantee a
