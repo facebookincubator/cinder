@@ -28,11 +28,6 @@ STUB(void, _PyType_ResetMethodCacheStats, void)
 STUB(void, _PyType_SetReadonlyProperties, struct _typeobject *)
 
 
-// Python/bltinmodule.c
-STUB(PyObject *, builtin_next, PyObject *, PyObject *const *, Py_ssize_t)
-STUB(PyObject *, _PyBuiltin_Next, PyObject *, PyObject *)
-
-
 // Objects/dictobject.c
 STUB(PyObject *, _PyCheckedDict_New, PyTypeObject *)
 STUB(PyObject *, _PyCheckedDict_NewPresized, PyTypeObject *, Py_ssize_t)

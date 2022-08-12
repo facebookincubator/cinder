@@ -283,11 +283,12 @@ bool LIRGenerator::TranslateSpecializedCall(
   if (Py_TYPE(callee) == &PyCFunction_Type) {
     if (PyCFunction_GET_FUNCTION(callee) == (PyCFunction)&builtin_next) {
       if (instr.numArgs() == 1) {
-        bbb.AppendCall(instr.dst(), _PyBuiltin_Next, instr.arg(0), nullptr);
+        bbb.AppendCall(
+            instr.dst(), Ci_Builtin_Next_Core, instr.arg(0), nullptr);
         return true;
       } else if (instr.numArgs() == 2) {
         bbb.AppendCall(
-            instr.dst(), _PyBuiltin_Next, instr.arg(0), instr.arg(1));
+            instr.dst(), Ci_Builtin_Next_Core, instr.arg(0), instr.arg(1));
         return true;
       }
     }

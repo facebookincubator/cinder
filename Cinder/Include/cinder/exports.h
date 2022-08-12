@@ -70,6 +70,13 @@ PyAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
 
 #define Ci_Py_TPFLAGS_FROZEN (1UL << 21)
 
+// Implementation in Python/bltinmodule.c
+PyObject *
+builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+
+PyAPI_FUNC(PyObject *)
+Ci_Builtin_Next_Core(PyObject *it, PyObject *def);
+
 #ifdef __cplusplus
 }
 #endif

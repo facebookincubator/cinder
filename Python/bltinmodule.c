@@ -11,6 +11,8 @@
 #include "pycore_tuple.h"         // _PyTuple_FromArray()
 #include "pycore_ceval.h"         // _PyEval_Vector()
 
+#include "cinder/exports.h" // Def. Ci_Builtin_Next_Core()
+
 _Py_IDENTIFIER(__builtins__);
 _Py_IDENTIFIER(__dict__);
 _Py_IDENTIFIER(__prepare__);
@@ -1435,15 +1437,18 @@ PyTypeObject PyMap_Type = {
 
 
 /* AC: cannot convert yet, as needs PEP 457 group support in inspect */
-static PyObject *
+PyObject *
 builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyObject *it, *res;
-
     if (!_PyArg_CheckPositional("next", nargs, 1, 2))
         return NULL;
+    return Ci_Builtin_Next_Core(args[0], nargs > 1 ? args[1] : NULL);
+}
 
-    it = args[0];
+PyObject *
+Ci_Builtin_Next_Core(PyObject *it, PyObject *def)
+{
+    PyObject *res;
     if (!PyIter_Check(it)) {
         PyErr_Format(PyExc_TypeError,
             "'%.200s' object is not an iterator",
@@ -1454,8 +1459,7 @@ builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
     res = (*Py_TYPE(it)->tp_iternext)(it);
     if (res != NULL) {
         return res;
-    } else if (nargs > 1) {
-        PyObject *def = args[1];
+    } else if (def != NULL) {
         if (PyErr_Occurred()) {
             if(!PyErr_ExceptionMatches(PyExc_StopIteration))
                 return NULL;

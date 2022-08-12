@@ -27,11 +27,6 @@ extern "C" {
 #endif
 
 
-// Include/bltinmodule.h
-PyObject *builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
-PyObject *_PyBuiltin_Next(PyObject *it, PyObject *def);
-
-
 // Include/cpython/dictobject.h
 PyObject *_PyCheckedDict_New(PyTypeObject *type);
 PyObject *_PyCheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused);
