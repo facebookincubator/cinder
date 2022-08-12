@@ -5734,7 +5734,7 @@ class StaticCompilationTests(StaticTestBase):
 
             self.assertEqual(g(), 3)
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_inline_arg_type(self):
         codestr = """
             from __static__ import box, inline, int64, int32
@@ -5925,7 +5925,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertNotInBytecode(mod.MyClass.name.fget, "CAST")
             self.assertEqual(mod.MyClass().name, "MyClass")
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_unbox_binop_lhs_literal(self):
         nonstatic_codestr = """
         def f():
@@ -5946,7 +5946,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.in_module(codestr) as mod:
                 self.assertEqual(mod.g(), 43)
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_unbox_binop_rhs_literal(self):
         nonstatic_codestr = """
         def f():

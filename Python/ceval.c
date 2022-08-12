@@ -5174,7 +5174,63 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX");
+            PyObject *type_descr = GETITEM(consts, oparg);
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+            if (type == NULL) {
+                goto error;
+            }
+
+            PyObject *top = TOP();
+            if (_PyClassLoader_IsEnum(type)) {
+                    if (!PyObject_TypeCheck(top, type)) {
+                    PyErr_Format(PyExc_TypeError, "expected %s, got %s",
+                                 type->tp_name, Py_TYPE(top)->tp_name);
+                }
+
+                PyObject *val = PyObject_GetAttrString(top, "value");
+                if (val == NULL) {
+                    Py_DECREF(type);
+                    goto error;
+                }
+                SET_TOP(val);
+                Py_DECREF(top);
+
+                if (shadow.shadow != NULL) {
+                    int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
+                    if (offset != -1) {
+                        _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_ENUM, offset);
+                    }
+                }
+
+                Py_DECREF(type);
+                DISPATCH();
+            }
+
+            Py_DECREF(type);
+
+            int code = _PyClassLoader_GetTypeCode(type);
+            if (PyLong_CheckExact(top)) {
+                /* We always box values in the interpreter loop, so this just does
+                 * overflow checking here. */
+                size_t value;
+                if (!_PyClassLoader_OverflowCheck(top, code, &value)) {
+                    PyErr_SetString(PyExc_OverflowError, "int overflow");
+                    goto error;
+                }
+            }
+            else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
+                PyErr_Format(PyExc_TypeError, "expected int, enum, bool or float, got %s",
+                             Py_TYPE(top)->tp_name);
+                goto error;
+            }
+
+            if (shadow.shadow != NULL) {
+                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_NUMERIC, code);
+            }
+
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_BINARY_OP): {

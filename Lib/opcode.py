@@ -267,6 +267,11 @@ hasconst.append(166)
 
 def_op("SEQUENCE_REPEAT", 167)
 
+def_op("BUILD_CHECKED_LIST", 168)
+hasconst.append(168)
+def_op("LOAD_TYPE", 169)
+hasconst.append(169)
+
 def_op("CAST", 170)
 hasconst.append(170)
 
@@ -320,11 +325,9 @@ def_op("LOAD_ATTR_SUPER", 199)
 hasconst.append(199)
 def_op("TP_ALLOC", 200)
 hasconst.append(200)
-def_op("BUILD_CHECKED_LIST", 201)
-hasconst.append(201)
-def_op("LOAD_TYPE", 202)
-hasconst.append(202)
 
+shadow_op("PRIMITIVE_UNBOX_ENUM", 201)
+shadow_op("PRIMITIVE_UNBOX_NUMERIC", 202)
 shadow_op("PRIMITIVE_BOX_ENUM", 203)
 shadow_op("PRIMITIVE_BOX_NUMERIC", 204)
 shadow_op("LOAD_METHOD_UNSHADOWED_METHOD", 205)

@@ -326,7 +326,7 @@ class ArrayTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 111)
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128940309): SEQUENCE_GET")
     def test_array_get_nonprimitive_idx(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -347,7 +347,7 @@ class ArrayTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 111)
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128940632): OverflowError: int overflow")
     def test_array_get_dynamic_idx(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -365,7 +365,7 @@ class ArrayTests(StaticTestBase):
             actual = m()
             self.assertEqual(actual, 33)
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128940309): SEQUENCE_GET")
     def test_array_get_failure(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -379,7 +379,7 @@ class ArrayTests(StaticTestBase):
             with self.assertRaisesRegex(IndexError, "index out of range"):
                 m()
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128940632): OverflowError: int overflow")
     def test_array_get_negative_idx(self):
         codestr = """
             from __static__ import Array, int8, box

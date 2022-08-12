@@ -35,7 +35,7 @@ class AugAssignTests(StaticTestBase):
         self.assertInBytecode(code, "LOAD_FIELD", ("foo", "C", "x"))
         self.assertInBytecode(code, "STORE_FIELD", ("foo", "C", "x"))
 
-    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_primitive_int(self):
         codestr = """
         from __static__ import int8, box, unbox

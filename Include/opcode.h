@@ -142,6 +142,8 @@ extern "C" {
   X(DICT_UPDATE,                     165) \
   X(STORE_FIELD,                     166) \
   X(SEQUENCE_REPEAT,                 167) \
+  X(BUILD_CHECKED_LIST,              168) \
+  X(LOAD_TYPE,                       169) \
   X(CAST,                            170) \
   X(LOAD_LOCAL,                      171) \
   X(STORE_LOCAL,                     172) \
@@ -172,8 +174,8 @@ extern "C" {
   X(LOAD_METHOD_SUPER,               198) \
   X(LOAD_ATTR_SUPER,                 199) \
   X(TP_ALLOC,                        200) \
-  X(BUILD_CHECKED_LIST,              201) \
-  X(LOAD_TYPE,                       202) \
+  X(PRIMITIVE_UNBOX_ENUM,            201) \
+  X(PRIMITIVE_UNBOX_NUMERIC,         202) \
   X(PRIMITIVE_BOX_ENUM,              203) \
   X(PRIMITIVE_BOX_NUMERIC,           204) \
   X(LOAD_METHOD_UNSHADOWED_METHOD,   205) \
