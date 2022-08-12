@@ -5542,7 +5542,49 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_LIST): {
-            PORT_ASSERT("Unsupported: BUILD_CHECKED_LIST");
+            PyObject *list_info = GETITEM(consts, oparg);
+            PyObject *list_type = PyTuple_GET_ITEM(list_info, 0);
+            Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(list_info, 1));
+
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(list_type, &optional, &exact);
+            assert(!optional);
+
+            if (shadow.shadow != NULL) {
+                PyObject *cache = PyTuple_New(2);
+                if (cache == NULL) {
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 0, (PyObject *)type);
+                Py_INCREF(type);
+                PyObject *size = PyLong_FromLong(list_size);
+                if (size == NULL) {
+                    Py_DECREF(cache);
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 1, size);
+
+                int offset = _PyShadow_CacheCastType(&shadow, cache);
+                Py_DECREF(cache);
+                if (offset != -1) {
+                    _PyShadow_PatchByteCode(
+                        &shadow, next_instr, BUILD_CHECKED_LIST_CACHED, offset);
+                }
+            }
+
+            PyObject *list = _PyCheckedList_New(type, list_size);
+            if (list == NULL) {
+                goto error;
+            }
+            Py_DECREF(type);
+
+            while (--list_size >= 0) {
+              PyObject *item = POP();
+              PyList_SET_ITEM(list, list_size, item);
+            }
+            PUSH(list);
+            DISPATCH();
         }
 
         case TARGET(LOAD_TYPE): {

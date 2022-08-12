@@ -83,7 +83,7 @@ class AugAssignTests(StaticTestBase):
                 with self.in_module(codestr) as mod:
                     self.assertEqual(mod.f(3), 4)
 
-    @skip("TODO(T128868132): BUILD_CHECKED_LIST support")
+    @skip("TODO(T128900573): Hit stubbed function: _PyCheckedList_New")
     def test_checked_list(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
