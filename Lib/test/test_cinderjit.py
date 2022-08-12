@@ -2167,10 +2167,7 @@ class CoroutinesTest(unittest.TestCase):
         self.assertEqual(exc.exception.value, 2)
 
     @staticmethod
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_SETUP_ASYNC_WITH,
-        PortFeature.OPC_BEFORE_ASYNC_WITH,
-    )
+    @unittest.failUnlessJITCompiled
     async def _use_async_with(mgr_type):
         async with mgr_type():
             pass

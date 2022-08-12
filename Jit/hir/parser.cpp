@@ -422,23 +422,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<UnaryOp>(dst, op, readonly_flags, operand);
   } else if (strcmp(opcode, "RaiseAwaitableError") == 0) {
     expect("<");
-    auto tok = GetNextToken();
-    auto opcode = [&] {
-      if (strcmp(tok, "BEFORE_ASYNC_WITH") == 0) {
-        return BEFORE_ASYNC_WITH;
-      }
-      if (strcmp(tok, "WITH_CLEANUP_START") != 0) {
-#ifdef CINDER_PORTING_DONE
-        return WITH_CLEANUP_START;
-#else
-        PORT_ASSERT("Missing WITH_CLEANUP_START opcode");
-#endif
-      }
-      JIT_CHECK(false, "Bad RaiseAwaitableError opcode: %s", tok);
-    }();
+    int prev_opcode = GetNextInteger();
+    expect(",");
+    int opcode = GetNextInteger();
     expect(">");
     auto type_reg = ParseRegister();
-    NEW_INSTR(RaiseAwaitableError, type_reg, opcode, FrameState{});
+    NEW_INSTR(RaiseAwaitableError, type_reg, prev_opcode, opcode, FrameState{});
   } else if (strcmp(opcode, "Return") == 0) {
     Type type = TObject;
     if (strcmp(peekNextToken(), "<") == 0) {

@@ -2701,16 +2701,24 @@ class INSTR_CLASS(RaiseAwaitableError, (TType), Operands<1>, DeoptBase) {
  public:
   RaiseAwaitableError(
       Register* type,
+      _Py_CODEUNIT with_prev_opcode,
       _Py_CODEUNIT with_opcode,
       const FrameState& frame)
-      : InstrT(type, frame), with_opcode_(with_opcode) {}
+      : InstrT(type, frame),
+        with_prev_opcode_(with_prev_opcode),
+        with_opcode_(with_opcode) {}
 
   _Py_CODEUNIT with_opcode() const {
     return with_opcode_;
   }
 
+  _Py_CODEUNIT with_prev_opcode() const {
+    return with_prev_opcode_;
+  }
+
  private:
-  _Py_CODEUNIT with_opcode_;
+  const _Py_CODEUNIT with_prev_opcode_;
+  const _Py_CODEUNIT with_opcode_;
 };
 
 // Load a guard (index 0) or value (index 1) from a cache specialized for

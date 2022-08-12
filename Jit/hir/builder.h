@@ -371,7 +371,11 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
   void emitYieldValue(TranslationContext& tc);
-  void emitGetAwaitable(CFG& cfg, TranslationContext& tc, int prev_op);
+  void emitGetAwaitable(
+      CFG& cfg,
+      TranslationContext& tc,
+      int prev_prev_op,
+      int prev_op);
   void emitUnpackEx(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
@@ -391,8 +395,7 @@ class HIRBuilder {
   Register* emitSetupWithCommon(
       TranslationContext& tc,
       _Py_Identifier* enter_id,
-      _Py_Identifier* exit_id,
-      bool swap_lookup);
+      _Py_Identifier* exit_id);
   void emitBeforeAsyncWith(TranslationContext& tc);
   void emitSetupAsyncWith(
       TranslationContext& tc,

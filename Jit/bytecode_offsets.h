@@ -68,6 +68,14 @@ class BCOffsetBase {
     return value() == other;
   }
 
+  bool operator>(T other) const {
+    return operator>(other.value());
+  }
+
+  bool operator>(Py_ssize_t other) const {
+    return value() > other;
+  }
+
   // Arithmetic operators.
   T operator+(Py_ssize_t other) const {
     return T{value() + other};

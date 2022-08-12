@@ -1552,11 +1552,6 @@ class PortFeature(enum.Enum):
     OPC_LIST_TO_TUPLE = enum.auto() # T126141719
     OPC_MATCH_CLASS = enum.auto() # T126141840
 
-    # CPython opcodes that existed prior to 3.9
-    # TODO(T125854918): coroutine / generator support
-    OPC_BEFORE_ASYNC_WITH = enum.auto()
-    OPC_SETUP_ASYNC_WITH = enum.auto()
-
     # TODO(T127134659): Imports
     OPC_IMPORT_FROM = enum.auto()
     OPC_IMPORT_NAME = enum.auto()

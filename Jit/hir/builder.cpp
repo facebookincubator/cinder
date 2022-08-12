@@ -70,11 +70,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     IS_OP, // T125844569
     MATCH_CLASS, // T126141840
 
-    // CPython opcodes that existed prior to 3.9
-    // TODO(T125854918): coroutine / generator support
-    BEFORE_ASYNC_WITH,
-    SETUP_ASYNC_WITH,
-
     // TODO(T127134659): Imports
     IMPORT_FROM,
     IMPORT_NAME,
@@ -122,6 +117,7 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
 };
 #else
 const std::unordered_set<int> kSupportedOpcodes = {
+    BEFORE_ASYNC_WITH,
     BINARY_ADD,
     BINARY_AND,
     BINARY_FLOOR_DIVIDE,
@@ -215,6 +211,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_TWO,
     SET_ADD,
     SET_UPDATE,
+    SETUP_ASYNC_WITH,
     SETUP_FINALLY,
     SETUP_WITH,
     STORE_ATTR,
@@ -1363,8 +1360,9 @@ void HIRBuilder::translate(
         }
         case GET_AWAITABLE: {
           BCIndex idx = bc_instr.index();
+          int prev_prev_op = idx > 1 ? bc_instrs.at(idx - 2).opcode() : 0;
           int prev_op = idx != 0 ? bc_instrs.at(idx - 1).opcode() : 0;
-          emitGetAwaitable(irfunc.cfg, tc, prev_op);
+          emitGetAwaitable(irfunc.cfg, tc, prev_prev_op, prev_op);
           break;
         }
         case BUILD_STRING: {
@@ -1768,7 +1766,8 @@ void HIRBuilder::emitAnyCall(
     tc.block = await_block.block;
 
     ++bc_it;
-    emitGetAwaitable(cfg, tc, bc_instr.opcode());
+    int prev_prev_op = idx > 0 ? bc_instrs.at(idx - 1).opcode() : 0;
+    emitGetAwaitable(cfg, tc, prev_prev_op, bc_instr.opcode());
 
     ++bc_it;
     emitLoadConst(tc, *bc_it);
@@ -3809,21 +3808,15 @@ void HIRBuilder::emitGetANext(TranslationContext& tc) {
 Register* HIRBuilder::emitSetupWithCommon(
     TranslationContext& tc,
     _Py_Identifier* enter_id,
-    _Py_Identifier* exit_id,
-    bool swap_lookup) {
+    _Py_Identifier* exit_id) {
   // Load the enter and exit attributes from the manager, push exit, and return
   // the result of calling enter().
   auto& stack = tc.frame.stack;
   Register* manager = stack.pop();
   Register* enter = temps_.AllocateStack();
   Register* exit = temps_.AllocateStack();
-  if (swap_lookup) {
-    tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
-    tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
-  } else {
-    tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
-    tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
-  }
+  tc.emit<LoadAttrSpecial>(enter, manager, enter_id, tc.frame);
+  tc.emit<LoadAttrSpecial>(exit, manager, exit_id, tc.frame);
   stack.push(exit);
 
   Register* enter_result = temps_.AllocateStack();
@@ -3838,7 +3831,7 @@ void HIRBuilder::emitBeforeAsyncWith(TranslationContext& tc) {
   _Py_IDENTIFIER(__aenter__);
   _Py_IDENTIFIER(__aexit__);
   tc.frame.stack.push(
-      emitSetupWithCommon(tc, &PyId___aenter__, &PyId___aexit__, true));
+      emitSetupWithCommon(tc, &PyId___aenter__, &PyId___aexit__));
 }
 
 void HIRBuilder::emitSetupAsyncWith(
@@ -3856,7 +3849,7 @@ void HIRBuilder::emitSetupWith(
   _Py_IDENTIFIER(__enter__);
   _Py_IDENTIFIER(__exit__);
   Register* enter_result =
-      emitSetupWithCommon(tc, &PyId___enter__, &PyId___exit__, false);
+      emitSetupWithCommon(tc, &PyId___enter__, &PyId___exit__);
   emitSetupFinally(tc, bc_instr);
   tc.frame.stack.push(enter_result);
 }
@@ -4000,6 +3993,7 @@ void HIRBuilder::emitYieldValue(TranslationContext& tc) {
 void HIRBuilder::emitGetAwaitable(
     CFG& cfg,
     TranslationContext& tc,
+    int prev_prev_op,
     int prev_op) {
   OperandStack& stack = tc.frame.stack;
   Register* iterable = stack.pop();
@@ -4011,7 +4005,8 @@ void HIRBuilder::emitGetAwaitable(
       iter,
       CallCFunc::Func::k_PyCoro_GetAwaitableIter,
       std::vector<Register*>{iterable});
-  if (prev_op == BEFORE_ASYNC_WITH) {
+  if (prev_op == BEFORE_ASYNC_WITH || prev_op == WITH_EXCEPT_START ||
+      (prev_op == CALL_FUNCTION && prev_prev_op == DUP_TOP)) {
     BasicBlock* error_block = cfg.AllocateBlock();
     BasicBlock* ok_block = cfg.AllocateBlock();
     tc.emit<CondBranch>(iter, ok_block, error_block);
@@ -4019,7 +4014,7 @@ void HIRBuilder::emitGetAwaitable(
     Register* type = temps_.AllocateStack();
     tc.emit<LoadField>(
         type, iterable, "ob_type", offsetof(PyObject, ob_type), TType);
-    tc.emit<RaiseAwaitableError>(type, prev_op, tc.frame);
+    tc.emit<RaiseAwaitableError>(type, prev_prev_op, prev_op, tc.frame);
 
     tc.block = ok_block;
   } else {

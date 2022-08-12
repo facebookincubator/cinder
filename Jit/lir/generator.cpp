@@ -1604,17 +1604,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kRaiseAwaitableError: {
-#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const RaiseAwaitableError&>(i);
         bbb.AppendInvoke(
             format_awaitable_error,
             "__asm_tstate",
             instr.GetOperand(0),
+            static_cast<int>(instr.with_prev_opcode()),
             static_cast<int>(instr.with_opcode()));
         AppendGuard(bbb, "AlwaysFail", instr);
-#else
-        PORT_ASSERT("format_awaitable_error needs prev prev opcode");
-#endif
         break;
       }
       case Opcode::kCheckExc:

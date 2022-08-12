@@ -633,20 +633,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kRaiseAwaitableError: {
       const auto& ra = static_cast<const RaiseAwaitableError&>(instr);
-      if (ra.with_opcode() == BEFORE_ASYNC_WITH) {
-        return "BEFORE_ASYNC_WITH";
-      }
-      if (ra.with_opcode() == RERAISE) {
-        // TODO(T125857223): Figure out what to do with RERAISE. Does it even
-        // go in this HIR opcode?
-        PORT_ASSERT("Not sure what to do with RERAISE");
-      }
-      if (ra.with_opcode() == WITH_EXCEPT_START) {
-        // TODO(T125857223): Figure out what to do with WITH_EXCEPT_START. Does
-        // it even go in this HIR opcode?
-        PORT_ASSERT("Not sure what to do with WITH_EXCEPT_START");
-      }
-      return fmt::format("invalid:{}", ra.with_opcode());
+      return fmt::format("{}, {}", ra.with_prev_opcode(), ra.with_opcode());
     }
     case Opcode::kRaiseStatic: {
       const auto& pyerr = static_cast<const RaiseStatic&>(instr);
