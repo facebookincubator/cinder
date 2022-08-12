@@ -55,7 +55,7 @@ except ImportError:
 
 @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class ArrayTests(StaticTestBase):
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128942886): SEQUENCE_SET")
     def test_array_import(self):
         codestr = """
             from __static__ import int64, Array
@@ -127,7 +127,7 @@ class ArrayTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_array_types(self):
         codestr = """
             from __static__ import (
@@ -307,7 +307,7 @@ class ArrayTests(StaticTestBase):
             self.assertEqual(f(a), 10)
             self.assertEqual(f(None), 42)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128940309): SEQUENCE_GET")
     def test_array_get_primitive_idx(self):
         codestr = """
             from __static__ import Array, int8, box
@@ -414,7 +414,7 @@ class ArrayTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, error_msg):
                 mod.h(["B"])
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128942886): SEQUENCE_SET")
     def test_array_set_signed(self):
         int_types = [
             "int8",
@@ -462,7 +462,7 @@ class ArrayTests(StaticTestBase):
                         f"Failing case: {type}, {sign}",
                     )
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128942886): SEQUENCE_SET")
     def test_array_set_unsigned(self):
         uint_types = [
             "uint8",
@@ -502,7 +502,7 @@ class ArrayTests(StaticTestBase):
                         result, array("q", [1, expected, 5]), f"Failing case: {type}"
                     )
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128940632): OverflowError: int overflow")
     def test_array_set_negative_idx(self):
         codestr = """
             from __static__ import Array, int8
@@ -521,7 +521,7 @@ class ArrayTests(StaticTestBase):
             m = mod.m
             self.assertEqual(m(), array("h", [1, 7, -5]))
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128940632): OverflowError: int overflow")
     def test_array_set_failure(self) -> object:
         codestr = """
             from __static__ import Array, int8
@@ -540,7 +540,6 @@ class ArrayTests(StaticTestBase):
             with self.assertRaisesRegex(IndexError, "index out of range"):
                 m()
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_array_set_failure_invalid_subscript(self):
         codestr = """
             from __static__ import Array, int8
@@ -561,7 +560,6 @@ class ArrayTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "array indices must be integers"):
                 m()
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_array_set_success_dynamic_subscript(self):
         codestr = """
             from __static__ import Array, int8
@@ -582,7 +580,7 @@ class ArrayTests(StaticTestBase):
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_array_set_success_dynamic_subscript_2(self):
         codestr = """
             from __static__ import Array, int8
@@ -604,7 +602,7 @@ class ArrayTests(StaticTestBase):
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_fast_forloop(self):
         codestr = """
             from __static__ import Array, int8

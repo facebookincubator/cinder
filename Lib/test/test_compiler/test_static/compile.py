@@ -1881,7 +1881,7 @@ class StaticCompilationTests(StaticTestBase):
         finally:
             sys.modules["xxclassloader"] = xxclassloader
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_invoke_builtin_func_arg(self):
         codestr = """
         from xxclassloader import bar
@@ -1898,7 +1898,7 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_invoke_func_unexistent_module(self):
         codestr = """
         from xxclassloader import bar
@@ -4708,7 +4708,7 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_spamobj_error(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4722,7 +4722,7 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "no way!"):
                 f()
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_spamobj_no_error(self):
         codestr = """
             from xxclassloader import spamobj
@@ -4749,7 +4749,7 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_generic_type(self):
         codestr = """
             from xxclassloader import spamobj
@@ -5804,7 +5804,7 @@ class StaticCompilationTests(StaticTestBase):
             at="i ==",
         )
 
-    @skip("TODO(T128790026): LOAD_PRIMITIVE_CONST")
+    @skip("TODO(T128903100): POP_JUMP_IF_NONZERO.")
     def test_compare_with_attr(self):
         codestr = """
         from __static__ import cbool

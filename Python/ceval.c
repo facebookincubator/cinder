@@ -5554,7 +5554,10 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_LOAD_CONST): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_LOAD_CONST");
+            PyObject* val = PyTuple_GET_ITEM(GETITEM(consts, oparg), 0);
+            Py_INCREF(val);
+            PUSH(val);
+            DISPATCH();
         }
 
         case TARGET(RETURN_PRIMITIVE): {

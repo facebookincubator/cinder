@@ -67,7 +67,7 @@ class AugAssignTests(StaticTestBase):
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_list(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
@@ -112,7 +112,7 @@ class AugAssignTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(3), 4)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_array(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
