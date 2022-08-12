@@ -1,8 +1,15 @@
 import asyncio
+from unittest import skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class AsyncTests(StaticTestBase):
     def test_async_for(self) -> None:
         codestr = """

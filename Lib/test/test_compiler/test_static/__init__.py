@@ -1,9 +1,10 @@
 # flake8: noqa
-# from .annotated import AnnotatedTests
-# from .array import ArrayTests
-# from .asyncs import AsyncTests
-# from .augassign import AugAssignTests
-# from .binop import BinopTests
+from .annotated import AnnotatedTests
+from .array import ArrayTests
+from .asyncs import AsyncTests
+from .augassign import AugAssignTests
+from .binop import BinopTests
+
 # from .cached_property import CachedPropertyTests
 # from .checked_dict import CheckedDictTests
 # from .checked_list import CheckedListTests

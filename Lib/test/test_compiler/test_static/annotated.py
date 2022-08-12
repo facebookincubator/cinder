@@ -1,8 +1,15 @@
 from compiler.static.types import TypedSyntaxError
+from unittest import skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class AnnotatedTests(StaticTestBase):
     def test_parse(self) -> None:
         codestr = """

@@ -1,6 +1,13 @@
+from unittest import skip, skipIf
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class AugAssignTests(StaticTestBase):
     def test_aug_assign(self) -> None:
         codestr = """
@@ -27,6 +34,7 @@ class AugAssignTests(StaticTestBase):
         self.assertInBytecode(code, "LOAD_FIELD", ("foo", "C", "x"))
         self.assertInBytecode(code, "STORE_FIELD", ("foo", "C", "x"))
 
+    @skip("TODO(T128764725): Support PRIMITIVE_UNBOX")
     def test_primitive_int(self):
         codestr = """
         from __static__ import int8, box, unbox
@@ -58,6 +66,7 @@ class AugAssignTests(StaticTestBase):
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
 
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_list(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
@@ -73,6 +82,7 @@ class AugAssignTests(StaticTestBase):
                 with self.in_module(codestr) as mod:
                     self.assertEqual(mod.f(3), 4)
 
+    @skip("TODO(T128868132): BUILD_CHECKED_LIST support")
     def test_checked_list(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
@@ -88,6 +98,7 @@ class AugAssignTests(StaticTestBase):
                 with self.in_module(codestr) as mod:
                     self.assertEqual(mod.f(3), 4)
 
+    @skip("TODO(T128868029): BUILD_CHECKED_MAP support")
     def test_checked_dict(self):
         codestr = """
             from __static__ import CheckedDict
@@ -100,6 +111,7 @@ class AugAssignTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(3), 4)
 
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_array(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
