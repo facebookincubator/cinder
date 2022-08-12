@@ -251,7 +251,7 @@ class ArrayTests(StaticTestBase):
             ],
         )
 
-    @skip("TODO(T128876073): Compiler bug with `assert block.next.insts`")
+    @skip("TODO(T128876073): type error not raised")
     def test_array_not_subclassable(self):
 
         with self.assertRaises(TypeError):
@@ -264,7 +264,7 @@ class ArrayTests(StaticTestBase):
             class C(Array):
                 pass
 
-    @skip("TODO(T128875983): Compiler bug with `assert block.next.insts`")
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_array_enum(self):
         codestr = """
             from __static__ import Array, clen, int64, box
@@ -284,7 +284,7 @@ class ArrayTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 f(None)
 
-    @skip("TODO(T128875983): Compiler bug with `assert block.next.insts`")
+    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
     def test_optional_array_enum(self):
         codestr = """
             from __static__ import Array, clen, int64, box

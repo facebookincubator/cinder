@@ -89,7 +89,7 @@ class Instruction:
 
     def is_jump(self, opcode: Opcode) -> bool:
         op = opcode.opmap[self.opname]
-        return opcodes.opcode.has_jump(op)
+        return opcode.has_jump(op)
 
     def copy(self) -> Instruction:
         return Instruction(
@@ -1132,13 +1132,7 @@ class PyFlowGraph(FlowGraph):
                 continue
             elif instr.opname in ("JUMP_ABSOLUTE", "JUMP_FORWARD"):
                 block.no_fallthrough = True
-            elif instr.opname not in (
-                "POP_JUMP_IF_TRUE",
-                "POP_JUMP_IF_FALSE",
-                "JUMP_IF_TRUE_OR_POP",
-                "JUMP_IF_FALSE_OR_POP",
-                "FOR_ITER",
-            ):
+            elif not instr.is_jump(self.opcode):
                 continue
             while not instr.target.insts:
                 instr.target = instr.target.next
