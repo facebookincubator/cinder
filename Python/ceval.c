@@ -3227,6 +3227,25 @@ main_loop:
             DISPATCH();
         }
 
+#define Ci_BUILD_DICT(map_size)                                               \
+                                                                              \
+    for (Py_ssize_t i = map_size; i > 0; i--) {                               \
+        int err;                                                              \
+        PyObject *key = PEEK(2 * i);                                          \
+        PyObject *value = PEEK(2 * i - 1);                                    \
+        err = PyDict_SetItem(map, key, value);                               \
+        if (err != 0) {                                                       \
+            Py_DECREF(map);                                                   \
+            goto error;                                                       \
+        }                                                                     \
+    }                                                                         \
+                                                                              \
+    while (map_size--) {                                                      \
+        Py_DECREF(POP());                                                     \
+        Py_DECREF(POP());                                                     \
+    }                                                                         \
+    PUSH(map);
+
         case TARGET(BUILD_MAP): {
             Py_ssize_t i;
             PyObject *map = _PyDict_NewPresized((Py_ssize_t)oparg);
@@ -5421,7 +5440,45 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_MAP): {
-            PORT_ASSERT("Unsupported: BUILD_CHECKED_MAP");
+            PyObject *map_info = GETITEM(consts, oparg);
+            PyObject *map_type = PyTuple_GET_ITEM(map_info, 0);
+            Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(map_info, 1));
+
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(map_type, &optional, &exact);
+            assert(!optional);
+
+            if (shadow.shadow != NULL) {
+                PyObject *cache = PyTuple_New(2);
+                if (cache == NULL) {
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 0, (PyObject *)type);
+                Py_INCREF(type);
+                PyObject *size = PyLong_FromLong(map_size);
+                if (size == NULL) {
+                    Py_DECREF(cache);
+                    goto error;
+                }
+                PyTuple_SET_ITEM(cache, 1, size);
+
+                int offset = _PyShadow_CacheCastType(&shadow, cache);
+                Py_DECREF(cache);
+                if (offset != -1) {
+                    _PyShadow_PatchByteCode(
+                        &shadow, next_instr, BUILD_CHECKED_MAP_CACHED, offset);
+                }
+            }
+
+            PyObject *map = _PyCheckedDict_NewPresized(type, map_size);
+            if (map == NULL) {
+                goto error;
+            }
+            Py_DECREF(type);
+
+            Ci_BUILD_DICT(map_size);
+            DISPATCH();
         }
 
         case TARGET(SEQUENCE_GET): {

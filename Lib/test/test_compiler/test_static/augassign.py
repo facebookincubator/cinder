@@ -1,4 +1,5 @@
 from unittest import skip, skipIf
+
 from .common import StaticTestBase
 
 try:
@@ -98,7 +99,7 @@ class AugAssignTests(StaticTestBase):
                 with self.in_module(codestr) as mod:
                     self.assertEqual(mod.f(3), 4)
 
-    @skip("TODO(T128868029): BUILD_CHECKED_MAP support")
+    @skip("TODO(T128900163): Hit stubbed function: _PyCheckedDict_NewPresized")
     def test_checked_dict(self):
         codestr = """
             from __static__ import CheckedDict
