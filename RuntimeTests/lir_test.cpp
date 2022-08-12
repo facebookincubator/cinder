@@ -42,9 +42,8 @@ class LIRGeneratorTest : public RuntimeTest {
       return nullptr;
     }
 
-    PyObject* builtins =
-        _PyFunction_GetBuiltins(reinterpret_cast<PyFunctionObject*>(func));
-    if (!PyDict_CheckExact(builtins)) {
+    if (!PyDict_CheckExact(
+            reinterpret_cast<PyFunctionObject*>(func)->func_builtins)) {
       return nullptr;
     }
 

@@ -1178,7 +1178,11 @@ PyObject* JITRT_BoxDouble(double_t d) {
 
 PyObject* JITRT_BoxEnum(int64_t i, uint64_t t) {
   PyObject* val = PyLong_FromSsize_t(i);
-  PyObject* ret = _PyObject_Call1Arg((PyObject*)t, val);
+  PyObject* ret = PyObject_Vectorcall(
+      reinterpret_cast<PyObject*>(t),
+      reinterpret_cast<PyObject**>(&val),
+      1,
+      NULL);
   Py_DECREF(val);
   return ret;
 }
@@ -1361,7 +1365,7 @@ PyObject* JITRT_ImportName(
 
 void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // If we re-raise with no error set, deliberately do nothing and let
-  // prepareForDeopt() handle this. We can't let _Py_DoRaise() handle this by
+  // prepareForDeopt() handle this. We can't let do_raise() handle this by
   // raising a RuntimeError as this would mean prepareForDeopt() does not call
   // PyTraceBack_Here().
   if (exc == NULL) {
@@ -1374,7 +1378,7 @@ void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // We deliberately discard the return value here. In the interpreter a return
   // value of 1 indicates a _valid_ re-raise which skips:
   // (1) Calling PyTraceBack_Here().
-  // (2) Raising a SystemError if no exception is set (no need, _Py_DoRaise
+  // (2) Raising a SystemError if no exception is set (no need, do_raise
   //     already handles this).
   // (3) Calling tstate->c_tracefunc.
   // We don't support (3) and handle (1) + (2) between the check above and in
