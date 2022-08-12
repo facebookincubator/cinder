@@ -127,7 +127,7 @@ class ArrayTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T128841023): Add STORE_LOCAL support.")
+    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_array_types(self):
         codestr = """
             from __static__ import (
@@ -580,7 +580,7 @@ class ArrayTests(StaticTestBase):
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
 
-    @skip("TODO(T128841023): Add STORE_LOCAL support.")
+    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_array_set_success_dynamic_subscript_2(self):
         codestr = """
             from __static__ import Array, int8
@@ -602,7 +602,7 @@ class ArrayTests(StaticTestBase):
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
 
-    @skip("TODO(T128841023): Add STORE_LOCAL support.")
+    @skip("TODO(T128958715): LOAD_LOCAL.")
     def test_fast_forloop(self):
         codestr = """
             from __static__ import Array, int8

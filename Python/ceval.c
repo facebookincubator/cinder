@@ -1203,7 +1203,8 @@ static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
 static inline void store_field(int field_type, void *addr, PyObject *value);
 static inline PyObject *load_field(int field_type, void *addr);
-
+static inline PyObject *
+box_primitive(int field_type, Py_ssize_t value);
 
 PyObject *
 PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
@@ -1247,6 +1248,14 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     return _PyEval_EvalFrame(tstate, f, throwflag);
 }
 
+static inline Py_ssize_t
+unbox_primitive_int_and_decref(PyObject *x)
+{
+    assert(PyLong_Check(x));
+    Py_ssize_t res = (Py_ssize_t)PyLong_AsVoidPtr(x);
+    Py_DECREF(x);
+    return res;
+}
 
 /* Handle signals, pending calls, GIL drop request
    and asynchronous exception */
@@ -5106,7 +5115,27 @@ main_loop:
         }
 
         case TARGET(STORE_LOCAL): {
-            PORT_ASSERT("Unsupported: STORE_LOCAL");
+            PyObject *local = GETITEM(consts, oparg);
+            int index = _PyLong_AsInt(PyTuple_GET_ITEM(local, 0));
+            int type =
+                _PyClassLoader_ResolvePrimitiveType(PyTuple_GET_ITEM(local, 1));
+            if (type < 0) {
+                goto error;
+            }
+
+            if (type == TYPED_DOUBLE) {
+                SETLOCAL(index, POP());
+            } else {
+                Py_ssize_t val = unbox_primitive_int_and_decref(POP());
+                SETLOCAL(index, box_primitive(type, val));
+            }
+            if (shadow.shadow != NULL) {
+                assert(type < 8);
+                _PyShadow_PatchByteCode(
+                    &shadow, next_instr, PRIMITIVE_STORE_FAST, (index << 4) | type);
+            }
+
+            DISPATCH();
         }
 
         case TARGET(INT_LOAD_CONST_OLD): {
@@ -6601,15 +6630,6 @@ fail:
     return res;
 }
 
-static inline Py_ssize_t
-unbox_primitive_int_and_decref(PyObject *x)
-{
-    assert(PyLong_Check(x));
-    Py_ssize_t res = (Py_ssize_t)PyLong_AsVoidPtr(x);
-    Py_DECREF(x);
-    return res;
-}
-
 static inline int8_t
 unbox_primitive_bool_and_decref(PyObject *x)
 {
@@ -7341,6 +7361,35 @@ call_function(PyThreadState *tstate,
     }
 
     return x;
+}
+
+static inline PyObject *
+box_primitive(int type, Py_ssize_t value)
+{
+    switch (type) {
+    case TYPED_BOOL:
+        return PyBool_FromLong((int8_t)value);
+    case TYPED_INT8:
+    case TYPED_CHAR:
+        return PyLong_FromSsize_t((int8_t)value);
+    case TYPED_INT16:
+        return PyLong_FromSsize_t((int16_t)value);
+    case TYPED_INT32:
+        return PyLong_FromSsize_t((int32_t)value);
+    case TYPED_INT64:
+        return PyLong_FromSsize_t((int64_t)value);
+    case TYPED_UINT8:
+        return PyLong_FromSize_t((uint8_t)value);
+    case TYPED_UINT16:
+        return PyLong_FromSize_t((uint16_t)value);
+    case TYPED_UINT32:
+        return PyLong_FromSize_t((uint32_t)value);
+    case TYPED_UINT64:
+        return PyLong_FromSize_t((uint64_t)value);
+    default:
+        assert(0);
+        return NULL;
+    }
 }
 
 static PyObject *
