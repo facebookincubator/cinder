@@ -5170,7 +5170,11 @@ main_loop:
         }
 
         case TARGET(POP_JUMP_IF_NONZERO): {
-            PORT_ASSERT("Unsupported: POP_JUMP_IF_NONZERO");
+            PyObject *cond = POP();
+            int is_nonzero = Py_SIZE(cond);
+            Py_DECREF(cond);
+            if (is_nonzero) { JUMPTO(oparg); }
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
