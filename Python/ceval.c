@@ -5367,8 +5367,71 @@ main_loop:
             PORT_ASSERT("Unsupported: PRIMITIVE_UNARY_OP");
         }
 
+#define INT_CMP_OPCODE_UNSIGNED(opid, op)                                     \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        right = (size_t)PyLong_AsVoidPtr(r);                                  \
+        left = (size_t)PyLong_AsVoidPtr(l);                                   \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        res = (left op right) ? Py_True : Py_False;                           \
+        Py_INCREF(res);                                                       \
+        PUSH(res);                                                            \
+        DISPATCH();                                                           \
+    }
+
+#define INT_CMP_OPCODE_SIGNED(opid, op)                                       \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        sright = (Py_ssize_t)PyLong_AsVoidPtr(r);                             \
+        sleft = (Py_ssize_t)PyLong_AsVoidPtr(l);                              \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        res = (sleft op sright) ? Py_True : Py_False;                         \
+        Py_INCREF(res);                                                       \
+        PUSH(res);                                                            \
+        DISPATCH();                                                           \
+    }
+
+#define DBL_CMP_OPCODE(opid, op)                                              \
+    case opid: {                                                              \
+        r = POP();                                                            \
+        l = POP();                                                            \
+        res = ((PyFloat_AS_DOUBLE(l) op PyFloat_AS_DOUBLE(r)) ?               \
+                Py_True : Py_False);                                          \
+        Py_DECREF(r);                                                         \
+        Py_DECREF(l);                                                         \
+        Py_INCREF(res);                                                       \
+        PUSH(res);                                                            \
+        DISPATCH();                                                           \
+    }
+
         case TARGET(PRIMITIVE_COMPARE_OP): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_COMPARE_OP");
+            PyObject *l, *r, *res;
+            Py_ssize_t sleft, sright;
+            size_t left, right;
+            switch (oparg) {
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_EQ_INT, ==)
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_NE_INT, !=)
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_LT_INT, <)
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_GT_INT, >)
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_LE_INT, <=)
+                INT_CMP_OPCODE_SIGNED(PRIM_OP_GE_INT, >=)
+                INT_CMP_OPCODE_UNSIGNED(PRIM_OP_LT_UN_INT, <)
+                INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GT_UN_INT, >)
+                INT_CMP_OPCODE_UNSIGNED(PRIM_OP_LE_UN_INT, <=)
+                INT_CMP_OPCODE_UNSIGNED(PRIM_OP_GE_UN_INT, >=)
+                DBL_CMP_OPCODE(PRIM_OP_EQ_DBL, ==)
+                DBL_CMP_OPCODE(PRIM_OP_NE_DBL, !=)
+                DBL_CMP_OPCODE(PRIM_OP_LT_DBL, <)
+                DBL_CMP_OPCODE(PRIM_OP_GT_DBL, >)
+                DBL_CMP_OPCODE(PRIM_OP_LE_DBL, <=)
+                DBL_CMP_OPCODE(PRIM_OP_GE_DBL, >=)
+            }
+            PyErr_SetString(PyExc_RuntimeError, "unknown op");
+            goto error;
         }
 
         case TARGET(LOAD_ITERABLE_ARG): {

@@ -127,7 +127,7 @@ class ArrayTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T128965219): PRIMITIVE_COMPARE_OP.")
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support.")
     def test_array_types(self):
         codestr = """
             from __static__ import (
@@ -601,7 +601,7 @@ class ArrayTests(StaticTestBase):
             r = m()
             self.assertEqual(r, array("b", [1, 37, -5]))
 
-    @skip("TODO(T128965219): PRIMITIVE_COMPARE_OP.")
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support.")
     def test_fast_forloop(self):
         codestr = """
             from __static__ import Array, int8
