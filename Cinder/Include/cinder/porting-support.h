@@ -97,7 +97,6 @@ void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter);
 PyAPI_FUNC(PyObject *) _PyType_GetMethodCacheStats(void);
 PyAPI_FUNC(void) _PyType_ResetMethodCacheStats(void);
 PyAPI_FUNC(void) _PyType_SetReadonlyProperties(struct _typeobject *);
-PyAPI_FUNC(PyObject *) _PyType_GetSwitchboard(void);
 
 // TODO(T124996749): Until we port immortal objects, it's safe to always say
 // nothing is immortal.
@@ -119,7 +118,6 @@ PyFrameObject * _PyFrame_NewWithBuiltins_NoTrack(PyThreadState *,
                                                  PyObject *);
 
 // Include/funcobject.h
-PyAPI_FUNC(PyObject *) _PyFunction_GetSwitchboard(void);
 PyAPI_FUNC(PyObject *) _PyFunction_GetBuiltins(PyFunctionObject *func);
 
 

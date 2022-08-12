@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 
 #include "cinder/porting-support.h"
-#include "switchboard.h"
 
 #include "Jit/jit_context.h"
 #include "Jit/ref.h"
@@ -11,8 +10,6 @@
 #include "RuntimeTests/testutil.h"
 
 #include <memory>
-
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 class PyJITContextTest : public RuntimeTest {
  public:
@@ -30,6 +27,8 @@ class PyJITContextTest : public RuntimeTest {
 
   _PyJITContext* jit_ctx_;
 };
+
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 
 TEST_F(PyJITContextTest, CompiledFunctionsAreDeoptimizedWhenCodeChanges) {
   const char* src = R"(
@@ -64,13 +63,8 @@ func.__code__ = func.__code__
   // After de-optimization, the entrypoint should have been restored to the
   // original value
   ASSERT_EQ(func->vectorcall, old_entrypoint) << "entrypoint wasn't restored";
-
-  // And there should be no subscriptions for the function
-  Switchboard* sb = (Switchboard*)_PyFunction_GetSwitchboard();
-  ASSERT_NE(sb, nullptr) << "Failed getting function switchboard";
-  ASSERT_EQ(Switchboard_GetNumSubscriptions(sb, func), 0)
-      << "Didn't remove subscription";
 }
+#endif
 
 TEST_F(PyJITContextTest, UnwatchableBuiltins) {
   // This is a C++ test rather than in test_cinderjit so we can guarantee a
@@ -97,4 +91,3 @@ foo = "hello"
   Ref<PyObject> result(PyObject_Call(func, empty_tuple, nullptr));
   ASSERT_EQ(result, Py_None);
 }
-#endif

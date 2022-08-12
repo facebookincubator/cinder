@@ -447,7 +447,6 @@ CINDER_PYTHON_OBJS= \
 		Python/immutable_global.o \
 		Python/pyreadonly.o \
 		Python/shadowcode.o \
-		Python/switchboard.o \
 
 ##########################################################################
 # Jit
@@ -1531,7 +1530,6 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/sliceobject.h \
 		$(srcdir)/Include/structmember.h \
 		$(srcdir)/Include/structseq.h \
-		$(srcdir)/Include/switchboard.h \
 		$(srcdir)/Include/sysmodule.h \
 		$(srcdir)/Include/token.h \
 		$(srcdir)/Include/traceback.h \
@@ -2621,7 +2619,6 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/sanity_test.o \
 	${RUNTIME_TESTS_DIR}/slab_arena_test.o \
 	${RUNTIME_TESTS_DIR}/slot_gen_test.o \
-	${RUNTIME_TESTS_DIR}/switchboard_test.o \
 	${RUNTIME_TESTS_DIR}/testutil.o \
 	${RUNTIME_TESTS_DIR}/type_profiler_test.o \
 	${RUNTIME_TESTS_DIR}/util_test.o

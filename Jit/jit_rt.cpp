@@ -12,7 +12,6 @@
 #include "pycore_shadow_frame.h"
 #include "pyreadonly.h"
 #include "pystate.h"
-#include "switchboard.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/frame.h"

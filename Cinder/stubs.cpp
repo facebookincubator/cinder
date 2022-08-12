@@ -2,7 +2,6 @@
 #include "arraymodule.h"
 #include "classloader.h"
 #include "funccredobject.h"
-#include "switchboard.h"
 
 #include "cinder/porting-support.h"
 
@@ -21,16 +20,6 @@ STUB(PyObject *, _PyClassLoader_NewAwaitableWrapper, PyObject *, int, PyObject *
 // funccredobject.c
 STUB(PyObject *, PyFunctionCredential_New, void)
 STUB(void, PyFunctionCredential_Fini, void)
-
-
-// Python/switchboard.c
-STUB(int, Switchboard_Init, void)
-STUB(Switchboard *, Switchboard_New, void)
-STUB(PyObject *, Switchboard_Subscribe, Switchboard *, PyObject *, Switchboard_Callback, PyObject *)
-STUB(int, Switchboard_Notify, Switchboard *, PyObject *)
-STUB(Py_ssize_t, Switchboard_GetNumSubscriptions, Switchboard *, PyObject *)
-STUB(int, Switchboard_Unsubscribe, Switchboard *, PyObject *)
-STUB(int, Switchboard_UnsubscribeAll, Switchboard *, PyObject *)
 
 
 // Objects/typeobject.c
@@ -90,10 +79,6 @@ STUB(PyFrameObject *, _PyFrame_NewWithBuiltins_NoTrack, PyThreadState *, PyCodeO
 STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 
 
-// Objects/typeobject.c
-STUB(PyObject *, _PyType_GetSwitchboard, void)
-
-
 // Python/arraymodule.c
 STUB(PyObject *, _PyArray_GetItem, PyObject *, Py_ssize_t)
 STUB(int, _PyArray_SetItem, PyObject *, Py_ssize_t, PyObject *)
@@ -111,5 +96,4 @@ PyTypeObject PyArray_Type = {
 };
 
 // Objects/funcobject.c
-STUB(PyObject *, _PyFunction_GetSwitchboard, void)
 STUB(PyObject *, _PyFunction_GetBuiltins, PyFunctionObject *)
