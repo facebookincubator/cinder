@@ -55,7 +55,7 @@ except ImportError:
 
 @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class ArrayTests(StaticTestBase):
-    @skip("TODO(T128942886): SEQUENCE_SET")
+    @skip("TODO(T128958699): Hit stubbed function: _PyArray_SetItem")
     def test_array_import(self):
         codestr = """
             from __static__ import int64, Array
@@ -414,7 +414,7 @@ class ArrayTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, error_msg):
                 mod.h(["B"])
 
-    @skip("TODO(T128942886): SEQUENCE_SET")
+    @skip("TODO(T128958699): Hit stubbed function: _PyArray_SetItem")
     def test_array_set_signed(self):
         int_types = [
             "int8",
@@ -462,7 +462,7 @@ class ArrayTests(StaticTestBase):
                         f"Failing case: {type}, {sign}",
                     )
 
-    @skip("TODO(T128942886): SEQUENCE_SET")
+    @skip("TODO(T128958699): Hit stubbed function: _PyArray_SetItem")
     def test_array_set_unsigned(self):
         uint_types = [
             "uint8",

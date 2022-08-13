@@ -5798,7 +5798,74 @@ main_loop:
         }
 
         case TARGET(SEQUENCE_SET): {
-            PORT_ASSERT("Unsupported: SEQUENCE_SET");
+            PyObject *subscr = TOP();
+            PyObject *sequence = SECOND();
+            PyObject *v = THIRD();
+            int err;
+            STACK_SHRINK(3);
+
+            Py_ssize_t idx = (Py_ssize_t)PyLong_AsVoidPtr(subscr);
+            Py_DECREF(subscr);
+
+            if (idx == -1 && _PyErr_Occurred(tstate)) {
+                Py_DECREF(v);
+                Py_DECREF(sequence);
+                goto error;
+            }
+
+            // Adjust index
+            if (idx < 0) {
+                idx += Py_SIZE(sequence);
+            }
+
+            if (_Py_IS_TYPED_ARRAY(oparg)) {
+                if (_Py_IS_TYPED_ARRAY_SIGNED(oparg)) {
+                    // Deal with signed values on the stack
+                    PyObject *tmp = v;
+                    size_t ival = (size_t)PyLong_AsVoidPtr(tmp);
+                    if (ival & ((size_t)1) << 63) {
+                        v = PyLong_FromSsize_t((int64_t)ival);
+                        Py_DECREF(tmp);
+                    }
+                }
+
+                err = _PyArray_SetItem(sequence, idx, v);
+
+                Py_DECREF(v);
+                Py_DECREF(sequence);
+                if (err != 0)
+                    goto error;
+            } else if (oparg == SEQ_LIST) {
+                err = PyList_SetItem(sequence, idx, v);
+
+                Py_DECREF(sequence);
+                if (err != 0) {
+                    Py_DECREF(v);
+                    goto error;
+                }
+            } else if (oparg == SEQ_LIST_INEXACT) {
+                if (PyList_CheckExact(sequence) ||
+                    Py_TYPE(sequence)->tp_as_sequence->sq_ass_item == PyList_Type.tp_as_sequence->sq_ass_item) {
+                    err = PyList_SetItem(sequence, idx, v);
+
+                    Py_DECREF(sequence);
+                    if (err != 0) {
+                        Py_DECREF(v);
+                        goto error;
+                    }
+                } else {
+                    err = PyObject_SetItem(sequence, subscr, v);
+                    Py_DECREF(v);
+                    Py_DECREF(sequence);
+                    if (err != 0) {
+                        goto error;
+                    }
+                }
+            } else {
+                PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_SET: %d", oparg);
+                goto error;
+            }
+            DISPATCH();
         }
 
         case TARGET(LIST_DEL): {
