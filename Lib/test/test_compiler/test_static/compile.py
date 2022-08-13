@@ -5796,7 +5796,6 @@ class StaticCompilationTests(StaticTestBase):
             at="i ==",
         )
 
-    @skip("TODO(T128787977): STORE_FIELD.")
     def test_compare_with_attr(self):
         codestr = """
         from __static__ import cbool

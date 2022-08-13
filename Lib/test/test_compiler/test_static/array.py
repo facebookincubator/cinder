@@ -264,7 +264,7 @@ class ArrayTests(StaticTestBase):
             class C(Array):
                 pass
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_array_enum(self):
         codestr = """
             from __static__ import Array, clen, int64, box
@@ -284,7 +284,7 @@ class ArrayTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 f(None)
 
-    @skip("TODO(T128790026): PRIMITIVE_LOAD_CONST")
+    @skip("TODO(T128841023): Add STORE_LOCAL support.")
     def test_optional_array_enum(self):
         codestr = """
             from __static__ import Array, clen, int64, box
