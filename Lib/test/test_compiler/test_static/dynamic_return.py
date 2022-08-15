@@ -1,7 +1,18 @@
+from unittest import skip, skipIf
+
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class DynamicReturnTests(StaticTestBase):
+    @skip(
+        "TODO(T129111875): There's a strict modules bug with future annotations + return annotations."
+    )
     def test_dynamic_return(self):
         codestr = """
             from __future__ import annotations
@@ -12,8 +23,6 @@ class DynamicReturnTests(StaticTestBase):
 
             @allow_weakrefs
             class C:
-                @dynamic_return
-                @staticmethod
                 def make() -> C:
                     return weakref.proxy(singletons[0])
 
@@ -39,6 +48,9 @@ class DynamicReturnTests(StaticTestBase):
             # We don't mess with __annotations__
             self.assertEqual(mod.C.make.__annotations__, {"return": "C"})
 
+    @skip(
+        "TODO(T129111875): There's a strict modules bug with future annotations + return annotations."
+    )
     def test_dynamic_return_known_type(self):
         codestr = """
             from __future__ import annotations
