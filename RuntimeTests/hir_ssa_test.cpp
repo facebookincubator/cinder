@@ -23,7 +23,6 @@ static void testCheckFunc(const char* hir_source, const char* expected_err) {
   EXPECT_EQ(err.str(), expected_err);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(CheckFuncTest, UndefinedVariables) {
   const char* hir_source = R"(
 fun test {
@@ -180,7 +179,6 @@ fun test {
       "position\n";
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
-#endif
 
 TEST(CheckFuncTest, NoTerminator) {
   const char* hir_source = R"(
@@ -202,7 +200,6 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(CheckFuncTest, NonTerminalTerminator) {
   const char* hir_source = R"(
 fun test {
@@ -225,7 +222,6 @@ fun test {
       "position\nERROR: bb 2 has no terminator at end\n";
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
-#endif
 
 TEST(CheckFuncTest, MultipleEdgesFromSamePred) {
   const char* hir_source = R"(
@@ -317,7 +313,6 @@ TEST(CheckFuncTest, UnreachableBlock) {
   EXPECT_EQ(err.str(), "ERROR: CFG contains unreachable bb 2\n");
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 static void testSSAify(const char* hir_source, const char* expected) {
   std::unique_ptr<Function> func(HIRParser().ParseHIR(hir_source));
   ASSERT_NE(func, nullptr);
@@ -406,7 +401,7 @@ fun test {
   }
 
   bb 1 (preds 0, 2) {
-    v6:Object = Phi<0, 2> v5 v9
+    v6:Object = Phi<0, 2> v5 v8
     CondBranch<2, 3> v6
   }
 
@@ -417,7 +412,6 @@ fun test {
         NextInstrOffset 0
       }
     }
-    v9:Object = Assign v8
     Branch<1>
   }
 
@@ -471,7 +465,7 @@ fun test {
   }
 
   bb 2 (preds 1, 3) {
-    v7:Object = Phi<1, 3> v6 v10
+    v7:Object = Phi<1, 3> v6 v9
     CondBranch<3, 1> v7
   }
 
@@ -482,7 +476,6 @@ fun test {
         NextInstrOffset 0
       }
     }
-    v10:Object = Assign v9
     Branch<2>
   }
 
@@ -874,4 +867,3 @@ fun test {
 )";
   EXPECT_NO_FATAL_FAILURE(testSSAify(hir_source, expected));
 }
-#endif

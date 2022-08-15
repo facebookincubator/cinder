@@ -654,6 +654,7 @@ void reflowTypes(Function& func) {
 
 void SSAify::Run(Function& irfunc) {
   Run(irfunc.cfg.entry_block, &irfunc.env);
+  PhiElimination{}.Run(irfunc);
 }
 
 // This implements the algorithm outlined in "Simple and Efficient Construction
@@ -664,7 +665,6 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
 
   auto blocks = CFG::GetRPOTraversal(start);
   auto ssa_basic_blocks = initSSABasicBlocks(blocks);
-  reg_replacements_.clear();
   phi_uses_.clear();
 
   for (auto& block : blocks) {
@@ -696,8 +696,6 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
       fixIncompletePhis(succ);
     }
   }
-
-  fixRegisters(ssa_basic_blocks);
 
   // realize phi functions
   for (auto& bb : ssa_basic_blocks) {
@@ -785,15 +783,8 @@ void SSAify::maybeAddPhi(
   std::unordered_map<BasicBlock*, Register*> pred_defs;
   for (auto& pred : ssa_block->preds) {
     auto pred_reg = getDefine(pred, reg);
-    if (auto replacement = getReplacement(pred_reg)) {
-      pred_reg = replacement;
-    }
     pred_defs.emplace(pred->block, pred_reg);
   }
-  Register* replacement = getCommonPredValue(out, pred_defs);
-  if (replacement != nullptr) {
-    removeTrivialPhi(ssa_block, reg, out, replacement);
-  } else {
     auto bc_off = ssa_block->block->begin()->bytecodeOffset();
     auto phi = Phi::create(out, pred_defs);
     phi->setBytecodeOffset(bc_off);
@@ -801,56 +792,6 @@ void SSAify::maybeAddPhi(
     for (auto& def_pair : pred_defs) {
       phi_uses_[def_pair.second].emplace(phi, ssa_block);
     }
-  }
-}
-
-void SSAify::removeTrivialPhi(
-    SSABasicBlock* ssa_block,
-    Register* reg,
-    Register* from,
-    Register* to) {
-  // Update our local definition for reg if it was provided by the phi.
-  auto it = ssa_block->local_defs.find(reg);
-  if (it->second == from) {
-    it->second = to;
-  }
-
-  // If we're removing a phi that was realized, delete the corresponding
-  // instruction
-  auto phi_it = ssa_block->phi_nodes.find(from);
-  if (phi_it != ssa_block->phi_nodes.end()) {
-    Phi* phi = phi_it->second;
-    for (std::size_t i = 0; i < phi->NumOperands(); i++) {
-      phi_uses_[phi->GetOperand(i)].erase(phi);
-    }
-    ssa_block->phi_nodes.erase(phi_it);
-    delete phi;
-  }
-
-  // We need to replace all uses of the value the phi would have produced with
-  // the replacement.  This is where our implementation diverges from the
-  // paper. We record that non-phi uses of the original value should be
-  // replaced with the new value. Once we've finished processing the CFG we
-  // will go through and fix up all uses as a final step.
-  reg_replacements_[from] = to;
-
-  // Finally, we eagerly update all phis that used the original value since
-  // some of them may become trivial. This process is repeated recursively
-  // until no more trivial phis can be removed.
-  auto use_it = phi_uses_.find(from);
-  if (use_it == phi_uses_.end()) {
-    return;
-  }
-  for (auto& use : use_it->second) {
-    Phi* phi = use.first;
-    phi->ReplaceUsesOf(from, to);
-    phi_uses_[to][phi] = use.second;
-    Register* trivial_out = phi->isTrivial();
-    if (trivial_out != nullptr) {
-      removeTrivialPhi(use.second, reg, phi->GetOutput(), trivial_out);
-    }
-  }
-  phi_uses_.erase(from);
 }
 
 Register* SSAify::getCommonPredValue(
@@ -914,43 +855,6 @@ std::unordered_map<BasicBlock*, SSABasicBlock*> SSAify::initSSABasicBlocks(
   }
 
   return ssa_basic_blocks;
-}
-
-void SSAify::fixRegisters(
-    std::unordered_map<BasicBlock*, SSABasicBlock*>& ssa_basic_blocks) {
-  for (auto& bb : ssa_basic_blocks) {
-    auto ssa_block = bb.second;
-
-    for (auto& instr : *(ssa_block->block)) {
-      instr.visitUses([&](Register*& reg) {
-        if (auto replacement = getReplacement(reg)) {
-          reg = replacement;
-        }
-        return true;
-      });
-    }
-  }
-}
-
-Register* SSAify::getReplacement(Register* reg) {
-  Register* replacement = reg;
-  std::vector<std::unordered_map<Register*, Register*>::iterator> chain;
-  auto prev_it = reg_replacements_.end();
-  while (true) {
-    auto it = reg_replacements_.find(replacement);
-    if (it == reg_replacements_.end()) {
-      break;
-    }
-    replacement = it->second;
-    if (prev_it != reg_replacements_.end()) {
-      chain.emplace_back(prev_it);
-    }
-    prev_it = it;
-  }
-  for (auto& it : chain) {
-    it->second = replacement;
-  }
-  return replacement == reg ? nullptr : replacement;
 }
 
 } // namespace hir

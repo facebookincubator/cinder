@@ -79,20 +79,11 @@ class SSAify : public Pass {
 
   void fixIncompletePhis(SSABasicBlock* ssa_block);
 
-  void fixRegisters(
-      std::unordered_map<BasicBlock*, SSABasicBlock*>& ssa_basic_blocks);
   std::unordered_map<BasicBlock*, SSABasicBlock*> initSSABasicBlocks(
       std::vector<BasicBlock*>& blocks);
 
-  Register* getReplacement(Register* reg);
   void maybeAddPhi(SSABasicBlock* ssa_block, Register* reg, Register* out);
-  void removeTrivialPhi(
-      SSABasicBlock* ssa_block,
-      Register* reg,
-      Register* from,
-      Register* to);
   Environment* env_;
-  std::unordered_map<Register*, Register*> reg_replacements_;
   std::unordered_map<Register*, std::unordered_map<Phi*, SSABasicBlock*>>
       phi_uses_;
   Register* null_reg_{nullptr};
