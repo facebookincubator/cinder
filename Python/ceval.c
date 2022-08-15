@@ -5363,8 +5363,39 @@ main_loop:
             goto error;
         }
 
+#define INT_UNARY_OPCODE(opid, op)                                            \
+    case opid: {                                                              \
+        val = POP();                                                          \
+        PUSH(PyLong_FromVoidPtr((void *)(op(size_t) PyLong_AsVoidPtr(val)))); \
+        Py_DECREF(val);                                                       \
+        DISPATCH();                                                      \
+    }
+
+#define DBL_UNARY_OPCODE(opid, op)                                            \
+    case opid: {                                                              \
+        val = POP();                                                          \
+        PUSH(PyFloat_FromDouble(op(PyFloat_AS_DOUBLE(val))));                 \
+        Py_DECREF(val);                                                       \
+        DISPATCH();                                                      \
+    }
+
         case TARGET(PRIMITIVE_UNARY_OP): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_UNARY_OP");
+            PyObject *val;
+            switch (oparg) {
+                INT_UNARY_OPCODE(PRIM_OP_NEG_INT, -)
+                INT_UNARY_OPCODE(PRIM_OP_INV_INT, ~)
+                DBL_UNARY_OPCODE(PRIM_OP_NEG_DBL, -)
+                case PRIM_OP_NOT_INT: {
+                    val = POP();
+                    PyObject *res = PyLong_AsVoidPtr(val) ? Py_False : Py_True;
+                    Py_INCREF(res);
+                    PUSH(res);
+                    Py_DECREF(val);
+                    DISPATCH();
+                }
+            }
+            PyErr_SetString(PyExc_RuntimeError, "unknown op");
+            goto error;
         }
 
 #define INT_CMP_OPCODE_UNSIGNED(opid, op)                                     \

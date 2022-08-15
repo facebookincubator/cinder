@@ -373,7 +373,6 @@ class DoubleTests(StaticTestBase):
 
             self.assertEqual(f(C()), 0.0)
 
-    @skip("TODO(T129109672): PRIMITIVE_UNARY_OP support")
     def test_double_unary(self):
         tests = [
             ("-", 1.0, -1.0),
