@@ -318,6 +318,8 @@ DeoptMetadata DeoptMetadata::fromInstr(
   };
 
   auto fs = instr.frameState();
+  JIT_DCHECK(
+      fs != nullptr, "need FrameState to calculate inline depth of %s", instr);
 
   int num_frames = fs->inlineDepth();
   meta.frame_meta.resize(num_frames + 1); // +1 for caller

@@ -383,6 +383,7 @@ struct FrameState {
   V(MakeListTuple)                     \
   V(MakeSet)                           \
   V(MakeTupleFromList)                 \
+  V(MatchKeys)                         \
   V(MergeSetUnpack)                    \
   V(Phi)                               \
   V(Raise)                             \
@@ -3907,6 +3908,16 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>);
 DEFINE_SIMPLE_INSTR(WaitHandleLoadWaiter, (TObject), HasOutput, Operands<1>);
 DEFINE_SIMPLE_INSTR(WaitHandleRelease, (TObject), Operands<1>);
+
+// MatchKeys calls CPython's match_keys interpreter function. It takes two
+// arguments, subject and keys. Returns null on error, None if no match, and a
+// tuple of values on match.
+DEFINE_SIMPLE_INSTR(
+    MatchKeys,
+    (TObject, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBase);
 
 class CFG;
 

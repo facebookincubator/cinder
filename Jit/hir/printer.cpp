@@ -268,6 +268,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kMakeFunction:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kRaise:
     case Opcode::kRepeatList:

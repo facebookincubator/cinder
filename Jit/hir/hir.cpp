@@ -227,6 +227,7 @@ bool Instr::isReplayable() const {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kRaiseAwaitableError:

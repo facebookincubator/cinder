@@ -4186,12 +4186,7 @@ void HIRBuilder::emitMatchKeys(CFG& cfg, TranslationContext& tc) {
   Register* subject = stack.top(1);
 
   auto values_or_none = temps_.AllocateStack();
-
-  auto match_keys_call = tc.emit<CallStatic>(
-      2, values_or_none, reinterpret_cast<void*>(JITRT_MatchKeys), TOptObject);
-  match_keys_call->SetOperand(0, keys);
-  match_keys_call->SetOperand(1, subject);
-  tc.emit<Guard>(values_or_none);
+  tc.emit<MatchKeys>(values_or_none, subject, keys, tc.frame);
   stack.push(values_or_none);
 
   auto none = temps_.AllocateStack();
@@ -4207,11 +4202,13 @@ void HIRBuilder::emitMatchKeys(CFG& cfg, TranslationContext& tc) {
   tc.emit<CondBranch>(is_none, true_block, false_block);
   auto obj = temps_.AllocateStack();
   tc.block = true_block;
-  tc.emit<LoadConst>(obj, Type::fromObject(Py_True));
+  tc.emit<RefineType>(values_or_none, TNoneType, values_or_none);
+  tc.emit<LoadConst>(obj, Type::fromObject(Py_False));
   tc.emit<Branch>(done);
 
   tc.block = false_block;
-  tc.emit<LoadConst>(obj, Type::fromObject(Py_False));
+  tc.emit<RefineType>(values_or_none, TTupleExact, values_or_none);
+  tc.emit<LoadConst>(obj, Type::fromObject(Py_True));
   tc.emit<Branch>(done);
 
   stack.push(obj);

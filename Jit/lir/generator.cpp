@@ -1947,6 +1947,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             static_cast<Py_ssize_t>(instr->nvalues()));
         break;
       }
+      case Opcode::kMatchKeys: {
+        auto instr = static_cast<const MatchKeys*>(&i);
+        bbb.AppendCall(
+            instr->dst(),
+            JITRT_MatchKeys,
+            "__asm_tstate",
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kInitListTuple: {
         auto instr = static_cast<const InitListTuple*>(&i);
         auto is_tuple = instr->is_tuple();

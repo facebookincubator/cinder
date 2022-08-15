@@ -124,6 +124,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLongBinaryOp:
+    case Opcode::kMatchKeys:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kUnaryOp:

@@ -1993,8 +1993,9 @@ PyObject* JITRT_GetLength(PyObject* obj) {
   return PyLong_FromSsize_t(len);
 }
 
-PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject) {
-  return match_keys(PyThreadState_Get(), keys, subject);
+PyObject*
+JITRT_MatchKeys(PyThreadState* tstate, PyObject* subject, PyObject* keys) {
+  return match_keys(tstate, subject, keys);
 }
 
 int JITRT_DictUpdate(PyThreadState* tstate, PyObject* dict, PyObject* update) {

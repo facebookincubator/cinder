@@ -1228,8 +1228,12 @@ TEST_F(HIRBuilderTest, MatchKeys) {
         Stack<1> v0
       }
     }
-    v2 = CallStatic<2> v1 v0
-    Guard v2 {
+    v2 = MatchKeys v0 v1 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+        Stack<2> v0 v1
+      }
     }
     v3 = LoadConst<NoneType>
     v4 = PrimitiveCompare<Equal> v2 v3
@@ -1237,12 +1241,14 @@ TEST_F(HIRBuilderTest, MatchKeys) {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalBool[True]>
+    v2 = RefineType<NoneType> v2
+    v5 = LoadConst<MortalBool[False]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v5 = LoadConst<MortalBool[False]>
+    v2 = RefineType<TupleExact> v2
+    v5 = LoadConst<MortalBool[True]>
     Branch<3>
   }
 

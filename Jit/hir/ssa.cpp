@@ -298,6 +298,7 @@ Type outputType(
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLoadTupleItem:
+    case Opcode::kMatchKeys:
     case Opcode::kUnaryOp:
     case Opcode::kVectorCall:
     case Opcode::kVectorCallKW:

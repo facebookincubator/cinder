@@ -129,6 +129,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kPrimitiveBox:

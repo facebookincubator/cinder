@@ -553,10 +553,11 @@ Py_ssize_t JITRT_CheckSequenceBounds(PyObject* seq, Py_ssize_t i);
 PyObject* JITRT_GetLength(PyObject* obj);
 
 /* Call match_keys() in ceval.c
- * NOTE: This function is here only because tstate cannot be expressed in HIR
- * for now. This function should be removed when it can in the future.
+ * NOTE: This function is here as a wrapper around the private match_keys
+ * function and should be removed when match_keys becomes public.
  */
-PyObject* JITRT_MatchKeys(PyObject* keys, PyObject* subject);
+PyObject*
+JITRT_MatchKeys(PyThreadState* tstate, PyObject* subject, PyObject* keys);
 
 /* Used by DICT_UPDATE and DICT_MERGE implementations. */
 int JITRT_DictUpdate(PyThreadState* tstate, PyObject* dict, PyObject* update);
