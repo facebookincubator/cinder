@@ -68,38 +68,40 @@ struct InvokeTarget {
 // can't allow mid-compile.
 class Preloader {
  public:
-  explicit Preloader(BorrowedRef<PyFunctionObject> func)
-      : Preloader{
-            func,
-            func->func_code,
-            func->func_globals,
-            PyEval_GetBuiltins(),
-            funcFullname(func)} {};
+  Preloader(Preloader&&) = default;
+  Preloader() = default;
+  static std::unique_ptr<Preloader> getPreloader(
+      BorrowedRef<PyFunctionObject> func) {
+    auto preloader = std::unique_ptr<Preloader>(new Preloader(
+        func,
+        func->func_code,
+        func->func_globals,
+        PyEval_GetBuiltins(),
+        funcFullname(func)));
+    if (!preloader->preload()) {
+      return nullptr;
+    }
+    return preloader;
+  }
 
-  explicit Preloader(
+  static std::unique_ptr<Preloader> getPreloader(
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyDictObject> globals,
-      const std::string& fullname)
-      : Preloader{nullptr, code, globals, PyEval_GetBuiltins(), fullname} {};
+      const std::string& fullname) {
+    auto preloader = std::unique_ptr<Preloader>(
+        new Preloader(nullptr, code, globals, PyEval_GetBuiltins(), fullname));
+    if (!preloader->preload()) {
+      return nullptr;
+    }
+    return preloader;
+  }
 
-  explicit Preloader(
+  static std::unique_ptr<Preloader> getPreloader(
       BorrowedRef<PyFunctionObject> func,
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins,
-      const std::string& fullname)
-      : func_(func),
-        code_(code),
-        globals_(globals),
-        builtins_(builtins),
-        fullname_(fullname) {
-    JIT_CHECK(PyCode_Check(code_), "Expected PyCodeObject");
-    if (func_) {
-      JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");
-    }
-
-    preload();
-  };
+      const std::string& fullname);
 
   Type type(BorrowedRef<> descr) const;
   int primitiveTypecode(BorrowedRef<> descr) const;
@@ -156,7 +158,26 @@ class Preloader {
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
   GlobalCache getGlobalCache(BorrowedRef<> name) const;
-  void preload();
+  bool preload();
+
+  explicit Preloader(
+      BorrowedRef<PyFunctionObject> func,
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> globals,
+      BorrowedRef<PyDictObject> builtins,
+      const std::string& fullname)
+      : func_(func),
+        code_(code),
+        globals_(globals),
+        builtins_(builtins),
+        fullname_(fullname) {
+    JIT_CHECK(PyCode_Check(code_), "Expected PyCodeObject");
+    if (func_) {
+      JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");
+    }
+
+    preload();
+  };
 
   Ref<PyFunctionObject> func_;
   Ref<PyCodeObject> code_;

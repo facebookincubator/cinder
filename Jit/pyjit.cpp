@@ -109,19 +109,20 @@ static std::unordered_set<BorrowedRef<>> jit_reg_units;
 // Every unit that is a code object has corresponding entry in jit_code_data.
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
 // Every unit has an entry in preloaders if we are doing multithreaded compile.
-static std::unordered_map<BorrowedRef<>, hir::Preloader> jit_preloaders;
+static std::unordered_map<BorrowedRef<>, std::unique_ptr<hir::Preloader>>
+    jit_preloaders;
 
 namespace jit {
 bool isPreloaded(BorrowedRef<PyFunctionObject> func) {
   return jit_preloaders.find(func) != jit_preloaders.end();
 }
 
-const jit::hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func) {
+const hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func) {
   auto it = jit_preloaders.find(func);
   if (it != jit_preloaders.end()) {
-    return it->second;
+    return *(it->second);
   }
-  return map_get_strict(jit_preloaders, func->func_code);
+  return *(map_get_strict(jit_preloaders, func->func_code));
 }
 } // namespace jit
 
@@ -622,7 +623,8 @@ static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
 // Compile the given function or code object with preloader from jit_preloaders
 // map.
 static _PyJIT_Result compilePreloaded(BorrowedRef<> unit) {
-  return _PyJITContext_CompilePreloader(jit_ctx, map_get(jit_preloaders, unit));
+  return _PyJITContext_CompilePreloader(
+      jit_ctx, *map_get(jit_preloaders, unit));
 }
 
 static void compile_worker_thread() {
@@ -652,16 +654,21 @@ static void multithread_compile_all() {
       compilation_units.push_back(unit);
       if (PyFunction_Check(unit)) {
         BorrowedRef<PyFunctionObject> func(unit);
-        jit_preloaders.emplace(unit, func);
+        std::unique_ptr<hir::Preloader> preloader =
+            hir::Preloader::getPreloader(func);
+        if (preloader) {
+          jit_preloaders.emplace(unit, std::move(preloader));
+        }
       } else {
         JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
         BorrowedRef<PyCodeObject> code(unit);
         const CodeData& data = map_get(jit_code_data, code);
-        jit_preloaders.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(unit),
-            std::forward_as_tuple(
-                code, data.globals, codeFullname(data.module, code)));
+        std::unique_ptr<hir::Preloader> preloader =
+            hir::Preloader::getPreloader(
+                code, data.globals, codeFullname(data.module, code));
+        if (preloader) {
+          jit_preloaders.emplace(unit, std::move(preloader));
+        }
       }
     }
   }
@@ -1513,7 +1520,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
     if (it == jit_preloaders.end()) {
       return PYJIT_RESULT_CANNOT_SPECIALIZE;
     }
-    return _PyJITContext_CompilePreloader(jit_ctx, it->second);
+    return _PyJITContext_CompilePreloader(jit_ctx, *(it->second));
   }
 
   if (!_PyJIT_OnJitList(func)) {
