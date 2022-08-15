@@ -35,7 +35,6 @@ class AugAssignTests(StaticTestBase):
         self.assertInBytecode(code, "LOAD_FIELD", ("foo", "C", "x"))
         self.assertInBytecode(code, "STORE_FIELD", ("foo", "C", "x"))
 
-    @skip("TODO(T128961007): PRIMITIVE_BINARY_OP support")
     def test_primitive_int(self):
         codestr = """
         from __static__ import int8, box, unbox
@@ -67,7 +66,6 @@ class AugAssignTests(StaticTestBase):
             self.assertInBytecode(t, "INPLACE_ADD")
             self.assertEqual(t(), 3)
 
-    @skip("TODO(T128940309): SEQUENCE_GET support")
     def test_list(self):
         for prim_idx in [True, False]:
             with self.subTest(prim_idx=prim_idx):
