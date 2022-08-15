@@ -10,7 +10,16 @@
 namespace strictmod::compiler {
 using strictmod::objects::StrictModuleObject;
 
-enum class ModuleKind { kStrict, kStatic, kNonStrict };
+enum class ModuleKind {
+  kStrict,
+  kStatic,
+  kNonStrict,
+};
+
+enum class ShouldAnalyze {
+  kYes,
+  kNo,
+};
 
 struct PreprocessingRecord {
   mod_ty preprocessedAst;

@@ -11,8 +11,8 @@
 
 #include <cstring>
 #include <filesystem>
-#include <regex>
 #include <optional>
+#include <regex>
 
 namespace strictmod::compiler {
 
@@ -58,10 +58,28 @@ std::optional<ModuleKind> getModuleKindFromImportNames(
   return std::nullopt;
 }
 
-ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
+bool containsAllowSideEffectsFlag(asdl_seq* importNames) {
+  auto n = asdl_seq_LEN(importNames);
+  const char* allowSideEffectsFlag = "allow_side_effects";
+  for (int i = 0; i < n; i++) {
+    alias_ty alias = reinterpret_cast<alias_ty>(asdl_seq_GET(importNames, 0));
+    const char* aliasName = PyUnicode_AsUTF8(alias->name);
+    if (strncmp(
+            aliasName, allowSideEffectsFlag, strlen(allowSideEffectsFlag)) ==
+        0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::pair<ModuleKind, ShouldAnalyze> getModuleKindFromStmts(
+    const asdl_seq* seq,
+    ModuleInfo* modInfo) {
   Py_ssize_t n = asdl_seq_LEN(seq);
   bool seenDocStr = false;
   std::optional<ModuleKind> modKind = std::nullopt;
+  ShouldAnalyze should_analyze = ShouldAnalyze::kYes;
   const char* strictFlag = "__strict__";
   const char* staticFlag = "__static__";
   for (int _i = 0; _i < n; _i++) {
@@ -79,7 +97,7 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
                 stmt->lineno,
                 stmt->col_offset,
                 "strict flag may not be combined with other imports");
-            return ModuleKind::kNonStrict;
+            return {ModuleKind::kNonStrict, should_analyze};
           }
           // only one import, which should be the flag
           alias_ty alias =
@@ -89,7 +107,7 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
                 stmt->lineno,
                 stmt->col_offset,
                 "strict flag may not be aliased");
-            return ModuleKind::kNonStrict;
+            return {ModuleKind::kNonStrict, should_analyze};
           }
           if (modKind == std::nullopt) {
             modKind = tempModKind;
@@ -99,7 +117,7 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
                 stmt->lineno,
                 stmt->col_offset,
                 "strict flag must be at top of module");
-            return ModuleKind::kNonStrict;
+            return {ModuleKind::kNonStrict, should_analyze};
           }
         }
       }
@@ -125,6 +143,11 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
           // skip future imports
           if (strncmp(modName, futureFlag, strlen(futureFlag)) == 0) {
             goto loop_continue;
+          } else if (strncmp(modName, strictFlag, strlen(strictFlag)) == 0) {
+            if (containsAllowSideEffectsFlag(importFromStmt.names)) {
+              should_analyze = ShouldAnalyze::kNo;
+              goto loop_continue;
+            }
           }
         }
         if (!modKind) {
@@ -133,18 +156,19 @@ ModuleKind getModuleKindFromStmts(const asdl_seq* seq, ModuleInfo* modInfo) {
         goto loop_continue;
       }
       default: {
-        return modKind.value_or(ModuleKind::kNonStrict);
+        return {modKind.value_or(ModuleKind::kNonStrict), should_analyze};
       }
     }
   loop_continue:;
   }
-  return modKind.value_or(ModuleKind::kNonStrict);
+
+  return {modKind.value_or(ModuleKind::kNonStrict), should_analyze};
 }
 
-ModuleKind getModuleKind(ModuleInfo* modInfo) {
+std::pair<ModuleKind, ShouldAnalyze> getModuleKind(ModuleInfo* modInfo) {
   mod_ty ast = modInfo->getAst();
   if (ast == nullptr) {
-    return ModuleKind::kNonStrict;
+    return {ModuleKind::kNonStrict, ShouldAnalyze::kYes};
   }
   switch (ast->kind) {
     case Module_kind:
@@ -154,9 +178,9 @@ ModuleKind getModuleKind(ModuleInfo* modInfo) {
     case FunctionType_kind:
     case Suite_kind:
     default:
-      return ModuleKind::kNonStrict;
+      return {ModuleKind::kNonStrict, ShouldAnalyze::kYes};
   }
-  return ModuleKind::kNonStrict;
+  return {ModuleKind::kNonStrict, ShouldAnalyze::kYes};
 }
 
 AnalyzedModule* ModuleLoader::loadModule(const char* modName) {
@@ -260,7 +284,7 @@ AnalyzedModule* ModuleLoader::loadSingleModule(const std::string& modName) {
       return analyze(std::move(typingModInfo));
     }
     if (typingModInfo->getStubKind().isTyping() &&
-        getModuleKind(typingModInfo.get()) == ModuleKind::kStatic) {
+        getModuleKind(typingModInfo.get()).first == ModuleKind::kStatic) {
       return analyze(std::move(typingModInfo));
     }
   }
@@ -315,8 +339,7 @@ bool ModuleLoader::setAllowListRegex(std::vector<std::string> allowList) {
   for (const std::string& regex : allowList) {
     try {
       allowListRegexes_.emplace_back(regex);
-    }
-    catch (const std::regex_error&) {
+    } catch (const std::regex_error&) {
       return -1;
     }
   }
@@ -492,7 +515,9 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   // Following python semantics, publish the module before ast visits
   auto errorSink = errorSinkFactory_();
   BaseErrorSink* errorSinkBorrowed = errorSink.get();
-  ModuleKind kind = getModuleKind(modInfo.get());
+  auto mod_kind_result = getModuleKind(modInfo.get());
+  ModuleKind kind = mod_kind_result.first;
+  ShouldAnalyze should_analyze = mod_kind_result.second;
   modInfo->raiseAnyFlagError(errorSinkBorrowed);
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(kind, std::move(errorSink), std::move(modInfo));
@@ -558,7 +583,7 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
 
     analyzedModule->setModuleValue(mod);
 
-    // do analysis
+    // do analysis (unless opted out)
     Analyzer analyzer(
         ast,
         this,
@@ -571,7 +596,14 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
         mod,
         moduleInfo.getFutureAnnotations());
 
-    analyzer.analyze();
+    if (should_analyze == ShouldAnalyze::kYes) {
+      analyzer.analyze();
+    } else {
+      log("Skipping analysis for module module: %s (from %s)",
+          name.c_str(),
+          filename.c_str());
+    }
+
     analyzedModule->setAstToResults(analyzer.passAstToResultsMap());
   }
 
