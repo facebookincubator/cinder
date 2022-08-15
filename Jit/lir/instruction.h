@@ -98,6 +98,7 @@ enum class FlagEffects {
   X(Inc, false, FlagEffects::kSet)                                           \
   X(Dec, false, FlagEffects::kSet)                                           \
   X(CondBranch, false, FlagEffects::kInvalidate, kDefault, 0, {1})           \
+  X(Select, true, FlagEffects::kInvalidate, kAlways64, 1, {1, 1, 1})         \
   X(Phi)                                                                     \
   X(Return, false, FlagEffects::kInvalidate)                                 \
   X(MovZX)                                                                   \

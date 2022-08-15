@@ -628,6 +628,10 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          bldr.createBasicInstr(Instruction::kBatchDecref, false, -1, tokens);
        }},
+      {"Select",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createBasicInstr(Instruction::kSelect, true, 3, tokens);
+       }},
   };
 
   const std::string& instr_str = tokens[0];
