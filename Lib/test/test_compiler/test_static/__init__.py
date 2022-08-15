@@ -19,7 +19,8 @@ from .elide_type_checks import ElideTypeChecksTests
 from .enum import StaticEnumTests
 
 # from .fields import StaticFieldTests
-# from .final import FinalTests
+from .final import FinalTests
+
 # from .fstring import FStringTests
 # from .implicit_none_return import ImplicitNoneReturnTests
 # from .imports import ImportTests

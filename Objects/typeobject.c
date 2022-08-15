@@ -3264,6 +3264,11 @@ type_new_impl(type_new_ctx *ctx)
         goto error;
     }
 
+    // Validate that no Static Python final methods are overridden.
+    if (_PyClassLoader_IsFinalMethodOverridden(ctx->base, ctx->orig_dict)) {
+        goto error;
+    }
+
     /* Initialize the rest */
     if (PyType_Ready(type) < 0) {
         goto error;
