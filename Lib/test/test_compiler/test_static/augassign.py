@@ -111,20 +111,3 @@ class AugAssignTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(3), 4)
-
-    @skip("TODO(T128940309): SEQUENCE_GET support")
-    def test_array(self):
-        for prim_idx in [True, False]:
-            with self.subTest(prim_idx=prim_idx):
-                codestr = f"""
-                    from __static__ import Array, int32
-
-                    def m() -> Array[int32]:
-                        a = Array[int32]([1, 3, -5, -1, 7, 22])
-                        i: {"int32" if prim_idx else "int"} = 0
-                        a[i] += 1
-                        return a
-                """
-                with self.in_module(codestr) as mod:
-                    m = mod.m
-                    self.assertEqual(m()[0], 2)

@@ -106,27 +106,13 @@ class SubclassTests(StaticTestBase):
         self.assertTrue(checked_list_str.is_subclass_of(self.type_env.object))
 
     def test_cannot_subclass_static_classes_in_nonstatic_code(self):
-        from __static__ import Array, int8, Vector
+        from __static__ import int8
 
         with self.assertRaisesRegex(
             TypeError, "type 'int8' is not an acceptable base type"
         ):
 
             class D(int8):
-                pass
-
-        with self.assertRaisesRegex(
-            TypeError, "type 'Vector' is not an acceptable base type"
-        ):
-
-            class D(Vector):
-                pass
-
-        with self.assertRaisesRegex(
-            TypeError, "type 'Array' is not an acceptable base type"
-        ):
-
-            class D(Array):
                 pass
 
     def test_init_subclass(self):

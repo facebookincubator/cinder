@@ -1,11 +1,4 @@
-from __static__ import (
-    chkdict,
-    int64,
-    is_type_static,
-    make_generic_type,
-    StaticGeneric,
-    Vector,
-)
+from __static__ import chkdict, int64, is_type_static, make_generic_type, StaticGeneric
 
 import asyncio
 import cinder
@@ -622,33 +615,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(mod.f)
             asyncio.run(mod.f())
 
-    def test_vector_generics(self):
-        T = TypeVar("T")
-        VT = Vector[T]
-        VT2 = VT[int64]
-        a = VT2()
-        a.append(42)
-        with self.assertRaisesRegex(TypeError, "Cannot create plain Vector"):
-            VT()
-
-    def test_vector_invalid_type(self):
-        class C:
-            pass
-
-        with self.assertRaisesRegex(
-            TypeError, "Invalid type for ArrayElement: C when instantiating Vector"
-        ):
-            Vector[C]
-
-    def test_vector_wrong_arg_count(self):
-        class C:
-            pass
-
-        with self.assertRaisesRegex(
-            TypeError, "Incorrect number of type arguments for Vector"
-        ):
-            Vector[int64, int64]
-
     def test_generic_type_args(self):
         T = TypeVar("T")
         U = TypeVar("U")
@@ -670,17 +636,6 @@ class StaticRuntimeTests(StaticTestBase):
         c_u_t_2 = make_generic_type(c_t, (int,))
         self.assertEqual(c_u_t_1.__name__, "C[int, int]")
         self.assertIs(c_u_t_1, c_u_t_2)
-
-    def test_vector_slice(self):
-        v = Vector[int64]([1, 2, 3, 4])
-        self.assertEqual(v[1:3], Vector[int64]([2, 3]))
-        self.assertEqual(type(v[1:2]), Vector[int64])
-
-    def test_vector_deepcopy(self):
-        v = Vector[int64]([1, 2, 3, 4])
-        self.assertEqual(v, deepcopy(v))
-        self.assertIsNot(v, deepcopy(v))
-        self.assertEqual(type(v), type(deepcopy(v)))
 
     def test_nested_generic(self):
         S = TypeVar("S")

@@ -356,18 +356,6 @@ class PrimitivesTests(StaticTestBase):
         """
         self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
 
-    def test_vector_verifies_type(self):
-        codestr = """
-        from __static__ import int64, Vector
-
-        def f():
-            x = Vector[int64]()
-            x.append(1)
-            return [x[0]]
-
-        """
-        self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
-
     def test_clen_verifies_type(self):
         codestr = """
         from __static__ import int64, clen
@@ -2034,33 +2022,6 @@ class PrimitivesTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, "cannot iterate over int8"):
             self.compile(codestr)
 
-    def test_vector_nogc(self):
-        codestr = """
-            from __static__ import Vector, int64
-
-            class C:
-                foo: Vector[int64]
-                def __init__(self):
-                    self.foo = Vector[int64]()
-        """
-        with self.in_module(codestr) as mod:
-            C = mod.C
-            x = C()
-            self.assertFalse(gc.is_tracked(x))
-
-    def test_conversion_narrow_primitive(self):
-        codestr = f"""
-            from __static__ import int64, Vector, uint8, unbox
-
-            def f(i: int64):
-                v = Vector[uint8]([0])
-                v[0] = uint8(i if i != -1 else unbox(255))
-                return v
-        """
-        with self.in_module(codestr) as mod:
-            f = mod.f
-            self.assertEqual(list(f(42)), [42])
-
     def test_error_return_int(self):
         with self.assertRaisesRegex(TypedSyntaxError, bad_ret_type("int64", "dynamic")):
             self.compile(
@@ -2106,44 +2067,6 @@ class PrimitivesTests(StaticTestBase):
         self.assertInBytecode(f, "SEQUENCE_GET", SEQ_LIST)
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(1), 2)
-
-    def test_array_get_primitive_int(self):
-        type_env = TypeEnvironment()
-        PRIMITIVE_TYPES = type_env.all_cint_types + [
-            # TODO(T120983004): Add cbool and double here once supported.
-            type_env.char,
-        ]
-        PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
-        for name in PRIMITIVE_NAMES:
-            codestr = f"""
-                from __static__ import {name}, Array
-
-                def f() -> {name}:
-                    l = Array[{name}]([1, 2, 3])
-                    return l[1]
-            """
-            with self.subTest(klass=name):
-                with self.in_module(codestr) as mod:
-                    self.assertEqual(mod.f(), 2)
-
-    def test_array_get_primitive_int_unknown_index(self):
-        type_env = TypeEnvironment()
-        PRIMITIVE_TYPES = type_env.all_cint_types + [
-            # TODO(T120983004): Add cbool and double here once supported.
-            type_env.char,
-        ]
-        PRIMITIVE_NAMES = [klass.instance_name for klass in PRIMITIVE_TYPES]
-        for name in PRIMITIVE_NAMES:
-            codestr = f"""
-                from __static__ import int32, {name}, Array
-
-                def f(x: int32) -> {name}:
-                    l = Array[{name}]([1, 2, 3])
-                    return l[x]
-            """
-            with self.subTest(klass=name):
-                with self.in_module(codestr) as mod:
-                    self.assertEqual(mod.f(1), 2)
 
     def test_list_set_primitive_int(self):
         codestr = """
@@ -2450,150 +2373,9 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    def test_vector_import(self):
-        codestr = """
-            from __static__ import int64, Vector
-
-            def test() -> Vector[int64]:
-                x: Vector[int64] = Vector[int64]()
-                x.append(1)
-                return x
-        """
-
-        with self.in_module(codestr) as mod:
-            test = mod.test
-            self.assertEqual(test(), array("L", [1]))
-
-    def test_vector_assign_non_primitive(self):
-        codestr = """
-            from __static__ import int64, Vector
-
-            def test(abc) -> Vector[int64]:
-                x: Vector[int64] = Vector[int64](2)
-                i: int64 = 0
-                x[i] = abc
-        """
-
-        with self.assertRaisesRegex(
-            TypedSyntaxError, type_mismatch("dynamic", "int64")
-        ):
-            self.compile(codestr)
-
-    def test_vector_sizes(self):
-        for signed in ["int", "uint"]:
-            for size in ["8", "16", "32", "64"]:
-                with self.subTest(size=size, signed=signed):
-                    int_type = f"{signed}{size}"
-                    codestr = f"""
-                        from __static__ import {int_type}, Vector
-
-                        def test() -> Vector[{int_type}]:
-                            x: Vector[{int_type}] = Vector[{int_type}]()
-                            y: {int_type} = 1
-                            x.append(y)
-                            return x
-                    """
-
-                    with self.in_module(codestr) as mod:
-                        test = mod.test
-                        res = test()
-                        self.assertEqual(list(res), [1])
-
-    def test_vector_invalid_literal(self):
-        codestr = f"""
-            from __static__ import int8, Vector
-
-            def test() -> Vector[int8]:
-                x: Vector[int8] = Vector[int8]()
-                x.append(128)
-                return x
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            r"Literal\[128\] received for positional arg 'v', expected int8",
-        ):
-            self.compile(codestr)
-
-    def test_vector_wrong_size(self):
-        codestr = f"""
-            from __static__ import int8, int16, Vector
-
-            def test() -> Vector[int8]:
-                y: int16 = 1
-                x: Vector[int8] = Vector[int8]()
-                x.append(y)
-                return x
-        """
-
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            r"int16 received for positional arg 'v', expected int8",
-        ):
-            self.compile(codestr)
-
-    def test_vector_presized(self):
-        codestr = f"""
-            from __static__ import int8, Vector
-
-            def test() -> Vector[int8]:
-                x: Vector[int8] = Vector[int8](4)
-                x[1] = 1
-                return x
-        """
-
-        with self.in_module(codestr) as mod:
-            f = mod.test
-            self.assertEqual(f(), array("b", [0, 1, 0, 0]))
-
-    def test_chained_assign_type_propagation(self):
-        codestr = """
-            from __static__ import int64, char, Array
-
-            def test2() -> Array[char]:
-                x = y = Array[char]([48])
-                return y
-        """
-        self.compile(codestr, modname="foo")
-
-    def test_chained_assign_type_propagation_failure_redefine(self):
-        codestr = """
-            from __static__ import int64, char, Array
-
-            def test2() -> Array[char]:
-                x: Array[int64] = Array[int64]([54])
-                x = y = Array[char]([48])
-                return y
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            type_mismatch(
-                "Array[char]",
-                "Array[int64]",
-            ),
-        ):
-            self.compile(codestr, modname="foo")
-
-    def test_chained_assign_type_propagation_failure_redefine_2(self):
-        codestr = """
-            from __static__ import int64, char, Array
-
-            def test2() -> Array[char]:
-                x: Array[int64] = Array[int64]([54])
-                y = x = Array[char]([48])
-                return y
-        """
-        with self.assertRaisesRegex(
-            TypedSyntaxError,
-            type_mismatch(
-                "Array[char]",
-                "Array[int64]",
-            ),
-        ):
-            self.compile(codestr, modname="foo")
-
     def test_chained_assign_type_inference(self):
         codestr = """
-            from __static__ import int64, char, Array
+            from __static__ import int64, char
 
             def test2():
                 y = x = 4
@@ -2607,7 +2389,7 @@ class PrimitivesTests(StaticTestBase):
 
     def test_chained_assign_type_inference_2(self):
         codestr = """
-            from __static__ import int64, char, Array
+            from __static__ import int64, char
 
             def test2():
                 y = x = 4

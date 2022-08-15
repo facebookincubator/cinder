@@ -54,7 +54,6 @@ from typing import (
 )
 
 from _static import (  # noqa: F401
-    FAST_LEN_ARRAY,
     FAST_LEN_DICT,
     FAST_LEN_INEXACT,
     FAST_LEN_LIST,
@@ -102,14 +101,6 @@ from _static import (  # noqa: F401
     PRIM_OP_SUB_DBL,
     PRIM_OP_SUB_INT,
     PRIM_OP_XOR_INT,
-    SEQ_ARRAY_INT16,
-    SEQ_ARRAY_INT32,
-    SEQ_ARRAY_INT64,
-    SEQ_ARRAY_INT8,
-    SEQ_ARRAY_UINT16,
-    SEQ_ARRAY_UINT32,
-    SEQ_ARRAY_UINT64,
-    SEQ_ARRAY_UINT8,
     SEQ_CHECKED_LIST,
     SEQ_LIST,
     SEQ_LIST_INEXACT,
@@ -321,11 +312,6 @@ class TypeEnvironment:
             pytype=type(...),
             is_exact=True,
         )
-        self.array = ArrayClass(
-            GenericTypeName("__static__", "Array", (GenericParameter("T", 0, self),)),
-            self,
-            is_exact=True,
-        )
         self.dict = DictClass(self, is_exact=False)
         self.list = ListClass(self)
         self.set = SetClass(self, is_exact=False)
@@ -341,26 +327,6 @@ class TypeEnvironment:
         self.char = CIntType(TYPED_INT8, self, name_override="char")
         self.module = ModuleType(self)
         self.double = CDoubleType(self)
-        # Vectors are just currently a special type of array that support
-        # methods that resize them.
-        self.vector_type_param = GenericParameter("T", 0, self)
-        self.vector_type_name = GenericTypeName(
-            "__static__", "Vector", (self.vector_type_param,)
-        )
-        self.vector = VectorClass(self.vector_type_name, self, is_exact=True)
-        self.allowed_array_types: List[Class] = [
-            self.int8,
-            self.int16,
-            self.int32,
-            self.int64,
-            self.uint8,
-            self.uint16,
-            self.uint32,
-            self.uint64,
-            self.char,
-            self.double,
-            self.float,
-        ]
         self.static_method = StaticMethodDecorator(
             TypeName("builtins", "staticmethod"),
             self,
@@ -6980,10 +6946,8 @@ def common_sequence_emit_forloop(
 ) -> None:
     if seq_type == SEQ_TUPLE:
         fast_len_oparg = FAST_LEN_TUPLE
-    elif seq_type in {SEQ_LIST, SEQ_CHECKED_LIST}:
-        fast_len_oparg = FAST_LEN_LIST
     else:
-        fast_len_oparg = FAST_LEN_ARRAY
+        fast_len_oparg = FAST_LEN_LIST
     descr = ("__static__", "int64", "#")
     start = code_gen.newBlock(f"seq_forloop_start")
     anchor = code_gen.newBlock(f"seq_forloop_anchor")
@@ -8198,237 +8162,6 @@ class OptionalInstance(UnionInstance):
     """Only exists for typing purposes (so we know .klass is OptionalType)."""
 
     klass: OptionalType
-
-
-class ArrayInstance(Object["ArrayClass"]):
-    def _seq_type(self) -> int:
-        idx = self.klass.index
-        # TODO(T120983004): Support Array[cbool] and Array[double]
-        if not isinstance(idx, CIntType):
-            # should never happen
-            raise SyntaxError(f"Invalid Array type: {idx}")
-        size = idx.size
-        if size == 0:
-            return SEQ_ARRAY_INT8 if idx.signed else SEQ_ARRAY_UINT8
-        elif size == 1:
-            return SEQ_ARRAY_INT16 if idx.signed else SEQ_ARRAY_UINT16
-        elif size == 2:
-            return SEQ_ARRAY_INT32 if idx.signed else SEQ_ARRAY_UINT32
-        elif size == 3:
-            return SEQ_ARRAY_INT64 if idx.signed else SEQ_ARRAY_UINT64
-        else:
-            raise SyntaxError(f"Invalid Array size: {size}")
-
-    def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
-        return self.klass.index.instance
-
-    def bind_subscr(
-        self,
-        node: ast.Subscript,
-        type: Value,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class] = None,
-    ) -> None:
-        if type == self.klass.type_env.slice.instance:
-            # Slicing preserves type
-            return visitor.set_type(node, self)
-
-        visitor.set_type(node, self.klass.index.instance)
-
-    def _supported_index(
-        self, node: ast.Subscript, code_gen: Static38CodeGenerator
-    ) -> bool:
-        index_type = code_gen.get_type(node.slice)
-        return self.klass.type_env.int.can_assign_from(index_type.klass) or isinstance(
-            index_type, CIntInstance
-        )
-
-    def _maybe_unbox_index(
-        self, node: ast.Subscript, code_gen: Static38CodeGenerator
-    ) -> None:
-        index_type = code_gen.get_type(node.slice)
-        if not isinstance(index_type, CIntInstance):
-            # If the index is not a primitive, unbox its value to an int64, our implementation of
-            # SEQUENCE_{GET/SET} expects the index to be a primitive int.
-            code_gen.emit("REFINE_TYPE", index_type.klass.type_descr)
-            code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_env.int64.type_descr)
-
-    def emit_load_subscr(
-        self, node: ast.Subscript, code_gen: Static38CodeGenerator
-    ) -> None:
-        if self._supported_index(node, code_gen):
-            self._maybe_unbox_index(node, code_gen)
-            code_gen.emit("SEQUENCE_GET", self._seq_type())
-        else:
-            super().emit_load_subscr(node, code_gen)
-            if code_gen.get_type(node.slice).klass != self.klass.type_env.slice:
-                # Falling back to BINARY_SUBSCR here, so we need to unbox the output
-                code_gen.emit("REFINE_TYPE", self.klass.index.boxed.type_descr)
-                code_gen.emit("PRIMITIVE_UNBOX", self.klass.index.type_descr)
-
-    def emit_store_subscr(
-        self, node: ast.Subscript, code_gen: Static38CodeGenerator
-    ) -> None:
-        if self._supported_index(node, code_gen):
-            self._maybe_unbox_index(node, code_gen)
-            code_gen.emit("SEQUENCE_SET", self._seq_type())
-        else:
-            if code_gen.get_type(node.slice).klass != self.klass.type_env.slice:
-                # Falling back to STORE_SUBSCR here, so need to box the value first
-                code_gen.emit("ROT_THREE")
-                code_gen.emit("ROT_THREE")
-                code_gen.emit("PRIMITIVE_BOX", self.klass.index.type_descr)
-                code_gen.emit("ROT_THREE")
-            super().emit_store_subscr(node, code_gen)
-
-    def __repr__(self) -> str:
-        return f"{self.klass.type_name.name}[{self.klass.index.name!r}]"
-
-    def get_fast_len_type(self) -> int:
-        return FAST_LEN_ARRAY | ((not self.klass.is_exact) << 4)
-
-    def emit_len(
-        self, node: ast.Call, code_gen: Static38CodeGenerator, boxed: bool
-    ) -> None:
-        if len(node.args) != 1:
-            raise code_gen.syntax_error(
-                "Can only pass a single argument when checking array length", node
-            )
-        code_gen.visit(node.args[0])
-        code_gen.emit("FAST_LEN", self.get_fast_len_type())
-        if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
-
-    def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
-        if not isinstance(node.target, ast.Name):
-            # We don't yet support `for a, b in my_array: ...`
-            return super().emit_forloop(node, code_gen)
-
-        return common_sequence_emit_forloop(node, code_gen, self._seq_type())
-
-
-class ArrayClass(GenericClass):
-    def __init__(
-        self,
-        type_name: GenericTypeName,
-        type_env: TypeEnvironment,
-        bases: Optional[List[Class]] = None,
-        instance: Optional[Object[Class]] = None,
-        klass: Optional[Class] = None,
-        members: Optional[Dict[str, Value]] = None,
-        type_def: Optional[GenericClass] = None,
-        is_exact: bool = False,
-        pytype: Optional[Type[object]] = None,
-        is_final: bool = False,
-        is_readonly: bool = False,
-    ) -> None:
-        default_bases: List[Class] = [type_env.object]
-        default_instance: Object[Class] = ArrayInstance(self)
-        super().__init__(
-            type_name,
-            type_env,
-            bases or default_bases,
-            instance or default_instance,
-            klass,
-            members,
-            type_def,
-            is_exact,
-            pytype,
-            is_final,
-            is_readonly=is_readonly,
-        )
-        self.members["__new__"] = BuiltinNewFunction(
-            "__new__",
-            "__static__",
-            self,
-            self.type_env,
-            [
-                Parameter(
-                    "cls",
-                    0,
-                    ResolvedTypeRef(self.type_env.type),
-                    False,
-                    None,
-                    ParamStyle.POSONLY,
-                ),
-                Parameter(
-                    "initializer",
-                    1,
-                    ResolvedTypeRef(self.type_env.object),
-                    True,
-                    (),
-                    ParamStyle.POSONLY,
-                ),
-            ],
-            ResolvedTypeRef(self),
-        )
-
-    @property
-    def index(self) -> CType:
-        cls = self.type_args[0]
-        assert isinstance(cls, CType)
-        return cls
-
-    def make_generic_type(
-        self,
-        index: Tuple[Class, ...],
-    ) -> Class:
-        for tp in index:
-            if tp not in self.type_env.allowed_array_types:
-                raise TypedSyntaxError(
-                    f"Invalid {self.gen_name.name} element type: {tp.instance.name}"
-                )
-        return super().make_generic_type(index)
-
-
-class VectorClass(ArrayClass):
-    def __init__(
-        self,
-        type_name: GenericTypeName,
-        type_env: TypeEnvironment,
-        bases: Optional[List[Class]] = None,
-        instance: Optional[Object[Class]] = None,
-        klass: Optional[Class] = None,
-        members: Optional[Dict[str, Value]] = None,
-        type_def: Optional[GenericClass] = None,
-        is_exact: bool = False,
-        pytype: Optional[Type[object]] = None,
-        is_readonly: bool = False,
-    ) -> None:
-        super().__init__(
-            type_name,
-            type_env,
-            bases,
-            instance,
-            klass,
-            members,
-            type_def,
-            is_exact,
-            pytype,
-            is_readonly=is_readonly,
-        )
-        self.members["append"] = BuiltinMethodDescriptor(
-            "append",
-            self,
-            [
-                Parameter(
-                    "self",
-                    0,
-                    ResolvedTypeRef(self.non_readonly_type()),
-                    False,
-                    None,
-                    ParamStyle.POSONLY,
-                ),
-                Parameter(
-                    "v",
-                    1,
-                    ResolvedTypeRef(self.type_env.vector_type_param),
-                    False,
-                    None,
-                    ParamStyle.POSONLY,
-                ),
-            ],
-        )
 
 
 class CheckedDict(GenericClass):

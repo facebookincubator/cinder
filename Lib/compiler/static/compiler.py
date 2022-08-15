@@ -352,7 +352,6 @@ class Compiler:
             "<__static__>",
             self,
             {
-                "Array": self.type_env.array.exact_type(),
                 "CheckedDict": self.type_env.checked_dict.exact_type(),
                 "CheckedList": self.type_env.checked_list.exact_type(),
                 "Enum": self.type_env.enum,
@@ -388,7 +387,6 @@ class Compiler:
                 "prod_assert": ProdAssertFunction(self.type_env),
                 "pydict": self.type_env.dict.exact_type(),
                 "PyDict": self.type_env.dict.exact_type(),
-                "Vector": self.type_env.vector.exact_type(),
                 "RAND_MAX": rand_max.instance,
                 "posix_clock_gettime_ns": reflect_builtin_function(
                     # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType

@@ -5745,16 +5745,7 @@ main_loop:
 
           oparg &= ~SEQ_SUBSCR_UNCHECKED;
 
-          if (_Py_IS_TYPED_ARRAY(oparg)) {
-            // We have an array
-            item = _PyArray_GetItem(sequence, val);
-            Py_DECREF(sequence);
-
-            if (item == NULL) {
-              Py_DECREF(idx);
-              goto error;
-            }
-          } else if (oparg == SEQ_LIST) {
+          if (oparg == SEQ_LIST) {
             item = PyList_GetItem(sequence, val);
             Py_DECREF(sequence);
             if (item == NULL) {
@@ -5818,24 +5809,7 @@ main_loop:
                 idx += Py_SIZE(sequence);
             }
 
-            if (_Py_IS_TYPED_ARRAY(oparg)) {
-                if (_Py_IS_TYPED_ARRAY_SIGNED(oparg)) {
-                    // Deal with signed values on the stack
-                    PyObject *tmp = v;
-                    size_t ival = (size_t)PyLong_AsVoidPtr(tmp);
-                    if (ival & ((size_t)1) << 63) {
-                        v = PyLong_FromSsize_t((int64_t)ival);
-                        Py_DECREF(tmp);
-                    }
-                }
-
-                err = _PyArray_SetItem(sequence, idx, v);
-
-                Py_DECREF(v);
-                Py_DECREF(sequence);
-                if (err != 0)
-                    goto error;
-            } else if (oparg == SEQ_LIST) {
+            if (oparg == SEQ_LIST) {
                 err = PyList_SetItem(sequence, idx, v);
 
                 Py_DECREF(sequence);
