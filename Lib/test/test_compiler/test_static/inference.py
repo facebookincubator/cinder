@@ -1,8 +1,15 @@
 import re
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class InferenceTests(StaticTestBase):
     def test_if_exp_union(self) -> None:
         """If expressions can be inferred as the union of the branches."""
@@ -123,6 +130,7 @@ class InferenceTests(StaticTestBase):
         """
         self.type_error(codestr, r"reveal_type\(c2\): '<module>.C'")
 
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_inlined_call_in_loop(self) -> None:
         codestr = """
             from __static__ import inline
