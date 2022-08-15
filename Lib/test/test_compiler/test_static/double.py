@@ -2,10 +2,17 @@ from __static__ import TYPED_DOUBLE
 
 import re
 from compiler.errors import TypedSyntaxError
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class DoubleTests(StaticTestBase):
     def test_primitive_double_return_bad_call(self):
         codestr = """
@@ -24,6 +31,7 @@ class DoubleTests(StaticTestBase):
             ):
                 fn()  # bad call
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_double_return(self):
         codestr = """
         from __static__ import double
@@ -36,6 +44,7 @@ class DoubleTests(StaticTestBase):
             r = fn()
             self.assertEqual(r, 3.14159)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_double_return_static_passthrough(self):
         codestr = """
             from __static__ import double
@@ -65,6 +74,7 @@ class DoubleTests(StaticTestBase):
             with self.assertRaises(ValueError):
                 f()
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_double_return_static(self):
         codestr = """
         from __static__ import double, box
@@ -80,6 +90,7 @@ class DoubleTests(StaticTestBase):
             r = lol()
             self.assertEqual(r, 4.14159)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_double_return_2(self):
         codestr = """
         from __static__ import double
@@ -94,6 +105,7 @@ class DoubleTests(StaticTestBase):
             r = fn(1.2, 2.3)
             self.assertEqual(r, 3.5)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_double_return_with_default_args(self):
         codestr = """
         from __static__ import double
@@ -366,6 +378,7 @@ class DoubleTests(StaticTestBase):
 
             self.assertEqual(f(C()), 0.0)
 
+    @skip("TODO(T129109672): PRIMITIVE_UNARY_OP support")
     def test_double_unary(self):
         tests = [
             ("-", 1.0, -1.0),
@@ -399,6 +412,7 @@ class DoubleTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, "Cannot invert/not a double"):
             self.compile(codestr)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_uninit_augassign(self):
         codestr = """
             from __static__ import double
@@ -453,6 +467,7 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(42.1), 42.1)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_primitive_float_arg_not_clobbered(self):
         codestr = """
             from __static__ import double
@@ -489,6 +504,7 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(42.1, 0.1), 421.0)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_all_arg_regs_used_plus_one(self):
         codestr = """
             from __static__ import double
@@ -505,6 +521,7 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 44.0)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_primitive_float_arg_not_clobbered_all(self):
         codestr = """
             from __static__ import double
@@ -519,6 +536,7 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 28.0)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_primitive_float_arg_not_clobbered_all_offset(self):
         codestr = """
             from __static__ import double
@@ -533,6 +551,7 @@ class DoubleTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 28.0)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_primitive_float_arg_not_clobbered_all_plus_one(self):
         codestr = """
             from __static__ import double
@@ -562,6 +581,7 @@ class DoubleTests(StaticTestBase):
             self.assertNotInBytecode(f, "STORE_FAST")
             self.assertEqual(f(), 1.5)
 
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_double_compare(self):
         tests = [
             (1.0, 2.0, "==", False),
@@ -589,6 +609,7 @@ class DoubleTests(StaticTestBase):
                 f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_double_compare_with_literal(self):
         codestr = f"""
         from __static__ import double
@@ -671,6 +692,7 @@ class DoubleTests(StaticTestBase):
             self.assertEqual(t(), 3.14159)
             self.assert_jitted(t)
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_unbox_double_from_dynamic(self):
         codestr = """
             from __static__ import double
@@ -687,6 +709,7 @@ class DoubleTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 mod.f("foo")
 
+    @skip("TODO(T129109324): RETURN_PRIMITIVE support")
     def test_unbox_double_from_int(self):
         codestr = """
             from __static__ import double

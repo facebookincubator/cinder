@@ -4,10 +4,17 @@ from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.module_table import ModuleTable
 from textwrap import dedent
+from unittest import skipIf
 
 from .common import bad_ret_type, StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class DeclarationVisitorTests(StaticTestBase):
     def test_cross_module(self) -> None:
         acode = """
