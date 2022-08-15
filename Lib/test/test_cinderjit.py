@@ -1819,7 +1819,7 @@ class GeneratorsTest(unittest.TestCase):
             l.append(x)
         self.assertEqual(l, [1, 2])
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
+    @unittest.failUnlessJITCompiled
     def _f6(self):
         i = 0
         while i < 1000:
@@ -2801,9 +2801,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.return_in_finally3(300), 300)
         self.assertEqual(self.return_in_finally4(400), 400)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_COMPARE_OP,
-    )
+    @unittest.failUnlessJITCompiled
     def break_in_finally_after_return(self, x):
         for count in [0, 1]:
             count2 = 0
@@ -2833,9 +2831,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.break_in_finally_after_return2(False), 10)
         self.assertEqual(self.break_in_finally_after_return2(True), ("end", 1, 10))
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_COMPARE_OP,
-    )
+    @unittest.failUnlessJITCompiled
     def continue_in_finally_after_return(self, x):
         count = 0
         while count < 100:
@@ -2915,7 +2911,7 @@ class ExceptionHandlingTests(unittest.TestCase):
 
 class UnpackSequenceTests(unittest.TestCase):
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
+    @unittest.failUnlessJITCompiled
     def _unpack_arg(self, seq, which):
         a, b, c, d = seq
         if which == "a":
@@ -2927,9 +2923,7 @@ class UnpackSequenceTests(unittest.TestCase):
         return d
 
     @failUnlessHasOpcodes("UNPACK_EX")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_COMPARE_OP,
-    )
+    @unittest.failUnlessJITCompiled
     def _unpack_ex_arg(self, seq, which):
         a, b, *c, d = seq
         if which == "a":
@@ -3156,7 +3150,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
     def f1(self, *, val=10):
         return val
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
+    @unittest.failUnlessJITCompiled
     def f2(self, which, *, y=10, z=20):
         if which == 0:
             return y
@@ -3164,7 +3158,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
+    @unittest.failUnlessJITCompiled
     def f3(self, which, *, y, z=20):
         if which == 0:
             return y
@@ -3172,7 +3166,7 @@ class KeywordOnlyArgTests(unittest.TestCase):
             return z
         return which
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_COMPARE_OP)
+    @unittest.failUnlessJITCompiled
     def f4(self, which, *, y, z=20, **kwargs):
         if which == 0:
             return y
@@ -4080,6 +4074,72 @@ class ListToTupleTests(unittest.TestCase):
         new_tup = self.it_to_tup([1, 2, 3, 4])
         self.assertEqual(type(new_tup), tuple)
         self.assertEqual(new_tup, (1, 2, 3, 4))
+
+
+class CompareTests(unittest.TestCase):
+    class Incomparable:
+        def __lt__(self, other):
+            raise TestException("no lt")
+
+    class NonIterable:
+        def __iter__(self):
+            raise TestException("no iter")
+
+    class NonIndexable:
+        def __getitem__(self, idx):
+            raise TestException("no getitem")
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("COMPARE_OP")
+    def compare_op(self, left, right):
+        return left < right
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("CONTAINS_OP")
+    def compare_in(self, left, right):
+        return left in right
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("CONTAINS_OP")
+    def compare_not_in(self, left, right):
+        return left not in right
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IS_OP")
+    def compare_is(self, left, right):
+        return left is right
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IS_OP")
+    def compare_is_not(self, left, right):
+        return left is not right
+
+    def test_compare_op(self):
+        self.assertTrue(self.compare_op(3, 4))
+        self.assertFalse(self.compare_op(3, 3))
+        with self.assertRaisesRegex(TestException, "no lt"):
+            self.compare_op(self.Incomparable(), 123)
+
+    def test_contains_op(self):
+        self.assertTrue(self.compare_in(3, [1, 2, 3]))
+        self.assertFalse(self.compare_in(4, [1, 2, 3]))
+        with self.assertRaisesRegex(TestException, "no iter"):
+            self.compare_in(123, self.NonIterable())
+        with self.assertRaisesRegex(TestException, "no getitem"):
+            self.compare_in(123, self.NonIndexable())
+        self.assertTrue(self.compare_not_in(4, [1, 2, 3]))
+        self.assertFalse(self.compare_not_in(3, [1, 2, 3]))
+        with self.assertRaisesRegex(TestException, "no iter"):
+            self.compare_not_in(123, self.NonIterable())
+        with self.assertRaisesRegex(TestException, "no getitem"):
+            self.compare_not_in(123, self.NonIndexable())
+
+    def test_is_op(self):
+        obj = object()
+        self.assertTrue(self.compare_is(obj, obj))
+        self.assertFalse(self.compare_is(obj, 1))
+        self.assertTrue(self.compare_is_not(obj, 1))
+        self.assertFalse(self.compare_is_not(obj, obj))
 
 
 if __name__ == "__main__":

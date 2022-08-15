@@ -524,9 +524,17 @@ JITRT_StaticCallFPReturn JITRT_CallStaticallyWithPrimitiveSignatureFP(
  */
 int JITRT_UnicodeEquals(PyObject* s1, PyObject* s2, int equals);
 
+/* Return Py_True if needle is in haystack else return Py_False. Return nullptr
+ * with exception raised on error. */
+PyObject* JITRT_SequenceContains(PyObject* haystack, PyObject* needle);
+
+/* Return Py_True if needle is not in haystack else return Py_False. Return
+ * nullptr with exception raised on error. */
+PyObject* JITRT_SequenceNotContains(PyObject* haystack, PyObject* needle);
+
 /* Inverse form of PySequence_Contains for "not in"
  */
-int JITRT_NotContains(PyObject* w, PyObject* v);
+int JITRT_NotContainsBool(PyObject* w, PyObject* v);
 
 /* Perform a rich comparison with integer result.  This wraps
    PyObject_RichCompare(), returning -1 for error, 0 for false, 1 for true.
@@ -534,6 +542,11 @@ int JITRT_NotContains(PyObject* w, PyObject* v);
    check, which is incompatible w/ float comparisons. */
 
 int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
+
+/* Check if `left is right` (op == CompareOp::kIs) or `left is not right` (op
+ * == CompareOp::kIsNot), returning Py_True if the operation is true and
+ * Py_False if the operation is false. It will never return nullptr. */
+PyObject* JITRT_CompareIs(PyObject* left, PyObject* right, int op);
 
 /* perform a batch decref to the objects in args */
 void JITRT_BatchDecref(PyObject** args, int nargs);

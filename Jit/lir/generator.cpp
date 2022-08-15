@@ -1458,20 +1458,44 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kCompare: {
-#ifdef CINDER_PORTING_DONE
         auto instr = static_cast<const Compare*>(&i);
-
+        if (instr->op() == CompareOp::kIn) {
+          bbb.AppendCall(
+              instr->dst(),
+              JITRT_SequenceContains,
+              instr->right(),
+              instr->left());
+          break;
+        }
+        if (instr->op() == CompareOp::kNotIn) {
+          bbb.AppendCall(
+              instr->dst(),
+              JITRT_SequenceNotContains,
+              instr->right(),
+              instr->left());
+          break;
+        }
+        if (instr->op() == CompareOp::kIs || instr->op() == CompareOp::kIsNot) {
+          // This case should generally not happen, since Compare<Is> and
+          // Compare<IsNot> can be rewritten into PrimitiveCompare. We keep it
+          // around because optimization passes should not impact correctness.
+          bbb.AppendCall(
+              instr->dst(),
+              JITRT_CompareIs,
+              instr->right(),
+              instr->left(),
+              static_cast<int>(instr->op()));
+          break;
+        }
+        int op = static_cast<int>(instr->op());
+        JIT_CHECK(op >= Py_LT, "invalid compare op %d", op);
+        JIT_CHECK(op <= Py_GE, "invalid compare op %d", op);
         bbb.AppendCall(
             instr->dst(),
-            cmp_outcome,
-            "__asm_tstate",
-            static_cast<int>(instr->op()),
-            static_cast<int>(instr->readonly_flags()),
+            PyObject_RichCompare,
             instr->left(),
-            instr->right());
-#else
-        PORT_ASSERT("Need to support new comparison opcodes");
-#endif
+            instr->right(),
+            op);
         break;
       }
       case Opcode::kLongCompare: {
@@ -1525,7 +1549,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           }
         } else if (instr->op() == CompareOp::kNotIn) {
           bbb.AppendCall(
-              instr->dst(), JITRT_NotContains, instr->right(), instr->left());
+              instr->dst(),
+              JITRT_NotContainsBool,
+              instr->right(),
+              instr->left());
         } else if (
             (instr->op() == CompareOp::kEqual ||
              instr->op() == CompareOp::kNotEqual) &&
@@ -1549,6 +1576,26 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               instr->right(),
               static_cast<int>(instr->op()));
         } else {
+          if (instr->op() == CompareOp::kIs ||
+              instr->op() == CompareOp::kIsNot) {
+            // This case should generally not happen, since CompareBool<Is> and
+            // CompareBool<IsNot> can be rewritten into PrimitiveCompare. We
+            // keep it around because optimization passes should not impact
+            // correctness.
+            auto compare_result = GetSafeTempName();
+            bbb.AppendCode(
+                "Equal {}, {}, {}",
+                compare_result,
+                instr->left(),
+                instr->right());
+            bbb.AppendCode(
+                "Select {}, {}, {:#x}, {:#x}",
+                instr->GetOutput(),
+                compare_result,
+                static_cast<uint32_t>(1),
+                static_cast<uint32_t>(0));
+            break;
+          }
           bbb.AppendCall(
               instr->dst(),
               JITRT_RichCompareBool,

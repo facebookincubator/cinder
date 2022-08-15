@@ -1557,7 +1557,6 @@ class PortFeature(enum.Enum):
     OPC_IMPORT_NAME = enum.auto()
 
     # TODO(T127134900): Grab-bag of remaining opcodes
-    OPC_COMPARE_OP = enum.auto()
     OPC_MAKE_FUNCTION = enum.auto() # T126141867
 
     # Static Python opcodes

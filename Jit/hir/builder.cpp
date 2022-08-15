@@ -65,9 +65,7 @@ Register* TempAllocator::AllocateNonStack() {
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
-    CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS, // T126141783
-    IS_OP, // T125844569
     MATCH_CLASS, // T126141840
 
     // TODO(T127134659): Imports
@@ -75,7 +73,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     IMPORT_NAME,
 
     // TODO(T127134900): Grab-bag of remaining opcodes
-    COMPARE_OP,
     MAKE_FUNCTION, // T126141867
 
     // Static Python opcodes
@@ -143,6 +140,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_EX,
     CALL_FUNCTION_KW,
     CALL_METHOD,
+    COMPARE_OP,
+    CONTAINS_OP,
     DELETE_ATTR,
     DELETE_FAST,
     DELETE_SUBSCR,
@@ -174,6 +173,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_SUBTRACT,
     INPLACE_TRUE_DIVIDE,
     INPLACE_XOR,
+    IS_OP,
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
     JUMP_IF_FALSE_OR_POP,
@@ -458,9 +458,7 @@ void HIRBuilder::addInitializeCells(
 // Opcodes that were added in 3.9 / 3.10. This can be removed once porting is
 // complete.
 static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
-    CONTAINS_OP,
     COPY_DICT_WITHOUT_KEYS,
-    IS_OP,
     MATCH_CLASS,
 };
 
@@ -507,6 +505,7 @@ static bool should_snapshot(
     case DUP_TOP_TWO:
     case EXTENDED_ARG:
     case INT_LOAD_CONST_OLD:
+    case IS_OP:
     case LOAD_ASSERTION_ERROR:
     case LOAD_CLOSURE:
     case LOAD_CONST:
@@ -526,12 +525,6 @@ static bool should_snapshot(
     case STORE_FAST:
     case STORE_LOCAL: {
       return false;
-    }
-    // The `is` and `is not` comparison operators are implemented using pointer
-    // equality. They are always safe to replay.
-    case COMPARE_OP: {
-      auto op = static_cast<CompareOp>(bci.oparg());
-      return (op != CompareOp::kIs) && (op != CompareOp::kIsNot);
     }
     // In an async-for header block YIELD_FROM controls whether we end the loop
     case YIELD_FROM: {
@@ -996,6 +989,14 @@ void HIRBuilder::translate(
         case FUNC_CREDENTIAL:
           emitFunctionCredential(tc, bc_instr);
           break;
+        case IS_OP: {
+          emitIsOp(tc, bc_instr.oparg());
+          break;
+        }
+        case CONTAINS_OP: {
+          emitContainsOp(tc, bc_instr.oparg(), 0);
+          break;
+        }
         case COMPARE_OP: {
           emitCompareOp(tc, bc_instr.oparg(), 0);
           break;
@@ -2311,10 +2312,35 @@ bool HIRBuilder::emitInvokeMethod(
   return true;
 }
 
+void HIRBuilder::emitIsOp(TranslationContext& tc, int oparg) {
+  auto& stack = tc.frame.stack;
+  Register* right = stack.pop();
+  Register* left = stack.pop();
+  Register* result = temps_.AllocateStack();
+  CompareOp op = oparg == 0 ? CompareOp::kIs : CompareOp::kIsNot;
+  tc.emit<Compare>(result, op, /*readonly_mask=*/0, left, right, tc.frame);
+  stack.push(result);
+}
+
+void HIRBuilder::emitContainsOp(
+    TranslationContext& tc,
+    int oparg,
+    uint8_t readonly_mask) {
+  auto& stack = tc.frame.stack;
+  Register* right = stack.pop();
+  Register* left = stack.pop();
+  Register* result = temps_.AllocateStack();
+  CompareOp op = oparg == 0 ? CompareOp::kIn : CompareOp::kNotIn;
+  tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
+  stack.push(result);
+}
+
 void HIRBuilder::emitCompareOp(
     TranslationContext& tc,
     int compare_op,
     uint8_t readonly_mask) {
+  JIT_CHECK(compare_op >= Py_LT, "invalid op %d", compare_op);
+  JIT_CHECK(compare_op <= Py_GE, "invalid op %d", compare_op);
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();

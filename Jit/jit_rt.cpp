@@ -1946,7 +1946,29 @@ int JITRT_UnicodeEquals(PyObject* s1, PyObject* s2, int equals) {
   return PyObject_RichCompareBool(s1, s2, equals);
 }
 
-int JITRT_NotContains(PyObject* w, PyObject* v) {
+PyObject* JITRT_SequenceContains(PyObject* haystack, PyObject* needle) {
+  int result = PySequence_Contains(haystack, needle);
+  if (result < 0) {
+    return nullptr;
+  }
+  if (result) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
+PyObject* JITRT_SequenceNotContains(PyObject* haystack, PyObject* needle) {
+  int result = PySequence_Contains(haystack, needle);
+  if (result < 0) {
+    return nullptr;
+  }
+  if (result) {
+    Py_RETURN_FALSE;
+  }
+  Py_RETURN_TRUE;
+}
+
+int JITRT_NotContainsBool(PyObject* w, PyObject* v) {
   int res = PySequence_Contains(w, v);
   if (res == -1) {
     return -1;
@@ -1966,6 +1988,22 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op) {
   }
 
   return PyObject_IsTrue(res);
+}
+
+PyObject* JITRT_CompareIs(PyObject* left, PyObject* right, int op) {
+  if (op == static_cast<int>(jit::hir::CompareOp::kIs)) {
+    if (left == right) {
+      Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+  }
+  if (op == static_cast<int>(jit::hir::CompareOp::kIsNot)) {
+    if (left != right) {
+      Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+  }
+  JIT_CHECK(false, "bad comparison op %d", op);
 }
 
 /* perform a batch decref to the objects in args */

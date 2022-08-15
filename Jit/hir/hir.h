@@ -2209,12 +2209,14 @@ class INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
 };
 
 enum class CompareOp {
+  // Begin rich comparison opcodes
   kLessThan = 0,
   kLessThanEqual,
   kEqual,
   kNotEqual,
   kGreaterThan,
   kGreaterThanEqual,
+  // End rich comparison opcodes
   kIn,
   kNotIn,
   kIs,
