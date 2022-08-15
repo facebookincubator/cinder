@@ -5944,7 +5944,11 @@ main_loop:
         }
 
         case TARGET(LOAD_TYPE): {
-            PORT_ASSERT("Unsupported: LOAD_TYPE");
+            PyObject *instance = TOP();
+            Py_INCREF(Py_TYPE(instance));
+            SET_TOP((PyObject *)Py_TYPE(instance));
+            Py_DECREF(instance);
+            DISPATCH();
         }
 
         case TARGET(BUILD_CHECKED_LIST_CACHED): {

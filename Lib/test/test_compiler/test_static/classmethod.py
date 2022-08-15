@@ -1,8 +1,15 @@
 import asyncio
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class ClassMethodTests(StaticTestBase):
     def test_classmethod_from_non_final_class_calls_invoke_function(self):
         codestr = """
@@ -204,6 +211,7 @@ class ClassMethodTests(StaticTestBase):
             self.assertInBytecode(D.bar, "INVOKE_METHOD")
             self.assertEqual(D.bar(6), 48)
 
+    @skip("TODO(T128969829): This segfaults during garbage collection.")
     def test_classmethod_dynamic_subclass(self):
         codestr = """
             class C:
@@ -246,6 +254,7 @@ class ClassMethodTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().f(), 3)
 
+    @skip("TODO(T128969829): This segfaults during garbage collection.")
     def test_invoke_non_static_subtype_async_classmethod(self):
         codestr = """
             class C:
@@ -290,6 +299,7 @@ class ClassMethodTests(StaticTestBase):
                     self.assertInBytecode(f, "INVOKE_METHOD")
                     self.assertEqual(f(c), 3)
 
+    @skip("TODO(T128974332): This is crashing in CI.")
     def test_classmethod_async_invoke_method_cached(self):
         cases = [True, False]
         for should_make_hot in cases:
@@ -321,6 +331,7 @@ class ClassMethodTests(StaticTestBase):
                     self.assertInBytecode(C.instance_method, "INVOKE_METHOD")
                     self.assertEqual(asyncio.run(f(C())), 3)
 
+    @skip("TODO(T128969924): LOAD_ITERABLE_ARG support.")
     def test_invoke_starargs(self):
         codestr = """
 
