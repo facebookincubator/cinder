@@ -9802,9 +9802,10 @@ class ContextDecoratedMethod(DecoratedMethod):
 
         with_item = ast.copy_location(ast.withitem(call_recreate, []), body[0])
 
-        ast.fix_missing_locations(with_item)
+        with_statement = cast(ast.stmt, ast.With([with_item], body))
+        ast.fix_missing_locations(with_statement)
 
-        return [cast(ast.stmt, ast.With([with_item], body))]
+        return [with_statement]
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return ContextDecoratedMethod(
