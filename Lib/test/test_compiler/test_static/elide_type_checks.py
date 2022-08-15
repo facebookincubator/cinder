@@ -1,6 +1,14 @@
+from unittest import skipIf
+
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class ElideTypeChecksTests(StaticTestBase):
     def test_elide_check_with_one_optional(self) -> None:
         codestr = """

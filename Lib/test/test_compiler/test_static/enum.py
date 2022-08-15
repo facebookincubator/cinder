@@ -1,12 +1,19 @@
 import itertools
 import unittest
 from compiler.static.types import TypedSyntaxError
+from unittest import skip, skipIf
 
 from _static import PRIM_OP_EQ_INT, TYPED_INT64
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class StaticEnumTests(StaticTestBase):
     def test_mixins_unsupported(self):
         codestr = """
@@ -360,6 +367,7 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_int64enum_function_arg_and_return_type(self):
         codestr = """
         from __static__ import Int64Enum
@@ -379,6 +387,7 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.flip(mod.Coin.HEADS), mod.Coin.TAILS)
             self.assertEqual(mod.flip(mod.Coin.TAILS), mod.Coin.HEADS)
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_function_returns_int64enum(self):
         codestr = """
         from __static__ import Int64Enum
@@ -404,6 +413,7 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.sign(-42.0), mod.Sign.NEGATIVE)
             self.assertEqual(mod.sign(42.0), mod.Sign.POSITIVE)
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_pass_int64enum_between_static_functions(self):
         codestr = """
         from __static__ import Int64Enum
@@ -431,6 +441,7 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ZERO), mod.Bit.ZERO)
             self.assertEqual(mod.bitwise_nor(mod.Bit.ONE, mod.Bit.ONE), mod.Bit.ZERO)
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_call_converts_int_to_int64enum(self):
         codestr = """
         from __static__ import Int64Enum
@@ -446,6 +457,7 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.convert_to_bit(0), mod.Bit.ZERO)
             self.assertEqual(mod.convert_to_bit(1), mod.Bit.ONE)
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_int64enum_primitive_unbox_shadowcode(self):
         codestr = """
         from __static__ import Int64Enum
@@ -620,6 +632,7 @@ class StaticEnumTests(StaticTestBase):
             at="foo.name",
         )
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_int64enum_method(self):
         codestr = """
         from __static__ import box, Int64Enum
@@ -678,6 +691,7 @@ class StaticEnumTests(StaticTestBase):
             self.assertEqual(mod.value(mod.Foo.BAR), 1)
             self.assertEqual(mod.value(mod.Foo.BAZ), 2)
 
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_pass_int64enum_from_module_level(self):
         codestr = """
         from __static__ import box, Int64Enum

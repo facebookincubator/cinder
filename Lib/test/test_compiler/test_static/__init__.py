@@ -15,9 +15,9 @@ from .context_decorator import ContextDecoratorTests
 from .decl_visitor import DeclarationVisitorTests
 from .double import DoubleTests
 from .dynamic_return import DynamicReturnTests
+from .elide_type_checks import ElideTypeChecksTests
+from .enum import StaticEnumTests
 
-# from .elide_type_checks import ElideTypeChecksTests
-# from .enum import StaticEnumTests
 # from .fields import StaticFieldTests
 # from .final import FinalTests
 # from .fstring import FStringTests
