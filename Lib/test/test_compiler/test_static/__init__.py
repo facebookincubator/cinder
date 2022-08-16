@@ -34,7 +34,8 @@ from .module import ModuleTests
 
 # from .non_static_inheritance import NonStaticInheritanceTests
 # from .obj_creation import StaticObjCreationTests
-# from .overrides import OverridesTests
+from .overrides import OverridesTests
+
 # from .patch import StaticPatchTests
 # from .perf_lint import PerfLintTests
 # from .primitives import PrimitivesTests
