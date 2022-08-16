@@ -569,7 +569,6 @@ class DoubleTests(StaticTestBase):
             self.assertNotInBytecode(f, "STORE_FAST")
             self.assertEqual(f(), 1.5)
 
-    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_double_compare(self):
         tests = [
             (1.0, 2.0, "==", False),
@@ -597,7 +596,6 @@ class DoubleTests(StaticTestBase):
                 f = self.run_code(codestr)["testfunc"]
                 self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
-    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
     def test_double_compare_with_literal(self):
         codestr = f"""
         from __static__ import double
