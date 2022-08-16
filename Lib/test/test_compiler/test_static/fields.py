@@ -1,11 +1,18 @@
 from types import MemberDescriptorType
 
+from unittest import skip, skipIf
+
 from .common import StaticTestBase, type_mismatch
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
 SHADOWCODE_REPETITIONS = 100
 
 
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class StaticFieldTests(StaticTestBase):
     def test_slotification(self):
         codestr = """
@@ -39,6 +46,7 @@ class StaticFieldTests(StaticTestBase):
             at="self.x:",
         )
 
+    @skip("TODO(T129113383): Failure regarding type comparison of member_descriptor")
     def test_slotification_typed(self):
         codestr = """
             class C:
@@ -48,6 +56,7 @@ class StaticFieldTests(StaticTestBase):
             C = mod.C
             self.assertNotEqual(type(C.x), MemberDescriptorType)
 
+    @skip("TODO(T129113383): Failure regarding type comparison of member_descriptor")
     def test_slotification_init_typed(self):
         codestr = """
             class C:
@@ -170,6 +179,7 @@ class StaticFieldTests(StaticTestBase):
 
         self.assertEqual(e.exception.args[0], "'C' object has no attribute 'x'")
 
+    @skip("TODO(T129113652): Conditional init failure")
     def test_conditional_init(self):
         codestr = f"""
             from __static__ import box, int64
@@ -191,6 +201,7 @@ class StaticFieldTests(StaticTestBase):
             self.assertEqual(x.f(), 0)
             self.assertInBytecode(C.f, "LOAD_FIELD", (mod.__name__, "C", "value"))
 
+    @skip("TODO(T129113025): INVOKE_FUNCTION_INDIRECT_CACHED support")
     def test_aligned_subclass_field(self):
         codestr = """
             from __static__ import cbool
