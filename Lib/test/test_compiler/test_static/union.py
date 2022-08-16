@@ -3,10 +3,17 @@ import unittest
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.types import TypeEnvironment
+from unittest import skip, skipIf
 
 from .common import bad_ret_type, StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class UnionCompilationTests(StaticTestBase):
     type_env: TypeEnvironment = TypeEnvironment()
 
@@ -451,6 +458,7 @@ class UnionCompilationTests(StaticTestBase):
         """
         self.type_error(codestr, bad_ret_type("float", "int"))
 
+    @skip("TODO(T129144833): Unsupported: CAST_CACHED")
     def test_cast_int_to_float(self):
         codestr = """
             from __static__ import double
