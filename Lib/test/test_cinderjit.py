@@ -1561,13 +1561,15 @@ class UnwindStateTests(unittest.TestCase):
 
 
 class ImportTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IMPORT_NAME)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IMPORT_NAME")
     def test_import_name(self):
         import math
 
         self.assertEqual(int(math.pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IMPORT_NAME)
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IMPORT_NAME")
     def _fail_to_import_name(self):
         import non_existent_module
 
@@ -1575,18 +1577,15 @@ class ImportTests(unittest.TestCase):
         with self.assertRaises(ModuleNotFoundError):
             self._fail_to_import_name()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_IMPORT_NAME,
-        PortFeature.OPC_IMPORT_FROM,
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IMPORT_NAME", "IMPORT_FROM")
     def test_import_from(self):
         from math import pow as math_pow
 
         self.assertEqual(int(math_pow(1, 2)), 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_IMPORT_NAME, PortFeature.OPC_IMPORT_FROM
-    )
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("IMPORT_NAME", "IMPORT_FROM")
     def _fail_to_import_from(self):
         from math import non_existent_attr
 

@@ -67,10 +67,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     COPY_DICT_WITHOUT_KEYS, // T126141783
 
-    // TODO(T127134659): Imports
-    IMPORT_FROM,
-    IMPORT_NAME,
-
     // TODO(T127134900): Grab-bag of remaining opcodes
     MAKE_FUNCTION, // T126141867
 
@@ -159,6 +155,8 @@ const std::unordered_set<int> kSupportedOpcodes = {
     GET_ITER,
     GET_LEN,
     GET_YIELD_FROM_ITER,
+    IMPORT_FROM,
+    IMPORT_NAME,
     INPLACE_ADD,
     INPLACE_AND,
     INPLACE_FLOOR_DIVIDE,
