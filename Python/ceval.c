@@ -6196,7 +6196,12 @@ main_loop:
         }
 
         case TARGET(CAST_CACHED): {
-            PORT_ASSERT("Unsupported: CAST_CACHED");
+            PyObject *val = TOP();
+            PyTypeObject *type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            if (!PyObject_TypeCheck(val, type)) {
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 0);
+            }
+            DISPATCH();
         }
 
         case TARGET(CAST_CACHED_EXACT): {
