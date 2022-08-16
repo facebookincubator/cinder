@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import builtins
+
+# pyre-ignore[21]: There's no stub for this one.
+import importlib._bootstrap_external
 import os
 import sys
+
 from cinder import StrictModule, watch_sys_modules
 from enum import Enum
 from importlib.abc import Loader
@@ -17,11 +21,17 @@ from importlib.machinery import (
     SourceFileLoader,
     SourcelessFileLoader,
 )
+from py_compile import (
+    _get_default_invalidation_mode,
+    PycInvalidationMode,
+    PyCompileError,
+)
 from types import CodeType, ModuleType
 from typing import (
     Callable,
     cast,
     Collection,
+    Dict,
     final,
     Iterable,
     List,
@@ -43,7 +53,7 @@ from .track_import_call import tracker
 Compiler = Compiler
 
 
-_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2 ** 15).to_bytes(2, "little") + b"\r\n"
+_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2**15).to_bytes(2, "little") + b"\r\n"
 # We don't actually need to increment anything here, because the strict modules
 # AST rewrite has no impact on pycs for non-strict modules. So we just always
 # use two zero bytes. This simplifies generating "fake" strict pycs for
@@ -405,6 +415,107 @@ def _get_supported_file_loaders() -> List[Tuple[Loader, List[str]]]:
     source = StrictSourceFileLoader, SOURCE_SUFFIXES
     bytecode = SourcelessFileLoader, BYTECODE_SUFFIXES
     return cast(List[Tuple[Loader, List[str]]], [extensions, source, bytecode])
+
+
+def strict_compile(
+    file: str,
+    cfile: str,
+    dfile: str | None = None,
+    doraise: bool = False,
+    optimize: int = -1,
+    # Since typeshed doesn't yet know about PycInvalidationMode, no way to
+    # convince Pyre it's a valid type here.  T54150924
+    invalidation_mode: object = None,
+    loader_override: object = None,
+    loader_options: Dict[str, str | int | bool] | None = None,
+) -> str | None:
+    """Byte-compile one Python source file to Python bytecode, using strict loader.
+
+    :param file: The source file name.
+    :param cfile: The target byte compiled file name.
+    :param dfile: Purported file name, i.e. the file name that shows up in
+        error messages.  Defaults to the source file name.
+    :param doraise: Flag indicating whether or not an exception should be
+        raised when a compile error is found.  If an exception occurs and this
+        flag is set to False, a string indicating the nature of the exception
+        will be printed, and the function will return to the caller. If an
+        exception occurs and this flag is set to True, a PyCompileError
+        exception will be raised.
+    :param optimize: The optimization level for the compiler.  Valid values
+        are -1, 0, 1 and 2.  A value of -1 means to use the optimization
+        level of the current interpreter, as given by -O command line options.
+    :return: Path to the resulting byte compiled file.
+
+    Copied and modified from https://github.com/python/cpython/blob/3.6/Lib/py_compile.py#L65
+
+    This version does not support cfile=None, since compileall never passes that.
+
+    """
+
+    modname = file
+    for dir in sys.path:
+        if file.startswith(dir):
+            modname = file[len(dir) :]
+            break
+
+    modname = modname.replace("/", ".")
+    if modname.endswith("__init__.py"):
+        modname = modname[: -len("__init__.py")]
+    elif modname.endswith(".py"):
+        modname = modname[: -len(".py")]
+    modname = modname.strip(".")
+
+    if loader_options is None:
+        loader_options = {}
+
+    # TODO we ignore loader_override; this module should be ported to Cinder
+    loader = StrictSourceFileLoader(
+        modname,
+        file,
+        import_path=sys.path,
+        **loader_options,
+    )
+    source_bytes = loader.get_data(file)
+    try:
+        code = loader.source_to_code(source_bytes, dfile or file, _optimize=optimize)
+    except Exception as err:
+        raise
+        py_exc = PyCompileError(err.__class__, err, dfile or file)
+        if doraise:
+            raise py_exc
+        else:
+            sys.stderr.write(py_exc.msg + "\n")
+            return
+    try:
+        dirname = os.path.dirname(cfile)
+        if dirname:
+            os.makedirs(dirname)
+    except FileExistsError:
+        pass
+    # Incomplete typeshed stub.  T54150924
+    if invalidation_mode is None:
+        # Incomplete typeshed stub.  T54150924
+        invalidation_mode = _get_default_invalidation_mode()
+    if invalidation_mode == PycInvalidationMode.TIMESTAMP:
+        source_stats = loader.path_stats(file)
+        # pyre-fixme[16]: Module `importlib` has no attribute `_bootstrap_external`.
+        bytecode = importlib._bootstrap_external._code_to_timestamp_pyc(
+            code, source_stats["mtime"], source_stats["size"]
+        )
+    else:
+        # Incomplete typeshed stub.  T54150924
+        source_hash = importlib.util.source_hash(source_bytes)
+        # pyre-fixme[16]: Module `importlib` has no attribute `_bootstrap_external`.
+        bytecode = importlib._bootstrap_external._code_to_hash_pyc(
+            code,
+            source_hash,
+            (invalidation_mode == PycInvalidationMode.CHECKED_HASH),
+        )
+
+    # Incomplete typeshed stub.
+    # pyre-fixme[16]: `StrictSourceFileLoader` has no attribute `_cache_bytecode`.
+    loader._cache_bytecode(file, cfile, bytecode)
+    return cfile
 
 
 def install() -> None:
