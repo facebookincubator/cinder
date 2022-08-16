@@ -5929,7 +5929,26 @@ main_loop:
         }
 
         case TARGET(LIST_DEL): {
-            PORT_ASSERT("Unsupported: LIST_DEL");
+            PyObject *subscr = TOP();
+            PyObject *list = SECOND();
+            int err;
+            STACK_SHRINK(2);
+
+            Py_ssize_t idx = PyLong_AsLong(subscr);
+            Py_DECREF(subscr);
+
+            if (idx == -1 && _PyErr_Occurred(tstate)) {
+                Py_DECREF(list);
+                goto error;
+            }
+
+            err = PyList_SetSlice(list, idx, idx+1, NULL);
+
+            Py_DECREF(list);
+            if (err != 0) {
+                goto error;
+            }
+            DISPATCH();
         }
 
         case TARGET(REFINE_TYPE): {

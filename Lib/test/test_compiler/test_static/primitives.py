@@ -2109,7 +2109,6 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f([1, 2000]), [2, 2001])
 
-    @skip("TODO(T129164215): LIST_DEL not supported")
     def test_list_del_primitive_int(self):
         codestr = """
             from __static__ import int8
