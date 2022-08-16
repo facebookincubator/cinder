@@ -1,9 +1,16 @@
 import unittest
 from compiler.pycodegen import CinderCodeGenerator
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class NonStaticInheritanceTests(StaticTestBase):
     def test_static_return_is_resolved_with_multiple_levels_of_inheritance(self):
         codestr = """
@@ -225,6 +232,7 @@ class NonStaticInheritanceTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), "foo")
 
+    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_multiple_static_bases(self):
         codestr = """
             class A:
@@ -241,6 +249,7 @@ class NonStaticInheritanceTests(StaticTestBase):
                 class C(mod.A, mod.B):
                     pass
 
+    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_multiple_static_bases_indirect(self):
         codestr = """
             class A:
@@ -261,6 +270,7 @@ class NonStaticInheritanceTests(StaticTestBase):
                 class D(C, mod.A):
                     pass
 
+    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_static_and_builtin(self):
         codestr = """
             class A:

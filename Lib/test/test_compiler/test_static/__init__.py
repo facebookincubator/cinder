@@ -32,7 +32,8 @@ from .lint import LintTests
 
 from .module import ModuleTests
 
-# from .non_static_inheritance import NonStaticInheritanceTests
+from .non_static_inheritance import NonStaticInheritanceTests
+
 # from .obj_creation import StaticObjCreationTests
 from .overrides import OverridesTests
 
