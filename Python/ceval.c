@@ -344,6 +344,12 @@ PyObject *Ci_GetANext(PyThreadState *tstate, PyObject *aiter) {
     return awaitable;
 }
 
+// These are used to truncate primitives/check signed bits when converting between them
+static uint64_t trunc_masks[] = {0xFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF};
+static uint64_t signed_bits[] = {0x80, 0x8000, 0x80000000, 0x8000000000000000};
+static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
+                                  0xFFFFFFFF00000000, 0x0};
+
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -5604,7 +5610,23 @@ main_loop:
         }
 
         case TARGET(CONVERT_PRIMITIVE): {
-            PORT_ASSERT("Unsupported: CONVERT_PRIMITIVE");
+            Py_ssize_t from_type = oparg & 0xFF;
+            Py_ssize_t to_type = oparg >> 4;
+            Py_ssize_t extend_sign = (from_type & TYPED_INT_SIGNED) && (to_type & TYPED_INT_SIGNED);
+            int size = to_type >> 1;
+            PyObject *val = TOP();
+            size_t ival = (size_t)PyLong_AsVoidPtr(val);
+
+            ival &= trunc_masks[size];
+
+            // Extend the sign if needed
+            if (extend_sign != 0 && (ival & signed_bits[size])) {
+                ival |= (signex_masks[size]);
+            }
+
+            Py_DECREF(val);
+            SET_TOP(PyLong_FromSize_t(ival));
+            DISPATCH();
         }
 
         case TARGET(CHECK_ARGS): {

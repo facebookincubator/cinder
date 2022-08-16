@@ -348,7 +348,6 @@ class BinopTests(StaticTestBase):
             f = mod.f
             self.assertEqual(f(), 1)
 
-    @skip("TODO(T128961222): CONVERT_PRIMITIVE support")
     def test_mixed_binop_sign(self):
         """mixed signed/unsigned ops should be promoted to signed"""
         codestr = """
@@ -493,7 +492,6 @@ class BinopTests(StaticTestBase):
         f = self.find_code(code, "f")
         self.assertInBytecode(f, "BINARY_ADD")
 
-    @skip("TODO(T128961222): CONVERT_PRIMITIVE support")
     def test_mixed_add_reversed(self):
         codestr = """
             from __static__ import int8, uint8, int64, box, int16
@@ -513,7 +511,6 @@ class BinopTests(StaticTestBase):
             f = mod.testfunc
             self.assertEqual(f(), 44)
 
-    @skip("TODO(T128961222): CONVERT_PRIMITIVE support")
     def test_mixed_tri_add(self):
         codestr = """
             from __static__ import int8, uint8, int64, box
