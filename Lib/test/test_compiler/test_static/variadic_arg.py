@@ -1,8 +1,15 @@
 from compiler.errors import TypedSyntaxError
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class VariadicArgTests(StaticTestBase):
     def test_load_iterable_arg(self):
         codestr = """
@@ -204,6 +211,7 @@ class VariadicArgTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
+    @skip("TODO(T129219453): Hit stubbed function: _PyCheckedDict_Check")
     def test_load_mapping_arg_custom_class(self):
         """
         Fails because we supply a custom class for the mapped args, instead of a dict
@@ -385,6 +393,9 @@ class VariadicArgTests(StaticTestBase):
             self.assertTrue(y_callable())
             self.assertEqual(["s", "r"], mod.stuff)
 
+    @skip(
+        "TODO(T129219917): Incorrect bytecode produced in test_load_mapping_arg_stack_effect"
+    )
     def test_load_mapping_arg_stack_effect(self) -> None:
         codestr = """
         def g(x=None) -> None:

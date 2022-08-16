@@ -48,15 +48,16 @@ from .refine_fields import RefineFieldsTests
 
 # from .return_cast_insertion import ReturnCastInsertionTests
 # from .runtime import StaticRuntimeTests
-# from .sequence import SequenceTests
+from .sequence import SequenceTests
+
 # from .slots_with_default import SlotsWithDefaultTests
 from .subclass import SubclassTests
 from .super import SuperTests
 from .top_level import TopLevelTests
 
-# from .typed_dict import TypedDictTests
+from .typed_dict import TypedDictTests
 from .union import UnionCompilationTests
 
-# from .variadic_arg import VariadicArgTests
+from .variadic_arg import VariadicArgTests
 
 from .walrus_operator import WalrusOperatorTests

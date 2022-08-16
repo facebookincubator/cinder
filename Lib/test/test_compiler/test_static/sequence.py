@@ -1,6 +1,14 @@
+from unittest import skipIf
+
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class SequenceTests(StaticTestBase):
     def test_exact_list_int_index_sequence_get_set(self) -> None:
         codestr = """
