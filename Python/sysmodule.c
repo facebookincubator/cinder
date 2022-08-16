@@ -2716,6 +2716,22 @@ make_impl_info(PyObject *version_info)
         goto error;
 #endif
 
+    res = PyDict_SetItemString(impl_info, "_is_cinder", Py_True);
+    if (res < 0)
+        goto error;
+
+#ifdef CINDER_VERSION
+#define _CINDER_VERSION Py_STRINGIFY(CINDER_VERSION)
+    value = PyUnicode_FromString(_CINDER_VERSION);
+    if (value == NULL)
+        goto error;
+    res = PyDict_SetItemString(impl_info, "_cinder_version", value);
+    Py_DECREF(value);
+    if (res < 0)
+        goto error;
+#undef _CINDER_VERSION
+#endif
+
     /* dict ready */
 
     ns = _PyNamespace_New(impl_info);
