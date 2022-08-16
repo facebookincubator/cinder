@@ -44,7 +44,8 @@ from .overrides import OverridesTests
 # from .protocol import ProtocolTests
 from .readonly import ReadonlyTests
 
-# from .refine_fields import RefineFieldsTests
+from .refine_fields import RefineFieldsTests
+
 # from .return_cast_insertion import ReturnCastInsertionTests
 # from .runtime import StaticRuntimeTests
 # from .sequence import SequenceTests

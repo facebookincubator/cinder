@@ -1,9 +1,16 @@
 import dis
 from compiler.static.types import _TMP_VAR_PREFIX, TypedSyntaxError
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class RefineFieldsTests(StaticTestBase):
     def test_can_refine_loaded_field(self) -> None:
         codestr = """
@@ -444,6 +451,7 @@ class RefineFieldsTests(StaticTestBase):
             self.assertEqual(c.f(42), 42)
             self.assertEqual(c.x, 42)
 
+    @skip("TODO(T129152451): Error refining field at source codegen")
     def test_refined_field_at_source_codegen(self) -> None:
         codestr = """
             class C:
