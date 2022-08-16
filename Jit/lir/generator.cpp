@@ -2005,11 +2005,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             static_cast<Py_ssize_t>(instr->nvalues()));
         break;
       }
+      case Opcode::kMatchClass: {
+        const auto& instr = static_cast<const MatchClass&>(i);
+        bbb.AppendCall(
+            instr.GetOutput(),
+            Ci_match_class,
+            "__asm_tstate",
+            instr.GetOperand(0),
+            instr.GetOperand(1),
+            instr.GetOperand(2),
+            instr.GetOperand(3));
+        break;
+      }
       case Opcode::kMatchKeys: {
         auto instr = static_cast<const MatchKeys*>(&i);
         bbb.AppendCall(
             instr->dst(),
-            JITRT_MatchKeys,
+            Ci_match_keys,
             "__asm_tstate",
             instr->GetOperand(0),
             instr->GetOperand(1));
@@ -2754,18 +2766,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto& instr = static_cast<const GetAIter&>(i);
         bbb.AppendCall(
             instr.dst(), Ci_GetANext, "__asm_tstate", instr.GetOperand(0));
-        break;
-      }
-      case Opcode::kMatchClass: {
-        const auto& instr = static_cast<const MatchClass&>(i);
-        bbb.AppendCode(
-            "Call {}:CInt64, {:#x}, __asm_tstate, {}, {}, {}, {}",
-            instr.GetOutput(),
-            reinterpret_cast<uint64_t>(match_class),
-            instr.GetOperand(0),
-            instr.GetOperand(1),
-            instr.GetOperand(2),
-            instr.GetOperand(3));
         break;
       }
     }

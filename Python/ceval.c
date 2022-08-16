@@ -995,7 +995,7 @@ _Py_CheckRecursiveCall(PyThreadState *tstate, const char *where)
 // Return a tuple of values corresponding to keys, with error checks for
 // duplicate/missing keys.
 PyObject*
-match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys)
+Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys)
 {
     assert(PyTuple_CheckExact(keys));
     Py_ssize_t nkeys = PyTuple_GET_SIZE(keys);
@@ -1097,7 +1097,7 @@ match_class_attr(PyThreadState *tstate, PyObject *subject, PyObject *type,
 // On success (match), return a tuple of extracted attributes. On failure (no
 // match), return NULL. Use _PyErr_Occurred(tstate) to disambiguate.
 PyObject*
-match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
+Ci_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
             Py_ssize_t nargs, PyObject *kwargs)
 {
     if (!PyType_Check(type)) {
@@ -3742,7 +3742,7 @@ main_loop:
             PyObject *type = TOP();
             PyObject *subject = SECOND();
             assert(PyTuple_CheckExact(names));
-            PyObject *attrs = match_class(tstate, subject, type, oparg, names);
+            PyObject *attrs = Ci_match_class(tstate, subject, type, oparg, names);
             Py_DECREF(names);
             if (attrs) {
                 // Success!
@@ -3781,7 +3781,7 @@ main_loop:
             // Otherwise, PUSH(None) and PUSH(False).
             PyObject *keys = TOP();
             PyObject *subject = SECOND();
-            PyObject *values_or_none = match_keys(tstate, subject, keys);
+            PyObject *values_or_none = Ci_match_keys(tstate, subject, keys);
             if (values_or_none == NULL) {
                 goto error;
             }
