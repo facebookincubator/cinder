@@ -55,4 +55,5 @@ from .subclass import SubclassTests
 # from .typed_dict import TypedDictTests
 # from .union import UnionCompilationTests
 # from .variadic_arg import VariadicArgTests
-# from .walrus_operator import WalrusOperatorTests
+
+from .walrus_operator import WalrusOperatorTests
