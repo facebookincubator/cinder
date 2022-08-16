@@ -6081,7 +6081,50 @@ main_loop:
         }
 
         case TARGET(INVOKE_FUNCTION_INDIRECT_CACHED): {
-            PORT_ASSERT("Unsupported: INVOKE_FUNCTION_INDIRECT_CACHED");
+            PyObject **funcref = _PyShadow_GetFunction(&shadow, oparg & 0xff);
+            Py_ssize_t nargs = oparg >> 8;
+#ifdef CINDER_DONE_PORTING
+            awaited = IS_AWAITED();
+#endif
+
+            PyObject **sp = stack_pointer - nargs;
+            PyObject *func = *funcref;
+            PyObject *res;
+            /* For indirect calls we just use _PyObject_Vectorcall, which will
+            * handle non-vector call objects as well.  We expect in high-perf
+            * situations to either have frozen types or frozen strict modules */
+            if (func == NULL) {
+                PyObject *target = PyTuple_GET_ITEM(_PyShadow_GetOriginalConst(&shadow, next_instr), 0);
+                func = _PyClassLoader_ResolveFunction(target, NULL);
+                if (func == NULL) {
+                    goto error;
+                }
+
+                res = _PyObject_VectorcallTstate(
+                    tstate,
+                    func,
+                    sp,
+#ifdef CINDER_DONE_PORTING
+                    (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
+#endif
+                    nargs,
+                    NULL
+                );
+                Py_DECREF(func);
+            } else {
+                res = _PyObject_VectorcallTstate(
+                    tstate,
+                    func,
+                    sp,
+#ifdef CINDER_DONE_PORTING
+                    (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
+#endif
+                    nargs,
+                    NULL
+                );
+            }
+
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0 /* TODO(T128335015): Replace with awaited */, res);
         }
 
         case TARGET(BUILD_CHECKED_MAP_CACHED): {
