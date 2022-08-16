@@ -201,7 +201,6 @@ class StaticFieldTests(StaticTestBase):
             self.assertEqual(x.f(), 0)
             self.assertInBytecode(C.f, "LOAD_FIELD", (mod.__name__, "C", "value"))
 
-    @skip("TODO(T129130620): STORE_OBJ_FIELD support")
     def test_aligned_subclass_field(self):
         codestr = """
             from __static__ import cbool

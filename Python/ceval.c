@@ -6220,7 +6220,14 @@ main_loop:
         }
 
         case TARGET(STORE_OBJ_FIELD): {
-            PORT_ASSERT("Unsupported: STORE_OBJ_FIELD");
+            Py_ssize_t offset = oparg * sizeof(PyObject *);
+            PyObject *self = POP();
+            PyObject *value = POP();
+            PyObject **addr = FIELD_OFFSET(self, offset);
+            Py_XDECREF(*addr);
+            *addr = value;
+            Py_DECREF(self);
+            DISPATCH();
         }
 
         case TARGET(INVOKE_METHOD_CACHED): {
