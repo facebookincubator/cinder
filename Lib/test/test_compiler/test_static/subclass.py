@@ -1,7 +1,14 @@
 import unittest
 from compiler.static.types import TypeEnvironment
 
+from unittest import skip, skipIf
+
 from .common import StaticTestBase
+
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
 
 class SubclassTests(StaticTestBase):
@@ -105,6 +112,7 @@ class SubclassTests(StaticTestBase):
         )
         self.assertTrue(checked_list_str.is_subclass_of(self.type_env.object))
 
+    @skip("TODO(T129114447): TypeError not raised in subclass")
     def test_cannot_subclass_static_classes_in_nonstatic_code(self):
         from __static__ import int8
 
@@ -115,6 +123,7 @@ class SubclassTests(StaticTestBase):
             class D(int8):
                 pass
 
+    @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
     def test_init_subclass(self):
         codestr = """
             class B:

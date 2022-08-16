@@ -47,9 +47,11 @@ from .overrides import OverridesTests
 # from .runtime import StaticRuntimeTests
 # from .sequence import SequenceTests
 # from .slots_with_default import SlotsWithDefaultTests
-# from .subclass import SubclassTests
+from .subclass import SubclassTests
+
 # from .super import SuperTests
 # from .top_level import TopLevelTests
+
 # from .typed_dict import TypedDictTests
 # from .union import UnionCompilationTests
 # from .variadic_arg import VariadicArgTests
