@@ -117,6 +117,7 @@ bool Instr::isReplayable() const {
     case Opcode::kBitCast:
     case Opcode::kBuildString:
     case Opcode::kCast:
+    case Opcode::kCheckErrOccurred:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
     case Opcode::kCheckFreevar:
@@ -227,6 +228,7 @@ bool Instr::isReplayable() const {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:

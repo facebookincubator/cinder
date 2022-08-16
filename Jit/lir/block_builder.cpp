@@ -515,11 +515,12 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
       {"Guard",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          static UnorderedMap<std::string_view, InstrGuardKind> guardKindMap = {
-             {"NotZero", InstrGuardKind::kNotZero},
-             {"NotNegative", InstrGuardKind::kNotNegative},
              {"AlwaysFail", InstrGuardKind::kAlwaysFail},
-             {"Is", InstrGuardKind::kIs},
              {"HasType", InstrGuardKind::kHasType},
+             {"Is", InstrGuardKind::kIs},
+             {"NotNegative", InstrGuardKind::kNotNegative},
+             {"NotZero", InstrGuardKind::kNotZero},
+             {"Zero", InstrGuardKind::kZero},
          };
          auto instr = bldr.createInstr(Instruction::kGuard);
 

@@ -80,6 +80,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     // These can deopt but don't write to any memory locations when they fall
     // through.
+    case Opcode::kCheckErrOccurred:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
     case Opcode::kCheckFreevar:
@@ -124,6 +125,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLoadMethod:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLongBinaryOp:
+    case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:

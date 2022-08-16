@@ -433,6 +433,10 @@ class HIRBuilder {
   void
   emitMatchMappingSequence(CFG& cfg, TranslationContext& tc, uint64_t tf_flag);
 
+  void emitMatchClass(
+      CFG& cfg,
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitMatchKeys(CFG& cfg, TranslationContext& tc);
 
   void emitReadonlyOperation(

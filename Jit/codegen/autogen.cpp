@@ -213,6 +213,11 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
         as->js(deopt_label);
         break;
       }
+      case kZero: {
+        as->test(reg, reg);
+        as->jnz(deopt_label);
+        break;
+      }
       case kAlwaysFail:
         as->jmp(deopt_label);
         break;

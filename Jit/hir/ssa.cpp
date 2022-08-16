@@ -320,6 +320,7 @@ Type outputType(
     case Opcode::kGetLoadMethodInstance:
     case Opcode::kLoadCellItem:
     case Opcode::kLoadGlobalCached:
+    case Opcode::kMatchClass:
     case Opcode::kStealCellItem:
     case Opcode::kWaitHandleLoadWaiter:
       return TOptObject;
@@ -571,6 +572,7 @@ Type outputType(
     case Opcode::kBeginInlinedFunction:
     case Opcode::kBranch:
     case Opcode::kCallStaticRetVoid:
+    case Opcode::kCheckErrOccurred:
     case Opcode::kCondBranch:
     case Opcode::kCondBranchCheckType:
     case Opcode::kCondBranchIterNotDone:

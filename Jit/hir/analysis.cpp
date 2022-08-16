@@ -36,6 +36,7 @@ bool isPassthrough(const Instr& instr) {
   switch (instr.opcode()) {
     case Opcode::kAssign:
     case Opcode::kBitCast:
+    case Opcode::kCheckErrOccurred:
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
     case Opcode::kCheckFreevar:
@@ -129,6 +130,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:

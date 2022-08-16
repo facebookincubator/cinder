@@ -301,6 +301,7 @@ struct FrameState {
   V(CallStaticRetVoid)                 \
   V(Cast)                              \
   V(CheckSequenceBounds)               \
+  V(CheckErrOccurred)                  \
   V(CheckExc)                          \
   V(CheckNeg)                          \
   V(CheckVar)                          \
@@ -383,6 +384,7 @@ struct FrameState {
   V(MakeListTuple)                     \
   V(MakeSet)                           \
   V(MakeTupleFromList)                 \
+  V(MatchClass)                        \
   V(MatchKeys)                         \
   V(MergeSetUnpack)                    \
   V(Phi)                               \
@@ -1822,6 +1824,10 @@ class CheckBase : public DeoptBase {
     return GetOperand(0);
   }
 };
+
+// Check if an error has occurred (_PyErr_Occurred() is true).
+// If so, transfer control to the exception handler for the block.
+DEFINE_SIMPLE_INSTR(CheckErrOccurred, (), Operands<0>, CheckBase);
 
 // Check if an exception has occurred (implied by var being NULL).
 // If so, transfer control to the exception handler for the block.
@@ -3400,6 +3406,17 @@ DEFINE_SIMPLE_INSTR(
     HasOutput,
     Operands<2>,
     DeoptBase);
+
+// the main step in MATCH_CLASS opcode, where match_class() is called
+// takes subject as operand 0
+// takes type as operand 1
+// takes nargs as operand 2
+// takes kwargs as operand 3
+DEFINE_SIMPLE_INSTR(
+    MatchClass,
+    (TObject, TObject, TCUInt64, TObject),
+    HasOutput,
+    Operands<4>);
 
 // Takes a dict as operand 0
 // Takes a key as operand 1

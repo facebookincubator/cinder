@@ -4141,6 +4141,74 @@ class CompareTests(unittest.TestCase):
         self.assertTrue(self.compare_is_not(obj, 1))
         self.assertFalse(self.compare_is_not(obj, obj))
 
+class MatchTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("MATCH_SEQUENCE", "ROT_N")
+    def match_sequence(self, s: tuple) -> bool:
+        match s:
+            case (*b, 8, 9, 4, 5):
+                return True
+            case _:
+                return False
+
+
+    def test_match_sequence(self):
+        self.assertTrue(self.match_sequence((1, 2, 3, 7, 8, 9, 4, 5)))
+        self.assertFalse(self.match_sequence((1, 2, 3, 4, 5, 6, 7, 8)))
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("MATCH_KEYS", "MATCH_MAPPING")
+    def match_keys(self, m: dict) -> bool:
+        match m:
+            case {'id': 1}:
+                return True
+            case _:
+                return False
+
+    def test_match_keys(self):
+        self.assertTrue(self.match_keys({'id': 1}))
+        self.assertFalse(self.match_keys({'id': 2}))
+
+    class A:
+        __match_args__ = ("id")
+        def __init__(self, id):
+            self.id = id
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("MATCH_CLASS")
+    def match_class(self, a: A) -> bool:
+        match a:
+            case self.A(id = 2):
+                return True
+            case _:
+                return False
+
+    def test_match_class(self):
+        self.assertTrue(self.match_class(self.A(2)))
+        self.assertFalse(self.match_class(self.A(3)))
+
+
+    class Point():
+        __match_args__ = 123
+        def __init__(self, x, y):
+                self.x = x
+                self.y = y
+
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("MATCH_CLASS")
+    def match_class_exc():
+        x, y = 5 ,5
+        point = Point(x, y)
+        # will raise because Point.__match_args__ is not a tuple
+        match point:
+            case Point(x, y):
+                pass
+
+    def test_match_class_exc(self):
+        with self.assertRaises(TypeError):
+            self.match_class_exc()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -235,6 +235,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kBatchDecref:
     case Opcode::kBitCast:
     case Opcode::kBuildString:
+    case Opcode::kCheckErrOccurred:
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
     case Opcode::kCheckSequenceBounds:
@@ -268,6 +269,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kMakeFunction:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
+    case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
     case Opcode::kRaise:

@@ -9,6 +9,7 @@
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 #include "listobject.h"
+#include "pystate.h"
 
 #include "Jit/codegen/x86_64.h"
 #include "Jit/containers.h"
@@ -1662,6 +1663,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         AppendGuard(bbb, "AlwaysFail", instr);
         break;
       }
+      case Opcode::kCheckErrOccurred: {
+        const auto& instr = static_cast<const DeoptBase&>(i);
+        auto exc_type = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, __asm_tstate, {:#x}",
+            exc_type,
+            offsetof(PyThreadState, curexc_type));
+        AppendGuard(bbb, "Zero", instr, exc_type);
+        break;
+      }
       case Opcode::kCheckExc:
       case Opcode::kCheckField:
       case Opcode::kCheckFreevar:
@@ -2745,10 +2756,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr.dst(), Ci_GetANext, "__asm_tstate", instr.GetOperand(0));
         break;
       }
+      case Opcode::kMatchClass: {
+        const auto& instr = static_cast<const MatchClass&>(i);
+        bbb.AppendCode(
+            "Call {}:CInt64, {:#x}, __asm_tstate, {}, {}, {}, {}",
+            instr.GetOutput(),
+            reinterpret_cast<uint64_t>(match_class),
+            instr.GetOperand(0),
+            instr.GetOperand(1),
+            instr.GetOperand(2),
+            instr.GetOperand(3));
+        break;
+      }
     }
 
     if (auto db = i.asDeoptBase()) {
       switch (db->opcode()) {
+        case Opcode::kCheckErrOccurred:
         case Opcode::kCheckExc:
         case Opcode::kCheckField:
         case Opcode::kCheckVar:

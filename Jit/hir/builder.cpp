@@ -66,7 +66,6 @@ Register* TempAllocator::AllocateNonStack() {
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // CPython opcodes that were added in 3.9 / 3.10
     COPY_DICT_WITHOUT_KEYS, // T126141783
-    MATCH_CLASS, // T126141840
 
     // TODO(T127134659): Imports
     IMPORT_FROM,
@@ -193,6 +192,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
     MAP_ADD,
+    MATCH_CLASS,
     MATCH_KEYS,
     MATCH_MAPPING,
     MATCH_SEQUENCE,
@@ -459,7 +459,6 @@ void HIRBuilder::addInitializeCells(
 // complete.
 static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
     COPY_DICT_WITHOUT_KEYS,
-    MATCH_CLASS,
 };
 
 static bool should_snapshot(
@@ -1416,6 +1415,10 @@ void HIRBuilder::translate(
         }
         case SETUP_WITH: {
           emitSetupWith(tc, bc_instr);
+          break;
+        }
+        case MATCH_CLASS: {
+          emitMatchClass(irfunc.cfg, tc, bc_instr);
           break;
         }
         case MATCH_KEYS: {
@@ -4204,6 +4207,47 @@ void HIRBuilder::emitMatchMappingSequence(
   tc.block = done;
 
   tc.frame.stack.push(result);
+}
+
+void HIRBuilder::emitMatchClass(
+    CFG& cfg,
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  auto& stack = tc.frame.stack;
+  Register* names = stack.pop();
+  Register* type = stack.pop();
+  Register* subject = stack.pop();
+  auto oparg = bc_instr.oparg();
+
+  auto nargs = temps_.AllocateStack();
+  tc.emit<LoadConst>(nargs, Type::fromCUInt(oparg, TCUInt64));
+
+  auto attrs_tuple = temps_.AllocateStack();
+  tc.emit<MatchClass>(attrs_tuple, subject, type, nargs, names);
+  tc.emit<RefineType>(attrs_tuple, TOptTupleExact, attrs_tuple);
+
+  Register* top = temps_.AllocateStack();
+  Register* second = temps_.AllocateStack();
+  stack.push(second);
+  stack.push(top);
+
+  auto true_block = cfg.AllocateBlock();
+  auto false_block = cfg.AllocateBlock();
+  auto done = cfg.AllocateBlock();
+
+  tc.emit<CondBranch>(attrs_tuple, true_block, false_block);
+  tc.block = true_block;
+  tc.emit<RefineType>(second, TTupleExact, attrs_tuple);
+  tc.emit<LoadConst>(top, Type::fromObject(Py_True));
+  tc.emit<Branch>(done);
+
+  tc.block = false_block;
+  tc.emit<CheckErrOccurred>(tc.frame);
+  tc.emit<LoadConst>(top, Type::fromObject(Py_False));
+  tc.emit<Assign>(second, subject);
+  tc.emit<Branch>(done);
+
+  tc.block = done;
 }
 
 void HIRBuilder::emitMatchKeys(CFG& cfg, TranslationContext& tc) {

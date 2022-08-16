@@ -1096,7 +1096,7 @@ match_class_attr(PyThreadState *tstate, PyObject *subject, PyObject *type,
 
 // On success (match), return a tuple of extracted attributes. On failure (no
 // match), return NULL. Use _PyErr_Occurred(tstate) to disambiguate.
-static PyObject*
+PyObject*
 match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
             Py_ssize_t nargs, PyObject *kwargs)
 {
