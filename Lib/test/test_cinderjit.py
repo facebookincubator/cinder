@@ -2740,9 +2740,7 @@ class ExceptionHandlingTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "testing 123"):
             self.try_finally(True)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_IS_OP,
-    )
+    @unittest.failUnlessJITCompiled
     def try_except_finally(self, should_raise):
         result = None
         try:
@@ -3420,7 +3418,7 @@ class GetFrameTests(unittest.TestCase):
         f2 = sys._getframe()
         return f1, f2
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.OPC_IS_OP)
+    @unittest.failUnlessJITCompiled
     def test_consecutive_getframe(self):
         stack = ["consecutive_getframe", "f3", "f2", "f1", "test_consecutive_getframe"]
         frame1, frame2 = self.f1(self.consecutive_getframe)
