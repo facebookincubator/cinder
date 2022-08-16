@@ -916,7 +916,6 @@ class PrimitivesTests(StaticTestBase):
             f = mod.testfunc
             self.assertEqual(f(), 1234)
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_int_compare_or(self):
         codestr = """
         from __static__ import box, ssize_t
@@ -932,7 +931,6 @@ class PrimitivesTests(StaticTestBase):
             self.assertInBytecode(f, "JUMP_IF_NONZERO_OR_POP")
             self.assertIs(f(), False)
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_int_compare_and(self):
         codestr = """
         from __static__ import box, ssize_t
@@ -1146,7 +1144,6 @@ class PrimitivesTests(StaticTestBase):
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_int_loop_chained(self):
         codestr = """
         from __static__ import ssize_t, box
@@ -2786,7 +2783,6 @@ class PrimitivesTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.g(), 301)
 
-    @skip("TODO(T129165092): JUMP_IF_NONZERO_OR_POP not supported")
     def test_primitive_args_and_return(self):
         cases = [
             ("cbool", 1),
@@ -2832,7 +2828,6 @@ class PrimitivesTests(StaticTestBase):
                 with self.in_strict_module(codestr) as mod:
                     self.assertEqual(mod.g(), expected)
 
-    @skip("TODO(T129165092): JUMP_IF_NONZERO_OR_POP not supported")
     def test_primitive_return(self):
         cases = [
             ("cbool", True),
@@ -3034,7 +3029,6 @@ class PrimitivesTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("bool", "int8")):
             self.compile(codestr)
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_inline_primitive(self):
 
         codestr = """
@@ -3055,7 +3049,6 @@ class PrimitivesTests(StaticTestBase):
             self.assertNotInBytecode(foo, "STORE_FAST")
             self.assertInBytecode(foo, "STORE_LOCAL")
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_inline_primitive_multiple(self):
         codestr = """
             from __static__ import cbool, inline, int64, int32
@@ -3095,7 +3088,6 @@ class PrimitivesTests(StaticTestBase):
                     self.assertEqual(f(0), 1)
                     self.assertIs(f(0), True)
 
-    @skip("TODO(T129152876): JUMP_IF_ZERO_OR_POP support")
     def test_chained_compare_primitive_mixed(self):
         for jumpif in [False, True]:
             with self.subTest(jumpif=jumpif):

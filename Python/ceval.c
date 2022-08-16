@@ -5599,11 +5599,27 @@ main_loop:
         }
 
         case TARGET(JUMP_IF_ZERO_OR_POP): {
-            PORT_ASSERT("Unsupported: JUMP_IF_ZERO_OR_POP");
+            PyObject *cond = TOP();
+            int is_nonzero = Py_SIZE(cond);
+            if (is_nonzero) {
+                STACK_SHRINK(1);
+                Py_DECREF(cond);
+            } else {
+                JUMPTO(oparg);
+            }
+            DISPATCH();
         }
 
         case TARGET(JUMP_IF_NONZERO_OR_POP): {
-            PORT_ASSERT("Unsupported: JUMP_IF_NONZERO_OR_POP");
+            PyObject *cond = TOP();
+            int is_nonzero = Py_SIZE(cond);
+            if (!is_nonzero) {
+                STACK_SHRINK(1);
+                Py_DECREF(cond);
+            } else {
+                JUMPTO(oparg);
+            }
+            DISPATCH()
         }
 
         case TARGET(FAST_LEN): {
