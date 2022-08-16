@@ -331,7 +331,6 @@ class ClassMethodTests(StaticTestBase):
                     self.assertInBytecode(C.instance_method, "INVOKE_METHOD")
                     self.assertEqual(asyncio.run(f(C())), 3)
 
-    @skip("TODO(T128969924): LOAD_ITERABLE_ARG support.")
     def test_invoke_starargs(self):
         codestr = """
 

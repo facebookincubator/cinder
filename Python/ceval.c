@@ -5472,7 +5472,34 @@ main_loop:
         }
 
         case TARGET(LOAD_ITERABLE_ARG): {
-            PORT_ASSERT("Unsupported: LOAD_ITERABLE_ARG");
+            // TODO: Revisit this opcode, and perhaps get it to load all
+            // elements of an iterable to a stack. That'll help with the
+            // compiled code size.
+            PyObject *tup = POP();
+            int idx = oparg;
+            if (!PyTuple_CheckExact(tup)) {
+                if (tup->ob_type->tp_iter == NULL && !PySequence_Check(tup)) {
+                    PyErr_Format(PyExc_TypeError,
+                                 "argument after * "
+                                 "must be an iterable, not %.200s",
+                                 tup->ob_type->tp_name);
+                    Py_DECREF(tup);
+                    goto error;
+                }
+                Py_SETREF(tup, PySequence_Tuple(tup));
+                if (tup == NULL) {
+                    goto error;
+                }
+            }
+            PyObject *element = PyTuple_GetItem(tup, idx);
+            if (!element) {
+                Py_DECREF(tup);
+                goto error;
+            }
+            Py_INCREF(element);
+            PUSH(element);
+            PUSH(tup);
+            DISPATCH();
         }
 
         case TARGET(LOAD_MAPPING_ARG): {
