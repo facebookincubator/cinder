@@ -177,8 +177,8 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
     } else if (def->ml_flags == METH_O) {
       target->builtin_expected_nargs = 2;
     } else if ((tmd = _PyClassLoader_GetTypedMethodDef(callable))) {
-      target->builtin_returns_error_code = (tmd->tmd_ret == _Py_SIG_ERROR);
-      target->builtin_returns_void = (tmd->tmd_ret == _Py_SIG_VOID);
+      target->builtin_returns_error_code = (tmd->tmd_ret == Ci_Py_SIG_ERROR);
+      target->builtin_returns_void = (tmd->tmd_ret == Ci_Py_SIG_VOID);
       target->builtin_c_func = tmd->tmd_meth;
     }
   }
