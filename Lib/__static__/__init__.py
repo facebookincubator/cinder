@@ -324,17 +324,6 @@ def _replace_types(
     res = type(f"{gen_type.__origin__.__name__}[{param_names}]", bases, new_dict)
     res.__origin__ = gen_type
 
-    if not has_params:
-        # specialize the type
-        for name, value in new_dict.items():
-            if isinstance(value, FunctionType):
-                if hasattr(value, "__runtime_impl__"):
-                    setattr(
-                        res,
-                        name,
-                        _static.specialize_function(res, value.__qualname__, subs),
-                    )
-
     if cinder is not None:
         cinder.freeze_type(res)
 
@@ -387,69 +376,6 @@ class StaticGeneric:
             + ", ".join([param.__name__ for param in self.__parameters__])
             + ">"
         )
-
-
-@set_type_final
-class Array(array.array, StaticGeneric[ArrayElement]):
-    __slots__ = ()
-
-    def __new__(cls, initializer: int | Iterable[ArrayElement]):
-        if hasattr(cls, "__parameters__"):
-            raise TypeError("Cannot create plain Array")
-
-        typecode = _TYPE_CODES[cls.__args__[0]]
-        if isinstance(initializer, int):
-            res = array.array.__new__(cls, typecode, [0])
-            res *= initializer
-            return res
-        else:
-            return array.array.__new__(cls, typecode, initializer)
-
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            return type(self)(array.array.__getitem__(self, index))
-
-        return array.array.__getitem__(self, index)
-
-    def __deepcopy__(self, memo):
-        return type(self)(self)
-
-
-@set_type_final
-class Vector(array.array, StaticGeneric[ArrayElement]):
-    """Vector is a resizable array of primitive elements"""
-
-    __slots__ = ()
-
-    def __new__(cls, initializer: int | Iterable[ArrayElement] | None = None):
-        if hasattr(cls, "__parameters__"):
-            raise TypeError("Cannot create plain Vector")
-
-        typecode = _TYPE_CODES[cls.__args__[0]]
-        if isinstance(initializer, int):
-            # specifing size
-            res = array.array.__new__(cls, typecode, [0])
-            res *= initializer
-            return res
-        elif initializer is not None:
-            return array.array.__new__(cls, typecode, initializer)
-        else:
-            return array.array.__new__(cls, typecode)
-
-    if _static is not None:
-
-        @_runtime_impl
-        def append(self, value: ArrayElement) -> None:
-            super().append(value)
-
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            return type(self)(array.array.__getitem__(self, index))
-
-        return array.array.__getitem__(self, index)
-
-    def __deepcopy__(self, memo):
-        return type(self)(self)
 
 
 def box(o):
