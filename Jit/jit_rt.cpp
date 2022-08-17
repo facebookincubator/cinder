@@ -1538,10 +1538,8 @@ void JITRT_SetCurrentAwaiter(PyObject*, PyThreadState*) {
   //_PyAwaitable_SetAwaiter(awaitable, awaiter);
 }
 
-JITRT_YieldFromRes JITRT_YieldFrom(
-    PyObject* gen,
-    PyObject* v,
-    uint64_t finish_yield_from) {
+JITRT_YieldFromRes
+JITRT_YieldFrom(PyObject* gen, PyObject* v, uint64_t finish_yield_from) {
   if (v == NULL) {
     return {NULL, 1};
   }

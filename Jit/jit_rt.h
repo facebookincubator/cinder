@@ -475,10 +475,8 @@ struct JITRT_YieldFromRes {
   PyObject* retval;
   uint64_t done;
 };
-JITRT_YieldFromRes JITRT_YieldFrom(
-    PyObject* gen,
-    PyObject* v,
-    uint64_t finish_yield_from);
+JITRT_YieldFromRes
+JITRT_YieldFrom(PyObject* gen, PyObject* v, uint64_t finish_yield_from);
 
 // Used for the `YIELD_FROM` that appears in the bytecode of the header for
 // an `async for` loop.

@@ -788,13 +788,13 @@ void SSAify::maybeAddPhi(
     auto pred_reg = getDefine(pred, reg);
     pred_defs.emplace(pred->block, pred_reg);
   }
-    auto bc_off = ssa_block->block->begin()->bytecodeOffset();
-    auto phi = Phi::create(out, pred_defs);
-    phi->setBytecodeOffset(bc_off);
-    ssa_block->phi_nodes.emplace(out, phi);
-    for (auto& def_pair : pred_defs) {
-      phi_uses_[def_pair.second].emplace(phi, ssa_block);
-    }
+  auto bc_off = ssa_block->block->begin()->bytecodeOffset();
+  auto phi = Phi::create(out, pred_defs);
+  phi->setBytecodeOffset(bc_off);
+  ssa_block->phi_nodes.emplace(out, phi);
+  for (auto& def_pair : pred_defs) {
+    phi_uses_[def_pair.second].emplace(phi, ssa_block);
+  }
 }
 
 Register* SSAify::getCommonPredValue(
