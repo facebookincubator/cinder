@@ -27,14 +27,6 @@ extern "C" {
 #endif
 
 
-// Include/cpython/dictobject.h  TODO(T124996100) Static Python
-PyObject *_PyCheckedDict_New(PyTypeObject *type);
-PyObject *_PyCheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused);
-
-int _PyCheckedDict_Check(PyObject *x);
-PyAPI_FUNC(int) _PyCheckedDict_TypeCheck(PyTypeObject *type);
-
-
 // Include/listobject.h  TODO(T124996100) Static Python
 PyAPI_FUNC(PyObject *) _PyCheckedList_GetItem(PyObject *self, Py_ssize_t);
 PyAPI_FUNC(PyObject *) _PyCheckedList_New(PyTypeObject *type, Py_ssize_t);

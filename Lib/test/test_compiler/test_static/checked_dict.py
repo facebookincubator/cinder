@@ -1,6 +1,7 @@
 from __static__ import chkdict
 
 from compiler.static.types import FAST_LEN_DICT, TypedSyntaxError
+from unittest import skip, skipIf
 
 from .common import StaticTestBase, type_mismatch
 
@@ -10,6 +11,7 @@ except ImportError:
     cinderjit = None
 
 
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class CheckedDictTests(StaticTestBase):
     def test_invoke_chkdict_method(self):
         codestr = """
@@ -255,6 +257,7 @@ class CheckedDictTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
+    @skip("TODO(T129207881): TP_ALLOC_CACHED interpreter support.")
     def test_compile_checked_dict_shadowcode(self):
         codestr = """
             from __static__ import CheckedDict
@@ -346,6 +349,7 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
+    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_opt_in(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -432,6 +436,7 @@ class CheckedDictTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             test = mod.testfunc
             B = mod.B
+            test()
             self.assertEqual(type(test()), chkdict[B, int])
 
     def test_compile_checked_dict_with_annotation_wrong_value_type(self):
@@ -501,6 +506,7 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
+    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -516,6 +522,7 @@ class CheckedDictTests(StaticTestBase):
                 test = mod.testfunc
                 test()
 
+    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call_2(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -528,6 +535,7 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, int])
 
+    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call_3(self):
         # we emit the chkdict import first before future annotations, but that
         # should be fine as we're the compiler.

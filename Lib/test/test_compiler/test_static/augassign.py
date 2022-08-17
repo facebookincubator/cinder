@@ -97,7 +97,6 @@ class AugAssignTests(StaticTestBase):
                 with self.in_module(codestr) as mod:
                     self.assertEqual(mod.f(3), 4)
 
-    @skip("TODO(T128900163): Hit stubbed function: _PyCheckedDict_NewPresized")
     def test_checked_dict(self):
         codestr = """
             from __static__ import CheckedDict

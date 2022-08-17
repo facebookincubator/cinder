@@ -3468,7 +3468,7 @@ void HIRBuilder::emitBuildCheckedMap(
 
   Type type = preloader_.type(descr);
   JIT_CHECK(
-      _PyCheckedDict_TypeCheck(type.uniquePyType()),
+      Ci_CheckedDict_TypeCheck(type.uniquePyType()),
       "expected CheckedDict type");
 
   Register* dict = temps_.AllocateStack();

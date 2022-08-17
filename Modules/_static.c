@@ -17,24 +17,24 @@
 PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");
 
-extern PyTypeObject _PyCheckedDict_Type;
+extern PyTypeObject Ci_CheckedDict_Type;
 extern PyTypeObject _PyCheckedList_Type;
 
 static int
 _static_exec(PyObject *m)
 {
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
-    if (PyType_Ready((PyTypeObject *)&_PyCheckedDict_Type) < 0)
+    if (PyType_Ready((PyTypeObject *)&Ci_CheckedDict_Type) < 0)
         return -1;
 
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (PyType_Ready((PyTypeObject *)&_PyCheckedList_Type) < 0)
         return -1;
 #endif
     PyObject *globals = ((PyStrictModuleObject *)m)->globals;
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
-    if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&_PyCheckedDict_Type) < 0)
+    if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&Ci_CheckedDict_Type) < 0)
         return -1;
 
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (PyDict_SetItemString(globals, "chklist", (PyObject *)&_PyCheckedList_Type) < 0)
         return -1;
 #endif

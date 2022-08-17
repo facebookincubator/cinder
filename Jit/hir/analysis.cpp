@@ -223,7 +223,7 @@ bool registerTypeMatches(Type op_type, OperandType expected_type) {
     case Constraint::kDictOrChkDict:
       return op_type <= TDict ||
           (op_type.hasTypeSpec() &&
-           _PyCheckedDict_TypeCheck(op_type.typeSpec()));
+           Ci_CheckedDict_TypeCheck(op_type.typeSpec()));
     case Constraint::kOptObjectOrCIntOrCBool:
       return op_type <= TOptObject || op_type <= TCInt || op_type <= TCBool;
     case Constraint::kOptObjectOrCInt:

@@ -27,6 +27,13 @@ PyAPI_FUNC(PyObject *) Ci_tuple_subscript(PyObject *self, PyObject *item);
  */
 PyAPI_FUNC(int) Ci_PyDict_ForceCombined(PyObject *);
 
+PyObject *Ci_CheckedDict_New(PyTypeObject *type);
+PyObject *Ci_CheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused);
+int Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value);
+
+int Ci_CheckedDict_Check(PyObject *x);
+PyAPI_FUNC(int) Ci_CheckedDict_TypeCheck(PyTypeObject *type);
+
 PyObject **
 Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 

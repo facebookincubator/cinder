@@ -2154,11 +2154,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto capacity = instr->GetCapacity();
         if (capacity == 0) {
           bbb.AppendCall(
-              instr->GetOutput(), _PyCheckedDict_New, instr->type().typeSpec());
+              instr->GetOutput(), Ci_CheckedDict_New, instr->type().typeSpec());
         } else {
           bbb.AppendCall(
               instr->GetOutput(),
-              _PyCheckedDict_NewPresized,
+              Ci_CheckedDict_NewPresized,
               instr->type().typeSpec(),
               static_cast<Py_ssize_t>(capacity));
         }

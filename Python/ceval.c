@@ -3248,7 +3248,7 @@ main_loop:
         int err;                                                              \
         PyObject *key = PEEK(2 * i);                                          \
         PyObject *value = PEEK(2 * i - 1);                                    \
-        err = PyDict_SetItem(map, key, value);                               \
+        err = Ci_Dict_SetItemInternal(map, key, value);                       \
         if (err != 0) {                                                       \
             Py_DECREF(map);                                                   \
             goto error;                                                       \
@@ -3262,26 +3262,12 @@ main_loop:
     PUSH(map);
 
         case TARGET(BUILD_MAP): {
-            Py_ssize_t i;
             PyObject *map = _PyDict_NewPresized((Py_ssize_t)oparg);
             if (map == NULL)
                 goto error;
-            for (i = oparg; i > 0; i--) {
-                int err;
-                PyObject *key = PEEK(2*i);
-                PyObject *value = PEEK(2*i - 1);
-                err = PyDict_SetItem(map, key, value);
-                if (err != 0) {
-                    Py_DECREF(map);
-                    goto error;
-                }
-            }
 
-            while (oparg--) {
-                Py_DECREF(POP());
-                Py_DECREF(POP());
-            }
-            PUSH(map);
+            Ci_BUILD_DICT(oparg);
+
             DISPATCH();
         }
 
@@ -3414,8 +3400,8 @@ main_loop:
             int err;
             STACK_SHRINK(2);
             map = PEEK(oparg);                      /* dict */
-            assert(PyDict_CheckExact(map));
-            err = PyDict_SetItem(map, key, value);  /* map[key] = value */
+            assert(PyDict_CheckExact(map) || Ci_CheckedDict_Check(map));
+            err = Ci_Dict_SetItemInternal(map, key, value);  /* map[key] = value */
             Py_DECREF(value);
             Py_DECREF(key);
             if (err != 0)
@@ -5520,7 +5506,7 @@ main_loop:
             PyObject *name = POP();
             PyObject *mapping = POP();
 
-            if (!PyDict_Check(mapping) && !_PyCheckedDict_Check(mapping)) {
+            if (!PyDict_Check(mapping) && !Ci_CheckedDict_Check(mapping)) {
                 PyErr_Format(PyExc_TypeError,
                              "argument after ** "
                              "must be a dict, not %.200s",
@@ -5826,7 +5812,7 @@ main_loop:
                 }
             }
 
-            PyObject *map = _PyCheckedDict_NewPresized(type, map_size);
+            PyObject *map = Ci_CheckedDict_NewPresized(type, map_size);
             if (map == NULL) {
                 goto error;
             }

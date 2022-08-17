@@ -4191,10 +4191,6 @@ type_dealloc(PyTypeObject *type)
     Py_XDECREF(type->tp_mro);
     Py_XDECREF(type->tp_cache);
     Py_XDECREF(type->tp_subclasses);
-    /* A type's tp_doc is heap allocated, unlike the tp_doc slots
-     * of most other objects.  It's okay to cast it to char *.
-     */
-    PyObject_Free((char *)type->tp_doc);
     Py_XDECREF(et->ht_name);
     Py_XDECREF(et->ht_qualname);
     Py_XDECREF(et->ht_slots);
@@ -4202,6 +4198,20 @@ type_dealloc(PyTypeObject *type)
         _PyDictKeys_DecRef(et->ht_cached_keys);
     }
     Py_XDECREF(et->ht_module);
+
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_XDECREF(gti->gti_inst[i].gtp_type);
+        }
+        Py_XDECREF(gti->gti_gtd);
+    } else {
+        /* A type's tp_doc is heap allocated, unlike the tp_doc slots
+         * of most other objects.  It's okay to cast it to char *.
+         */
+        PyObject_Free((char *)type->tp_doc);
+    }
+
     Py_TYPE(type)->tp_free((PyObject *)type);
 }
 
@@ -4396,6 +4406,13 @@ type_traverse(PyTypeObject *type, visitproc visit, void *arg)
        in cycles; tp_subclasses is a list of weak references,
        and slots is a tuple of strings. */
 
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        Py_VISIT(gti->gti_gtd);
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_VISIT(gti->gti_inst[i].gtp_type);
+        }
+    }
     return 0;
 }
 
@@ -4448,6 +4465,14 @@ type_clear(PyTypeObject *type)
     Py_CLEAR(((PyHeapTypeObject *)type)->ht_module);
 
     Py_CLEAR(type->tp_mro);
+
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        Py_CLEAR(gti->gti_gtd);
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_CLEAR(gti->gti_inst[i].gtp_type);
+        }
+    }
 
     return 0;
 }

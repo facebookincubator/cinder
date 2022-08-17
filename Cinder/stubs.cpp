@@ -11,14 +11,10 @@
   }
 
 
-// Objects/dictobject.c  TODO(T124996100) Static Python
-STUB(PyObject *, _PyCheckedDict_New, PyTypeObject *)
-STUB(PyObject *, _PyCheckedDict_NewPresized, PyTypeObject *, Py_ssize_t)
-STUB(int, _PyCheckedDict_Check, PyObject *)
+// Objects/dictobject.c
 STUB(PyObject *, _PyCheckedList_GetItem, PyObject *, Py_ssize_t)
 STUB(PyObject *, _PyCheckedList_New, PyTypeObject *, Py_ssize_t)
 STUB(int, _PyCheckedList_TypeCheck, PyTypeObject *)
-STUB(int, _PyCheckedDict_TypeCheck, PyTypeObject *)
 
 
 // Python/ceval.c  TODO(T127678238)
