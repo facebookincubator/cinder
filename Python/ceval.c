@@ -5289,6 +5289,14 @@ main_loop:
             DISPATCH();
         }
 
+        case TARGET(PRIMITIVE_UNBOX_NUMERIC): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX_NUMERIC");
+        }
+
+        case TARGET(PRIMITIVE_UNBOX_ENUM): {
+            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX_ENUM");
+        }
+
 #define INT_BIN_OPCODE_UNSIGNED(opid, op)                                     \
     case opid: {                                                              \
         r = POP();                                                            \
