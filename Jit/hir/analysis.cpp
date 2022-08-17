@@ -73,6 +73,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckSequenceBounds:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
+    case Opcode::kCopyDictWithoutKeys:
     case Opcode::kDictMerge:
     case Opcode::kDictSubscr:
     case Opcode::kDictUpdate:

@@ -1545,9 +1545,6 @@ class PortFeature(enum.Enum):
     # Missing opcodes
     #
 
-    # CPython opcodes that were added in 3.9 / 3.10
-    OPC_COPY_DICT_WITHOUT_KEYS = enum.auto() # T126141783
-
     # TODO(T127134900): Grab-bag of remaining opcodes
     OPC_MAKE_FUNCTION = enum.auto() # T126141867
 

@@ -64,9 +64,6 @@ Register* TempAllocator::AllocateNonStack() {
 // This contains the set of unsupported opcodes. Move opcodes from this set
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
-    // CPython opcodes that were added in 3.9 / 3.10
-    COPY_DICT_WITHOUT_KEYS, // T126141783
-
     // TODO(T127134900): Grab-bag of remaining opcodes
     MAKE_FUNCTION, // T126141867
 
@@ -137,6 +134,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_METHOD,
     COMPARE_OP,
     CONTAINS_OP,
+    COPY_DICT_WITHOUT_KEYS,
     DELETE_ATTR,
     DELETE_FAST,
     DELETE_SUBSCR,
@@ -453,24 +451,9 @@ void HIRBuilder::addInitializeCells(
   }
 }
 
-// Opcodes that were added in 3.9 / 3.10. This can be removed once porting is
-// complete.
-static const std::unordered_set<int> kNeedsSnapshotAnalysis = {
-    COPY_DICT_WITHOUT_KEYS,
-};
-
 static bool should_snapshot(
     const BytecodeInstruction& bci,
     bool is_in_async_for_header_block) {
-  if (kNeedsSnapshotAnalysis.contains(bci.opcode())) {
-    fprintf(
-        stderr,
-        "Need to determine if opcode %d should be snapshotted\n",
-        bci.opcode());
-    PORT_ASSERT(
-        "Need to understand whether or not a snapshot should be taken for new "
-        "opcode");
-  }
   switch (bci.opcode()) {
     // These instructions conditionally alter the operand stack based on which
     // branch is taken, thus we cannot safely take a snapshot in the same basic
@@ -996,6 +979,10 @@ void HIRBuilder::translate(
         }
         case COMPARE_OP: {
           emitCompareOp(tc, bc_instr.oparg(), 0);
+          break;
+        }
+        case COPY_DICT_WITHOUT_KEYS: {
+          emitCopyDictWithoutKeys(tc);
           break;
         }
         case GET_LEN: {
@@ -2349,6 +2336,15 @@ void HIRBuilder::emitCompareOp(
   CompareOp op = static_cast<CompareOp>(compare_op);
   tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
   stack.push(result);
+}
+
+void HIRBuilder::emitCopyDictWithoutKeys(TranslationContext& tc) {
+  auto& stack = tc.frame.stack;
+  Register* keys = stack.top();
+  Register* subject = stack.top(1);
+  Register* rest = temps_.AllocateStack();
+  tc.emit<CopyDictWithoutKeys>(rest, subject, keys, tc.frame);
+  stack.topPut(0, rest);
 }
 
 void HIRBuilder::emitGetLen(TranslationContext& tc) {

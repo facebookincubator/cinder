@@ -1606,6 +1606,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         break;
       }
+      case Opcode::kCopyDictWithoutKeys: {
+        auto instr = static_cast<const CopyDictWithoutKeys*>(&i);
+        bbb.AppendCall(
+            instr->dst(),
+            JITRT_CopyDictWithoutKeys,
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kIncref: {
         MakeIncref(bbb, i, false);
         break;

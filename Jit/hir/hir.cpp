@@ -184,6 +184,7 @@ bool Instr::isReplayable() const {
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
+    case Opcode::kCopyDictWithoutKeys:
     case Opcode::kDecref:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:

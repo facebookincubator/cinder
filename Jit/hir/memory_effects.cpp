@@ -101,6 +101,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCallStaticRetVoid:
     case Opcode::kCompare:
     case Opcode::kCompareBool:
+    case Opcode::kCopyDictWithoutKeys:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
     case Opcode::kDictMerge:

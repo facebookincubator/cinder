@@ -309,6 +309,7 @@ struct FrameState {
   V(CheckField)                        \
   V(Compare)                           \
   V(CompareBool)                       \
+  V(CopyDictWithoutKeys)               \
   V(CondBranch)                        \
   V(CondBranchIterNotDone)             \
   V(CondBranchCheckType)               \
@@ -2329,6 +2330,13 @@ class INSTR_CLASS(
  private:
   CompareOp op_;
 };
+
+DEFINE_SIMPLE_INSTR(
+    CopyDictWithoutKeys,
+    (TObject, TTupleExact),
+    HasOutput,
+    Operands<2>,
+    DeoptBase);
 
 DEFINE_SIMPLE_INSTR(
     UnicodeRepeat,

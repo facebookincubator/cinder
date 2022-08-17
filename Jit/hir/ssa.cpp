@@ -313,6 +313,8 @@ Type outputType(
       return TMortalUnicode;
     case Opcode::kGetLength:
       return TLongExact;
+    case Opcode::kCopyDictWithoutKeys:
+      return TDictExact;
     // Many opcodes just return a possibly-null PyObject*. Some of these will
     // be further specialized based on the input types in the hopefully near
     // future.

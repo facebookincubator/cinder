@@ -195,6 +195,7 @@ class HIRBuilder {
   void emitContainsOp(TranslationContext& tc, int oparg, uint8_t readonly_mask);
   void
   emitCompareOp(TranslationContext& tc, int compare_op, uint8_t readonly_mask);
+  void emitCopyDictWithoutKeys(TranslationContext& tc);
   void emitGetLen(TranslationContext& tc);
   void emitJumpIf(
       TranslationContext& tc,

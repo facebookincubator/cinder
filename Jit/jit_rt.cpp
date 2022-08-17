@@ -2054,3 +2054,18 @@ int JITRT_DictMerge(
   }
   return 0;
 }
+
+PyObject* JITRT_CopyDictWithoutKeys(PyObject* subject, PyObject* keys) {
+  // Copied from Python/ceval.c implementation of COPY_DICT_WITHOUT_KEYS.
+  Ref<> rest(Ref<>::steal(PyDict_New()));
+  if (rest == nullptr || PyDict_Update(rest, subject)) {
+    return nullptr;
+  }
+  JIT_DCHECK(PyTuple_CheckExact(keys), "Expected keys to be an exact tuple");
+  for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(keys); i++) {
+    if (PyDict_DelItem(rest, PyTuple_GET_ITEM(keys, i))) {
+      return nullptr;
+    }
+  }
+  return rest.release();
+}

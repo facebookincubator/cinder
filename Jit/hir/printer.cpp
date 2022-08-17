@@ -239,6 +239,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kCheckExc:
     case Opcode::kCheckNeg:
     case Opcode::kCheckSequenceBounds:
+    case Opcode::kCopyDictWithoutKeys:
     case Opcode::kDecref:
     case Opcode::kDeleteSubscr:
     case Opcode::kDeopt:

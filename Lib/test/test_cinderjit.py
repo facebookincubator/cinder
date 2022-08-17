@@ -4138,6 +4138,7 @@ class CompareTests(unittest.TestCase):
         self.assertTrue(self.compare_is_not(obj, 1))
         self.assertFalse(self.compare_is_not(obj, obj))
 
+
 class MatchTests(unittest.TestCase):
     @unittest.failUnlessJITCompiled
     @failUnlessHasOpcodes("MATCH_SEQUENCE", "ROT_N")
@@ -4205,6 +4206,95 @@ class MatchTests(unittest.TestCase):
     def test_match_class_exc(self):
         with self.assertRaises(TypeError):
             self.match_class_exc()
+
+
+class CopyDictWithoutKeysTest(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("COPY_DICT_WITHOUT_KEYS")
+    def match_rest(self, obj):
+        match obj:
+            case {**rest}:
+                return rest
+
+    def test_rest_with_empty_dict_returns_empty_dict(self):
+        obj = {}
+        result = self.match_rest(obj)
+        self.assertIs(type(result), dict)
+        self.assertEqual(result, {})
+        self.assertIsNot(result, obj)
+
+    def test_rest_with_nonempty_dict_returns_dict_copy(self):
+        obj = {"x": 1}
+        result = self.match_rest(obj)
+        self.assertIs(type(result), dict)
+        self.assertEqual(result, {"x": 1})
+        self.assertIsNot(result, obj)
+
+    @unittest.failUnlessJITCompiled
+    @failUnlessHasOpcodes("COPY_DICT_WITHOUT_KEYS")
+    def match_keys_and_rest(self, obj):
+        match obj:
+            case {"x": 1, **rest}:
+                return rest
+
+    def test_keys_and_rest_with_empty_dict_does_not_match(self):
+        result = self.match_keys_and_rest({})
+        self.assertIs(result, None)
+
+    def test_keys_and_rest_with_matching_dict_returns_rest(self):
+        obj = {"x": 1, "y": 2}
+        result = self.match_keys_and_rest(obj)
+        self.assertIs(type(result), dict)
+        self.assertEqual(result, {"y": 2})
+
+    def test_with_mappingproxy_returns_dict(self):
+        class C:
+            x = 1
+            y = 2
+        obj = C.__dict__
+        self.assertEqual(obj.__class__.__name__, "mappingproxy")
+        result = self.match_keys_and_rest(obj)
+        self.assertIs(type(result), dict)
+        self.assertEqual(result["y"], 2)
+
+    def test_with_abstract_mapping(self):
+        import collections.abc
+
+        class C(collections.abc.Mapping):
+            def __iter__(self):
+                return iter(("x", "y"))
+
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, key):
+                if key == "x":
+                    return 1
+                if key == "y":
+                    return 2
+                raise RuntimeError("getitem", key)
+
+        obj = C()
+        result = self.match_keys_and_rest(obj)
+        self.assertIs(type(result), dict)
+        self.assertEqual(result, {"y": 2})
+
+    def test_raising_exception_propagates(self):
+        import collections.abc
+
+        class C(collections.abc.Mapping):
+            def __iter__(self):
+                return iter(("x", "y"))
+
+            def __len__(self):
+                return 2
+
+            def __getitem__(self, key):
+                raise RuntimeError(f"__getitem__ called with {key}")
+
+        obj = C()
+        with self.assertRaisesRegex(RuntimeError, "__getitem__ called with x"):
+            self.match_keys_and_rest(obj)
 
 
 if __name__ == "__main__":

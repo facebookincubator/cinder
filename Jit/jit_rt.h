@@ -577,3 +577,7 @@ int JITRT_DictMerge(
     PyObject* dict,
     PyObject* update,
     PyObject* func);
+
+/* Returns nullptr on error and an exact dict otherwise. Used by
+ * COPY_DICT_WITHOUT_KEYS implementation. */
+PyObject* JITRT_CopyDictWithoutKeys(PyObject* subject, PyObject* keys);
