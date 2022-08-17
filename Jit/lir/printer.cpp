@@ -226,6 +226,9 @@ nlohmann::json JSONPrinter::print(const Instruction& instr) {
   nlohmann::json result;
   const Operand* output = instr.output();
   result["line"] = instr.origin() ? instr.origin()->lineNumber() : -1;
+  if (instr.origin() && instr.origin()->bytecodeOffset() != 1) {
+    result["bytecode_offset"] = instr.origin()->bytecodeOffset().value();
+  }
   if (output->type() != OperandBase::kNone) {
     result["output"] = print(*output);
     // TODO(emacs): Type

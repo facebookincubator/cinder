@@ -644,6 +644,10 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
                 ssaElemClicked(this, event, outlines, outlined);
             };
 
+            var ssaBytecodeClicked = function(event) {
+                ssaElemClicked(this, event, highlights, highlighted);
+            }
+
             var ssavalues = document.getElementsByClassName("ssa-value");
             for (var i = 0; i < ssavalues.length; i++) {
                 ssavalues[i].addEventListener('click', ssaValueClicked);
@@ -665,6 +669,16 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
             var lines = document.getElementsByClassName("line-number");
             for (var i = 0; i < lines.length; i++) {
                 lines[i].addEventListener('click', ssaValueClicked);
+            }
+
+            var lines = document.getElementsByClassName("bytecode-offset");
+            for (var i = 0; i < lines.length; i++) {
+                if (!lines[i].classList.contains("bytecode-instruction")) {
+                    // Only make bytecode highlight HIR and LIR, not the other
+                    // way around.
+                    continue;
+                }
+                lines[i].addEventListener('click', ssaBytecodeClicked);
             }
         }
 
@@ -891,7 +905,11 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
         function formatInstr(instr) {
           const result = document.createElement("li");
-          result.setAttribute("class", "ssa-long-value");
+          if (instr.hasOwnProperty("bytecode_offset")) {
+            result.setAttribute("class", `bc${instr.bytecode_offset} bytecode-offset ssa-long-value`);
+          } else {
+            result.setAttribute("class", "ssa-long-value");
+          }
           result.appendChild(formatLine(instr.line));
           result.appendChild(document.createTextNode(" "));
           if (instr.output !== undefined) {
@@ -1169,7 +1187,11 @@ Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
                   const value_list_ul = document.createElement("ul");
                   for (const instr of block.instrs) {
                     const instr_li = document.createElement("li");
-                    instr_li.setAttribute("class", "ssa-long-value");
+                    if (col.name == "Bytecode") {
+                      instr_li.setAttribute("class", `bc${instr.address} bytecode-offset bytecode-instruction ssa-long-value`);
+                    } else {
+                      instr_li.setAttribute("class", "ssa-long-value");
+                    }
                     instr_li.appendChild(formatLine(instr.line));
                     if (instr.address !== undefined) {
                       instr_li.appendChild(document.createTextNode(` ${instr.address}: ${instr.opcode}`));
