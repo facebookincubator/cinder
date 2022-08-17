@@ -367,7 +367,7 @@ class StaticEnumTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip("TODO(T128965846): POP_JUMP_IF_ZERO support")
+    @skip("TODO(T129112348): An int is getting returned where the enum should be.")
     def test_int64enum_function_arg_and_return_type(self):
         codestr = """
         from __static__ import Int64Enum
