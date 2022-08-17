@@ -18,7 +18,6 @@ from .double import DoubleTests
 from .dynamic_return import DynamicReturnTests
 from .elide_type_checks import ElideTypeChecksTests
 from .enum import StaticEnumTests
-
 from .fields import StaticFieldTests
 from .final import FinalTests
 from .fstring import FStringTests
@@ -27,12 +26,8 @@ from .imports import ImportTests
 from .inference import InferenceTests
 from .invoke import InvokeTests
 from .lint import LintTests
-
-# from .literals import LiteralsTests
-
-
+from .literals import LiteralsTests
 from .module import ModuleTests
-
 from .non_static_inheritance import NonStaticInheritanceTests
 
 # from .obj_creation import StaticObjCreationTests
@@ -41,13 +36,10 @@ from .overrides import OverridesTests
 # from .patch import StaticPatchTests
 from .perf_lint import PerfLintTests
 from .primitives import PrimitivesTests
-
-# from .property import PropertyTests
+from .property import PropertyTests
 from .protocol import ProtocolTests
 from .readonly import ReadonlyTests
-
 from .refine_fields import RefineFieldsTests
-
 from .return_cast_insertion import ReturnCastInsertionTests
 
 # from .runtime import StaticRuntimeTests
@@ -57,10 +49,7 @@ from .sequence import SequenceTests
 from .subclass import SubclassTests
 from .super import SuperTests
 from .top_level import TopLevelTests
-
 from .typed_dict import TypedDictTests
 from .union import UnionCompilationTests
-
 from .variadic_arg import VariadicArgTests
-
 from .walrus_operator import WalrusOperatorTests

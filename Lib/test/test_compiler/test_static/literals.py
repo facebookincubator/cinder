@@ -1,6 +1,14 @@
+from unittest import skip, skipIf
+
 from .common import StaticTestBase
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
+
+@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class LiteralsTests(StaticTestBase):
     def test_literal_bool_annotation_error(self) -> None:
         codestr = """
@@ -11,6 +19,7 @@ class LiteralsTests(StaticTestBase):
         """
         self.type_error(codestr, r"return type must be Literal\[False\]", "return x")
 
+    @skip("TODO(T129247682): Literal compiler bug")
     def test_literal_bool_annotation_runtime_cast(self) -> None:
         codestr = """
             from typing import Literal
