@@ -79,6 +79,13 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
                     func);
 
                 JIT_DCHECK(
+                    checkFunc(func, std::cerr),
+                    "Function %s failed verification after pass %s:\n%s",
+                    func.fullname,
+                    pass.name(),
+                    func);
+
+                JIT_DCHECK(
                     funcTypeChecks(func, std::cerr),
                     "Function %s failed type checking after pass %s:\n%s",
                     func.fullname,
