@@ -9,6 +9,11 @@ from .common import (
     StrictTestWithCheckerBase,
 )
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
+
 
 class StrictCompilationTests(StrictTestBase):
     @cinder310_porting_skip_until_cinder
@@ -595,6 +600,10 @@ class StrictBuiltinCompilationTests(StrictTestWithCheckerBase):
         )
         self.assertEqual(mod.f(), 0)
 
+    @unittest.skipIf(
+        cinderjit is not None,
+        "TODO(T129231559): Re-enable this test when JIT generators are deopted at finalization.",
+    )
     def test_gen_comp_aliased_builtin(self) -> None:
         code = """
             min = 1

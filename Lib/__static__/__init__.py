@@ -43,8 +43,6 @@ try:
     import _static
     from _static import (
         __build_cinder_class__,
-        chkdict,
-        chklist,
         is_type_static,
         make_recreate_cm,
         posix_clock_gettime_ns,
@@ -54,12 +52,11 @@ try:
         set_type_static,
         set_type_static_final,
     )
+
 except ImportError:
     RAND_MAX = (1 << 31) - 1
     __build_cinder_class__ = __build_class__
     _static = None
-    chkdict = dict
-    chklist = list
 
     def is_type_static(_t):
         return False
@@ -84,6 +81,13 @@ except ImportError:
 
     def set_type_static_final(_t):
         return _t
+
+
+try:
+    from _static import chkdict, chklist
+except ImportError:
+    chkdict = dict
+    chklist = list
 
 
 try:

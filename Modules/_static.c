@@ -303,7 +303,6 @@ PyObject *set_type_final(PyObject *mod, PyObject *type) {
   return type;
 }
 
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static PyObject *
 _recreate_cm(PyObject *self) {
     Py_INCREF(self);
@@ -443,6 +442,8 @@ error:
     return NULL;
 }
 
+/* TODO(T128335015): Enable this when we have async/await support. */
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static PyObject *
 ctxmgrwrp_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result)
 {
@@ -456,6 +457,7 @@ ctxmgrwrp_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result)
     }
     return ctxmgrwrp_exit(result != NULL, NULL, result, awaitable->state);
 }
+#endif
 
 extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
 
@@ -558,6 +560,8 @@ error:
     return NULL;
 }
 
+/* TODO(T128335015): Enable this when we have async/await support. */
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static int
 ctxmgrwrp_first_send(_PyClassLoader_Awaitable *self) {
     /* Handles calling __enter__ on the first step of the co-routine when
@@ -609,6 +613,7 @@ ctxmgrwrp_make_awaitable(_Py_ContextManagerWrapper *ctxmgrwrp, PyObject *ctx_mgr
     Py_XDECREF(exit);
     return res;
 }
+#endif
 
 PyTypeObject _PyContextDecoratorWrapper_Type;
 
@@ -626,7 +631,7 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
     }
     _Py_ContextManagerWrapper *self = (_Py_ContextManagerWrapper *)wr;
 
-    PyObject *ctx_mgr;
+    PyObject *ctx_mgr = NULL;
     PyObject *exit = NULL;
 
     /* If this is a co-routine, and we're not being eagerly evaluated, we cannot
@@ -643,6 +648,8 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
 
     /* Call the wrapped function */
     PyObject *res = _PyObject_Vectorcall(self->func, args, nargsf, kwargs);
+    /* TODO(T128335015): Enable this when we have async/await support. */
+#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (self->is_coroutine && res != NULL) {
         /* If it's a co-routine either pass up the eagerly awaited value or
          * pass out a wrapping awaitable */
@@ -670,6 +677,7 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
          * out the error from creating the co-routine */
         return NULL;
     }
+#endif
 
     /* Call __exit__ */
     res = ctxmgrwrp_exit(self->is_coroutine, ctx_mgr, res, exit);
@@ -783,78 +791,13 @@ PyObject *make_context_decorator_wrapper(PyObject *mod, PyObject *const *args, P
     return (PyObject *)wrapper_func;
 }
 
-
-#define VECTOR_APPEND(size, sig_type, append)                                           \
-    int vector_append_##size(PyObject *self, size##_t value) {                          \
-        return append(self, value);                                                     \
-    }                                                                                   \
-                                                                                        \
-    Ci_Py_TYPED_SIGNATURE(vector_append_##size, _Py_SIG_ERROR, &sig_type, NULL);          \
-                                                                                        \
-    PyMethodDef md_vector_append_##size = {                                             \
-        "append",                                                                       \
-        (PyCFunction)&vector_append_##size##_def,                                       \
-        Ci_METH_TYPED,                                                                     \
-        "append(value: " #size ")"                                                      \
-    };                                                                                  \
-
-VECTOR_APPEND(int8, Ci_Py_Sig_INT8, _PyArray_AppendSigned)
-VECTOR_APPEND(int16, Ci_Py_Sig_INT16, _PyArray_AppendSigned)
-VECTOR_APPEND(int32, Ci_Py_Sig_INT32, _PyArray_AppendSigned)
-VECTOR_APPEND(int64, Ci_Py_Sig_INT64, _PyArray_AppendSigned)
-VECTOR_APPEND(uint8, Ci_Py_Sig_INT8, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint16, Ci_Py_Sig_INT16, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint32, Ci_Py_Sig_INT32, _PyArray_AppendUnsigned)
-VECTOR_APPEND(uint64, Ci_Py_Sig_INT64, _PyArray_AppendUnsigned)
-
-PyObject *specialize_function(PyObject *m, PyObject *const *args, Py_ssize_t nargs) {
-    PyObject *type;
-    PyObject *name;
-    PyObject *params;
-    if (!_PyArg_ParseStack(args, nargs, "O!UO!", &PyType_Type, &type, &name, &PyTuple_Type, &params)) {
-        return NULL;
-    }
-
-    if (PyUnicode_CompareWithASCIIString(name, "Vector.append") == 0) {
-        if (PyTuple_Size(params) != 1) {
-            PyErr_SetString(PyExc_TypeError, "expected single type argument for Vector");
-            return NULL;
-        }
-
-        switch (_PyClassLoader_GetTypeCode((PyTypeObject *)PyTuple_GET_ITEM(params, 0))) {
-            case TYPED_INT8:
-               return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_int8);
-            case TYPED_INT16:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_int16);
-            case TYPED_INT32:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_int32);
-            case TYPED_INT64:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_int64);
-            case TYPED_UINT8:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_uint8);
-            case TYPED_UINT16:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_uint16);
-            case TYPED_UINT32:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_uint32);
-            case TYPED_UINT64:
-                return PyDescr_NewMethod((PyTypeObject *)type, &md_vector_append_uint64);
-            default:
-                PyErr_SetString(PyExc_TypeError, "unsupported primitive array type");
-                return NULL;
-        }
-    }
-
-    PyErr_SetString(PyExc_TypeError, "unknown runtime helper");
-    return NULL;
-}
-
 static int64_t
 static_rand(PyObject *self)
 {
     return rand();
 }
 
-Ci_Py_TYPED_SIGNATURE(static_rand, _Py_SIG_INT32, NULL);
+Ci_Py_TYPED_SIGNATURE(static_rand, Ci_Py_SIG_INT32, NULL);
 
 
 static int64_t posix_clock_gettime_ns(PyObject* mod)
@@ -867,9 +810,7 @@ static int64_t posix_clock_gettime_ns(PyObject* mod)
     return ret;
 }
 
-Ci_Py_TYPED_SIGNATURE(posix_clock_gettime_ns, _Py_SIG_INT64, NULL);
-
-#endif
+Ci_Py_TYPED_SIGNATURE(posix_clock_gettime_ns, Ci_Py_SIG_INT64, NULL);
 
 static Py_ssize_t
 static_property_missing_fget(PyObject *mod, PyObject *self)
@@ -1267,20 +1208,15 @@ error:
 
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
-    {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
     {"rand", (PyCFunction)&static_rand_def, Ci_METH_TYPED, ""},
-#endif
     {"is_type_static", (PyCFunction)(void(*)(void))is_type_static, METH_O, ""},
     {"set_type_static", (PyCFunction)(void(*)(void))set_type_static, METH_O, ""},
     {"set_type_static_final", (PyCFunction)(void(*)(void))set_type_static_final, METH_O, ""},
     {"set_type_final", (PyCFunction)(void(*)(void))set_type_final, METH_O, ""},
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     {"make_recreate_cm", (PyCFunction)(void(*)(void))make_recreate_cm, METH_O, ""},
     {"make_context_decorator_wrapper", (PyCFunction)(void(*)(void))make_context_decorator_wrapper, METH_FASTCALL, ""},
     {"posix_clock_gettime_ns", (PyCFunction)&posix_clock_gettime_ns_def, Ci_METH_TYPED,
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
-#endif
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, Ci_METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, Ci_METH_TYPED, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
