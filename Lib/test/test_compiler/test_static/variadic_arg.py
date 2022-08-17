@@ -211,7 +211,6 @@ class VariadicArgTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T129219453): Hit stubbed function: _PyCheckedDict_Check")
     def test_load_mapping_arg_custom_class(self):
         """
         Fails because we supply a custom class for the mapped args, instead of a dict
