@@ -10,6 +10,7 @@ import re
 import shlex
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -424,6 +425,15 @@ def make_explorer_class(process_args, prod_hostname=None):
 class HTTPServerIPV6(http.server.HTTPServer):
     address_family = socket.AF_INET6
 
+    def use_tls(self, certfile, keyfile=None):
+        self.socket = ssl.wrap_socket(
+            self.socket,
+            server_side=True,
+            certfile=certfile,
+            keyfile=keyfile,
+            ssl_version=ssl.PROTOCOL_TLS,
+        )
+
 
 def gen_server(args):
     host = args.host
@@ -431,6 +441,8 @@ def gen_server(args):
     server_address = (host, port)
     IRServer = make_server_class(args)
     httpd = HTTPServerIPV6(server_address, IRServer)
+    if args.tls_certfile:
+        httpd.use_tls(args.tls_certfile, args.tls_keyfile)
     print(f"Serving traffic on {host}:{port} ...")
     httpd.serve_forever()
 
@@ -442,6 +454,8 @@ def gen_explorer(args):
     prod_hostname = os.getenv("CINDER_EXPLORER_HOSTNAME")
     IRServer = make_explorer_class(args, prod_hostname)
     httpd = HTTPServerIPV6(explorer_address, IRServer)
+    if args.tls_certfile:
+        httpd.use_tls(args.tls_certfile, args.tls_keyfile)
     print(f"Serving traffic on {host}:{port} ...")
     httpd.serve_forever()
 
@@ -449,6 +463,12 @@ def gen_explorer(args):
 def executable_file(arg):
     if not shutil.which(arg, mode=os.F_OK | os.X_OK):
         parser.error(f"The file {arg} does not exist or is not an executable file")
+    return arg
+
+
+def readable_file(arg):
+    if not shutil.which(arg, mode=os.F_OK):
+        parser.error(f"The file {arg} does not exist or is not a readable file")
     return arg
 
 
@@ -464,6 +484,18 @@ def add_server_args(parser):
         type=int,
         help="Port for serving traffic",
         default=8081,
+    )
+    parser.add_argument(
+        "--tls-certfile",
+        type=readable_file,
+        help="Path to TLS certificate file. If .crt, also provide --tls-keyfile.",
+        default=None,
+    )
+    parser.add_argument(
+        "--tls-keyfile",
+        type=readable_file,
+        help="Path to TLS key file. Use with --tls-certfile.",
+        default=None,
     )
 
 
