@@ -2345,5 +2345,11 @@ class CodeObjectQualnameTest(unittest.TestCase):
         self.assertEquals(cinder._get_qualname(co), "f")
 
 
+class SysTests:
+    def test_cinder_implementation(self):
+        self.assertTrue(hasattr(sys.implementation, "_is_cinder"))
+        self.assertTrue(sys.implementation._is_cinder)
+
+
 if __name__ == "__main__":
     unittest.main()

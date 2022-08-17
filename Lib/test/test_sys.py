@@ -817,10 +817,6 @@ class SysModuleTest(unittest.TestCase):
         self.assertEqual(sys.implementation.name,
                          sys.implementation.name.lower())
 
-    def test_cinder_implementation(self):
-        self.assertTrue(hasattr(sys.implementation, '_is_cinder'))
-        self.assertTrue(sys.implementation._is_cinder)
-
     @test.support.cpython_only
     def test_debugmallocstats(self):
         # Test sys._debugmallocstats()
