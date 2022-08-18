@@ -1143,7 +1143,6 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1209,7 +1208,6 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1250,7 +1248,6 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(

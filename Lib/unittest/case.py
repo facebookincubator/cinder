@@ -1539,7 +1539,6 @@ class PortFeature(enum.Enum):
     # Major missing features
     #
     STATIC_PYTHON = enum.auto()
-    LAZY_IMPORTS = enum.auto()
 
     #
     # Missing opcodes
