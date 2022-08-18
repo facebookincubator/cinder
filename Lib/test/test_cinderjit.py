@@ -57,9 +57,13 @@ def failUnlessHasOpcodes(*required_opnames):
         opnames = {i.opname for i in dis.get_instructions(func)}
         missing = set(required_opnames) - opnames
         if missing:
-            raise AssertionError(
-                f"Function {func.__qualname__} missing required opcodes: {missing}"
-            )
+
+            def wrapper(*args):
+                raise AssertionError(
+                    f"Function {func.__qualname__} missing required opcodes: {missing}"
+                )
+
+            return wrapper
         return func
 
     return decorator
