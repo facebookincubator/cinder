@@ -109,7 +109,6 @@ class PrimitivesTests(StaticTestBase):
                     at="class C",
                 )
 
-    @skip("TODO(T129165319): Typed slots primitive error")
     def test_typed_slots_primitives(self):
         slot_types = [
             # signed
@@ -3435,7 +3434,6 @@ class PrimitivesTests(StaticTestBase):
             self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
             self.assertEqual(f(3), 4)
 
-    @skip("TODO(T129172880): type mismatch: dynamic cannot be assigned to int64")
     def test_rand(self):
         codestr = """
         from __static__ import rand, RAND_MAX, box, int64
@@ -3448,7 +3446,6 @@ class PrimitivesTests(StaticTestBase):
             test = mod.test
             self.assertEqual(type(test()), int)
 
-    @skip("TODO(T129172966): cannot divide dynamic and int64")
     def test_rand_max_inlined(self):
         codestr = """
             from __static__ import rand, RAND_MAX, box, int64
@@ -3695,7 +3692,6 @@ class PrimitivesTests(StaticTestBase):
                         else:
                             self.assertEqual(f(val), val)
 
-    @skip("TODO(T129172880): type mismatch: dynamic cannot be assigned to int64")
     def test_emits_convert_primitive_while_boxing(self):
         codestr = """
         import __static__
