@@ -10,6 +10,8 @@ opcode.hasconst.add(159)
 opcode.def_op("STORE_FIELD", 166)
 opcode.hasconst.add(166)
 opcode.def_op("SEQUENCE_REPEAT", 167)
+opcode.def_op("BUILD_CHECKED_LIST", 168)
+opcode.hasconst.add(168)
 opcode.def_op("LOAD_TYPE", 169)
 opcode.hasconst.add(169)
 opcode.def_op("CAST", 170)
@@ -50,8 +52,6 @@ opcode.hasconst.add(196)
 opcode.def_op("RETURN_PRIMITIVE", 197)
 opcode.def_op("TP_ALLOC", 200)
 opcode.hasconst.add(200)
-opcode.def_op("BUILD_CHECKED_LIST", 201)
-opcode.hasconst.add(201)
 
 
 def _load_mapping_arg_effect(oparg: int, _jmp: int = 0) -> int:

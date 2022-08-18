@@ -3440,7 +3440,7 @@ void HIRBuilder::emitBuildCheckedList(
 
   Type type = preloader_.type(descr);
   JIT_CHECK(
-      _PyCheckedList_TypeCheck(type.uniquePyType()),
+      Ci_CheckedList_TypeCheck(type.uniquePyType()),
       "expected CheckedList type");
 
   Register* list = temps_.AllocateStack();

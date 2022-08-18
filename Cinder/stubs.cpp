@@ -11,12 +11,6 @@
   }
 
 
-// Objects/dictobject.c
-STUB(PyObject *, _PyCheckedList_GetItem, PyObject *, Py_ssize_t)
-STUB(PyObject *, _PyCheckedList_New, PyTypeObject *, Py_ssize_t)
-STUB(int, _PyCheckedList_TypeCheck, PyTypeObject *)
-
-
 // Python/ceval.c  TODO(T127678238)
 STUB(PyObject *, _PyEval_SuperLookupMethodOrAttr, PyThreadState *, PyObject *, PyTypeObject *, PyObject *, PyObject *, int, int *)
 

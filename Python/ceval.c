@@ -2262,7 +2262,7 @@ main_loop:
             PyObject *v = POP();
             PyObject *list = PEEK(oparg);
             int err;
-            err = PyList_Append(list, v);
+            err = Ci_List_APPEND((PyListObject *) list, v);
             Py_DECREF(v);
             if (err != 0)
                 goto error;
@@ -5878,7 +5878,7 @@ main_loop:
                   }
               }
           } else if (oparg == SEQ_CHECKED_LIST) {
-            item = _PyCheckedList_GetItem(sequence, val);
+            item = Ci_CheckedList_GetItem(sequence, val);
             Py_DECREF(sequence);
             if (item == NULL) {
               goto error;
@@ -6068,7 +6068,7 @@ main_loop:
                 }
             }
 
-            PyObject *list = _PyCheckedList_New(type, list_size);
+            PyObject *list = Ci_CheckedList_New(type, list_size);
             if (list == NULL) {
                 goto error;
             }
@@ -6076,7 +6076,7 @@ main_loop:
 
             while (--list_size >= 0) {
               PyObject *item = POP();
-              PyList_SET_ITEM(list, list_size, item);
+              Ci_List_SET_ITEM(list, list_size, item);
             }
             PUSH(list);
             DISPATCH();

@@ -27,12 +27,6 @@ extern "C" {
 #endif
 
 
-// Include/listobject.h  TODO(T124996100) Static Python
-PyAPI_FUNC(PyObject *) _PyCheckedList_GetItem(PyObject *self, Py_ssize_t);
-PyAPI_FUNC(PyObject *) _PyCheckedList_New(PyTypeObject *type, Py_ssize_t);
-PyAPI_FUNC(int) _PyCheckedList_TypeCheck(PyTypeObject *type);
-
-
 // Include/code.h
 #define CO_STATICALLY_COMPILED   0x4000000
 #define CO_FUTURE_LAZY_IMPORTS   0x8000000

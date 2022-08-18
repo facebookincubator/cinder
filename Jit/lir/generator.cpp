@@ -2153,7 +2153,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto capacity = instr->GetCapacity();
         bbb.AppendCall(
             instr->GetOutput(),
-            _PyCheckedList_New,
+            Ci_CheckedList_New,
             instr->type().typeSpec(),
             static_cast<Py_ssize_t>(capacity));
         break;

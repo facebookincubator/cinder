@@ -21,6 +21,9 @@ PyObject *Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method);
 PyAPI_FUNC(PyObject *) Ci_dict_subscript(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) Ci_list_subscript(PyObject *list, PyObject *item);
 PyAPI_FUNC(PyObject *) Ci_tuple_subscript(PyObject *self, PyObject *item);
+#define Ci_List_GET_SIZE(op) Py_SIZE((PyListObject *)op)
+#define Ci_List_SET_ITEM(op, i, v) ((void)(((PyListObject *)op)->ob_item[i] = (v)))
+#define Ci_List_GET_ITEM(op, i) (((PyListObject *)op)->ob_item[i])
 
 /* Force the dictionary to use a combined layout.
  * Returns 0 on success or -1 on error.
@@ -33,6 +36,10 @@ int Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value);
 
 int Ci_CheckedDict_Check(PyObject *x);
 PyAPI_FUNC(int) Ci_CheckedDict_TypeCheck(PyTypeObject *type);
+
+PyAPI_FUNC(PyObject *) Ci_CheckedList_GetItem(PyObject *self, Py_ssize_t);
+PyAPI_FUNC(PyObject *) Ci_CheckedList_New(PyTypeObject *type, Py_ssize_t);
+PyAPI_FUNC(int) Ci_CheckedList_TypeCheck(PyTypeObject *type);
 
 PyObject **
 Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);

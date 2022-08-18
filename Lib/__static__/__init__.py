@@ -44,6 +44,7 @@ try:
     from _static import (
         __build_cinder_class__,
         chkdict,
+        chklist,
         is_type_static,
         make_recreate_cm,
         posix_clock_gettime_ns,
@@ -60,6 +61,7 @@ except ImportError:
     _static = None
 
     chkdict = dict
+    chklist = list
 
     def is_type_static(_t):
         return False
@@ -84,12 +86,6 @@ except ImportError:
 
     def set_type_static_final(_t):
         return _t
-
-
-try:
-    from _static import chklist
-except ImportError:
-    chklist = list
 
 
 try:

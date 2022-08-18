@@ -5,6 +5,7 @@
 #include "pycore_interp.h"        // PyInterpreterState.list
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "pycore_tuple.h"         // _PyTuple_FromArray()
+#include "classloader.h"
 
 #ifdef STDC_HEADERS
 #include <stddef.h>
@@ -304,7 +305,7 @@ PyList_Insert(PyObject *op, Py_ssize_t where, PyObject *newitem)
 static int
 app1(PyListObject *self, PyObject *v)
 {
-    Py_ssize_t n = PyList_GET_SIZE(self);
+    Py_ssize_t n = Ci_List_GET_SIZE(self);
 
     assert (v != NULL);
     assert((size_t)n + 1 < PY_SSIZE_T_MAX);
@@ -312,7 +313,7 @@ app1(PyListObject *self, PyObject *v)
         return -1;
 
     Py_INCREF(v);
-    PyList_SET_ITEM(self, n, v);
+    Ci_List_SET_ITEM(self, n, v);
     return 0;
 }
 
@@ -2189,6 +2190,7 @@ unsafe_tuple_compare(PyObject *v, PyObject *w, MergeState *ms)
         return PyObject_RichCompareBool(vt->ob_item[i], wt->ob_item[i], Py_LT);
 }
 
+static inline int Ci_List_CheckIncludingChecked(PyObject *x);
 /* An adaptive, stable, natural mergesort.  See listsort.txt.
  * Returns Py_None on success, NULL on error.  Even in case of error, the
  * list will be some permutation of its input state (nothing is lost or
@@ -2228,7 +2230,7 @@ list_sort_impl(PyListObject *self, PyObject *keyfunc, int reverse)
     PyObject **keys;
 
     assert(self != NULL);
-    assert(PyList_Check(self));
+    assert(Ci_List_CheckIncludingChecked((PyObject *) self));
     if (keyfunc == Py_None)
         keyfunc = NULL;
 
@@ -2655,7 +2657,7 @@ list_richcompare(PyObject *v, PyObject *w, int op)
     PyListObject *vl, *wl;
     Py_ssize_t i;
 
-    if (!PyList_Check(v) || !PyList_Check(w))
+    if (!Ci_List_CheckIncludingChecked(v) || !Ci_List_CheckIncludingChecked(w))
         Py_RETURN_NOTIMPLEMENTED;
 
     vl = (PyListObject *)v;
@@ -3198,10 +3200,10 @@ listiter_next(listiterobject *it)
     seq = it->it_seq;
     if (seq == NULL)
         return NULL;
-    assert(PyList_Check(seq));
+    assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
 
-    if (it->it_index < PyList_GET_SIZE(seq)) {
-        item = PyList_GET_ITEM(seq, it->it_index);
+    if (it->it_index < Ci_List_GET_SIZE(seq)) {
+        item = Ci_List_GET_ITEM(seq, it->it_index);
         ++it->it_index;
         Py_INCREF(item);
         return item;
@@ -3217,7 +3219,7 @@ listiter_len(listiterobject *it, PyObject *Py_UNUSED(ignored))
 {
     Py_ssize_t len;
     if (it->it_seq) {
-        len = PyList_GET_SIZE(it->it_seq) - it->it_index;
+        len = Ci_List_GET_SIZE(it->it_seq) - it->it_index;
         if (len >= 0)
             return PyLong_FromSsize_t(len);
     }
@@ -3316,8 +3318,8 @@ list___reversed___impl(PyListObject *self)
     it = PyObject_GC_New(listreviterobject, &PyListRevIter_Type);
     if (it == NULL)
         return NULL;
-    assert(PyList_Check(self));
-    it->it_index = PyList_GET_SIZE(self) - 1;
+    assert(Ci_List_CheckIncludingChecked((PyObject *) self));
+    it->it_index = Ci_List_GET_SIZE(self) - 1;
     Py_INCREF(self);
     it->it_seq = self;
     PyObject_GC_Track(it);
@@ -3351,11 +3353,11 @@ listreviter_next(listreviterobject *it)
     if (seq == NULL) {
         return NULL;
     }
-    assert(PyList_Check(seq));
+    assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
 
     index = it->it_index;
-    if (index>=0 && index < PyList_GET_SIZE(seq)) {
-        item = PyList_GET_ITEM(seq, index);
+    if (index>=0 && index < Ci_List_GET_SIZE(seq)) {
+        item = Ci_List_GET_ITEM(seq, index);
         it->it_index--;
         Py_INCREF(item);
         return item;
@@ -3370,7 +3372,7 @@ static PyObject *
 listreviter_len(listreviterobject *it, PyObject *Py_UNUSED(ignored))
 {
     Py_ssize_t len = it->it_index + 1;
-    if (it->it_seq == NULL || PyList_GET_SIZE(it->it_seq) < len)
+    if (it->it_seq == NULL || Ci_List_GET_SIZE(it->it_seq) < len)
         len = 0;
     return PyLong_FromSsize_t(len);
 }
@@ -3424,3 +3426,502 @@ listiter_reduce_general(void *_it, int forward)
         return NULL;
     return Py_BuildValue("N(N)", _PyEval_GetBuiltinId(&PyId_iter), list);
 }
+
+_PyGenericTypeDef Ci_CheckedList_Type;
+#define IS_CHECKED_LIST(x)                                                    \
+    (_PyClassLoader_GetGenericTypeDef((PyObject *)x) == &Ci_CheckedList_Type)
+
+static inline int
+Ci_List_CheckIncludingChecked(PyObject *x)
+{
+    return PyList_Check(x) || IS_CHECKED_LIST(x);
+}
+
+static PyObject *chklist_cls_getitem(_PyGenericTypeDef *type, PyObject *args) {
+    PyObject *item = _PyClassLoader_GtdGetItem(type, args);
+    if (item == NULL) {
+        return NULL;
+    }
+    _Py_IDENTIFIER(__module__);
+    PyTypeObject *new_type = (PyTypeObject *)item;
+    PyObject *module_name = PyUnicode_FromString("__static__");
+    if (module_name == NULL) {
+        Py_DECREF(item);
+        return NULL;
+    }
+    if (_PyDict_SetItemId(new_type->tp_dict, &PyId___module__, module_name) == -1) {
+        Py_DECREF(item);
+        item = NULL;  // return NULL on errors
+    }
+    Py_DECREF(module_name);
+    return item;
+}
+
+static int
+chklist_append(PyListObject *self, PyObject *value)
+{
+    Py_ssize_t n = Py_SIZE(self);
+
+    assert(value != NULL);
+    if (n == PY_SSIZE_T_MAX) {
+      PyErr_SetString(PyExc_OverflowError,
+                      "cannot add more objects to list");
+      return -1;
+    }
+
+    if (list_resize(self, n+1) < 0)
+      return -1;
+
+    Py_INCREF(value);
+    Ci_List_SET_ITEM(self, n, value);
+    return 0;
+}
+
+Ci_Py_TYPED_SIGNATURE(chklist_append, Ci_Py_SIG_ERROR, &Ci_Py_Sig_T0, NULL);
+
+const Ci_Py_SigElement *const insert_sig[] = {&Ci_Py_Sig_SSIZET, &Ci_Py_Sig_T0, NULL};
+Ci_PyTypedMethodDef chklist_insert_def = {
+  ins1, insert_sig, Ci_Py_SIG_ERROR
+};
+
+static PyObject *
+chklist_alloc(PyTypeObject *type, Py_ssize_t nitems)
+{
+    struct _Py_list_state *state = get_list_state();
+    PyListObject *op;
+#ifdef SHOW_ALLOC_COUNT
+    static int initialized = 0;
+    if (!initialized) {
+        Py_AtExit(show_alloc);
+        initialized = 1;
+    }
+#endif
+
+    if (state->numfree) {
+        state->numfree--;
+        op = state->free_list[state->numfree];
+        Py_TYPE(op) = type;
+        _Py_NewReference((PyObject *)op);
+        Py_INCREF(type);
+#ifdef SHOW_ALLOC_COUNT
+        count_reuse++;
+#endif
+    } else {
+        op = PyObject_GC_New(PyListObject, type);
+        if (op == NULL)
+            return NULL;
+#ifdef SHOW_ALLOC_COUNT
+        count_alloc++;
+#endif
+    }
+    op->ob_item = NULL;
+    Py_SIZE(op) = 0;
+    op->allocated = 0;
+    _PyObject_GC_TRACK(op);
+    return (PyObject *) op;
+}
+
+PyObject *
+Ci_CheckedList_New(PyTypeObject *type, Py_ssize_t size)
+{
+  PyListObject *op = (PyListObject *) chklist_alloc(type, 0);
+    if (size == 0 || op == NULL) {
+        return (PyObject *) op;
+    }
+    assert(op->ob_item == NULL);
+    op->ob_item = PyMem_New(PyObject *, size);
+    if (op->ob_item == NULL) {
+        Py_DECREF(op);
+        return PyErr_NoMemory();
+    }
+    op->allocated = size;
+    Py_SIZE(op) = size;
+    return (PyObject *) op;
+}
+
+int
+Ci_CheckedList_TypeCheck(PyTypeObject* type)
+{
+    return _PyClassLoader_GetGenericTypeDefFromType(type) == &Ci_CheckedList_Type;
+}
+
+static PyObject *
+chklist_slice(PyListObject *self, Py_ssize_t ilow, Py_ssize_t ihigh)
+{
+    PyListObject *np;
+    PyObject **src, **dest;
+    Py_ssize_t i, len;
+    len = ihigh - ilow;
+    np = (PyListObject *) Ci_CheckedList_New(Py_TYPE(self), len);
+    if (np == NULL)
+        return NULL;
+
+    src = self->ob_item + ilow;
+    dest = np->ob_item;
+    for (i = 0; i < len; i++) {
+        PyObject *v = src[i];
+        Py_INCREF(v);
+        dest[i] = v;
+    }
+    return (PyObject *)np;
+}
+
+static inline PyObject *
+chklist_copy(PyListObject *self)
+{
+  return chklist_slice(self, 0, Py_SIZE(self));
+}
+
+Ci_Py_TYPED_SIGNATURE(chklist_copy, Ci_Py_SIG_OBJECT, NULL);
+
+static inline int
+chklist_checkitem(PyListObject *list, PyObject *value)
+{
+    if (!_PyClassLoader_CheckParamType((PyObject *)list, value, 0)) {
+        PyErr_Format(PyExc_TypeError,
+                     "bad value '%s' for %s",
+                     Py_TYPE(value)->tp_name,
+                     Py_TYPE(list)->tp_name);
+        return -1;
+    }
+    return 0;
+}
+
+static PyObject *
+chklist_iter(PyObject *seq)
+{
+    listiterobject *it;
+
+    if (!IS_CHECKED_LIST(seq)) {
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    it = PyObject_GC_New(listiterobject, &PyListIter_Type);
+    if (it == NULL)
+        return NULL;
+    it->it_index = 0;
+    Py_INCREF(seq);
+    it->it_seq = (PyListObject *)seq;
+    _PyObject_GC_TRACK(it);
+    return (PyObject *)it;
+}
+
+
+static int
+chklist_extend(PyListObject *self, PyObject *iterable)
+{
+    PyObject *it;                  /* iter(v) */
+    Py_ssize_t m;                  /* size of self */
+    Py_ssize_t n;                  /* guess for size of iterable */
+    Py_ssize_t mn;                 /* m + n */
+    Py_ssize_t i;
+    PyObject *(*iternext)(PyObject *);
+
+    /* Special cases:
+       1) lists and tuples which can use PySequence_Fast ops
+       2) extending self to self requires making a copy first
+    */
+    const int iterable_is_same_type =
+      IS_CHECKED_LIST(iterable) &&
+      Py_TYPE(self) == Py_TYPE(iterable);
+    if (Ci_List_CheckIncludingChecked(iterable) || PyTuple_CheckExact(iterable) ||
+                (PyObject *)self == iterable) {
+        PyObject **src, **dest;
+        iterable = PySequence_Fast(iterable, "argument must be iterable");
+        if (!iterable)
+            return -1;
+        n = PySequence_Fast_GET_SIZE(iterable);
+        if (n == 0) {
+            /* short circuit when iterable is empty */
+            Py_DECREF(iterable);
+            return 0;
+        }
+        m = Py_SIZE(self);
+        if (!iterable_is_same_type) {
+             PyObject **items = PySequence_Fast_ITEMS(iterable);
+             for (i = 0; i < n; i++) {
+               if (chklist_checkitem(self, items[i])) {
+                   Py_DECREF(iterable);
+                   return -1;
+               }
+             }
+
+        }
+        /* It should not be possible to allocate a list large enough to cause
+        an overflow on any relevant platform */
+        assert(m < PY_SSIZE_T_MAX - n);
+        if (list_resize(self, m + n) < 0) {
+            Py_DECREF(iterable);
+            return -1;
+        }
+        /* note that we may still have self == iterable here for the
+         * situation a.extend(a), but the following code works
+         * in that case too.  Just make sure to resize self
+         * before calling PySequence_Fast_ITEMS.
+         */
+        /* populate the end of self with iterable's items */
+        src = PySequence_Fast_ITEMS(iterable);
+        dest = self->ob_item + m;
+        for (i = 0; i < n; i++) {
+            PyObject *o = src[i];
+            Py_INCREF(o);
+            dest[i] = o;
+        }
+        Py_DECREF(iterable);
+        return 0;
+    }
+
+    it = PyObject_GetIter(iterable);
+    if (it == NULL)
+        return -1;
+    iternext = *it->ob_type->tp_iternext;
+
+    /* Guess a result list size. */
+    n = PyObject_LengthHint(iterable, 8);
+    if (n < 0) {
+        Py_DECREF(it);
+        return -1;
+    }
+    m = Py_SIZE(self);
+    if (m > PY_SSIZE_T_MAX - n) {
+        /* m + n overflowed; on the chance that n lied, and there really
+         * is enough room, ignore it.  If n was telling the truth, we'll
+         * eventually run out of memory during the loop.
+         */
+    }
+    else {
+        mn = m + n;
+        /* Make room. */
+        if (list_resize(self, mn) < 0)
+            goto error;
+        /* Make the list sane again. */
+        Py_SIZE(self) = m;
+    }
+
+    /* Run iterator to exhaustion. */
+    for (;;) {
+        PyObject *item = iternext(it);
+        if (item == NULL || chklist_checkitem(self, item)) {
+            if (item != NULL) {
+                Py_DECREF(item);
+            }
+            if (PyErr_Occurred()) {
+                if (PyErr_ExceptionMatches(PyExc_StopIteration))
+                    PyErr_Clear();
+                else
+                    goto error;
+            }
+            break;
+        }
+        if (Py_SIZE(self) < self->allocated) {
+            /* steals ref */
+            Ci_List_SET_ITEM(self, Py_SIZE(self), item);
+            ++Py_SIZE(self);
+        }
+        else {
+            int status = app1(self, item);
+            Py_DECREF(item);  /* append creates a new ref */
+            if (status < 0)
+                goto error;
+        }
+    }
+
+    /* Cut back result list if initial guess was too large. */
+    if (Py_SIZE(self) < self->allocated) {
+        if (list_resize(self, Py_SIZE(self)) < 0)
+            goto error;
+    }
+
+    Py_DECREF(it);
+    return 0;
+
+  error:
+    Py_DECREF(it);
+    return -1;
+}
+
+static PyObject * chklist_pop(PyListObject* self, PyObject* index)
+{
+    Py_ssize_t index_ssize = -1;
+    if (PyLong_Check(index)) {
+        index_ssize = PyLong_AsLong(index);
+        if (PyErr_Occurred()) {
+            return NULL;
+        }
+    }
+    return list_pop_impl(self, index_ssize);
+}
+
+Ci_Py_TYPED_SIGNATURE(chklist_extend, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, NULL);
+
+static const Ci_Py_SigElement *const getitem_sig[] = {&Ci_Py_Sig_Object, NULL};
+Ci_PyTypedMethodDef chklist_getitem_def = {
+    list_subscript, getitem_sig, Ci_Py_SIG_OBJECT};
+
+static const Ci_Py_SigElement *const setitem_sig[] = {&Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL};
+Ci_PyTypedMethodDef chklist_setitem_def = {
+    list_ass_subscript, setitem_sig, Ci_Py_SIG_ERROR};
+
+static const Ci_Py_SigElement *const pop_sig[] = {&Ci_Py_Sig_Object_Opt, NULL};
+Ci_PyTypedMethodDef chklist_pop_def = {chklist_pop, pop_sig, Ci_Py_SIG_TYPE_PARAM_IDX(0)};
+
+static PyMethodDef chklist_methods[] = {
+    {"__getitem__",
+         (PyCFunction)&chklist_getitem_def,
+         Ci_METH_TYPED | METH_COEXIST,
+         "x.__getitem__(y) <==> x[y]"},
+    {"__setitem__",
+         (PyCFunction)&chklist_setitem_def,
+         Ci_METH_TYPED | METH_COEXIST,
+         "Set self[index_or_slice] to value."},
+    // TODO(T96351329): We should implement a custom reverse iterator for checked lists.
+    LIST___REVERSED___METHODDEF
+    LIST___SIZEOF___METHODDEF
+    LIST_CLEAR_METHODDEF
+    {"copy", (PyCFunction)&chklist_copy_def, Ci_METH_TYPED, list_copy__doc__},
+    {"append", (PyCFunction)&chklist_append_def, Ci_METH_TYPED, list_append__doc__},
+    {"insert", (PyCFunction)&chklist_insert_def, Ci_METH_TYPED, list_insert__doc__},
+    {"extend", (PyCFunction)&chklist_extend_def, Ci_METH_TYPED, list_extend__doc__},
+    {"pop", (PyCFunction)&chklist_pop_def, Ci_METH_TYPED, list_pop__doc__},
+    LIST_REMOVE_METHODDEF
+    LIST_INDEX_METHODDEF
+    LIST_COUNT_METHODDEF
+    LIST_REVERSE_METHODDEF
+    LIST_SORT_METHODDEF
+    {"__class_getitem__", (PyCFunction)chklist_cls_getitem, METH_VARARGS | METH_CLASS, NULL},
+    {NULL,              NULL}           /* sentinel */
+};
+
+static void chklist_dealloc(PyListObject *self)
+{
+  Py_TYPE(self) = &PyList_Type;
+  list_dealloc(self);
+}
+
+static int chklist_ass_subscript(PyListObject* self, PyObject* item, PyObject* value)
+{
+    if (PySlice_Check(item)) {
+        if (Py_TYPE(value) != Py_TYPE(self)) {
+            PyErr_Format(PyExc_TypeError,
+                         "Incompatible slice type '%s' assigned to '%s'",
+                         Py_TYPE(value)->tp_name,
+                         Py_TYPE(self)->tp_name);
+
+          return -1;
+        }
+    }
+    else if (chklist_checkitem(self, value)) {
+        return -1;
+    }
+    return list_ass_subscript(self, item, value);
+}
+
+inline PyObject * Ci_CheckedList_GetItem(PyObject *op, Py_ssize_t i) {
+    return list_item((PyListObject *) op, i);
+}
+
+int
+_PyList_APPEND(PyObject *op, PyObject *newitem)
+{
+  assert(Ci_List_CheckIncludingChecked(op) && (newitem != NULL));
+  return app1((PyListObject *)op, newitem);
+}
+
+static PyMappingMethods chklist_as_mapping = {
+    (lenfunc)list_length,
+    (binaryfunc)list_subscript,
+    (objobjargproc)chklist_ass_subscript,
+};
+
+static int
+chklist_init(PyListObject *self, PyObject *args, PyObject *kwds)
+{
+    PyObject *iterable = NULL;
+
+    if (IS_CHECKED_LIST(self) && !_PyArg_NoKeywords("chklist", kwds)) {
+        return -1;
+    }
+    if (!_PyArg_CheckPositional("chklist", PyTuple_GET_SIZE(args), 0, 1)) {
+        return -1;
+    }
+    if (PyTuple_GET_SIZE(args) >= 1) {
+        iterable = PyTuple_GET_ITEM(args, 0);
+    }
+
+    /* Verify list invariants established by PyType_GenericAlloc() */
+    assert(0 <= Py_SIZE(self));
+    assert(Py_SIZE(self) <= self->allocated || self->allocated == -1);
+    assert(self->ob_item != NULL ||
+           self->allocated == 0 || self->allocated == -1);
+
+    /* Empty previous contents */
+    if (self->ob_item != NULL) {
+        (void)_list_clear(self);
+    }
+    if (iterable != NULL) {
+        if (_PyObject_HasLen(iterable)) {
+            Py_ssize_t iter_len = PyObject_Size(iterable);
+            if (iter_len == -1) {
+                if (!PyErr_ExceptionMatches(PyExc_TypeError)) {
+                    return -1;
+                }
+                PyErr_Clear();
+            }
+            if (iter_len > 0 && self->ob_item == NULL
+                && list_preallocate_exact(self, iter_len)) {
+                return -1;
+            }
+        }
+        if (chklist_extend(self, iterable) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+_PyGenericTypeDef Ci_CheckedList_Type = {
+  .gtd_type =
+      {
+        PyVarObject_HEAD_INIT(&PyType_Type, 0) "chklist[T]",
+        sizeof(PyListObject),
+        0,
+        (destructor)chklist_dealloc,                /* tp_dealloc */
+        0,                                          /* tp_vectorcall_offset */
+        0,                                          /* tp_getattr */
+        0,                                          /* tp_setattr */
+        0,                                          /* tp_as_async */
+        (reprfunc)list_repr,                        /* tp_repr */
+        0,                                          /* tp_as_number */
+        &list_as_sequence,                          /* tp_as_sequence */
+        &chklist_as_mapping,                           /* tp_as_mapping */
+        PyObject_HashNotImplemented,                /* tp_hash */
+        0,                                          /* tp_call */
+        0,                                          /* tp_str */
+        PyObject_GenericGetAttr,                    /* tp_getattro */
+        0,                                          /* tp_setattro */
+        0,                                          /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+            Ci_Py_TPFLAGS_GENERIC_TYPE_DEF,            /* tp_flags */
+        list___init____doc__,                       /* tp_doc */
+        (traverseproc)list_traverse,                /* tp_traverse */
+        (inquiry)_list_clear,                       /* tp_clear */
+        list_richcompare,                           /* tp_richcompare */
+        0,                                          /* tp_weaklistoffset */
+        chklist_iter,                                  /* tp_iter */
+        0,                                          /* tp_iternext */
+        chklist_methods,                            /* tp_methods */
+        0,                                          /* tp_members */
+        0,                                          /* tp_getset */
+        0,                                          /* tp_base */
+        0,                                          /* tp_dict */
+        0,                                          /* tp_descr_get */
+        0,                                          /* tp_descr_set */
+        0,                                          /* tp_dictoffset */
+        (initproc)chklist_init,                     /* tp_init */
+        chklist_alloc,                              /* tp_alloc */
+        NULL,                                       /* tp_new */
+        PyObject_GC_Del,                            /* tp_free */
+      },
+  .gtd_size = 1,
+  .gtd_new = NULL,
+};

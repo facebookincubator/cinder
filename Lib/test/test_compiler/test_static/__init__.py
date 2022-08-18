@@ -4,10 +4,8 @@ from .asyncs import AsyncTests
 from .augassign import AugAssignTests
 from .binop import BinopTests
 from .cached_property import CachedPropertyTests
-
 from .checked_dict import CheckedDictTests
-
-# from .checked_list import CheckedListTests
+from .checked_list import CheckedListTests
 from .classmethod import ClassMethodTests
 from .compile import StaticCompilationTests
 from .context_decorator import ContextDecoratorTests
