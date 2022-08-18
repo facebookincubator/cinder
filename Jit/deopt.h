@@ -75,6 +75,7 @@ struct LiveValue {
 
 #define DEOPT_REASONS(X)     \
   X(GuardFailure)            \
+  X(YieldFrom)               \
   X(Raise)                   \
   X(RaiseStatic)             \
   X(Reraise)                 \
@@ -223,6 +224,14 @@ void reifyFrame(
     const DeoptFrameMetadata& frame_meta,
     const uint64_t* regs);
 
+// Like reifyFrame(), but for a suspended generator. Takes a single base
+// pointer for spill data rather than a full set of registers.
+void reifyGeneratorFrame(
+    PyFrameObject* frame,
+    const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
+    const void* base);
+
 // A simple interface for reading the contents of registers + memory
 struct MemoryView {
   const uint64_t* regs;
@@ -232,6 +241,10 @@ struct MemoryView {
   // new ref count is skipped.
   PyObject* read(const LiveValue& value, bool borrow = false) const;
 };
+
+// Release any owned references in the given set of registers or spill data.
+void releaseRefs(const DeoptMetadata& meta, const MemoryView& mem);
+void releaseRefs(const DeoptMetadata& meta, const void* base);
 
 // Call once per deopt.
 Ref<> profileDeopt(

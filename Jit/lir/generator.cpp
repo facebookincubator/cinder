@@ -217,12 +217,11 @@ void LIRGenerator::AppendGuard(
     std::string_view kind,
     const DeoptBase& instr,
     std::string_view guard_var) {
-  auto deopt_meta = jit::DeoptMetadata::fromInstr(instr, env_->code_rt);
-  auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
+  auto deopt_id = bbb.makeDeoptMetadata();
 
   fmt::memory_buffer buf;
   auto buf_ins = std::back_inserter(buf);
-  fmt::format_to(buf_ins, "Guard {}, {}", kind, id);
+  fmt::format_to(buf_ins, "Guard {}, {}", kind, deopt_id);
 
   JIT_CHECK(
       guard_var.empty() == (kind == "AlwaysFail"),
@@ -490,24 +489,16 @@ bool isTypeWithReasonablePointerEq(Type t) {
 }
 
 namespace {
-void appendYieldLiveRegs(std::stringstream& ss, const DeoptBase* instr) {
-  int num_live_owned_regs = 0;
-  std::stringstream live_owned_regs;
+void finishYield(
+    BasicBlockBuilder& bbb,
+    std::stringstream& ss,
+    const DeoptBase* instr) {
   for (const RegState& rs : instr->live_regs()) {
-    switch (rs.ref_kind) {
-      case RefKind::kBorrowed:
-      case RefKind::kUncounted: {
-        ss << ", " << rs.reg->name();
-        break;
-      }
-      case RefKind::kOwned: {
-        live_owned_regs << ", " << rs.reg->name();
-        num_live_owned_regs++;
-        break;
-      }
-    }
+    ss << ", " << rs.reg->name();
   }
-  ss << live_owned_regs.str() << ", " << num_live_owned_regs;
+  ss << ", " << instr->live_regs().size();
+  ss << ", " << bbb.makeDeoptMetadata();
+  bbb.AppendCode(ss.str());
 }
 } // namespace
 
@@ -1128,16 +1119,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::stringstream ss;
         ss << "YieldValue " << instr->dst()->name() << ", __asm_tstate,"
            << instr->reg()->name();
-        appendYieldLiveRegs(ss, instr);
-        bbb.AppendCode(ss.str());
+        finishYield(bbb, ss, instr);
         break;
       }
       case Opcode::kInitialYield: {
         auto instr = static_cast<const InitialYield*>(&i);
         std::stringstream ss;
         ss << "YieldInitial " << instr->dst()->name() << ", __asm_tstate, ";
-        appendYieldLiveRegs(ss, instr);
-        bbb.AppendCode(ss.str());
+        finishYield(bbb, ss, instr);
         break;
       }
       case Opcode::kYieldAndYieldFrom:
@@ -1153,8 +1142,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         ss << i.GetOutput()->name() << ", __asm_tstate, "
            << i.GetOperand(0)->name() << ", " << i.GetOperand(1)->name();
-        appendYieldLiveRegs(ss, static_cast<const DeoptBase*>(&i));
-        bbb.AppendCode(ss.str());
+        finishYield(bbb, ss, static_cast<const DeoptBase*>(&i));
         break;
       }
       case Opcode::kAssign: {
@@ -1649,11 +1637,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kDeoptPatchpoint: {
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
-        auto deopt_meta = jit::DeoptMetadata::fromInstr(instr, env_->code_rt);
-        auto id = env_->rt->addDeoptMetadata(std::move(deopt_meta));
+        std::size_t deopt_id = bbb.makeDeoptMetadata();
         std::stringstream ss;
         ss << "DeoptPatchpoint " << static_cast<void*>(instr.patcher()) << ", "
-           << id;
+           << deopt_id;
         auto& regstates = instr.live_regs();
         for (const auto& reg_state : regstates) {
           ss << ", " << *reg_state.reg;
@@ -2858,7 +2845,7 @@ void LIRGenerator::FixPhiNodes(
 }
 
 void LIRGenerator::FixOperands() {
-  for (auto pair : env_->operand_to_fix) {
+  for (auto& pair : env_->operand_to_fix) {
     auto& name = pair.first;
 
     auto def_instr = map_get(env_->output_map, name, nullptr);

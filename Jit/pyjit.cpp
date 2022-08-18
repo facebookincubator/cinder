@@ -4,6 +4,7 @@
 #include "Python.h"
 #include "cinder/exports.h"
 #include "cinder/porting-support.h"
+#include "internal/pycore_ceval.h"
 #include "internal/pycore_shadow_frame.h"
 #include "pycore_interp.h"
 
@@ -1187,6 +1188,59 @@ static PyObject* disable_hir_inliner(PyObject* /* self */, PyObject*) {
   Py_RETURN_NONE;
 }
 
+// If the given generator-like object is a suspended JIT generator, deopt it
+// and return 1. Otherwise, return 0.
+static int deopt_gen_impl(PyGenObject* gen) {
+  auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  if (Ci_GenIsCompleted(gen) || footer == nullptr) {
+    return 0;
+  }
+  JIT_CHECK(
+      footer->yieldPoint != nullptr,
+      "Suspended JIT generator has nullptr yieldPoint");
+  const DeoptMetadata& deopt_meta =
+      Runtime::get()->getDeoptMetadata(footer->yieldPoint->deoptIdx());
+  JIT_CHECK(
+      deopt_meta.frame_meta.size() == 1,
+      "Generators with inlined calls are not supported (T109706798)");
+
+  _PyJIT_GenMaterializeFrame(gen);
+  _PyShadowFrame_SetOwner(&gen->gi_shadow_frame, PYSF_INTERP);
+  reifyGeneratorFrame(
+      gen->gi_frame, deopt_meta, deopt_meta.frame_meta[0], footer);
+  gen->gi_frame->f_state = FRAME_SUSPENDED;
+  releaseRefs(deopt_meta, footer);
+  JITRT_GenJitDataFree(gen);
+  gen->gi_jit_data = nullptr;
+  return 1;
+}
+
+static PyObject* deopt_gen(PyObject*, PyObject* gen) {
+  if (!PyGen_Check(gen) && !PyCoro_CheckExact(gen) &&
+      !PyAsyncGen_CheckExact(gen)) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "Exected generator-like object, got %.200s",
+        Py_TYPE(gen)->tp_name);
+    return nullptr;
+  }
+  if (Ci_GenIsExecuting(reinterpret_cast<PyGenObject*>(gen))) {
+    PyErr_SetString(PyExc_RuntimeError, "generator is executing");
+    return nullptr;
+  }
+  if (deopt_gen_impl(reinterpret_cast<PyGenObject*>(gen))) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
+static void deopt_gen_visitor(PyObject* obj, void*) {
+  if (PyGen_Check(obj) || PyCoro_CheckExact(obj) ||
+      PyAsyncGen_CheckExact(obj)) {
+    deopt_gen_impl(reinterpret_cast<PyGenObject*>(obj));
+  }
+}
+
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -1298,7 +1352,15 @@ static PyMethodDef jit_methods[] = {
      page_in_profiler_dependencies,
      METH_NOARGS,
      "Read the memory needed by ebpf-based profilers."},
-    {NULL, NULL, 0, NULL}};
+    {"_deopt_gen",
+     deopt_gen,
+     METH_O,
+     "Argument must be a suspended generator, coroutine, or async generator. "
+     "If it is a JIT generator, deopt it, so it will resume in the interpreter "
+     "the next time it executes, and return True. Otherwise, return False. "
+     "Intended only for use in tests."},
+    {NULL, NULL, 0, NULL},
+};
 
 static PyModuleDef jit_module = {
     PyModuleDef_HEAD_INIT,
@@ -1669,6 +1731,10 @@ static void dump_jit_stats() {
 }
 
 int _PyJIT_Finalize() {
+  // Deopt all JIT generators, since JIT generators reference code and other
+  // metadata that we will be freeing later in this function.
+  _PyGC_VisitObjects(deopt_gen_visitor, nullptr);
+
   if (g_dump_stats) {
     dump_jit_stats();
   }

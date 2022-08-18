@@ -10,22 +10,42 @@ namespace jit {
 const int64_t CodeRuntime::kPyCodeOffset =
     RuntimeFrameState::codeOffset() + CodeRuntime::frameStateOffset();
 
-int GenYieldPoint::visitRefs(PyGenObject* gen, visitproc visit, void* arg)
-    const {
-  for (auto offs : pyobj_offs_) {
-    PyObject* v = reinterpret_cast<PyObject*>(
-        *(reinterpret_cast<uint64_t*>(gen->gi_jit_data) + offs));
-    Py_VISIT(v);
+namespace {
+template <typename F>
+requires Callable<F, int, PyObject*>
+int forEachOwnedRef(PyGenObject* gen, std::size_t deopt_idx, F func) {
+  const DeoptMetadata& meta = Runtime::get()->getDeoptMetadata(deopt_idx);
+  auto base = reinterpret_cast<char*>(gen->gi_jit_data);
+  for (const LiveValue& value : meta.live_values) {
+    if (value.ref_kind != hir::RefKind::kOwned) {
+      continue;
+    }
+    codegen::PhyLocation loc = value.location;
+    JIT_CHECK(
+        !loc.is_register(),
+        "DeoptMetadata for Yields should not reference registers");
+    int ret = func(*reinterpret_cast<PyObject**>(base + loc.loc));
+    if (ret != 0) {
+      return ret;
+    }
   }
   return 0;
 }
+} // namespace
+
+int GenYieldPoint::visitRefs(PyGenObject* gen, visitproc visit, void* arg)
+    const {
+  return forEachOwnedRef(gen, deopt_idx_, [&](PyObject* v) {
+    Py_VISIT(v);
+    return 0;
+  });
+}
 
 void GenYieldPoint::releaseRefs(PyGenObject* gen) const {
-  for (auto offs : pyobj_offs_) {
-    PyObject* v = reinterpret_cast<PyObject*>(
-        *(reinterpret_cast<uint64_t*>(gen->gi_jit_data) + offs));
+  forEachOwnedRef(gen, deopt_idx_, [](PyObject* v) {
     Py_DECREF(v);
-  }
+    return 0;
+  });
 }
 
 void CodeRuntime::releaseReferences() {

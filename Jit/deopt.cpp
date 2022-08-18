@@ -166,16 +166,17 @@ static void reifyBlockStack(
   }
 }
 
-void reifyFrame(
+static void reifyFrameImpl(
     PyFrameObject* frame,
     const DeoptMetadata& meta,
+    bool for_gen_resume,
     const DeoptFrameMetadata& frame_meta,
     const uint64_t* regs) {
   frame->f_locals = NULL;
   frame->f_trace = NULL;
   frame->f_trace_opcodes = 0;
   frame->f_trace_lines = 1;
-  if (meta.reason == DeoptReason::kGuardFailure) {
+  if (meta.reason == DeoptReason::kGuardFailure || for_gen_resume) {
     frame->f_state = FRAME_EXECUTING;
   } else {
     frame->f_state = FRAME_UNWINDING;
@@ -187,11 +188,59 @@ void reifyFrame(
   } else {
     frame->f_lasti = (BCIndex{frame_meta.next_instr_offset} - 1).value();
   }
+  if (meta.reason == DeoptReason::kYieldFrom && for_gen_resume) {
+    // The DeoptMetadata for YieldFrom-like instructions defaults to the state
+    // for raising an exception. If we're going to resume execution, we need to
+    // pull the instruction pointer back by one, to repeat the YIELD_FROM
+    // bytecode.
+    frame->f_lasti--;
+  }
   MemoryView mem{regs};
   reifyLocalsplus(frame, meta, frame_meta, mem);
   reifyStack(frame, meta, frame_meta, mem);
   reifyBlockStack(frame, frame_meta.block_stack);
   // Generator/frame linkage happens in `materializePyFrame` in frame.cpp
+}
+
+void reifyFrame(
+    PyFrameObject* frame,
+    const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
+    const uint64_t* regs) {
+  reifyFrameImpl(frame, meta, false, frame_meta, regs);
+}
+
+void reifyGeneratorFrame(
+    PyFrameObject* frame,
+    const DeoptMetadata& meta,
+    const DeoptFrameMetadata& frame_meta,
+    const void* base) {
+  uint64_t regs[codegen::PhyLocation::NUM_GP_REGS]{};
+  regs[codegen::PhyLocation::RBP] = reinterpret_cast<uint64_t>(base);
+  reifyFrameImpl(frame, meta, true, frame_meta, regs);
+}
+
+void releaseRefs(const DeoptMetadata& meta, const MemoryView& mem) {
+  for (const auto& value : meta.live_values) {
+    switch (value.ref_kind) {
+      case jit::hir::RefKind::kUncounted:
+      case jit::hir::RefKind::kBorrowed: {
+        continue;
+      }
+      case jit::hir::RefKind::kOwned: {
+        PyObject* obj = mem.read(value, true);
+        // Reference may be NULL if value is not definitely assigned
+        Py_XDECREF(obj);
+        break;
+      }
+    }
+  }
+}
+
+void releaseRefs(const DeoptMetadata& meta, const void* base) {
+  uint64_t regs[codegen::PhyLocation::NUM_GP_REGS]{};
+  regs[codegen::PhyLocation::RBP] = reinterpret_cast<uint64_t>(base);
+  releaseRefs(meta, MemoryView{regs});
 }
 
 static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
@@ -211,6 +260,11 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
     case jit::hir::Opcode::kGuardIs:
     case jit::hir::Opcode::kGuardType: {
       return DeoptReason::kGuardFailure;
+    }
+    case jit::hir::Opcode::kYieldAndYieldFrom:
+    case jit::hir::Opcode::kYieldFromHandleStopAsyncIteration:
+    case jit::hir::Opcode::kYieldFrom: {
+      return DeoptReason::kYieldFrom;
     }
     case jit::hir::Opcode::kRaise: {
       auto& raise = static_cast<const hir::Raise&>(instr);

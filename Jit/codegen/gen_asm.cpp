@@ -1411,25 +1411,6 @@ static void raiseAttributeError(BorrowedRef<> receiver, BorrowedRef<> name) {
       name);
 }
 
-static void releaseRefs(
-    const std::vector<LiveValue>& live_values,
-    const MemoryView& mem) {
-  for (const auto& value : live_values) {
-    switch (value.ref_kind) {
-      case jit::hir::RefKind::kUncounted:
-      case jit::hir::RefKind::kBorrowed: {
-        continue;
-      }
-      case jit::hir::RefKind::kOwned: {
-        PyObject* obj = mem.read(value, true);
-        // Reference may be NULL if value is not definitely assigned
-        Py_XDECREF(obj);
-        break;
-      }
-    }
-  }
-}
-
 static PyFrameObject*
 prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
   JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
@@ -1453,12 +1434,15 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
   // Clear our references now that we've transferred them to the frame
   MemoryView mem{regs};
   deopt_obj = profileDeopt(deopt_idx, deopt_meta, mem);
-  releaseRefs(deopt_meta.live_values, mem);
+  releaseRefs(deopt_meta, mem);
   if (!PyErr_Occurred()) {
     auto reason = deopt_meta.reason;
     switch (reason) {
       case DeoptReason::kGuardFailure: {
         runtime->guardFailed(deopt_meta);
+        break;
+      }
+      case DeoptReason::kYieldFrom: {
         break;
       }
       case DeoptReason::kUnhandledNullField:

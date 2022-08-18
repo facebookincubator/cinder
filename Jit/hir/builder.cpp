@@ -3781,13 +3781,14 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   Register* send_value = tc.frame.stack.pop();
-  Register* awaitable = tc.frame.stack.pop();
+  Register* awaitable = tc.frame.stack.top();
   Register* out = temps_.AllocateStack();
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(awaitable);
   }
   tc.emit<YieldFromHandleStopAsyncIteration>(
       out, send_value, awaitable, tc.frame);
+  tc.frame.stack.pop();
   tc.frame.stack.push(out);
 
   BasicBlock* yf_cont_block = getBlockAtOff(bc_instr.NextInstrOffset());
@@ -3982,11 +3983,12 @@ void HIRBuilder::emitRaiseVarargs(
 void HIRBuilder::emitYieldFrom(TranslationContext& tc, Register* out) {
   auto& stack = tc.frame.stack;
   auto send_value = stack.pop();
-  auto iter = stack.pop();
+  auto iter = stack.top();
   if (code_->co_flags & CO_COROUTINE) {
     tc.emit<SetCurrentAwaiter>(iter);
   }
   tc.emit<YieldFrom>(out, send_value, iter, tc.frame);
+  stack.pop();
   stack.push(out);
 }
 

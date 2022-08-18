@@ -190,6 +190,7 @@ class LinearScanAllocator {
   std::vector<int> free_stack_slots_;
 
   jit::codegen::PhyRegisterSet changed_regs_;
+  int initial_yield_spill_size_{-1};
 
   LiveInterval& getIntervalByVReg(const lir::Operand* vreg) {
     return vreg_interval_.emplace(vreg, vreg).first->second;
@@ -285,6 +286,9 @@ class LinearScanAllocator {
   void rewriteInstrOneIndirectOperand(
       lir::MemoryIndirect* indirect,
       const UnorderedMap<const lir::Operand*, const LiveInterval*>& mapping);
+
+  void computeInitialYieldSpillSize(
+      const UnorderedMap<const Operand*, const LiveInterval*>& mapping);
 
   using CopyGraphWithOperand =
       jit::codegen::CopyGraphWithType<const lir::OperandBase::DataType>;

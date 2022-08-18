@@ -40,12 +40,15 @@ from contextlib import contextmanager
 
 try:
     import cinderjit
-    from cinderjit import jit_suppress
+    from cinderjit import jit_suppress, _deopt_gen
 except:
     cinderjit = None
 
     def jit_suppress(func):
         return func
+
+    def _deopt_gen(gen):
+        return False
 
 
 def failUnlessHasOpcodes(*required_opnames):
@@ -2108,6 +2111,97 @@ class GeneratorsTest(unittest.TestCase):
         self.assertIs(g.__next__(), val2)
         with self.assertRaises(StopIteration):
             g.__next__()
+
+    def test_deopt_at_initial_yield(self):
+        @unittest.failUnlessJITCompiled
+        def gen(a, b):
+            yield a
+            return a + b
+
+        g = gen(3, 8)
+        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        self.assertEqual(next(g), 3)
+        with self.assertRaises(StopIteration) as cm:
+            next(g)
+        self.assertEqual(cm.exception.value, 11)
+
+    def test_deopt_at_yield(self):
+        @unittest.failUnlessJITCompiled
+        def gen(a, b):
+            yield a
+            return a * b
+
+        g = gen(5, 9)
+        self.assertEqual(next(g), 5)
+        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        with self.assertRaises(StopIteration) as cm:
+            next(g)
+        self.assertEqual(cm.exception.value, 45)
+
+    def test_deopt_at_yield_from(self):
+        @unittest.failUnlessJITCompiled
+        def gen(l):
+            yield from iter(l)
+
+        g = gen([2, 4, 6])
+        self.assertEqual(next(g), 2)
+        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        self.assertEqual(next(g), 4)
+        self.assertEqual(next(g), 6)
+        with self.assertRaises(StopIteration) as cm:
+            next(g)
+        self.assertEqual(cm.exception.value, None)
+
+    def test_deopt_at_yield_from_handle_stop_async_iteration(self):
+        class BusyWait:
+            def __await__(self):
+                return iter(["one", "two"])
+
+        class AsyncIter:
+            def __init__(self, l):
+                self._iter = iter(l)
+
+            async def __anext__(self):
+                try:
+                    item = next(self._iter)
+                except StopIteration:
+                    raise StopAsyncIteration
+
+                await BusyWait()
+                return item
+
+        class AsyncList:
+            def __init__(self, l):
+                self._list = l
+
+            def __aiter__(self):
+                return AsyncIter(self._list)
+
+        @unittest.failUnlessJITCompiled
+        async def coro(l1, l2):
+            async for i in AsyncList(l1):
+                l2.append(i * 2)
+            return l2
+
+        l = []
+        c = coro([7, 8], l)
+        it = iter(c.__await__())
+        self.assertEqual(next(it), "one")
+        self.assertEqual(l, [])
+        self.assertEqual(_deopt_gen(c), cinderjit is not None)
+        self.assertEqual(next(it), "two")
+        self.assertEqual(l, [])
+        self.assertEqual(next(it), "one")
+        self.assertEqual(l, [14])
+        self.assertEqual(next(it), "two")
+        self.assertEqual(l, [14])
+        with self.assertRaises(StopIteration) as cm:
+            next(it)
+        self.assertIs(cm.exception.value, l)
+        self.assertEqual(l, [14, 16])
+
+    # TODO(T125856469): Once we support eager execution of coroutines, add
+    # tests that deopt while suspended at YieldAndYieldFrom.
 
 
 class GeneratorFrameTest(unittest.TestCase):

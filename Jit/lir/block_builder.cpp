@@ -61,6 +61,22 @@ BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
   bbs_.push_back(cur_bb_);
 }
 
+std::size_t BasicBlockBuilder::makeDeoptMetadata() {
+  JIT_CHECK(
+      cur_hir_instr_ != nullptr,
+      "Can't make DeoptMetadata with a nullptr HIR instruction");
+  auto deopt_base = dynamic_cast<const hir::DeoptBase*>(cur_hir_instr_);
+  JIT_CHECK(
+      deopt_base != nullptr,
+      "Current HIR instruction doesn't inherit from DeoptBase");
+
+  if (!cur_deopt_metadata_.has_value()) {
+    cur_deopt_metadata_ = env_->rt->addDeoptMetadata(
+        DeoptMetadata::fromInstr(*deopt_base, env_->code_rt));
+  }
+  return cur_deopt_metadata_.value();
+}
+
 void BasicBlockBuilder::AppendLabel(const std::string& s) {
   auto next_bb = GetBasicBlockByLabel(s);
   if (cur_bb_->successors().size() < 2) {
@@ -187,6 +203,30 @@ void BasicBlockBuilder::createBasicInstr(
     CreateInstrOutputFromStr(instr, tokens[1]);
   }
 }
+
+namespace {
+void createYield(
+    BasicBlockBuilder& bldr,
+    const std::vector<std::string>& tokens,
+    Instruction::Opcode opcode) {
+  JIT_CHECK(
+      tokens.size() >= 4,
+      "Yield variants expect at least (opcode, output, num_live_regs, "
+      "deopt_idx)");
+  Instruction* instr = bldr.createInstr(opcode);
+  size_t tok_n = 1;
+  // Output
+  bldr.CreateInstrOutputFromStr(instr, tokens[tok_n++]);
+  // Live registers
+  while (tok_n < tokens.size() - 2) {
+    bldr.CreateInstrInputFromStr(instr, tokens[tok_n++]);
+  }
+  // Number of live registers
+  bldr.CreateInstrImmediateInputFromStr(instr, tokens[tok_n++]);
+  // DeoptMetadata index
+  bldr.CreateInstrImmediateInputFromStr(instr, tokens[tok_n++]);
+};
+} // namespace
 
 void BasicBlockBuilder::AppendTokenizedCodeLine(
     const std::vector<std::string>& tokens) {
@@ -575,55 +615,24 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
        }},
       {"YieldInitial",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         Instruction* instr = bldr.createInstr(Instruction::kYieldInitial);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
-         for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
-         }
-         bldr.CreateInstrImmediateInputFromStr(
-             instr, tokens[tokens.size() - 1]);
+         createYield(bldr, tokens, Instruction::kYieldInitial);
        }},
       {"YieldValue",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         Instruction* instr = bldr.createInstr(Instruction::kYieldValue);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
-         for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
-         }
-         bldr.CreateInstrImmediateInputFromStr(
-             instr, tokens[tokens.size() - 1]);
+         createYield(bldr, tokens, Instruction::kYieldValue);
        }},
       {"YieldFromSkipInitialSend",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         Instruction* instr =
-             bldr.createInstr(Instruction::kYieldFromSkipInitialSend);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
-         for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
-         }
-         bldr.CreateInstrImmediateInputFromStr(
-             instr, tokens[tokens.size() - 1]);
+         createYield(bldr, tokens, Instruction::kYieldFromSkipInitialSend);
        }},
       {"YieldFromHandleStopAsyncIteration",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         Instruction* instr =
-             bldr.createInstr(Instruction::kYieldFromHandleStopAsyncIteration);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
-         for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
-         }
-         bldr.CreateInstrImmediateInputFromStr(
-             instr, tokens[tokens.size() - 1]);
+         createYield(
+             bldr, tokens, Instruction::kYieldFromHandleStopAsyncIteration);
        }},
       {"YieldFrom",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         Instruction* instr = bldr.createInstr(Instruction::kYieldFrom);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
-         for (size_t tok_n = 2; tok_n < tokens.size() - 1; tok_n++) {
-           bldr.CreateInstrInputFromStr(instr, tokens[tok_n]);
-         }
-         bldr.CreateInstrImmediateInputFromStr(
-             instr, tokens[tokens.size() - 1]);
+         createYield(bldr, tokens, Instruction::kYieldFrom);
        }},
       {"BatchDecref",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {

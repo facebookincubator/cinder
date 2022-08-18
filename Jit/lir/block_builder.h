@@ -11,6 +11,7 @@
 
 #include <cctype>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -66,7 +67,12 @@ class BasicBlockBuilder {
 
   void setCurrentInstr(const hir::Instr* inst) {
     cur_hir_instr_ = inst;
+    cur_deopt_metadata_ = std::nullopt;
   }
+
+  // Return the id of a DeoptMetadata for the current instruction, returning
+  // the same id if called multiple times for the same instruction.
+  std::size_t makeDeoptMetadata();
 
   void AppendCode(std::string_view s) {
     AppendTokenizedCodeLine(Tokenize(s));
@@ -155,6 +161,7 @@ class BasicBlockBuilder {
 
  private:
   const hir::Instr* cur_hir_instr_{nullptr};
+  std::optional<std::size_t> cur_deopt_metadata_;
   BasicBlock* cur_bb_;
   std::vector<BasicBlock*> bbs_;
   jit::codegen::Environ* env_;

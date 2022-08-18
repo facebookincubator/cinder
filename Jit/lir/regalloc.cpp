@@ -467,22 +467,27 @@ void LinearScanAllocator::calculateLiveIntervals() {
 }
 
 int LinearScanAllocator::initialYieldSpillSize() const {
-  for (auto& alloc_bb : regalloc_blocks_) {
-    for (auto& instr : alloc_bb.first->instructions()) {
-      if (instr->isYieldInitial()) {
-        int spill_size = 0;
-        for (size_t i = 0; i < instr->getNumInputs(); i++) {
-          const OperandBase* opnd = instr->getInput(i);
-          if (opnd->type() != Operand::kStack) {
-            continue;
-          }
-          spill_size = std::max(spill_size, -opnd->getStackSlot());
-        }
-        return spill_size;
-      }
+  JIT_CHECK(
+      initial_yield_spill_size_ != -1,
+      "Don't have InitialYield spill size yet");
+
+  return initial_yield_spill_size_;
+}
+
+void LinearScanAllocator::computeInitialYieldSpillSize(
+    const UnorderedMap<const Operand*, const LiveInterval*>& mapping) {
+  JIT_CHECK(
+      initial_yield_spill_size_ == -1,
+      "Already computed InitialYield spill size");
+
+  for (auto& pair : mapping) {
+    const LiveInterval* interval = pair.second;
+    if (interval->allocated_loc.is_register()) {
+      continue;
     }
+    initial_yield_spill_size_ =
+        std::max(initial_yield_spill_size_, -interval->allocated_loc.loc);
   }
-  JIT_CHECK(false, "Couldn't find initial yield instruction");
 }
 
 // this function blocks all the caller saved registers during a function call
@@ -980,6 +985,9 @@ void LinearScanAllocator::rewriteLIR() {
 
           if (instr->output()->isInd()) {
             rewriteInstrOutput(instr, mapping, &last_use_vregs);
+          }
+          if (instr->isYieldInitial()) {
+            computeInitialYieldSpillSize(mapping);
           }
         }
       } else {

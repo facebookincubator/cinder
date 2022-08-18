@@ -10,6 +10,7 @@
 #ifdef __cplusplus
 #include "Jit/log.h"
 
+#include <concepts>
 #include <cstdarg>
 #include <cstddef>
 #include <memory>
@@ -214,6 +215,12 @@ struct FreeDeleter {
 };
 template <typename T>
 using unique_c_ptr = std::unique_ptr<T, FreeDeleter>;
+
+// Similar to std::invocable<F, Args...>, but also constrains the return type.
+template <typename F, typename Ret, typename... Args>
+concept Callable = requires(F f, Args&&... args) {
+  { f(std::forward<Args>(args)...) } -> std::convertible_to<Ret>;
+};
 
 } // namespace jit
 
