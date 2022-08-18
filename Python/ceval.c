@@ -6278,7 +6278,12 @@ main_loop:
         }
 
         case TARGET(STORE_PRIMITIVE_FIELD): {
-            PORT_ASSERT("Unsupported: STORE_PRIMITIVE_FIELD");
+            _FieldCache *cache = _PyShadow_GetFieldCache(&shadow, oparg);
+            PyObject *self = POP();
+            PyObject *value = POP();
+            store_field(cache->type, ((char *)self) + cache->offset, value);
+            Py_DECREF(self);
+            DISPATCH();
         }
 
         case TARGET(LOAD_OBJ_FIELD): {
