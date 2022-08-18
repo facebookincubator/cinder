@@ -1142,14 +1142,13 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 sys.modules = _orig_sys_modules
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
-                    from __future__ import lazy_imports
                     from tmp_b import B
 
                     A = 1
@@ -1209,14 +1208,13 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertEqual(relevant_deopts, [])
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
-                    from __future__ import lazy_imports
                     from tmp_b import B
 
                     A = 1
@@ -1251,14 +1249,13 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.waitingForFeaturePort(PortFeature.LAZY_IMPORTS)
+    @unittest.skipIfLazyImportsDisabled("Test relevant only when running with lazy imports enabled")
     @unittest.failUnlessJITCompiledWaitingForFeaturePort(PortFeature.LAZY_IMPORTS)
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
-                    from __future__ import lazy_imports
                     from tmp_b import B
 
                     def get_a():
