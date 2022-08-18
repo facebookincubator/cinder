@@ -262,7 +262,7 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenSend(
     int finish_yield_from);
 
 /*
- * Materialize the frame for gen. Returns a new reference.
+ * Materialize the frame for gen. Returns a borrowed reference.
  */
 PyAPI_FUNC(PyFrameObject*) _PyJIT_GenMaterializeFrame(PyGenObject* gen);
 
