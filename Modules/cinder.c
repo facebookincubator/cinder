@@ -631,7 +631,23 @@ readonly_enabled(PyObject *self, PyObject *args) {
 
 #endif
 
+static PyObject *
+cinder_debug_break(PyObject *self, PyObject *obj) {
+#ifdef __x86_64__
+    if (getenv("CINDER_SILENT_DEBUG_BREAK") == NULL) {
+        __asm("int3");
+    }
+#else
+#error Please implement cinder_debug_break() for your platform.
+#endif
+    Py_RETURN_NONE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
+    {"debug_break",
+     cinder_debug_break,
+     METH_NOARGS,
+     "Breaks in an attached debugger. Behavior with no debugger attached is platform-dependent."},
     {"_get_qualname",
      get_qualname_of_code,
      METH_O,
