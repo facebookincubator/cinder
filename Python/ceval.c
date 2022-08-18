@@ -5290,7 +5290,22 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX_ENUM): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX_ENUM");
+            PyObject *top = TOP();
+            PyTypeObject *type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            if (!PyObject_TypeCheck(top, type)) {
+                PyErr_Format(PyExc_TypeError, "expected %s, got %s",
+                                type->tp_name, Py_TYPE(top)->tp_name);
+                goto error;
+            }
+
+            PyObject *val = PyObject_GetAttrString(top, "value");
+            if (val == NULL) {
+                goto error;
+            }
+            SET_TOP(val);
+            Py_DECREF(top);
+
+            DISPATCH();
         }
 
 #define INT_BIN_OPCODE_UNSIGNED(opid, op)                                     \
