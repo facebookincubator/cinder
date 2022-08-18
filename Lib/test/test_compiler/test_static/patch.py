@@ -268,7 +268,6 @@ class StaticPatchTests(StaticTestBase):
             with patch(f"{mod.__name__}.C.f", return_value=100) as p:
                 self.assertEqual(g(), 100)
 
-    @skip("TODO(T129446360): PRIMITIVE_BOX_NUMERIC interpreter support")
     def test_patch_primitive_ret_type(self):
         for type_name, value, patched in [
             ("cbool", True, False),
@@ -299,7 +298,6 @@ class StaticPatchTests(StaticTestBase):
                     with patch(f"{mod.__name__}.C.f", return_value=patched) as p:
                         self.assertEqual(g(), patched)
 
-    @skip("TODO(T129446360): PRIMITIVE_BOX_NUMERIC interpreter support")
     def test_patch_primitive_ret_type_overflow(self):
         codestr = f"""
             from __static__ import int8, box

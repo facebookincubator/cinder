@@ -5204,7 +5204,17 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX_NUMERIC): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_BOX_NUMERIC");
+            if ((oparg & (TYPED_INT_SIGNED)) && oparg != (TYPED_DOUBLE)) {
+                /* We have a boxed value on the stack already, but we may have to
+                 * deal with sign extension */
+                PyObject *val = TOP();
+                size_t ival = (size_t)PyLong_AsVoidPtr(val);
+                if (ival & ((size_t)1) << 63) {
+                    SET_TOP(PyLong_FromSsize_t((int64_t)ival));
+                    Py_DECREF(val);
+                }
+            }
+            DISPATCH();
         }
 
         case TARGET(POP_JUMP_IF_ZERO): {
@@ -5286,7 +5296,19 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX_NUMERIC): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_UNBOX_NUMERIC");
+            /* We always box values in the interpreter loop, so this just does
+             * overflow checking here. Oparg indicates the type of the unboxed
+             * value. */
+            PyObject *top = TOP();
+            if (PyLong_CheckExact(top)) {
+                size_t value;
+                if (!_PyClassLoader_OverflowCheck(top, oparg, &value)) {
+                    PyErr_SetString(PyExc_OverflowError, "int overflow");
+                    goto error;
+                }
+            }
+
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_UNBOX_ENUM): {
