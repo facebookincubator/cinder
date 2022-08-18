@@ -65,10 +65,14 @@ def failUnlessHasOpcodes(*required_opnames):
     return decorator
 
 
+def firstlineno(func):
+    return func.__code__.co_firstlineno
+
+
 class GetFrameLineNumberTests(unittest.TestCase):
-    def assert_code_and_lineno(self, frame, func, lineno):
+    def assert_code_and_lineno(self, frame, func, line_offset):
         self.assertEqual(frame.f_code, func.__code__)
-        self.assertEqual(frame.f_lineno, lineno)
+        self.assertEqual(frame.f_lineno, firstlineno(func) + line_offset)
 
     def test_line_numbers(self):
         """Verify that line numbers are correct"""
@@ -77,7 +81,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         def g():
             return sys._getframe()
 
-        self.assert_code_and_lineno(g(), g, 77)
+        self.assert_code_and_lineno(g(), g, 2)
 
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
@@ -89,12 +93,11 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield sys._getframe()
             yield z
 
-        initial_lineno = 86
         gen = g(1, 2)
         frame = next(gen)
-        self.assert_code_and_lineno(frame, g, initial_lineno)
+        self.assert_code_and_lineno(frame, g, 2)
         frame = next(gen)
-        self.assert_code_and_lineno(frame, g, initial_lineno + 2)
+        self.assert_code_and_lineno(frame, g, 4)
         self.assertEqual(next(gen), 3)
 
     def test_line_numbers_for_suspended_generators(self):
@@ -108,14 +111,13 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield z
 
         gen = g(0)
-        initial_lineno = 102
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
+        self.assert_code_and_lineno(gen.gi_frame, g, 0)
         v = next(gen)
         self.assertEqual(v, 1)
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 3)
+        self.assert_code_and_lineno(gen.gi_frame, g, 3)
         v = next(gen)
         self.assertEqual(v, 2)
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 5)
+        self.assert_code_and_lineno(gen.gi_frame, g, 5)
 
     def test_line_numbers_during_gen_throw(self):
         """Verify that line numbers are correct for suspended generator functions when
@@ -150,8 +152,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
         with self.assertRaises(TestException):
             gen1.throw(TestException())
         initial_lineno = 126
-        self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
-        self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
+        self.assert_code_and_lineno(gen1_frame, f1, 2)
+        self.assert_code_and_lineno(gen2_frame, f2, 2)
 
     def test_line_numbers_from_finalizers(self):
         """Make sure we can get accurate line numbers from finalizers"""
@@ -172,8 +174,9 @@ class GetFrameLineNumberTests(unittest.TestCase):
 
         res = double(5)
         self.assertEqual(res, 10)
-        self.assertEqual(stack[-1].lineno, 162)
-        self.assertEqual(stack[-2].lineno, 168)
+        line_base = firstlineno(double)
+        self.assertEqual(stack[-1].lineno, firstlineno(StackGetter.__del__) + 2)
+        self.assertEqual(stack[-2].lineno, firstlineno(double) + 4)
 
 
 @unittest.failUnlessJITCompiled
@@ -288,9 +291,9 @@ class FaulthandlerTracebackTests(unittest.TestCase):
 
     def test_dumptraceback(self):
         expected = [
-            f'  File "{__file__}", line 286 in f3',
-            f'  File "{__file__}", line 282 in f2',
-            f'  File "{__file__}", line 278 in f1',
+            f'  File "{__file__}", line {firstlineno(self.f3) + 2} in f3',
+            f'  File "{__file__}", line {firstlineno(self.f2) + 2} in f2',
+            f'  File "{__file__}", line {firstlineno(self.f1) + 2} in f1',
         ]
         with tempfile.TemporaryFile() as f:
             self.f1(f.fileno())
