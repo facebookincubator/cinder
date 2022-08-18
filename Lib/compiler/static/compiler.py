@@ -488,7 +488,7 @@ class Compiler:
         tree: AST,
         optimize: int,
         enable_patching: bool = False,
-    ) -> Tuple[AST, SymbolVisitor]:
+    ) -> Tuple[ast.Module, SymbolVisitor]:
         cached_tree = self.ast_cache.get(name)
         if cached_tree is None:
             tree = self.add_module(name, filename, tree, optimize)
@@ -547,6 +547,8 @@ class Compiler:
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
         graph.extra_consts.append(tuple(self.modules[name].imported_from.items()))
 
+        future_flags = find_futures(0, tree)
+
         code_gen = self.code_generator(
             None,
             tree,
@@ -559,6 +561,7 @@ class Compiler:
             optimization_lvl=optimize,
             enable_patching=enable_patching,
             builtins=builtins,
+            future_flags=future_flags,
         )
         code_gen.visit(tree)
         return code_gen

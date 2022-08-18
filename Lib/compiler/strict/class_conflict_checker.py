@@ -133,6 +133,10 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
         self.filename = filename
         self.flags = flags
 
+    @property
+    def skip_annotations(self) -> bool:
+        return bool(self.flags & CO_FUTURE_ANNOTATIONS)
+
     def error(self, names: List[str], lineno: int, col: int, filename: str) -> None:
         MSG: str = "Class member conflicts with instance member: {names}"
         raise StrictModuleError(MSG.format(names=names), filename, lineno, col)
@@ -227,8 +231,12 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
         if value is not None:
             self.visit(node.target)
             self.visit(value)
-            if not (self.flags & CO_FUTURE_ANNOTATIONS):
+            if not self.skip_annotations:
                 self.visit(node.annotation)
+
+    def visit_arg(self, node: ast.arg) -> None:
+        if not self.skip_annotations:
+            self.generic_visit(node)
 
 
 def check_class_conflict(

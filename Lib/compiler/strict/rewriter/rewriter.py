@@ -367,6 +367,10 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
         self.scopes = scopes
         self.ignore_names: Set[str] = set(ignore_names)
 
+    @property
+    def skip_annotations(self) -> bool:
+        return False
+
     def is_global(self, name: str) -> bool:
         return name not in self.ignore_names and self.scopes.is_global(name)
 
@@ -443,7 +447,7 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
 
         if isinstance(node, (AsyncFunctionDef, FunctionDef)):
             retnode = node.returns
-            if retnode:
+            if retnode and not self.skip_annotations:
                 returns = self.visit(retnode)
                 if update:
                     node.returns = returns
@@ -548,6 +552,10 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
                 return True
         return False
 
+    @property
+    def skip_annotations(self) -> bool:
+        return self.future_annotations()
+
     def load_name(self, name: str) -> None:
         if self.is_global(name):
             self.globals.add(name)
@@ -621,18 +629,8 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
 
         self.visit_Func_Inner(node)
 
-    def visit_Func_Outer(
-        self, node: AsyncFunctionDef | FunctionDef | Lambda, update: bool = False
-    ) -> None:
-        if not self.future_annotations():
-            return super().visit_Func_Outer(node)
-
-        args = self.visit(node.args)
-        if isinstance(node, (AsyncFunctionDef, FunctionDef)):
-            self.walk_many(node.decorator_list)
-
     def visit_arg(self, node: ast.arg) -> None:
-        if not self.future_annotations():
+        if not self.skip_annotations:
             return self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: AsyncFunctionDef) -> None:
@@ -644,7 +642,7 @@ class ImmutableVisitor(SymbolVisitor[None, None]):
 
     def visit_AnnAssign(self, node: AnnAssign) -> None:
         self.visit(node.target)
-        if not self.future_annotations():
+        if not self.skip_annotations:
             self.visit(node.annotation)
         value = node.value
         if value:

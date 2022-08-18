@@ -108,6 +108,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         optimization_lvl: int = 0,
         enable_patching: bool = False,
         builtins: Dict[str, Any] = builtins.__dict__,
+        future_flags: Optional[int] = None,
     ) -> None:
         super().__init__(
             parent,
@@ -117,6 +118,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             flags=flags,
             optimization_lvl=optimization_lvl,
             builtins=builtins,
+            future_flags=future_flags,
         )
         self.compiler = compiler
         self.modname = modname
