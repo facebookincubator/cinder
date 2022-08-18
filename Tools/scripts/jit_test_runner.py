@@ -328,6 +328,13 @@ def start_worker(
         str(w_w),
         worker_ns,
     ]
+    env = dict(os.environ)
+    # This causes fdb/rr to panic when its set to a unicode value. This is
+    # unconditionally set for regression tests as of Python 3.10. The docs
+    # recommend setting it to 0 when it causes issues with the test
+    # environment. We set it unconditionally to eliminate a difference between
+    # running tests with/without rr.
+    env["PYTHONREGRTEST_UNICODE_GUARD"] = "0"
     rr_trace_dir = None
     if use_rr:
         # RR gets upset if it's not allowed to create a directory itself so we
@@ -338,7 +345,7 @@ def start_worker(
     if worker_timeout != 0:
         cmd = ["timeout", "--foreground", f"{worker_timeout}s"] + cmd
 
-    popen = subprocess.Popen(cmd, pass_fds=(w_r, w_w), cwd=os_helper.SAVEDCWD)
+    popen = subprocess.Popen(cmd, pass_fds=(w_r, w_w), cwd=os_helper.SAVEDCWD, env=env)
     os.close(w_r)
     os.close(w_w)
 
