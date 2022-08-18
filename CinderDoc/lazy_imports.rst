@@ -92,26 +92,17 @@ Usage
 
 Naturally, to use Cinder's Lazy Imports, you must use Cinder!
 
-Lazy Imports can be manually enabled in any particular module by using:
-
-.. code-block:: python
-
-    from __future__ import lazy_imports
-
-Lazy Imports can be enabled globally with the ``PYTHONLAZYIMPORTSALL``
-environment variable, or by passing ``-X lazyimportsall`` to Python.
+Lazy Imports can be enabled globally with the ``PYTHONLAZYIMPORTS``
+environment variable, or by invoking Python with the ``-L`` flag.
 
 If enabled globally, all modules are loaded lazily. Lazy Imports can be
-disabled for specific modules by adding a future-import:
+disabled for specific modules by using the `excluding` API:
 
 .. code-block:: python
 
-    from __future__ import eager_imports
+    from importlib import set_lazy_imports
 
-In a production environment, where we’d want to have modules loaded and readily
-available after the end of each module’s execution, we use the ***Warm Up***
-feature, triggered by the ``PYTHONLAZYIMPORTSWARMUP`` environment variable or
-by passing ``-X lazyimportswarmup`` to Python.
+    set_lazy_imports(excluding=set(...))
 
 
 Issues and Gotchas
@@ -134,15 +125,14 @@ may be unexpected.
   - Use string type annotations for ``typing.TypeVar()`` and ``typing.NewType()``
   - Wrap type aliases inside a ``TYPE_CHECKING`` conditional block
 
-Ideally, reliance on Import Side Effects should lbe eliminated. If this is not
+Ideally, reliance on Import Side Effects should be eliminated. If this is not
 possible, you can force early imports in a few ways:
 
 - By accessing the imported name or module (or assigning it to a variable).
 - By moving the import to a try/except/finally block;
   imports inside these blocks are always imported eagerly.
-- By using ``from __future__ import eager_imports``, at the top of the module,
-  to force all imports in it to be imported eagerly. This does not apply
-  recursively.
+- By specifying the modules to be imported eagerly in a call to
+  ``importlib.set_lazy_imports(excluding=set(...))``
 - Inner imports are also always eagerly imported.
 
 An example of ``sys.path`` hackery that would throw ``ModuleNotFoundError``

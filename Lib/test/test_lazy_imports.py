@@ -47,8 +47,7 @@ class LazyImportsTest(unittest.TestCase):
 
     def test_dict_update(self):
         rc, out, err = self.python_run("test.lazyimports.dict_update")
-        self.assertNotStartswith(out, "<deferred ")
-        self.assertStartswith(out, "<module 'warnings' from ")
+        self.assertRegex(out, r"<module 'warnings' from '.+/Lib/warnings.py'>")
 
     def test_deferred_resolve_failure(self):
         rc, out, err = self.python_run("test.lazyimports.deferred_resolve_failure")
