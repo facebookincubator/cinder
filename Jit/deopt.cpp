@@ -60,16 +60,6 @@ const char* deoptReasonName(DeoptReason reason) {
   JIT_CHECK(false, "Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
-const char* deoptActionName(DeoptAction action) {
-  switch (action) {
-    case DeoptAction::kResumeInInterpreter:
-      return "ResumeInInterpreter";
-    case DeoptAction::kUnwind:
-      return "Unwind";
-  }
-  JIT_CHECK(false, "Invalid DeoptAction %d", static_cast<int>(action));
-}
-
 PyObject* MemoryView::read(const LiveValue& value, bool borrow) const {
   uint64_t raw;
   PhyLocation loc = value.location;
@@ -343,9 +333,6 @@ DeoptMetadata DeoptMetadata::fromInstr(
       meta.reason != DeoptReason::kUnhandledNullField ||
           meta.guilty_value != -1,
       "Guilty value is required for UnhandledNullField deopts");
-  if (meta.reason == DeoptReason::kGuardFailure || fs->hasTryBlock()) {
-    meta.action = DeoptAction::kResumeInInterpreter;
-  }
   if (auto check = dynamic_cast<const hir::CheckBaseWithName*>(&instr)) {
     meta.eh_name = check->name();
   }

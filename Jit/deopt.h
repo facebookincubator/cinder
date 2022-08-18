@@ -91,13 +91,6 @@ enum class DeoptReason : char {
 
 const char* deoptReasonName(DeoptReason reason);
 
-enum class DeoptAction : char {
-  kResumeInInterpreter,
-  kUnwind,
-};
-
-const char* deoptActionName(DeoptAction action);
-
 // Deopt metadata that is specific to a particular (shadow) frame whose code
 // may have been inlined.
 struct DeoptFrameMetadata {
@@ -157,9 +150,6 @@ struct DeoptMetadata {
   // Why we are de-opting
   DeoptReason reason{DeoptReason::kUnhandledException};
 
-  // What to do when we de-opt
-  DeoptAction action{DeoptAction::kUnwind};
-
   // If part of an inlined function, the depth into the call stack that this
   // code *would* be (1, 2, 3, ...). If not inlined, 0.
   int inline_depth() const {
@@ -193,10 +183,9 @@ struct DeoptMetadata {
       live_value_strings.push_back(lv.toString());
     }
     return fmt::format(
-        "DeoptMetadata {{ reason={}, action={}, descr={}, inline_depth={}, "
+        "DeoptMetadata {{ reason={}, descr={}, inline_depth={}, "
         "live_values=<{}> }}",
         deoptReasonName(reason),
-        deoptActionName(action),
         descr,
         inline_depth(),
         fmt::join(live_value_strings, ", "));
