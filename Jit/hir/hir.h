@@ -234,11 +234,13 @@ struct FrameState {
   // functions during e.g. deopt.
   FrameState* parent{nullptr};
 
-  // The bytecode offset of the current instruction, or -1 if no instruction
-  // has executed. This corresponds to the `f_lasti` field of PyFrameObject.
+  // The bytecode offset of the current instruction, or -sizeof(_Py_CODEUNIT) if
+  // no instruction has executed. This corresponds to the `f_lasti` field of
+  // PyFrameObject.
   BCOffset instr_offset() const {
     return std::max(
-        next_instr_offset - int{sizeof(_Py_CODEUNIT)}, BCOffset{-1});
+        next_instr_offset - int{sizeof(_Py_CODEUNIT)},
+        BCOffset{-int{sizeof(_Py_CODEUNIT)}});
   }
 
   bool visitUses(const std::function<bool(Register*&)>& func) {

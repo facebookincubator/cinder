@@ -409,6 +409,12 @@ PyAPI_FUNC(int) _PyJIT_IsCompiled(PyObject* func);
 PyAPI_FUNC(PyObject*) _PyJIT_GetGlobals(PyThreadState* tstate);
 
 /*
+ * Returns a borrowed reference to the builtins for the top-most Python function
+ * associated with tstate.
+ */
+PyAPI_FUNC(PyObject*) _PyJIT_GetBuiltins(PyThreadState* tstate);
+
+/*
  * Indicates whether or not newly-created interpreter threads should have type
  * profiling enabled by default.
  */
@@ -440,6 +446,14 @@ PyAPI_FUNC(void) _PyJIT_ClearTypeProfiles(void);
  * Notify the JIT that type has been modified.
  */
 PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
+
+/*
+ * Returns a borrowed reference to the top-most frame of tstate.
+ *
+ * When shadow frame mode is active, calling this function will materialize
+ * PyFrameObjects for any jitted functions on the call stack.
+ */
+PyAPI_FUNC(PyFrameObject*) _PyJIT_GetFrame(PyThreadState* tstate);
 
 #ifdef __cplusplus
 bool _PyJIT_UseHugePages();

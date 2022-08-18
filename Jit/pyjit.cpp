@@ -5,6 +5,7 @@
 #include "cinder/exports.h"
 #include "cinder/porting-support.h"
 #include "internal/pycore_shadow_frame.h"
+#include "pycore_interp.h"
 
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
@@ -1423,17 +1424,6 @@ int _PyJIT_Initialize() {
   jit_config.is_enabled = 1;
   g_jit_list = jit_list.release();
 
-#ifdef CINDER_PORTING_DONE
-  // Unconditionally set this, since we might have shadow frames from
-  // CO_SHADOW_FRAME or inlined functions.
-  _PyThreadState_GetFrame =
-      reinterpret_cast<PyThreadFrameGetter>(materializeShadowCallStack);
-#else
-  if (jit_config.frame_mode == SHADOW_FRAME) {
-    PORT_ASSERT("Not sure if/how global getframe works in 3.10");
-  }
-#endif
-
   total_compliation_time = 0.0;
 
   return 0;
@@ -1825,8 +1815,24 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   return yf;
 }
 
+namespace {
+const jit::RuntimeFrameState* getRuntimeFrameState(
+    _PyShadowFrame* shadow_frame) {
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
+    return static_cast<jit::RuntimeFrameState*>(
+        _PyShadowFrame_GetPtr(shadow_frame));
+  }
+  // TODO(T110700318): Collapse into RTFS case
+  JIT_DCHECK(
+      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
+      "Unexpected shadow frame type");
+  jit::CodeRuntime* code_rt =
+      static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
+  return code_rt->frameState();
+}
+} // namespace
+
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
-#ifdef CINDER_PORTING_DONE
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   if (shadow_frame == nullptr) {
     JIT_CHECK(
@@ -1837,22 +1843,21 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
     return _PyShadowFrame_GetPyFrame(shadow_frame)->f_globals;
   }
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
-    return static_cast<jit::RuntimeFrameState*>(
-               _PyShadowFrame_GetPtr(shadow_frame))
-        ->globals();
+  return getRuntimeFrameState(shadow_frame)->globals();
+}
+
+PyObject* _PyJIT_GetBuiltins(PyThreadState* tstate) {
+  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
+  if (shadow_frame == nullptr) {
+    JIT_CHECK(
+        tstate->frame == nullptr,
+        "py frame w/out corresponding shadow frame\n");
+    return tstate->interp->builtins;
   }
-  // TODO(T110700318): Collapse into RTFS case
-  JIT_DCHECK(
-      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
-      "Unexpected shadow frame type");
-  jit::CodeRuntime* code_rt =
-      static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-  return code_rt->frameState()->globals();
-#else
-  PORT_ASSERT("Needs shadow frame support")
-  (void)tstate;
-#endif
+  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+    return _PyShadowFrame_GetPyFrame(shadow_frame)->f_builtins;
+  }
+  return getRuntimeFrameState(shadow_frame)->builtins();
 }
 
 void _PyJIT_ProfileCurrentInstr(
@@ -2141,4 +2146,11 @@ PyObject* _PyJIT_GetAndClearTypeProfiles() {
 
 void _PyJIT_ClearTypeProfiles() {
   jit::Runtime::get()->typeProfiles().clear();
+}
+
+PyFrameObject* _PyJIT_GetFrame(PyThreadState* tstate) {
+  if (_PyJIT_IsEnabled()) {
+    return jit::materializeShadowCallStack(tstate);
+  }
+  return tstate->frame;
 }

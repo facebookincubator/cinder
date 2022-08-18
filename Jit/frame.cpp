@@ -2,9 +2,12 @@
 #include "Jit/frame.h"
 
 #include "Python.h"
+#include "cinder/exports.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
+#include "pycore_object.h"
 
+#include "Jit/bytecode_offsets.h"
 #include "Jit/debug_info.h"
 #include "Jit/log.h"
 #include "Jit/runtime.h"
@@ -132,19 +135,9 @@ std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
   return {};
 }
 
-// Return whether or not needle is linked into a call stack
-bool isShadowFrameLinked(PyThreadState* tstate, _PyShadowFrame* needle) {
-  if (tstate->shadow_frame == needle || needle->prev != nullptr) {
-    return true;
-  }
-  // Handle the case where needle is the last frame on the call stack
-  return findInnermostPyFrameForShadowFrame(tstate, needle).has_value();
-}
-
 // Return the instruction pointer for the JIT-compiled function that is
 // executing shadow_frame.
-uintptr_t
-getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
+uintptr_t getIP(_PyShadowFrame* shadow_frame, int frame_size) {
   JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "shadow frame not executed by the JIT");
@@ -152,12 +145,8 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
   if (is_shadow_frame_for_gen(shadow_frame)) {
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-    if (Ci_JITGenIsExecuting(gen) &&
-        isShadowFrameLinked(tstate, shadow_frame)) {
-      // The generator is running. Under rare circumstances the generater will
-      // be marked as running but won't yet be resumed. We check to make sure
-      // the shadow frame in linked into the call stack to account for this
-      // case. See the comment in materializePyFrameForGen() for details.
+    if (footer->yieldPoint == nullptr) {
+      // The generator is running.
       frame_base = footer->originalRbp;
     } else {
       // The generator is suspended.
@@ -178,7 +167,6 @@ getIP(PyThreadState* tstate, _PyShadowFrame* shadow_frame, int frame_size) {
 Ref<PyFrameObject> createPyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame) {
-#ifdef CINDER_PORTING_DONE
   const RuntimeFrameState* frame_state;
   // TODO(T110700318): Collapse into RTFS case
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT) {
@@ -192,52 +180,26 @@ Ref<PyFrameObject> createPyFrame(
         static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
     JIT_CHECK(!frame_state->isGen(), "unexpected generator in inlined frame");
   }
-  PORT_ASSERT("Use _PyFrame_New_NoTrack and pull builtins from frame_state");
-  Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(PyFrame_New(
-      tstate, frame_state->code(), frame_state->globals(), nullptr));
-  JIT_CHECK(py_frame != nullptr, "failed allocating frame");
-  // PyFrame_New links the frame into the thread stack.
+  PyFrameConstructor py_frame_ctor = {
+      .fc_globals = frame_state->globals(),
+      .fc_builtins = frame_state->builtins(),
+      .fc_code = frame_state->code(),
+  };
+  Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(
+      _PyFrame_New_NoTrack(tstate, &py_frame_ctor, nullptr));
+  _PyObject_GC_TRACK(py_frame);
+  // _PyFrame_New_NoTrack links the frame into the thread stack.
   Py_CLEAR(py_frame->f_back);
   if (_PyShadowFrame_GetReadonly(shadow_frame) == PYSF_IN_READONLY) {
+#ifdef CINDER_PORTING_DONE
     // Save the readonly mask if currently in an operation.
     py_frame->f_readonly_operation_mask =
         reinterpret_cast<JITShadowFrame*>(shadow_frame)->readonly_mask;
-  }
-  if (frame_state->isGen()) {
-    // Transfer ownership of the new reference to frame to the generator
-    // epilogue.  It handles detecting and unlinking the frame if the generator
-    // is present in the `data` field of the shadow frame.
-    //
-    // A generator may be resumed multiple times. If a frame is materialized in
-    // one activation, all subsequent activations must link/unlink the
-    // materialized frame on function entry/exit. There's no active signal in
-    // these cases, so we're forced to check for the presence of the
-    // frame. Linking is handled by `_PyJIT_GenSend`, while unlinking is
-    // handled by either the epilogue or, in the event that the generator
-    // deopts, the interpreter loop. In the future we may refactor things so
-    // that `_PyJIT_GenSend` handles both linking and unlinking.
-    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
-    py_frame->f_executing = gen->gi_running;
-    // f_gen is borrowed
-    py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
-    // gi_frame is owned
-    gen->gi_frame = py_frame.get();
-    Py_INCREF(py_frame);
-  } else {
-    py_frame->f_executing = 1;
-    // Save the original data field so that we can recover the the
-    // CodeRuntime/RuntimeFrameState pointer if we need to later on.
-    reinterpret_cast<JITShadowFrame*>(shadow_frame)->orig_data =
-        shadow_frame->data;
-  }
-  shadow_frame->data =
-      _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
-  return py_frame;
 #else
-  PORT_ASSERT("Need to figure out f_executing/gi_running");
-  (void)tstate;
-  (void)shadow_frame;
+    PORT_ASSERT("Need readonly feature");
 #endif
+  }
+  return py_frame;
 }
 
 void insertPyFrameBefore(
@@ -260,6 +222,54 @@ void insertPyFrameBefore(
   cursor->f_back = frame;
 }
 
+void attachPyFrame(
+    BorrowedRef<PyFrameObject> py_frame,
+    _PyShadowFrame* shadow_frame) {
+  if (is_shadow_frame_for_gen(shadow_frame)) {
+    // Transfer ownership of the new reference to frame to the generator
+    // epilogue.  It handles detecting and unlinking the frame if the generator
+    // is present in the `data` field of the shadow frame.
+    //
+    // A generator may be resumed multiple times. If a frame is materialized in
+    // one activation, all subsequent activations must link/unlink the
+    // materialized frame on function entry/exit. There's no active signal in
+    // these cases, so we're forced to check for the presence of the
+    // frame. Linking is handled by `_PyJIT_GenSend`, while unlinking is
+    // handled by either the epilogue or, in the event that the generator
+    // deopts, the interpreter loop. In the future we may refactor things so
+    // that `_PyJIT_GenSend` handles both linking and unlinking.
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    // f_gen is borrowed
+    py_frame->f_gen = reinterpret_cast<PyObject*>(gen);
+    // gi_frame is owned
+    gen->gi_frame = py_frame.get();
+    Py_INCREF(py_frame);
+  } else {
+    // Save the original data field so that we can recover the the
+    // CodeRuntime/RuntimeFrameState pointer if we need to later on.
+    reinterpret_cast<JITShadowFrame*>(shadow_frame)->orig_data =
+        shadow_frame->data;
+  }
+  shadow_frame->data =
+      _PyShadowFrame_MakeData(py_frame, PYSF_PYFRAME, PYSF_JIT);
+}
+
+PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
+  JIT_DCHECK(gen->gi_jit_data != nullptr, "not a JIT generator");
+  switch (Ci_GetJITGenState(gen)) {
+    case Ci_JITGenState_JustStarted: {
+      return FRAME_CREATED;
+    }
+    case Ci_JITGenState_Running:
+    case Ci_JITGenState_Throwing: {
+      return Ci_JITGenIsExecuting(gen) ? FRAME_EXECUTING : FRAME_SUSPENDED;
+    }
+    case Ci_JITGenState_Completed: {
+      JIT_CHECK(false, "completed generators don't have frames");
+    }
+  }
+}
+
 // Ensure that a PyFrameObject with f_lasti equal to last_instr_offset exists
 // for shadow_frame. If a new PyFrameObject is created it will be inserted
 // at the position specified by cursor:
@@ -274,21 +284,40 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     _PyShadowFrame* shadow_frame,
     int last_instr_offset,
     std::optional<BorrowedRef<PyFrameObject>> cursor) {
+  // Make sure a PyFrameObject exists at the correct location in the call
+  // stack.
+  BorrowedRef<PyFrameObject> py_frame;
   if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-    PyFrameObject* py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-    py_frame->f_lasti = last_instr_offset;
-    return py_frame;
+    py_frame.reset(_PyShadowFrame_GetPyFrame(shadow_frame));
+  } else {
+    // Python frame doesn't exist yet, create it and insert it into the
+    // call stack.
+    Ref<PyFrameObject> new_frame = createPyFrame(tstate, shadow_frame);
+    if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
+      // The frame was materialized between our initial check and here. This
+      // can happen if the allocation in createPyFrame triggers GC and GC
+      // invokes a finalizer that materializes the stack.
+      py_frame.reset(_PyShadowFrame_GetPyFrame(shadow_frame));
+    } else {
+      // Ownership of the new reference is transferred to whomever unlinks the
+      // frame (either the JIT epilogue, the interpreter loop, or the generator
+      // send implementation).
+      py_frame = new_frame.release();
+      attachPyFrame(py_frame, shadow_frame);
+      if (cursor.has_value()) {
+        insertPyFrameBefore(tstate, py_frame, cursor.value());
+      }
+    }
   }
-  // Python frame doesn't exist yet, create it and insert it into the
-  // call stack.
-  Ref<PyFrameObject> frame = createPyFrame(tstate, shadow_frame);
-  if (cursor.has_value()) {
-    insertPyFrameBefore(tstate, frame, cursor.value());
+  // Update the PyFrameObject to refect the state of the JIT function
+  py_frame->f_lasti = last_instr_offset / sizeof(_Py_CODEUNIT);
+  if (is_shadow_frame_for_gen(shadow_frame)) {
+    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
+    py_frame->f_state = getPyFrameStateForJITGen(gen);
+  } else {
+    py_frame->f_state = FRAME_EXECUTING;
   }
-  frame->f_lasti = last_instr_offset;
-  // Ownership of the new reference is transferred to whomever unlinks the
-  // frame (either the JIT epilogue or the interpreter loop).
-  return frame.release();
+  return py_frame;
 }
 
 bool isInlined(_PyShadowFrame* shadow_frame) {
@@ -356,7 +385,7 @@ std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
 using UnitState = std::vector<ShadowFrameAndLoc>;
 
 // Get the unit state for the JIT unit beginning at shadow_frame.
-UnitState getUnitState(PyThreadState* tstate, _PyShadowFrame* shadow_frame) {
+UnitState getUnitState(_PyShadowFrame* shadow_frame) {
   JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "must pass jit-owned shadow frame");
@@ -386,7 +415,7 @@ UnitState getUnitState(PyThreadState* tstate, _PyShadowFrame* shadow_frame) {
   UnitState unit_state;
   _PyShadowFrame* non_inlined_sf = unit_frames[0];
   CodeRuntime* code_rt = getCodeRuntime(non_inlined_sf);
-  uintptr_t ip = getIP(tstate, non_inlined_sf, code_rt->frame_size());
+  uintptr_t ip = getIP(non_inlined_sf, code_rt->frame_size());
   std::optional<UnitCallStack> locs =
       code_rt->debug_info()->getUnitCallStack(ip);
   if (locs.has_value()) {
@@ -469,7 +498,7 @@ void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
         break;
       }
       case PYSF_JIT: {
-        UnitState unit_state = getUnitState(tstate, shadow_frame);
+        UnitState unit_state = getUnitState(shadow_frame);
         // We want to materialize PyFrameObjects for all the shadow frames
         // in the unit if the handler materializes a PyFrameObject for
         // any shadow frame in the unit. For example, if we were in the
@@ -539,7 +568,7 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
       case PYSF_JIT: {
         // Process all the frames (inlined + non-inlined) in the unit as a
         // single chunk, starting with innermost inlined frame.
-        UnitState unit_state = getUnitState(tstate, shadow_frame);
+        UnitState unit_state = getUnitState(shadow_frame);
         for (auto it = unit_state.rbegin(); it != unit_state.rend(); ++it) {
           if (!handler(it->loc)) {
             return;
@@ -559,7 +588,7 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
     }
   }
 #else
-  PORT_ASSERT("Needs working shadow frames");
+  PORT_ASSERT("Needs awaiter pointer");
   (void)tstate;
   (void)handler;
 #endif // CINDER_PORTING_DONE
@@ -583,13 +612,12 @@ const char* shadowFrameKind(_PyShadowFrame* sf) {
 } // namespace
 
 Ref<PyFrameObject> materializePyFrameForDeopt(PyThreadState* tstate) {
-  UnitState unit_state = getUnitState(tstate, tstate->shadow_frame);
+  UnitState unit_state = getUnitState(tstate->shadow_frame);
   materializePyFrames(tstate, unit_state, nullptr);
   return Ref<PyFrameObject>::steal(tstate->frame);
 }
 
 void assertShadowCallStackConsistent(PyThreadState* tstate) {
-#ifdef CINDER_PORTING_DONE
   PyFrameObject* py_frame = tstate->frame;
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
 
@@ -639,10 +667,6 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
     }
     JIT_CHECK(false, "stack walk didn't consume entire python stack");
   }
-#else
-  PORT_ASSERT("Needs working shadow frames");
-  (void)tstate;
-#endif // CINDER_PORTING_DONE
 }
 
 BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
@@ -657,19 +681,18 @@ BorrowedRef<PyFrameObject> materializeShadowCallStack(PyThreadState* tstate) {
 BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyThreadState* tstate,
     PyGenObject* gen) {
-#ifdef CINDER_PORTING_DONE
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  if (gen_footer->state == _PyJitGenState_Completed) {
+  if (gen_footer->state == Ci_JITGenState_Completed) {
     return nullptr;
   }
 
   _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
-  UnitState unit_state = getUnitState(tstate, shadow_frame);
+  UnitState unit_state = getUnitState(shadow_frame);
   // TODO(T116587512): Support inlined frames in generator objects
   JIT_CHECK(
       unit_state.size() == 1, "unexpected inlined frames found for generator");
   std::optional<BorrowedRef<PyFrameObject>> cursor;
-  if (gen->gi_running && !gen->gi_frame) {
+  if (Ci_JITGenIsExecuting(gen) && !gen->gi_frame) {
     // Check if the generator's shadow frame is on the call stack. The generator
     // will be marked as running but will not be on the stack when it appears as
     // a predecessor in a chain of generators into which an exception was
@@ -685,11 +708,6 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
   }
 
   return materializePyFrames(tstate, unit_state, cursor);
-#else
-  PORT_ASSERT("Uses JIT data, shadow frames, and gi_running");
-  (void)tstate;
-  (void)gen;
-#endif
 }
 
 } // namespace jit
@@ -792,4 +810,11 @@ int _PyShadowFrame_WalkAndPopulate(
       });
 
   return 0;
+}
+
+void Ci_WalkStack(PyThreadState* tstate, CiWalkStackCallback cb, void* data) {
+  jit::walkShadowStack(
+      tstate, [&](const jit::CodeObjLoc& loc, jit::PyFrameMaterializer) {
+        return cb(data, loc.code, loc.lineNo()) == CI_SWD_CONTINUE_STACK_WALK;
+      });
 }

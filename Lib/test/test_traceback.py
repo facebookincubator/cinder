@@ -367,7 +367,6 @@ class TracebackFormatTests(unittest.TestCase):
 
         self.assertEqual(ststderr.getvalue(), "".join(stfmt))
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_print_stack(self):
         def prn():
             traceback.print_stack()
@@ -570,7 +569,6 @@ class TracebackFormatTests(unittest.TestCase):
             exception_print(exc_value)
         self._check_recursive_traceback_display(render_exc)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_format_stack(self):
         def fmt():
             return traceback.format_stack()
@@ -896,7 +894,6 @@ class LimitTests(unittest.TestCase):
     def last_returns_frame5(self):
         return self.last_returns_frame4()
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_extract_stack(self):
         frame = self.last_returns_frame5()
         def extract(**kwargs):
@@ -1011,7 +1008,6 @@ class MiscTracebackCases(unittest.TestCase):
         # Local variable dict should now be empty.
         self.assertEqual(len(inner_frame.f_locals), 0)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_extract_stack(self):
         def extract():
             return traceback.extract_stack()
@@ -1145,7 +1141,6 @@ class TestStack(unittest.TestCase):
         s = traceback.StackSummary.extract(iter([(f, 6)]))
         self.assertEqual(s[0].locals, None)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_format_locals(self):
         def some_inner(k, v):
             a = 1

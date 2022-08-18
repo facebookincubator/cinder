@@ -25,7 +25,8 @@ class Instr;
 // A location in a code object
 struct CodeObjLoc {
   CodeObjLoc(BorrowedRef<PyFrameObject> py_frame)
-      : code(py_frame->f_code), instr_offset(py_frame->f_lasti) {}
+      : code(py_frame->f_code),
+        instr_offset(py_frame->f_lasti * int{sizeof(_Py_CODEUNIT)}) {}
   CodeObjLoc(BorrowedRef<PyCodeObject> code_, int lasti)
       : code(code_), instr_offset(lasti) {}
   BorrowedRef<PyCodeObject> code;

@@ -1446,11 +1446,11 @@ static inline PyObject* make_gen_object(
   PyGenObject* gen = nullptr;
   if (_PyJIT_ShadowFrame() || code->co_flags & CO_SHADOW_FRAME) {
     if (mode == MakeGenObjectMode::kCoroutine) {
-      gen = reinterpret_cast<PyGenObject*>(_PyCoro_NewNoFrame(tstate, code));
+      gen = reinterpret_cast<PyGenObject*>(CiCoro_New_NoFrame(tstate, code));
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {
-      gen = reinterpret_cast<PyGenObject*>(_PyAsyncGen_NewNoFrame(code));
+      gen = reinterpret_cast<PyGenObject*>(CiAsyncGen_New_NoFrame(code));
     } else {
-      gen = reinterpret_cast<PyGenObject*>(_PyGen_NewNoFrame(code));
+      gen = reinterpret_cast<PyGenObject*>(CiGen_New_NoFrame(code));
     }
   } else {
     PyFrameObject* f = allocateFrame(

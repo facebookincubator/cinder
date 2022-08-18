@@ -1,21 +1,3 @@
-# TODO(T125845107): Incorrect line numbers that might be fixed by shadow frames
-test.test_asyncio.test_events.HandleTests.test_handle_repr_debug
-test.test_asyncio.test_events.TimerTests.test_timer_repr_debug
-test.test_asyncio.test_futures.*.test_future_source_traceback
-test.test_asyncio.test_tasks.*.test_task_source_traceback
-test.test_coroutines.OriginTrackingTest.test_origin_tracking
-test.test_coroutines.OriginTrackingTest.test_origin_tracking_warning
-test.test_frame.ClearTest.test_lineno_with_tracing
-test.test_sys.SysModuleTest.test_current_exceptions
-test.test_sys.SysModuleTest.test_current_frames
-test.test_warnings.*.test_error_after_default
-
-# TODO(T125845107): Tests that use sys._getframe and need shadow frames
-test.test_tracemalloc.TestTracemallocEnabled.test_get_object_traceback
-test.test_tracemalloc.TestTracemallocEnabled.test_get_traces
-test.test_tracemalloc.TestTracemallocEnabled.test_get_traces_intern_traceback
-test.test_tracemalloc.TestTracemallocEnabled.test_set_traceback_limit
-
 # TODO(T87011403): Infinite recursion
 test.test_exceptions.ExceptionTests.testInfiniteRecursion
 test.test_exceptions.ExceptionTests.test_badisinstance
@@ -50,3 +32,9 @@ test.test_compileall.HardlinkDedupTestsWithSourceEpoch.test_hardlink
 test.test_compileall.HardlinkDedupTestsWithSourceEpoch.test_import
 test.test_compileall.HardlinkDedupTestsWithSourceEpoch.test_only_two_levels
 test.test_compileall.HardlinkDedupTestsWithSourceEpoch.test_recompilation
+
+# TODO(T128365005): Need up-to-date locals in frames returned by sys._getframe()
+test.test_traceback.TestStack.test_format_locals
+
+# TODO(T128782227): exc.tb_frame->f_back not correct in except blocks
+test.test_sys.SysModuleTest.test_current_exceptions

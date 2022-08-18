@@ -88,6 +88,33 @@ builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 PyAPI_FUNC(PyObject *)
 Ci_Builtin_Next_Core(PyObject *it, PyObject *def);
 
+typedef enum {
+  CI_SWD_STOP_STACK_WALK = 0,
+  CI_SWD_CONTINUE_STACK_WALK = 1,
+} CiStackWalkDirective;
+
+/*
+ * A callback that will be invoked by Ci_WalkStack for each entry on the Python
+ * call stack.
+ */
+typedef CiStackWalkDirective (*CiWalkStackCallback)(void *data,
+                                                    PyCodeObject *code,
+                                                    int lineno);
+
+/*
+ * Walk the stack, invoking cb for each entry with the supplied data parameter
+ * as its first argument.
+ *
+ * The return value of cb controls whether or not stack walking continues.
+ */
+PyAPI_FUNC(void)
+    Ci_WalkStack(PyThreadState *tstate, CiWalkStackCallback cb, void *data);
+
+PyAPI_FUNC(PyObject *)
+    CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code);
+PyAPI_FUNC(PyObject *) CiAsyncGen_New_NoFrame(PyCodeObject *code);
+PyAPI_FUNC(PyObject *) CiGen_New_NoFrame(PyCodeObject *code);
+
 #ifdef __cplusplus
 }
 #endif

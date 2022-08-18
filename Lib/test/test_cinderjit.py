@@ -1,8 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import _testcapi
+import _testcindercapi
 import asyncio
 import builtins
+import cinder
 import dis
+import faulthandler
 import gc
 import sys
 import tempfile
@@ -12,7 +15,7 @@ import unittest
 import warnings
 import weakref
 
-from compiler.consts import CO_NORMAL_FRAME, CO_SUPPRESS_JIT
+from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_NORMAL_FRAME, CO_SUPPRESS_JIT
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -61,7 +64,6 @@ def failUnlessHasOpcodes(*required_opnames):
     return decorator
 
 
-@unittest.cinderPortingBrokenTest()
 class GetFrameLineNumberTests(unittest.TestCase):
     def assert_code_and_lineno(self, frame, func, lineno):
         self.assertEqual(frame.f_code, func.__code__)
@@ -74,7 +76,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         def g():
             return sys._getframe()
 
-        self.assert_code_and_lineno(g(), g, 51)
+        self.assert_code_and_lineno(g(), g, 77)
 
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
@@ -86,7 +88,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield sys._getframe()
             yield z
 
-        initial_lineno = 60
+        initial_lineno = 86
         gen = g(1, 2)
         frame = next(gen)
         self.assert_code_and_lineno(frame, g, initial_lineno)
@@ -105,7 +107,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield z
 
         gen = g(0)
-        initial_lineno = 76
+        initial_lineno = 102
         self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
         v = next(gen)
         self.assertEqual(v, 1)
@@ -146,7 +148,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         gen1.send(None)
         with self.assertRaises(TestException):
             gen1.throw(TestException())
-        initial_lineno = 100
+        initial_lineno = 126
         self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
         self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
 
@@ -169,8 +171,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
 
         res = double(5)
         self.assertEqual(res, 10)
-        self.assertEqual(stack[-1].lineno, 136)
-        self.assertEqual(stack[-2].lineno, 142)
+        self.assertEqual(stack[-1].lineno, 162)
+        self.assertEqual(stack[-2].lineno, 168)
 
 
 @unittest.failUnlessJITCompiled
@@ -268,6 +270,35 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         # Second call to double
         self.assertEqual(stacks[1][-1].lineno, 155)
         self.assertEqual(stacks[1][-2].lineno, 163)
+
+
+class FaulthandlerTracebackTests(unittest.TestCase):
+    @unittest.failUnlessJITCompiled
+    def f1(self, fd):
+        self.f2(fd)
+
+    @unittest.failUnlessJITCompiled
+    def f2(self, fd):
+        self.f3(fd)
+
+    @unittest.failUnlessJITCompiled
+    def f3(self, fd):
+        faulthandler.dump_traceback(fd)
+
+    def test_dumptraceback(self):
+        expected = [
+            f'  File "{__file__}", line 286 in f3',
+            f'  File "{__file__}", line 282 in f2',
+            f'  File "{__file__}", line 278 in f1',
+        ]
+        with tempfile.TemporaryFile() as f:
+            self.f1(f.fileno())
+            f.seek(0)
+            output = f.read().decode('ascii')
+            lines = output.split("\n")
+            self.assertGreaterEqual(len(lines), len(expected) + 1)
+            # Ignore first line, which is 'Current thread: ...'
+            self.assertEqual(lines[1:4], expected)
 
 
 # Decorator to return a new version of the function with an alternate globals
@@ -3359,14 +3390,9 @@ class CinderJitModuleTests(StaticTestBase):
             self.assertEqual(cinderjit.get_num_inlined_functions(g), 1)
 
 
-@jit_suppress
-def _inner(*args, **kwargs):
-    return kwargs
-
-
 @unittest.failUnlessJITCompiled
-def _outer(args, kwargs):
-    return _inner(*args, **kwargs)
+def _outer(inner):
+    return inner()
 
 
 class GetFrameInFinalizer:
@@ -3511,7 +3537,7 @@ class GetFrameTests(unittest.TestCase):
     def test_frame_allocation_race(self):
         # This test exercises a race condition that can occur in the
         # interpreted function prologue between when its frame is
-        # allocated and when its set as `tstate->frame`.
+        # allocated and when it's set as `tstate->frame`.
         #
         # When a frame is allocated its f_back field is set to point to
         # tstate->frame. Shortly thereafter, tstate->frame is set to the
@@ -3544,7 +3570,7 @@ class GetFrameTests(unittest.TestCase):
         # f0                  f0
         # f1
         #
-        # - f0 is interpreted and has called f2.
+        # - f0 is interpreted and has called f1.
         # - f1 is jit-compiled and is running in shadow-frame mode. The stack
         #   hasn't been materialized, so there is no entry for f1 on the
         #   PyFrame stack.
@@ -3552,19 +3578,19 @@ class GetFrameTests(unittest.TestCase):
         # T1:
         #
         # At time T1, f1 calls f2. f2 is interpreted and has a variable keyword
-        # parameter (**kwargs). The call to f2 enters PyEval_EvalCodeWithName.
-        # PyEval_EvalCodeWithName allocates a new PyFrameObject, p, to run
+        # parameter (**kwargs). The call to f2 enters _PyEval_MakeFrameVector.
+        # _PyEval_MakeFrameVector allocates a new PyFrameObject, p, to run
         # f2. At this point the stacks still look the same, however, notice
         # that p->f_back points to f0, not f1.
         #
         # Shadow Stack        PyFrame Stack
         # ------------        ------------
-        # f0                  f0              <--- p->f_back points to f1
+        # f0                  f0              <--- p->f_back points to f0
         # f1
         #
         # T2:
         #
-        # At time T2, PyEval_EvalCodeWithName has allocated the PyFrameObject,
+        # At time T2, _PyEval_MakeFrameVector has allocated the PyFrameObject,
         # p, for f2, and allocates a new dictionary for the variable keyword
         # parameter. The dictionary allocation triggers GC. During GC an object
         # is collected with a finalizer that materializes the stack. The most
@@ -3582,9 +3608,10 @@ class GetFrameTests(unittest.TestCase):
         #
         # T3:
         #
-        # At time T3, control has transferred from PyEval_EvalCodeWithName
-        # to the interpreter loop. The interpreter loop has set tstate->frame
-        # to the frame it was passed, p. Now the stacks are mismatched:
+        # At time T3, control has transferred to the interpreter loop to start
+        # executing f2. The interpreter loop has set tstate->frame to the frame
+        # it was passed, p. Now the stacks are mismatched; f1 has been erased
+        # from the pyframe stack.
         #
         # Shadow Stack        PyFrame Stack
         # ------------        ------------
@@ -3609,24 +3636,32 @@ class GetFrameTests(unittest.TestCase):
         #
         # The test below exercises this scenario.
         thresholds = gc.get_threshold()
-        # Initialize zombie frame for _inner (called by _outer). The zombie
-        # frame will be used the next time _inner is called. This avoids a
-        # trip to the allocator that could trigger GC.
-        args = []
-        kwargs = {"foo": 1}
-        _outer(args, kwargs)
+        @jit_suppress
+        def inner():
+            w = 1
+            x = 2
+            y = 3
+            z = 4
+            def f():
+                return w + x + y + z
+            return 100
+        # Initialize zombie frame for inner (called by _outer). The zombie
+        # frame will be used the next time inner is called. This avoids a
+        # trip to the allocator that could trigger GC and materialize the
+        # call stack too early.
+        _outer(inner)
         # Reset counts to zero. This allows us to set a threshold for
-        # the first generation that will trigger collection when the keyword
-        # dictionary is allocated in PyEval_EvalCodeWithName.
+        # the first generation that will trigger collection when the cells
+        # are allocated in _PyEval_MakeFrameVector for inner.
         gc.collect()
         # Create cyclic garbage that will materialize the Python stack when
         # it is collected
         _create_getframe_cycle()
         try:
-            # JITRT_CallFunctionEx constructs a new keyword dictionary and args
-            # tuple. PyEval_EvalCodeWithName does as well.
-            gc.set_threshold(4)
-            _outer(args, kwargs)
+            # _PyEval_MakeFrameVector constructs cells for w, x, y, and z
+            # in inner
+            gc.set_threshold(1)
+            _outer(inner)
         finally:
             gc.set_threshold(*thresholds)
 
@@ -4295,6 +4330,94 @@ class CopyDictWithoutKeysTest(unittest.TestCase):
         obj = C()
         with self.assertRaisesRegex(RuntimeError, "__getitem__ called with x"):
             self.match_keys_and_rest(obj)
+
+
+def builtins_getter():
+    return _testcindercapi._pyeval_get_builtins()
+
+
+class GetBuiltinsTests(unittest.TestCase):
+    def test_get_builtins(self):
+        new_builtins = {}
+        new_globals = {
+            "_testcindercapi": _testcindercapi,
+            "__builtins__": new_builtins,
+        }
+        func = with_globals(new_globals)(builtins_getter)
+        if cinderjit is not None:
+            cinderjit.force_compile(func)
+        self.assertIs(func(), new_builtins)
+
+
+def globals_getter():
+    return globals()
+
+
+class GetGlobalsTests(unittest.TestCase):
+    def test_get_globals(self):
+        new_globals = dict(globals())
+        func = with_globals(new_globals)(globals_getter)
+        if cinderjit is not None:
+            cinderjit.force_compile(func)
+        self.assertIs(func(), new_globals)
+
+
+class MergeCompilerFlagTests(unittest.TestCase):
+    def make_func(self, src, compile_flags=0):
+        code = compile(src, "<string>", "exec", compile_flags)
+        glbls = {"_testcindercapi": _testcindercapi}
+        exec(code, glbls)
+        return glbls["func"]
+
+    def run_test(self, callee_src):
+        # By default, compile/PyEval_MergeCompilerFlags inherits the compiler
+        # flags from the code object of the calling function. We want to ensure
+        # that this works even if the function calling compile has no
+        # associated Python frame (i.e. it's jitted and we're running in
+        # shadow-frame mode).  We arrange a scenario like the following, where
+        # callee has a compiler flag that caller does not.
+        #
+        #   caller (doesn't have CO_FUTURE_BARRY_AS_BDFL)
+        #     |
+        #     +--- callee (has CO_FUTURE_BARRY_AS_BDFL)
+        #            |
+        #            +--- compile
+        flag = CO_FUTURE_BARRY_AS_BDFL
+        caller_src = """
+def func(callee):
+  return callee()
+"""
+        caller = self.make_func(caller_src)
+        # Force the caller to not be jitted so that it always has a Python
+        # frame
+        caller = jit_suppress(caller)
+        self.assertEqual(caller.__code__.co_flags & flag, 0)
+
+        callee = self.make_func(callee_src, CO_FUTURE_BARRY_AS_BDFL)
+        self.assertEqual(callee.__code__.co_flags & flag, flag)
+        if cinderjit is not None:
+            cinderjit.force_compile(callee)
+        flags = caller(callee)
+        self.assertEqual(flags & flag, flag)
+
+
+    def test_merge_compiler_flags(self):
+        """Test that PyEval_MergeCompilerFlags retrieves the compiler flags of the
+        calling function."""
+        src = """
+def func():
+  return _testcindercapi._pyeval_merge_compiler_flags()
+"""
+        self.run_test(src)
+
+    def test_compile_inherits_compiler_flags(self):
+        """Test that compile inherits the compiler flags of the calling function."""
+        src = """
+def func():
+  code = compile('1 + 1', '<string>', 'eval')
+  return code.co_flags
+"""
+        self.run_test(src)
 
 
 if __name__ == "__main__":

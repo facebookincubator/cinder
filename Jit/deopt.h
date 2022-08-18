@@ -121,7 +121,8 @@ struct DeoptFrameMetadata {
 
   BCOffset instr_offset() const {
     return std::max(
-        next_instr_offset - int{sizeof(_Py_CODEUNIT)}, BCOffset{-1});
+        next_instr_offset - int{sizeof(_Py_CODEUNIT)},
+        BCOffset{-int{sizeof(_Py_CODEUNIT)}});
   }
 };
 

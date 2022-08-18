@@ -3,6 +3,7 @@
 
 #include "Python.h"
 
+#include "cinder/exports.h"
 #include "code.h"
 #include "pycore_interp.h"        // PyInterpreterState.gc
 #include "frameobject.h"          // PyFrame_GetBack()
@@ -771,10 +772,22 @@ done:
 
    This function is signal safe. */
 
-static void
-dump_frame(int fd, PyFrameObject *frame)
+typedef struct {
+  int fd;
+  unsigned int depth;
+} Ci_dump_stackentry_ctx_t;
+
+static CiStackWalkDirective
+Ci_dump_stackentry(void *p, PyCodeObject *code, int lineno)
 {
-    PyCodeObject *code = PyFrame_GetCode(frame);
+    Ci_dump_stackentry_ctx_t *ctx = (Ci_dump_stackentry_ctx_t *) p;
+    int fd = ctx->fd;
+
+    if (MAX_FRAME_DEPTH <= ctx->depth) {
+      PUTS(fd, "  ...\n");
+      return CI_SWD_STOP_STACK_WALK;
+    }
+
     PUTS(fd, "  File ");
     if (code->co_filename != NULL
         && PyUnicode_Check(code->co_filename))
@@ -786,7 +799,6 @@ dump_frame(int fd, PyFrameObject *frame)
         PUTS(fd, "???");
     }
 
-    int lineno = PyFrame_GetLineNumber(frame);
     PUTS(fd, ", line ");
     if (lineno >= 0) {
         _Py_DumpDecimal(fd, (size_t)lineno);
@@ -805,15 +817,14 @@ dump_frame(int fd, PyFrameObject *frame)
     }
 
     PUTS(fd, "\n");
-    Py_DECREF(code);
+
+    ctx->depth++;
+    return CI_SWD_CONTINUE_STACK_WALK;
 }
 
 static void
-dump_traceback(int fd, PyThreadState *tstate, int write_header)
+Ci_dump_traceback(int fd, PyThreadState *tstate, int write_header)
 {
-    PyFrameObject *frame;
-    unsigned int depth;
-
     if (write_header) {
         PUTS(fd, "Stack (most recent call first):\n");
     }
@@ -821,30 +832,16 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
     // Use a borrowed reference. Avoid Py_INCREF/Py_DECREF, since this function
     // can be called in a signal handler by the faulthandler module which must
     // not modify Python objects.
-    frame = tstate->frame;
-    if (frame == NULL) {
+    if (tstate->shadow_frame == NULL) {
         PUTS(fd, "  <no Python frame>\n");
         return;
     }
 
-    depth = 0;
-    while (1) {
-        if (MAX_FRAME_DEPTH <= depth) {
-            PUTS(fd, "  ...\n");
-            break;
-        }
-        if (!PyFrame_Check(frame)) {
-            break;
-        }
-        dump_frame(fd, frame);
-        PyFrameObject *back = frame->f_back;
-
-        if (back == NULL) {
-            break;
-        }
-        frame = back;
-        depth++;
-    }
+    Ci_dump_stackentry_ctx_t ctx = {
+      .fd = fd,
+      .depth = 0,
+    };
+    Ci_WalkStack(tstate, Ci_dump_stackentry, &ctx);
 }
 
 /* Dump the traceback of a Python thread into fd. Use write() to write the
@@ -856,7 +853,7 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
 void
 _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
-    dump_traceback(fd, tstate, 1);
+    Ci_dump_traceback(fd, tstate, 1);
 }
 
 /* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
@@ -940,7 +937,7 @@ _Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
         if (tstate == current_tstate && tstate->interp->gc.collecting) {
             PUTS(fd, "  Garbage-collecting\n");
         }
-        dump_traceback(fd, tstate, 0);
+        Ci_dump_traceback(fd, tstate, 0);
         tstate = PyThreadState_Next(tstate);
         nthreads++;
     } while (tstate != NULL);
@@ -948,4 +945,3 @@ _Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
 
     return NULL;
 }
-

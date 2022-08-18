@@ -499,6 +499,7 @@ _gen_throw(PyGenObject *gen, int close_on_genexit,
             /* `yf` is a generator or a coroutine. */
             PyThreadState *tstate = _PyThreadState_GET();
             PyFrameObject *f = tstate->frame;
+            _PyShadowFrame *sf = tstate->shadow_frame;
 
             /* Since we are fast-tracking things by skipping the eval loop,
                we need to update the current frame so the stack trace
@@ -506,6 +507,7 @@ _gen_throw(PyGenObject *gen, int close_on_genexit,
             /* XXX We should probably be updating the current frame
                somewhere in ceval.c. */
             tstate->frame = gen->gi_frame;
+            tstate->shadow_frame = &gen->gi_shadow_frame;
             /* Close the generator that we are currently iterating with
                'yield from' or awaiting on with 'await'. */
             CI_WITH_GEN_MARKED_AS_THROWING(gen, {
@@ -513,6 +515,7 @@ _gen_throw(PyGenObject *gen, int close_on_genexit,
                                  typ, val, tb);
             });
             tstate->frame = f;
+            tstate->shadow_frame = sf;
         } else {
             /* `yf` is an iterator or a coroutine-like object. */
             PyObject *meth;
@@ -815,6 +818,30 @@ gen_getrunning(PyGenObject *gen, void *Py_UNUSED(ignored))
     return PyBool_FromLong(Ci_GenIsExecuting(gen));
 }
 
+static PyObject *
+Ci_genlike_getframe(PyGenObject *gen, const char* attr_name)
+{
+    if (PySys_Audit("object.__getattr__", "Os", gen, attr_name) < 0) {
+        return NULL;
+    }
+
+    PyFrameObject *frame = gen->gi_frame;
+    if (gen->gi_jit_data) {
+        frame = _PyJIT_GenMaterializeFrame(gen);
+    }
+    if (frame == NULL) {
+        Py_RETURN_NONE;
+    }
+    Py_INCREF(frame);
+    return (PyObject *)frame;
+}
+
+static PyObject *
+Ci_gen_getframe(PyGenObject *gen, void *Py_UNUSED(ignored))
+{
+    return Ci_genlike_getframe(gen, "gi_frame");
+}
+
 static PyGetSetDef gen_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the generator")},
@@ -823,11 +850,11 @@ static PyGetSetDef gen_getsetlist[] = {
     {"gi_yieldfrom", (getter)gen_getyieldfrom, NULL,
      PyDoc_STR("object being iterated by yield from, or None")},
     {"gi_running", (getter)gen_getrunning, NULL, NULL},
+    {"gi_frame",     (getter)Ci_gen_getframe, NULL, NULL},
     {NULL} /* Sentinel */
 };
 
 static PyMemberDef gen_memberlist[] = {
-    {"gi_frame",     T_OBJECT, offsetof(PyGenObject, gi_frame),    READONLY|PY_AUDIT_READ},
     {"gi_code",      T_OBJECT, offsetof(PyGenObject, gi_code),     READONLY|PY_AUDIT_READ},
     {NULL}      /* Sentinel */
 };
@@ -901,9 +928,11 @@ PyTypeObject PyGen_Type = {
 };
 
 static PyObject *
-gen_new_with_qualname(PyTypeObject *type, PyFrameObject *f,
-                      PyObject *name, PyObject *qualname)
-{
+gen_new_with_qualname(PyTypeObject *type,
+                      PyFrameObject *f,
+                      PyCodeObject *code,
+                      PyObject *name,
+                      PyObject *qualname) {
     PyGenObject *gen = PyObject_GC_New(PyGenObject, type);
     if (gen == NULL) {
         Py_DECREF(f);
@@ -924,9 +953,11 @@ gen_new_with_qualname(PyTypeObject *type, PyFrameObject *f,
 #endif
 
     gen->gi_frame = f;
-    f->f_gen = (PyObject *) gen;
-    Py_INCREF(f->f_code);
-    gen->gi_code = (PyObject *)(f->f_code);
+    if (f) {
+        f->f_gen = (PyObject *) gen;
+    }
+    Py_INCREF(code);
+    gen->gi_code = (PyObject *)(code);
     gen->gi_weakreflist = NULL;
     gen->gi_exc_state.exc_type = NULL;
     gen->gi_exc_state.exc_value = NULL;
@@ -949,13 +980,18 @@ gen_new_with_qualname(PyTypeObject *type, PyFrameObject *f,
 PyObject *
 PyGen_NewWithQualName(PyFrameObject *f, PyObject *name, PyObject *qualname)
 {
-    return gen_new_with_qualname(&PyGen_Type, f, name, qualname);
+    return gen_new_with_qualname(&PyGen_Type, f, f->f_code, name, qualname);
 }
 
 PyObject *
 PyGen_New(PyFrameObject *f)
 {
-    return gen_new_with_qualname(&PyGen_Type, f, NULL, NULL);
+    return gen_new_with_qualname(&PyGen_Type, f, f->f_code, NULL, NULL);
+}
+
+PyObject *
+CiGen_New_NoFrame(PyCodeObject *code) {
+    return gen_new_with_qualname(&PyGen_Type, NULL, code, code->co_name, code->co_qualname);
 }
 
 /* Coroutine Object */
@@ -1062,6 +1098,12 @@ cr_getrunning(PyCoroObject *coro, void *Py_UNUSED(ignored))
     return PyBool_FromLong(Ci_GenIsExecuting((PyGenObject *)coro));
 }
 
+static PyObject *
+Ci_coro_getframe(PyCoroObject *coro, void *Py_UNUSED(ignored))
+{
+    return Ci_genlike_getframe((PyGenObject *) coro, "cr_frame");
+}
+
 static PyGetSetDef coro_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the coroutine")},
@@ -1070,11 +1112,11 @@ static PyGetSetDef coro_getsetlist[] = {
     {"cr_await", (getter)coro_get_cr_await, NULL,
      PyDoc_STR("object being awaited on, or None")},
     {"cr_running", (getter)cr_getrunning, NULL, NULL},
+    {"cr_frame", (getter)Ci_coro_getframe, NULL, NULL},
     {NULL} /* Sentinel */
 };
 
 static PyMemberDef coro_memberlist[] = {
-    {"cr_frame",     T_OBJECT, offsetof(PyCoroObject, cr_frame),    READONLY|PY_AUDIT_READ},
     {"cr_code",      T_OBJECT, offsetof(PyCoroObject, cr_code),     READONLY|PY_AUDIT_READ},
     {"cr_origin",    T_OBJECT, offsetof(PyCoroObject, cr_origin),   READONLY},
     {NULL}      /* Sentinel */
@@ -1283,9 +1325,9 @@ compute_cr_origin(int origin_depth)
 
 static PyObject *
 coro_new(PyThreadState *tstate, PyFrameObject *f,
-         PyObject *name, PyObject *qualname)
+         PyCodeObject *code, PyObject *name, PyObject *qualname)
 {
-    PyObject *coro = gen_new_with_qualname(&PyCoro_Type, f, name, qualname);
+    PyObject *coro = gen_new_with_qualname(&PyCoro_Type, f, code, name, qualname);
     if (!coro) {
         return NULL;
     }
@@ -1309,15 +1351,22 @@ coro_new(PyThreadState *tstate, PyFrameObject *f,
 PyObject *
 PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
 {
-    return coro_new(PyThreadState_GET(), f, name, qualname);
+    return coro_new(PyThreadState_GET(), f, f->f_code, name, qualname);
 }
 
 PyObject *
 _PyCoro_NewTstate(PyThreadState *tstate, PyFrameObject *f,
                   PyObject *name, PyObject *qualname)
 {
-    return coro_new(tstate, f, name, qualname);
+    return coro_new(tstate, f, f->f_code, name, qualname);
 }
+
+PyObject *
+CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code)
+{
+    return coro_new(tstate, NULL, code, code->co_name, code->co_qualname);
+}
+
 
 /* ========= Asynchronous Generators ========= */
 
@@ -1458,6 +1507,11 @@ async_gen_athrow(PyAsyncGenObject *o, PyObject *args)
     return async_gen_athrow_new(o, args);
 }
 
+static PyObject *
+Ci_async_gen_getframe(PyAsyncGenObject *gen, void *Py_UNUSED(ignored))
+{
+    return Ci_genlike_getframe((PyGenObject *) gen, "ag_frame");
+}
 
 static PyGetSetDef async_gen_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
@@ -1466,11 +1520,11 @@ static PyGetSetDef async_gen_getsetlist[] = {
      PyDoc_STR("qualified name of the async generator")},
     {"ag_await", (getter)coro_get_cr_await, NULL,
      PyDoc_STR("object being awaited on, or None")},
+    {"ag_frame", (getter)Ci_async_gen_getframe, NULL, NULL},
     {NULL} /* Sentinel */
 };
 
 static PyMemberDef async_gen_memberlist[] = {
-    {"ag_frame",   T_OBJECT, offsetof(PyAsyncGenObject, ag_frame),   READONLY|PY_AUDIT_READ},
     {"ag_running", T_BOOL,   offsetof(PyAsyncGenObject, ag_running_async),
         READONLY},
     {"ag_code",    T_OBJECT, offsetof(PyAsyncGenObject, ag_code),    READONLY|PY_AUDIT_READ},
@@ -1564,13 +1618,8 @@ get_async_gen_state(void)
     return &interp->async_gen;
 }
 
-
-PyObject *
-PyAsyncGen_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
-{
-    PyAsyncGenObject *o;
-    o = (PyAsyncGenObject *)gen_new_with_qualname(
-        &PyAsyncGen_Type, f, name, qualname);
+static PyObject*
+Ci_async_gen_init(PyAsyncGenObject* o) {
     if (o == NULL) {
         return NULL;
     }
@@ -1581,6 +1630,23 @@ PyAsyncGen_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
     return (PyObject*)o;
 }
 
+PyObject *
+PyAsyncGen_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
+{
+    PyAsyncGenObject *o;
+    o = (PyAsyncGenObject *)gen_new_with_qualname(
+        &PyAsyncGen_Type, f, f->f_code, name, qualname);
+    return Ci_async_gen_init(o);
+}
+
+PyObject *
+CiAsyncGen_New_NoFrame(PyCodeObject *code)
+{
+    PyAsyncGenObject *o;
+    o = (PyAsyncGenObject *)gen_new_with_qualname(
+        &PyAsyncGen_Type, NULL, code, code->co_name, code->co_qualname);
+    return Ci_async_gen_init(o);
+}
 
 void
 _PyAsyncGen_ClearFreeLists(PyInterpreterState *interp)

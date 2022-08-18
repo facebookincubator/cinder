@@ -1065,6 +1065,12 @@ class PyBuildExt(build_ext):
                            ['_xxtestfuzz/_xxtestfuzz.c',
                             '_xxtestfuzz/fuzzer.c']))
 
+        # Helpers for testing cinder-specific C APIs and cinder-specific modifications
+        # to upstream CPython code
+        self.add(Extension('_testcindercapi', ['_testcindercapi.c'],
+                           extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
+
+
     def detect_readline_curses(self):
         # readline
         readline_termcap_library = ""

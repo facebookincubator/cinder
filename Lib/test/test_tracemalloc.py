@@ -131,7 +131,6 @@ class TestTracemallocEnabled(unittest.TestCase):
         traceback = tracemalloc.get_object_traceback(obj)
         self.assertEqual(traceback, obj_traceback)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_new_reference(self):
         tracemalloc.clear_traces()
         # gc.collect() indirectly calls PyList_ClearFreeList()
@@ -1029,17 +1028,14 @@ class TestCAPI(unittest.TestCase):
 
         self.assertEqual(self.get_traced_memory(), self.size)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_track(self):
         self.check_track(False)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_track_without_gil(self):
         # check that calling _PyTraceMalloc_Track() without holding the GIL
         # works too
         self.check_track(True)
 
-    @unittest.skipUnderCinderJIT("TODO(T125845107): needs line number support from shadow frames")
     def test_track_already_tracked(self):
         nframe = 5
         tracemalloc.start(nframe)

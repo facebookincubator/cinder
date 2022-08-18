@@ -1801,9 +1801,10 @@ _PyErr_CheckSignalsTstate(PyThreadState *tstate)
      */
     _Py_atomic_store(&is_tripped, 0);
 
-    PyObject *frame = (PyObject *)tstate->frame;
+    PyObject *frame = (PyObject *) PyThreadState_GetFrame(tstate);
     if (!frame) {
         frame = Py_None;
+        Py_INCREF(frame);
     }
 
     signal_state_t *state = &signal_global_state;
@@ -1850,11 +1851,13 @@ _PyErr_CheckSignalsTstate(PyThreadState *tstate)
         if (!result) {
             /* On error, re-schedule a call to _PyErr_CheckSignalsTstate() */
             _Py_atomic_store(&is_tripped, 1);
+            Py_DECREF(frame);
             return -1;
         }
 
         Py_DECREF(result);
     }
+    Py_DECREF(frame);
 
     return 0;
 }

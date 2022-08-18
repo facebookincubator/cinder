@@ -17,7 +17,8 @@ class FrameStateCreationTest : public RuntimeTest {};
 
 TEST_F(FrameStateCreationTest, InitialInstrOffset) {
   FrameState frame;
-  EXPECT_EQ(frame.instr_offset(), -1);
+  EXPECT_LT(frame.instr_offset(), 0);
+  EXPECT_EQ(frame.instr_offset().value() % sizeof(_Py_CODEUNIT), 0);
 }
 
 #ifdef CINDER_ENABLE_BROKEN_TESTS

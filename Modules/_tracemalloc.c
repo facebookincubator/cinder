@@ -1,4 +1,5 @@
 #include "Python.h"
+#include "cinder/exports.h"
 #include "pycore_gc.h"            // PyGC_Head
 #include "pycore_pymem.h"         // _Py_tracemalloc_config
 #include "pycore_traceback.h"
@@ -299,18 +300,13 @@ hashtable_compare_traceback(const void *key1, const void *key2)
 
 
 static void
-tracemalloc_get_frame(PyFrameObject *pyframe, frame_t *frame)
+tracemalloc_get_frame(PyObject *filename, int lineno, frame_t *frame)
 {
     frame->filename = unknown_filename;
-    int lineno = PyFrame_GetLineNumber(pyframe);
     if (lineno < 0) {
         lineno = 0;
     }
     frame->lineno = (unsigned int)lineno;
-
-    PyCodeObject *code = PyFrame_GetCode(pyframe);
-    PyObject *filename = code->co_filename;
-    Py_DECREF(code);
 
     if (filename == NULL) {
 #ifdef TRACE_DEBUG
@@ -383,6 +379,25 @@ traceback_hash(traceback_t *traceback)
     return x;
 }
 
+/*
+ * NB: Callers of this function may hold `tables_lock`. As a result, this
+ * function, or any of its transitive callees, cannot allocate Python
+ * objects. Doing so would re-enter tracemalloc code that attempts to acquire
+ * `tables_lock`, causing a deadlock as `tables_lock` is not re-entrant.
+ */
+static CiStackWalkDirective
+Ci_traceback_process_frame(void *data, PyCodeObject *code, int lineno) {
+    traceback_t *traceback = (traceback_t *) data;
+    if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
+        tracemalloc_get_frame(code->co_filename, lineno, &traceback->frames[traceback->nframe]);
+        assert(traceback->frames[traceback->nframe].filename != NULL);
+        traceback->nframe++;
+    }
+    if (traceback->total_nframe < UINT16_MAX) {
+        traceback->total_nframe++;
+    }
+    return CI_SWD_CONTINUE_STACK_WALK;
+}
 
 static void
 traceback_get_frames(traceback_t *traceback)
@@ -394,22 +409,7 @@ traceback_get_frames(traceback_t *traceback)
 #endif
         return;
     }
-
-    PyFrameObject *pyframe = PyThreadState_GetFrame(tstate);
-    for (; pyframe != NULL;) {
-        if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
-            tracemalloc_get_frame(pyframe, &traceback->frames[traceback->nframe]);
-            assert(traceback->frames[traceback->nframe].filename != NULL);
-            traceback->nframe++;
-        }
-        if (traceback->total_nframe < UINT16_MAX) {
-            traceback->total_nframe++;
-        }
-
-        PyFrameObject *back = PyFrame_GetBack(pyframe);
-        Py_DECREF(pyframe);
-        pyframe = back;
-    }
+    Ci_WalkStack(tstate, Ci_traceback_process_frame, traceback);
 }
 
 

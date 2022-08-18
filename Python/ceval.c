@@ -1639,6 +1639,16 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     trace_info.cframe.previous = prev_cframe;
     tstate->cframe = &trace_info.cframe;
 
+    /*
+     * When shadow-frame mode is active, `tstate->frame` may have changed
+     * between when `f` was allocated and now. Reset `f->f_back` to point to
+     * the top-most frame if so.
+     */
+    if (f->f_back != tstate->frame) {
+      Py_XINCREF(tstate->frame);
+      Py_XSETREF(f->f_back, tstate->frame);
+    }
+
     /* push frame */
     tstate->frame = f;
     co = f->f_code;
@@ -7530,18 +7540,14 @@ _PyEval_GetAsyncGenFinalizer(void)
 PyFrameObject *
 PyEval_GetFrame(void)
 {
-    PyThreadState *tstate = _PyThreadState_GET();
-    return tstate->frame;
+    PyThreadState* tstate = _PyThreadState_GET();
+    return _PyJIT_GetFrame(tstate);
 }
 
 PyObject *
 _PyEval_GetBuiltins(PyThreadState *tstate)
 {
-    PyFrameObject *frame = tstate->frame;
-    if (frame != NULL) {
-        return frame->f_builtins;
-    }
-    return tstate->interp->builtins;
+    return _PyJIT_GetBuiltins(tstate);
 }
 
 PyObject *
@@ -7570,11 +7576,12 @@ PyObject *
 PyEval_GetLocals(void)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyFrameObject *current_frame = tstate->frame;
+    PyFrameObject *current_frame = PyThreadState_GetFrame(tstate);
     if (current_frame == NULL) {
         _PyErr_SetString(tstate, PyExc_SystemError, "frame does not exist");
         return NULL;
     }
+    Py_DECREF(current_frame);
 
     if (PyFrame_FastToLocalsWithError(current_frame) < 0) {
         return NULL;
@@ -7588,24 +7595,28 @@ PyObject *
 PyEval_GetGlobals(void)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyFrameObject *current_frame = tstate->frame;
-    if (current_frame == NULL) {
-        return NULL;
-    }
+    return _PyJIT_GetGlobals(tstate);
+}
 
-    assert(current_frame->f_globals != NULL);
-    return current_frame->f_globals;
+static CiStackWalkDirective
+Ci_get_topmost_code(void *ptr, PyCodeObject *code, int lineno)
+{
+    PyCodeObject **topmost_code = (PyCodeObject **) ptr;
+    *topmost_code = code;
+    return CI_SWD_STOP_STACK_WALK;
 }
 
 int
 PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyFrameObject *current_frame = tstate->frame;
+    PyCodeObject *cur_code = NULL;
     int result = cf->cf_flags != 0;
 
-    if (current_frame != NULL) {
-        const int codeflags = current_frame->f_code->co_flags;
+    Ci_WalkStack(tstate, Ci_get_topmost_code, &cur_code);
+
+    if (cur_code != NULL) {
+        const int codeflags = cur_code->co_flags;
         const int compilerflags = codeflags & PyCF_MASK;
         if (compilerflags) {
             result = 1;

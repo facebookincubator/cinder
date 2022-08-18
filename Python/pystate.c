@@ -632,6 +632,7 @@ new_threadstate(PyInterpreterState *interp, int init)
     tstate->recursion_depth = 0;
     tstate->recursion_headroom = 0;
     tstate->stackcheck_counter = 0;
+    tstate->shadow_frame = NULL;
 
     tstate->profile_interp = 0;
     if (g_profile_new_interp_threads) {
@@ -844,7 +845,7 @@ PyThreadState_Clear(PyThreadState *tstate)
 {
     int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
 
-    if (verbose && tstate->frame != NULL) {
+    if (verbose && tstate->shadow_frame != NULL) {
         /* bpo-20526: After the main thread calls
            _PyRuntimeState_SetFinalizing() in Py_FinalizeEx(), threads must
            exit when trying to take the GIL. If a thread exit in the middle of
@@ -1111,7 +1112,7 @@ PyFrameObject*
 PyThreadState_GetFrame(PyThreadState *tstate)
 {
     assert(tstate != NULL);
-    PyFrameObject *frame = tstate->frame;
+    PyFrameObject *frame = _PyJIT_GetFrame(tstate);
     Py_XINCREF(frame);
     return frame;
 }
@@ -1232,16 +1233,18 @@ _PyThread_CurrentFrames(void)
     for (i = runtime->interpreters.head; i != NULL; i = i->next) {
         PyThreadState *t;
         for (t = i->tstate_head; t != NULL; t = t->next) {
-            PyFrameObject *frame = t->frame;
+            PyFrameObject *frame = PyThreadState_GetFrame(t);
             if (frame == NULL) {
                 continue;
             }
             PyObject *id = PyLong_FromUnsignedLong(t->thread_id);
             if (id == NULL) {
+                Py_DECREF(frame);
                 goto fail;
             }
             int stat = PyDict_SetItem(result, id, (PyObject *)frame);
             Py_DECREF(id);
+            Py_DECREF(frame);
             if (stat < 0) {
                 goto fail;
             }
