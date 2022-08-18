@@ -13,7 +13,6 @@ class LiteralsTests(StaticTestBase):
         """
         self.type_error(codestr, r"return type must be Literal\[False\]", "return x")
 
-    @skip("TODO(T129247682): Literal compiler bug")
     def test_literal_bool_annotation_runtime_cast(self) -> None:
         codestr = """
             from typing import Literal
@@ -22,7 +21,7 @@ class LiteralsTests(StaticTestBase):
                 return x
         """
         with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "COMPARE_OP", "is")
+            self.assertInBytecode(mod.f, "IS_OP", 0)
             self.assertIs(mod.f(False), False)
             with self.assertRaises(TypeError):
                 mod.f(True)

@@ -6715,7 +6715,7 @@ class NumClass(Class):
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         if self.literal_value is None or src is not self.type_env.dynamic:
             return super().emit_type_check(src, code_gen)
-        common_literal_emit_type_check(self.literal_value, "==", code_gen)
+        common_literal_emit_type_check(self.literal_value, "COMPARE_OP", "==", code_gen)
 
 
 class NumInstance(Object[NumClass]):
@@ -6991,11 +6991,14 @@ def common_sequence_emit_forloop(
 
 
 def common_literal_emit_type_check(
-    literal_value: object, comp_type: str, code_gen: Static38CodeGenerator
+    literal_value: object,
+    comp_opname: str,
+    comp_opcode: object,
+    code_gen: Static38CodeGenerator,
 ) -> None:
     code_gen.emit("DUP_TOP")
     code_gen.emit("LOAD_CONST", literal_value)
-    code_gen.emit("COMPARE_OP", comp_type)
+    code_gen.emit(comp_opname, comp_opcode)
     end = code_gen.newBlock()
     code_gen.emit("POP_JUMP_IF_TRUE", end)
     code_gen.nextBlock()
@@ -7689,7 +7692,7 @@ class BoolClass(Class):
     def emit_type_check(self, src: Class, code_gen: Static38CodeGenerator) -> None:
         if self.literal_value is None or src is not self.type_env.dynamic:
             return super().emit_type_check(src, code_gen)
-        common_literal_emit_type_check(self.literal_value, "is", code_gen)
+        common_literal_emit_type_check(self.literal_value, "IS_OP", 0, code_gen)
 
     def _create_readonly_type(self) -> Class:
         return self  # exact bool is always mutable
