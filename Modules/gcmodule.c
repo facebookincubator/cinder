@@ -2392,3 +2392,17 @@ PyObject_GC_IsFinalized(PyObject *obj)
     }
     return 0;
 }
+
+void
+_PyGC_VisitObjects(void (*callback)(PyObject*, void*), void* arg) {
+    int i;
+    GCState* gcstate = get_gc_state();
+    for (i = 0; i < NUM_GENERATIONS; i++) {
+        PyGC_Head *gc_list, *gc;
+        gc_list = GEN_HEAD(gcstate, i);
+        for (gc = GC_NEXT(gc_list); gc != gc_list; gc = GC_NEXT(gc)) {
+            PyObject *op = FROM_GC(gc);
+            callback(op, arg);
+        }
+    }
+}

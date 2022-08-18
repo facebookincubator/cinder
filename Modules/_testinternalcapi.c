@@ -364,6 +364,52 @@ test_edit_cost(PyObject *self, PyObject *Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
+struct gc_visit_state {
+    PyObject *target;
+    int found;
+};
+
+static void
+gc_visit_callback(PyObject *obj, void* arg) {
+    struct gc_visit_state *state = (struct gc_visit_state *)arg;
+    if (obj == state->target) {
+        state->found = 1;
+    }
+}
+
+static PyObject *
+test_gc_visit_objects(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(ignored)) {
+    /* Basic sanity test: does it find objects as appropriate? */
+    PyObject *obj;
+    struct gc_visit_state state;
+
+    obj = PyList_New(0);
+    if (obj == NULL) {
+        goto error;
+    }
+    state.target = obj;
+    state.found = 0;
+
+    _PyGC_VisitObjects(gc_visit_callback, &state);
+    if (!state.found) {
+        PyErr_SetString(
+            PyExc_AssertionError,
+            "test_gc_visit_objects: Didn't find live list");
+        goto error;
+    }
+
+    int error = 0;
+    goto done;
+error:
+    error = 1;
+done:
+    Py_XDECREF(obj);
+    if (error) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 
 static PyMethodDef TestMethods[] = {
     {"get_configs", get_configs, METH_NOARGS},
@@ -376,6 +422,7 @@ static PyMethodDef TestMethods[] = {
     {"set_config", test_set_config, METH_O},
     {"test_atomic_funcs", test_atomic_funcs, METH_NOARGS},
     {"test_edit_cost", test_edit_cost, METH_NOARGS},
+    {"test_gc_visit_objects", test_gc_visit_objects, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 

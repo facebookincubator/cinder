@@ -165,6 +165,11 @@ extern void _PyGC_InitState(struct _gc_runtime_state *);
 
 extern Py_ssize_t _PyGC_CollectNoFail(PyThreadState *tstate);
 
+/* Visit all live GC-capable objects, similar to gc.get_objects(None).
+ *
+ * Users should avoid allocating or deallocating objects on the Python heap in
+ * the callback. */
+PyAPI_FUNC(void) _PyGC_VisitObjects(void (*callback)(PyObject*, void*), void* arg);
 
 // Functions to clear types free lists
 extern void _PyFrame_ClearFreeList(PyInterpreterState *interp);
