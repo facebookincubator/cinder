@@ -49,7 +49,6 @@ class ContextDecoratorTests(StaticTestBase):
                 (((mod.__name__, "C", "f"), 0)),
             )
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_simple_async(self):
         codestr = """
             from __future__ import annotations
@@ -217,7 +216,6 @@ class ContextDecoratorTests(StaticTestBase):
                 ((("__static__", "ExcContextDecorator", "_recreate_cm"), 1)),
             )
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_static_method_compat_with_arg(self):
         codestr = """
             from __future__ import annotations
@@ -243,7 +241,6 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertEqual(C().f(C()), 42)
             self.assertEqual(C.f(C()), 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_class_method(self):
         codestr = """
             from __future__ import annotations
@@ -304,7 +301,6 @@ class ContextDecoratorTests(StaticTestBase):
             g = mod.g
             self.assertInBytecode(g, "INVOKE_FUNCTION", (((mod.__name__, "f"), 0)))
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_recreate_cm(self):
         codestr = """
             from __future__ import annotations
@@ -327,7 +323,6 @@ class ContextDecoratorTests(StaticTestBase):
             )
             self.assertEqual(C().f(), 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_recreate_cm_final(self):
         codestr = """
             from __future__ import annotations
@@ -353,7 +348,6 @@ class ContextDecoratorTests(StaticTestBase):
             )
             self.assertEqual(C().f(), 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_stacked(self):
         codestr = """
             from __future__ import annotations
@@ -411,7 +405,6 @@ class ContextDecoratorTests(StaticTestBase):
                 ],
             )
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_simple_func(self):
         codestr = """
             from __future__ import annotations
@@ -445,7 +438,6 @@ class ContextDecoratorTests(StaticTestBase):
                 (((mod.__name__, "C", "f"), 0)),
             )
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_simple_method(self):
         codestr = """
             from __future__ import annotations
@@ -516,7 +508,6 @@ class ContextDecoratorTests(StaticTestBase):
             ((("__static__", "ExcContextDecorator", "_recreate_cm"), 0)),
         )
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_base(self):
         class C(ContextDecorator):
             pass
@@ -527,7 +518,7 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(f(), 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_base_async(self):
         class C(ContextDecorator):
             pass
@@ -540,7 +531,7 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(StopIteration):
             x.send(None)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_eager(self):
         class C(ContextDecorator):
             pass
@@ -557,7 +548,7 @@ class ContextDecoratorTests(StaticTestBase):
             x.send(None)
         self.assertEqual(si.exception.args[0], 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_eager_exit_raises(self):
         class C(ContextDecorator):
             def __exit__(self, *args):
@@ -574,7 +565,7 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(ValueError):
             x.send(None)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_base_async_exit(self):
         exit_called = False
 
@@ -592,7 +583,7 @@ class ContextDecoratorTests(StaticTestBase):
             x.send(None)
             self.assertTrue(exit_called)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_base_async_exit_raises(self):
         exit_called = False
 
@@ -610,7 +601,7 @@ class ContextDecoratorTests(StaticTestBase):
             x.send(None)
         self.assertTrue(exit_called)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_steps(self):
         exit_called = False
 
@@ -637,7 +628,7 @@ class ContextDecoratorTests(StaticTestBase):
         self.assertTrue(exit_called)
         loop.close()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_raise_and_suppress_async(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -658,7 +649,7 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(asyncio.run(g()), None)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_steps_raises(self):
         exit_called = False
 
@@ -684,7 +675,7 @@ class ContextDecoratorTests(StaticTestBase):
         self.assertTrue(exit_called)
         loop.close()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_base_async_no_await(self):
         class C(ContextDecorator):
             pass
@@ -697,7 +688,6 @@ class ContextDecoratorTests(StaticTestBase):
         # in ref leak tests
         x = f()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_override(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -715,7 +705,6 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(f(), 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_raise(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -734,7 +723,6 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(ValueError):
             f()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_raise_bad_true(self):
         class B:
             def __bool__(self):
@@ -757,7 +745,6 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(ValueError):
             f()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_raise_on_exit_error(self):
         class B:
             def __bool__(self):
@@ -780,7 +767,6 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(ValueError):
             f()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_raise_on_exit_success(self):
         class B:
             def __bool__(self):
@@ -803,7 +789,6 @@ class ContextDecoratorTests(StaticTestBase):
         with self.assertRaises(ValueError):
             f()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_raise_and_suppress(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -821,7 +806,7 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(f(), None)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_suppress_on_throw(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -848,7 +833,7 @@ class ContextDecoratorTests(StaticTestBase):
         self.assertEqual(e.exception.args, ())
         loop.close()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_suppress_on_throw_no_send(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -880,7 +865,6 @@ class ContextDecoratorTests(StaticTestBase):
 
         loop.close()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_recreate(self):
         class C(ContextDecorator):
             def _recreate_cm(self_):
@@ -901,7 +885,6 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(f(), None)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_change_recreate_cm(self):
         class C(ContextDecorator):
             def _recreate_cm(self):
@@ -925,7 +908,6 @@ class ContextDecoratorTests(StaticTestBase):
         C._recreate_cm = raises
         self.assertRaises(ValueError, f)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_wraps(self):
         class C(ContextDecorator):
             pass
@@ -936,7 +918,6 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(f.__name__, "f")
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_custom_attr(self):
         class C(ContextDecorator):
             pass
@@ -948,7 +929,6 @@ class ContextDecoratorTests(StaticTestBase):
         f.foo = 42
         self.assertEqual(f.foo, 42)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_dict_copy(self):
         class C(ContextDecorator):
             pass
@@ -966,7 +946,7 @@ class ContextDecoratorTests(StaticTestBase):
         self.assertEqual(f.foo, 42)
         self.assertEqual(f.bar, "abc")
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_coroutine(self):
         class C(ContextDecorator):
             pass
@@ -977,7 +957,6 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertTrue(asyncio.iscoroutinefunction(f))
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_nonstatic_signature(self):
         class C(ContextDecorator):
             pass
@@ -991,7 +970,7 @@ class ContextDecoratorTests(StaticTestBase):
 
         self.assertEqual(inspect.signature(f), inspect.signature(other))
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_enter_deferred(self):
         enter_called = False
 
@@ -1007,7 +986,7 @@ class ContextDecoratorTests(StaticTestBase):
         x = f()
         self.assertFalse(enter_called)
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_nonstatic_async_return_tuple_on_throw(self):
         class C(ContextDecorator):
             pass
@@ -1032,7 +1011,7 @@ class ContextDecoratorTests(StaticTestBase):
         finally:
             loop.close()
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_stack_trace(self):
         coro = None
         await_stack = None
@@ -1056,7 +1035,7 @@ class ContextDecoratorTests(StaticTestBase):
         asyncio.run(g_coro)
         self.assertEqual(await_stack, [g_coro])
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
+    @skip("TODO(T128335015): async classloader support missing")
     def test_stack_trace_non_eager(self):
         coro = None
         await_stack = None
@@ -1169,7 +1148,6 @@ class ContextDecoratorTests(StaticTestBase):
         """
         self.revealed_type(codestr, "int")
 
-    @skip("TODO(T128971452): context decorator C functions not enabled")
     def test_call_error_nonstatic(self):
         codestr = """
             from __static__ import ContextDecorator
