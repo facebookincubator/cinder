@@ -167,12 +167,6 @@ def skipUnless(condition, reason):
         return skip(reason)
     return _id
 
-def skipIfLazyImportsEnabled(reason):
-    return skipIf(importlib.is_lazy_imports_enabled(), reason)
-
-def skipIfLazyImportsDisabled(reason):
-    return skipUnless(importlib.is_lazy_imports_enabled(), reason)
-
 def skipUnderCinderJIT(reason):
     if CINDERJIT_ENABLED:
         return skip(reason)

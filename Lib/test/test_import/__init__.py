@@ -2,6 +2,7 @@ import builtins
 import contextlib
 import errno
 import glob
+from importlib import is_lazy_imports_enabled
 import importlib.util
 from importlib._bootstrap_external import _get_sourcefile
 import marshal
@@ -436,7 +437,7 @@ class ImportTests(unittest.TestCase):
             with self.assertRaises(AttributeError):
                 os.does_not_exist
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior for sub-sub-modules")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior for sub-sub-modules")
     def test_concurrency(self):
         # bpo 38091: this is a hack to slow down the code that calls
         # has_deadlock(); the logic was itself sometimes deadlocking.
@@ -755,7 +756,7 @@ class RelativeImportTests(unittest.TestCase):
         from .. import relimport
         self.assertTrue(hasattr(relimport, "RelativeImportTests"))
 
-    @unittest.skipIfLazyImportsEnabled("Test relevant only when running with lazy imports disabled")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports disabled")
     def test_issue3221(self):
         # Note for mergers: the 'absolute' tests from the 2.x branch
         # are missing in Py3k because implicit relative imports are
@@ -807,7 +808,7 @@ class RelativeImportTests(unittest.TestCase):
             self.assertNotIn('submodule1', sys.modules)
             self.assertNotIn('submodule2', sys.modules)
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior for sub-sub-modules.")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior for sub-sub-modules.")
     def test_import_from_unloaded_package(self):
         with uncache('package2', 'package2.submodule1', 'package2.submodule2'), \
              DirsOnSysPath(os.path.join(os.path.dirname(__file__), 'data')):
@@ -1150,7 +1151,7 @@ class ImportTracebackTests(unittest.TestCase):
             self.fail("ImportError should have been raised")
         self.assert_traceback(tb, [__file__])
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior in nested modules")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior in nested modules")
     def test_nonexistent_module_nested(self):
         self.create_module("foo", "import nonexistent_xyzzy")
         try:
@@ -1171,7 +1172,7 @@ class ImportTracebackTests(unittest.TestCase):
             self.fail("ZeroDivisionError should have been raised")
         self.assert_traceback(tb, [__file__, 'foo.py'])
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior in nested modules")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior in nested modules")
     def test_exec_failure_nested(self):
         self.create_module("foo", "import bar")
         self.create_module("bar", "1/0")
@@ -1336,7 +1337,7 @@ class CircularImportTests(unittest.TestCase):
         import test.test_import.data.circular_imports.use
         import test.test_import.data.circular_imports.source
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior for circular imports")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior for circular imports")
     def test_crossreference2(self):
         with self.assertRaises(AttributeError) as cm:
             import test.test_import.data.circular_imports.source
@@ -1346,7 +1347,7 @@ class CircularImportTests(unittest.TestCase):
         self.assertIn('partially initialized module', errmsg)
         self.assertIn('circular import', errmsg)
 
-    @unittest.skipIfLazyImportsEnabled("Lazy Imports has different behavior for circular imports")
+    @unittest.skipIf(is_lazy_imports_enabled(), "Lazy Imports has different behavior for circular imports")
     def test_circular_from_import(self):
         with self.assertRaises(ImportError) as cm:
             import test.test_import.data.circular_imports.from_cycle1
