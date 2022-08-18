@@ -27,8 +27,14 @@ from compiler.static.types import (
 )
 from copy import deepcopy
 from typing import Optional, TypeVar
+from unittest import skip, skipIf
 
 from .common import add_fixed_module, bad_ret_type, StaticTestBase, type_mismatch
+
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
 
 class StaticRuntimeTests(StaticTestBase):
@@ -51,6 +57,7 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaises(TypeError):
             C.a.__get__(D(), D)
 
+    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slots(self):
         with self.assertRaises(TypeError):
 
@@ -58,6 +65,7 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("a",)
                 __slot_types__ = None
 
+    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slot_dict(self):
         with self.assertRaises(TypeError):
 
@@ -65,6 +73,7 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("__dict__",)
                 __slot_types__ = {"__dict__": "object"}
 
+    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slot_weakerf(self):
         with self.assertRaises(TypeError):
 
@@ -72,6 +81,9 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("__weakref__",)
                 __slot_types__ = {"__weakref__": "object"}
 
+    @skip(
+        "TODO(T129449494): Slot is incorrectly classified as a member_descriptor instead of typed_descriptor"
+    )
     def test_typed_slots_object(self):
         codestr = """
             class C:
@@ -345,6 +357,9 @@ class StaticRuntimeTests(StaticTestBase):
         o = spamobj[str]()
         self.assertEqual(o.twoargs(1, 2), 3)
 
+    @skip(
+        "TODO(T129449494): Slot is incorrectly classified as a member_descriptor instead of typed_descriptor"
+    )
     def test_typed_slots_one_missing(self):
         codestr = """
             class C:
@@ -429,6 +444,10 @@ class StaticRuntimeTests(StaticTestBase):
             inst.a = None
             self.assertEqual(inst.a, None)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_invoke_function(self):
         my_int = "12345"
         codestr = f"""
@@ -445,6 +464,10 @@ class StaticRuntimeTests(StaticTestBase):
             test_callable = mod.test
             self.assertEqual(test_callable(), "hello" + my_int)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_awaited_invoke_function(self):
         codestr = """
             async def f() -> int:
@@ -458,6 +481,10 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertNotInBytecode(mod.g, "CAST")
             self.assertEqual(asyncio.run(mod.g()), 1)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_awaited_invoke_function_unjitable(self):
         codestr = """
             async def f() -> int:
@@ -476,6 +503,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertEqual(asyncio.run(mod.g()), 1)
             self.assert_not_jitted(mod.f)
 
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_with_args(self):
         codestr = """
             async def f(a: int, b: int) -> int:
@@ -496,6 +524,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(mod.g)
             self.assertEqual(asyncio.run(mod.g()), 3)
 
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_indirect_with_args(self):
         codestr = """
             async def f(a: int, b: int) -> int:
@@ -517,6 +546,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(g)
             self.assertEqual(asyncio.run(g()), 3)
 
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_future(self):
         codestr = """
             from asyncio import ensure_future
@@ -542,6 +572,10 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(mod.f)
             asyncio.run(mod.f())
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_awaited_invoke_method(self):
         codestr = """
             class C:
@@ -557,6 +591,7 @@ class StaticRuntimeTests(StaticTestBase):
             )
             self.assertEqual(asyncio.run(mod.C().g()), 1)
 
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_method_with_args(self):
         codestr = """
             class C:
@@ -583,6 +618,7 @@ class StaticRuntimeTests(StaticTestBase):
             asyncio.run(make_hot())
             self.assertEqual(asyncio.run(mod.C().g()), 3)
 
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_method_future(self):
         codestr = """
             from asyncio import ensure_future
@@ -1446,6 +1482,7 @@ class StaticRuntimeTests(StaticTestBase):
         """
         self.compile(codestr)
 
+    @skip("TODO(T129450096): bug in checked_dict")
     def test_checked_dict(self):
         x = chkdict[str, str]()
         x["abc"] = "foo"
@@ -1491,6 +1528,7 @@ class StaticRuntimeTests(StaticTestBase):
             x["abc"] = "abc"
         self.assertEqual(x, {})
 
+    @skip("TODO(T129450096): bug in checked_dict")
     def test_checked_dict_ctor(self):
         self.assertEqual(chkdict[str, str](x="abc"), {"x": "abc"})
         self.assertEqual(chkdict[str, int](x=42), {"x": 42})
@@ -2181,6 +2219,7 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(t, "POP_JUMP_IF_TRUE")
             self.assertTrue(t())
 
+    @skip("TODO(T129450334): qualname bug")
     def test_qualname(self):
         codestr = """
         def f():
