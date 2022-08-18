@@ -1731,12 +1731,10 @@ void HIRBuilder::emitAnyCall(
       break;
     }
     case INVOKE_FUNCTION: {
-      PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
       call_used_is_awaited = emitInvokeFunction(tc, bc_instr, is_awaited);
       break;
     }
     case INVOKE_METHOD: {
-      PORT_ASSERT("Need to handle not yet existing Static Python opcodes");
       call_used_is_awaited = emitInvokeMethod(tc, bc_instr, is_awaited);
       break;
     }
@@ -2366,7 +2364,6 @@ void HIRBuilder::emitJumpIf(
   switch (bc_instr.opcode()) {
     case JUMP_IF_NONZERO_OR_POP:
       check_truthy = false;
-      PORT_ASSERT("Needs Static Python features");
     case JUMP_IF_TRUE_OR_POP: {
       true_offset = bc_instr.GetJumpTarget();
       false_offset = bc_instr.NextInstrOffset();
@@ -2374,7 +2371,6 @@ void HIRBuilder::emitJumpIf(
     }
     case JUMP_IF_ZERO_OR_POP:
       check_truthy = false;
-      PORT_ASSERT("Needs Static Python features");
     case JUMP_IF_FALSE_OR_POP: {
       false_offset = bc_instr.GetJumpTarget();
       true_offset = bc_instr.NextInstrOffset();
@@ -3549,14 +3545,12 @@ void HIRBuilder::emitPopJumpIf(
   BCOffset true_offset, false_offset;
   switch (bc_instr.opcode()) {
     case POP_JUMP_IF_ZERO:
-      PORT_ASSERT("Needs Static Python features");
     case POP_JUMP_IF_FALSE: {
       true_offset = bc_instr.NextInstrOffset();
       false_offset = bc_instr.GetJumpTarget();
       break;
     }
     case POP_JUMP_IF_NONZERO:
-      PORT_ASSERT("Needs Static Python features");
     case POP_JUMP_IF_TRUE: {
       true_offset = bc_instr.GetJumpTarget();
       false_offset = bc_instr.NextInstrOffset();

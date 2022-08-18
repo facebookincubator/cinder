@@ -32,7 +32,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class PrimitivesTests(StaticTestBase):
     def test_primitive_context_ifexp(self) -> None:
         codestr = """
@@ -611,6 +610,10 @@ class PrimitivesTests(StaticTestBase):
                         f(), expected_result, f"n_fp: {n_fp}, n_gp: {n_gp}"
                     )
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_all_arg_regs_used_mixed_gp_and_fp_coro(self):
         for n_fp in range(8, 10):
             for n_gp in range(6, 8):
@@ -886,6 +889,10 @@ class PrimitivesTests(StaticTestBase):
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
         self.assertEqual(f(1, 2), False)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_int_compare_mixed(self):
         codestr = """
         from __static__ import box, ssize_t
@@ -2828,6 +2835,10 @@ class PrimitivesTests(StaticTestBase):
                 with self.in_strict_module(codestr) as mod:
                     self.assertEqual(mod.g(), expected)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_primitive_return(self):
         cases = [
             ("cbool", True),
@@ -2912,6 +2923,10 @@ class PrimitivesTests(StaticTestBase):
                     else:
                         self.assert_jitted(f)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_primitive_return_recursive(self):
         codestr = """
             from __static__ import int32

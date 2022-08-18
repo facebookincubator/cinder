@@ -139,7 +139,6 @@ static void fill_primitive_arg_types_builtin(
 static std::unique_ptr<InvokeTarget> resolve_target_descr(
     BorrowedRef<> descr,
     int opcode) {
-#ifdef CINDER_PORTING_DONE
   auto target = std::make_unique<InvokeTarget>();
   PyObject* container;
   auto callable =
@@ -214,11 +213,6 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   }
 
   return target;
-#else
-  PORT_ASSERT("Probably needs Static Python to be meaningful");
-  (void)descr;
-  (void)opcode;
-#endif
 }
 
 BorrowedRef<PyFunctionObject> InvokeTarget::func() const {
@@ -302,7 +296,6 @@ BorrowedRef<> Preloader::constArg(BytecodeInstruction& bc_instr) const {
 
 void Preloader::preload() {
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
-    PORT_ASSERT("Needs Static Python support");
     return_type_ = to_jit_type(
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
   }
@@ -325,7 +318,6 @@ void Preloader::preload() {
         break;
       }
       case CHECK_ARGS: {
-        PORT_ASSERT("Needs Static Python support");
         BorrowedRef<PyTupleObject> checks =
             reinterpret_cast<PyTupleObject*>(constArg(bc_instr).get());
         for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
@@ -363,7 +355,6 @@ void Preloader::preload() {
       }
       case BUILD_CHECKED_LIST:
       case BUILD_CHECKED_MAP: {
-        PORT_ASSERT("Needs Static Python support");
         BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         types_.emplace(descr, resolve_type_descr(descr));
         break;
@@ -374,21 +365,18 @@ void Preloader::preload() {
       case PRIMITIVE_UNBOX:
       case REFINE_TYPE:
       case TP_ALLOC: {
-        PORT_ASSERT("Needs Static Python support");
         BorrowedRef<> descr = constArg(bc_instr);
         types_.emplace(descr, resolve_type_descr(descr));
         break;
       }
       case LOAD_FIELD:
       case STORE_FIELD: {
-        PORT_ASSERT("Needs Static Python support");
         BorrowedRef<PyTupleObject> descr(constArg(bc_instr));
         fields_.emplace(descr, resolve_field_descr(descr));
         break;
       }
       case INVOKE_FUNCTION:
       case INVOKE_METHOD: {
-        PORT_ASSERT("Needs Static Python support");
         BorrowedRef<PyObject> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         auto& map = bc_instr.opcode() == INVOKE_FUNCTION ? func_targets_
                                                          : meth_targets_;
@@ -399,7 +387,6 @@ void Preloader::preload() {
   }
 
   if (has_primitive_args_) {
-    PORT_ASSERT("Needs Static Python support");
     prim_args_info_ = Ref<_PyTypedArgsInfo>::steal(
         _PyClassLoader_GetTypedArgsInfo(code_, true));
   }

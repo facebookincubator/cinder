@@ -30,11 +30,6 @@ from typing import Optional, TypeVar
 
 from .common import add_fixed_module, bad_ret_type, StaticTestBase, type_mismatch
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
-
 
 class StaticRuntimeTests(StaticTestBase):
     def test_bad_slots_qualname_conflict(self):

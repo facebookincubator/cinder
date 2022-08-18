@@ -6,17 +6,11 @@ from compiler.static import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     CACHED_PROPERTY_IMPL_PREFIX,
 )
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class CachedPropertyTests(StaticTestBase):
     def test_cached_property(self):
         codestr = """

@@ -3,14 +3,12 @@ from unittest import skip, skipIf
 
 from .common import bad_ret_type, StaticTestBase
 
-
 try:
     import cinderjit
 except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class PropertyTests(StaticTestBase):
     def test_property_getter(self):
         codestr = """
@@ -69,6 +67,10 @@ class PropertyTests(StaticTestBase):
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(C()), 42)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_property_getter_async(self):
         codestr = """
             class C:

@@ -1,15 +1,9 @@
 import asyncio
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class ClassMethodTests(StaticTestBase):
     def test_classmethod_from_non_final_class_calls_invoke_function(self):
         codestr = """

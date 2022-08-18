@@ -1486,7 +1486,6 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
 #endif
         break;
       case jit::DeoptReason::kRaiseStatic:
-        PORT_ASSERT("Needs static python feature");
         JIT_CHECK(false, "Lost exception when raising static exception");
         break;
       case DeoptReason::kReraise:

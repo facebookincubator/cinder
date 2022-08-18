@@ -5,7 +5,7 @@ from compiler.static.types import (
     TYPED_INT16,
     TYPED_INT8,
 )
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
@@ -15,7 +15,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class BinopTests(StaticTestBase):
     def test_pow_of_int64s_returns_double(self):
         codestr = """

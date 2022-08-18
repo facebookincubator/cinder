@@ -1,19 +1,13 @@
 import itertools
 import unittest
 from compiler.static.types import TypedSyntaxError
-from unittest import skip, skipIf
+from unittest import skip
 
 from _static import PRIM_OP_EQ_INT, TYPED_INT64
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class StaticEnumTests(StaticTestBase):
     def test_mixins_unsupported(self):
         codestr = """

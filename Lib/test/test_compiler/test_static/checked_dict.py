@@ -11,8 +11,11 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class CheckedDictTests(StaticTestBase):
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_invoke_chkdict_method(self):
         codestr = """
         from __static__ import CheckedDict
@@ -551,6 +554,7 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, int])
 
+    @skip("TODO(T129369740): Failing assertion in PyCode_Addr2Line")
     def test_compile_checked_dict_len(self):
         codestr = """
             from __static__ import CheckedDict
@@ -569,6 +573,7 @@ class CheckedDictTests(StaticTestBase):
                 stats = cinderjit.get_and_clear_runtime_stats().get("deopt")
                 self.assertFalse(stats)
 
+    @skip("TODO(T129369740): Failing assertion in PyCode_Addr2Line")
     def test_compile_checked_dict_clen(self):
         codestr = """
             from __static__ import CheckedDict, clen, int64

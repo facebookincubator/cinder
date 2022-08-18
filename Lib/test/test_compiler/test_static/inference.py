@@ -1,15 +1,9 @@
 import re
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class InferenceTests(StaticTestBase):
     def test_if_exp_union(self) -> None:
         """If expressions can be inferred as the union of the branches."""

@@ -1,14 +1,6 @@
-from unittest import skipIf
-
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class SuperTests(StaticTestBase):
     def test_method_in_parent_class(self):
         codestr = """

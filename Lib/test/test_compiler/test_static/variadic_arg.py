@@ -9,7 +9,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class VariadicArgTests(StaticTestBase):
     def test_load_iterable_arg(self):
         codestr = """
@@ -121,6 +120,10 @@ class VariadicArgTests(StaticTestBase):
             y_callable = mod.y
             self.assertEqual(y_callable(), 7)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_load_iterable_arg_sequence_1(self):
         codestr = """
         def x(a: int, b: int, c: str, d: float, e: float) -> int:

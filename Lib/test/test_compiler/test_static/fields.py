@@ -1,18 +1,12 @@
 from types import MemberDescriptorType
 
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase, type_mismatch
-
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
 SHADOWCODE_REPETITIONS = 100
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class StaticFieldTests(StaticTestBase):
     def test_slotification(self):
         codestr = """

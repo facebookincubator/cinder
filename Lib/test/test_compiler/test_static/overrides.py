@@ -1,11 +1,4 @@
-from unittest import skipIf
-
 from .common import StaticTestBase
-
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
 
 class OverridesTests(StaticTestBase):
@@ -30,7 +23,6 @@ class OverridesTests(StaticTestBase):
             at="def f(self) -> bool",
         )
 
-    @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
     def test_name_irrelevant_for_posonlyarg(self) -> None:
         codestr = """
             class A:
@@ -64,7 +56,6 @@ class OverridesTests(StaticTestBase):
             at="def f(self, x: int, /)",
         )
 
-    @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
     def test_can_override_posonly_arg_with_normal(self) -> None:
         codestr = """
             class A:

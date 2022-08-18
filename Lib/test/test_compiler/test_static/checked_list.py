@@ -1,18 +1,12 @@
 from __static__ import CheckedList
 
-from unittest import skipIf
+from unittest import skip
 
 from _static import SEQ_CHECKED_LIST, SEQ_SUBSCR_UNCHECKED
 
 from .common import bad_ret_type, StaticTestBase, type_mismatch
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class CheckedListTests(StaticTestBase):
     def test_checked_list(self):
         x = CheckedList[int]()
@@ -307,6 +301,7 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(f(l), None)
             self.assertEqual(repr(l), "[1, 2, 3]")
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_compile_setitem_slice_list(self):
         codestr = """
             from __static__ import CheckedList
@@ -370,6 +365,7 @@ class CheckedListTests(StaticTestBase):
             self.assertInBytecode(f, "SEQUENCE_GET", SEQ_CHECKED_LIST)
             self.assertEqual(f(cl), 43)
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_literal_basic(self):
         codestr = """
             from __static__ import CheckedList
@@ -397,6 +393,7 @@ class CheckedListTests(StaticTestBase):
             type_mismatch("chklist[Union[int, str]]", "chklist[int]"),
         )
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_literal_basic_unpack(self):
         codestr = """
             from __static__ import CheckedList
@@ -413,6 +410,7 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(repr(l), "[1, 2, 3, 4]")
             self.assertEqual(type(l), CheckedList[int])
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_literal_unpack_with_elements(self):
         codestr = """
             from __static__ import CheckedList
@@ -428,6 +426,7 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(repr(l), "[5, 1, 2, 3, 4]")
             self.assertEqual(type(l), CheckedList[int])
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_literal_comprehension(self):
         codestr = """
             from __static__ import CheckedList
@@ -450,6 +449,7 @@ class CheckedListTests(StaticTestBase):
         """
         self.type_error(codestr, type_mismatch("chklist[str]", "chklist[int]"))
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_checked_list_literal_opt_in(self):
         codestr = """
             from __static__ import CheckedList
@@ -489,6 +489,7 @@ class CheckedListTests(StaticTestBase):
         """
         self.type_error(codestr, r"reveal_type\(x\): 'int'", at="reveal_type")
 
+    @skip("TODO(T129368918): PRIMITIVE_UNBOX_ENUM interpreter support")
     def test_fast_forloop(self):
         codestr = """
             from __static__ import CheckedList

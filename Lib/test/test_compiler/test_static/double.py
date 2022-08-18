@@ -12,7 +12,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class DoubleTests(StaticTestBase):
     def test_primitive_double_return_bad_call(self):
         codestr = """
@@ -650,6 +649,10 @@ class DoubleTests(StaticTestBase):
         ):
             self.compile(codestr)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_double_load_const(self):
         codestr = """
         from __static__ import double
@@ -663,6 +666,10 @@ class DoubleTests(StaticTestBase):
             t()
             self.assert_jitted(t)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129264702): assert_jitted returning false, when expecting true",
+    )
     def test_double_box(self):
         codestr = """
         from __static__ import double, box

@@ -1,14 +1,8 @@
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class LiteralsTests(StaticTestBase):
     def test_literal_bool_annotation_error(self) -> None:
         codestr = """

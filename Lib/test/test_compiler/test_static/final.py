@@ -1,16 +1,9 @@
 from compiler.errors import TypedSyntaxError
 from typing import ClassVar
-from unittest import skipIf
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class FinalTests(StaticTestBase):
     def test_final_multiple_typeargs(self):
         codestr = """

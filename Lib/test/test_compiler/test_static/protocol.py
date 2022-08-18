@@ -1,15 +1,7 @@
-from unittest import skipIf
-
 from .common import StaticTestBase
-
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
 
 class ProtocolTests(StaticTestBase):
-    @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
     def test_protocol_is_dynamic(self):
         codestr = """
             from typing import Protocol

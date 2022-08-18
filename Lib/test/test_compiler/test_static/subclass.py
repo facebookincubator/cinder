@@ -1,14 +1,9 @@
 import unittest
 from compiler.static.types import TypeEnvironment
 
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
-
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
 
 class SubclassTests(StaticTestBase):
@@ -123,7 +118,6 @@ class SubclassTests(StaticTestBase):
             class D(int8):
                 pass
 
-    @skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
     def test_init_subclass(self):
         codestr = """
             class B:

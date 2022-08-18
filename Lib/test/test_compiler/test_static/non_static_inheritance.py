@@ -1,16 +1,10 @@
 import unittest
 from compiler.pycodegen import CinderCodeGenerator
-from unittest import skip, skipIf
+from unittest import skip
 
 from .common import StaticTestBase
 
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
 
-
-@skipIf(cinderjit is not None, "TODO(T128836962): We don't have JIT support yet.")
 class NonStaticInheritanceTests(StaticTestBase):
     def test_static_return_is_resolved_with_multiple_levels_of_inheritance(self):
         codestr = """

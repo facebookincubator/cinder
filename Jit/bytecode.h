@@ -67,7 +67,6 @@ class BytecodeInstruction {
         return true;
       }
       case READONLY_OPERATION: {
-#ifdef CINDER_PORTING_DONE
         switch (ReadonlyOpcode()) {
           case READONLY_FOR_ITER: {
             return true;
@@ -76,9 +75,6 @@ class BytecodeInstruction {
             return false;
           }
         }
-#else
-        PORT_ASSERT("Needs Static Python + Readonly feature");
-#endif
       }
       default: {
         return false;
