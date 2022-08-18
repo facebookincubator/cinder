@@ -54,7 +54,7 @@ class StrictCompileTest(StrictTestBase):
         ]
 
         self.assertEqual(
-            files,
+            sorted(files),
             [
                 "__init__.cpython-38.strict.pyc",
                 "bar.cpython-38.strict.pyc",
