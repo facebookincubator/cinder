@@ -260,7 +260,6 @@ class CheckedDictTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T129207881): TP_ALLOC_CACHED interpreter support.")
     def test_compile_checked_dict_shadowcode(self):
         codestr = """
             from __static__ import CheckedDict

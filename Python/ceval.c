@@ -6110,7 +6110,14 @@ main_loop:
         }
 
         case TARGET(TP_ALLOC_CACHED): {
-            PORT_ASSERT("Unsupported: TP_ALLOC_CACHED");
+            PyTypeObject *type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            PyObject *inst = type->tp_alloc(type, 0);
+            if (inst == NULL) {
+                goto error;
+            }
+
+            PUSH(inst);
+            DISPATCH();
         }
 
         case TARGET(INVOKE_FUNCTION_CACHED): {
