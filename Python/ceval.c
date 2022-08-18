@@ -5824,7 +5824,15 @@ main_loop:
         }
 
         case TARGET(LOAD_CLASS): {
-            PORT_ASSERT("Unsupported: LOAD_CLASS");
+            PyObject *type_descr = GETITEM(consts, oparg);
+            int optional;
+            int exact;
+            PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+            if (type == NULL) {
+                goto error;
+            }
+            PUSH((PyObject*)type);
+            DISPATCH();
         }
 
         case TARGET(BUILD_CHECKED_MAP): {

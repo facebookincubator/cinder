@@ -5443,7 +5443,7 @@ class Dataclass(Class):
         graph.emit("LOAD_TYPE")
         graph.emit("LOAD_FAST", "self")
         graph.emit("LOAD_TYPE")
-        graph.emit("COMPARE_OP", "is")
+        graph.emit("IS_OP", 0)
         graph.emit("POP_JUMP_IF_FALSE", false)
 
         for field in fields:
@@ -5490,13 +5490,13 @@ class Dataclass(Class):
         # TODO(T92470300): graph.emit("CAST", (self.exact_type().type_descr, False))
         graph.emit("LOAD_TYPE")
         graph.emit("LOAD_CLASS", self.type_descr)
-        graph.emit("COMPARE_OP", "is")
+        graph.emit("IS_OP", 0)
         graph.emit("POP_JUMP_IF_TRUE", error)
 
         graph.nextBlock()
         graph.emit("LOAD_FAST", "name")
         graph.emit("LOAD_CONST", tuple(self.true_fields))
-        graph.emit("COMPARE_OP", "in")
+        graph.emit("CONTAINS_OP", 0)
         graph.emit("POP_JUMP_IF_FALSE", super_call)
 
         graph.nextBlock(error)
@@ -5585,7 +5585,7 @@ class Dataclass(Class):
                 graph.emit("LOAD_FAST", name)
                 graph.emit("LOAD_CLASS", self.type_descr)
                 graph.emit("LOAD_ATTR", "_HAS_DEFAULT_FACTORY")
-                graph.emit("COMPARE_OP", "is")
+                graph.emit("IS_OP", 0)
                 graph.emit("POP_JUMP_IF_FALSE", arg_passed)
 
                 graph.nextBlock()

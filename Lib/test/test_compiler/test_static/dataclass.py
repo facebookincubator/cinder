@@ -10,6 +10,7 @@ from dataclasses import (
     MISSING,
 )
 from typing import Mapping
+from unittest import skip
 
 from .common import StaticTestBase
 
@@ -624,6 +625,7 @@ class DataclassTests(StaticTestBase):
             at="c.x",
         )
 
+    @skip("TODO(T129440601): LOAD_METHOD_SUPER interpreter support.")
     def test_frozen_field_subclass(self) -> None:
         codestr = """
         from dataclasses import dataclass
@@ -651,6 +653,7 @@ class DataclassTests(StaticTestBase):
             del d.y
             self.assertFalse(hasattr(d, "y"))
 
+    @skip("TODO(T129440601): LOAD_METHOD_SUPER interpreter support.")
     def test_frozen_no_fields(self) -> None:
         codestr = """
         from dataclasses import dataclass
@@ -783,6 +786,7 @@ class DataclassTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertEqual(repr(mod.c), "C(x=1, y='foo')")
 
+    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_repr_recursive(self) -> None:
         codestr = """
         from dataclasses import dataclass
@@ -1190,6 +1194,9 @@ class DataclassTests(StaticTestBase):
                     self.assertIsInstance(field.metadata, Mapping)
                     self.assertIs(field._field_type, kind)
 
+    @skip(
+        "TODO(T129440787): non-static subclasses of static dataclasses don't pick up fields yet."
+    )
     def test_nonstatic_dataclass_picks_up_static_fields(self) -> None:
         codestr = """
         from dataclasses import dataclass
