@@ -40,7 +40,6 @@ class StaticFieldTests(StaticTestBase):
             at="self.x:",
         )
 
-    @skip("TODO(T129113383): Failure regarding type comparison of member_descriptor")
     def test_slotification_typed(self):
         codestr = """
             class C:
@@ -50,7 +49,6 @@ class StaticFieldTests(StaticTestBase):
             C = mod.C
             self.assertNotEqual(type(C.x), MemberDescriptorType)
 
-    @skip("TODO(T129113383): Failure regarding type comparison of member_descriptor")
     def test_slotification_init_typed(self):
         codestr = """
             class C:
@@ -195,6 +193,7 @@ class StaticFieldTests(StaticTestBase):
             self.assertEqual(x.f(), 0)
             self.assertInBytecode(C.f, "LOAD_FIELD", (mod.__name__, "C", "value"))
 
+    @skip("TODO(T129345496): STORE_PRIMITIVE_FIELD interpreter support.")
     def test_aligned_subclass_field(self):
         codestr = """
             from __static__ import cbool
