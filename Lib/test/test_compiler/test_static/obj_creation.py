@@ -7,6 +7,7 @@ from compiler.errors import TypedSyntaxError
 
 # from inspect import CO_SUPPRESS_JIT
 from re import escape
+from unittest import skip
 
 from .common import StaticTestBase
 
@@ -521,6 +522,7 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertInBytecode(f, "INVOKE_FUNCTION")
             self.assertTrue(isinstance(f(), C))
 
+    @skip("TODO(T129440601): custom super() support")
     def test_super_redefined_uses_opt(self):
         codestr = """
             super = super
