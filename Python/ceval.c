@@ -5200,7 +5200,27 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX_ENUM): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_BOX_ENUM");
+            PyTypeObject *type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
+            assert(_PyClassLoader_GetTypeCode(type) == TYPED_INT64);
+
+            PyObject *val = TOP();
+            /* We have a boxed value on the stack already, but we may have to
+             * deal with sign extension */
+            size_t ival = (size_t)PyLong_AsVoidPtr(val);
+            if (ival & ((size_t)1) << 63) {
+                PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
+                SET_TOP(new_val);
+                Py_SETREF(val, new_val);
+            }
+
+            PyObject *enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
+            if (enum_val == NULL) {
+                goto error;
+            }
+            SET_TOP(enum_val);
+            Py_DECREF(val);
+
+            DISPATCH();
         }
 
         case TARGET(PRIMITIVE_BOX_NUMERIC): {
