@@ -23,6 +23,7 @@ from _strictmodule import MUTABLE_DECORATOR
 from .. import consts, symbols
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import (
+    CinderCodeGenerator,
     CodeGenerator,
     Entry,
     FINALLY_END,
@@ -106,7 +107,7 @@ def get_is_assigned_tracking_name(name: str) -> str:
     return f"<assigned:{name}>"
 
 
-class StrictCodeGenerator(CodeGenerator):
+class StrictCodeGenerator(CinderCodeGenerator):
     flow_graph = PyFlowGraphCinder
     class_list_name: str = "<classes>"
 
