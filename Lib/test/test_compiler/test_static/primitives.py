@@ -195,7 +195,9 @@ class PrimitivesTests(StaticTestBase):
             (("__static__", "cbool", "#"), False, 1, [True], [], ["abc", 1]),
         ]
 
-        target_size = self.base_size + 8
+        target_size = (
+            self.base_size + self.ptr_size * 3
+        )  # there are two extra words for the GC header not captured in __sizeof__.
         for type_spec, default, size, test_vals, warn_vals, err_vals in slot_types:
             with self.subTest(
                 type_spec=type_spec,

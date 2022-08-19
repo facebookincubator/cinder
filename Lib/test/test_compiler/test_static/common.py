@@ -494,7 +494,7 @@ class StaticTestBase(CompilerTest):
         class C:
             __slots__ = ()
 
-        return sys.getsizeof(C())
+        return C().__sizeof__()
 
     @property
     def ptr_size(self):

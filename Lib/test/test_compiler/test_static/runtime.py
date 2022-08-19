@@ -57,7 +57,6 @@ class StaticRuntimeTests(StaticTestBase):
         with self.assertRaises(TypeError):
             C.a.__get__(D(), D)
 
-    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slots(self):
         with self.assertRaises(TypeError):
 
@@ -65,7 +64,6 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("a",)
                 __slot_types__ = None
 
-    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slot_dict(self):
         with self.assertRaises(TypeError):
 
@@ -73,7 +71,6 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("__dict__",)
                 __slot_types__ = {"__dict__": "object"}
 
-    @skip("TODO(T129449313): TypeError not raised for bad slot assignment")
     def test_typed_slots_bad_slot_weakerf(self):
         with self.assertRaises(TypeError):
 
@@ -81,9 +78,6 @@ class StaticRuntimeTests(StaticTestBase):
                 __slots__ = ("__weakref__",)
                 __slot_types__ = {"__weakref__": "object"}
 
-    @skip(
-        "TODO(T129449494): Slot is incorrectly classified as a member_descriptor instead of typed_descriptor"
-    )
     def test_typed_slots_object(self):
         codestr = """
             class C:
@@ -357,9 +351,6 @@ class StaticRuntimeTests(StaticTestBase):
         o = spamobj[str]()
         self.assertEqual(o.twoargs(1, 2), 3)
 
-    @skip(
-        "TODO(T129449494): Slot is incorrectly classified as a member_descriptor instead of typed_descriptor"
-    )
     def test_typed_slots_one_missing(self):
         codestr = """
             class C:

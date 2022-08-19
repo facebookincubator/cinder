@@ -3459,11 +3459,18 @@ type_new_get_slots(type_new_ctx *ctx, PyObject *dict)
         return -1;
     }
     if (slot_types != NULL) {
-       if (!PyDict_CheckExact(slot_types)) {
-           PyErr_Format(PyExc_TypeError,
-                        "__slot_types__ should be a dict");
-           return -1;
-       }
+        if (!PyDict_CheckExact(slot_types)) {
+            PyErr_Format(PyExc_TypeError,
+                         "__slot_types__ should be a dict");
+                return -1;
+        }
+        if (PyDict_GetItemString(slot_types, "__dict__") ||
+            PyDict_GetItemString(slot_types, "__weakref__")) {
+            PyErr_Format(PyExc_TypeError,
+                         "__slots__ type spec cannot be provided for "
+                         "__weakref__ or __dict__");
+            return -1;
+        }
     }
     ctx->Ci_slot_types = slot_types;
     return 0;
