@@ -4756,6 +4756,7 @@ class NativeDecoratedFunction(Function):
         if isinstance(self.container_type, Class):
             visitor.syntax_error("Cannot decorate a method with @native", node)
 
+        # Ensure the function has no statements in the body
         bad_statement = None
         for statement in node.body:
             if not isinstance(statement, ast.Pass):
@@ -4766,6 +4767,39 @@ class NativeDecoratedFunction(Function):
                 "@native callables cannot contain a function body, only 'pass' is allowed",
                 bad_statement,
             )
+
+        # Ensure the function has only "normal" (not posonly) positional
+        # args, and that all are primitives.
+        args = node.args
+        if args.posonlyargs:
+            visitor.syntax_error(
+                "@native callables cannot contain pos-only args",
+                args.posonlyargs[0],
+            )
+
+        if args.kwonlyargs:
+            visitor.syntax_error(
+                "@native callables cannot contain kw-only args",
+                args.kwonlyargs[0],
+            )
+
+        if args.defaults:
+            visitor.syntax_error(
+                "@native callables cannot contain kw args",
+                args.defaults[0],
+            )
+
+        positional_args = args.args
+
+        for each in positional_args:
+            arg_type = visitor.get_type(each)
+            if not isinstance(arg_type, CIntInstance):
+                visitor.syntax_error(
+                    f"@native: expected a primitive arg for {each.arg}, not {arg_type.name}",
+                    each,
+                )
+
+        return super().bind_function_inner(node, visitor)
 
 
 class NativeDecorator(Callable[Class]):
