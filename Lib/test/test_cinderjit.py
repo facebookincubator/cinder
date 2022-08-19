@@ -40,7 +40,7 @@ from contextlib import contextmanager
 
 try:
     import cinderjit
-    from cinderjit import jit_suppress, _deopt_gen
+    from cinderjit import jit_suppress, _deopt_gen, is_jit_compiled
 except:
     cinderjit = None
 
@@ -48,6 +48,9 @@ except:
         return func
 
     def _deopt_gen(gen):
+        return False
+
+    def is_jit_compiled(func):
         return False
 
 
@@ -2119,7 +2122,7 @@ class GeneratorsTest(unittest.TestCase):
             return a + b
 
         g = gen(3, 8)
-        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        self.assertEqual(_deopt_gen(g), is_jit_compiled(gen))
         self.assertEqual(next(g), 3)
         with self.assertRaises(StopIteration) as cm:
             next(g)
@@ -2133,7 +2136,7 @@ class GeneratorsTest(unittest.TestCase):
 
         g = gen(5, 9)
         self.assertEqual(next(g), 5)
-        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        self.assertEqual(_deopt_gen(g), is_jit_compiled(gen))
         with self.assertRaises(StopIteration) as cm:
             next(g)
         self.assertEqual(cm.exception.value, 45)
@@ -2145,7 +2148,7 @@ class GeneratorsTest(unittest.TestCase):
 
         g = gen([2, 4, 6])
         self.assertEqual(next(g), 2)
-        self.assertEqual(_deopt_gen(g), cinderjit is not None)
+        self.assertEqual(_deopt_gen(g), is_jit_compiled(gen))
         self.assertEqual(next(g), 4)
         self.assertEqual(next(g), 6)
         with self.assertRaises(StopIteration) as cm:
@@ -2188,7 +2191,7 @@ class GeneratorsTest(unittest.TestCase):
         it = iter(c.__await__())
         self.assertEqual(next(it), "one")
         self.assertEqual(l, [])
-        self.assertEqual(_deopt_gen(c), cinderjit is not None)
+        self.assertEqual(_deopt_gen(c), is_jit_compiled(coro))
         self.assertEqual(next(it), "two")
         self.assertEqual(l, [])
         self.assertEqual(next(it), "one")

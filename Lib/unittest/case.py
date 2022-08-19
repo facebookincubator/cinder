@@ -197,6 +197,13 @@ def failUnlessJITCompiled(func):
         # defer raising an exception to when the decorated function runs.
         force_compile(func)
     except RuntimeError as re:
+        if re.args == ('PYJIT_RESULT_NOT_ON_JITLIST',):
+            # We generally only run tests with a jitlist under
+            # Tools/scripts/jitlist_bisect.py. In that case, we want to allow
+            # the decorated function to run under the interpreter to determine
+            # if it's the function the JIT is handling incorrectly.
+            return func
+
         # re is cleared at the end of the except block but we need the value
         # when wrapper() is eventually called.
         exc = re
