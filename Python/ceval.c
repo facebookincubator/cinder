@@ -359,8 +359,6 @@ int _PyEval_ShadowByteCodeEnabled = 1;
 
 PyAPI_DATA(int) Py_LazyImportsFlag;
 
-int _PyEval_LazyImportsEnabled = 1;
-
 void _Py_NO_RETURN
 _Py_FatalError_TstateNULL(const char *func)
 {
