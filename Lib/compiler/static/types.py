@@ -616,6 +616,8 @@ class TypeEnvironment:
 
         self.str.exact_type().patch_reflected_method_types(self)
 
+        self.native_decorator = NativeDecorator(self)
+
         if spamobj is not None:
             T = GenericParameter("T", 0, self)
             U = GenericParameter("U", 1, self)
@@ -3789,7 +3791,7 @@ class Function(Callable[Class], FunctionContainer):
                 module.resolve_decorator(decorator) or self.klass.type_env.dynamic
             )
             new = decorator_type.resolve_decorate_function(res, decorator)
-            if new and new is not res:
+            if new and new is not res and not isinstance(new, NativeDecoratedFunction):
                 new = new.finish_bind(module, klass)
             if new is None:
                 # With an un-analyzable decorator we want to force late binding
@@ -4188,6 +4190,10 @@ class DecoratedMethod(FunctionContainer):
     @property
     def node(self) -> Union[FunctionDef, AsyncFunctionDef]:
         return self.real_function.node
+
+    @property
+    def container_type(self) -> Optional[Class]:
+        return self.real_function.container_type
 
     def set_container_type(self, container_type: Optional[Class]) -> None:
         self.function.set_container_type(container_type)
@@ -4700,6 +4706,83 @@ class DoNotCompileDecorator(Class):
     ) -> Class:
         klass.donotcompile = True
         return klass
+
+
+class NativeDecoratedFunction(Function):
+    def emit_function(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+    ) -> str:
+        # Note: We'll never support this, because the actual executable code
+        # is present in whatever .so file is specified.
+        raise NotImplementedError(
+            f"Cannot emit bytecode for native function: {node.name}"
+        )
+
+    def bind_function_inner(
+        self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
+    ) -> None:
+        if isinstance(self.container_type, Class):
+            visitor.syntax_error("Cannot decorate a method with @native", node)
+
+
+class NativeDecorator(Callable[Class]):
+    def __init__(self, type_env: TypeEnvironment) -> None:
+        params = [
+            Parameter(
+                "lib", 0, ResolvedTypeRef(type_env.str), True, None, ParamStyle.POSONLY
+            ),
+        ]
+        super().__init__(
+            type_env.function,
+            "native",
+            "__static__",
+            params,
+            {param.name: param for param in params},
+            0,
+            None,
+            None,
+            ResolvedTypeRef(type_env.dynamic),
+        )
+        self.type_env = type_env
+
+    def resolve_decorate_function(
+        self, fn: Function | DecoratedMethod, decorator: expr
+    ) -> NativeDecoratedFunction:
+        if not isinstance(decorator, ast.Call):
+            raise TypedSyntaxError(
+                "@native decorator must specify the library to be loaded"
+            )
+
+        if decorator.keywords:
+            raise TypedSyntaxError("@native decorator takes no keyword arguments")
+
+        args = decorator.args
+        if len(args) > 1:
+            raise TypedSyntaxError(
+                "@native decorator accepts a single parameter, the path to .so file"
+            )
+
+        if isinstance(args[0], ast.Starred):
+            raise TypedSyntaxError("@native decorator takes no starred arguments")
+
+        if isinstance(fn, DecoratedMethod):
+            raise TypedSyntaxError(
+                "@native decorator cannot be used with other decorators"
+            )
+
+        native_fn = NativeDecoratedFunction(fn.node, fn.module, fn.return_type)
+        native_fn.set_container_type(fn.container_type)
+        return native_fn
+
+    def resolve_decorate_class(
+        self,
+        klass: Class,
+        decorator: expr,
+        visitor: DeclarationVisitor,
+    ) -> Class:
+        raise TypedSyntaxError(f"Cannot decorate a class with @native")
 
 
 class PropertyDecorator(Class):

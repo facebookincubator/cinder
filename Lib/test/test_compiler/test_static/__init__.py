@@ -26,6 +26,7 @@ from .invoke import InvokeTests
 from .lint import LintTests
 from .literals import LiteralsTests
 from .module import ModuleTests
+from .native import NativeDecoratorTests
 from .non_static_inheritance import NonStaticInheritanceTests
 from .obj_creation import StaticObjCreationTests
 from .overrides import OverridesTests
