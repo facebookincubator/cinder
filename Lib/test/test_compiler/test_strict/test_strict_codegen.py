@@ -600,10 +600,6 @@ class StrictBuiltinCompilationTests(StrictTestWithCheckerBase):
         )
         self.assertEqual(mod.f(), 0)
 
-    @unittest.skipIf(
-        cinderjit is not None,
-        "TODO(T129231559): Re-enable this test when JIT generators are deopted at finalization.",
-    )
     def test_gen_comp_aliased_builtin(self) -> None:
         code = """
             min = 1
