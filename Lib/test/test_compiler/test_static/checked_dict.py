@@ -618,3 +618,17 @@ class CheckedDictTests(StaticTestBase):
             r"reveal_type\(d\): 'Exact\[chkdict\[dynamic, str\]\]'",
         ):
             self.compile(codestr)
+
+    def test_build_checked_dict_cached(self):
+        codestr = """
+        from __static__ import CheckedDict
+
+        def f() -> str:
+            d: CheckedDict[float, str] = {2.0: "hello", 2.3: "foobar"}
+            return d[2.0]
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "BUILD_CHECKED_MAP")
+            for i in range(50):
+                self.assertEqual(mod.f(), "hello")
+            self.assertEqual(mod.f(), "hello")

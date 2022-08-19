@@ -6233,7 +6233,17 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_MAP_CACHED): {
-            PORT_ASSERT("Unsupported: BUILD_CHECKED_MAP_CACHED");
+            PyObject *cache = _PyShadow_GetCastType(&shadow, oparg);
+            PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
+            Py_ssize_t map_size = PyLong_AsLong(PyTuple_GET_ITEM(cache, 1));
+
+            PyObject *map = Ci_CheckedDict_NewPresized(type, map_size);
+            if (map == NULL) {
+                goto error;
+            }
+
+            Ci_BUILD_DICT(map_size);
+            DISPATCH();
         }
 
         case TARGET(CHECK_ARGS_CACHED): {
