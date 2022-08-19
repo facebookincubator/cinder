@@ -107,7 +107,6 @@ class SubclassTests(StaticTestBase):
         )
         self.assertTrue(checked_list_str.is_subclass_of(self.type_env.object))
 
-    @skip("TODO(T129114447): TypeError not raised in subclass")
     def test_cannot_subclass_static_classes_in_nonstatic_code(self):
         from __static__ import int8
 

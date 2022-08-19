@@ -226,7 +226,6 @@ class NonStaticInheritanceTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), "foo")
 
-    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_multiple_static_bases(self):
         codestr = """
             class A:
@@ -243,7 +242,6 @@ class NonStaticInheritanceTests(StaticTestBase):
                 class C(mod.A, mod.B):
                     pass
 
-    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_multiple_static_bases_indirect(self):
         codestr = """
             class A:
@@ -264,7 +262,6 @@ class NonStaticInheritanceTests(StaticTestBase):
                 class D(C, mod.A):
                     pass
 
-    @skip("TODO(T129114447): TypeError not raised")
     def test_no_inherit_static_and_builtin(self):
         codestr = """
             class A:
