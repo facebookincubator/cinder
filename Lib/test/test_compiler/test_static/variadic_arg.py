@@ -395,9 +395,6 @@ class VariadicArgTests(StaticTestBase):
             self.assertTrue(y_callable())
             self.assertEqual(["s", "r"], mod.stuff)
 
-    @skip(
-        "TODO(T129219917): Incorrect bytecode produced in test_load_mapping_arg_stack_effect"
-    )
     def test_load_mapping_arg_stack_effect(self) -> None:
         codestr = """
         def g(x=None) -> None:
@@ -411,5 +408,6 @@ class VariadicArgTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "LOAD_MAPPING_ARG", 3)
+            # TODO(T129715008): This needs to be converted to `assertInBytecode` once we inline the comprehension.
+            self.assertNotInBytecode(f, "LOAD_MAPPING_ARG", 3)
             self.assertEqual(f(), [])
