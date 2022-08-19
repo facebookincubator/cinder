@@ -1611,8 +1611,6 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _PyShadowFrame shadow_frame;
     Py_ssize_t profiled_instrs = 0;
 
-    int lazy_imports = -1;
-
     const _Py_CODEUNIT *first_instr;
     PyObject *names;
     PyObject *consts;
@@ -3530,27 +3528,26 @@ main_loop:
             PyObject *level = TOP();
             PyObject *res;
 
-            if (_PyEval_LazyImportsEnabled && lazy_imports == -1) {
-                lazy_imports = Py_LazyImportsFlag;
+            if (co->co_flags & CO_FUTURE_EAGER_IMPORTS) {
+                lazy_imports_eager_import = 1;
             }
 
             if (lazy_imports_eager_import == 0
-                && _PyEval_LazyImportsEnabled
                 && PyImport_IsLazyImportsEnabled()
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {
                 res = PyImport_LazyImportName(name,
-                                                  f->f_globals,
-                                                  f->f_locals == NULL ? Py_None : f->f_locals,
-                                                  fromlist,
-                                                  level);
+                                              f->f_globals,
+                                              f->f_locals == NULL ? Py_None : f->f_locals,
+                                              fromlist,
+                                              level);
             }
             else {
                 res = PyImport_EagerImportName(name,
-                                          f->f_globals,
-                                          f->f_locals == NULL ? Py_None : f->f_locals,
-                                          fromlist,
-                                          level);
+                                               f->f_globals,
+                                               f->f_locals == NULL ? Py_None : f->f_locals,
+                                               fromlist,
+                                               level);
             }
 
             Py_DECREF(level);

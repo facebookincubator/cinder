@@ -101,6 +101,7 @@ struct PyCodeObject {
 #define CO_FUTURE_BARRY_AS_BDFL  0x400000
 #define CO_FUTURE_GENERATOR_STOP  0x800000
 #define CO_FUTURE_ANNOTATIONS    0x1000000
+#define CO_FUTURE_EAGER_IMPORTS  0x2000000
 
 /* This value is found in the co_cell2arg array when the associated cell
    variable does not correspond to an argument. */

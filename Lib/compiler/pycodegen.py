@@ -3101,8 +3101,6 @@ class CinderCodeGenerator(CodeGenerator):
         for feature in future.find_futures(node):
             if feature == "eager_imports":
                 future_flags |= consts.CO_FUTURE_EAGER_IMPORTS
-            elif feature == "lazy_imports":
-                future_flags |= consts.CO_FUTURE_LAZY_IMPORTS
         return future_flags
 
     def compile_comprehension(self, node, name, elt, val, opcode, oparg=0):

@@ -73,6 +73,9 @@ class LazyImportsTest(unittest.TestCase):
         self.run_and_check("test.lazyimports.importlib_apis.set_lazy_imports_excluding_cb")
         self.run_and_check("test.lazyimports.importlib_apis.set_lazy_imports_excluding_cb_list")
 
+    def test_future_eager_imports(self):
+        self.run_and_check("test.lazyimports.future_eager.future_eager_mod", True)
+
     def test_attribute_side_effect(self):
         self.run_and_check("test.lazyimports.attr_side_effect", False)
         self.run_and_check("test.lazyimports.attr_side_effect")
