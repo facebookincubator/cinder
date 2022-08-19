@@ -64,9 +64,6 @@ Register* TempAllocator::AllocateNonStack() {
 // This contains the set of unsupported opcodes. Move opcodes from this set
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
-    // TODO(T127134900): Grab-bag of remaining opcodes
-    MAKE_FUNCTION, // T126141867
-
     // Static Python opcodes
     BUILD_CHECKED_LIST,
     BUILD_CHECKED_MAP,
@@ -187,6 +184,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_GLOBAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
+    MAKE_FUNCTION,
     MAP_ADD,
     MATCH_CLASS,
     MATCH_KEYS,

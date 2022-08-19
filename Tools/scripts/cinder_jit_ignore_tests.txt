@@ -19,6 +19,7 @@ unittest.test.test_break.*.testSecondInterrupt
 test.test_types.UnionTests.test_or_type_operator_reference_cycle
 
 # TODO(T86183012): Incorrect coroutine naming
+test.test_asyncio.test_tasks.*.test_coroutine_never_yielded
 test.test_asyncio.test_tasks.*.test_task_repr_coro_decorator
 
 # TODO(T128872288): Subtle refcounting distinction in JIT and interpreter
@@ -38,3 +39,11 @@ test.test_traceback.TestStack.test_format_locals
 
 # TODO(T128782227): exc.tb_frame->f_back not correct in except blocks
 test.test_sys.SysModuleTest.test_current_exceptions
+
+# Tests specific refcounting details of the interpreter
+test.test_enumerate.TestReversed.test_bug1229429
+test.test_generators.FinalizationTest.test_refcycle
+
+# TODO(T128782227): Frames accessed from exception tracebacks are different
+# in shadow-frame mode.
+test.test_io.*.test_reader_writer_close_error_on_close

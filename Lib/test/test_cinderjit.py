@@ -1297,9 +1297,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
 
 class ClosureTests(unittest.TestCase):
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def test_cellvar(self):
         a = 1
 
@@ -1308,9 +1306,7 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(foo(), 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def test_two_cellvars(self):
         a = 1
         b = 2
@@ -1320,18 +1316,14 @@ class ClosureTests(unittest.TestCase):
 
         self.assertEqual(g(), 3)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def test_cellvar_argument(self):
         def foo():
             self.assertEqual(1, 1)
 
         foo()
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def test_cellvar_argument_modified(self):
         self_ = self
 
@@ -1345,9 +1337,7 @@ class ClosureTests(unittest.TestCase):
 
         self_.assertEqual(self, 1)
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def _cellvar_unbound(self):
         b = a
         a = 1
@@ -1431,9 +1421,7 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(return_other_global(), 0xFACEB00C)
 
     def test_nested_func_outlives_parent(self):
-        @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-            PortFeature.OPC_MAKE_FUNCTION,
-        )
+        @unittest.failUnlessJITCompiled
         def nested(x):
             @unittest.failUnlessJITCompiled
             def inner(y):
@@ -1562,9 +1550,7 @@ class UnwindStateTests(unittest.TestCase):
                 f_locals, {"self": self, "a": "hello", "b": "hello", "c": "hello"}
             )
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def _raise_with_del_observer_on_stack(self):
         for x in (1 for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -1579,9 +1565,7 @@ class UnwindStateTests(unittest.TestCase):
             self.fail("should have raised RuntimeError")
         self.assertEqual(deleted, [1])
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     def _raise_with_del_observer_on_stack_and_cell_arg(self):
         for x in (self for i in [self.get_del_observer(1)]):
             raise RuntimeError()
@@ -2703,9 +2687,7 @@ class AsyncGeneratorsTest(unittest.TestCase):
         else:
             self.fail("Expected ValueError to be raised")
 
-    @unittest.failUnlessJITCompiledWaitingForFeaturePort(
-        PortFeature.OPC_MAKE_FUNCTION,
-    )
+    @unittest.failUnlessJITCompiled
     async def _f3(self, asyncgen):
         return [x async for x in asyncgen]
 

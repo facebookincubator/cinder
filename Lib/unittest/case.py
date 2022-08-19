@@ -1545,9 +1545,6 @@ class PortFeature(enum.Enum):
     # Missing opcodes
     #
 
-    # TODO(T127134900): Grab-bag of remaining opcodes
-    OPC_MAKE_FUNCTION = enum.auto() # T126141867
-
     # Static Python opcodes
     OPC_BUILD_CHECKED_LIST = enum.auto()
     OPC_BUILD_CHECKED_MAP = enum.auto()
