@@ -3221,8 +3221,9 @@ class FunctionContainer(Object[Class]):
 
         terminates = visitor.visit_check_terminal(self.get_function_body())
 
+        typ = visitor.get_type(node)
         if not terminates and not isinstance(
-            visitor.get_type(node), TransientDecoratedMethod
+            typ, (TransientDecoratedMethod, NativeDecoratedFunction)
         ):
             expected = self.get_expected_return()
             if not expected.klass.can_assign_from(visitor.type_env.none):
@@ -4714,17 +4715,57 @@ class NativeDecoratedFunction(Function):
         node: ast.FunctionDef | ast.AsyncFunctionDef,
         code_gen: Static38CodeGenerator,
     ) -> str:
-        # Note: We'll never support this, because the actual executable code
-        # is present in whatever .so file is specified.
-        raise NotImplementedError(
-            f"Cannot emit bytecode for native function: {node.name}"
+        # This is only different from the parent method in that it allows
+        # decorators to exist on the `node`.
+        first_lineno = node.lineno
+        self.emit_function_body(node, code_gen, first_lineno, node.body)
+        return node.name
+
+    def emit_function_body(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+        first_lineno: int,
+        body: List[ast.stmt],
+    ) -> CodeGenerator:
+
+        gen = code_gen.make_func_codegen(node, node.args, node.name, first_lineno)
+        callable_name = node.name
+
+        # This is equivalent to:
+        #
+        #   raise RuntimeError("native callable ...")
+        gen.emit("LOAD_GLOBAL", "RuntimeError")
+        gen.emit(
+            "LOAD_CONST",
+            f"native callable '{callable_name}' can only be called from static modules",
         )
+        gen.emit("CALL_FUNCTION", 1)
+        gen.emit("RAISE_VARARGS", 1)
+        gen.emit("LOAD_CONST", None)
+        gen.emit("RETURN_VALUE")
+
+        gen.finishFunction()
+
+        code_gen.build_function(node, gen)
+        return gen
 
     def bind_function_inner(
         self, node: Union[FunctionDef, AsyncFunctionDef], visitor: TypeBinder
     ) -> None:
         if isinstance(self.container_type, Class):
             visitor.syntax_error("Cannot decorate a method with @native", node)
+
+        bad_statement = None
+        for statement in node.body:
+            if not isinstance(statement, ast.Pass):
+                bad_statement = statement
+                break
+        if bad_statement is not None:
+            visitor.syntax_error(
+                "@native callables cannot contain a function body, only 'pass' is allowed",
+                bad_statement,
+            )
 
 
 class NativeDecorator(Callable[Class]):
