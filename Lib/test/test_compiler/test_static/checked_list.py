@@ -505,3 +505,17 @@ class CheckedListTests(StaticTestBase):
                 mod.f, "SEQUENCE_GET", SEQ_CHECKED_LIST | SEQ_SUBSCR_UNCHECKED
             )
             self.assertEqual(mod.f(), 6)
+
+    def test_build_checked_list_cached(self):
+        codestr = """
+            from __static__ import CheckedList
+
+            def f() -> int:
+                a: CheckedList[int] = [1, 2, 3]
+                return sum(a)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "BUILD_CHECKED_LIST")
+            for i in range(50):
+                mod.f()
+            self.assertEqual(mod.f(), 6)

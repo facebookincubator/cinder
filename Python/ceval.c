@@ -6136,7 +6136,21 @@ main_loop:
         }
 
         case TARGET(BUILD_CHECKED_LIST_CACHED): {
-            PORT_ASSERT("Unsupported: BUILD_CHECKED_LIST_CACHED");
+            PyObject *cache = _PyShadow_GetCastType(&shadow, oparg);
+            PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(cache, 0);
+            Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(cache, 1));
+
+            PyObject *list = Ci_CheckedList_New(type, list_size);
+            if (list == NULL) {
+                goto error;
+            }
+
+            while (--list_size >= 0) {
+              PyObject *item = POP();
+              PyList_SET_ITEM(list, list_size, item);
+            }
+            PUSH(list);
+            DISPATCH();
         }
 
         case TARGET(TP_ALLOC_CACHED): {
