@@ -3015,14 +3015,15 @@ class CinderCodeGenerator(CodeGenerator):
         return code
 
     def _nameOp(self, prefix, name) -> None:
-        if (
-            prefix == "LOAD"
-            and name == "super"
-            and isinstance(self.scope, symbols.FunctionScope)
-        ):
-            scope = self.scope.check_name(name)
-            if scope in (SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT):
-                self.scope.suppress_jit = True
+        # TODO(T127678238): This need to be re-enabled with special jit support.
+        # if (
+        #     prefix == "LOAD"
+        #     and name == "super"
+        #     and isinstance(self.scope, symbols.FunctionScope)
+        # ):
+        #     scope = self.scope.check_name(name)
+        #     if scope in (SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT):
+        #         self.scope.suppress_jit = True
         super()._nameOp(prefix, name)
 
     def _is_super_call(self, node):
@@ -3060,41 +3061,43 @@ class CinderCodeGenerator(CodeGenerator):
                 self.visit(arg)
         return (self.mangle(attr), len(super_call.args) == 0)
 
-    def visitAttribute(self, node):
-        if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
-            self.emit("LOAD_GLOBAL", "super")
-            load_arg = self._emit_args_for_super(node.value, node.attr)
-            self.emit("LOAD_ATTR_SUPER", load_arg)
-        else:
-            super().visitAttribute(node)
+    # TODO(T127678238): Port super() optimizations and re-enable this.
+    # def visitAttribute(self, node):
+    #     if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
+    #         self.emit("LOAD_GLOBAL", "super")
+    #         load_arg = self._emit_args_for_super(node.value, node.attr)
+    #         self.emit("LOAD_ATTR_SUPER", load_arg)
+    #     else:
+    #         super().visitAttribute(node)
 
-    def visitCall(self, node):
-        self.set_lineno(node)
-        if (
-            not isinstance(node.func, ast.Attribute)
-            or not isinstance(node.func.ctx, ast.Load)
-            or node.keywords
-            or any(isinstance(arg, ast.Starred) for arg in node.args)
-        ):
-            # We cannot optimize this call
-            return super().visitCall(node)
+    # TODO(T127678238): Port super() optimizations and re-enable this method.
+    # def visitCall(self, node):
+    #     self.set_lineno(node)
+    #     if (
+    #         not isinstance(node.func, ast.Attribute)
+    #         or not isinstance(node.func.ctx, ast.Load)
+    #         or node.keywords
+    #         or any(isinstance(arg, ast.Starred) for arg in node.args)
+    #     ):
+    #         # We cannot optimize this call
+    #         return super().visitCall(node)
 
-        if self._is_super_call(node.func.value):
-            self.emit("LOAD_GLOBAL", "super")
-            load_arg = self._emit_args_for_super(node.func.value, node.func.attr)
-            self.emit("LOAD_METHOD_SUPER", load_arg)
-            for arg in node.args:
-                self.visit(arg)
-            self.emit("CALL_METHOD", len(node.args))
-            return
+    #     if self._is_super_call(node.func.value):
+    #         self.emit("LOAD_GLOBAL", "super")
+    #         load_arg = self._emit_args_for_super(node.func.value, node.func.attr)
+    #         self.emit("LOAD_METHOD_SUPER", load_arg)
+    #         for arg in node.args:
+    #             self.visit(arg)
+    #         self.emit("CALL_METHOD", len(node.args))
+    #         return
 
-        self.visit(node.func.value)
-        self.emit("LOAD_METHOD", self.mangle(node.func.attr))
-        for arg in node.args:
-            self.visit(arg)
-        nargs = len(node.args)
-        self.insertReadonlyCheck(node, nargs + 1, True)
-        self.emit("CALL_METHOD", nargs)
+    #     self.visit(node.func.value)
+    #     self.emit("LOAD_METHOD", self.mangle(node.func.attr))
+    #     for arg in node.args:
+    #         self.visit(arg)
+    #     nargs = len(node.args)
+    #     self.insertReadonlyCheck(node, nargs + 1, True)
+    #     self.emit("CALL_METHOD", nargs)
 
     def findFutures(self, node):
         future_flags = super().findFutures(node)
@@ -3103,68 +3106,75 @@ class CinderCodeGenerator(CodeGenerator):
                 future_flags |= consts.CO_FUTURE_EAGER_IMPORTS
         return future_flags
 
-    def compile_comprehension(self, node, name, elt, val, opcode, oparg=0):
-        self.set_lineno(node)
-        # fetch the scope that correspond to comprehension
-        scope = self.scopes[node]
-        if scope.inlined:
-            # for inlined comprehension process with current generator
-            gen = self
-        else:
-            gen = self.make_func_codegen(
-                node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
-            )
+    # TODO(T129715008): Port inlining of comprehensions.
+    # def compile_comprehension(
+    #     self,
+    #     node: CompNode,
+    #     name: str,
+    #     elt: ast.expr,
+    #     val: ast.expr | None,
+    #     opcode: str,
+    #     oparg: object = 0,
+    # ) -> None:
+    #     # fetch the scope that correspond to comprehension
+    #     scope = self.scopes[node]
+    #     if scope.inlined:
+    #         # for inlined comprehension process with current generator
+    #         gen = self
+    #     else:
+    #         gen = self.make_func_codegen(
+    #             node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
+    #         )
+    #     gen.set_lineno(node)
 
-        if opcode:
-            gen.emit(opcode, oparg)
+    #     if opcode:
+    #         gen.emit(opcode, oparg)
 
-        gen.compile_comprehension_generator(
-            node.generators, 0, 0, elt, val, type(node), not scope.inlined
-        )
+    #     gen.compile_comprehension_generator(
+    #         node.generators, 0, 0, elt, val, type(node), not scope.inlined
+    #     )
 
-        if scope.inlined:
-            # collect list of defs that were introduced by comprehension
-            # note that we need to exclude:
-            # - .0 parameter since it is used
-            # - non-local names (typically named expressions), they are
-            #   defined in enclosing scope and thus should not be deleted
-            to_delete = [
-                v
-                for v in scope.defs
-                if v != ".0" and v not in scope.nonlocals and v not in scope.cells
-            ]
-            # sort names to have deterministic deletion order
-            to_delete.sort()
-            for v in to_delete:
-                self.delName(v)
-            return
+    #     if scope.inlined:
+    #         # collect list of defs that were introduced by comprehension
+    #         # note that we need to exclude:
+    #         # - .0 parameter since it is used
+    #         # - non-local names (typically named expressions), they are
+    #         #   defined in enclosing scope and thus should not be deleted
+    #         to_delete = [
+    #             v
+    #             for v in scope.defs
+    #             if v != ".0" and v not in scope.nonlocals and v not in scope.cells
+    #         ]
+    #         # sort names to have deterministic deletion order
+    #         to_delete.sort()
+    #         for v in to_delete:
+    #             self.delName(v)
+    #         return
 
-        if not isinstance(node, ast.GeneratorExp):
-            gen.emit("RETURN_VALUE")
+    #     if not isinstance(node, ast.GeneratorExp):
+    #         gen.emit("RETURN_VALUE")
 
-        gen.finishFunction()
+    #     gen.finishFunction()
 
-        self._makeClosure(gen, 0)
+    #     self._makeClosure(gen, 0)
 
-        # precomputation of outmost iterable
-        self.visit(node.generators[0].iter)
-        if node.generators[0].is_async:
-            self.emit("GET_AITER")
-        else:
-            self.emit("GET_ITER")
-        self.emit("CALL_FUNCTION", 1)
+    #     # precomputation of outmost iterable
+    #     self.visit(node.generators[0].iter)
+    #     if node.generators[0].is_async:
+    #         self.emit("GET_AITER")
+    #     else:
+    #         self.emit("GET_ITER")
+    #     self.emit("CALL_FUNCTION", 1)
 
-        if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
-            self.emit("GET_AWAITABLE")
-            self.emit("LOAD_CONST", None)
-            self.emit("YIELD_FROM")
+    #     if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
+    #         self.emit("GET_AWAITABLE")
+    #         self.emit("LOAD_CONST", None)
+    #         self.emit("YIELD_FROM")
 
 
 def get_default_generator():
-
-    # TODO Enable CinderCodeGenerator once we port Cinder changes to C compiler
-    # if "cinder" in sys.version:
-    #    return CinderCodeGenerator
+    if "cinder" in sys.version:
+        return CinderCodeGenerator
 
     return CodeGenerator
 

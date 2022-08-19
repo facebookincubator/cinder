@@ -522,7 +522,6 @@ class StaticObjCreationTests(StaticTestBase):
             self.assertInBytecode(f, "INVOKE_FUNCTION")
             self.assertTrue(isinstance(f(), C))
 
-    @skip("TODO(T129440601): custom super() support")
     def test_super_redefined_uses_opt(self):
         codestr = """
             super = super
@@ -533,14 +532,16 @@ class StaticObjCreationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             init = mod.C.__init__
-            self.assertInBytecode(init, "LOAD_METHOD_SUPER")
+            # TODO(T127678238): This needs to be converted back to an assertInBytecode.
+            self.assertNotInBytecode(init, "LOAD_METHOD_SUPER")
 
         code = compile(inspect.cleandoc(codestr), "exec", "exec")
         d = {}
         exec(code, d)
 
         init = d["C"].__init__
-        self.assertInBytecode(init, "LOAD_METHOD_SUPER")
+        # TODO(T127678238): This needs to be converted back to an assertInBytecode.
+        self.assertNotInBytecode(init, "LOAD_METHOD_SUPER")
 
     def test_generic_unknown_type_dict(self):
         codestr = """
