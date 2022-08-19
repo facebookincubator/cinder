@@ -452,7 +452,6 @@ class UnionCompilationTests(StaticTestBase):
         """
         self.type_error(codestr, bad_ret_type("float", "int"))
 
-    @skip("TODO(T129145385): Expected float instance, got float class")
     def test_cast_int_to_float(self):
         codestr = """
             from __static__ import double
