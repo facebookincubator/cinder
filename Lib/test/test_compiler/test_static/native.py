@@ -1,4 +1,4 @@
-from .common import StaticTestBase
+from .common import StaticTestBase, type_mismatch
 
 
 class NativeDecoratorTests(StaticTestBase):
@@ -89,7 +89,7 @@ class NativeDecoratorTests(StaticTestBase):
         from __static__ import native, int64
 
         @native("so.so")
-        def something(i: int64) -> int64:
+        def something(j: int64) -> int64:
             pass
         """
 
@@ -99,3 +99,54 @@ class NativeDecoratorTests(StaticTestBase):
                 "native callable 'something' can only be called from static modules",
             ):
                 mod.something(1)
+
+    def test_native_usage_with_kwarg(self):
+        binding_codestr = """
+        from __static__ import native, int64, box, unbox
+
+        @native("libc.so.6")
+        def abs(i: int64, j: int64 = 4) -> int64:
+            pass
+        """
+        self.type_error(binding_codestr, "@native callables cannot contain kw args")
+
+    def test_native_usage_with_posonly_arg(self):
+        binding_codestr = """
+        from __static__ import native, int64, box, unbox
+
+        @native("libc.so.6")
+        def abs(i: int64, /) -> int64:
+            pass
+        """
+        self.type_error(
+            binding_codestr, "@native callables cannot contain pos-only args"
+        )
+
+    def test_native_usage_with_kwonly_arg(self):
+        binding_codestr = """
+        from __static__ import native, int64, box, unbox
+
+        @native("libc.so.6")
+        def abs(i: int64, *, j: int64 = 33) -> int64:
+            pass
+        """
+        self.type_error(
+            binding_codestr, "@native callables cannot contain kw-only args"
+        )
+
+    def test_native_call_with_pyobject(self):
+        binding_codestr = """
+        from __static__ import native, int64, box, unbox
+
+        @native("libc.so.6")
+        def abs(i: int64) -> int64:
+            pass
+
+        def invoke_abs(i: int) -> int:
+            res = abs(i)
+            return box(res)
+        """
+        self.type_error(
+            binding_codestr,
+            "type mismatch: int received for positional arg 'i', expected int64",
+        )
