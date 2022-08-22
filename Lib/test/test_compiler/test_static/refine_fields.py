@@ -445,7 +445,6 @@ class RefineFieldsTests(StaticTestBase):
             self.assertEqual(c.f(42), 42)
             self.assertEqual(c.x, 42)
 
-    @skip("TODO(T129152451): Error refining field at source codegen")
     def test_refined_field_at_source_codegen(self) -> None:
         codestr = """
             class C:

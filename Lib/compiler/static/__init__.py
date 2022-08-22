@@ -986,10 +986,42 @@ class Static38CodeGenerator(StrictCodeGenerator):
         return meth(self, node, *args)
 
     def compileJumpIf(self, test: AST, next: Block, is_if_true: bool) -> None:
-        if isinstance(test, ast.UnaryOp) and isinstance(test.op, ast.Not):
-            self.get_type(test).emit_jumpif(test.operand, next, not is_if_true, self)
-        else:
-            self.get_type(test).emit_jumpif(test, next, is_if_true, self)
+        if isinstance(test, ast.UnaryOp):
+            if isinstance(test.op, ast.Not):
+                # Compile to remove not operation
+                return self.compileJumpIf(test.operand, next, not is_if_true)
+        elif isinstance(test, ast.BoolOp):
+            is_or = isinstance(test.op, ast.Or)
+            skip_jump = next
+            if is_if_true != is_or:
+                skip_jump = self.newBlock()
+
+            for node in test.values[:-1]:
+                self.get_type(node).emit_jumpif(node, skip_jump, is_or, self)
+
+            self.get_type(test.values[-1]).emit_jumpif(
+                test.values[-1], next, is_if_true, self
+            )
+
+            if skip_jump is not next:
+                self.nextBlock(skip_jump)
+            return
+        elif isinstance(test, ast.IfExp):
+            end = self.newBlock("end")
+            orelse = self.newBlock("orelse")
+            # Jump directly to orelse if test matches
+            self.get_type(test.test).emit_jumpif(test.test, orelse, False, self)
+            # Jump directly to target if test is true and body is matches
+            self.get_type(test.body).emit_jumpif(test.body, next, is_if_true, self)
+            self.emit_noline("JUMP_FORWARD", end)
+            # Jump directly to target if test is true and orelse matches
+            self.nextBlock(orelse)
+            self.get_type(test.orelse).emit_jumpif(test.orelse, next, is_if_true, self)
+            self.nextBlock(end)
+            return
+
+        self.get_type(test).emit_jumpif(test, next, is_if_true, self)
+        self.nextBlock()
 
     def _calculate_idx(
         self, arg_name: str, non_cellvar_pos: int, cellvars: IndexedSet
