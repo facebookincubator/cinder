@@ -4785,7 +4785,7 @@ class NativeDecoratedFunction(Function):
 
         if args.defaults:
             visitor.syntax_error(
-                "@native callables cannot contain kw args",
+                "@native callables cannot contain kwargs",
                 args.defaults[0],
             )
 
@@ -4842,10 +4842,11 @@ class NativeDecorator(Callable[Class]):
         if isinstance(args[0], ast.Starred):
             raise TypedSyntaxError("@native decorator takes no starred arguments")
 
-        if isinstance(fn, DecoratedMethod):
+        if len(fn.node.decorator_list) != 1:
             raise TypedSyntaxError(
                 "@native decorator cannot be used with other decorators"
             )
+        assert not isinstance(fn, DecoratedMethod)
 
         native_fn = NativeDecoratedFunction(fn.node, fn.module, fn.return_type)
         native_fn.set_container_type(fn.container_type)
