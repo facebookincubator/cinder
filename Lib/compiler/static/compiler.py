@@ -401,6 +401,7 @@ class Compiler:
                     self.type_env,
                 ),
                 "set_type_static": self.type_env.DYNAMIC,
+                "native": self.type_env.native_decorator,
             },
         )
 
