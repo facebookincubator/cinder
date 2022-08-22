@@ -70,7 +70,7 @@ class NativeDecoratorTests(StaticTestBase):
         """
         self.type_error(codestr, "Cannot decorate a method with @native")
 
-    def test_native_no_function_body(self):
+    def test_native_some_function_body(self):
         codestr = """
         from __static__ import native, int64
 
@@ -79,7 +79,23 @@ class NativeDecoratorTests(StaticTestBase):
             return 1
         """
 
-        with self.assertRaisesRegex(
-            NotImplementedError, "Cannot emit bytecode for native function: something"
-        ):
-            self.compile_strict(codestr)
+        self.type_error(
+            codestr,
+            "@native callables cannot contain a function body, only 'pass' is allowed",
+        )
+
+    def test_native_valid_usage_in_nonstatic_module(self):
+        codestr = """
+        from __static__ import native, int64
+
+        @native("so.so")
+        def something(i: int64) -> int64:
+            pass
+        """
+
+        with self.in_strict_module(codestr) as mod:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "native callable 'something' can only be called from static modules",
+            ):
+                mod.something(1)

@@ -488,3 +488,10 @@ class ContextDecorator(ExcContextDecorator):
 
 
 set_type_static(ContextDecorator)
+
+
+def native(so_path):
+    def _inner_native(func):
+        return func
+
+    return _inner_native
