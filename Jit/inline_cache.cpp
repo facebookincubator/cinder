@@ -568,6 +568,7 @@ void LoadTypeAttrCache::fill(PyTypeObject* type, PyObject* value) {
     // the top of `PyType_Modified` for more details.
     return;
   }
+  ltac_watcher.unwatch(items[0], this);
   items[0] = reinterpret_cast<PyObject*>(type);
   items[1] = value;
   ltac_watcher.watch(type, this);
