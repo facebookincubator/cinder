@@ -5134,6 +5134,7 @@ class DataclassField(Object[DataclassFieldType]):
         hash: Optional[bool] = None,
         compare: bool = True,
         metadata: Optional[AST] = None,
+        kw_only: bool = False,
     ) -> None:
         super().__init__(klass)
         self._field_name = name
@@ -5148,6 +5149,7 @@ class DataclassField(Object[DataclassFieldType]):
         self.kind: DataclassFieldKind = DataclassFieldKind.FIELD
         self.base_class: Optional[Dataclass] = None
         self.default_class: Optional[Dataclass] = None
+        self.kw_only = kw_only
 
         if type_ref is not None:
             wrapper = type(type_ref.resolved(True))
@@ -5901,11 +5903,11 @@ class Dataclass(Class):
                 code_gen.visit(field.metadata)
                 field_args.append("metadata")
 
-            if field_args:
-                code_gen.emit("LOAD_CONST", tuple(field_args))
-                code_gen.emit("CALL_FUNCTION_KW", len(field_args))
-            else:
-                code_gen.emit("CALL_FUNCTION", 0)
+            code_gen.emit("LOAD_CONST", field.kw_only)
+            field_args.append("kw_only")
+
+            code_gen.emit("LOAD_CONST", tuple(field_args))
+            code_gen.emit("CALL_FUNCTION_KW", len(field_args))
 
             code_gen.emit("DUP_TOP")
             code_gen.emit("LOAD_CONST", name)

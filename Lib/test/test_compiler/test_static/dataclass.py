@@ -1194,9 +1194,6 @@ class DataclassTests(StaticTestBase):
                     self.assertIsInstance(field.metadata, Mapping)
                     self.assertIs(field._field_type, kind)
 
-    @skip(
-        "TODO(T129440787): non-static subclasses of static dataclasses don't pick up fields yet."
-    )
     def test_nonstatic_dataclass_picks_up_static_fields(self) -> None:
         codestr = """
         from dataclasses import dataclass
