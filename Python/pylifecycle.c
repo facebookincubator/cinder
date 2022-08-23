@@ -19,6 +19,10 @@
 
 #include <locale.h>               // setlocale()
 
+#if defined(Py_DEBUG) && !defined(MS_WINDOWS) && !defined(__VXWORKS__)
+#include <sys/resource.h>        // setrlimit() for Ci_set_thread_stack_size
+#endif
+
 #if defined(__APPLE__)
 #include <mach-o/loader.h>
 #endif
@@ -90,6 +94,45 @@ __attribute__ ((section (".PyRuntime")))
 = _PyRuntimeState_INIT;
 static int runtime_initialized = 0;
 
+
+static void
+Ci_set_thread_stack_size_limit()
+{
+    /*
+     * In debug builds the interpreter loop uses enough stack space to overflow the
+     * default 8MiB thread stack limit on devservers.
+     */
+#if defined(Py_DEBUG)
+#if defined(MS_WINDOWS) || defined(__VXWORKS__)
+    fprintf(stderr, "WARNING: The platform doesn't support setrlimit,"
+            " cannot ensure stack size is large enough.\n");
+#else
+    rlim_t stack_size_limit = 16 * 1024 * 1024;
+    struct rlimit lim;
+    if (getrlimit(RLIMIT_STACK, &lim) < 0) {
+        perror("WARNING: Failed getting current stack size limits,"
+               " cannot ensure stack size limits are large enough");
+        return;
+    }
+    if (lim.rlim_cur < stack_size_limit) {
+        lim.rlim_cur = stack_size_limit;
+        if (lim.rlim_max < stack_size_limit) {
+            fprintf(stderr, "WARNING: Hard limit on stack size (%lu) is"
+                    " < our desired limit (%lu). Increasing it will likely fail.\n",
+                    lim.rlim_max, stack_size_limit);
+            lim.rlim_max = stack_size_limit;
+        }
+        if (setrlimit(RLIMIT_STACK, &lim) < 0) {
+            perror("WARNING: Failed setting stack size limits,"
+                   " cannot ensure stack size limits are large enough");
+
+        }
+    }
+#endif
+#endif
+}
+
+
 PyStatus
 _PyRuntime_Initialize(void)
 {
@@ -103,6 +146,8 @@ _PyRuntime_Initialize(void)
         return _PyStatus_OK();
     }
     runtime_initialized = 1;
+
+    Ci_set_thread_stack_size_limit();
 
     return _PyRuntimeState_Init(&_PyRuntime);
 }
