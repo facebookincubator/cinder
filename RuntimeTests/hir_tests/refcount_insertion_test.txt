@@ -41,24 +41,24 @@ fun test {
 ---
 fun test {
   bb 0 {
-    v0:MortalDict = MakeDict<0> {
+    v0:MortalDictExact = MakeDict<0> {
       FrameState {
         NextInstrOffset 0
       }
     }
-    v1:MortalDict = CheckExc v0 {
+    v1:MortalDictExact = CheckExc v0 {
       LiveValues<1> o:v0
       FrameState {
         NextInstrOffset 0
       }
     }
-    v2:MortalDict = MakeDict<0> {
+    v2:MortalDictExact = MakeDict<0> {
       LiveValues<1> o:v1
       FrameState {
         NextInstrOffset 0
       }
     }
-    v3:MortalDict = CheckExc v2 {
+    v3:MortalDictExact = CheckExc v2 {
       LiveValues<2> o:v1 o:v2
       FrameState {
         NextInstrOffset 0
@@ -126,13 +126,13 @@ fun test {
 fun test {
   bb 0 {
     v0:Object = LoadArg<0>
-    v1:MortalDict = MakeDict<0> {
+    v1:MortalDictExact = MakeDict<0> {
       LiveValues<1> b:v0
       FrameState {
         NextInstrOffset 0
       }
     }
-    v2:MortalDict = CheckExc v1 {
+    v2:MortalDictExact = CheckExc v1 {
       LiveValues<2> b:v0 o:v1
       FrameState {
         NextInstrOffset 0
@@ -200,25 +200,25 @@ fun test {
 fun test {
   bb 0 {
     v0:Object = LoadArg<0>
-    v1:MortalDict = MakeDict<0> {
+    v1:MortalDictExact = MakeDict<0> {
       LiveValues<1> b:v0
       FrameState {
         NextInstrOffset 0
       }
     }
-    v2:MortalDict = CheckExc v1 {
+    v2:MortalDictExact = CheckExc v1 {
       LiveValues<2> b:v0 o:v1
       FrameState {
         NextInstrOffset 0
       }
     }
-    v3:MortalDict = MakeDict<0> {
+    v3:MortalDictExact = MakeDict<0> {
       LiveValues<2> b:v0 o:v2
       FrameState {
         NextInstrOffset 0
       }
     }
-    v4:MortalDict = CheckExc v3 {
+    v4:MortalDictExact = CheckExc v3 {
       LiveValues<3> b:v0 o:v2 o:v3
       FrameState {
         NextInstrOffset 0

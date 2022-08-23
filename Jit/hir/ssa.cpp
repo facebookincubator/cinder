@@ -389,7 +389,7 @@ Type outputType(
     case Opcode::kMakeCell:
       return TMortalCell;
     case Opcode::kMakeDict:
-      return TMortalDict;
+      return TMortalDictExact;
     case Opcode::kMakeCheckedDict: {
       auto& makechkdict = static_cast<const MakeCheckedDict&>(instr);
       return makechkdict.type();
