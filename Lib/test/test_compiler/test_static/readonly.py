@@ -60,7 +60,6 @@ class ReadonlyTests(StaticTestBase):
             "l",
         )
 
-    @skip("TODO(T129143791): name 'Readonly' is not defined")
     def test_readonly_parameter_2(self):
         codestr = """
         from __future__ import annotations
@@ -126,7 +125,6 @@ class ReadonlyTests(StaticTestBase):
             "return readonly(g())",
         )
 
-    @skip("TODO(T129143791): name 'Readonly' is not defined")
     def test_readonly_override_1(self):
         codestr = """
         from __future__ import annotations
