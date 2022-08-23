@@ -1473,7 +1473,6 @@ class StaticRuntimeTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    @skip("TODO(T129450096): bug in checked_dict")
     def test_checked_dict(self):
         x = chkdict[str, str]()
         x["abc"] = "foo"
@@ -1519,7 +1518,6 @@ class StaticRuntimeTests(StaticTestBase):
             x["abc"] = "abc"
         self.assertEqual(x, {})
 
-    @skip("TODO(T129450096): bug in checked_dict")
     def test_checked_dict_ctor(self):
         self.assertEqual(chkdict[str, str](x="abc"), {"x": "abc"})
         self.assertEqual(chkdict[str, int](x=42), {"x": 42})

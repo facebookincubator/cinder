@@ -2197,7 +2197,7 @@ dict_next(PyObject *op, Py_ssize_t *ppos, PyObject **pkey,
     PyObject **value_ptr;
     PyObject *value;
 
-    if (!PyDict_Check(op))
+    if (!Ci_Dict_CheckIncludingChecked(op))
         return 0;
     mp = (PyDictObject *)op;
     dk = mp->ma_keys;
@@ -3170,7 +3170,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
      * things quite efficiently.  For the latter, we only require that
      * PyMapping_Keys() and PyObject_GetItem() be supported.
      */
-    if (a == NULL || !PyDict_Check(a) || b == NULL) {
+    if (a == NULL || !Ci_Dict_CheckIncludingChecked(a) || b == NULL) {
         PyErr_BadInternalCall();
         return -1;
     }
@@ -3324,7 +3324,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 Py_DECREF(key);
                 return -1;
             }
-            status = PyDict_SetItem(a, key, value);
+            status = Ci_Dict_SetItemInternal(a, key, value);
             Py_DECREF(key);
             Py_DECREF(value);
             if (status < 0) {
