@@ -2105,7 +2105,6 @@ class StaticPatchTests(StaticTestBase):
             # isn't initialized.
             setattr(mod.C, "f", lambda x: 100)
 
-    @skip("TODO(T129446969): Expected RuntimeError is not raised")
     def test_set_code_raises_runtime_error(self):
         codestr = """
             def f():

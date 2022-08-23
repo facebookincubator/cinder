@@ -7,6 +7,7 @@
 #include "pycore_pyerrors.h"      // _PyErr_Occurred()
 #include "structmember.h"         // PyMemberDef
 #include "Jit/pyjit.h"
+#include "cinder/porting-support.h"
 
 PyObject *
 PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname)
@@ -318,6 +319,14 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     if (value == NULL || !PyCode_Check(value)) {
         PyErr_SetString(PyExc_TypeError,
                         "__code__ must be set to a code object");
+        return -1;
+    }
+
+    /* TODO(T122481814): Hook _PyJIT_FuncModified instead of having custom code
+     * in CPython */
+    if (((PyCodeObject*)op->func_code)->co_flags & CO_STATICALLY_COMPILED) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Cannot modify __code__ of Static Python function");
         return -1;
     }
 
