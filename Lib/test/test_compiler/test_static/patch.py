@@ -320,7 +320,6 @@ class StaticPatchTests(StaticTestBase):
                 ):
                     g()
 
-    @skip("TODO(T129447095): Bug when patching in a strict module")
     def test_invoke_strict_module_patching(self):
         codestr = """
             def f():
@@ -337,7 +336,6 @@ class StaticPatchTests(StaticTestBase):
             mod.patch("f", lambda: 100)
             self.assertEqual(g(), 100)
 
-    @skipIf(cinderjit is not None, "TODO(T129448358): Patching bug exposed in jit")
     def test_invoke_patch_non_vectorcall(self):
         codestr = """
             def f():
@@ -1802,7 +1800,6 @@ class StaticPatchTests(StaticTestBase):
                 # Next, invoke a method on the base-class (C) through the patched subclass (D)
                 self.assertEqual(d.p(), 3)
 
-    @skip("TODO(T129447095): Bug when patching in a strict module")
     def test_patch_static_function_in_strict_module(self):
         codestr = """
             def f() -> int:

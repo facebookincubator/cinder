@@ -1325,11 +1325,9 @@ int _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value) {
     }
 
     PyStrictModule_GetOriginal((PyObject *)mod, name);
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (_PyClassLoader_UpdateModuleName(mod, name, value) < 0) {
         return -1;
     }
-#endif
     if (_PyObject_GenericSetAttrWithDict(self, name, value, global_setter) < 0) {
         return -1;
     }
