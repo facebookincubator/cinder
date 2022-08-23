@@ -171,7 +171,6 @@ class StaticFieldTests(StaticTestBase):
 
         self.assertEqual(e.exception.args[0], "'C' object has no attribute 'x'")
 
-    @skip("TODO(T129113652): Conditional init failure")
     def test_conditional_init(self):
         codestr = f"""
             from __static__ import box, int64
@@ -193,7 +192,6 @@ class StaticFieldTests(StaticTestBase):
             self.assertEqual(x.f(), 0)
             self.assertInBytecode(C.f, "LOAD_FIELD", (mod.__name__, "C", "value"))
 
-    @skip("TODO(T129345496): STORE_PRIMITIVE_FIELD interpreter support.")
     def test_aligned_subclass_field(self):
         codestr = """
             from __static__ import cbool
