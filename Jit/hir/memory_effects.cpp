@@ -106,6 +106,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kDeleteSubscr:
     case Opcode::kDictMerge:
     case Opcode::kDictUpdate:
+    case Opcode::kDictSubscr:
     case Opcode::kFillTypeAttrCache:
     case Opcode::kGetAIter:
     case Opcode::kGetANext:
@@ -147,7 +148,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
 
     // Instructions that return nullptr or a borrowed reference to a singleton
     // (usually None or True), and can invoke user code.
-    case Opcode::kDictSubscr:
     case Opcode::kMergeSetUnpack:
     case Opcode::kRunPeriodicTasks:
     case Opcode::kSetDictItem:
