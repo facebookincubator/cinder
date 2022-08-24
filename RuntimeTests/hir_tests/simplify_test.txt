@@ -135,7 +135,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test VariablesAreUncheckedIfAssignedOnAllFlows
+VariablesAreUncheckedIfAssignedOnAllFlows
 ---
 def test(x):
   if x:
@@ -159,17 +159,12 @@ fun jittestmodule:test {
 
   bb 1 (preds 0) {
     v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Branch<3>
+    Return v9
   }
 
   bb 2 (preds 0) {
-    v11:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    Branch<3>
-  }
-
-  bb 3 (preds 1, 2) {
-    v14:MortalLongExact = Phi<1, 2> v9 v11
-    Return v14
+    v12:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    Return v12
   }
 }
 ---
@@ -223,7 +218,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test BinaryOpSubscriptFromListIsSpecialized
+BinaryOpSubscriptFromListIsSpecialized
 ---
 def test():
   ls = [1, 2, 3]
@@ -231,31 +226,35 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v8:Nullptr = LoadConst<Nullptr>
-    v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v10:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    v11:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
-    v12:MortalListExact = MakeListTuple<list, 3> {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalListExact = MakeListTuple<list, 0> {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 2
+        Locals<1> v7
+      }
+    }
+    InitListTuple<list, 0> v8
+    v10:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v11:NoneType = ListExtend v8 v10 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v7
+        Stack<1> v8
+      }
+    }
+    v14:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    UseType<ListExact> v8
+    UseType<LongExact> v14
+    v20:CInt64[1] = LoadConst<CInt64[1]>
+    v17:CInt64 = CheckSequenceBounds v8 v20 {
+      FrameState {
+        NextInstrOffset 14
         Locals<1> v8
-        Stack<3> v9 v10 v11
       }
     }
-    InitListTuple<list, 3> v12 v9 v10 v11
-    v16:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    UseType<ListExact> v12
-    UseType<LongExact> v16
-    v22:CInt64[1] = LoadConst<CInt64[1]>
-    v19:CInt64 = CheckSequenceBounds v12 v22 {
-      FrameState {
-        NextInstrOffset 16
-        Locals<1> v12
-      }
-    }
-    v20:CPtr = LoadField<ob_item@24, CPtr, borrowed> v12
-    v21:Object = LoadArrayItem v20 v19 v12
-    Return v21
+    v18:CPtr = LoadField<ob_item@24, CPtr, borrowed> v8
+    v19:Object = LoadArrayItem v18 v17 v8
+    Return v19
   }
 }
 ---
@@ -347,7 +346,7 @@ fun test {
   }
 }
 ---
-@porting_broken_test CondBranchOfIsTruthyWithNoneDeletesUnreachableBlock
+CondBranchOfIsTruthyWithNoneDeletesUnreachableBlock
 ---
 def test():
   x = None
@@ -364,13 +363,13 @@ fun jittestmodule:test {
     v8:NoneType = LoadConst<NoneType>
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<NoneType> v8
-    v21:CInt32[0] = LoadConst<CInt32[0]>
-    v16:MortalBool[False] = LoadConst<MortalBool[False]>
-    Return v16
+    v20:CInt32[0] = LoadConst<CInt32[0]>
+    v17:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v17
   }
 }
 ---
-@porting_broken_test CondBranchOfIsTruthyWithTrueDeletesUnreachableBlock
+CondBranchOfIsTruthyWithTrueDeletesUnreachableBlock
 ---
 def test():
   x = True
@@ -387,7 +386,7 @@ fun jittestmodule:test {
     v8:MortalBool[True] = LoadConst<MortalBool[True]>
     v10:MortalBool[True] = LoadConst<MortalBool[True]>
     UseType<MortalBool[True]> v8
-    v21:CInt32[1] = LoadConst<CInt32[1]>
+    v20:CInt32[1] = LoadConst<CInt32[1]>
     v14:MortalBool[True] = LoadConst<MortalBool[True]>
     Return v14
   }

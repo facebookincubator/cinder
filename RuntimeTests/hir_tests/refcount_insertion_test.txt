@@ -263,7 +263,7 @@ fun test {
   }
 }
 ---
-@porting_broken_test LoopUsingBorrowedValues
+LoopUsingBorrowedValues
 ---
 def test(a, b, l):
     s = a
@@ -296,7 +296,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
-    v29:Bool = RunPeriodicTasks {
+    v29:CInt32 = RunPeriodicTasks {
       LiveValues<6> b:v14 b:v15 b:v16 o:v21 b:v27 o:v28
       FrameState {
         NextInstrOffset 8
@@ -368,7 +368,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test LoopUsingOwnedValues
+LoopUsingOwnedValues
 ---
 def test(l):
     a = something()
@@ -431,7 +431,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
-    v38:Bool = RunPeriodicTasks {
+    v38:CInt32 = RunPeriodicTasks {
       LiveValues<6> b:v18 o:v21 o:v24 o:v29 b:v36 o:v37
       FrameState {
         NextInstrOffset 20
@@ -505,7 +505,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test LoopUsingTransientValues
+LoopUsingTransientValues
 ---
 def test(l):
     s = something()
@@ -550,7 +550,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
-    v27:Bool = RunPeriodicTasks {
+    v27:CInt32 = RunPeriodicTasks {
       LiveValues<4> b:v14 o:v20 o:v25 o:v26
       FrameState {
         NextInstrOffset 10
@@ -687,7 +687,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test ConditionalInitializedWithArgOrConst
+ConditionalInitializedWithArgOrConst
 ---
 def test(pred, val):
     if pred:
@@ -712,18 +712,14 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    Branch<3>
+    Incref v6
+    Return v6
   }
 
   bb 2 (preds 0) {
-    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Branch<3>
-  }
-
-  bb 3 (preds 1, 2) {
-    v16:Object = Phi<1, 2> v6 v12
-    Incref v16
-    Return v16
+    v13:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Incref v13
+    Return v13
   }
 }
 ---
@@ -821,7 +817,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test XIncrefUsedOnMaybeInitializedValue
+XIncrefUsedOnMaybeInitializedValue
 ---
 def test(timings):
     if timings:
@@ -833,20 +829,20 @@ def test(timings):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v11:Object = LoadArg<0; "timings">
-    v12:Nullptr = LoadConst<Nullptr>
-    v14:CInt32 = IsTruthy v11 {
-      LiveValues<2> b:v11 unc:v12
+    v12:Object = LoadArg<0; "timings">
+    v13:Nullptr = LoadConst<Nullptr>
+    v15:CInt32 = IsTruthy v12 {
+      LiveValues<2> b:v12 unc:v13
       FrameState {
         NextInstrOffset 4
-        Locals<2> v11 v12
+        Locals<2> v12 v13
       }
     }
-    CondBranch<1, 7> v14
+    CondBranch<1, 7> v15
   }
 
   bb 1 (preds 0) {
-    v15:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v16:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     Branch<2>
   }
 
@@ -855,89 +851,87 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1, 7) {
-    v18:OptMortalLongExact = Phi<1, 7> v15 v12
-    v20:CInt32 = IsTruthy v11 {
-      LiveValues<2> b:v11 b:v18
+    v19:OptMortalLongExact = Phi<1, 7> v16 v13
+    v21:CInt32 = IsTruthy v12 {
+      LiveValues<2> b:v12 b:v19
       FrameState {
         NextInstrOffset 12
-        Locals<2> v11 v18
+        Locals<2> v12 v19
       }
     }
-    CondBranch<3, 8> v20
+    CondBranch<3, 8> v21
   }
 
   bb 3 (preds 2) {
-    v21:MortalLongExact = CheckVar<"total_time"> v18 {
-      LiveValues<2> b:v11 b:v18
+    v22:MortalLongExact = CheckVar<"total_time"> v19 {
+      LiveValues<2> b:v12 b:v19
       FrameState {
         NextInstrOffset 14
-        Locals<2> v11 v18
+        Locals<2> v12 v19
       }
     }
-    v22:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v36:LongExact = LongBinaryOp<Add> v21 v22 {
-      LiveValues<3> b:v11 b:v21 b:v22
+    v23:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v36:LongExact = LongBinaryOp<Add> v22 v23 {
+      LiveValues<3> b:v12 b:v22 b:v23
       FrameState {
         NextInstrOffset 18
-        Locals<2> v11 v21
+        Locals<2> v12 v22
       }
     }
     Branch<4>
   }
 
   bb 8 (preds 2) {
-    XIncref v18
+    XIncref v19
     Branch<4>
   }
 
   bb 4 (preds 3, 8) {
-    v26:OptLongExact = Phi<3, 8> v36 v18
-    v28:CInt32 = IsTruthy v11 {
-      LiveValues<2> b:v11 o:v26
+    v27:OptLongExact = Phi<3, 8> v36 v19
+    v29:CInt32 = IsTruthy v12 {
+      LiveValues<2> b:v12 o:v27
       FrameState {
         NextInstrOffset 24
-        Locals<2> v11 v26
+        Locals<2> v12 v27
       }
     }
-    CondBranch<5, 9> v28
+    CondBranch<5, 6> v29
   }
 
   bb 5 (preds 4) {
-    v29:OptObject = LoadGlobalCached<0; "print">
-    v30:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v29 {
+    v30:OptObject = LoadGlobalCached<0; "print">
+    v31:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v30 {
       Descr 'LOAD_GLOBAL: print'
-      LiveValues<3> b:v11 o:v26 b:v29
+      LiveValues<3> b:v12 o:v27 b:v30
       FrameState {
         NextInstrOffset 24
-        Locals<2> v11 v26
+        Locals<2> v12 v27
       }
     }
-    v31:LongExact = CheckVar<"total_time"> v26 {
-      LiveValues<3> b:v11 o:v26 b:v30
+    v32:LongExact = CheckVar<"total_time"> v27 {
+      LiveValues<3> b:v12 o:v27 b:v31
       FrameState {
         NextInstrOffset 28
-        Locals<2> v11 v26
-        Stack<1> v30
+        Locals<2> v12 v27
+        Stack<1> v31
       }
     }
-    v32:Object = VectorCall<1> v30 v31 {
-      LiveValues<3> b:v11 b:v30 o:v31
+    v33:Object = VectorCall<1> v31 v32 {
+      LiveValues<3> b:v12 b:v31 o:v32
       FrameState {
         NextInstrOffset 30
-        Locals<2> v11 v31
+        Locals<2> v12 v32
       }
     }
-    Decref v31
     Decref v32
-    Branch<6>
+    Decref v33
+    v34:NoneType = LoadConst<NoneType>
+    Incref v34
+    Return v34
   }
 
-  bb 9 (preds 4) {
-    XDecref v26
-    Branch<6>
-  }
-
-  bb 6 (preds 5, 9) {
+  bb 6 (preds 4) {
+    XDecref v27
     v35:NoneType = LoadConst<NoneType>
     Incref v35
     Return v35

@@ -19,7 +19,7 @@ fun jittestmodule:test {
     v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
       Descr 'LOAD_GLOBAL: foo'
     }
-    v9:Object = LoadField<func_code@16, Object, borrowed> v3
+    v9:Object = LoadField<func_code@48, Object, borrowed> v3
     v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9 {
     }
     v7:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
@@ -44,7 +44,7 @@ fun jittestmodule:test {
     v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: foo'
     }
-    v16:Object = LoadField<func_code@16, Object, borrowed> v6
+    v16:Object = LoadField<func_code@48, Object, borrowed> v6
     v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16 {
     }
     v14:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
@@ -52,7 +52,7 @@ fun jittestmodule:test {
     v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: bar'
     }
-    v22:Object = LoadField<func_code@16, Object, borrowed> v9
+    v22:Object = LoadField<func_code@48, Object, borrowed> v9
     v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22 {
     }
     v20:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
@@ -81,7 +81,7 @@ fun jittestmodule:test {
     }
     v6:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
-    v19:Object = LoadField<func_code@16, Object, borrowed> v5
+    v19:Object = LoadField<func_code@48, Object, borrowed> v5
     v20:MortalCode["add"] = GuardIs<0xdeadbeef> v19 {
     }
     BeginInlinedFunction<jittestmodule:add> {

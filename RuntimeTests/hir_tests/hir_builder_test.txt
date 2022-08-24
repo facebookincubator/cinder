@@ -275,7 +275,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test HandlesIncomingStacksInCanonicalForm
+HandlesIncomingStacksInCanonicalForm
 ---
 def test(x):
   y = True if x else False
@@ -301,20 +301,22 @@ fun jittestmodule:test {
 
   bb 1 (preds 0) {
     v3 = LoadConst<MortalBool[True]>
-    Branch<3>
+    v1 = Assign v3
+    v1 = CheckVar<"y"> v1 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v0 v1
+      }
+    }
+    Return v1
   }
 
   bb 2 (preds 0) {
     v4 = LoadConst<MortalBool[False]>
-    v3 = Assign v4
-    Branch<3>
-  }
-
-  bb 3 (preds 1, 2) {
-    v1 = Assign v3
+    v1 = Assign v4
     v1 = CheckVar<"y"> v1 {
       FrameState {
-        NextInstrOffset 14
+        NextInstrOffset 18
         Locals<2> v0 v1
       }
     }
@@ -322,7 +324,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test InsertsCopiesToCanonicalizeStacks
+InsertsCopiesToCanonicalizeStacks
 ---
 def test(x, y):
   z = x if x else y
@@ -354,26 +356,27 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v4 = Assign v0
-    Branch<3>
-  }
-
-  bb 2 (preds 0) {
-    v1 = CheckVar<"y"> v1 {
+    v2 = Assign v0
+    v2 = CheckVar<"z"> v2 {
       FrameState {
         NextInstrOffset 10
         Locals<3> v0 v1 v2
       }
     }
-    v4 = Assign v1
-    Branch<3>
+    Return v2
   }
 
-  bb 3 (preds 1, 2) {
-    v2 = Assign v4
-    v2 = CheckVar<"z"> v2 {
+  bb 2 (preds 0) {
+    v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 14
+        Locals<3> v0 v1 v2
+      }
+    }
+    v2 = Assign v1
+    v2 = CheckVar<"z"> v2 {
+      FrameState {
+        NextInstrOffset 18
         Locals<3> v0 v1 v2
       }
     }
@@ -582,7 +585,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test TranslatesAddPacket
+TranslatesAddPacket
 ---
 def test(self, p, old):
     if self.input is None:
@@ -624,7 +627,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    CondBranch<1, 3> v6
+    CondBranch<1, 4> v6
   }
 
   bb 1 (preds 0) {
@@ -699,7 +702,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    CondBranch<2, 4> v13
+    CondBranch<2, 3> v13
   }
 
   bb 2 (preds 1) {
@@ -712,47 +715,53 @@ fun jittestmodule:test {
     Return v0
   }
 
-  bb 3 (preds 0) {
-    v1 = CheckVar<"p"> v1 {
+  bb 3 (preds 1) {
+    v2 = CheckVar<"old"> v2 {
       FrameState {
         NextInstrOffset 40
         Locals<3> v0 v1 v2
       }
     }
+    Return v2
+  }
+
+  bb 4 (preds 0) {
+    v1 = CheckVar<"p"> v1 {
+      FrameState {
+        NextInstrOffset 44
+        Locals<3> v0 v1 v2
+      }
+    }
     v14 = LoadMethod<3; "append_to"> v1 {
       FrameState {
-        NextInstrOffset 42
+        NextInstrOffset 46
         Locals<3> v0 v1 v2
       }
     }
     v15 = GetLoadMethodInstance<1> v1
     v0 = CheckVar<"self"> v0 {
       FrameState {
-        NextInstrOffset 44
+        NextInstrOffset 48
         Locals<3> v0 v1 v2
         Stack<2> v14 v15
       }
     }
     v16 = LoadAttr<0; "input"> v0 {
       FrameState {
-        NextInstrOffset 46
+        NextInstrOffset 50
         Locals<3> v0 v1 v2
         Stack<2> v14 v15
       }
     }
     v17 = CallMethod<3> v14 v15 v16 {
       FrameState {
-        NextInstrOffset 48
+        NextInstrOffset 52
         Locals<3> v0 v1 v2
       }
     }
-    Branch<4>
-  }
-
-  bb 4 (preds 1, 3) {
     v2 = CheckVar<"old"> v2 {
       FrameState {
-        NextInstrOffset 52
+        NextInstrOffset 56
         Locals<3> v0 v1 v2
       }
     }
@@ -760,35 +769,16 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test TranslatesLoops
+TranslatesLoops
 ---
 def test(x, y):
   while x:
     x = y()
 ---
 fun jittestmodule:test {
-  bb 3 {
+  bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
-    Branch<4>
-  }
-
-  bb 4 (preds 1, 3) {
-    v5 = LoadEvalBreaker
-    CondBranch<5, 0> v5
-  }
-
-  bb 5 (preds 4) {
-    v6 = RunPeriodicTasks {
-      FrameState {
-        NextInstrOffset 0
-        Locals<2> v0 v1
-      }
-    }
-    Branch<0>
-  }
-
-  bb 0 (preds 4, 5) {
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -801,10 +791,25 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    CondBranch<1, 2> v2
+    CondBranch<4, 3> v2
   }
 
-  bb 1 (preds 0) {
+  bb 4 (preds 0, 1) {
+    v7 = LoadEvalBreaker
+    CondBranch<5, 1> v7
+  }
+
+  bb 5 (preds 4) {
+    v8 = RunPeriodicTasks {
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 4, 5) {
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 6
@@ -818,16 +823,33 @@ fun jittestmodule:test {
       }
     }
     v0 = Assign v3
-    Branch<4>
+    v0 = CheckVar<"x"> v0 {
+      FrameState {
+        NextInstrOffset 12
+        Locals<2> v0 v1
+      }
+    }
+    v4 = IsTruthy v0 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v0 v1
+      }
+    }
+    CondBranch<4, 2> v4
   }
 
-  bb 2 (preds 0) {
-    v4 = LoadConst<NoneType>
-    Return v4
+  bb 2 (preds 1) {
+    v6 = LoadConst<NoneType>
+    Return v6
+  }
+
+  bb 3 (preds 0) {
+    v5 = LoadConst<NoneType>
+    Return v5
   }
 }
 ---
-@porting_broken_test TranslateBlocksWithOnlySetupLoop0
+TranslateBlocksWithOnlySetupLoop0
 ---
 def test(self):
     if not self:
@@ -853,64 +875,64 @@ fun jittestmodule:test {
     CondBranch<4, 1> v1
   }
 
-  bb 4 (preds 0, 2) {
+  bb 4 (preds 0, 3) {
     v4 = LoadEvalBreaker
-    CondBranch<5, 2> v4
+    CondBranch<5, 3> v4
   }
 
   bb 5 (preds 4) {
     v5 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 10
         Locals<1> v0
       }
     }
-    Branch<2>
+    Branch<3>
   }
 
-  bb 2 (preds 4, 5) {
-    v2 = LoadConst<MortalLongExact[1]>
-    v0 = Assign v2
+  bb 3 (preds 4, 5) {
+    v3 = LoadConst<MortalLongExact[1]>
+    v0 = Assign v3
     Branch<4>
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<NoneType>
-    Return v3
+    v2 = LoadConst<NoneType>
+    Return v2
   }
 }
 ---
-@porting_broken_test TranslateBlocksWithOnlySetupLoop1
+TranslateBlocksWithOnlySetupLoop1
 ---
 def test(self):
     while True:
         self = 1
 ---
 fun jittestmodule:test {
-  bb 2 {
+  bb 0 {
     v0 = LoadArg<0; "self">
-    Branch<3>
+    Branch<2>
   }
 
-  bb 3 (preds 0, 2) {
+  bb 2 (preds 0, 1) {
     v2 = LoadEvalBreaker
-    CondBranch<4, 0> v2
+    CondBranch<3, 1> v2
   }
 
-  bb 4 (preds 3) {
+  bb 3 (preds 2) {
     v3 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 0
+        NextInstrOffset 2
         Locals<1> v0
       }
     }
-    Branch<0>
+    Branch<1>
   }
 
-  bb 0 (preds 3, 4) {
+  bb 1 (preds 2, 3) {
     v1 = LoadConst<MortalLongExact[1]>
     v0 = Assign v1
-    Branch<3>
+    Branch<2>
   }
 }
 ---
@@ -2735,7 +2757,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test HandlesEmptyInfiniteLoops
+HandlesEmptyInfiniteLoops
 ---
 def test():
   while True:
@@ -2743,22 +2765,22 @@ def test():
 
 ---
 fun jittestmodule:test {
-  bb 2 {
-    Branch<3>
+  bb 0 {
+    Branch<2>
   }
 
-  bb 3 (preds 2, 3, 4) {
+  bb 2 (preds 0, 2, 3) {
     v0 = LoadEvalBreaker
-    CondBranch<4, 3> v0
+    CondBranch<3, 2> v0
   }
 
-  bb 4 (preds 3) {
+  bb 3 (preds 2) {
     v1 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 0
+        NextInstrOffset 2
       }
     }
-    Branch<3>
+    Branch<2>
   }
 }
 ---
@@ -3189,20 +3211,20 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test LoopWithBreak1
+LoopWithBreak1
 ---
 def test():
   while True:
     break
 ---
 fun jittestmodule:test {
-  bb 2 {
+  bb 0 {
     v0 = LoadConst<NoneType>
     Return v0
   }
 }
 ---
-@porting_broken_test LoopWithBreak2
+LoopWithBreak2
 ---
 def test(x, y):
   while x < 10:
@@ -3211,28 +3233,9 @@ def test(x, y):
     x += 1
 ---
 fun jittestmodule:test {
-  bb 5 {
+  bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
-    Branch<6>
-  }
-
-  bb 6 (preds 3, 5) {
-    v10 = LoadEvalBreaker
-    CondBranch<7, 0> v10
-  }
-
-  bb 7 (preds 6) {
-    v11 = RunPeriodicTasks {
-      FrameState {
-        NextInstrOffset 0
-        Locals<2> v0 v1
-      }
-    }
-    Branch<0>
-  }
-
-  bb 0 (preds 6, 7) {
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -3252,10 +3255,25 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    CondBranch<1, 4> v4
+    CondBranch<6, 5> v4
   }
 
-  bb 1 (preds 0) {
+  bb 6 (preds 0, 3) {
+    v15 = LoadEvalBreaker
+    CondBranch<7, 1> v15
+  }
+
+  bb 7 (preds 6) {
+    v16 = RunPeriodicTasks {
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 6, 7) {
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 10
@@ -3281,34 +3299,63 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    CondBranch<4, 3> v6
+    CondBranch<2, 3> v6
+  }
+
+  bb 2 (preds 1) {
+    v8 = LoadConst<NoneType>
+    Return v8
   }
 
   bb 3 (preds 1) {
     v0 = CheckVar<"x"> v0 {
       FrameState {
-        NextInstrOffset 20
+        NextInstrOffset 22
         Locals<2> v0 v1
       }
     }
-    v8 = LoadConst<MortalLongExact[1]>
-    v9 = InPlaceOp<Add> v0 v8 {
+    v9 = LoadConst<MortalLongExact[1]>
+    v10 = InPlaceOp<Add> v0 v9 {
       FrameState {
-        NextInstrOffset 24
+        NextInstrOffset 26
         Locals<2> v0 v1
       }
     }
-    v0 = Assign v9
-    Branch<6>
+    v0 = Assign v10
+    v0 = CheckVar<"x"> v0 {
+      FrameState {
+        NextInstrOffset 30
+        Locals<2> v0 v1
+      }
+    }
+    v11 = LoadConst<MortalLongExact[10]>
+    v12 = Compare<LessThan> v0 v11 {
+      FrameState {
+        NextInstrOffset 34
+        Locals<2> v0 v1
+      }
+    }
+    v13 = IsTruthy v12 {
+      FrameState {
+        NextInstrOffset 36
+        Locals<2> v0 v1
+      }
+    }
+    CondBranch<6, 4> v13
   }
 
-  bb 4 (preds 0, 1) {
+  bb 4 (preds 3) {
+    v14 = LoadConst<NoneType>
+    Return v14
+  }
+
+  bb 5 (preds 0) {
     v7 = LoadConst<NoneType>
     Return v7
   }
 }
 ---
-@porting_broken_test LoopWithBreak3
+LoopWithBreak3
 ---
 def test(x):
   for i in [1, 2]:
@@ -3330,12 +3377,12 @@ fun jittestmodule:test {
   }
 
   bb 6 (preds 0, 2) {
-    v8 = LoadEvalBreaker
-    CondBranch<7, 1> v8
+    v9 = LoadEvalBreaker
+    CondBranch<7, 1> v9
   }
 
   bb 7 (preds 6) {
-    v9 = RunPeriodicTasks {
+    v10 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
@@ -3387,10 +3434,15 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
-    CondBranch<5, 6> v6
+    CondBranch<3, 6> v6
   }
 
-  bb 5 (preds 1, 2) {
+  bb 3 (preds 2) {
+    v8 = LoadConst<NoneType>
+    Return v8
+  }
+
+  bb 5 (preds 1) {
     v7 = LoadConst<NoneType>
     Return v7
   }
@@ -3597,7 +3649,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test MaintainsIsolatedEntry
+MaintainsIsolatedEntry
 ---
 def test():
     while True:
@@ -3606,65 +3658,65 @@ def test():
             return x
 ---
 fun jittestmodule:test {
-  bb 2 {
-    Branch<3>
+  bb 0 {
+    Branch<4>
   }
 
-  bb 3 (preds 0, 2) {
+  bb 4 (preds 0, 1) {
     v6 = LoadEvalBreaker
-    CondBranch<4, 0> v6
+    CondBranch<5, 1> v6
   }
 
-  bb 4 (preds 3) {
+  bb 5 (preds 4) {
     v7 = RunPeriodicTasks {
-      FrameState {
-        NextInstrOffset 0
-        Locals<1> v0
-      }
-    }
-    Branch<0>
-  }
-
-  bb 0 (preds 3, 4) {
-    v1 = LoadGlobal<0; "foo"> {
       FrameState {
         NextInstrOffset 2
         Locals<1> v0
       }
     }
-    v2 = VectorCall<0> v1 {
+    Branch<1>
+  }
+
+  bb 1 (preds 4, 5) {
+    v1 = LoadGlobal<0; "foo"> {
       FrameState {
         NextInstrOffset 4
+        Locals<1> v0
+      }
+    }
+    v2 = VectorCall<0> v1 {
+      FrameState {
+        NextInstrOffset 6
         Locals<1> v0
       }
     }
     v0 = Assign v2
     v0 = CheckVar<"x"> v0 {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 10
         Locals<1> v0
       }
     }
     v3 = LoadConst<MortalLongExact[0]>
     v4 = Compare<NotEqual> v0 v3 {
       FrameState {
-        NextInstrOffset 12
+        NextInstrOffset 14
         Locals<1> v0
       }
     }
     v5 = IsTruthy v4 {
       FrameState {
-        NextInstrOffset 14
+        NextInstrOffset 16
         Locals<1> v0
       }
     }
-    CondBranch<1, 3> v5
+    CondBranch<2, 4> v5
   }
 
-  bb 1 (preds 0) {
+  bb 2 (preds 1) {
     v0 = CheckVar<"x"> v0 {
       FrameState {
-        NextInstrOffset 16
+        NextInstrOffset 18
         Locals<1> v0
       }
     }
@@ -3715,7 +3767,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test TestAsyncFor
+TestAsyncFor
 ---
 async def test(asyncgen):
   async for y in asyncgen:
@@ -3732,14 +3784,13 @@ fun jittestmodule:test {
     }
     v0 = CheckVar<"asyncgen"> v0 {
       FrameState {
-        NextInstrOffset 2
+        NextInstrOffset 4
         Locals<2> v0 v1
       }
     }
-    v3 = CallCFunc<_PyEval_GetAIter> v0
-    v3 = CheckExc v3 {
+    v3 = GetAIter v0 {
       FrameState {
-        NextInstrOffset 4
+        NextInstrOffset 6
         Locals<2> v0 v1
       }
     }
@@ -3754,11 +3805,11 @@ fun jittestmodule:test {
   bb 7 (preds 6) {
     v13 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
         Locals<2> v0 v1
         Stack<1> v3
         BlockStack {
-          Opcode 122 HandlerOff 26 StackLevel 1
+          Opcode 122 HandlerOff 28 StackLevel 1
         }
       }
     }
@@ -3766,14 +3817,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 6, 7) {
-    v4 = CallCFunc<_PyEval_GetANext> v3
-    v4 = CheckExc v4 {
+    v4 = GetANext v3 {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 10
         Locals<2> v0 v1
         Stack<1> v3
         BlockStack {
-          Opcode 122 HandlerOff 26 StackLevel 1
+          Opcode 122 HandlerOff 28 StackLevel 1
         }
       }
     }
@@ -3781,11 +3831,11 @@ fun jittestmodule:test {
     SetCurrentAwaiter v4
     v6 = YieldFromHandleStopAsyncIteration v5 v4 {
       FrameState {
-        NextInstrOffset 12
+        NextInstrOffset 14
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<2> v3 v4
         BlockStack {
-          Opcode 122 HandlerOff 26 StackLevel 1
+          Opcode 122 HandlerOff 28 StackLevel 1
         }
       }
     }
@@ -3801,11 +3851,11 @@ fun jittestmodule:test {
   bb 5 (preds 2) {
     v8 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 14
+        NextInstrOffset 16
         Locals<2> v0 v1
         Stack<2> v3 v4
         BlockStack {
-          Opcode 122 HandlerOff 26 StackLevel 1
+          Opcode 122 HandlerOff 28 StackLevel 1
         }
       }
     }
@@ -3820,14 +3870,14 @@ fun jittestmodule:test {
     }
     v1 = CheckVar<"y"> v1 {
       FrameState {
-        NextInstrOffset 20
+        NextInstrOffset 22
         Locals<2> v0 v1
         Stack<2> v3 v9
       }
     }
     v10 = VectorCall<1> v9 v1 {
       FrameState {
-        NextInstrOffset 22
+        NextInstrOffset 24
         Locals<2> v0 v1
         Stack<1> v3
       }
@@ -3841,41 +3891,26 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test TestMakeSet
+TestMakeSet
 ---
 def test():
   return {1,2,3}
 ---
 fun jittestmodule:test {
   bb 0 {
-    v0 = LoadConst<MortalLongExact[1]>
-    v1 = LoadConst<MortalLongExact[2]>
-    v2 = LoadConst<MortalLongExact[3]>
-    v3 = MakeSet {
+    v0 = MakeSet {
       FrameState {
-        NextInstrOffset 8
-        Stack<3> v0 v1 v2
+        NextInstrOffset 2
       }
     }
-    v4 = SetSetItem v3 v0 {
+    v1 = LoadConst<MortalObjectUser[frozenset:0xdeadbeef]>
+    v2 = SetUpdate v0 v1 {
       FrameState {
-        NextInstrOffset 8
-        Stack<3> v0 v1 v2
+        NextInstrOffset 6
+        Stack<1> v0
       }
     }
-    v5 = SetSetItem v3 v1 {
-      FrameState {
-        NextInstrOffset 8
-        Stack<3> v0 v1 v2
-      }
-    }
-    v6 = SetSetItem v3 v2 {
-      FrameState {
-        NextInstrOffset 8
-        Stack<3> v0 v1 v2
-      }
-    }
-    Return v3
+    Return v0
   }
 }
 ---
