@@ -14,19 +14,9 @@ fun jittestmodule:test {
     v4:Object = LoadArg<1; "i">
     v7:TupleExact = GuardType<TupleExact> v3 {
       GuiltyReg v3
-      FrameState {
-        NextInstrOffset 6
-        Locals<2> v3 v4
-        Stack<2> v3 v4
-      }
     }
     v8:LongExact = GuardType<LongExact> v4 {
       GuiltyReg v4
-      FrameState {
-        NextInstrOffset 6
-        Locals<2> v7 v4
-        Stack<2> v7 v4
-      }
     }
     UseType<TupleExact> v7
     UseType<LongExact> v8
@@ -84,11 +74,6 @@ fun jittestmodule:test {
     v12:NoneType = LoadConst<NoneType>
     v13:Bool = GuardType<Bool> v9 {
       GuiltyReg v9
-      FrameState {
-        NextInstrOffset 6
-        Locals<2> v9 v10
-        Stack<2> v9 v12
-      }
     }
     UseType<Bool> v13
     UseType<NoneType> v12
