@@ -3,7 +3,7 @@ InlinerTest
 InlineFunctionCalls
 Simplify
 ---
-Simple
+@porting_broken_test Simple
 ---
 def foo():
     # Chosen by fair dice roll. Guaranteed to be random.
@@ -30,7 +30,7 @@ fun jittestmodule:test {
   }
 }
 ---
-InlineMultipleFunctions
+@porting_broken_test InlineMultipleFunctions
 ---
 def foo():
     return 3
@@ -77,7 +77,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TypesFromCallerFlowIntoCallee
+@porting_broken_test TypesFromCallerFlowIntoCallee
 ---
 def foo(left, right):
   return left[right]
@@ -128,7 +128,7 @@ fun jittestmodule:test {
   }
 }
 ---
-PositionalArguments
+@porting_broken_test PositionalArguments
 ---
 def foo(left, right):
     return left + right
@@ -283,7 +283,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CalleeWithCellvars2
+@porting_broken_test CalleeWithCellvars2
 ---
 def test():
   local = 5
@@ -336,7 +336,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CalleeFunctionWithoutObjectSpec
+@porting_broken_test CalleeFunctionWithoutObjectSpec
 ---
 def test():
   def inside():
@@ -391,7 +391,7 @@ fun jittestmodule:test {
   }
 }
 ---
-Recursive
+@porting_broken_test Recursive
 ---
 def test(x):
   if x < 2:

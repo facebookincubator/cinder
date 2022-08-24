@@ -361,7 +361,6 @@ BB %0
   ASSERT_EQ(lir_str, ss.str());
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 // TODO(tiansi): The parser does not recognize the new instructions.
 // I'm planning to fix and improve LIR printing/parsing with a
 // separate diff. Disabled this test for now.
@@ -385,7 +384,6 @@ def func(x):
   ss << *parsed_func;
   ASSERT_EQ(lir_str, removeCommentsAndWhitespace(ss.str()));
 }
-#endif
 
 template <typename... Args>
 bool MemoryIndirectTestCase(std::string_view expected, Args&&... args) {
@@ -446,7 +444,6 @@ TEST(LIRTest, MemoryIndirectTests) {
       0x1000));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 extern "C" uint64_t __Invoke_PyTuple_Check(PyObject* obj);
 
 TEST(LIRTest, CondBranchCheckTypeEmitsCallToSubclassCheck) {
@@ -498,4 +495,3 @@ fun foo {
       reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check));
   EXPECT_NE(ss.str().find(lir_expected.c_str()), std::string::npos);
 }
-#endif

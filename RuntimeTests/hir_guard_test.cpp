@@ -10,8 +10,6 @@
 #include "RuntimeTests/fixtures.h"
 #include "RuntimeTests/testutil.h"
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 class GuardTest : public RuntimeTest {};
 
 using namespace jit::hir;
@@ -206,5 +204,3 @@ fun __main__:test {
 )";
   EXPECT_NO_FATAL_FAILURE(testFillGuards(hir, expected));
 }
-
-#endif

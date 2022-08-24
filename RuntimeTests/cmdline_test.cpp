@@ -112,7 +112,6 @@ int try_flag_and_envvar_effect(
   return init_status;
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(CmdLineTest, BasicFlags) {
   // easy flags that don't interact with one another in tricky ways
   ASSERT_EQ(
@@ -328,6 +327,8 @@ TEST_F(CmdLineTest, JITEnable) {
       0);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
+
 // start of tests associated with flags the setting of which is dependant upon
 // if jit is enabled
 TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
@@ -359,6 +360,8 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           true),
       0);
 }
+
+#endif
 
 TEST_F(CmdLineTest, JITEnabledFlags_NoTypeSlots) {
   ASSERT_EQ(
@@ -576,4 +579,3 @@ TEST_F(CmdLineTest, DisplayHelpMessage) {
           true),
       -2);
 }
-#endif

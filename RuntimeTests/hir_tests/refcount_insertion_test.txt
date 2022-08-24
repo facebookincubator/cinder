@@ -263,7 +263,7 @@ fun test {
   }
 }
 ---
-LoopUsingBorrowedValues
+@porting_broken_test LoopUsingBorrowedValues
 ---
 def test(a, b, l):
     s = a
@@ -368,7 +368,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoopUsingOwnedValues
+@porting_broken_test LoopUsingOwnedValues
 ---
 def test(l):
     a = something()
@@ -505,7 +505,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoopUsingTransientValues
+@porting_broken_test LoopUsingTransientValues
 ---
 def test(l):
     s = something()
@@ -687,7 +687,7 @@ fun jittestmodule:test {
   }
 }
 ---
-ConditionalInitializedWithArgOrConst
+@porting_broken_test ConditionalInitializedWithArgOrConst
 ---
 def test(pred, val):
     if pred:
@@ -741,7 +741,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoadCellItemOutputIsIncrefed
+@porting_broken_test LoadCellItemOutputIsIncrefed
 ---
 def test(a):
   a.foo()
@@ -821,7 +821,7 @@ fun jittestmodule:test {
   }
 }
 ---
-XIncrefUsedOnMaybeInitializedValue
+@porting_broken_test XIncrefUsedOnMaybeInitializedValue
 ---
 def test(timings):
     if timings:
@@ -1114,7 +1114,7 @@ fun jittestmodule:test {
   }
 }
 ---
-OptimizeLongDecrefRuns
+@porting_broken_test OptimizeLongDecrefRuns
 ---
 def test():
   gen = lambda: 1

@@ -275,7 +275,7 @@ fun jittestmodule:test {
   }
 }
 ---
-HandlesIncomingStacksInCanonicalForm
+@porting_broken_test HandlesIncomingStacksInCanonicalForm
 ---
 def test(x):
   y = True if x else False
@@ -322,7 +322,7 @@ fun jittestmodule:test {
   }
 }
 ---
-InsertsCopiesToCanonicalizeStacks
+@porting_broken_test InsertsCopiesToCanonicalizeStacks
 ---
 def test(x, y):
   z = x if x else y
@@ -582,7 +582,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TranslatesAddPacket
+@porting_broken_test TranslatesAddPacket
 ---
 def test(self, p, old):
     if self.input is None:
@@ -760,7 +760,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TranslatesLoops
+@porting_broken_test TranslatesLoops
 ---
 def test(x, y):
   while x:
@@ -827,7 +827,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TranslateBlocksWithOnlySetupLoop0
+@porting_broken_test TranslateBlocksWithOnlySetupLoop0
 ---
 def test(self):
     if not self:
@@ -880,7 +880,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TranslateBlocksWithOnlySetupLoop1
+@porting_broken_test TranslateBlocksWithOnlySetupLoop1
 ---
 def test(self):
     while True:
@@ -2735,7 +2735,7 @@ fun jittestmodule:test {
   }
 }
 ---
-HandlesEmptyInfiniteLoops
+@porting_broken_test HandlesEmptyInfiniteLoops
 ---
 def test():
   while True:
@@ -2842,7 +2842,7 @@ fun jittestmodule:test {
   }
 }
 ---
-ListComprehension
+@porting_broken_test ListComprehension
 ---
 def test(a):
   return [i for i in a]
@@ -2930,7 +2930,7 @@ fun jittestmodule:test {
   }
 }
 ---
-NestedFunction
+@porting_broken_test NestedFunction
 ---
 def test(a):
   def nested(a=a):
@@ -2977,7 +2977,7 @@ fun jittestmodule:test {
   }
 }
 ---
-Cellvar
+@porting_broken_test Cellvar
 ---
 def test():
   a = 1
@@ -3031,7 +3031,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CellvarArgument
+@porting_broken_test CellvarArgument
 ---
 def test(a):
   def g():
@@ -3082,7 +3082,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CellvarWithStackLoadAndBlockCanonicalization
+@porting_broken_test CellvarWithStackLoadAndBlockCanonicalization
 ---
 def test(a):
   def g():
@@ -3189,7 +3189,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoopWithBreak1
+@porting_broken_test LoopWithBreak1
 ---
 def test():
   while True:
@@ -3202,7 +3202,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoopWithBreak2
+@porting_broken_test LoopWithBreak2
 ---
 def test(x, y):
   while x < 10:
@@ -3308,7 +3308,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoopWithBreak3
+@porting_broken_test LoopWithBreak3
 ---
 def test(x):
   for i in [1, 2]:
@@ -3462,7 +3462,7 @@ fun jittestmodule:test {
   }
 }
 ---
-GetIterOutputNotOnStack
+@porting_broken_test GetIterOutputNotOnStack
 ---
 def test():
     while True:
@@ -3597,7 +3597,7 @@ fun jittestmodule:test {
   }
 }
 ---
-MaintainsIsolatedEntry
+@porting_broken_test MaintainsIsolatedEntry
 ---
 def test():
     while True:
@@ -3715,7 +3715,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TestAsyncFor
+@porting_broken_test TestAsyncFor
 ---
 async def test(asyncgen):
   async for y in asyncgen:
@@ -3841,7 +3841,7 @@ fun jittestmodule:test {
   }
 }
 ---
-TestMakeSet
+@porting_broken_test TestMakeSet
 ---
 def test():
   return {1,2,3}

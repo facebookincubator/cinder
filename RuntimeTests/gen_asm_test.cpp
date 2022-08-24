@@ -268,8 +268,6 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(val), 100);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 TEST_F(ASMGeneratorTest, Compare) {
   const char* pycode = R"(
 def test(a, b):
@@ -351,7 +349,6 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(res), 0);
 }
 
-#endif
 
 TEST_F(ASMGeneratorTest, CallBoundMethod) {
   const char* pycode = R"(
@@ -825,6 +822,8 @@ def test(x, y):
   ASSERT_EQ(y, arg2.get());
 }
 
+#endif
+
 TEST_F(ASMGeneratorTest, TupleListTest) {
   const char* pycode = R"(
 def test_tuple(a):
@@ -866,7 +865,6 @@ def test_list(a):
   }
 }
 
-#endif
 
 static void
 UnaryTest(ASMGeneratorTest* test, const char* pycode, int inp, int expected) {
@@ -963,7 +961,6 @@ def test(a):
   UnaryTest(this, pycode, 1, -2);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, StoreSubscr) {
   const char* pycode = R"(
 def test(c, s, v):
@@ -1006,7 +1003,6 @@ def test(c, s, v):
     PyErr_Clear();
   }
 }
-#endif
 
 static void InPlaceOpTest(
     ASMGeneratorTest* test,

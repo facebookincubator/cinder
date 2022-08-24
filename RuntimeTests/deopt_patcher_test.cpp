@@ -56,7 +56,6 @@ class MyDeoptPatcher : public jit::DeoptPatcher {
   bool initialized_{false};
 };
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(DeoptPatcherTest, Patch) {
   const char* pycode = R"(
 def func():
@@ -105,4 +104,3 @@ def func():
   ASSERT_EQ(PyLong_AsLong(res2), 314159);
   EXPECT_TRUE(did_deopt);
 }
-#endif

@@ -135,7 +135,7 @@ fun jittestmodule:test {
   }
 }
 ---
-VariablesAreUncheckedIfAssignedOnAllFlows
+@porting_broken_test VariablesAreUncheckedIfAssignedOnAllFlows
 ---
 def test(x):
   if x:
@@ -223,7 +223,7 @@ fun jittestmodule:test {
   }
 }
 ---
-BinaryOpSubscriptFromListIsSpecialized
+@porting_broken_test BinaryOpSubscriptFromListIsSpecialized
 ---
 def test():
   ls = [1, 2, 3]
@@ -347,7 +347,7 @@ fun test {
   }
 }
 ---
-CondBranchOfIsTruthyWithNoneDeletesUnreachableBlock
+@porting_broken_test CondBranchOfIsTruthyWithNoneDeletesUnreachableBlock
 ---
 def test():
   x = None
@@ -370,7 +370,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CondBranchOfIsTruthyWithTrueDeletesUnreachableBlock
+@porting_broken_test CondBranchOfIsTruthyWithTrueDeletesUnreachableBlock
 ---
 def test():
   x = True

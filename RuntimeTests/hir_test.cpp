@@ -499,7 +499,7 @@ fun foo {
   EXPECT_EQ(HIRPrinter{}.ToString(*func), expected);
 }
 
-class HIRBuilderTest : public RuntimeTest {
+class HIRBuildTest : public RuntimeTest {
  public:
   std::unique_ptr<Function> build_test(
       const char* bc,
@@ -553,7 +553,7 @@ class HIRBuilderTest : public RuntimeTest {
   }
 };
 
-TEST_F(HIRBuilderTest, GetLength) {
+TEST_F(HIRBuildTest, GetLength) {
   //  0 LOAD_FAST  0
   //  2 GET_LENGTH
   //  4 RETURN_VALUE
@@ -595,7 +595,7 @@ TEST_F(HIRBuilderTest, GetLength) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, LoadAssertionError) {
+TEST_F(HIRBuildTest, LoadAssertionError) {
   //  0 LOAD_ASSERTION_ERROR
   //  2 RETURN_VALUE
   const char bc[] = {LOAD_ASSERTION_ERROR, 0, RETURN_VALUE, 0};
@@ -641,7 +641,7 @@ TEST_F(HIRBuilderTest, LoadAssertionError) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, SetUpdate) {
+TEST_F(HIRBuildTest, SetUpdate) {
   //  0 LOAD_FAST    0
   //  2 LOAD_FAST    1
   //  4 LOAD_FAST    2
@@ -747,7 +747,6 @@ TEST_F(HIRBuilderTest, SetUpdate) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 class EdgeCaseTest : public RuntimeTest {};
 
 TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
@@ -812,7 +811,6 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
 )";
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
-#endif
 
 class CppInlinerTest : public RuntimeTest {};
 
@@ -850,7 +848,6 @@ def f():
 
 class HIRCloneTest : public RuntimeTest {};
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(HIRCloneTest, CanCloneInstrs) {
   Environment env;
   auto v0 = env.AllocateRegister();
@@ -865,7 +862,6 @@ TEST_F(HIRCloneTest, CanCloneInstrs) {
   EXPECT_EQ(load_const->GetOutput()->instr(), load_const.get());
   EXPECT_EQ(new_load->GetOutput()->instr(), load_const.get());
 }
-#endif
 
 TEST_F(HIRCloneTest, CanCloneBranches) {
   Environment env;
@@ -1002,7 +998,7 @@ TEST_F(HIRCloneTest, CanCloneDeoptBase) {
   EXPECT_TRUE(orig->live_regs() == dup->live_regs());
 }
 
-TEST_F(HIRBuilderTest, ROT_N) {
+TEST_F(HIRBuildTest, ROT_N) {
   const char bc[] = {
       LOAD_FAST,
       0,
@@ -1103,7 +1099,7 @@ TEST_F(HIRBuilderTest, ROT_N) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, MatchMapping) {
+TEST_F(HIRBuildTest, MatchMapping) {
   const char bc[] = {LOAD_FAST, 0, MATCH_MAPPING, 0, RETURN_VALUE, 0};
 
   std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
@@ -1152,7 +1148,7 @@ TEST_F(HIRBuilderTest, MatchMapping) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, MatchSequence) {
+TEST_F(HIRBuildTest, MatchSequence) {
   const char bc[] = {LOAD_FAST, 0, MATCH_SEQUENCE, 0, RETURN_VALUE, 0};
 
   std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});
@@ -1201,7 +1197,7 @@ TEST_F(HIRBuilderTest, MatchSequence) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, MatchKeys) {
+TEST_F(HIRBuildTest, MatchKeys) {
   const char bc[] = {
       LOAD_FAST, 0, LOAD_FAST, 1, MATCH_KEYS, 0, RETURN_VALUE, 0};
 
@@ -1268,7 +1264,7 @@ TEST_F(HIRBuilderTest, MatchKeys) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, ListExtend) {
+TEST_F(HIRBuildTest, ListExtend) {
   const char bc[] = {
       LOAD_FAST,
       0,
@@ -1321,7 +1317,7 @@ TEST_F(HIRBuilderTest, ListExtend) {
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected);
 }
 
-TEST_F(HIRBuilderTest, ListToTuple) {
+TEST_F(HIRBuildTest, ListToTuple) {
   const char bc[] = {LOAD_FAST, 0, LIST_TO_TUPLE, 0, RETURN_VALUE, 0};
 
   std::unique_ptr<Function> irfunc = build_test(bc, sizeof(bc), {Py_None});

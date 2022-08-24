@@ -181,7 +181,6 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckPasses(hir_source));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(FuncTypeCheckTest, UnRefinedTupleFailsTypeVerification) {
   const char* hir_source = R"(
 fun test {
@@ -206,7 +205,6 @@ fun test {
       "Tuple but got Object from 'v0:Object = LoadArg<0>'\n";
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckFails(hir_source, expected_err));
 }
-#endif
 
 TEST(FuncTypeCheckTest, InitListTupleExpectsListWhenGivenList) {
   const char* hir_source = R"(
@@ -230,7 +228,6 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckPasses(hir_source));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(FuncTypeCheckTest, InitListTupleExpectsTupleWhenGivenList) {
   const char* hir_source = R"(
 fun test {
@@ -279,7 +276,6 @@ fun test {
       "{CInt16|CInt8} to subclass 'Primitive'\n";
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckFails(hir_source, expected_err));
 }
-#endif
 
 TEST(FuncTypeCheckTest, PrimitiveCompareHandlesDifferentSpecializations) {
   const char* hir_source = R"(
@@ -295,7 +291,6 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckPasses(hir_source));
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST(FuncTypeCheckTest, PrimitiveCompareExpectsPrimitives) {
   const char* hir_source = R"(
 fun test {
@@ -313,4 +308,3 @@ fun test {
       "Object to subclass 'Primitive'\n";
   EXPECT_NO_FATAL_FAILURE(funcTypeCheckFails(hir_source, expected_err));
 }
-#endif

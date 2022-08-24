@@ -117,7 +117,6 @@ class RuntimeTest : public ::testing::Test {
   }
 
   Ref<> MakeGlobalsStrict() {
-#ifdef CINDER_PORTING_DONE
     auto globals = Ref<>::steal(PyDict_New());
     if (globals == nullptr) {
       return globals;
@@ -149,9 +148,6 @@ class RuntimeTest : public ::testing::Test {
       return Ref<>(nullptr);
     }
     return globals;
-#else
-    PORT_ASSERT("Requires Strict Modules feature")
-#endif
   }
 
   bool AddModuleWithBuiltins(BorrowedRef<> module, BorrowedRef<> globals) {

@@ -21,8 +21,6 @@ TEST_F(FrameStateCreationTest, InitialInstrOffset) {
   EXPECT_EQ(frame.instr_offset().value() % sizeof(_Py_CODEUNIT), 0);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 #define EXPECT_HIR_EQ(irfunc, expected) \
   EXPECT_EQ(HIRPrinter(true).ToString(*(irfunc)), expected)
 
@@ -822,6 +820,7 @@ def test(x, y):
   EXPECT_HIR_EQ(irfunc, expected);
 }
 
+#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(FrameStateCreationTest, MakeFunction) {
   const char* src = R"(
 def test(x):
