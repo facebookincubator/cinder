@@ -2208,7 +2208,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertInBytecode(t, "POP_JUMP_IF_TRUE")
             self.assertTrue(t())
 
-    @skip("TODO(T129450334): qualname bug")
     def test_qualname(self):
         codestr = """
         def f():
