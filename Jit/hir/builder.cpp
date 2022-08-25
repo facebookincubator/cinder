@@ -2483,10 +2483,8 @@ void HIRBuilder::emitLoadAssertionError(
     TranslationContext& tc,
     Environment& env) {
   Register* result = temps_.AllocateStack();
-  ThreadedCompileSerialize guard;
-  Ref<> obj(PyExc_AssertionError);
   tc.emit<LoadConst>(
-      result, Type::fromObject(env.addReference(std::move(obj))));
+      result, Type::fromObject(env.addReference(PyExc_AssertionError)));
   tc.frame.stack.push(result);
 }
 

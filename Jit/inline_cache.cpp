@@ -379,7 +379,7 @@ PyObject* DescrOrClassVarMutator::setAttr(
     PyObject* value) {
   descrsetfunc setter = Py_TYPE(descr)->tp_descr_set;
   if (setter != nullptr) {
-    Ref<> descr_guard(descr);
+    auto descr_guard = Ref<>::create(descr);
     int st = setter(descr, obj, value);
     return (st == -1) ? nullptr : Py_None;
   }
@@ -406,7 +406,7 @@ PyObject* DescrOrClassVarMutator::getAttr(PyObject* obj, PyObject* name) {
   descrsetfunc setter = descr_type->tp_descr_set;
   descrgetfunc getter = descr_type->tp_descr_get;
 
-  Ref<> descr_guard(descr);
+  auto descr_guard = Ref<>::create(descr);
   if (setter != nullptr && getter != nullptr) {
     BorrowedRef<PyTypeObject> type(Py_TYPE(obj));
     return getter(descr, obj, type);
@@ -420,7 +420,7 @@ PyObject* DescrOrClassVarMutator::getAttr(PyObject* obj, PyObject* name) {
 
   // Check instance dict.
   if (dict != nullptr) {
-    Ref<> res(_PyDict_GetItem_UnicodeExact(dict, name));
+    auto res = Ref<>::create(_PyDict_GetItem_UnicodeExact(dict, name));
     if (res != nullptr) {
       return res.release();
     }
@@ -450,8 +450,8 @@ StoreAttrCache::invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value) {
     return st == 0 ? Py_None : nullptr;
   }
 
-  Ref<> name_guard(name);
-  Ref<> descr(_PyType_Lookup(tp, name));
+  auto name_guard = Ref<>::create(name);
+  auto descr = Ref<>::create(_PyType_Lookup(tp, name));
   if (descr != nullptr) {
     descrsetfunc f = descr->ob_type->tp_descr_set;
     if (f != nullptr) {
@@ -518,8 +518,8 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
     }
   }
 
-  Ref<> name_guard(name);
-  Ref<> descr(_PyType_Lookup(tp, name));
+  auto name_guard = Ref<>::create(name);
+  auto descr = Ref<>::create(_PyType_Lookup(tp, name));
   descrgetfunc f = nullptr;
   if (descr != nullptr) {
     f = descr->ob_type->tp_descr_get;
@@ -536,7 +536,7 @@ LoadAttrCache::invokeSlowPath(PyObject* obj, PyObject* name) {
   }
 
   if (dict != nullptr) {
-    Ref<> res(PyDict_GetItem(dict, name));
+    auto res = Ref<>::create(PyDict_GetItem(dict, name));
     if (res != nullptr) {
       fill(tp, name, descr);
       return res.release();

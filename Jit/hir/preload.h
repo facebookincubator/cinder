@@ -90,11 +90,14 @@ class Preloader {
       BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins,
       const std::string& fullname)
-      : func_(func),
-        code_(code),
-        globals_(globals),
-        builtins_(builtins),
+      : func_(Ref<>::create(func)),
+        code_(Ref<>::create(code)),
+        globals_(Ref<>::create(globals)),
+        builtins_(Ref<>::create(builtins)),
         fullname_(fullname) {
+    JIT_CHECK(
+        !g_threaded_compile_context.compileRunning(),
+        "preloaders should not be created in a multithreaded context");
     JIT_CHECK(PyCode_Check(code_), "Expected PyCodeObject");
     if (func_) {
       JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");

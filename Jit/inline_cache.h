@@ -204,7 +204,10 @@ struct GlobalCacheKey {
   Ref<PyObject> name;
 
   GlobalCacheKey(PyObject* builtins, PyObject* globals, PyObject* name)
-      : builtins(builtins), globals(globals), name(name) {}
+      : builtins(builtins), globals(globals) {
+    ThreadedCompileSerialize guard;
+    this->name = Ref<>::create(name);
+  }
 
   bool operator==(const GlobalCacheKey& other) const {
     return builtins == other.builtins && globals == other.globals &&

@@ -398,12 +398,11 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
       if (!overflow) {
         PyObject* lhs_obj = lhs_type.objectSpec();
         if (index >= 0 && index < PyTuple_GET_SIZE(lhs_obj)) {
-          ThreadedCompileSerialize guard;
           PyObject* item = PyTuple_GET_ITEM(lhs_obj, index);
           env.emit<UseType>(lhs, lhs_type);
           env.emit<UseType>(rhs, rhs_type);
           return env.emit<LoadConst>(
-              Type::fromObject(env.func.env.addReference(Ref(item))));
+              Type::fromObject(env.func.env.addReference(item)));
         }
         // Fallthrough
       }

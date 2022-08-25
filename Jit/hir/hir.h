@@ -4210,10 +4210,17 @@ class Environment {
   // Only intended to be used in tests and parsing code.
   Register* addRegister(std::unique_ptr<Register> reg);
 
-  // Only intended to be used in tests and parsing code. Add a strong reference
-  // to the given object to this Environment, returning a borrowed reference to
-  // the object.
-  BorrowedRef<> addReference(Ref<> obj);
+  // Only intended to be used in tests and parsing code. Ensure that this
+  // Environment owns a reference to the given owned object, keeping it alive
+  // for use by the compiled code. Transfer ownership of the object to the
+  // Environment.
+  BorrowedRef<> addReference(Ref<>&& obj);
+
+  // Only intended to be used in tests and parsing code. Ensure that this
+  // Environment owns a reference to the given borrowed object, keeping it
+  // alive for use by the compiled code. Make Environment a new owner of the
+  // object.
+  BorrowedRef<> addReference(BorrowedRef<> obj);
 
   const ReferenceSet& references() const;
 
@@ -4267,10 +4274,12 @@ struct TypedArgument {
       int exact,
       Type jit_type)
       : locals_idx(locals_idx),
-        pytype(pytype),
         optional(optional),
         exact(exact),
-        jit_type(jit_type){};
+        jit_type(jit_type) {
+    ThreadedCompileSerialize guard;
+    pytype = Ref<PyTypeObject>::create(pytype);
+  };
 
   long locals_idx;
   Ref<PyTypeObject> pytype;

@@ -828,8 +828,14 @@ Register* Environment::addRegister(std::unique_ptr<Register> reg) {
   return res.first->second.get();
 }
 
-BorrowedRef<> Environment::addReference(Ref<> obj) {
+BorrowedRef<> Environment::addReference(Ref<>&& obj) {
   return references_.emplace(std::move(obj)).first->get();
+}
+
+BorrowedRef<> Environment::addReference(BorrowedRef<> obj) {
+  // Serialize as we modify the ref-count to obj which may be widely accessible.
+  ThreadedCompileSerialize guard;
+  return addReference(Ref<>::create(obj));
 }
 
 const Environment::ReferenceSet& Environment::references() const {

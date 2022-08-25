@@ -174,7 +174,7 @@ class alignas(16) CodeRuntime {
     // TODO(T88040922): Until we work out something smarter, force code,
     // globals, and builtins objects for compiled functions to live as long as
     // the JIT is initialized.
-    addReference(reinterpret_cast<PyObject*>(code));
+    addReference(BorrowedRef(code));
     addReference(builtins);
     addReference(globals);
   }
@@ -206,9 +206,15 @@ class alignas(16) CodeRuntime {
   // Release any references this CodeRuntime holds to Python objects.
   void releaseReferences();
 
-  // Ensure that this CodeRuntime owns a reference to the given object, keeping
-  // it alive for use by the compiled code.
-  void addReference(PyObject* obj);
+  // Ensure that this CodeRuntime owns a reference to the given owned object,
+  // keeping it alive for use by the compiled code. Transfer ownership of the
+  // object to the CodeRuntime.
+  void addReference(Ref<>&& obj);
+
+  // Ensure that this CodeRuntime owns a reference to the given borrowed
+  // object, keeping it alive for use by the compiled code. Make CodeRuntime a
+  // new owner of the object.
+  void addReference(BorrowedRef<> obj);
 
   // Store meta-data about generator yield point.
   GenYieldPoint* addGenYieldPoint(GenYieldPoint&& gen_yield_point) {
@@ -340,9 +346,15 @@ class Runtime {
   void guardFailed(const DeoptMetadata& deopt_meta);
   void clearGuardFailureCallback();
 
-  // Ensure that this Runtime owns a reference to the given object, keeping
-  // it alive for use by compiled code.
-  void addReference(PyObject* obj);
+  // Ensure that this Runtime owns a reference to the given owned object,
+  // keeping it alive for use by the compiled code. Transfer ownership of the
+  // object to the CodeRuntime.
+  void addReference(Ref<>&& obj);
+
+  // Ensure that this Runtime owns a reference to the given borrowed object,
+  // keeping it alive for use by the compiled code. Make CodeRuntime a new
+  // owner of the object.
+  void addReference(BorrowedRef<> obj);
 
   // Release any references this Runtime holds to Python objects.
   void releaseReferences();

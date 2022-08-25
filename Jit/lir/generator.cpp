@@ -232,7 +232,7 @@ void LIRGenerator::AppendGuard(
   if (instr.IsGuardIs()) {
     const auto& guard = static_cast<const GuardIs&>(instr);
     auto guard_ptr = static_cast<void*>(guard.target());
-    env_->code_rt->addReference(static_cast<PyObject*>(guard_ptr));
+    env_->code_rt->addReference(guard.target());
     fmt::format_to(buf_ins, ", {}", guard_ptr);
   } else if (instr.IsGuardType()) {
     const auto& guard = static_cast<const GuardType&>(instr);

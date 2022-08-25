@@ -93,8 +93,14 @@ unsigned int _PyJIT_GetJitConfigAuto_jit_threshold() {
 namespace {
 // Extra information needed to compile a PyCodeObject.
 struct CodeData {
-  CodeData(PyObject* m, PyObject* b, PyObject* g)
-      : module{m}, builtins{b}, globals{g} {}
+  CodeData(PyObject* m, PyObject* b, PyObject* g) {
+    JIT_DCHECK(
+        !g_threaded_compile_context.compileRunning(),
+        "unexpected multithreading");
+    module = Ref<>::create(m);
+    builtins = Ref<>::create(b);
+    globals = Ref<>::create(g);
+  }
 
   Ref<> module;
   Ref<PyDictObject> builtins;
@@ -1938,7 +1944,8 @@ void _PyJIT_ProfileCurrentInstr(
     int oparg) {
   auto profile_stack = [&](auto... stack_offsets) {
     CodeProfile& code_profile =
-        jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{frame->f_code}];
+        jit::Runtime::get()
+            ->typeProfiles()[Ref<PyCodeObject>::create(frame->f_code)];
     int opcode_offset = frame->f_lasti * sizeof(_Py_CODEUNIT);
 
     auto pair = code_profile.typed_hits.emplace(opcode_offset, nullptr);
@@ -2060,8 +2067,9 @@ void _PyJIT_ProfileCurrentInstr(
 }
 
 void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
-  jit::Runtime::get()->typeProfiles()[Ref<PyCodeObject>{code}].total_hits +=
-      count;
+  jit::Runtime::get()
+      ->typeProfiles()[Ref<PyCodeObject>::create(code)]
+      .total_hits += count;
 }
 
 namespace {

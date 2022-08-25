@@ -566,7 +566,7 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
     return nullptr;
   }
   for (Py_ssize_t i = code->co_argcount; i < code->co_argcount + nkwonly; i++) {
-    Ref<> name(PyTuple_GetItem(code->co_varnames, i));
+    auto name = Ref<>::create(PyTuple_GetItem(code->co_varnames, i));
     PyTuple_SetItem(new_kwnames, i - code->co_argcount, std::move(name));
   }
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf) - nkwonly;
@@ -706,7 +706,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   // the memory effects of CallEx to steal the kwargs input. Unfortunately this
   // breaks test_contextlib.ContextManagerTestCase.test_nokeepref by keeping
   // kwargs and their contents alive for longer than expected.
-  Ref<> new_kwargs{kwargs};
+  auto new_kwargs = Ref<>::create(kwargs);
   if (kwargs) {
     if (!PyDict_CheckExact(kwargs)) {
       PyObject* d = PyDict_New();

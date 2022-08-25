@@ -52,11 +52,15 @@ void CodeRuntime::releaseReferences() {
   references_.clear();
 }
 
-void CodeRuntime::addReference(PyObject* obj) {
+void CodeRuntime::addReference(Ref<>&& obj) {
   JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
+  references_.emplace(std::move(obj));
+}
+
+void CodeRuntime::addReference(BorrowedRef<> obj) {
   // Serialize as we modify the ref-count to obj which may be widely accessible.
   ThreadedCompileSerialize guard;
-  references_.emplace(obj);
+  return addReference(Ref<>::create(obj));
 }
 
 PyObject* GenYieldPoint::yieldFromValue(GenDataFooter* gen_footer) const {
@@ -132,7 +136,7 @@ void** Runtime::findFunctionEntryCache(PyFunctionObject* function) {
       std::piecewise_construct,
       std::forward_as_tuple(function),
       std::forward_as_tuple());
-  addReference((PyObject*)function);
+  addReference(reinterpret_cast<PyObject*>(function));
   if (result.second) {
     result.first->second.ptr = pointer_caches_.allocate();
     if (_PyClassLoader_HasPrimitiveArgs((PyCodeObject*)function->func_code)) {
@@ -205,9 +209,17 @@ void Runtime::clearGuardFailureCallback() {
   guard_failure_callback_ = nullptr;
 }
 
-void Runtime::addReference(PyObject* obj) {
+void Runtime::addReference(Ref<>&& obj) {
   JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
-  references_.emplace(obj);
+  // Serialize as we modify the globally accessible references_ object.
+  ThreadedCompileSerialize guard;
+  references_.emplace(std::move(obj));
+}
+
+void Runtime::addReference(BorrowedRef<> obj) {
+  // Serialize as we modify the ref-count to obj which may be widely accessible.
+  ThreadedCompileSerialize guard;
+  return addReference(Ref<>::create(obj));
 }
 
 void Runtime::releaseReferences() {

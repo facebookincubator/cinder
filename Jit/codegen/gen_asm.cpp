@@ -678,7 +678,7 @@ void NativeGenerator::generatePrologue(
     // unbox them from their boxed ints.  We usually get to
     // avoid this by doing direct invokes from JITed code.
     if (func_->has_primitive_args) {
-      env_.code_rt->addReference(func_->prim_args_info);
+      env_.code_rt->addReference(BorrowedRef(func_->prim_args_info));
       as_->mov(
           x86::r8, reinterpret_cast<uint64_t>(func_->prim_args_info.get()));
       if (func_->returnsPrimitiveDouble()) {
@@ -888,7 +888,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   for (Py_ssize_t i = checks.size() - 1; i >= 0; i--) {
     auto check_cursor = as_->cursor();
     const TypedArgument& arg = checks.at(i);
-    env_.code_rt->addReference(arg.pytype);
+    env_.code_rt->addReference(BorrowedRef(arg.pytype));
     next_arg = arg_labels[checks.size() - i];
 
     as_->mov(x86::r8, x86::ptr(x86::rsi, arg.locals_idx * 8)); // load local

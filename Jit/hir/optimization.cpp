@@ -1091,7 +1091,7 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
         receiver_type);
     return;
   }
-  Ref<> method_obj(_PyType_Lookup(type, name));
+  auto method_obj = Ref<>::create(_PyType_Lookup(type, name));
   if (method_obj == nullptr) {
     // No such method. Let the LoadMethod fail at runtime. _PyType_Lookup does
     // not raise an exception.
@@ -1104,8 +1104,7 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   }
   Register* method_reg = invoke.load_method->dst();
   auto load_const = LoadConst::create(
-      method_reg,
-      Type::fromObject(irfunc.env.addReference(Ref<>(method_obj.get()))));
+      method_reg, Type::fromObject(irfunc.env.addReference(method_obj.get())));
   auto call_static = VectorCallStatic::create(
       invoke.call_method->NumOperands(),
       invoke.call_method->dst(),
