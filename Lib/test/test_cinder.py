@@ -2409,5 +2409,19 @@ class TestCinderCachedPropertyCompatibility(unittest.TestCase):
         self.assertEqual(CachedCostItem.cost.__doc__, "The cost of the item.")
 
 
+class GeneralRegressionTests(unittest.TestCase):
+    @async_test
+    async def test_T130047792(self):
+        async def failingCoro():
+            raise RuntimeError
+
+        async def benignCoro():
+            pass
+
+        c = benignCoro()
+        with self.assertRaises(RuntimeError):
+            await asyncio.gather(failingCoro(), c, c)
+
+
 if __name__ == "__main__":
     unittest.main()

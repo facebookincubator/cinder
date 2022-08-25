@@ -73,21 +73,26 @@ gen_is_completed(PyGenObject *gen)
     return gen->gi_frame == NULL || gen->gi_frame->f_stacktop == NULL;
 }
 
+// Beware, this assumes gen->gi_frame is set for non-JIT generators.
 __inline__ static int
 gen_is_just_started(PyGenObject* gen) {
     if (gen->gi_jit_data) {
         return _PyJIT_GenState(gen) == _PyJitGenState_JustStarted;
     }
+    assert(gen->gi_frame);
     return gen->gi_frame->f_lasti == -1;
 }
 
 void _PyGen_MarkJustStartedGenAsCompleted(PyGenObject *gen)
 {
-    if (gen_is_just_started(gen)) {
-        if (gen->gi_jit_data) {
+    // Note we don't use gen_is_just_started() here as gen->gi_frame is not
+    // guaranteed to be set in the non-JIT case.
+    if (gen->gi_jit_data) {
+        if (_PyJIT_GenState(gen) == _PyJitGenState_JustStarted) {
             _PYJIT_MarkGenCompleted(gen);
         }
-        else {
+    } else {
+        if (gen->gi_frame && gen->gi_frame->f_lasti == -1) {
             Py_CLEAR(gen->gi_frame);
         }
     }
