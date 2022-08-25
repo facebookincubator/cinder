@@ -1113,6 +1113,7 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     Register* type_reg = irfunc.env.AllocateRegister();
     auto load_type = LoadConst::create(
         type_reg, Type::fromObject(reinterpret_cast<PyObject*>(type)));
+    load_type->setBytecodeOffset(invoke.load_method->bytecodeOffset());
     load_type->InsertBefore(*invoke.call_method);
     call_static->SetOperand(1, type_reg);
   } else {
