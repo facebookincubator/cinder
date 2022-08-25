@@ -14,10 +14,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(
-    cinderjit is not None,
-    "TODO(T129258493): failed assert in JIT: indirect_ptr is null",
-)
 class ContextDecoratorTests(StaticTestBase):
     def test_simple(self):
         codestr = """

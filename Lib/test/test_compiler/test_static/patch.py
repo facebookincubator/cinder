@@ -2002,7 +2002,6 @@ class StaticPatchTests(StaticTestBase):
 
             self.assertEqual(asyncio.run(awaiter(mod.C())), 131)
 
-    @skipIf(cinderjit is not None, "TODO(T129448358): Patching bug exposed in jit")
     def test_thunk_traversal(self):
         codestr = """
             def f():
