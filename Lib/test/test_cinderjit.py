@@ -1411,6 +1411,21 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
             self._sharedAwait(zero, False, one).send(None)
         self.assertEqual(exc.exception.value, 1)
 
+    @unittest.failUnlessJITCompiled
+    def load_method_on_maybe_defined_value(self):
+        # This function exists to make sure that we don't crash the compiler
+        # when attempting to optimize load methods that occur on maybe-defined
+        # values.
+        try:
+            pass
+        except:
+            x = 1
+        return x.__index__()
+
+    def test_load_method_on_maybe_defined_value(self):
+        with self.assertRaises(NameError):
+            self.load_method_on_maybe_defined_value()
+
 
 class DelObserver:
     def __init__(self, id, cb):

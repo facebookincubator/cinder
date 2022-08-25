@@ -1072,6 +1072,9 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
         receiver_type <= TTupleExact || receiver_type <= TUnicodeExact)) {
     return;
   }
+  // TODO(T128244182): Replace the ternary if below with
+  // `receiver_type.runtimePyType()` when it exists.
+  //
   // Types with object specialization like LongExact[1] will not have a uniue
   // PyTypeObject but they will have type specialization. Types without object
   // specialization like MortalLongExact will not have type specialization but
@@ -1079,7 +1082,16 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   PyTypeObject* type = receiver_type.hasTypeSpec()
       ? receiver_type.typeSpec()
       : receiver_type.uniquePyType();
-  JIT_DCHECK(type != nullptr, "type must not be null");
+  if (type == nullptr) {
+    // This might happen for a variety of reasons, such as encountering a
+    // method load on a maybe-defined value where the definition occurs in a
+    // block of code that isn't seen by the compiler (e.g. in an except block).
+    JIT_DCHECK(
+        receiver_type == TBottom,
+        "type %s expected to have PyTypeObject*",
+        receiver_type);
+    return;
+  }
   BorrowedRef<> method_obj = _PyType_Lookup(type, name);
   if (method_obj == nullptr) {
     // No such method. Let the LoadMethod fail at runtime. _PyType_Lookup does
