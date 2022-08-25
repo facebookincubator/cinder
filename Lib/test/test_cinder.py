@@ -2410,8 +2410,9 @@ class TestCinderCachedPropertyCompatibility(unittest.TestCase):
 
 
 class GeneralRegressionTests(unittest.TestCase):
+    # This tests a fix for an issue reported in T130047792
     @async_test
-    async def test_T130047792(self):
+    async def test_skip_duplicated_coro_on_earlier_failure(self):
         async def failingCoro():
             raise RuntimeError
 
