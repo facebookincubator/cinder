@@ -50,11 +50,6 @@ namespace lir {
 // support an operand size other than 64 bits at this moment. A future diff will
 // make it support different operand sizes so that this function can be removed.
 
-extern "C" uint64_t
-_Invoke_PySlice_New(PyObject* start, PyObject* stop, PyObject* step) {
-  return reinterpret_cast<uint64_t>(PySlice_New(start, stop, step));
-}
-
 extern "C" PyObject* __Invoke_PyList_Extend(
     PyThreadState* tstate,
     PyListObject* list,
@@ -2284,7 +2279,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         bbb.AppendCall(
             instr->dst(),
-            _Invoke_PySlice_New,
+            PySlice_New,
             instr->start(),
             instr->stop(),
             instr->step() != nullptr ? instr->step() : nullptr);
