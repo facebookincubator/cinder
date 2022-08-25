@@ -3248,7 +3248,24 @@ class DeleteFastTests(unittest.TestCase):
 
 
 class DictSubscrTests(unittest.TestCase):
-    def test_custom_class(self):
+    def test_int_custom_class(self):
+        class C:
+            def __init__(self, value):
+                self.value = value
+
+            def __eq__(self, other):
+                raise RuntimeError("no way!!")
+
+            def __hash__(self):
+                return hash(self.value)
+
+        c = C(333)
+        d = {}
+        d[c] = 1
+        with self.assertRaises(RuntimeError):
+            d[333]
+
+    def test_unicode_custom_class(self):
         class C:
             def __init__(self, value):
                 self.value = value
