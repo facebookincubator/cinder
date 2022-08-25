@@ -16,21 +16,21 @@ static void stealRef(Ref<>) {}
 static void takeBorrowedRef(BorrowedRef<>) {}
 
 TEST_F(RefTest, Equality) {
-  Ref<> obj(Py_None);
+  auto obj = Ref<>::create(Py_None);
   EXPECT_EQ(obj, Py_None);
 
-  Ref<PyTypeObject> ty(PyExc_StopIteration);
+  auto ty = Ref<PyTypeObject>::create(PyExc_StopIteration);
   EXPECT_EQ(ty, reinterpret_cast<PyTypeObject*>(PyExc_StopIteration));
 
   EXPECT_NE(obj, ty);
 
-  Ref<> obj2(Py_None);
+  auto obj2 = Ref<>::create(Py_None);
   EXPECT_EQ(obj, obj2);
 }
 
 TEST_F(RefTest, ImplicitConversions) {
-  Ref<PyObject> obj(Py_None);
-  Ref<PyTypeObject> ty(PyExc_StopIteration);
+  auto obj = Ref<>::create(Py_None);
+  auto ty = Ref<PyTypeObject>::create(PyExc_StopIteration);
   takeObject(obj);
   takeObject(ty);
   takeType(ty);
@@ -52,7 +52,7 @@ TEST_F(RefTest, MoveConstruction) {
   EXPECT_EQ(dict3->ob_refcnt, refcnt);
 
   // Functions that steal refs
-  Ref<> src4(Py_None);
+  auto src4 = Ref<>::create(Py_None);
   stealRef(std::move(src4));
   EXPECT_EQ(src4, nullptr);
 }
@@ -83,7 +83,7 @@ TEST_F(RefTest, StolenRefs) {
   EXPECT_EQ(dict->ob_refcnt, 1);
 
   // Make the refcount behavior clear
-  auto d = Ref<>(dict.get());
+  auto d = Ref<>(Ref<>::create(dict.get()));
   EXPECT_EQ(dict->ob_refcnt, 2);
 }
 
@@ -91,7 +91,7 @@ TEST_F(RefTest, Reset) {
   auto list = Ref<>::steal(PyList_New(2));
   ASSERT_NE(list, nullptr);
 
-  Ref<> ref(Py_None);
+  Ref<> ref(Ref<>::create(Py_None));
   ASSERT_EQ(ref, Py_None);
 
   ref.reset(list.get());
@@ -115,13 +115,13 @@ TEST_F(RefTest, UseInContainer) {
   ASSERT_NE(dict, nullptr);
 
   auto refcnt = dict->ob_refcnt;
-  auto p = objs.emplace(dict.get());
+  auto p = objs.emplace(Ref<>::create(dict.get()));
   EXPECT_TRUE(p.second);
   EXPECT_EQ(dict->ob_refcnt, refcnt + 1);
-  EXPECT_FALSE(objs.emplace(dict.get()).second);
+  EXPECT_FALSE(objs.emplace(Ref<>::create(dict.get())).second);
 
   EXPECT_EQ(objs.erase(dict), 1);
-  EXPECT_EQ(objs.erase(Ref<>(dict.get())), 0);
+  EXPECT_EQ(objs.erase(Ref<>::create(dict.get())), 0);
   EXPECT_EQ(dict->ob_refcnt, refcnt);
 }
 

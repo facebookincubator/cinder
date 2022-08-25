@@ -408,12 +408,12 @@ class DeoptStressTest : public RuntimeTest {
       const Function& irfunc,
       PyObject* actual,
       PyObject* expected) {
-    Ref<PyObject> expected_str(PyObject_ASCII(expected));
+    auto expected_str = Ref<>::steal(PyObject_ASCII(expected));
     ASSERT_NE(expected_str, nullptr);
     std::cerr << "Expected: " << PyUnicode_AsUTF8(expected_str) << std::endl;
     std::cerr << "Actual: ";
     if (actual != nullptr) {
-      Ref<PyObject> actual_str(PyObject_ASCII(actual));
+      auto actual_str = Ref<>::steal(PyObject_ASCII(actual));
       ASSERT_NE(actual_str, nullptr);
       std::cerr << PyUnicode_AsUTF8(actual_str) << std::endl;
     } else {

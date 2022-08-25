@@ -84,7 +84,7 @@ foo = "hello"
   Ref<PyFunctionObject> func(compileAndGet(py_src, "func"));
   ASSERT_EQ(_PyJITContext_CompileFunction(jit_ctx_, func), PYJIT_RESULT_OK);
 
-  Ref<PyObject> empty_tuple(PyTuple_New(0));
-  Ref<PyObject> result(PyObject_Call(func, empty_tuple, nullptr));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto result = Ref<>::steal(PyObject_Call(func, empty_tuple, nullptr));
   ASSERT_EQ(result, Py_None);
 }

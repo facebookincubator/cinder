@@ -831,9 +831,9 @@ def f():
   Ref<PyObject> pyfunc(compileAndGet(pycode, "f"));
   ASSERT_NE(pyfunc, nullptr) << "Failed compiling func";
   // Call f
-  Ref<PyObject> empty_tuple(PyTuple_New(0));
-  Ref<PyObject> call_result1(
-      PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
+  auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto call_result1 =
+      Ref<>::steal(PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
   EXPECT_TRUE(isIntEquals(call_result1, 1));
   // Set __code__
   Ref<PyObject> other_code(getGlobal("other_code"));
@@ -841,8 +841,8 @@ def f():
   int result = PyObject_SetAttrString(pyfunc, "__code__", other_code);
   ASSERT_NE(result, -1) << "Failed to set __code__";
   // Call f again
-  Ref<PyObject> call_result2(
-      PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
+  auto call_result2 =
+      Ref<>::steal(PyObject_Call(pyfunc, empty_tuple, /*kwargs=*/nullptr));
   EXPECT_TRUE(isIntEquals(call_result2, 2));
 }
 

@@ -87,7 +87,7 @@ class RuntimeTest : public ::testing::Test {
 
   Ref<> getGlobal(const char* name) {
     PyObject* obj = PyDict_GetItemString(globals_, name);
-    return Ref<>(obj);
+    return Ref<>::create(obj);
   }
 
   ::testing::AssertionResult isIntEquals(BorrowedRef<> obj, long expected) {
@@ -108,7 +108,7 @@ class RuntimeTest : public ::testing::Test {
     if (module == nullptr) {
       return module;
     }
-    Ref<> globals(PyModule_GetDict(module));
+    auto globals = Ref<>::create(PyModule_GetDict(module));
 
     if (AddModuleWithBuiltins(module, globals)) {
       return Ref<>(nullptr);
