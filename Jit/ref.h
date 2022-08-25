@@ -152,16 +152,6 @@ class Ref : public RefBase<T> {
  public:
   using RefBase<T>::RefBase;
 
-  explicit Ref(T* obj) {
-    Py_XINCREF(obj);
-    ptr_ = obj;
-  }
-
-  template <
-      typename X = T,
-      typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
-  explicit Ref(PyObject* ptr) : Ref(reinterpret_cast<X*>(ptr)) {}
-
   ~Ref() {
     Py_XDECREF(ptr_);
     ptr_ = nullptr;
