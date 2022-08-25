@@ -26,6 +26,7 @@
 #include "Jit/profile_data.h"
 #include "Jit/ref.h"
 #include "Jit/runtime.h"
+#include "Jit/strobelight_exports.h"
 #include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
@@ -45,8 +46,6 @@
 #define DEFAULT_CODE_SIZE 2 * 1024 * 1024
 
 using namespace jit;
-
-int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
 
 struct JitConfig {
   InitStateJitConfig init_state{JIT_NOT_INITIALIZED};
@@ -1395,6 +1394,12 @@ int _PyJIT_OnJitList(PyFunctionObject* func) {
 }
 
 int _PyJIT_Initialize() {
+  // We have to reference at least one of the values exported for Strobelight
+  // to ensure the linker doesn't DCE the .data section containing them.
+  JIT_CHECK(
+      __strobe_CodeRuntime_py_code == CodeRuntime::kPyCodeOffset,
+      "Unexpected code offset");
+
   if (jit_config.init_state == JIT_INITIALIZED) {
     return 0;
   }

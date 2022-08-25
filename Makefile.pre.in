@@ -490,6 +490,7 @@ JIT_OBJS=       \
 		Jit/runtime.o \
 		Jit/runtime_support.o \
 		Jit/slot_gen.o \
+		Jit/strobelight_exports.o \
 		Jit/type_profiler.o \
 		Jit/util.o \
 		Jit/codegen/annotations.o \
@@ -1340,6 +1341,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/slab_arena.h \
 		$(srcdir)/Jit/slot_gen.h \
 		$(srcdir)/Jit/stack.h \
+		$(srcdir)/Jit/strobelight_exports.h \
 		$(srcdir)/Jit/type_profiler.h \
 		$(srcdir)/Jit/util.h \
 		$(srcdir)/Jit/codegen/annotations.h \
