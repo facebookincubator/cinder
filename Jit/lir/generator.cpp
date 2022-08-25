@@ -2449,7 +2449,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kBeginInlinedFunction: {
-#ifdef CINDER_PORTING_DONE
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
         // TODO(emacs): Link all shadow frame prev pointers in function
@@ -2483,8 +2482,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         env_->code_rt->addReference(reinterpret_cast<PyObject*>(code));
         PyObject* globals = instr->globals();
         env_->code_rt->addReference(reinterpret_cast<PyObject*>(globals));
+        PyObject* builtins = instr->builtins();
+        env_->code_rt->addReference(builtins);
         RuntimeFrameState* rtfs =
-            env_->code_rt->allocateRuntimeFrameState(code, globals);
+            env_->code_rt->allocateRuntimeFrameState(code, builtins, globals);
         uintptr_t data = _PyShadowFrame_MakeData(rtfs, PYSF_RTFS, PYSF_JIT);
         auto data_reg = GetSafeTempName();
         bbb.AppendCode("Move {}, {:#x}", data_reg, data);
@@ -2512,13 +2513,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (py_debug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
-#else
-        PORT_ASSERT("Needs shadow frame support");
-#endif
         break;
       }
       case Opcode::kEndInlinedFunction: {
-#ifdef CINDER_PORTING_DONE
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
         if (py_debug) {
@@ -2568,9 +2565,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (py_debug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
-#else
-        PORT_ASSERT("Needs shadow frame support");
-#endif
         break;
       }
       case Opcode::kIsTruthy: {

@@ -119,13 +119,11 @@ int main(int argc, char* argv[]) {
 #endif
   register_test("RuntimeTests/hir_tests/guard_type_removal_test.txt");
   register_test("RuntimeTests/hir_tests/inliner_test.txt");
+  register_test("RuntimeTests/hir_tests/inliner_elimination_test.txt");
 #ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/inliner_static_test.txt",
       HIRTest::kCompileStatic);
-#endif
-  register_test("RuntimeTests/hir_tests/inliner_elimination_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/inliner_elimination_static_test.txt",
       HIRTest::kCompileStatic);

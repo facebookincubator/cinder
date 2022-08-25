@@ -244,11 +244,15 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_siblings), 2)
         stacks = get_stack_siblings()
         # Call to get_stack
-        self.assertEqual(stacks[0][-1].lineno, 155)
-        self.assertEqual(stacks[0][-2].lineno, 176)
+        self.assertEqual(stacks[0][-1].lineno,
+                firstlineno(get_stack)+3)
+        self.assertEqual(stacks[0][-2].lineno,
+                firstlineno(get_stack_siblings)+2)
         # Call to get_stack2
-        self.assertEqual(stacks[1][-1].lineno, 170)
-        self.assertEqual(stacks[1][-2].lineno, 176)
+        self.assertEqual(stacks[1][-1].lineno,
+                firstlineno(get_stack2)+3)
+        self.assertEqual(stacks[1][-2].lineno,
+                firstlineno(get_stack_siblings)+2)
 
     @jit_suppress
     @unittest.skipIf(
@@ -261,10 +265,14 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         # Call to get_stack_multi should be inlined
         self.assertEqual(cinderjit.get_num_inlined_functions(call_get_stack_multi), 1)
         stacks = call_get_stack_multi()
-        self.assertEqual(stacks[0][-1].lineno, 182)
-        self.assertEqual(stacks[0][-2].lineno, 191)
-        self.assertEqual(stacks[1][-1].lineno, 184)
-        self.assertEqual(stacks[1][-2].lineno, 191)
+        self.assertEqual(stacks[0][-1].lineno,
+                firstlineno(get_stack_multi)+3)
+        self.assertEqual(stacks[0][-2].lineno,
+                firstlineno(call_get_stack_multi)+3)
+        self.assertEqual(stacks[1][-1].lineno,
+                firstlineno(get_stack_multi)+5)
+        self.assertEqual(stacks[1][-2].lineno,
+                firstlineno(call_get_stack_multi)+3)
 
     @jit_suppress
     @unittest.skipIf(
@@ -279,11 +287,15 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_twice), 2)
         stacks = get_stack_twice()
         # First call to double
-        self.assertEqual(stacks[0][-1].lineno, 155)
-        self.assertEqual(stacks[0][-2].lineno, 162)
+        self.assertEqual(stacks[0][-1].lineno,
+                firstlineno(get_stack)+3)
+        self.assertEqual(stacks[0][-2].lineno,
+                firstlineno(get_stack_twice)+3)
         # Second call to double
-        self.assertEqual(stacks[1][-1].lineno, 155)
-        self.assertEqual(stacks[1][-2].lineno, 163)
+        self.assertEqual(stacks[1][-1].lineno,
+                firstlineno(get_stack)+3)
+        self.assertEqual(stacks[1][-2].lineno,
+                firstlineno(get_stack_twice)+4)
 
 
 class FaulthandlerTracebackTests(unittest.TestCase):
@@ -3449,6 +3461,7 @@ class CinderJitModuleTests(StaticTestBase):
         not cinderjit or not cinderjit.is_hir_inliner_enabled(),
         "meaningless without HIR inliner enabled",
     )
+    @unittest.waitingForFeaturePort({PortFeature.STATIC_PYTHON})
     def test_num_inlined_functions(self):
         codestr = f"""
             import cinderjit

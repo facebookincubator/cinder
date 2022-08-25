@@ -885,7 +885,11 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   BasicBlock* head = call_instr->instr->block();
   BasicBlock* tail = head->splitAfter(*call_instr->instr);
   auto begin_inlined_function = BeginInlinedFunction::create(
-      code, globals, std::move(caller_frame_state), fullname);
+      code,
+      func->func_builtins,
+      globals,
+      std::move(caller_frame_state),
+      fullname);
   auto callee_branch = Branch::create(result.entry);
   if (call_instr->target != nullptr) {
     // Not a static call. Check that __code__ has not been swapped out since

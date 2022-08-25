@@ -2124,10 +2124,15 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
  public:
   BeginInlinedFunction(
       BorrowedRef<PyCodeObject> code,
+      BorrowedRef<> builtins,
       BorrowedRef<PyObject> globals,
       std::unique_ptr<FrameState> caller_state,
       const std::string& fullname)
-      : InstrT(), code_(code), globals_(globals), fullname_(fullname) {
+      : InstrT(),
+        code_(code),
+        builtins_(builtins),
+        globals_(globals),
+        fullname_(fullname) {
     caller_state_ = std::move(caller_state);
   }
 
@@ -2136,6 +2141,7 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
   BeginInlinedFunction(const BeginInlinedFunction& other)
       : InstrT(),
         code_(other.code()),
+        builtins_(other.builtins()),
         globals_(other.globals()),
         fullname_(other.fullname()) {
     caller_state_ = std::make_unique<FrameState>(*other.callerFrameState());
@@ -2153,6 +2159,10 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
     return fullname_;
   }
 
+  BorrowedRef<> builtins() const {
+    return builtins_.get();
+  }
+
   BorrowedRef<PyObject> globals() const {
     return globals_.get();
   }
@@ -2167,6 +2177,7 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
   // originally owned by the Call instruction, but that gets destroyed.
   // Used for printing.
   BorrowedRef<PyCodeObject> code_;
+  BorrowedRef<> builtins_;
   BorrowedRef<PyObject> globals_;
   std::unique_ptr<FrameState> caller_state_{nullptr};
   std::string fullname_;
