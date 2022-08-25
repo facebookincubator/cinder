@@ -172,6 +172,13 @@ class Ref : public RefBase<T> {
     other.ptr_ = nullptr;
   }
 
+  template <
+      typename X = T,
+      typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
+  Ref(Ref<>&& other) {
+    ptr_ = reinterpret_cast<T*>(other.release());
+  }
+
   Ref& operator=(Ref&& other) {
     if (this == &other) {
       return *this;
@@ -179,6 +186,18 @@ class Ref : public RefBase<T> {
     Py_XDECREF(ptr_);
     ptr_ = other.ptr_;
     other.ptr_ = nullptr;
+    return *this;
+  }
+
+  template <
+      typename X = T,
+      typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
+  Ref& operator=(Ref<>&& other) {
+    if (this->get() == reinterpret_cast<T*>(other.get())) {
+      return *this;
+    }
+    Py_XDECREF(ptr_);
+    ptr_ = reinterpret_cast<T*>(other.release());
     return *this;
   }
 
@@ -199,11 +218,22 @@ class Ref : public RefBase<T> {
     return Ref(obj, StealTag{});
   }
 
+  static Ref create(T* obj) {
+    return Ref(obj, CreateTag{});
+  }
+
   template <
       typename X = T,
       typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
   static Ref steal(PyObject* obj) {
     return Ref(reinterpret_cast<T*>(obj), StealTag{});
+  }
+
+  template <
+      typename X = T,
+      typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
+  static Ref create(PyObject* obj) {
+    return Ref(reinterpret_cast<T*>(obj), CreateTag{});
   }
 
  private:
@@ -213,6 +243,12 @@ class Ref : public RefBase<T> {
   enum class StealTag {};
   Ref(T* obj, StealTag) {
     ptr_ = obj;
+  }
+
+  enum class CreateTag {};
+  Ref(T* obj, CreateTag) {
+    ptr_ = obj;
+    Py_XINCREF(ptr_);
   }
 
   using RefBase<T>::ptr_;
