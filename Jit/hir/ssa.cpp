@@ -379,8 +379,7 @@ Type outputType(
       return TOptNoneType;
     case Opcode::kLoadArg: {
       auto& loadarg = static_cast<const LoadArg&>(instr);
-      Type typ = loadarg.type();
-      return typ <= TCEnum ? TCInt64 : typ;
+      return loadarg.type();
     }
     case Opcode::kLoadCurrentFunc:
       return TFunc;
@@ -500,9 +499,6 @@ Type outputType(
       // trying to reuse it here.
 
       auto& pb = static_cast<const PrimitiveBox&>(instr);
-      if (pb.type() <= TCEnum) {
-        return TObject;
-      }
       if (pb.value()->type() <= TCDouble) {
         return TFloatExact;
       }
@@ -522,8 +518,7 @@ Type outputType(
 
     case Opcode::kPrimitiveUnbox: {
       auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
-      Type typ = unbox.type();
-      return typ <= TCEnum ? TCInt64 : typ;
+      return unbox.type();
     }
 
     // Check opcodes return a copy of their input that is statically known to

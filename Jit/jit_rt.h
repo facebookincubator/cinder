@@ -78,7 +78,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
     size_t nargsf,
     int argcount);
 
-#define JITRT_CALL_REENTRY_OFFSET (-9)
+#define JITRT_CALL_REENTRY_OFFSET (-6)
 #define JITRT_GET_REENTRY(entry) \
   ((vectorcallfunc)(((char*)entry) + JITRT_CALL_REENTRY_OFFSET))
 
@@ -348,7 +348,6 @@ PyObject* JITRT_BoxBool(uint32_t i);
 PyObject* JITRT_BoxI64(int64_t i);
 PyObject* JITRT_BoxU64(uint64_t i);
 PyObject* JITRT_BoxDouble(double_t d);
-PyObject* JITRT_BoxEnum(int64_t i, uint64_t t);
 
 double JITRT_PowerDouble(double x, double y);
 double JITRT_Power32(int32_t x, int32_t y);
@@ -378,7 +377,6 @@ int64_t JITRT_UnboxI64(PyObject* obj);
 int32_t JITRT_UnboxI32(PyObject* obj);
 int16_t JITRT_UnboxI16(PyObject* obj);
 int8_t JITRT_UnboxI8(PyObject* obj);
-int64_t JITRT_UnboxEnum(PyObject* obj);
 
 /*
  * Calls __builtins__.__import__(), with a fast-path if this hasn't been

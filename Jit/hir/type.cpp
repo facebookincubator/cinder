@@ -684,9 +684,6 @@ Type Type::asBoxed() const {
   if (*this <= TCDouble) {
     return TFloat;
   }
-  if (*this <= TCEnum) {
-    return TObject;
-  }
   JIT_CHECK(false, "%s does not have a boxed equivalent", *this);
 }
 

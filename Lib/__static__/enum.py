@@ -112,12 +112,6 @@ class Enum(metaclass=EnumMeta):
         return self.__class__, (self.value,)
 
 
-class Int64Enum(Enum):
-    def __init_subclass__(cls, /, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-        set_type_code(cls, TYPED_INT64)
-
-
 class IntEnum(Enum, int):
     pass
 

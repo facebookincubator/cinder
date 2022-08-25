@@ -51,11 +51,6 @@ Type prim_type_to_type(int prim_type) {
 
 static Type to_jit_type(const PyTypeOpt& pytype_opt) {
   auto& [pytype, opt, exact] = pytype_opt;
-  if (_PyClassLoader_IsEnum(pytype)) {
-    JIT_CHECK(!opt, "static enums cannot be optional");
-    return Type::fromEnum(pytype);
-  }
-
   int prim_type = _PyClassLoader_GetTypeCode(pytype);
   if (prim_type == TYPED_OBJECT) {
     Type type = exact ? Type::fromTypeExact(pytype) : Type::fromType(pytype);
@@ -92,13 +87,9 @@ static void _fill_primitive_arg_types_helper(
     BorrowedRef<_PyTypedArgsInfo> prim_args_info,
     ArgToType& map) {
   for (Py_ssize_t i = 0; i < Py_SIZE(prim_args_info.get()); i++) {
-    BorrowedRef<PyTypeObject> type = prim_args_info->tai_args[i].tai_type;
     map.emplace(
         prim_args_info->tai_args[i].tai_argnum,
-        _PyClassLoader_IsEnum(type)
-            ? Type::fromEnum(type)
-            : prim_type_to_type(
-                  prim_args_info->tai_args[i].tai_primitive_type));
+        prim_type_to_type(prim_args_info->tai_args[i].tai_primitive_type));
   }
 }
 
@@ -361,8 +352,6 @@ void Preloader::preload() {
       }
       case CAST:
       case LOAD_CLASS:
-      case PRIMITIVE_BOX:
-      case PRIMITIVE_UNBOX:
       case REFINE_TYPE:
       case TP_ALLOC: {
         BorrowedRef<> descr = constArg(bc_instr);

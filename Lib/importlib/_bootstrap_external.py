@@ -355,6 +355,7 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.10b1 3440 (Port Cinder-specific bytecode from 3.8)
 #     Python 3.10b1 3441 (Add Cinder-specific READONLY_OPERATION)
 #     Python 3.10b1 3442 (Port Cinder-specific PyCodeObject.co_qualname from 3.8)
+#     Python 3.10b1 3443 (remove primitive enums, migrate PRIMITIVE_(UN)BOX back to opargs)
 
 
 #
@@ -365,7 +366,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3442).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3443).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'

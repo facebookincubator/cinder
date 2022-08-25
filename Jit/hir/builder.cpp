@@ -7,8 +7,10 @@
 #include "ceval.h"
 #include "object.h"
 #include "opcode.h"
+#include "preload.h"
 #include "pyreadonly.h"
 #include "structmember.h"
+#include "type.h"
 
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
@@ -786,13 +788,7 @@ InlineResult HIRBuilder::inlineHIR(
   // the Return and use it as the output of the call instruction.
   Register* return_val = caller->env.AllocateRegister();
   BasicBlock* exit_block = caller->cfg.AllocateBlock();
-  // Enum types are always unboxed in the JIT despite the preloader's type
-  // descr being an enum, and we don't type Return opcodes for boxed values.
-  // TODO(emacs): Find a better place for this branch, since we do it in two
-  // places in the builder.
-  if (preloader_.returnType() <= TCEnum) {
-    exit_block->append<Return>(return_val, TCInt64);
-  } else if (preloader_.returnType() <= TPrimitive) {
+  if (preloader_.returnType() <= TPrimitive) {
     exit_block->append<Return>(return_val, preloader_.returnType());
   } else {
     exit_block->append<Return>(return_val);
@@ -1141,18 +1137,11 @@ void HIRBuilder::translate(
         }
         case RETURN_PRIMITIVE: {
           Type type = prim_type_to_type(bc_instr.oparg());
-          if (preloader_.returnType() <= TCEnum) {
-            JIT_CHECK(
-                type <= TCInt64,
-                "bad return type %s for enum, expected CInt64",
-                type);
-          } else {
-            JIT_CHECK(
-                type <= preloader_.returnType(),
-                "bad return type %s, expected %s",
-                type,
-                preloader_.returnType());
-          }
+          JIT_CHECK(
+              type <= preloader_.returnType(),
+              "bad return type %s, expected %s",
+              type,
+              preloader_.returnType());
           Register* reg = tc.frame.stack.pop();
           tc.emit<Return>(reg, type);
           break;
@@ -2209,10 +2198,8 @@ bool HIRBuilder::emitInvokeFunction(
             // Direct invoke is safe whether we succeeded in JIT-compiling or
             // not, it'll just have an extra indirection if not JIT compiled.
             Register* out = temps_.AllocateStack();
-            Type typ =
-                target.return_type <= TCEnum ? TCInt64 : target.return_type;
-            auto call =
-                tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
+            auto call = tc.emit<InvokeStaticFunction>(
+                nargs, out, target.func(), target.return_type);
             for (auto i = nargs - 1; i >= 0; i--) {
               Register* operand = tc.frame.stack.pop();
               call->SetOperand(i, operand);
@@ -2620,7 +2607,7 @@ void HIRBuilder::emitPrimitiveBox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  Type typ = preloader_.type(constArg(bc_instr));
+  Type typ = prim_type_to_type(bc_instr.oparg());
   tc.emit<PrimitiveBox>(tmp, src, typ, tc.frame);
   tc.frame.stack.push(tmp);
 }
@@ -2630,7 +2617,7 @@ void HIRBuilder::emitPrimitiveUnbox(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
-  Type typ = preloader_.type(constArg(bc_instr));
+  Type typ = prim_type_to_type(bc_instr.oparg());
   unboxPrimitive(tc, tmp, src, typ);
   tc.frame.stack.push(tmp);
 }

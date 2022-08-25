@@ -233,7 +233,7 @@ bool registerTypeMatches(Type op_type, OperandType expected_type) {
       return isSingleCInt(op_type);
     case Constraint::kMatchAllAsPrimitive:
       return isSingleCInt(op_type) || op_type <= TCBool ||
-          op_type <= TCDouble || op_type <= TCEnum || op_type <= TCPtr;
+          op_type <= TCDouble || op_type <= TCPtr;
   }
   JIT_CHECK(false, "unknown constraint");
   return false;

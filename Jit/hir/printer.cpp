@@ -879,9 +879,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case LOAD_LOCAL:
     case LOAD_METHOD_SUPER:
     case LOAD_TYPE:
-    case PRIMITIVE_BOX:
     case PRIMITIVE_LOAD_CONST:
-    case PRIMITIVE_UNBOX:
     case READONLY_OPERATION:
     case REFINE_TYPE:
     case STORE_FIELD:

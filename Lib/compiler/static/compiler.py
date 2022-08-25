@@ -355,7 +355,6 @@ class Compiler:
                 "CheckedDict": self.type_env.checked_dict.exact_type(),
                 "CheckedList": self.type_env.checked_list.exact_type(),
                 "Enum": self.type_env.enum,
-                "Int64Enum": self.type_env.int64enum,
                 "IntEnum": self.type_env.int_enum,
                 "StringEnum": self.type_env.string_enum,
                 "allow_weakrefs": self.type_env.allow_weakrefs,

@@ -3444,18 +3444,6 @@ done:
 }
 
 int
-_PyClassLoader_IsEnum(PyTypeObject* type) {
-    if (static_enum == NULL) {
-        static_enum = (PyTypeObject *)classloader_get_static_type("Int64Enum");
-        if (static_enum == NULL) {
-            PyErr_Clear();
-            return 0;
-        }
-    }
-    return PyType_IsSubtype(type, static_enum);
-}
-
-int
 _PyClassLoader_IsImmutable(PyObject *container) {
     if (PyType_Check(container)) {
         PyTypeObject *type = (PyTypeObject *)container;
@@ -4533,13 +4521,8 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_p
             return NULL;
         }
 
-        int enum_type = _PyClassLoader_IsEnum(ref_type);
         int prim_type = _PyClassLoader_GetTypeCode(ref_type);
-        if (enum_type) {
-            cur_check->tai_type = ref_type;
-            cur_check->tai_optional = 0;
-            cur_check->tai_exact = 1;
-        } else if (prim_type == TYPED_BOOL) {
+        if (prim_type == TYPED_BOOL) {
             cur_check->tai_type = &PyBool_Type;
             cur_check->tai_optional = 0;
             cur_check->tai_exact = 1;

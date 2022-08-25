@@ -5151,74 +5151,6 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_BOX): {
-            PyObject *type_descr = GETITEM(consts, oparg);
-            int optional;
-            int exact;
-            PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
-            if (type == NULL) {
-                goto error;
-            }
-
-            PyObject *val = TOP();
-            int code = _PyClassLoader_GetTypeCode(type);
-            if ((code & (TYPED_INT_SIGNED)) && code != (TYPED_DOUBLE)) {
-                /* We have a boxed value on the stack already, but we may have to
-                 * deal with sign extension */
-                size_t ival = (size_t)PyLong_AsVoidPtr(val);
-                if (ival & ((size_t)1) << 63) {
-                    PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
-                    SET_TOP(new_val);
-                    Py_SETREF(val, new_val);
-                }
-            }
-
-            if (_PyClassLoader_IsEnum(type)) {
-                PyObject *enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
-                if (enum_val == NULL) {
-                    Py_DECREF(type);
-                    goto error;
-                }
-                SET_TOP(enum_val);
-                Py_DECREF(val);
-                if (shadow.shadow != NULL) {
-                   int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
-                   if (offset != -1) {
-                       _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_ENUM, offset);
-                   }
-                }
-            } else if (shadow.shadow != NULL) {
-                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_BOX_NUMERIC, code);
-            }
-
-            Py_DECREF(type);
-            DISPATCH();
-        }
-
-        case TARGET(PRIMITIVE_BOX_ENUM): {
-            PyTypeObject *type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
-            assert(_PyClassLoader_GetTypeCode(type) == TYPED_INT64);
-
-            PyObject *val = TOP();
-            /* We have a boxed value on the stack already, but we may have to
-             * deal with sign extension */
-            size_t ival = (size_t)PyLong_AsVoidPtr(val);
-            if (ival & ((size_t)1) << 63) {
-                PyObject *new_val = PyLong_FromSsize_t((int64_t)ival);
-                SET_TOP(new_val);
-                Py_SETREF(val, new_val);
-            }
-
-            PyObject *enum_val = PyObject_CallFunctionObjArgs((PyObject*)type, val, NULL);
-            if (enum_val == NULL) {
-                goto error;
-            }
-            SET_TOP(enum_val);
-            Py_DECREF(val);
-
-            DISPATCH();
-        }
-
-        case TARGET(PRIMITIVE_BOX_NUMERIC): {
             if ((oparg & (TYPED_INT_SIGNED)) && oparg != (TYPED_DOUBLE)) {
                 /* We have a boxed value on the stack already, but we may have to
                  * deal with sign extension */
@@ -5251,66 +5183,6 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_UNBOX): {
-            PyObject *type_descr = GETITEM(consts, oparg);
-            int optional;
-            int exact;
-            PyTypeObject *type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
-            if (type == NULL) {
-                goto error;
-            }
-
-            PyObject *top = TOP();
-            if (_PyClassLoader_IsEnum(type)) {
-                    if (!PyObject_TypeCheck(top, type)) {
-                    PyErr_Format(PyExc_TypeError, "expected %s, got %s",
-                                 type->tp_name, Py_TYPE(top)->tp_name);
-                }
-
-                PyObject *val = PyObject_GetAttrString(top, "value");
-                if (val == NULL) {
-                    Py_DECREF(type);
-                    goto error;
-                }
-                SET_TOP(val);
-                Py_DECREF(top);
-
-                if (shadow.shadow != NULL) {
-                    int offset = _PyShadow_CacheCastType(&shadow, (PyObject*)type);
-                    if (offset != -1) {
-                        _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_ENUM, offset);
-                    }
-                }
-
-                Py_DECREF(type);
-                DISPATCH();
-            }
-
-            Py_DECREF(type);
-
-            int code = _PyClassLoader_GetTypeCode(type);
-            if (PyLong_CheckExact(top)) {
-                /* We always box values in the interpreter loop, so this just does
-                 * overflow checking here. */
-                size_t value;
-                if (!_PyClassLoader_OverflowCheck(top, code, &value)) {
-                    PyErr_SetString(PyExc_OverflowError, "int overflow");
-                    goto error;
-                }
-            }
-            else if (!PyBool_Check(top) && !PyFloat_CheckExact(top)) {
-                PyErr_Format(PyExc_TypeError, "expected int, enum, bool or float, got %s",
-                             Py_TYPE(top)->tp_name);
-                goto error;
-            }
-
-            if (shadow.shadow != NULL) {
-                _PyShadow_PatchByteCode(&shadow, next_instr, PRIMITIVE_UNBOX_NUMERIC, code);
-            }
-
-            DISPATCH();
-        }
-
-        case TARGET(PRIMITIVE_UNBOX_NUMERIC): {
             /* We always box values in the interpreter loop, so this just does
              * overflow checking here. Oparg indicates the type of the unboxed
              * value. */
@@ -5322,25 +5194,6 @@ main_loop:
                     goto error;
                 }
             }
-
-            DISPATCH();
-        }
-
-        case TARGET(PRIMITIVE_UNBOX_ENUM): {
-            PyObject *top = TOP();
-            PyTypeObject *type = (PyTypeObject*)_PyShadow_GetCastType(&shadow, oparg);
-            if (!PyObject_TypeCheck(top, type)) {
-                PyErr_Format(PyExc_TypeError, "expected %s, got %s",
-                                type->tp_name, Py_TYPE(top)->tp_name);
-                goto error;
-            }
-
-            PyObject *val = PyObject_GetAttrString(top, "value");
-            if (val == NULL) {
-                goto error;
-            }
-            SET_TOP(val);
-            Py_DECREF(top);
 
             DISPATCH();
         }
@@ -5772,11 +5625,8 @@ main_loop:
                     goto error;
                 }
 
-                int enum_type = _PyClassLoader_IsEnum(type);
                 int primitive = _PyClassLoader_GetTypeCode(type);
-                if (enum_type) {
-                    optional = 0;
-                } else if (primitive == TYPED_BOOL) {
+                if (primitive == TYPED_BOOL) {
                     optional = 0;
                     Py_DECREF(type);
                     type = &PyBool_Type;
@@ -5811,19 +5661,7 @@ main_loop:
 
                 Py_DECREF(type);
 
-                if (enum_type) {
-                    PyObject *new_val = PyObject_GetAttrString(val, "value");
-                    if (new_val == NULL) {
-                        goto error;
-                    }
-                    if (idx < 0) {
-                        assert(!_PyErr_Occurred(tstate));
-                        PyCell_SET(freevars[-(idx + 1)], new_val);
-                    } else {
-                        fastlocals[idx] = new_val;
-                    }
-                    Py_SETREF(val, new_val);
-                } else if (primitive <= TYPED_INT64) {
+                if (primitive <= TYPED_INT64) {
                     size_t value;
                     if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
                         PyErr_SetString(
@@ -6289,19 +6127,7 @@ main_loop:
                     goto error;
                 }
 
-                if (_PyClassLoader_IsEnum(check->tai_type)) {
-                    PyObject* new_val = PyObject_GetAttrString(val, "value");
-                    if (new_val == NULL) {
-                        goto error;
-                    }
-                    if (idx < 0) {
-                        assert(!_PyErr_Occurred(tstate));
-                        PyCell_SET(freevars[-(idx + 1)], new_val);
-                    } else {
-                        fastlocals[idx] = new_val;
-                    }
-                    Py_SETREF(val, new_val);
-                } else if (check->tai_primitive_type != TYPED_OBJECT) {
+                if (check->tai_primitive_type != TYPED_OBJECT) {
                     size_t value;
                     if (!_PyClassLoader_OverflowCheck(val, check->tai_primitive_type, &value)) {
                         PyErr_SetString(

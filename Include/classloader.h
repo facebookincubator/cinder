@@ -168,8 +168,6 @@ _PyClassLoader_IsPatchedThunk(PyObject *obj);
 PyObject **
 _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *container);
 
-int _PyClassLoader_IsEnum(PyTypeObject *type);
-
 /* Checks to see if the given container is immutable */
 int
 _PyClassLoader_IsImmutable(PyObject *container);

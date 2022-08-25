@@ -232,7 +232,6 @@ class TypeEnvironment:
             TypeName("builtins", "range"), self, [self.object], pytype=range
         )
 
-        self.int64enum: CEnumType = CEnumType(self)
         self.int8: CIntType = CIntType(TYPED_INT8, self)
         self.int16: CIntType = CIntType(TYPED_INT16, self)
         self.int32: CIntType = CIntType(TYPED_INT32, self)
@@ -6460,8 +6459,6 @@ class BoxFunction(Object[Class]):
                 node,
                 self.klass.type_env.float.exact_type().instance,
             )
-        elif isinstance(arg_type, CEnumInstance):
-            visitor.set_type(node, arg_type.boxed)
         else:
             visitor.syntax_error(f"can't box non-primitive: {arg_type.name}", node)
         return NO_EFFECT
@@ -7086,7 +7083,7 @@ def common_sequence_emit_len(
     code_gen.visit(node.args[0])
     code_gen.emit("FAST_LEN", oparg)
     if boxed:
-        code_gen.emit("PRIMITIVE_BOX", code_gen.compiler.type_env.int64.type_descr)
+        code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
 
 
 def common_sequence_emit_jumpif(
@@ -7129,7 +7126,7 @@ def common_sequence_emit_forloop(
         code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
         if seq_type == SEQ_TUPLE:
             # todo - we need to implement TUPLE_GET which supports primitive index
-            code_gen.emit("PRIMITIVE_BOX", code_gen.compiler.type_env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
             code_gen.emit("BINARY_SUBSCR", 2)
         else:
             code_gen.emit("SEQUENCE_GET", seq_type | SEQ_SUBSCR_UNCHECKED)
@@ -7415,7 +7412,7 @@ class SetInstance(Object[SetClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -7583,7 +7580,7 @@ class ListInstance(Object[ListClass]):
         index_type = code_gen.get_type(node.slice).klass
         env = self.klass.type_env
         if self.klass.is_exact and env.int.can_assign_from(index_type):
-            code_gen.emit("PRIMITIVE_UNBOX", env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_UNBOX", TYPED_INT64)
         elif index_type not in env.signed_cint_types:
             return super().emit_load_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_GET", self.get_subscr_type())
@@ -7594,7 +7591,7 @@ class ListInstance(Object[ListClass]):
         index_type = code_gen.get_type(node.slice).klass
         env = self.klass.type_env
         if self.klass.is_exact and env.int.can_assign_from(index_type):
-            code_gen.emit("PRIMITIVE_UNBOX", env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_UNBOX", TYPED_INT64)
         elif index_type not in env.signed_cint_types:
             return super().emit_store_subscr(node, code_gen)
         code_gen.emit("SEQUENCE_SET", self.get_subscr_type())
@@ -7759,7 +7756,7 @@ class DictInstance(Object[DictClass]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -8446,7 +8443,7 @@ class CheckedDictInstance(Object[CheckedDict]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -8566,7 +8563,7 @@ class CheckedListInstance(Object[CheckedList]):
         if index_type in self.klass.type_env.signed_cint_types:
             # TODO add CheckedList to SEQUENCE_SET so we can emit that instead
             # of having to box the index here
-            code_gen.emit("PRIMITIVE_BOX", index_type.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", index_type.instance.as_oparg())
 
         # We have, from TOS: index, list, value-to-store
         # We want, from TOS: value-to-store, index, list
@@ -8594,7 +8591,7 @@ class CheckedListInstance(Object[CheckedList]):
         code_gen.visit(node.args[0])
         code_gen.emit("FAST_LEN", self.get_fast_len_type())
         if boxed:
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_env.int64.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", TYPED_INT64)
 
     def emit_jumpif(
         self, test: AST, next: Block, is_if_true: bool, code_gen: Static38CodeGenerator
@@ -8718,343 +8715,6 @@ class CInstance(Value, Generic[TClass]):
 
     def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
         raise NotImplementedError()
-
-
-class CEnumInstance(CInstance["CEnumType"]):
-    def __init__(
-        self, klass: CEnumType, name: Optional[str] = None, value: Optional[int] = None
-    ) -> None:
-        super().__init__(klass)
-        self.klass = klass
-        self.attr_name = name
-        self.value = value
-
-    @property
-    def name(self) -> str:
-        class_name = super().name
-        if self.attr_name is not None:
-            return f"<{class_name}.{self.attr_name}: {self.value}>"
-        return class_name
-
-    @property
-    def name_with_exact(self) -> str:
-        return self.name
-
-    def as_oparg(self) -> int:
-        return TYPED_INT64
-
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            visitor.syntax_error("Enum values cannot be modified or deleted", node)
-
-        if node.attr == "name":
-            visitor.set_type(node, visitor.type_env.str.exact_type().instance)
-            return
-
-        if node.attr == "value":
-            visitor.set_type(node, visitor.type_env.int64.instance)
-            return
-
-        super().bind_attr(node, visitor, type_ctx)
-
-    def bind_compare(
-        self,
-        node: ast.Compare,
-        left: expr,
-        op: cmpop,
-        right: expr,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class],
-    ) -> bool:
-        rtype = visitor.get_type(right)
-        if not isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
-            visitor.syntax_error(
-                f"'{CMPOP_SIGILS[type(op)]}' not supported between '{self.name}' and '{rtype.name}'",
-                node,
-            )
-            return False
-
-        if rtype != self and (
-            not isinstance(rtype, CEnumInstance) or self.klass != rtype.klass
-        ):
-            visitor.syntax_error(f"can't compare {self.name} to {rtype.name}", node)
-            return False
-
-        visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.type_env.cbool.instance)
-        return True
-
-    def bind_reverse_compare(
-        self,
-        node: ast.Compare,
-        left: expr,
-        op: cmpop,
-        right: expr,
-        visitor: TypeBinder,
-        type_ctx: Optional[Class],
-    ) -> bool:
-        ltype = visitor.get_type(left)
-        if not isinstance(op, (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)):
-            visitor.syntax_error(
-                f"'{CMPOP_SIGILS[type(op)]}' not supported between '{ltype.name}' and '{self.name}'",
-                node,
-            )
-            return False
-
-        if ltype != self and (
-            not isinstance(ltype, CEnumInstance) or self.klass != ltype.klass
-        ):
-            visitor.syntax_error(f"can't compare {ltype.name} to {self.name}", node)
-            return False
-
-        visitor.set_type(op, self)
-        visitor.set_type(node, self.klass.type_env.cbool.instance)
-        return True
-
-    @property
-    def boxed(self) -> BoxedEnumInstance:
-        if name := self.attr_name:
-            return self.klass.boxed.values[name]
-        return self.klass.boxed.instance
-
-    def emit_load_attr(
-        self,
-        node: ast.Attribute,
-        code_gen: Static38CodeGenerator,
-    ) -> None:
-        if node.attr == "value":
-            return
-
-        code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
-        super().emit_load_attr(node, code_gen)
-
-    def emit_box(self, node: expr, code_gen: Static38CodeGenerator) -> None:
-        code_gen.visit(node)
-        type = code_gen.get_type(node)
-        if isinstance(type, CEnumInstance):
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
-        else:
-            raise RuntimeError("unsupported box type: " + type.name)
-
-    def emit_compare(self, op: cmpop, code_gen: Static38CodeGenerator) -> None:
-        code_gen.emit(
-            "PRIMITIVE_COMPARE_OP", self.klass.type_env.int64.instance.get_op_id(op)
-        )
-
-    def resolve_attr(
-        self, node: ast.Attribute, visitor: GenericVisitor[object]
-    ) -> Optional[Value]:
-        # pyre-ignore[6]: resolve_attr_instance expects an Object, but since
-        # we're a primitive type we aren't an Object. In practice it works (for
-        # now), but this is a symptom of the conceptual weirdness of CEnums --
-        # they are primitives and yet they can have methods and attributes!?!
-        return resolve_instance_attr(node, self, visitor)
-
-    def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
-        code_gen.emit("PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.emit_store_name(node, code_gen)
-
-
-class CEnumType(CType):
-    instance: CEnumInstance
-
-    def __init__(
-        self,
-        type_env: TypeEnvironment,
-        type_name: Optional[TypeName] = None,
-        bases: Optional[List[Class]] = None,
-    ) -> None:
-        super().__init__(
-            type_name or TypeName("__static__", "Int64Enum"),
-            type_env,
-            bases,
-            CEnumInstance(self),
-        )
-
-        self.values: Dict[str, CEnumInstance] = {}
-
-    @property
-    def type_descr(self) -> TypeDescr:
-        return self.type_name.type_descr + ("#",)
-
-    @cached_property
-    def boxed(self) -> BoxedEnumClass:
-        return BoxedEnumClass(self.type_name, self.type_env, self.bases)
-
-    def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
-        # TODO(wmeehan): handle enum subclassing and mix-ins
-        if len(bases) > 1:
-            raise TypedSyntaxError(
-                f"Int64Enum types cannot support multiple bases: {bases}",
-            )
-        if bases[0] != self.type_env.int64enum:
-            raise TypedSyntaxError("Int64Enum types do not allow subclassing")
-        return CEnumType(self.type_env, name, bases)
-
-    def add_enum_value(self, name: ast.Name, const: ast.AST) -> None:
-        if not isinstance(const, ast.Constant):
-            raise TypedSyntaxError("Cannot resolve Int64Enum value at compile time")
-
-        value = const.value
-        if not isinstance(value, int):
-            raise TypedSyntaxError(
-                f"Int64Enum values must be int, not {type(value).__name__}"
-            )
-        if not self.type_env.int64.instance.is_valid_int(value):
-            raise TypedSyntaxError(
-                f"Value {value} for {self.instance_name}.{name.id} is out of bounds"
-            )
-
-        self.values[name.id] = CEnumInstance(self, name.id, value)
-        self.boxed.add_enum_value(name.id, value)
-
-    def bind_attr(
-        self, node: ast.Attribute, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            visitor.syntax_error("Enum values cannot be modified or deleted", node)
-
-        if inst := self.values.get(node.attr):
-            visitor.set_type(node, inst)
-            return
-
-        super().bind_attr(node, visitor, type_ctx)
-
-    def bind_call(
-        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
-    ) -> NarrowingEffect:
-        if len(node.args) != 1:
-            visitor.syntax_error(
-                f"{self.name} requires a single argument ({len(node.args)} given)", node
-            )
-
-        visitor.set_type(node, self.instance)
-        arg = node.args[0]
-        visitor.visitExpectedType(
-            arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
-        )
-
-        return NO_EFFECT
-
-    def declare_variable(self, node: AnnAssign, module: ModuleTable) -> None:
-        target = node.target
-        if isinstance(target, ast.Name) and node.value is not None:
-            self.add_enum_value(target, node.value)
-
-    def declare_variables(self, node: Assign, module: ModuleTable) -> None:
-        value = node.value
-        for target in node.targets:
-            if isinstance(target, ast.Tuple):
-                if not isinstance(value, ast.Tuple):
-                    raise TypedSyntaxError(
-                        f"cannot assign non-tuple enum value {value} "
-                        f"to multiple variables: {target}"
-                    )
-                if len(target.elts) != len(value.elts):
-                    raise TypedSyntaxError(
-                        f"arity mismatch for enum assignment {target} = {value}"
-                    )
-                for name, val in zip(target.elts, value.elts):
-                    assert isinstance(name, ast.Name)
-                    self.add_enum_value(name, val)
-            elif isinstance(target, ast.Name):
-                self.add_enum_value(target, value)
-
-    def emit_attr(
-        self,
-        node: ast.Attribute,
-        code_gen: Static38CodeGenerator,
-    ) -> None:
-        if inst := self.values.get(node.attr):
-            code_gen.emit("PRIMITIVE_LOAD_CONST", (inst.value, TYPED_INT64))
-            return
-
-        super().emit_attr(node, code_gen)
-
-    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
-        if len(node.args) != 1:
-            raise code_gen.syntax_error(
-                f"{self.name} requires a single argument, given {len(node.args)}", node
-            )
-
-        arg = node.args[0]
-        arg_type = code_gen.get_type(arg)
-        if isinstance(arg_type, CEnumInstance):
-            code_gen.visit(arg)
-        else:
-            code_gen.defaultVisit(node)
-            code_gen.emit("PRIMITIVE_UNBOX", self.type_descr)
-
-
-class BoxedEnumClass(Class):
-    instance: BoxedEnumInstance
-
-    def __init__(
-        self,
-        type_name: TypeName,
-        type_env: TypeEnvironment,
-        bases: Optional[List[Class]] = None,
-    ) -> None:
-        boxed_bases = (
-            [base.boxed if isinstance(base, CEnumType) else base for base in bases]
-            if bases
-            else [type_env.object]
-        )
-
-        super().__init__(
-            type_name,
-            type_env,
-            boxed_bases,
-            BoxedEnumInstance(self),
-            is_exact=True,
-            is_readonly=False,
-        )
-
-        self.values: Dict[str, BoxedEnumInstance] = {}
-
-    def add_enum_value(self, name: str, value: int) -> None:
-        self.values[name] = BoxedEnumInstance(self, name, value)
-
-    def _create_readonly_type(self) -> Class:
-        # Static compiler will disallow mutations to
-        # objects of enum type, so enums do not need a readonly version.
-        # When static compiler cannot decide the type (i.e. dynamic), this code
-        # path is not used.
-        return self  # enum has no readonly version now
-
-
-class BoxedEnumInstance(Object[BoxedEnumClass]):
-    def __init__(
-        self,
-        klass: BoxedEnumClass,
-        name: Optional[str] = None,
-        value: Optional[int] = None,
-    ) -> None:
-        super().__init__(klass)
-        self.klass = klass
-        self.attr_name = name
-        self.value = value
-
-    @property
-    def name(self) -> str:
-        class_name = super().name
-        if self.attr_name is not None:
-            return f"Boxed<{class_name}.{self.attr_name}: {self.value}>"
-        return f"Boxed[{class_name}]"
-
-    @property
-    def name_with_exact(self) -> str:
-        return self.name
-
-    @property
-    def name_with_readonly(self) -> str:
-        return self.name
-
-    def emit_unbox(self, node: expr, code_gen: Static38CodeGenerator) -> None:
-        code_gen.visit(node)
-        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
 
 
 class CIntInstance(CInstance["CIntType"]):
@@ -9323,7 +8983,7 @@ class CIntInstance(CInstance["CIntType"]):
         code_gen.visit(node)
         type = code_gen.get_type(node)
         if isinstance(type, CIntInstance):
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.as_oparg())
         else:
             raise RuntimeError("unsupported box type: " + type.name)
 
@@ -9339,7 +8999,7 @@ class CIntInstance(CInstance["CIntType"]):
             code_gen.emit("REFINE_TYPE", ty.klass.type_descr)
         else:
             code_gen.emit("CAST", target_ty.type_descr)
-        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
+        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
 
     def bind_unaryop(
         self, node: ast.UnaryOp, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -9614,7 +9274,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
         code_gen.visit(node)
         type = code_gen.get_type(node)
         if isinstance(type, CDoubleInstance):
-            code_gen.emit("PRIMITIVE_BOX", self.klass.type_descr)
+            code_gen.emit("PRIMITIVE_BOX", self.as_oparg())
         else:
             raise RuntimeError("unsupported box type: " + type.name)
 
@@ -9625,7 +9285,7 @@ class CDoubleInstance(CInstance["CDoubleType"]):
             code_gen.emit("REFINE_TYPE", node_ty.klass.type_descr)
         else:
             code_gen.emit("CAST", self.klass.type_env.float.type_descr)
-        code_gen.emit("PRIMITIVE_UNBOX", self.klass.type_descr)
+        code_gen.emit("PRIMITIVE_UNBOX", self.as_oparg())
 
     def emit_init(self, node: ast.Name, code_gen: Static38CodeGenerator) -> None:
         code_gen.emit("PRIMITIVE_LOAD_CONST", (float(0), self.as_oparg()))

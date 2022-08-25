@@ -114,7 +114,6 @@ BASIC_PRIMITIVE_TYPES: List[str] = [
     *BASIC_UINT_TYPES,
     "CPtr",
     "CDouble",
-    "CEnum",
     "Nullptr",
 ]
 
