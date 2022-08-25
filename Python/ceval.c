@@ -2587,6 +2587,9 @@ main_loop:
             PyObject *v = POP();
             PyObject *receiver = TOP();
             PySendResult gen_status;
+            if (f->f_gen && (co->co_flags & CO_COROUTINE)) {
+                _PyAwaitable_SetAwaiter(receiver, f->f_gen);
+            }
             if (tstate->c_tracefunc == NULL) {
                 gen_status = PyIter_Send(receiver, v, &retval);
             } else {

@@ -2957,24 +2957,20 @@ type_new_alloc(type_new_ctx *ctx)
     PyTypeObject *metatype = ctx->metatype;
     PyTypeObject *type;
 
-#ifdef CINDER_PORTING_DONE
     /* If the base class has PyAsyncMethodsWithExtra, we allocate space at the
      * end of this type so it can also have it. The extra slots in
      * PyAsyncMethodsWithExtra aren't added to slotdefs and don't have managed
      * counterparts, so this has no implications on slotptr() or the relative
      * order of the various *Methods members of PyHeapTypeObject. */
-    int have_am_extra = PyType_HasFeature(base, Py_TPFLAGS_HAVE_AM_EXTRA);
-#endif
-    // Allocate the type object
+    int have_am_extra = PyType_HasFeature(ctx->base, Py_TPFLAGS_HAVE_AM_EXTRA);
+
+    /* Allocate the type object */
     Py_ssize_t extra_bytes =
         sizeof(Ci_PyType_CinderExtra) +
-#ifdef CINDER_PORTING_DONE
         (have_am_extra ? sizeof(PyAsyncMethodsWithExtra) : 0);
-#else
-        0;
-#endif
     Py_ssize_t extra_slots =
         (extra_bytes + sizeof(PyMemberDef) - 1) / sizeof(PyMemberDef);
+
     assert(metatype->tp_alloc == PyType_GenericAlloc);
     type = (PyTypeObject *)PyType_GenericAlloc(metatype, ctx->nslot + extra_slots);
     if (type == NULL) {
@@ -2989,10 +2985,19 @@ type_new_alloc(type_new_ctx *ctx)
     // an instance on one of its parents.
     type->tp_flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE |
                       Ci_Py_TPFLAG_CPYTHON_ALLOCATED |
-                      Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC);
+                      Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC |
+                      (ctx->base->tp_flags & Py_TPFLAGS_HAVE_AM_EXTRA));
 
     // Initialize essential fields
-    type->tp_as_async = &et->as_async;
+    if (have_am_extra) {
+        type->tp_as_async = (PyAsyncMethods *)PyHeapType_AM_EXTRA(type);
+        /* Only ame_setawaiter is inherited and it has no managed counterpart,
+         * so it's special-cased here. */
+        ((PyAsyncMethodsWithExtra *)type->tp_as_async)->ame_setawaiter =
+            ((PyAsyncMethodsWithExtra *)ctx->base->tp_as_async)->ame_setawaiter;
+    } else {
+        type->tp_as_async = &et->as_async;
+    }
     type->tp_as_number = &et->as_number;
     type->tp_as_sequence = &et->as_sequence;
     type->tp_as_mapping = &et->as_mapping;

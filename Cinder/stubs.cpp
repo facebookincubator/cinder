@@ -32,10 +32,6 @@ STUB(PyObject *, _PyAsyncGen_NewNoFrame, PyCodeObject *)
 STUB(PyObject *, _PyGen_NewNoFrame, PyCodeObject *)
 
 
-// Include/genobject.h  TODO(T125856226) Supporting PyCoroObject::cr_awaiter
-STUB(void, _PyAwaitable_SetAwaiter, PyObject *, PyObject *)
-
-
 // Include/cpython/abstract.h  TODO(T125856469) Eager coroutine execution
 STUB(Py_ssize_t, PyVectorcall_FLAGS, size_t)
 

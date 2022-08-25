@@ -60,6 +60,16 @@ _PyGen_Finalize(PyObject *self)
         return;
     }
 
+    if (PyCoro_CheckExact(self)) {
+        /* If we're suspended in an `await`, remove us as the awaiter of the
+         * target awaitable. */
+        PyObject *yf = _PyGen_yf(gen);
+        if (yf) {
+            _PyAwaitable_SetAwaiter(yf, NULL);
+            Py_DECREF(yf);
+        }
+    }
+
     if (PyAsyncGen_CheckExact(self)) {
         PyAsyncGenObject *agen = (PyAsyncGenObject*)self;
         PyObject *finalizer = agen->ag_finalizer;
@@ -85,9 +95,7 @@ _PyGen_Finalize(PyObject *self)
 
     /* If `gen` is a coroutine, and if it was never awaited on,
        issue a RuntimeWarning. */
-    if (gen->gi_code != NULL &&
-        ((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE &&
-        Ci_GenIsJustStarted(gen))
+    if (PyCoro_CheckExact(gen) && Ci_GenIsJustStarted(gen))
     {
         _PyErr_WarnUnawaitedCoroutine((PyObject *)gen);
     }
@@ -290,6 +298,9 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, PyObject **presult,
         }
     }
 
+    if (PyCoro_CheckExact(gen)) {
+        ((PyCoroObject *)gen)->cr_awaiter = NULL;
+    }
     /* generator can't be rerun, so release the frame */
     /* first clean reference cycle through stored exception traceback */
     _PyErr_ClearExcState(&gen->gi_exc_state);
@@ -1104,6 +1115,14 @@ Ci_coro_getframe(PyCoroObject *coro, void *Py_UNUSED(ignored))
     return Ci_genlike_getframe((PyGenObject *) coro, "cr_frame");
 }
 
+static void
+coro_set_awaiter(PyCoroObject *coro, PyCoroObject *awaiter) {
+    assert(awaiter == NULL || PyCoro_CheckExact(awaiter));
+    if (!Ci_GenIsCompleted((PyGenObject *)coro)) {
+        coro->cr_awaiter = awaiter;
+    }
+}
+
 static PyGetSetDef coro_getsetlist[] = {
     {"__name__", (getter)gen_get_name, (setter)gen_set_name,
      PyDoc_STR("name of the coroutine")},
@@ -1143,11 +1162,14 @@ static PyMethodDef coro_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethods coro_as_async = {
-    (unaryfunc)coro_await,                      /* am_await */
-    0,                                          /* am_aiter */
-    0,                                          /* am_anext */
-    (sendfunc)PyGen_am_send,                    /* am_send  */
+static PyAsyncMethodsWithExtra coro_as_async = {
+    .ame_async_methods = {
+        (unaryfunc)coro_await,                      /* am_await */
+        0,                                          /* am_aiter */
+        0,                                          /* am_anext */
+        (sendfunc)PyGen_am_send,                    /* am_send */
+    },
+    .ame_setawaiter = (setawaiterfunc)coro_set_awaiter,
 };
 
 PyTypeObject PyCoro_Type = {
@@ -1160,7 +1182,7 @@ PyTypeObject PyCoro_Type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-    &coro_as_async,                             /* tp_as_async */
+    (PyAsyncMethods*)&coro_as_async,            /* tp_as_async */
     (reprfunc)coro_repr,                        /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
@@ -1171,7 +1193,8 @@ PyTypeObject PyCoro_Type = {
     PyObject_GenericGetAttr,                    /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_HAVE_AM_EXTRA,               /* tp_flags */
     0,                                          /* tp_doc */
     (traverseproc)gen_traverse,                 /* tp_traverse */
     0,                                          /* tp_clear */
@@ -1333,6 +1356,7 @@ coro_new(PyThreadState *tstate, PyFrameObject *f,
     }
 
     int origin_depth = tstate->coroutine_origin_tracking_depth;
+    ((PyCoroObject *)coro)->cr_awaiter = NULL;
 
     if (origin_depth == 0) {
         ((PyCoroObject *)coro)->cr_origin = NULL;

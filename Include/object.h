@@ -434,6 +434,9 @@ given type object has a specified feature.
 // subject itself (rather than a mapped attribute on it):
 #define _Py_TPFLAGS_MATCH_SELF (1UL << 22)
 
+/* Set if type's tp_as_async slot points to PyAsyncMethodsWithExtra */
+#define Py_TPFLAGS_HAVE_AM_EXTRA (1UL << 23)
+
 /* These flags are used to determine if a type is a subclass. */
 #define Py_TPFLAGS_LONG_SUBCLASS        (1UL << 24)
 #define Py_TPFLAGS_LIST_SUBCLASS        (1UL << 25)

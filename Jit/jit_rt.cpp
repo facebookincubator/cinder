@@ -1490,14 +1490,12 @@ PyObject* JITRT_MakeGenObjectCoro(
       resume_entry, tstate, spill_words, code_rt, code);
 }
 
-void JITRT_SetCurrentAwaiter(PyObject*, PyThreadState*) {
-  // TODO(T125856226) Enable once we support setting the awaiter for a coroutine
-
-  //_PyShadowFrame* sf = ts->shadow_frame;
-  // TODO(bsimmers): This may need to change when we support eager evaluation
-  // of coroutines.
-  // auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
-  //_PyAwaitable_SetAwaiter(awaitable, awaiter);
+void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
+  _PyShadowFrame* sf = ts->shadow_frame;
+  // TODO(bsimmers): This may need to change when we support eager evaluation of
+  // coroutines.
+  auto awaiter = reinterpret_cast<PyObject*>(_PyShadowFrame_GetGen(sf));
+  _PyAwaitable_SetAwaiter(awaitable, awaiter);
 }
 
 JITRT_YieldFromRes

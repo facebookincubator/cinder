@@ -65,11 +65,6 @@ PyAPI_FUNC(PyObject *) _PyCoro_NewNoFrame(
 PyAPI_FUNC(PyObject *) _PyAsyncGen_NewNoFrame(PyCodeObject *code);
 PyAPI_FUNC(PyObject *) _PyGen_NewNoFrame(PyCodeObject *code);
 
-// This needs to be "static inline" when implemented.
-// TODO(T125856226) Supporting PyCoroObject::cr_awaiter
-void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter);
-
-
 // TODO(T124996749): Until we port immortal objects, it's safe to always say
 // nothing is immortal.
 #define Py_IS_IMMORTAL(v) ((void)v, 0)

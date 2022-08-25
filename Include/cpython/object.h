@@ -177,6 +177,19 @@ typedef struct {
     sendfunc am_send;
 } PyAsyncMethods;
 
+typedef void (*setawaiterfunc)(PyObject *receiver, PyObject *awaiter);
+
+typedef struct {
+    PyAsyncMethods ame_async_methods;
+    setawaiterfunc ame_setawaiter;
+} PyAsyncMethodsWithExtra;
+
+#define PyHeapType_AM_EXTRA(etype) \
+  ((PyAsyncMethodsWithExtra*)( \
+      (char*)Ci_PyHeapType_CINDER_EXTRA(etype) + \
+      sizeof(Ci_PyType_CinderExtra) \
+  ))
+
 typedef struct {
      getbufferproc bf_getbuffer;
      releasebufferproc bf_releasebuffer;

@@ -58,9 +58,10 @@ PyObject *_PyGen_yf(PyGenObject *);
 PyAPI_FUNC(void) _PyGen_Finalize(PyObject *self);
 
 #ifndef Py_LIMITED_API
-typedef struct {
+typedef struct _coro {
     _PyGenObject_HEAD(cr)
     PyObject *cr_origin;
+    struct _coro *cr_awaiter;
 } PyCoroObject;
 
 PyAPI_DATA(PyTypeObject) PyCoro_Type;
@@ -75,6 +76,18 @@ PyAPI_FUNC(PyObject *) _PyCoro_NewTstate(
     struct _frame *,
     PyObject *name,
     PyObject *qualname);
+
+static inline void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter) {
+    PyTypeObject *ty = Py_TYPE(receiver);
+    if (!PyType_HasFeature(ty, Py_TPFLAGS_HAVE_AM_EXTRA)) {
+        return;
+    }
+    PyAsyncMethodsWithExtra *ame = (PyAsyncMethodsWithExtra *)ty->tp_as_async;
+    assert(ame != NULL);
+    if (ame->ame_setawaiter != NULL) {
+        ame->ame_setawaiter(receiver, awaiter);
+    }
+}
 
 /* Asynchronous Generators */
 

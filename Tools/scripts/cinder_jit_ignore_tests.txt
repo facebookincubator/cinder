@@ -47,3 +47,6 @@ test.test_generators.FinalizationTest.test_refcycle
 # TODO(T128782227): Frames accessed from exception tracebacks are different
 # in shadow-frame mode.
 test.test_io.*.test_reader_writer_close_error_on_close
+
+# The JIT does not eagerly execute coroutines.
+test.test_coroutines.CoroutineAwaiterTest.test_eager_await

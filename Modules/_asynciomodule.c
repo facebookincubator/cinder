@@ -2536,6 +2536,13 @@ FutureIter_am_send(futureiterobject *it,
     return PYGEN_ERROR;
 }
 
+static void
+FutureIter_setawaiter(futureiterobject *it, PyObject *awaiter) {
+    if (it->future != NULL) {
+        _PyAwaitable_SetAwaiter((PyObject *)it->future, awaiter);
+    }
+}
+
 static PyObject *
 FutureIter_iternext(futureiterobject *it)
 {
@@ -2640,11 +2647,14 @@ static PyMethodDef FutureIter_methods[] = {
     {NULL, NULL}        /* Sentinel */
 };
 
-static PyAsyncMethods FutureIterType_as_async = {
-    0,                                  /* am_await */
-    0,                                  /* am_aiter */
-    0,                                  /* am_anext */
-    (sendfunc)FutureIter_am_send,       /* am_send  */
+static PyAsyncMethodsWithExtra FutureIterType_as_async = {
+    .ame_async_methods = {
+        0,                                   /* am_await */
+        0,                                   /* am_aiter */
+        0,                                   /* am_anext */
+        (sendfunc)FutureIter_am_send,        /* am_send */
+    },
+    .ame_setawaiter = (setawaiterfunc)FutureIter_setawaiter,
 };
 
 
@@ -2654,9 +2664,9 @@ static PyTypeObject FutureIterType = {
     .tp_basicsize = sizeof(futureiterobject),
     .tp_itemsize = 0,
     .tp_dealloc = (destructor)FutureIter_dealloc,
-    .tp_as_async = &FutureIterType_as_async,
+    .tp_as_async = (PyAsyncMethods *)&FutureIterType_as_async,
     .tp_getattro = PyObject_GenericGetAttr,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)FutureIter_traverse,
     .tp_iter = PyObject_SelfIter,
     .tp_iternext = (iternextfunc)FutureIter_iternext,
@@ -3439,6 +3449,10 @@ done:
 
 static void TaskObj_dealloc(PyObject *);  /* Needs Task_CheckExact */
 
+static void TaskObj_set_awaiter(TaskObj *self, PyObject *awaiter) {
+    _PyAwaitable_SetAwaiter(self->task_coro, awaiter);
+}
+
 // clang-format off
 #define TASK_COMMON_METHODS                         \
     _ASYNCIO_FUTURE_RESULT_METHODDEF                \
@@ -3477,6 +3491,13 @@ static PyGetSetDef TaskType_getsetlist[] = {
     TASK_COMMON_GETSETLIST
     {NULL} /* Sentinel */
 };
+
+static PyAsyncMethodsWithExtra TaskType_as_async = {
+    .ame_async_methods = {
+        .am_await = (unaryfunc)future_new_iter,
+    },
+    .ame_setawaiter = (setawaiterfunc)TaskObj_set_awaiter,
+};
 // clang-format on
 
 static PyTypeObject TaskType = {
@@ -3485,9 +3506,10 @@ static PyTypeObject TaskType = {
     sizeof(TaskObj),                       /* tp_basicsize */
     .tp_base = &FutureType,
     .tp_dealloc = TaskObj_dealloc,
-    .tp_as_async = &FutureType_as_async,
+    .tp_as_async = (PyAsyncMethods *)&TaskType_as_async,
     .tp_repr = (reprfunc)FutureObj_repr,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
+                Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_doc = _asyncio_Task___init____doc__,
     .tp_traverse = (traverseproc)TaskObj_traverse,
     .tp_clear = (inquiry)TaskObj_clear,
@@ -4317,9 +4339,9 @@ static PyTypeObject ContextAwareTaskType = {
     .tp_doc = _asyncio_ContextAwareTask___init____doc__,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor)ContextAwareTaskObj_dealloc,
-    .tp_as_async = &FutureType_as_async,
+    .tp_as_async = (PyAsyncMethods *)&TaskType_as_async,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
-                Py_TPFLAGS_HAVE_FINALIZE,
+                Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_EXTRA,
     .tp_traverse = (traverseproc)ContextAwareTaskObj_traverse,
     .tp_clear = (inquiry)ContextAwareTaskObj_clear,
     .tp_iter = (getiterfunc)future_new_iter,
