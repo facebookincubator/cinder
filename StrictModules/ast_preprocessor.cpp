@@ -94,7 +94,7 @@ void Preprocessor::visitFunctionLikeHelper(
     if (toRemove >= 0) {
       // We need to remove the original decorator and
       // add a new one. Just replace the old one with new one
-      Ref<> isAsyncObj = Ref<>(isAsync ? Py_True : Py_False);
+      auto isAsyncObj = Ref<>::create(isAsync ? Py_True : Py_False);
       asdl_expr_seq* args = makeCallArgs({isAsyncObj.release()});
       expr_ty call = makeCall(CACHED_PROP_DECORATOR, args);
       asdl_seq_SET(decs, toRemove, call);

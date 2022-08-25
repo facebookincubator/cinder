@@ -8,7 +8,7 @@
 namespace strictmod::objects {
 // NoneObject_
 Ref<> NoneObject_::getPyObject() const {
-  return Ref(Py_None);
+  return Ref<>::create(Py_None);
 }
 std::string NoneObject_::getDisplayName() const {
   return "None";
@@ -38,7 +38,7 @@ std::shared_ptr<BaseStrictObject> NoneObject_::None__bool__(
 
 // NoneType_
 Ref<> NoneType_::getPyObject() const {
-  return Ref(reinterpret_cast<PyObject*>(Py_TYPE(Py_None)));
+  return Ref<>::create(reinterpret_cast<PyObject*>(Py_TYPE(Py_None)));
 }
 std::string NoneType_::getDisplayName() const {
   return "NoneType";
@@ -59,7 +59,7 @@ void NoneType_::addMethods() {
 
 // NotImplementedObject
 Ref<> NotImplementedObject::getPyObject() const {
-  return Ref(Py_NotImplemented);
+  return Ref<>::create(Py_NotImplemented);
 }
 std::string NotImplementedObject::getDisplayName() const {
   return "NotImplemented()";
@@ -71,7 +71,7 @@ std::shared_ptr<BaseStrictObject> NotImplementedObject::copy(
 
 // StrictEllipsisObject
 Ref<> StrictEllipsisObject::getPyObject() const {
-  return Ref(Py_Ellipsis);
+  return Ref<>::create(Py_Ellipsis);
 }
 std::string StrictEllipsisObject::getDisplayName() const {
   return "...";
@@ -102,7 +102,7 @@ std::shared_ptr<BaseStrictObject> StrictEllipsisObject::Ellipsis__repr__(
 
 // EllipsisType
 Ref<> StrictEllipsisType::getPyObject() const {
-  return Ref(reinterpret_cast<PyObject*>(Py_TYPE(Py_None)));
+  return Ref<>::create(reinterpret_cast<PyObject*>(Py_TYPE(Py_None)));
 }
 std::string StrictEllipsisType::getDisplayName() const {
   return "<class ellipsis>";

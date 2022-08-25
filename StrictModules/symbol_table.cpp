@@ -98,7 +98,7 @@ std::vector<PyObject*> SymtableEntry::getFunctionVarNames() {
     PyObject* key = PyList_GET_ITEM(keys.get(), i);
 
     assert(key != nullptr);
-    Ref<> flagsPy = Ref<>(PyDict_GetItem(entry_->ste_symbols, key));
+    auto flagsPy = Ref<>::create(PyDict_GetItem(entry_->ste_symbols, key));
     assert(flagsPy != nullptr);
     long flags = PyLong_AS_LONG(flagsPy.get());
     // we want non-cell locals

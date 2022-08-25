@@ -420,7 +420,7 @@ std::unique_ptr<BaseStrictObject> StrictListType::constructInstance(
 }
 
 Ref<> StrictListType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyList_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyList_Type));
 }
 
 std::shared_ptr<StrictType> StrictListType::recreate(
@@ -550,7 +550,7 @@ Ref<> StrictTuple::getPyObject() const {
       elem.release();
     }
   }
-  return Ref<>(pyObj_.get());
+  return Ref<>::create(pyObj_.get());
 }
 
 // wrapped methods
@@ -628,7 +628,7 @@ std::unique_ptr<BaseStrictObject> StrictTupleType::constructInstance(
 }
 
 Ref<> StrictTupleType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyTuple_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyTuple_Type));
 }
 
 std::shared_ptr<StrictType> StrictTupleType::recreate(
@@ -1120,7 +1120,7 @@ Ref<> StrictFrozenSet::getPyObject() const {
       }
     }
   }
-  return Ref<>(pyObj_.get());
+  return Ref<>::create(pyObj_.get());
 }
 
 std::shared_ptr<StrictSetLike> StrictFrozenSet::makeSetLike(

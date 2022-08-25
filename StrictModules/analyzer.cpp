@@ -463,7 +463,7 @@ void Analyzer::addToDunderAnnotationsHelper(
   }
 
   auto key = std::make_shared<StrictString>(
-      StrType(), context_.caller, Ref<>(target->v.Name.id));
+      StrType(), context_.caller, Ref<>::create(target->v.Name.id));
   auto dunderAnnotationsDict = getFromScope(kDunderAnnotations);
   assert(dunderAnnotationsDict != std::nullopt);
   iSetElement(
@@ -478,7 +478,7 @@ void Analyzer::visitArgHelper(arg_ty arg, DictDataT& annotations) {
     return;
   }
   AnalysisResult key = std::make_shared<StrictString>(
-      StrType(), context_.caller, Ref<>(arg->arg));
+      StrType(), context_.caller, Ref<>::create(arg->arg));
   annotations[std::move(key)] = visitAnnotationHelper(arg->annotation);
 }
 
@@ -1147,7 +1147,7 @@ AnalysisResult Analyzer::visitConstant(const expr_ty expr) {
   }
   if (PyUnicode_CheckExact(constant.value)) {
     auto value = std::make_shared<StrictString>(
-        StrType(), context_.caller, Ref<>(constant.value));
+        StrType(), context_.caller, Ref<>(Ref<>::create(constant.value)));
     return value;
   }
   if (PyFloat_CheckExact(constant.value)) {

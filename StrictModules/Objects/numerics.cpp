@@ -118,7 +118,7 @@ StrictInt::StrictInt(
     )
     : StrictNumeric(std::move(type), std::move(creator)),
       value_(),
-      pyValue_(Ref<>(pyValue)),
+      pyValue_(Ref<>::create(pyValue)),
       displayName_() {
   int overflow = 0;
   value_ = PyLong_AsLongLongAndOverflow(pyValue, &overflow);
@@ -150,7 +150,7 @@ Ref<> StrictInt::getPyObject() const {
     assert(value_.has_value());
     pyValue_ = Ref<>::steal(PyLong_FromLongLong(*value_));
   }
-  return Ref<>(pyValue_.get());
+  return Ref<>::create(pyValue_.get());
 }
 
 std::string StrictInt::getDisplayName() const {
@@ -267,7 +267,7 @@ std::shared_ptr<BaseStrictObject> __pow__Helper(
     const CallerContext& caller,
     std::shared_ptr<StrictNumeric> num,
     std::shared_ptr<BaseStrictObject> mod) {
-  Ref<> modObj = Ref<>(Py_None);
+  auto modObj = Ref<>::create(Py_None);
   if (mod != nullptr && mod != NoneObject()) {
     auto modNum = std::dynamic_pointer_cast<StrictNumeric>(mod);
     if (modNum == nullptr) {
@@ -348,8 +348,8 @@ std::shared_ptr<BaseStrictObject> __divmod__Helper(
         self->getDisplayName(),
         num->getDisplayName());
   }
-  Ref<> fst = Ref<>(PyTuple_GET_ITEM(result.get(), 0));
-  Ref<> snd = Ref<>(PyTuple_GET_ITEM(result.get(), 1));
+  auto fst = Ref<>::create(PyTuple_GET_ITEM(result.get(), 0));
+  auto snd = Ref<>::create(PyTuple_GET_ITEM(result.get(), 1));
   auto fstObj = fromPyNumberHelper(caller, fst);
   auto sndObj = fromPyNumberHelper(caller, snd);
   assert(fstObj != nullptr && sndObj != nullptr);
@@ -757,7 +757,7 @@ std::vector<std::type_index> StrictIntType::getBaseTypeinfos() const {
 }
 
 Ref<> StrictIntType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyLong_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyLong_Type));
 }
 
 std::shared_ptr<BaseStrictObject> StrictIntType::getTruthValue(
@@ -826,9 +826,9 @@ void StrictIntType::addMethods() {
 // StrictBool
 Ref<> StrictBool::getPyObject() const {
   if (pyValue_ == nullptr) {
-    pyValue_ = Ref<>(value_ == 0 ? Py_False : Py_True);
+    pyValue_ = Ref<>::create(value_ == 0 ? Py_False : Py_True);
   }
-  return Ref<>(pyValue_.get());
+  return Ref<>::create(pyValue_.get());
 }
 
 std::string StrictBool::getDisplayName() const {
@@ -879,7 +879,7 @@ std::shared_ptr<BaseStrictObject> StrictBool::bool__new__(
 
 // StrictBoolType
 Ref<> StrictBoolType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyBool_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyBool_Type));
 }
 
 std::unique_ptr<BaseStrictObject> StrictBoolType::constructInstance(
@@ -962,7 +962,7 @@ StrictFloat::StrictFloat(
     )
     : StrictNumeric(std::move(type), std::move(creator)),
       value_(PyFloat_AsDouble(pyValue)),
-      pyValue_(Ref<>(pyValue)),
+      pyValue_(Ref<>::create(pyValue)),
       displayName_() {}
 
 std::optional<double> StrictFloat::getReal() const {
@@ -981,7 +981,7 @@ Ref<> StrictFloat::getPyObject() const {
   if (pyValue_ == nullptr) {
     pyValue_ = Ref<>::steal(PyFloat_FromDouble(value_));
   }
-  return Ref<>(pyValue_.get());
+  return Ref<>::create(pyValue_.get());
 }
 
 std::string StrictFloat::getDisplayName() const {
@@ -1399,7 +1399,7 @@ std::vector<std::type_index> StrictFloatType::getBaseTypeinfos() const {
 }
 
 Ref<> StrictFloatType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyFloat_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyFloat_Type));
 }
 
 void StrictFloatType::addMethods() {

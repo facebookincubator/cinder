@@ -68,7 +68,7 @@ Ref<> StrictString::getPyObject() const {
   if (pyStr_ == nullptr) {
     pyStr_ = Ref<>::steal(PyUnicode_FromString(value_.c_str()));
   }
-  return Ref<>(pyStr_.get());
+  return Ref<>::create(pyStr_.get());
 }
 
 std::string StrictString::getDisplayName() const {
@@ -97,7 +97,7 @@ std::shared_ptr<BaseStrictObject> StrictString::listFromPyStrList(
   std::vector<std::shared_ptr<BaseStrictObject>> data;
   data.reserve(size);
   for (std::size_t i = 0; i < size; ++i) {
-    Ref<> elem = Ref<>(PyList_GET_ITEM(pyObj.get(), i));
+    auto elem = Ref<>::create(PyList_GET_ITEM(pyObj.get(), i));
     auto elemStr = std::make_shared<StrictString>(
         StrType(), caller.caller, std::move(elem));
     data.push_back(std::move(elemStr));
@@ -289,7 +289,7 @@ std::vector<std::type_index> StrictStringType::getBaseTypeinfos() const {
 }
 
 Ref<> StrictStringType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyUnicode_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyUnicode_Type));
 }
 
 void StrictStringType::addMethods() {
@@ -341,7 +341,7 @@ StrictBytes::StrictBytes(
     std::weak_ptr<StrictModuleObject> creator,
     PyObject* bytesObj)
     : StrictInstance(std::move(type), std::move(creator)),
-      bytesObj_(Ref<>(bytesObj)) {}
+      bytesObj_(Ref<>::create(bytesObj)) {}
 
 StrictBytes::StrictBytes(
     std::shared_ptr<StrictType> type,
@@ -351,7 +351,7 @@ StrictBytes::StrictBytes(
       bytesObj_(std::move(bytesObj)) {}
 
 Ref<> StrictBytes::getPyObject() const {
-  return Ref<>(bytesObj_.get());
+  return Ref<>::create(bytesObj_.get());
 }
 
 std::string StrictBytes::getDisplayName() const {
@@ -414,7 +414,7 @@ std::shared_ptr<StrictType> StrictBytesType::recreate(
 }
 
 Ref<> StrictBytesType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyBytes_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyBytes_Type));
 }
 
 void StrictBytesType::addMethods() {
@@ -442,7 +442,7 @@ StrictByteArray::StrictByteArray(
     std::weak_ptr<StrictModuleObject> creator,
     PyObject* bytearrayObj)
     : StrictInstance(std::move(type), std::move(creator)),
-      bytearrayObj_(Ref<>(bytearrayObj)) {}
+      bytearrayObj_(Ref<>::create(bytearrayObj)) {}
 
 StrictByteArray::StrictByteArray(
     std::shared_ptr<StrictType> type,
@@ -452,7 +452,7 @@ StrictByteArray::StrictByteArray(
       bytearrayObj_(std::move(bytearrayObj)) {}
 
 Ref<> StrictByteArray::getPyObject() const {
-  return Ref<>(bytearrayObj_.get());
+  return Ref<>::create(bytearrayObj_.get());
 }
 
 std::string StrictByteArray::getDisplayName() const {
@@ -501,7 +501,7 @@ std::shared_ptr<StrictType> StrictByteArrayType::recreate(
 }
 
 Ref<> StrictByteArrayType::getPyObject() const {
-  return Ref<>(reinterpret_cast<PyObject*>(&PyByteArray_Type));
+  return Ref<>::create(reinterpret_cast<PyObject*>(&PyByteArray_Type));
 }
 
 void StrictByteArrayType::addMethods() {
