@@ -1,7 +1,12 @@
 import asyncio
-from unittest import skip
+from unittest import skip, skipIf
 
 from .common import StaticTestBase
+
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
 
 
 class ClassMethodTests(StaticTestBase):
@@ -205,7 +210,10 @@ class ClassMethodTests(StaticTestBase):
             self.assertInBytecode(D.bar, "INVOKE_METHOD")
             self.assertEqual(D.bar(6), 48)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_classmethod_dynamic_subclass(self):
         codestr = """
             class C:
