@@ -381,9 +381,11 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
 
 class FuzzerReturnTypes(enum.Enum):
     SYNTAX_ERROR = 0
-    ERROR_CAUGHT_BY_JIT = 1
-    VERIFICATION_ERROR = 2
-    SUCCESS = 3
+    FUZZER_CODEGEN_ERROR = 2
+    ERROR_CAUGHT_BY_JIT = 3
+    VERIFICATION_ERROR = 4
+    SUCCESS = 5
+
 
 class PyFlowGraphFuzzer(pyassem.PyFlowGraphCinder):
     # Overriding nextBlock from FlowGraph in pyassem
@@ -407,52 +409,67 @@ class PyFlowGraphFuzzer(pyassem.PyFlowGraphCinder):
 
 
 def fuzzer_compile(code_str: str) -> tuple:
-    # wrapping all code in a function for JIT compilation
-    # since the cinderjit "force_compile" method requires a function object
+    # wrap code in a wrapper function for jit compilation
     wrapped_code_str = "def wrapper_function():\n" + textwrap.indent(code_str, "  ")
+    # compile code with the Fuzzer as its codegenerator
     try:
         code = compile(wrapped_code_str, "", "exec", compiler=Fuzzer)
-        # validating the code object
-        Verifier.validate_code(code)
-        # the original code is wrapped in a function, extracting it for jit compilation
-        func = types.FunctionType(code.co_consts[0], {})
-        if cinderjit:
-            try:
-                jit_compiled_function = cinderjit.force_compile(func)
-            except RuntimeError:
-                return (code, FuzzerReturnTypes.ERROR_CAUGHT_BY_JIT)
     except SyntaxError:
         return (None, FuzzerReturnTypes.SYNTAX_ERROR)
+    except (AssertionError, AttributeError, IndexError, KeyError, ValueError):
+        # indicates an error during code generation
+        # meaning the fuzzer has modified the code in a way which
+        # does not allow the creation of a code object
+        # ideally these types of errors are minimal
+        return (None, FuzzerReturnTypes.FUZZER_CODEGEN_ERROR)
+    # print code object to stdout so it is present in the output file
+    print(code_object_to_string(code))
+    # Run through the verifier
+    try:
+        Verifier.validate_code(code)
     except VerificationError:
         return (code, FuzzerReturnTypes.VERIFICATION_ERROR)
+
+    # create a function object from the code object
+    func = types.FunctionType(code.co_consts[0], {})
+
+    # jit compile the function
+    try:
+        jit_compiled_function = cinderjit.force_compile(func)
+    except RuntimeError:
+        return (code, FuzzerReturnTypes.ERROR_CAUGHT_BY_JIT)
+
     return (code, FuzzerReturnTypes.SUCCESS)
 
 
 # Can be used for debugging
-def print_code_object(code: types.CodeType) -> None:
+def code_object_to_string(code: types.CodeType) -> str:
+    res = ""
+    res += "CODE OBJECT:\n"
     stack = [(code, 0)]
     while stack:
         code_obj, level = stack.pop()
-        print(f"Code object at level {level}")
-        print(f"Bytecode: {code_obj.co_code}")
-        print(f"Formatted bytecode:")
+        res += f"Code object at level {level}\n"
+        res += f"Bytecode: {code_obj.co_code}\n"
+        res += f"Formatted bytecode:\n"
         bytecode = code_obj.co_code
         i = 0
         while i < len(bytecode):
             if i % 2 == 0:
-                print(dis.opname[bytecode[i]], end=": ")
+                res += f"{dis.opname[bytecode[i]]} : "
             else:
-                print(bytecode[i], end=", ")
+                res += f"{bytecode[i]}, "
             i += 1
-        print("")
-        print(f"Consts: {code_obj.co_consts}")
-        print(f"Names: {code_obj.co_names}")
-        print(f"Varnames: {code_obj.co_varnames}")
-        print(f"Cellvars: {code_obj.co_cellvars}")
-        print(f"Freevars: {code_obj.co_freevars}\n")
+        res += "\n"
+        res += f"Consts: {code_obj.co_consts}\n"
+        res += f"Names: {code_obj.co_names}\n"
+        res += f"Varnames: {code_obj.co_varnames}\n"
+        res += f"Cellvars: {code_obj.co_cellvars}\n"
+        res += f"Freevars: {code_obj.co_freevars}\n"
         for i in code_obj.co_consts:
             if isinstance(i, types.CodeType):
                 stack.append((i, level + 1))
+    return res
 
 
 def replace_closure_var(
@@ -697,4 +714,5 @@ if __name__ == "__main__":
     parser.add_argument("--codestr", help="code string to be passed into the fuzzer")
     args = parser.parse_args()
     if args.codestr:
-        fuzzer_compile(args.codestr)
+        # printing return type to STDOUT so it can be seen in the output file
+        print(fuzzer_compile(args.codestr)[1])

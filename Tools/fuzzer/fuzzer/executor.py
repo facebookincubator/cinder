@@ -5,12 +5,13 @@ import re
 import subprocess
 import sys
 import textwrap
+from io import TextIOWrapper
 from typing import List, Tuple
 
 import unparse
 
 
-def run_fuzzer(code_str: str, subprocesses: int) -> None:
+def run_fuzzer(code_str: str, subprocesses: int, output_file: TextIOWrapper) -> None:
     subprocess_arr = []
     for i in range(subprocesses):
         subprocess_arr.append(
@@ -22,19 +23,24 @@ def run_fuzzer(code_str: str, subprocesses: int) -> None:
                     __file__.replace("executor.py", "fuzzer.py"),
                     "--codestr",
                     code_str,
-                ]
+                ],
+                stdout=output_file,
+                stderr=output_file,
             )
         )
     for i in subprocess_arr:
         i.wait()
+        output_file.flush()
 
 
 # calls run_fuzzer on every function in a test file
-def run_fuzzer_on_test_file(file_location: str, subprocesses: int) -> None:
+def run_fuzzer_on_test_file(
+    file_location: str, subprocesses: int, output_file: TextIOWrapper
+) -> None:
     funcs = extract_functions_from_file(file_location)
     subprocess_arr = []
     for i in funcs:
-        run_fuzzer(i, subprocesses)
+        run_fuzzer(i, subprocesses, output_file)
 
 
 # extracts function strings from a file
@@ -65,12 +71,24 @@ def extract_functions_from_file(file_location: str) -> List[str]:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--codestr", help="code string to be passed into the fuzzer")
-
-    parser.add_argument("--subprocesses", help="number of subprocesses")
-    parser.add_argument("--file", help="location of file to run fuzzer on")
+    string_or_file = parser.add_mutually_exclusive_group(required=True)
+    string_or_file.add_argument(
+        "--codestr", help="code string to be passed into the fuzzer"
+    )
+    string_or_file.add_argument("--file", help="location of file to run fuzzer on")
+    parser.add_argument(
+        "--subprocesses", nargs="?", default="1", help="number of subprocesses"
+    )
+    parser.add_argument(
+        "--output",
+        nargs="?",
+        default="fuzzer_output.txt",
+        help="optional: location of file for stdout and stderr",
+    )
     args = parser.parse_args()
-    if args.codestr and args.subprocesses:
-        run_fuzzer(args.codestr, int(args.subprocesses))
-    elif args.file and args.subprocesses:
-        run_fuzzer_on_test_file(args.file, int(args.subprocesses))
+    f = open(args.output, "w+")
+    if args.codestr:
+        run_fuzzer(args.codestr, int(args.subprocesses), f)
+    elif args.file:
+        run_fuzzer_on_test_file(args.file, int(args.subprocesses), f)
+    f.close()
