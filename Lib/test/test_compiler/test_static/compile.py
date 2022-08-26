@@ -4960,8 +4960,9 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_override(self):
         codestr = """
@@ -5029,9 +5030,7 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
-    )
+    @skip("TODO(T130276448): INVOKE_METHOD_CACHED support")
     def test_async_method_override_future_correct_type(self):
         codestr = """
             class C:
@@ -5058,8 +5057,9 @@ class StaticCompilationTests(StaticTestBase):
                     self.assertEqual(e.args[0], 100)
             loop.close()
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_override_future_incorrect_type(self):
         codestr = """
@@ -5084,8 +5084,9 @@ class StaticCompilationTests(StaticTestBase):
                 d.g().send(None)
             loop.close()
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_immediate_await(self):
         codestr = """
@@ -5107,8 +5108,9 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(asyncio.run(mod.f(d)), 1)
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_immediate_await_incorrect_type(self):
         codestr = """
@@ -5131,8 +5133,9 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_incorrect_type(self):
         codestr = """
@@ -5156,8 +5159,9 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_incorrect_type_suspended(self):
         codestr = """
@@ -5181,8 +5185,9 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_throw_exception(self):
         codestr = """
@@ -5204,8 +5209,9 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(IndexError):
                 coro.send(None)
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_throw(self):
         codestr = """
@@ -5231,8 +5237,9 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertEqual(e.__cause__.args[0], 100)
             loop.close()
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_throw_incorrect_type(self):
         codestr = """
@@ -5256,8 +5263,9 @@ class StaticCompilationTests(StaticTestBase):
                 coro.send(None)
             loop.close()
 
-    @skip(
-        "TODO(T128335015): Re-enable when async/await is supported in the classloader."
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
     )
     def test_async_method_close(self):
         codestr = """

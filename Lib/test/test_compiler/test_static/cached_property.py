@@ -355,7 +355,6 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(c.hit_count, 1)
 
-    @skip("TODO(T128335015): blocked on async support")
     def test_async_cached_property_invoked(self):
         codestr = """
         from cinder import async_cached_property
@@ -384,7 +383,6 @@ class CachedPropertyTests(StaticTestBase):
             r = asyncio.run(mod.f())
             self.assertEqual(r.hit_count, 1)
 
-    @skip("TODO(T128335015): blocked on async support")
     def test_async_cached_property_invoked_frozen(self):
         codestr = """
         from typing import final
@@ -415,7 +413,6 @@ class CachedPropertyTests(StaticTestBase):
             r = asyncio.run(mod.f())
             self.assertEqual(r.hit_count, 1)
 
-    @skip("TODO(T128335015): blocked on async support")
     def test_multiple_async_cached_properties(self):
         codestr = """
         from cinder import async_cached_property
@@ -561,7 +558,6 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
-    @skip("TODO(T128335015): blocked on async support")
     def test_async_cached_property_override_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property

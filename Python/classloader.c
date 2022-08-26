@@ -221,8 +221,6 @@ async_cachedpropthunk_get_func(PyObject *thunk) {
     return descr->func;
 }
 
-// TODO(T128335015): Re-enable these.
-#ifdef CINDER_PORTING_DONE
 static int
 awaitable_traverse(_PyClassLoader_Awaitable *self, visitproc visit, void *arg)
 {
@@ -282,7 +280,6 @@ awaitable_await(_PyClassLoader_Awaitable *self)
     Py_INCREF(self);
     return (PyObject *)self;
 }
-#endif
 
 static PyObject *
 rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_info);
@@ -291,11 +288,8 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
 int
 used_in_vtable(PyObject *value);
 
-// TODO(T128335015): Re-enable this.
-#ifdef CINDER_PORTING_DONE
 static PySendResult
-awaitable_itersend(PyThreadState* tstate,
-                   _PyClassLoader_Awaitable *self,
+awaitable_itersend(_PyClassLoader_Awaitable *self,
                    PyObject *value,
                    PyObject **pResult)
 {
@@ -337,7 +331,6 @@ awaitable_itersend(PyThreadState* tstate,
     *pResult = result;
     return status;
 }
-#endif
 
 PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
     if (result == NULL) {
@@ -347,8 +340,6 @@ PyObject *rettype_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result) {
 }
 
 
-// TODO(T128335015): Re-enable this.
-#ifdef CINDER_PORTING_DONE
 static void
 awaitable_setawaiter(_PyClassLoader_Awaitable *awaitable, PyObject *awaiter) {
     if (awaitable->iter != NULL) {
@@ -362,8 +353,8 @@ static PyAsyncMethodsWithExtra awaitable_as_async = {
         (unaryfunc)awaitable_await,
         NULL,
         NULL,
+        (sendfunc)awaitable_itersend,
     },
-    .ame_send = (sendfunc)awaitable_itersend,
     .ame_setawaiter = (setawaiterfunc)awaitable_setawaiter,
 };
 
@@ -371,7 +362,7 @@ static PyObject *
 awaitable_send(_PyClassLoader_Awaitable *self, PyObject *value)
 {
     PyObject *result;
-    PySendResult status = awaitable_itersend(PyThreadState_GET(), self, value, &result);
+    PySendResult status = awaitable_itersend(self, value, &result);
     if (status == PYGEN_ERROR || status == PYGEN_NEXT) {
         return result;
     }
@@ -495,10 +486,10 @@ _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, a
 
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        Py_INCREF(handle->wh_coro_or_result);
-        awaitable->coro = handle->wh_coro_or_result;
-        awaitable->iter = handle->wh_coro_or_result;
-        handle->wh_coro_or_result = (PyObject *)awaitable;
+        Py_INCREF(handle->wh_coro_or_result_NOT_IMPLEMENTED);
+        awaitable->coro = handle->wh_coro_or_result_NOT_IMPLEMENTED;
+        awaitable->iter = handle->wh_coro_or_result_NOT_IMPLEMENTED;
+        handle->wh_coro_or_result_NOT_IMPLEMENTED = (PyObject *)awaitable;
         return coro;
     }
 
@@ -506,7 +497,6 @@ _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, a
     awaitable->iter = NULL;
     return (PyObject *)awaitable;
 }
-#endif
 
 static int
 rettype_check_traverse(_PyClassLoader_RetTypeInfo *op, visitproc visit, void *arg)
@@ -595,8 +585,6 @@ rettype_check(PyTypeObject *cls, PyObject *ret, _PyClassLoader_RetTypeInfo *rt_i
     return ret;
 }
 
-// TODO(T128335015): Re-enable this.
-#ifdef CINDER_PORTING_DONE
 static PyObject *
 type_vtable_coroutine_property(_PyClassLoader_TypeCheckState *state,
                     PyObject **args,
@@ -651,9 +639,9 @@ type_vtable_coroutine_property(_PyClassLoader_TypeCheckState *state,
     eager = _PyWaitHandle_CheckExact(coro);
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        if (handle->wh_waiter == NULL) {
+        if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
             if (rettype_check(Py_TYPE(descr),
-                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
+                    handle->wh_coro_or_result_NOT_IMPLEMENTED, (_PyClassLoader_RetTypeInfo *)state)) {
                 return coro;
             }
             _PyWaitHandle_Release(coro);
@@ -679,7 +667,7 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         assert(nargs > 0);
         PyObject *classmethod_args[nargs];
         PyObject *first_arg = args[0];
-        if (~nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+        if (~nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
             first_arg = (PyObject *) Py_TYPE(first_arg);
         }
         classmethod_args[0] = first_arg;
@@ -688,7 +676,7 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         }
         args = classmethod_args;
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
-    } else if (nargsf & _Py_VECTORCALL_INVOKED_CLASSMETHOD) {
+    } else if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
         Py_ssize_t awaited = nargsf & Ci_Py_AWAITED_CALL_MARKER;
         // In this case, we have a patched class method, and the self has been
         // handled via descriptors already.
@@ -727,9 +715,9 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
     int eager = _PyWaitHandle_CheckExact(coro);
     if (eager) {
         PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        if (handle->wh_waiter == NULL) {
+        if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
             if (rettype_check(Py_TYPE(callable),
-                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
+                    handle->wh_coro_or_result_NOT_IMPLEMENTED, (_PyClassLoader_RetTypeInfo *)state)) {
                 return coro;
             }
             _PyWaitHandle_Release(coro);
@@ -739,7 +727,6 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
 
     return _PyClassLoader_NewAwaitableWrapper(coro, eager, (PyObject *)state, rettype_cb, NULL);
 }
-#endif
 
 static PyObject *
 type_vtable_nonfunc_property(_PyClassLoader_TypeCheckState *state,
@@ -1554,7 +1541,6 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
         // TODO(T128335015): Re-enable this once asyncio is supported.
-#ifdef CINDER_PORTING_DONE
         if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_coroutine_property;
@@ -1562,9 +1548,6 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)type_vtable_coroutine;
         }
-#else
-        assert(0);
-#endif
     } else if (PyFunction_Check(value)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_func_overridable;

@@ -357,6 +357,7 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 
 int _PyEval_ShadowByteCodeEnabled = 1;
 
+#define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
 PyAPI_DATA(int) Py_LazyImportsFlag;
 
 void _Py_NO_RETURN
@@ -4907,19 +4908,17 @@ main_loop:
 
             assert(!PyErr_Occurred());
 
-            /* TODO(T128335015): Uncomment when we have custom async support. */
-            /* awaited = IS_AWAITED(); */
+            int awaited = IS_AWAITED();
             PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
                 vtable->vt_entries[slot].vte_state,
                 stack,
                 nargs |
-                /* TODO(T128335015): Uncomment when we have custom async support. */
-                /* (awaited ? _Py_AWAITED_CALL_MARKER : 0) | */
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
                 (is_classmethod ? Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD : 0) |
                 Ci_Py_VECTORCALL_INVOKED_STATICALLY,
                 NULL);
 
-            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0 /* TODO(T128335015): Replace with awaited */, res);
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
 
 #define FIELD_OFFSET(self, offset) (PyObject **)(((char *)self) + offset)
@@ -5468,15 +5467,12 @@ main_loop:
             if (func == NULL) {
                 goto error;
             }
-            /* Uncomment when we have custom async support.
-             * awaited = IS_AWAITED();
-             */
+             int awaited = IS_AWAITED();
             PyObject **sp = stack_pointer - nargs;
             PyObject *res = _PyObject_Vectorcall(
                 func,
                 sp,
-                /* Uncomment when we have custom async support. */
-                /* (awaited ? _Py_AWAITED_CALL_MARKER : 0) | */
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
                 Ci_Py_VECTORCALL_INVOKED_STATICALLY | nargs,
                 NULL);
 
@@ -5507,7 +5503,7 @@ main_loop:
             Py_DECREF(func);
             Py_DECREF(container);
 
-            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, /* awaited */0, res);
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
 
         case TARGET(JUMP_IF_ZERO_OR_POP): {
@@ -6023,18 +6019,14 @@ main_loop:
         case TARGET(INVOKE_FUNCTION_CACHED): {
             PyObject *func = _PyShadow_GetCastType(&shadow, oparg & 0xff);
             Py_ssize_t nargs = oparg >> 8;
-#ifdef CINDER_DONE_PORTING
-            awaited = IS_AWAITED();
-#endif
+            int awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
             PyObject *res = _PyObject_Vectorcall(
                 func,
                 sp,
                 nargs |
-#ifdef CINDER_DONE_PORTING
-                (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
-#endif
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
                 Ci_Py_VECTORCALL_INVOKED_STATICALLY,
                 NULL);
 
@@ -6044,9 +6036,7 @@ main_loop:
         case TARGET(INVOKE_FUNCTION_INDIRECT_CACHED): {
             PyObject **funcref = _PyShadow_GetFunction(&shadow, oparg & 0xff);
             Py_ssize_t nargs = oparg >> 8;
-#ifdef CINDER_DONE_PORTING
-            awaited = IS_AWAITED();
-#endif
+            int awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
             PyObject *func = *funcref;
@@ -6065,10 +6055,7 @@ main_loop:
                     tstate,
                     func,
                     sp,
-#ifdef CINDER_DONE_PORTING
-                    (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
-#endif
-                    nargs,
+                    (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) | nargs,
                     NULL
                 );
                 Py_DECREF(func);
@@ -6077,15 +6064,12 @@ main_loop:
                     tstate,
                     func,
                     sp,
-#ifdef CINDER_DONE_PORTING
-                    (awaited ? _Py_AWAITED_CALL_MARKER : 0) |
-#endif
-                    nargs,
+                    (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) | nargs,
                     NULL
                 );
             }
 
-            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0 /* TODO(T128335015): Replace with awaited */, res);
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
 
         case TARGET(BUILD_CHECKED_MAP_CACHED): {
