@@ -6184,7 +6184,32 @@ main_loop:
         }
 
         case TARGET(INVOKE_METHOD_CACHED): {
-            PORT_ASSERT("Unsupported: INVOKE_METHOD_CACHED");
+            int is_classmethod = oparg & 1;
+            Py_ssize_t nargs = (oparg >> 1) & 0xff;
+            PyObject **stack = stack_pointer - nargs;
+            PyObject *self = *stack;
+            _PyType_VTable *vtable;
+            if (is_classmethod) {
+                vtable = (_PyType_VTable *)(((PyTypeObject *)self)->tp_cache);
+            }
+            else {
+                vtable = (_PyType_VTable *)self->ob_type->tp_cache;
+            }
+
+            Py_ssize_t slot = oparg >> 9;
+
+            int awaited = IS_AWAITED();
+
+            assert(!PyErr_Occurred());
+            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+                vtable->vt_entries[slot].vte_state,
+                stack,
+                nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY |
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
+                (is_classmethod ? Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD : 0),
+                NULL);
+
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
 
 #if USE_COMPUTED_GOTOS

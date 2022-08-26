@@ -5030,7 +5030,10 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skip("TODO(T130276448): INVOKE_METHOD_CACHED support")
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
+    )
     def test_async_method_override_future_correct_type(self):
         codestr = """
             class C:
