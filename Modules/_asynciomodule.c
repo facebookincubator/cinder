@@ -1,8 +1,12 @@
 #include "Python.h"
 #include "pycore_pyerrors.h"      // _PyErr_ClearExcState()
+#include "pycore_pystate.h"
+#include "pycore_call.h"
 #include <stddef.h>               // offsetof()
 #include "structmember.h"
 #include "weakrefobject.h"
+#include "cinder/exports.h"
+#include "cinder/porting-support.h"
 
 
 /*[clinic input]
@@ -28,6 +32,7 @@ _Py_IDENTIFIER(get_loop);
 _Py_IDENTIFIER(_loop);
 _Py_IDENTIFIER(result);
 _Py_IDENTIFIER(get_debug);
+_Py_IDENTIFIER(create_task);
 
 /* facebook: method table */
 
@@ -71,6 +76,9 @@ static PyObject *add_done_callback_name;
 static PyObject *result_name;
 static PyObject *cancel_name;
 static PyObject *done_name;
+static PyObject *create_task_name;
+static PyObject *minus_one;
+static PyObject *throw_name;
 
 typedef enum {
     STATE_PENDING,
@@ -130,11 +138,43 @@ typedef struct {
 #endif
 } PyRunningLoopHolder;
 
+typedef enum {
+    ALV_NOT_STARTED,
+    ALV_RUNNING,
+    ALV_DONE,
+} ASYNC_LAZY_VALUE_STATE;
+
+typedef struct {
+    PyObject_HEAD PyObject *alv_args;
+    PyObject *alv_kwargs;
+    PyObject *alv_result;
+    PyObject *alv_futures;
+    ASYNC_LAZY_VALUE_STATE alv_state;
+} AsyncLazyValueObj;
+
+typedef struct {
+    PyObject_HEAD AsyncLazyValueObj *alvc_target;
+    _PyErr_StackItem alvc_exc_state;
+    PyObject *alvc_coroobj; // actual coroutine object computing the value of
+                            // 'alvc_target'
+
+    // This may be set if someone tries to set the awaiter before we've started
+    // running the computation. This happens during non-eager execution because
+    // we call _PyAwaitable_SetAwaiter in both the JIT/interpreter before
+    // starting the compute object. We'll check for this when we start the computation
+    // and call _PyAwaitable_SetAwaiter with the stored value on the awaitable
+    // that is created.
+    //
+    // Stores a borrowed reference.
+    PyObject *alvc_pending_awaiter;
+} AsyncLazyValueComputeObj;
 
 static PyTypeObject FutureType;
 static PyTypeObject TaskType;
 static PyTypeObject ContextAwareTaskType;
 static PyTypeObject PyRunningLoopHolder_Type;
+static PyTypeObject _AsyncLazyValue_Type;
+static PyTypeObject _AsyncLazyValueCompute_Type;
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 static pid_t current_pid;
@@ -142,6 +182,12 @@ static pid_t current_pid;
 
 #define Future_CheckExact(obj) Py_IS_TYPE(obj, &FutureType)
 #define Task_CheckExact(obj) Py_IS_TYPE(obj, &TaskType)
+
+#define _AsyncLazyValue_CheckExact(obj)                                       \
+    (Py_TYPE(obj) == (PyTypeObject *)&_AsyncLazyValue_Type)
+
+#define _AsyncLazyValueCompute_CheckExact(obj)                                \
+    (Py_TYPE(obj) == (PyTypeObject *)&_AsyncLazyValueCompute_Type)
 
 #define Future_Check(obj) PyObject_TypeCheck(obj, &FutureType)
 #define Task_Check(obj) PyObject_TypeCheck(obj, &TaskType)
@@ -3594,6 +3640,49 @@ task_set_error_soon(TaskObj *task, PyObject *et, const char *format, ...)
     Py_RETURN_NONE;
 }
 
+static PyObject *
+_asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
+                                          PyObject *type,
+                                          PyObject *val,
+                                          PyObject *tb);
+
+/**
+    Raises exception in coroutine.
+ */
+static PyObject *
+coro_throw(PyObject *coro, PyObject *etype, PyObject *eval, PyObject *tb)
+{
+    if (_AsyncLazyValueCompute_CheckExact(coro)) {
+        return _asyncio_AsyncLazyValueCompute_throw_impl(
+            (AsyncLazyValueComputeObj *)coro, etype, eval, tb);
+    }
+
+    PyObject *throw_ = NULL;
+    int meth_found = _PyObject_GetMethod(coro, throw_name, &throw_);
+    if (throw_ == NULL) {
+        return NULL;
+    }
+    int start = 0;
+    int nargs;
+    PyObject *stack[4] = {coro, etype, eval, tb};
+    if (meth_found) {
+        start = 0;
+        nargs = 2;
+    } else {
+        start = 1;
+        nargs = 1;
+    }
+    if (eval != NULL) {
+        nargs++;
+        if (tb != NULL) {
+            nargs++;
+        }
+    }
+    PyObject *res = _PyObject_FastCall(throw_, stack + start, nargs);
+    Py_DECREF(throw_);
+    return res;
+}
+
 static inline int
 gen_status_from_result(PyObject **result)
 {
@@ -3671,7 +3760,7 @@ task_step_impl(TaskObj *task, PyObject *exc)
         gen_status = PyIter_Send(coro, Py_None, &result);
     }
     else {
-        result = _PyObject_CallMethodIdOneArg(coro, &PyId_throw, exc);
+        result = coro_throw(coro, exc, NULL, NULL);
         gen_status = gen_status_from_result(&result);
         if (clear_exc) {
             /* We created 'exc' during this call */
@@ -4350,6 +4439,869 @@ static PyTypeObject ContextAwareTaskType = {
     .tp_finalize = (destructor)TaskObj_finalize,
 };
 
+/******************** AsyncLazyValue ************************/
+
+static inline int
+notify_futures(PyObject *futures,
+               int (*cb)(FutureObj *, PyObject *),
+               PyObject *arg)
+{
+    if (futures == NULL) {
+        return 0;
+    }
+    Py_ssize_t len = PyList_GET_SIZE(futures);
+    for (Py_ssize_t i = 0; i < len; ++i) {
+        FutureObj *fut = (FutureObj *)PyList_GET_ITEM(futures, i);
+        PyObject *res = _asyncio_Future_done_impl(fut);
+        if (res == NULL) {
+            return -1;
+        }
+        int is_done = PyObject_IsTrue(res);
+        Py_DECREF(res);
+        if (is_done == -1) {
+            return -1;
+        }
+        if (is_done) {
+            continue;
+        }
+        int ok = cb(fut, arg);
+        if (ok < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+#ifdef CINDER_PORTING_DONE
+static inline PyObject *
+AsyncLazyValue_get_result(AsyncLazyValueObj *self)
+{
+    assert(self->alv_state == ALV_DONE);
+    Py_INCREF(self->alv_result);
+    return self->alv_result;
+}
+#endif
+
+static int
+AsyncLazyValue_future_set_result(FutureObj *self, PyObject *res)
+{
+    PyObject *retval = future_set_result(self, res);
+    if (retval == NULL) {
+        return -1;
+    }
+    Py_DECREF(retval);
+    return 0;
+}
+
+static int
+AsyncLazyValue_future_set_exception(FutureObj *self, PyObject *res)
+{
+    PyObject *retval = future_set_exception(self, res);
+    if (retval == NULL) {
+        return -1;
+    }
+    Py_DECREF(retval);
+    return 0;
+}
+
+static int
+AsyncLazyValue_set_result(AsyncLazyValueObj *self, PyObject *res)
+{
+    self->alv_result = res;
+    Py_INCREF(res);
+    self->alv_state = ALV_DONE;
+    if (notify_futures(self->alv_futures, AsyncLazyValue_future_set_result, res) < 0) {
+        return -1;
+    }
+    Py_CLEAR(self->alv_args);
+    Py_CLEAR(self->alv_kwargs);
+
+    return 0;
+}
+
+static int
+AsyncLazyValue_set_error(AsyncLazyValueObj *self, PyObject *exc)
+{
+    int ok;
+    if (PyObject_IsInstance(exc, asyncio_CancelledError)) {
+        ok = notify_futures(self->alv_futures, future_cancel_impl, exc);
+    } else {
+        ok = notify_futures(self->alv_futures, AsyncLazyValue_future_set_exception, exc);
+    }
+
+    Py_CLEAR(self->alv_futures);
+    self->alv_state = ALV_NOT_STARTED;
+    return ok;
+}
+
+static PyObject *
+AsyncLazyValue_new_computeobj(AsyncLazyValueObj *self)
+{
+    AsyncLazyValueComputeObj *obj =
+        PyObject_GC_New(AsyncLazyValueComputeObj,
+                        (PyTypeObject *)&_AsyncLazyValueCompute_Type);
+    if (obj == NULL) {
+        return NULL;
+    }
+    obj->alvc_target = self;
+    Py_INCREF(self);
+
+    obj->alvc_coroobj = NULL;
+    obj->alvc_exc_state.exc_type = NULL;
+    obj->alvc_exc_state.exc_value = NULL;
+    obj->alvc_exc_state.exc_traceback = NULL;
+    obj->alvc_pending_awaiter = NULL;
+
+    PyObject_GC_Track(obj);
+    return (PyObject *)obj;
+}
+
+static int
+AsyncLazyValue_init(AsyncLazyValueObj *self, PyObject *args, PyObject *kwargs)
+{
+    if (PyTuple_GET_SIZE(args) == 0) {
+        PyErr_SetString(PyExc_TypeError, "'coro' argument expected");
+        return -1;
+    }
+    self->alv_args = args;
+    Py_INCREF(args);
+    self->alv_kwargs = kwargs;
+    Py_XINCREF(kwargs);
+
+    self->alv_futures = NULL;
+    self->alv_result = NULL;
+    self->alv_state = ALV_NOT_STARTED;
+    return 0;
+}
+
+static PyObject *
+AsyncLazyValue_new_future(AsyncLazyValueObj *self, PyObject *loop)
+{
+    FutureObj *fut = (FutureObj *)PyType_GenericNew(&FutureType, NULL, NULL);
+    if (fut == NULL) {
+        return NULL;
+    }
+    if (future_init(fut, loop) < 0) {
+        Py_DECREF(fut);
+        return NULL;
+    }
+    if (self->alv_futures == NULL) {
+        self->alv_futures = PyList_New(0);
+        if (self->alv_futures == NULL) {
+            Py_DECREF(fut);
+            return NULL;
+        }
+    }
+    if (PyList_Append(self->alv_futures, (PyObject *)fut) < 0) {
+        Py_DECREF(fut);
+        return NULL;
+    }
+    return (PyObject *)fut;
+}
+
+static PyObject *
+AsyncLazyValue_await(AsyncLazyValueObj *self)
+{
+    switch (self->alv_state) {
+    case ALV_NOT_STARTED: {
+        PyObject *compute = AsyncLazyValue_new_computeobj(self);
+        if (compute == NULL) {
+            return NULL;
+        }
+        self->alv_state = ALV_RUNNING;
+        return compute;
+    }
+    case ALV_RUNNING: {
+        PyObject *fut = AsyncLazyValue_new_future(self, Py_None);
+        if (fut == NULL) {
+            return NULL;
+        }
+        PyObject *res = future_new_iter(fut);
+        Py_DECREF(fut);
+        return res;
+    }
+    case ALV_DONE: {
+        Py_INCREF(self);
+        return (PyObject *)self;
+    }
+    default:
+        Py_UNREACHABLE();
+    }
+}
+
+static PyObject *
+create_task(PyObject *coro, PyObject *loop)
+{
+    PyObject *create_task = NULL;
+    int meth_found = _PyObject_GetMethod(loop, create_task_name, &create_task);
+    if (create_task == NULL) {
+        return NULL;
+    }
+
+    PyObject *task;
+    if (meth_found) {
+        PyObject *stack[2] = {loop, coro};
+        task = _PyObject_FastCall(create_task, stack, 2);
+    } else {
+        PyObject *stack[1] = {coro};
+        task = _PyObject_FastCall(create_task, stack, 1);
+    }
+    Py_DECREF(create_task);
+    if (task == NULL) {
+        return NULL;
+    }
+    PyMethodTableRef *t = get_or_create_method_table(Py_TYPE(task));
+    if (t == NULL) {
+        Py_DECREF(task);
+        return NULL;
+    }
+#ifdef CINDER_PORTING_DONE
+    PyObject *tb = t->source_traceback(task);
+    if (tb == NULL) {
+        Py_DECREF(task);
+        return NULL;
+    }
+    int ok = 0;
+    if (tb != Py_None) {
+        ok = PyObject_DelItem(tb, minus_one);
+    }
+    Py_DECREF(tb);
+    if (ok < 0) {
+        Py_CLEAR(task);
+    }
+#endif
+    return task;
+}
+
+static PyObject *
+AsyncLazyValue_new_task(AsyncLazyValueObj *self, PyObject *loop)
+{
+    assert(loop != Py_None);
+
+    PyObject *computeobj = AsyncLazyValue_new_computeobj(self);
+    if (computeobj == NULL) {
+        return NULL;
+    }
+    PyObject *task = create_task(computeobj, loop);
+    Py_DECREF(computeobj);
+    return task;
+}
+
+static PyObject *
+AsyncLazyValue_ensure_future(AsyncLazyValueObj *self, PyObject *loop)
+{
+    switch (self->alv_state) {
+    case ALV_DONE: {
+        FutureObj *fut =
+            (FutureObj *)PyType_GenericNew(&FutureType, NULL, NULL);
+        if (fut == NULL) {
+            return NULL;
+        }
+        if (future_init(fut, loop) < 0) {
+            Py_DECREF(fut);
+            return NULL;
+        }
+        PyObject *retval = future_set_result((FutureObj *)fut, self->alv_result);
+        if (retval == NULL) {
+            Py_DECREF(fut);
+            return NULL;
+        }
+        Py_DECREF(retval);
+        return (PyObject *)fut;
+    }
+    case ALV_RUNNING: {
+        return AsyncLazyValue_new_future(self, loop);
+    }
+    case ALV_NOT_STARTED: {
+        int release_loop = 0;
+        if (loop == Py_None) {
+          loop = get_event_loop(1);
+            if (loop == NULL) {
+                return NULL;
+            }
+            release_loop = 1;
+        }
+        PyObject *result = AsyncLazyValue_new_task(self, loop);
+        if (release_loop) {
+            Py_DECREF(loop);
+        }
+        if (result) {
+            self->alv_state = ALV_RUNNING;
+        }
+        return result;
+    }
+    default:
+        Py_UNREACHABLE();
+    }
+}
+
+static int
+AsyncLazyValue_traverse(AsyncLazyValueObj *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->alv_args);
+    Py_VISIT(self->alv_kwargs);
+    Py_VISIT(self->alv_futures);
+    Py_VISIT(self->alv_result);
+    return 0;
+}
+
+static int
+AsyncLazyValue_clear(AsyncLazyValueObj *self)
+{
+    Py_CLEAR(self->alv_args);
+    Py_CLEAR(self->alv_kwargs);
+    Py_CLEAR(self->alv_futures);
+    Py_CLEAR(self->alv_result);
+    return 0;
+}
+
+static void
+AsyncLazyValue_dealloc(AsyncLazyValueObj *self)
+{
+    AsyncLazyValue_clear(self);
+
+    PyObject_GC_UnTrack(self);
+    Py_TYPE(self)->tp_free(self);
+}
+
+static PySendResult
+AsyncLazyValue_itersend(AsyncLazyValueObj *self,
+                        PyObject *Py_UNUSED(sentValue),
+                        PyObject **pResult)
+{
+    switch (self->alv_state) {
+    case ALV_NOT_STARTED:
+    case ALV_RUNNING: {
+        PyErr_SetString(PyExc_TypeError, "AsyncLazyValue needs to be awaited");
+        return PYGEN_ERROR;
+    }
+    case ALV_DONE: {
+        Py_INCREF(self->alv_result);
+        *pResult = self->alv_result;
+        return PYGEN_RETURN;
+    }
+    default:
+        Py_UNREACHABLE();
+    }
+}
+
+static inline PyObject*
+gen_status_to_iter(PySendResult gen_status, PyObject *result)
+{
+    if (gen_status == PYGEN_ERROR || gen_status == PYGEN_NEXT) {
+        return result;
+    }
+    assert(gen_status == PYGEN_RETURN);
+    _PyGen_SetStopIterationValue(result);
+    Py_DECREF(result);
+    return NULL;
+}
+
+static PyObject *
+AsyncLazyValue_iternext(AsyncLazyValueObj *self)
+{
+    PyObject *result;
+    PySendResult gen_status = AsyncLazyValue_itersend(self, NULL, &result);
+    return gen_status_to_iter(gen_status, result);
+}
+
+static PyObject *
+AsyncLazyValue_get_awaiting_tasks(AsyncLazyValueObj *self,
+                                  PyObject *Py_UNUSED(ignored))
+{
+    Py_ssize_t n =
+        self->alv_futures != NULL ? PyList_GET_SIZE(self->alv_futures) : 0;
+    return PyLong_FromSsize_t(n);
+}
+
+
+static PyAsyncMethodsWithExtra _AsyncLazyValue_Type_as_async = {
+    .ame_async_methods = {
+        (unaryfunc)AsyncLazyValue_await,         /* am_await */
+        0,                                       /* am_aiter */
+        0,                                       /* am_anext */
+        (sendfunc)AsyncLazyValue_itersend,       /* am_send */
+    },
+};
+
+static PyMethodDef AsyncLazyValue_methods[] = {
+    {"ensure_future", (PyCFunction)AsyncLazyValue_ensure_future, METH_O, NULL},
+    {NULL, NULL} /* Sentinel */
+};
+
+static PyGetSetDef AsyncLazyValue_getsetlist[] = {
+    {"_awaiting_tasks", (getter)AsyncLazyValue_get_awaiting_tasks, NULL, NULL},
+    {NULL} /* Sentinel */
+};
+
+static PyTypeObject _AsyncLazyValue_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValue",
+    .tp_basicsize = sizeof(AsyncLazyValueObj),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_AM_EXTRA,
+    .tp_traverse = (traverseproc)AsyncLazyValue_traverse,
+    .tp_clear = (inquiry)AsyncLazyValue_clear,
+    .tp_iter = PyObject_SelfIter,
+    .tp_iternext = (iternextfunc)AsyncLazyValue_iternext,
+    .tp_methods = AsyncLazyValue_methods,
+    .tp_getset = AsyncLazyValue_getsetlist,
+    .tp_as_async = (PyAsyncMethods*)&_AsyncLazyValue_Type_as_async,
+    .tp_init = (initproc)AsyncLazyValue_init,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor)AsyncLazyValue_dealloc,
+};
+
+/*[clinic input]
+class _asyncio.AsyncLazyValueCompute "AsyncLazyValueComputeObj *" "&_AsyncLazyValueCompute_Type"
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=a22f5c3d11e2aa0f]*/
+
+static int
+AsyncLazyValueCompute_traverse(AsyncLazyValueComputeObj *self,
+                               visitproc visit,
+                               void *arg)
+{
+    Py_VISIT(self->alvc_target);
+    Py_VISIT(self->alvc_coroobj);
+    Py_VISIT(self->alvc_exc_state.exc_type);
+    Py_VISIT(self->alvc_exc_state.exc_value);
+    Py_VISIT(self->alvc_exc_state.exc_traceback);
+    return 0;
+}
+
+static int
+AsyncLazyValueCompute_clear(AsyncLazyValueComputeObj *self)
+{
+    Py_CLEAR(self->alvc_target);
+    Py_CLEAR(self->alvc_coroobj);
+    Py_CLEAR(self->alvc_exc_state.exc_type);
+    Py_CLEAR(self->alvc_exc_state.exc_value);
+    Py_CLEAR(self->alvc_exc_state.exc_traceback);
+    // awaiter is borrowed
+    self->alvc_pending_awaiter = NULL;
+    return 0;
+}
+
+static void
+AsyncLazyValueCompute_dealloc(AsyncLazyValueComputeObj *self)
+{
+    AsyncLazyValueCompute_clear(self);
+
+    PyObject_GC_UnTrack(self);
+    Py_TYPE(self)->tp_free(self);
+}
+
+static PyObject *
+do_awaited_call(PyObject *func,
+                PyObject **args,
+                Py_ssize_t nargs,
+                PyObject *kwargs)
+{
+    if (PyMethod_Check(func)) {
+        PyObject *self = PyMethod_GET_SELF(func);
+        PyObject *meth_func = PyMethod_GET_FUNCTION(func);
+        PyObject *newargs_stack[_PY_FASTCALL_SMALL_STACK];
+        PyObject **newargs;
+        if (nargs <= (Py_ssize_t)Py_ARRAY_LENGTH(newargs_stack) - 1) {
+            newargs = newargs_stack;
+        }
+        else {
+            newargs = PyMem_Malloc((nargs+1) * sizeof(PyObject *));
+            if (newargs == NULL) {
+                _PyErr_NoMemory(_PyThreadState_GET());
+                return NULL;
+            }
+        }
+        /* use borrowed references */
+        newargs[0] = self;
+        memcpy(newargs + 1, args, nargs * sizeof(PyObject *));
+        PyObject *result = _PyObject_FastCallDictTstate(
+            _PyThreadState_GET(), meth_func, newargs, nargs | Ci_Py_AWAITED_CALL_MARKER, kwargs);
+        if (newargs != newargs_stack) {
+            PyMem_Free(newargs);
+        }
+        return result;
+    }
+    return PyObject_VectorcallDict(
+        func, args, nargs | Ci_Py_AWAITED_CALL_MARKER, kwargs);
+}
+
+static void
+forward_and_clear_pending_awaiter(AsyncLazyValueComputeObj *self)
+{
+    assert(self->alvc_coroobj != NULL);
+    if (self->alvc_pending_awaiter == NULL) {
+        return;
+    }
+    _PyAwaitable_SetAwaiter(self->alvc_coroobj, self->alvc_pending_awaiter);
+    self->alvc_pending_awaiter = NULL;
+}
+
+/**
+    Runs a function that was provided to AsyncLazyValue.
+    - if function was not a coroutine - calls _PyCoro_GetAwaitableIter on a
+   result and stores it for subsequent 'send' calls
+    - if function was a coroutine and it was completed eagerly -
+      sets 'did_step' indicator and returns the result
+    - if function was a coroutine but it was not completed eagerly
+      sets 'did_step' indicator, stores coroutine object for subsequent 'send'
+   calls and return result of the step (typically it is future)
+ */
+static PyObject *
+AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
+                                             int *did_step)
+{
+    Py_ssize_t nargs = PyTuple_GET_SIZE(self->alvc_target->alv_args);
+    PyObject **args = &PyTuple_GET_ITEM(self->alvc_target->alv_args, 0);
+    PyObject *result = do_awaited_call(
+        args[0], args + 1, nargs - 1, self->alvc_target->alv_kwargs);
+
+    if (result == NULL) {
+        return NULL;
+    }
+
+    if (!_PyWaitHandle_CheckExact(result)) {
+        // function being called is not a coroutine
+        PyObject *iter = _PyCoro_GetAwaitableIter(result);
+        Py_DECREF(result);
+        if (iter == NULL) {
+            return NULL;
+        }
+        self->alvc_coroobj = iter;
+        forward_and_clear_pending_awaiter(self);
+
+        Py_RETURN_NONE;
+    }
+
+    *did_step = 1;
+    if (((PyWaitHandleObject *)result)->wh_waiter_NOT_IMPLEMENTED == NULL) {
+        PyObject *retval = ((PyWaitHandleObject *)result)->wh_coro_or_result_NOT_IMPLEMENTED;
+        _PyWaitHandle_Release(result);
+        return retval;
+    }
+
+    self->alvc_coroobj = ((PyWaitHandleObject *)result)->wh_coro_or_result_NOT_IMPLEMENTED;
+    forward_and_clear_pending_awaiter(self);
+    PyObject *waiter = ((PyWaitHandleObject *)result)->wh_waiter_NOT_IMPLEMENTED;
+    _PyWaitHandle_Release(result);
+    return waiter;
+}
+
+/**
+    Handle error being raised, effectively working as a catch block
+    try: ...
+    except Exception as e:
+        notify-futures
+        if isinstance(e, (GeneratorExit, StopIteration)):
+            pass
+        else:
+            raise
+
+ */
+static PyObject *
+AsyncLazyValueCompute_handle_error(AsyncLazyValueComputeObj *self,
+                                   PyThreadState *tstate,
+                                   int reraise,
+                                   int closing)
+{
+    assert(PyErr_Occurred());
+
+    PyObject *et, *ev, *tb;
+    PyErr_Fetch(&et, &ev, &tb);
+    PyErr_NormalizeException(&et, &ev, &tb);
+    if (tb != NULL) {
+        PyException_SetTraceback(ev, tb);
+    } else {
+        PyException_SetTraceback(ev, Py_None);
+    }
+
+    // push information about current exception
+    _PyErr_StackItem *previous_exc_info = tstate->exc_info;
+    _PyErr_StackItem exc_info = {.exc_type = et,
+                                 .exc_value = ev,
+                                 .exc_traceback = tb,
+                                 .previous_item = previous_exc_info};
+    tstate->exc_info = &exc_info;
+    // set the error in async lazy value
+    int err = AsyncLazyValue_set_error(self->alvc_target, ev);
+    // pop current exception info
+    tstate->exc_info = previous_exc_info;
+
+    // 1. if exception was raised when setting the result - it will
+    // shadow original exception so we can release it.
+    // 2. also release it if we are not supposed to re-raise it
+    if (err < 0 || !reraise) {
+        Py_DECREF(et);
+        Py_XDECREF(ev);
+        Py_XDECREF(tb);
+    }
+    if (err < 0) {
+        // for closing case ignore StopIteration and GeneratorExit
+        if (closing && (PyErr_ExceptionMatches(PyExc_StopIteration) ||
+                        PyErr_ExceptionMatches(PyExc_GeneratorExit))) {
+            PyErr_Clear();
+            Py_RETURN_NONE;
+        }
+        return NULL;
+    }
+    if (reraise) {
+        // reraise previous error
+        PyErr_Restore(et, ev, tb);
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static void
+AsyncLazyValueCompute_set_awaiter(AsyncLazyValueComputeObj *self, PyObject *awaiter) {
+    if (self->alvc_coroobj != NULL) {
+        _PyAwaitable_SetAwaiter(self->alvc_coroobj, awaiter);
+    } else {
+        self->alvc_pending_awaiter = awaiter;
+    }
+}
+
+/**
+  Implementation of a 'send' for AsyncLazyValueCompute
+  */
+static PyObject *
+AsyncLazyValueCompute_itersend_(AsyncLazyValueComputeObj *self,
+                               PyThreadState *tstate,
+                               PyObject *sentValue,
+                               int *pReturn)
+{
+    if (self->alvc_coroobj == NULL) {
+        int did_step = 0;
+        // here alvc_coroobj coroutine object was not created yet -
+        // call coroutine and set coroutine object for subsequent sends
+        PyObject *retval =
+            AsyncLazyValueCompute_create_and_set_subcoro(self, &did_step);
+        if (retval == NULL) {
+            // failed - handle error
+            return AsyncLazyValueCompute_handle_error(self, tstate, 1, 0);
+        }
+        if (did_step) {
+            // if we did step when calling coroutine - we attempted to run
+            // coroutine eagerly which might have two outcomes
+            if (self->alvc_coroobj == NULL) {
+                // 1. coroutine has finished eagerly
+                // set the successful result to owning AsyncLazyValue
+                int ok = AsyncLazyValue_set_result(self->alvc_target, retval);
+                if (ok < 0) {
+                    Py_DECREF(retval);
+                    return AsyncLazyValueCompute_handle_error(
+                        self, tstate, 1, 0);
+                }
+                // ..and set return indicator
+                *pReturn = 1;
+            }
+            // 2. coroutine was not finished eagerly but we did some work
+            // return without setting return indicator - meaning we yielded
+            return retval;
+        }
+        Py_DECREF(retval);
+    }
+
+    assert(self->alvc_coroobj != NULL);
+
+    PyObject *res;
+    PySendResult gen_status = PyIter_Send(self->alvc_coroobj, sentValue, &res);
+
+    if (gen_status == PYGEN_RETURN) {
+        // RETURN
+        int ok =
+            AsyncLazyValue_set_result(self->alvc_target, res);
+        if (ok < 0) {
+            Py_DECREF(res);
+            return NULL;
+        }
+        *pReturn = 1;
+        return res;
+    }
+    if (gen_status == PYGEN_NEXT) {
+        // YIELD
+        return res;
+    }
+    assert (gen_status == PYGEN_ERROR);
+    // ERROR
+    return AsyncLazyValueCompute_handle_error(self, tstate, 1, 0);
+}
+
+/**
+  Entrypoint for gennext used by Py_TPFLAGS_HAVE_AM_SEND supported types
+  */
+static PySendResult
+AsyncLazyValueCompute_itersend(AsyncLazyValueComputeObj *self,
+                               PyObject *sentValue,
+                               PyObject **pResult)
+{
+    PyThreadState *tstate = PyThreadState_GET();
+    _PyErr_StackItem *previous_exc_info = tstate->exc_info;
+    self->alvc_exc_state.previous_item = previous_exc_info;
+    tstate->exc_info = &self->alvc_exc_state;
+
+    int is_return = 0;
+    PyObject *result =
+        AsyncLazyValueCompute_itersend_(self, tstate, sentValue, &is_return);
+
+    *pResult = result;
+
+    tstate->exc_info = previous_exc_info;
+    if (result == NULL) {
+        AsyncLazyValueCompute_clear(self);
+        return PYGEN_ERROR;
+    }
+    if (is_return) {
+        assert(result);
+        AsyncLazyValueCompute_clear(self);
+        return PYGEN_RETURN;
+    }
+    return PYGEN_NEXT;
+}
+
+static PyObject *
+AsyncLazyValueCompute_send(AsyncLazyValueComputeObj *self, PyObject *val)
+{
+    PyObject *res;
+    PySendResult gen_status = AsyncLazyValueCompute_itersend(self, val, &res);
+    return gen_status_to_iter(gen_status, res);
+}
+
+static PyObject *
+AsyncLazyValueCompute_next(AsyncLazyValueComputeObj *self)
+{
+    return AsyncLazyValueCompute_send(self, Py_None);
+}
+
+static PyObject *
+AsyncLazyValueCompute_close_(AsyncLazyValueComputeObj *self)
+{
+    if (self->alvc_coroobj == NULL) {
+        // coroutine is not started - just return
+        Py_RETURN_NONE;
+    }
+    // close subgenerator
+    int err = CiGen_close_yf(self->alvc_coroobj);
+    Py_CLEAR(self->alvc_coroobj);
+
+    if (err == 0) {
+        PyErr_SetNone(PyExc_GeneratorExit);
+    }
+
+    // run the error handler with either error from subgenerator
+    // or PyExc_GeneratorExit
+    return AsyncLazyValueCompute_handle_error(
+        self, PyThreadState_GET(), err < 0, 1);
+}
+
+static PyObject *
+AsyncLazyValueCompute_close(AsyncLazyValueComputeObj *self,
+                            PyObject *Py_UNUSED(arg))
+{
+    PyObject *res = AsyncLazyValueCompute_close_(self);
+    if (res == NULL) {
+        AsyncLazyValueCompute_clear(self);
+    }
+    return res;
+}
+
+static PyObject *
+AsyncLazyValueCompute_throw(AsyncLazyValueComputeObj *self,
+                            PyObject *type,
+                            PyObject *val,
+                            PyObject *tb)
+{
+    if (self->alvc_coroobj == NULL) {
+        CiGen_restore_error(type, val, tb);
+        return NULL;
+    }
+
+    if (PyErr_GivenExceptionMatches(type, PyExc_GeneratorExit)) {
+        int err = CiGen_close_yf(self->alvc_coroobj);
+        Py_CLEAR(self->alvc_coroobj);
+        if (err < 0) {
+            return AsyncLazyValueCompute_handle_error(
+                self, PyThreadState_GET(), 1, 0);
+        }
+        if (CiGen_restore_error(type, val, tb) == -1) {
+            return NULL;
+        }
+        return AsyncLazyValueCompute_handle_error(
+            self, PyThreadState_GET(), 1, 0);
+    }
+
+    PyObject *res = coro_throw(self->alvc_coroobj, type, val, tb);
+    if (res != NULL) {
+        return res;
+    }
+    if (_PyGen_FetchStopIterationValue(&res) == 0) {
+        int ok = AsyncLazyValue_set_result(self->alvc_target, res);
+        AsyncLazyValueCompute_clear(self);
+        if (ok < 0) {
+            Py_DECREF(res);
+            return NULL;
+        }
+        _PyGen_SetStopIterationValue(res);
+        Py_DECREF(res);
+        return NULL;
+    } else {
+        return AsyncLazyValueCompute_handle_error(
+            self, PyThreadState_GET(), 1, 0);
+    }
+}
+
+/*[clinic input]
+_asyncio.AsyncLazyValueCompute.throw
+    type: object
+    val: object = NULL
+    tb: object = NULL
+    /
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
+                                          PyObject *type, PyObject *val,
+                                          PyObject *tb)
+/*[clinic end generated code: output=df7cdebbf7ef7a8d input=98866d3712aa0539]*/
+{
+    PyObject *res = AsyncLazyValueCompute_throw(self, type, val, tb);
+    if (res == NULL) {
+        AsyncLazyValueCompute_clear(self);
+    }
+    return res;
+}
+
+static PyMethodDef AsyncLazyValueCompute_methods[] = {
+    {"send", (PyCFunction)AsyncLazyValueCompute_send, METH_O, NULL},
+    _ASYNCIO_ASYNCLAZYVALUECOMPUTE_THROW_METHODDEF
+    {"close", (PyCFunction)AsyncLazyValueCompute_close, METH_NOARGS, NULL},
+    {NULL, NULL} /* Sentinel */
+};
+
+static PyAsyncMethodsWithExtra _AsyncLazyValueCompute_Type_as_async = {
+    .ame_async_methods = {
+        (unaryfunc)PyObject_SelfIter,                   /* am_await */
+        0,                                              /* am_aiter */
+        0,                                              /* am_anext */
+        (sendfunc)AsyncLazyValueCompute_itersend,       /* am_send */
+    },
+    .ame_setawaiter = (setawaiterfunc)AsyncLazyValueCompute_set_awaiter,
+};
+
+static PyTypeObject _AsyncLazyValueCompute_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValueCompute",
+    .tp_basicsize = sizeof(AsyncLazyValueComputeObj),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+                Py_TPFLAGS_HAVE_AM_EXTRA,
+    .tp_traverse = (traverseproc)AsyncLazyValueCompute_traverse,
+    .tp_clear = (inquiry)AsyncLazyValueCompute_clear,
+    .tp_methods = AsyncLazyValueCompute_methods,
+    .tp_as_async = (PyAsyncMethods*)&_AsyncLazyValueCompute_Type_as_async,
+    .tp_iternext = (iternextfunc)AsyncLazyValueCompute_next,
+    .tp_iter = PyObject_SelfIter,
+    .tp_dealloc = (destructor)AsyncLazyValueCompute_dealloc,
+};
+
 /*********************** Functions **************************/
 
 
@@ -4844,6 +5796,12 @@ PyInit__asyncio(void)
     if (PyType_Ready(&ContextAwareTaskType) < 0) {
         return NULL;
     }
+    if (PyType_Ready(&_AsyncLazyValue_Type) < 0) {
+        return NULL;
+    }
+    if (PyType_Ready(&_AsyncLazyValueCompute_Type) < 0) {
+        return NULL;
+    }
 
     methodref_callback = PyCFunction_New(&_MethodTableRefCallback, NULL);
     if (methodref_callback == NULL) {
@@ -4875,6 +5833,19 @@ PyInit__asyncio(void)
         return NULL;
     }
 
+    create_task_name = _PyUnicode_FromId(&PyId_create_task);
+    if (create_task_name == NULL) {
+        return NULL;
+    }
+    minus_one = PyLong_FromLong(-1);
+    if (minus_one == NULL) {
+        return NULL;
+    }
+    throw_name = _PyUnicode_FromId(&PyId_throw);
+    if (throw_name == NULL) {
+        return NULL;
+    }
+
     context_aware_task_hooks = PyList_New(0);
     if (context_aware_task_hooks == NULL) {
         return NULL;
@@ -4900,6 +5871,23 @@ PyInit__asyncio(void)
     if (PyModule_AddObject(
             m, "ContextAwareTask", (PyObject *)&ContextAwareTaskType) < 0) {
         Py_DECREF(&ContextAwareTaskType);
+        return NULL;
+    }
+    Py_INCREF(&_AsyncLazyValue_Type);
+    if (PyModule_AddObject(
+            m, "AsyncLazyValue", (PyObject *)&_AsyncLazyValue_Type) < 0) {
+        Py_DECREF(&_AsyncLazyValue_Type);
+        return NULL;
+    }
+    PyObject *async_lazy_value_as_future =
+        PyCapsule_New(AsyncLazyValue_ensure_future, NULL, NULL);
+    if (async_lazy_value_as_future == NULL) {
+        return NULL;
+    }
+    if (PyModule_AddObject(m,
+                           "_async_lazy_value_as_future",
+                           async_lazy_value_as_future) < 0) {
+        Py_DECREF(async_lazy_value_as_future);
         return NULL;
     }
 

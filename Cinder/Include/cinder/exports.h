@@ -121,6 +121,8 @@ PyAPI_FUNC(PyObject *)
     CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code);
 PyAPI_FUNC(PyObject *) CiAsyncGen_New_NoFrame(PyCodeObject *code);
 PyAPI_FUNC(PyObject *) CiGen_New_NoFrame(PyCodeObject *code);
+PyAPI_FUNC(int) CiGen_close_yf(PyObject *yf);
+PyAPI_FUNC(int) CiGen_restore_error(PyObject *et, PyObject *ev, PyObject *tb);
 
 #ifdef __cplusplus
 }

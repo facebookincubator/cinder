@@ -26,6 +26,8 @@ from . import exceptions
 from . import futures
 from .coroutines import _is_coroutine
 
+_ASYNC_LAZY_VALUE_TYPE = None
+
 # Helper to generate new task names
 # This uses itertools.count() instead of a "+= 1" operation because the latter
 # is not thread safe. See bpo-11866 for a longer explanation.
@@ -648,6 +650,9 @@ def ensure_future(coro_or_future, *, loop=None):
 
 
 def _ensure_future(coro_or_future, *, loop=None):
+    if _ASYNC_LAZY_VALUE_TYPE is not None and type(coro_or_future) is _ASYNC_LAZY_VALUE_TYPE:
+        return coro_or_future.ensure_future(loop)
+
     if futures.isfuture(coro_or_future):
         if loop is not None and loop is not futures._get_loop(coro_or_future):
             raise ValueError('The future belongs to a different loop than '

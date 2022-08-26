@@ -327,7 +327,6 @@ class CachedPropertyTests(StaticTestBase):
             mod.f(D())
             self.assertEqual(d.hit_count, 1)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -476,7 +475,6 @@ class CachedPropertyTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_intermediary_cleaned_up(self):
         codestr = """
         from cinder import async_cached_property
@@ -505,7 +503,6 @@ class CachedPropertyTests(StaticTestBase):
             ):
                 getattr(C, ASYNC_CACHED_PROPERTY_IMPL_PREFIX + "x")
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -535,7 +532,6 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_property_override_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -565,7 +561,7 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
+    @skip("TODO(T128335015): blocked on async support")
     def test_async_cached_property_override_async_cached_property(self):
         codestr = """
         from cinder import async_cached_property
@@ -590,7 +586,6 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(mod.async_get_x(C())), 3)
             self.assertEqual(asyncio.run(mod.async_get_x(D())), 4)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_async_cached_property_non_static(self):
         codestr = """
         from cinder import async_cached_property
@@ -620,7 +615,6 @@ class CachedPropertyTests(StaticTestBase):
             self.assertEqual(asyncio.run(await_c_x()), 3)
             self.assertEqual(asyncio.run(await_d_x()), 4)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property_override_async_cached_property_2(self):
         codestr = """
         from cinder import async_cached_property

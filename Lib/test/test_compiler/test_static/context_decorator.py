@@ -127,7 +127,6 @@ class ContextDecoratorTests(StaticTestBase):
             self.assertEqual(c.f, 43)
             self.assertEqual(c.f, 43)
 
-    @skip("TODO(T128335015): _asyncio.AsyncLazyValue not implemented yet")
     def test_async_cached_property(self):
         codestr = """
             from __future__ import annotations

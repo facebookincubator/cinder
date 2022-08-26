@@ -118,35 +118,6 @@ PyDoc_STRVAR(_asyncio_Future_set_exception__doc__,
 #define _ASYNCIO_FUTURE_SET_EXCEPTION_METHODDEF    \
     {"set_exception", (PyCFunction)_asyncio_Future_set_exception, METH_O, _asyncio_Future_set_exception__doc__},
 
-PyDoc_STRVAR(_asyncio_Task__step__doc__,
-"_step($self, /, exc=None)\n"
-"--\n"
-"\n");
-
-#define _ASYNCIO_TASK__STEP_METHODDEF    \
-    {"_step", (PyCFunction)(void(*)(void))_asyncio_Task__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_Task__step__doc__},
-
-static PyObject *
-_asyncio_Task__step_impl(TaskObj *self, PyObject *exc);
-
-static PyObject *
-_asyncio_Task__step(TaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-{
-    PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"exc", NULL};
-    static _PyArg_Parser _parser = {"|O:_step", _keywords, 0};
-    PyObject *exc = Py_None;
-
-    if (!_PyArg_ParseStackAndKeywords(args, nargs, kwnames, &_parser,
-        &exc)) {
-        goto exit;
-    }
-    return_value = _asyncio_Task__step_impl(self, exc);
-
-exit:
-    return return_value;
-}
-
 PyDoc_STRVAR(_asyncio_Future_add_done_callback__doc__,
 "add_done_callback($self, fn, /, *, context=<unrepresentable>)\n"
 "--\n"
@@ -598,6 +569,42 @@ PyDoc_STRVAR(_asyncio_Task_set_exception__doc__,
 #define _ASYNCIO_TASK_SET_EXCEPTION_METHODDEF    \
     {"set_exception", (PyCFunction)_asyncio_Task_set_exception, METH_O, _asyncio_Task_set_exception__doc__},
 
+PyDoc_STRVAR(_asyncio_Task__step__doc__,
+"_step($self, /, exc=None)\n"
+"--\n"
+"\n");
+
+#define _ASYNCIO_TASK__STEP_METHODDEF    \
+    {"_step", (PyCFunction)(void(*)(void))_asyncio_Task__step, METH_FASTCALL|METH_KEYWORDS, _asyncio_Task__step__doc__},
+
+static PyObject *
+_asyncio_Task__step_impl(TaskObj *self, PyObject *exc);
+
+static PyObject *
+_asyncio_Task__step(TaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"exc", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_step", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *exc = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    exc = args[0];
+skip_optional_pos:
+    return_value = _asyncio_Task__step_impl(self, exc);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio_Task_get_coro__doc__,
 "get_coro($self, /)\n"
 "--\n"
@@ -719,6 +726,46 @@ _asyncio_ContextAwareTask__step(ContextAwareTaskObj *self, PyObject *const *args
     exc = args[0];
 skip_optional_pos:
     return_value = _asyncio_ContextAwareTask__step_impl(self, exc);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio_AsyncLazyValueCompute_throw__doc__,
+"throw($self, type, val=<unrepresentable>, tb=<unrepresentable>, /)\n"
+"--\n"
+"\n");
+
+#define _ASYNCIO_ASYNCLAZYVALUECOMPUTE_THROW_METHODDEF    \
+    {"throw", (PyCFunction)(void(*)(void))_asyncio_AsyncLazyValueCompute_throw, METH_FASTCALL, _asyncio_AsyncLazyValueCompute_throw__doc__},
+
+static PyObject *
+_asyncio_AsyncLazyValueCompute_throw_impl(AsyncLazyValueComputeObj *self,
+                                          PyObject *type, PyObject *val,
+                                          PyObject *tb);
+
+static PyObject *
+_asyncio_AsyncLazyValueCompute_throw(AsyncLazyValueComputeObj *self, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+    PyObject *type;
+    PyObject *val = NULL;
+    PyObject *tb = NULL;
+
+    if (!_PyArg_CheckPositional("throw", nargs, 1, 3)) {
+        goto exit;
+    }
+    type = args[0];
+    if (nargs < 2) {
+        goto skip_optional;
+    }
+    val = args[1];
+    if (nargs < 3) {
+        goto skip_optional;
+    }
+    tb = args[2];
+skip_optional:
+    return_value = _asyncio_AsyncLazyValueCompute_throw_impl(self, type, val, tb);
 
 exit:
     return return_value;
@@ -1021,4 +1068,4 @@ skip_optional_pos:
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=486530a3e44bf3f0 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=f2b0491c3051e5a8 input=a9049054013a1b77]*/

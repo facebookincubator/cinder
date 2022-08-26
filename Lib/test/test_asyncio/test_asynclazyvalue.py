@@ -1,14 +1,13 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 import asyncio
+import cinder
 import inspect
 import unittest
+from _asyncio import AsyncLazyValue
 from functools import wraps
 from time import time
 
-if unittest.cinder_enable_broken_tests():
-    from _asyncio import AsyncLazyValue
-    from test.support.cinder import get_await_stack
-    import cinder
+from test.support.cinder import get_await_stack
 
 
 def async_test(f):
@@ -21,7 +20,6 @@ def async_test(f):
     return impl
 
 
-@unittest.cinderPortingBrokenTest()
 class AsyncLazyValueCoroTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -164,6 +162,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
 
         coro = None
         await_stack = None
+
         async def f():
             nonlocal coro, await_stack
             # Force suspension. Otherwise the entire execution is eager and
@@ -182,6 +181,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stack[0].cr_code, g.__code__)
         self.assertIs(await_stack[1], h_coro)
 
+    @unittest.cinderPortingBrokenTest()
     @async_test
     async def test_get_awaiter_from_gathered(self) -> None:
         async def g(f):
@@ -195,6 +195,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
 
         coros = [None, None]
         await_stacks = [None, None]
+
         async def f(idx, res):
             nonlocal coros, await_stacks
             # Force suspension. Otherwise the entire execution is eager and
@@ -222,7 +223,6 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stacks[1][2], gatherer_coro)
 
 
-@unittest.cinderPortingBrokenTest()
 class AsyncLazyValueTest(unittest.TestCase):
     def setUp(self) -> None:
         self.events = []

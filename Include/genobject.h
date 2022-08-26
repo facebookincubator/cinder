@@ -68,7 +68,7 @@ PyAPI_DATA(PyTypeObject) PyCoro_Type;
 PyAPI_DATA(PyTypeObject) _PyCoroWrapper_Type;
 
 #define PyCoro_CheckExact(op) Py_IS_TYPE(op, &PyCoro_Type)
-PyObject *_PyCoro_GetAwaitableIter(PyObject *o);
+PyAPI_FUNC(PyObject *) _PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
     PyObject *name, PyObject *qualname);
 PyAPI_FUNC(PyObject *) _PyCoro_NewTstate(
