@@ -786,7 +786,6 @@ class DataclassTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertEqual(repr(mod.c), "C(x=1, y='foo')")
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_repr_recursive(self) -> None:
         codestr = """
         from dataclasses import dataclass

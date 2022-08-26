@@ -31,7 +31,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             self.assertEqual(C.x, 42)
             self.assertEqual(C().x, 42)
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_write_from_instance(self) -> None:
         codestr = """
         class C:
@@ -84,7 +83,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             self.assertEqual(C.x, 21)
             self.assertEqual(c.x, 21)
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_write_to_class_after_instance(self) -> None:
         codestr = """
         class C:
@@ -116,7 +114,6 @@ class SlotsWithDefaultTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertEqual(mod.f(), (42, 42))
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_inheritance_with_override(self) -> None:
         codestr = """
         class C:
@@ -209,7 +206,6 @@ class SlotsWithDefaultTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), (2, 2))
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_nonstatic_inheritance_writes_allowed(self) -> None:
         codestr = """
         class C:
@@ -423,7 +419,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             self.assertEqual(mod.f(mod.C()), (1, 1))
             self.assertEqual(mod.f(D()), (2, D.x))
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_nonstatic_property_override_setter(
         self,
     ) -> None:
@@ -502,7 +497,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             ):
                 mod.f(d)
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_nonstatic_cached_property_override_setter(
         self,
     ) -> None:
@@ -527,7 +521,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             ):
                 self.assertEqual(mod.f(D()), (2, D.x))
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_override_with_slot_without_default(self) -> None:
         codestr = """
         class C:
@@ -547,7 +540,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             self.assertEqual(mod.f(mod.C()), (1, 1, 42, 1))
             self.assertEqual(mod.f(mod.D()), (3, 1, 42, 1))
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_override_with_nonstatic_slot(self) -> None:
         codestr = """
         class C:
@@ -597,7 +589,6 @@ class SlotsWithDefaultTests(StaticTestBase):
             ), patch(f"{mod.__name__}.C.x", return_value=1) as mock:
                 c = mod.C()
 
-    @skip("TODO(T129347211): Fix the return_value non-empty stack bug here.")
     def test_instance_patching_allowed(self) -> None:
         codestr = """
         class C:
