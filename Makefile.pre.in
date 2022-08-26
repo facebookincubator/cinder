@@ -1804,6 +1804,14 @@ test_fuzzer_jit_inliner: @DEF_MAKE_RULE@ platform
 run_fuzzer_on_test_files: @DEF_MAKE_RULE@ platform
 	cd $(srcdir) && $(abs_builddir)/$(BUILDPYTHON) -X jit Tools/fuzzer/fuzzer/run_fuzzer_on_test_files.py
 
+test_fuzzer_jit: @DEF_MAKE_RULE@ platform
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit tests/fuzzer_test.py
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit tests/verifier_test.py
+
+test_fuzzer_jit_inliner: @DEF_MAKE_RULE@ platform
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit -X jit-enable-hir-inliner tests/fuzzer_test.py
+	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) -X jit -X jit-enable-hir-inliner tests/verifier_test.py
+
 # SSL tests
 .PHONY: multisslcompile multissltest
 multisslcompile: build_all
