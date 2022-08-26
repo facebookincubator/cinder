@@ -8,11 +8,8 @@ TEST_FILE_LIST = [
     "Lib/ctypes/test/test_bitfields.py",
     "Lib/ctypes/test/test_callbacks.py",
     "Lib/test/test_fileio.py",
-    "Lib/test/test_itertools.py",
     "Lib/test/test_memoryview.py",
     "Tools/fuzzer/tests/verifier_test.py",
-    "Tools/fuzzer/tests/fuzzer_test.py",
-    "Tools/fuzzer/tests/executor_test.py",
 ]
 
 # Number of subprocesses are also subject to change
