@@ -263,6 +263,33 @@ class FuzzerInstrFuzzingTest(unittest.TestCase):
 
 
 class FuzzerBlockInsertionTest(unittest.TestCase):
+    def test_generate_stackdepth_combinations_generates_combinations_with_net_0_stack_effect(
+        self,
+    ):
+        possible_stack_depths = [0, 1, 2, -1, -2, -3]
+        result = []
+        result = fuzzer.generate_stackdepth_combinations(possible_stack_depths)
+        # asserting the sum of all stack depths for each combination is zero
+        for i in result:
+            self.assertEqual(
+                sum(i),
+                0,
+                f"net stack depth is {sum(i)} instead of zero for combination {i}",
+            )
+
+    def test_generate_stackdepth_combination_generates_combinations_of_correct_size(
+        self,
+    ):
+        possible_stack_depths = [0, 1, 2, -1, -2, -3]
+        result = fuzzer.generate_stackdepth_combinations(possible_stack_depths)
+        # asserting the length of each combination is equal to GENERATED_BLOCK_SIZE
+        for i in result:
+            self.assertEqual(
+                len(i),
+                fuzzer.GENERATED_BLOCK_SIZE,
+                f"combination size is {len(i)} instead of {fuzzer.GENERATED_BLOCK_SIZE} for combination {i}",
+            )
+
     def test_random_blocks_have_zero_stack_effect(self):
         consts = {}
         names = pyassem.IndexedSet()
