@@ -293,7 +293,7 @@ class ClassMethodTests(StaticTestBase):
                     self.assertInBytecode(f, "INVOKE_METHOD")
                     self.assertEqual(f(c), 3)
 
-    @skip("TODO(T128974332): This is crashing in CI.")
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_classmethod_async_invoke_method_cached(self):
         cases = [True, False]
         for should_make_hot in cases:
