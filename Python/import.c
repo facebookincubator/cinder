@@ -51,7 +51,7 @@ module _imp
 #include "clinic/import.c.h"
 
 /* Forward declarations */
-PyObject * _PyImport_ImportModuleLevelObject(PyObject *, PyObject *, PyObject *, PyObject *, int, PyObject *);
+PyObject * _PyImport_ImportModuleLevelObject(PyObject *, PyObject *, PyObject *, PyObject *, int);
 
 /* Initialize things */
 
@@ -1480,7 +1480,7 @@ resolve_name(PyThreadState *tstate, PyObject *name, PyObject *globals, int level
 }
 
 static PyObject *
-import_find_and_load(PyThreadState *tstate, PyObject *abs_name, PyObject *lazy_loaded)
+import_find_and_load(PyThreadState *tstate, PyObject *abs_name)
 {
     _Py_IDENTIFIER(_find_and_load);
     PyObject *mod = NULL;
@@ -1526,7 +1526,6 @@ import_find_and_load(PyThreadState *tstate, PyObject *abs_name, PyObject *lazy_l
     mod = _PyObject_CallMethodIdObjArgs(interp->importlib,
                                         &PyId__find_and_load, abs_name,
                                         interp->import_func,
-                                        lazy_loaded ? lazy_loaded : Py_None,
                                         NULL);
 
     if (PyDTrace_IMPORT_FIND_LOAD_DONE_ENABLED())
@@ -1568,7 +1567,7 @@ PyImport_GetModule(PyObject *name)
 PyObject *
 _PyImport_EagerImportName(PyObject *name, PyObject *globals,
                      PyObject *locals, PyObject *fromlist,
-                     PyObject *level, PyObject *lazy_loaded)
+                     PyObject *level)
 {
     _Py_IDENTIFIER(__import__);
     PyObject *import_func, *res;
@@ -1596,8 +1595,7 @@ _PyImport_EagerImportName(PyObject *name, PyObject *globals,
                         globals,
                         locals,
                         fromlist,
-                        ilevel,
-                        lazy_loaded);
+                        ilevel);
         return res;
     }
 
@@ -1616,7 +1614,7 @@ _PyImport_EagerImportName(PyObject *name, PyObject *globals,
 PyObject *
 PyImport_EagerImportName(PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
 {
-    return _PyImport_EagerImportName(name, globals, locals, fromlist, level, NULL);
+    return _PyImport_EagerImportName(name, globals, locals, fromlist, level);
 }
 
 PyObject *
@@ -1650,12 +1648,7 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
 
     if (deferred != NULL) {
         PyInterpreterState *interp = _PyInterpreterState_GET();
-        if (interp->lazy_loaded == NULL) {
-            interp->lazy_loaded = PySet_New(NULL);
-            if (!interp->lazy_loaded) {
-                goto error;
-            }
-        }
+        assert(interp->lazy_loaded != NULL);
         /* Crazy side-effects! */
         PyObject *type, *value, *traceback;
         PyErr_Fetch(&type, &value, &traceback);
@@ -1713,7 +1706,7 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
 PyObject *
 _PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
                                   PyObject *locals, PyObject *fromlist,
-                                  int level, PyObject *lazy_loaded)
+                                  int level)
 {
     PyThreadState *tstate = _PyThreadState_GET();
     _Py_IDENTIFIER(_handle_fromlist);
@@ -1771,7 +1764,7 @@ _PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
     }
     else {
         Py_XDECREF(mod);
-        mod = import_find_and_load(tstate, abs_name, lazy_loaded);
+        mod = import_find_and_load(tstate, abs_name);
         if (mod == NULL) {
             goto error;
         }
@@ -1872,8 +1865,7 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
         globals,
         locals,
         fromlist,
-        level,
-        NULL);
+        level);
 }
 
 PyObject *
@@ -1909,8 +1901,7 @@ _imp_load_lazy_import_impl(PyLazyImport *d)
                                    d->lz_globals,
                                    d->lz_locals,
                                    d->lz_fromlist,
-                                   d->lz_level,
-                                   lazy_loaded);
+                                   d->lz_level);
         Py_XDECREF(lazy_loaded);
         if (obj == NULL) {
             return NULL;

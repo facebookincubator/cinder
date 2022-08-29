@@ -90,5 +90,8 @@ class LazyImportsTest(unittest.TestCase):
     def test_from_import_star(self):
         self.run_and_check("test.lazyimports.from_import_star")
 
+    def test_lazy_attribute_side_effect(self):
+        self.run_and_check("test.lazyimports.lazy_attribute_side_effect")
+
 if __name__ == '__main__':
     unittest.main()

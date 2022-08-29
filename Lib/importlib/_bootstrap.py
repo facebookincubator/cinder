@@ -984,7 +984,7 @@ def _sanity_check(name, package, level):
 _ERR_MSG_PREFIX = 'No module named '
 _ERR_MSG = _ERR_MSG_PREFIX + '{!r}'
 
-def _find_and_load_unlocked(name, import_, lazy_loaded):
+def _find_and_load_unlocked(name, import_):
     path = None
     parent = name.rpartition('.')[0]
     if parent:
@@ -1004,7 +1004,7 @@ def _find_and_load_unlocked(name, import_, lazy_loaded):
         raise ModuleNotFoundError(_ERR_MSG.format(name), name=name)
     else:
         module = _load_unlocked(spec)
-    if parent and (not lazy_loaded or name not in lazy_loaded):
+    if parent and name not in sys.lazy_loaded:
         # Set the module as an attribute on its parent.
         parent_module = sys.modules[parent]
         child = name.rpartition('.')[2]
@@ -1019,7 +1019,7 @@ def _find_and_load_unlocked(name, import_, lazy_loaded):
 _NEEDS_LOADING = object()
 
 
-def _find_and_load(name, import_, lazy_loaded):
+def _find_and_load(name, import_):
     """Find and load the module."""
 
     # Optimization: we avoid unneeded module locking if the module
@@ -1030,7 +1030,7 @@ def _find_and_load(name, import_, lazy_loaded):
         with _ModuleLockManager(name):
             module = sys.modules.get(name, _NEEDS_LOADING)
             if module is _NEEDS_LOADING:
-                return _find_and_load_unlocked(name, import_, lazy_loaded)
+                return _find_and_load_unlocked(name, import_)
 
         # Optimization: only call _bootstrap._lock_unlock_module() if
         # module.__spec__._initializing is True.
@@ -1058,7 +1058,7 @@ def _gcd_import(name, package=None, level=0):
     _sanity_check(name, package, level)
     if level > 0:
         name = _resolve_name(name, package, level)
-    return _find_and_load(name, _gcd_import, None)
+    return _find_and_load(name, _gcd_import)
 
 
 def _handle_fromlist(module, fromlist, import_, *, recursive=False):
