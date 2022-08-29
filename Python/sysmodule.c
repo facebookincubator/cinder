@@ -3215,6 +3215,12 @@ _PySys_Create(_PyRuntimeState *runtime, PyInterpreterState *interp,
     }
     interp->modules = modules;
 
+    PyObject *lazy_loaded = PySet_New(NULL);
+    if (lazy_loaded == NULL) {
+        return _PyStatus_ERR("can't make lazy_loaded set");
+    }
+    interp->lazy_loaded = lazy_loaded;
+
     PyObject *sysmod = _PyModule_CreateInitialized(&sysmodule, PYTHON_API_VERSION);
     if (sysmod == NULL) {
         return _PyStatus_ERR("failed to create a module object");
@@ -3229,6 +3235,10 @@ _PySys_Create(_PyRuntimeState *runtime, PyInterpreterState *interp,
 
     if (PyDict_SetItemString(sysdict, "modules", interp->modules) < 0) {
         return _PyStatus_ERR("can't initialize sys module");
+    }
+
+    if (PyDict_SetItemString(sysdict, "lazy_loaded", interp->lazy_loaded) < 0) {
+        return _PyStatus_ERR("can't initialize sys lazy_loaded");
     }
 
     PyStatus status = _PySys_SetPreliminaryStderr(sysdict);

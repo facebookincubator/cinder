@@ -52,3 +52,7 @@ class LazyImportsTest(unittest.TestCase):
     def test_split_fromlist(self):
         rc, out, err = self.python_run("test.lazyimports.split_fromlist")
         self.assertEqual(out, "['test.lazyimports.split_fromlist.foo', 'test.lazyimports.split_fromlist.foo.bar']")
+
+    def test_lazy_attribute_side_effect(self):
+        rc, out, err = self.python_run("test.lazyimports.lazy_attribute_side_effect")
+        self.assertEqual(out, "'1.0'")
