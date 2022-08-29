@@ -236,146 +236,39 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "JUMP_FORWARD",
     }
 
-    INSTRS_WITH_STACK_EFFECT_0 = {
-        "ROT_TWO",
-        "ROT_THREE",
-        "ROT_FOUR",
-        "NOP",
-        "UNARY_POSITIVE",
-        "UNARY_NEGATIVE",
-        "UNARY_NOT",
-        "UNARY_INVERT",
-        "GET_AITER",
-        "GET_ITER",
-        "GET_YIELD_FROM_ITER",
-        "GET_AWAITABLE",
-        "SETUP_ANNOTATIONS",
-        "YIELD_VALUE",
-        "POP_BLOCK",
-        "DELETE_NAME",
-        "DELETE_GLOBAL",
-        "LOAD_ATTR",
-        "JUMP_FORWARD",
-        "JUMP_ABSOLUTE",
-        "DELETE_FAST",
-        "DELETE_DEREF",
-        "EXTENDED_ARG",
-    }
+    def opcodes_with_stack_effect(n):
+        return {
+            op for op, eff in opcode_cinder.opcode.stack_effects.items() if eff == n
+        }
+
+    INSTRS_WITH_STACK_EFFECT_0 = opcodes_with_stack_effect(0)
 
     INSTRS_WITH_STACK_EFFECT_0_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_0)
 
-    INSTRS_WITH_STACK_EFFECT_1 = {
-        "DUP_TOP",
-        "GET_ANEXT",
-        "BEFORE_ASYNC_WITH",
-        "LOAD_BUILD_CLASS",
-        "LOAD_NAME",
-        "IMPORT_FROM",
-        "LOAD_GLOBAL",
-        "LOAD_FAST",
-        "LOAD_CLOSURE",
-        "LOAD_DEREF",
-        "FUNC_CREDENTIAL",
-        "LOAD_CLASSDEREF",
-        "LOAD_METHOD",
-    }
+    INSTRS_WITH_STACK_EFFECT_1 = opcodes_with_stack_effect(1)
 
     INSTRS_WITH_STACK_EFFECT_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_1)
 
-    INSTRS_WITH_STACK_EFFECT_2 = {
-        "DUP_TOP_TWO",
-        "MATCH_KEYS",
-    }
+    INSTRS_WITH_STACK_EFFECT_2 = opcodes_with_stack_effect(2)
 
     INSTRS_WITH_STACK_EFFECT_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_2)
 
-    INSTRS_WITH_STACK_EFFECT_NEG_1 = {
-        "POP_TOP",
-        "BINARY_MATRIX_MULTIPLY",
-        "INPLACE_MATRIX_MULTIPLY",
-        "BINARY_POWER",
-        "BINARY_MULTIPLY",
-        "BINARY_MODULO",
-        "BINARY_ADD",
-        "BINARY_SUBTRACT",
-        "BINARY_SUBSCR",
-        "BINARY_FLOOR_DIVIDE",
-        "BINARY_TRUE_DIVIDE",
-        "INPLACE_FLOOR_DIVIDE",
-        "INPLACE_TRUE_DIVIDE",
-        "INPLACE_ADD",
-        "INPLACE_SUBTRACT",
-        "INPLACE_MULTIPLY",
-        "INPLACE_MODULO",
-        "BINARY_LSHIFT",
-        "BINARY_RSHIFT",
-        "BINARY_AND",
-        "BINARY_XOR",
-        "BINARY_OR",
-        "COMPARE_OP",
-        "INPLACE_POWER",
-        "PRINT_EXPR",
-        "YIELD_FROM",
-        "INPLACE_LSHIFT",
-        "INPLACE_RSHIFT",
-        "INPLACE_AND",
-        "INPLACE_XOR",
-        "INPLACE_OR",
-        "RETURN_VALUE",
-        "IMPORT_STAR",
-        "STORE_NAME",
-        "DELETE_ATTR",
-        "STORE_GLOBAL",
-        "IMPORT_NAME",
-        "POP_JUMP_IF_FALSE",
-        "POP_JUMP_IF_TRUE",
-        "STORE_FAST",
-        "STORE_DEREF",
-        "LIST_APPEND",
-        "SET_ADD",
-        "LOAD_METHOD_SUPER",
-    }
+    INSTRS_WITH_STACK_EFFECT_NEG_1 = opcodes_with_stack_effect(-1)
 
     INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_1)
 
-    INSTRS_WITH_STACK_EFFECT_NEG_2 = {
-        "DELETE_SUBSCR",
-        "STORE_ATTR",
-        "MAP_ADD",
-        "LOAD_ATTR_SUPER",
-    }
+    INSTRS_WITH_STACK_EFFECT_NEG_2 = opcodes_with_stack_effect(-2)
 
     INSTRS_WITH_STACK_EFFECT_NEG_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_2)
 
-    INSTRS_WITH_STACK_EFFECT_NEG_3 = {
-        "STORE_SUBSCR",
-        "POP_EXCEPT",
-        "RERAISE",
-    }
+    INSTRS_WITH_STACK_EFFECT_NEG_3 = opcodes_with_stack_effect(-3)
 
     INSTRS_WITH_STACK_EFFECT_NEG_3_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_3)
 
     INSTRS_WITH_OPARG_AFFECTING_STACK = {
-        "MAKE_FUNCTION",
-        "CALL_FUNCTION",
-        "BUILD_MAP",
-        "BUILD_MAP_UNPACK",
-        "BUILD_MAP_UNPACK_WITH_CALL",
-        "BUILD_CONST_KEY_MAP",
-        "UNPACK_SEQUENCE",
-        "UNPACK_EX",
-        "BUILD_TUPLE",
-        "BUILD_LIST",
-        "BUILD_SET",
-        "BUILD_STRING",
-        "BUILD_LIST_UNPACK",
-        "BUILD_TUPLE_UNPACK",
-        "BUILD_TUPLE_UNPACK_WITH_CALL",
-        "BUILD_SET_UNPACK",
-        "CALL_FUNCTION_KW",
-        "CALL_FUNCTION_EX",
-        "CALL_METHOD",
-        "RAISE_VARARGS",
+        op
+        for op, eff in opcode_cinder.opcode.stack_effects.items()
+        if not isinstance(eff, int)
     }
 
 
