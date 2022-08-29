@@ -1128,7 +1128,7 @@ class StaticPatchTests(StaticTestBase):
                 # Ensure that the invoke in g() also hits the patched function.
                 self.assertEqual(C.g(), 42)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
+    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_final_async_classmethod(self):
         codestr = """
             from typing import final

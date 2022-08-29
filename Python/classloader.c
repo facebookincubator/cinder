@@ -1698,25 +1698,19 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
             return NULL;
         }
 
-        // TODO(T128335015): Re-enable this.
-#ifdef CINDER_PORTING_DONE
         if (thunk->thunk_coroutine) {
           return type_vtable_coroutine((_PyClassLoader_TypeCheckState *)thunk, args,
                                        nargs, kwnames);
         }
-#endif
         PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args + 1, nargs - 1, kwnames);
         return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
     }
 
-    // TODO(T128335015): Re-enable this.
-#ifdef CINDER_PORTING_DONE
     if (thunk->thunk_coroutine) {
         PyObject *coro = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
 
         return _PyClassLoader_NewAwaitableWrapper(coro, 0, (PyObject *)thunk, rettype_cb, NULL);
     }
-#endif
 
     PyObject *res = _PyObject_Vectorcall(thunk->thunk_tcs.tcs_value, args, nargsf & ~Ci_Py_AWAITED_CALL_MARKER, kwnames);
     return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
