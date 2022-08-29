@@ -222,7 +222,6 @@ class PropertyTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "'object' doesn't support __set__"):
                 f(x)
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_property_getter_non_static_inheritance_with_non_property_setter(self):
         codestr = """
             class C:
@@ -310,7 +309,6 @@ class PropertyTests(StaticTestBase):
         """
         self.type_error(codestr, "Cannot decorate a class with @property")
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_property_setter(self):
         codestr = """
             from typing import final
@@ -338,7 +336,6 @@ class PropertyTests(StaticTestBase):
             self.assertEqual(f(c), None)
             self.assertEqual(c.foo, -3)
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_property_setter_inheritance(self):
         codestr = """
             from typing import final
@@ -375,7 +372,6 @@ class PropertyTests(StaticTestBase):
             self.assertEqual(f(d), None)
             self.assertEqual(d.foo, 4)
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_property_setter_non_static_inheritance(self):
         codestr = """
             from typing import final

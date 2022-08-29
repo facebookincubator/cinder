@@ -1458,7 +1458,6 @@ class StaticPatchTests(StaticTestBase):
             mod.C.prop = Desc()
             self.assertEqual(mod.f(mod.C()), 42)
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_patch_property_custom_desc_set(self):
         codestr = """
             class C:
@@ -1520,7 +1519,6 @@ class StaticPatchTests(StaticTestBase):
                 mod.C(),
             )
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_patch_readonly_property_with_settable(self):
         codestr = """
             class C:
@@ -1568,7 +1566,6 @@ class StaticPatchTests(StaticTestBase):
             with self.assertRaisesRegex(AttributeError, r"can't set attribute"):
                 c.f(3)
 
-    @skip("TODO(T129244402): Failing empty assertion in _PyEval_EvalFrameDefault")
     def test_patch_property_del(self):
         codestr = """
             class C:

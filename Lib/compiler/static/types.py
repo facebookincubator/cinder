@@ -4435,6 +4435,7 @@ class PropertyMethod(DecoratedMethod):
                 node,
             )
             code_gen.emit_invoke_method(self.setter_type_descr, 1)
+        code_gen.emit("POP_TOP")
 
     @property
     def container_descr(self) -> TypeDescr:
@@ -4484,6 +4485,7 @@ class CachedPropertyMethod(PropertyMethod):
     ) -> None:
         code_gen.emit("ROT_TWO")
         code_gen.emit_invoke_method(self.setter_type_descr, 1)
+        code_gen.emit("POP_TOP")
 
     def emit_function(
         self,
@@ -4520,6 +4522,7 @@ class AsyncCachedPropertyMethod(PropertyMethod):
     ) -> None:
         code_gen.emit("ROT_TWO")
         code_gen.emit_invoke_method(self.setter_type_descr, 1)
+        code_gen.emit("POP_TOP")
 
     def emit_function(
         self,
