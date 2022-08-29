@@ -30,18 +30,21 @@ class BytecodeOp:
         return self.op in {
             opcodes.opcode.RETURN_VALUE,
             opcodes.opcode.RAISE_VARARGS,
+            opcodes.opcode.RERAISE,
             opcodes.opcode.JUMP_ABSOLUTE,
             opcodes.opcode.JUMP_FORWARD,
         }
 
     def is_relative_branch(self) -> bool:
-        return self.op in {opcodes.opcode.FOR_ITER, opcodes.opcode.JUMP_FORWARD}
+        return self.op in opcodes.opcode.hasjrel
 
     def is_return(self) -> bool:
         return self.op == opcodes.opcode.RETURN_VALUE
 
     def is_raise(self) -> bool:
-        return self.op == opcodes.opcode.RAISE_VARARGS
+        return (
+            self.op == opcodes.opcode.RAISE_VARARGS or self.op == opcodes.opcode.RERAISE
+        )
 
     def next_instr_idx(self) -> int:
         return self.idx + 1
@@ -50,12 +53,12 @@ class BytecodeOp:
         return self.next_instr_idx() * CODEUNIT_SIZE
 
     def jump_target(self) -> int:
-        if self.is_relative_branch():
-            return self.next_instr_offset() + self.arg
-        return self.arg
+        return self.jump_target_idx() * CODEUNIT_SIZE
 
     def jump_target_idx(self) -> int:
-        return self.jump_target() // CODEUNIT_SIZE
+        if self.is_relative_branch():
+            return self.next_instr_idx() + self.arg
+        return self.arg
 
 
 class Block:

@@ -26,6 +26,7 @@ class FuzzerSyntaxTest(unittest.TestCase):
             fuzzer.fuzzer_compile(codestr)[1], FuzzerReturnTypes.SYNTAX_ERROR
         )
 
+
 class FuzzerOpargsFuzzingTest(unittest.TestCase):
     def test_randomized_string_is_different_from_original(self):
         original_string = "hello"
@@ -162,8 +163,8 @@ class FuzzerInstrFuzzingTest(unittest.TestCase):
         randomized_opcode = fuzzer.randomize_opcode(original_opcode)
         self.assertNotEqual(original_opcode, randomized_opcode)
         self.assertEqual(
-            opcode_cinder.opcode.stack_effects.get(original_opcode),
-            opcode_cinder.opcode.stack_effects.get(randomized_opcode),
+            opcode_cinder.opcode.stack_effects[original_opcode],
+            opcode_cinder.opcode.stack_effects[randomized_opcode],
         )
 
     def test_branch_opcode_not_randomized(self):
@@ -297,7 +298,7 @@ class FuzzerBlockInsertionTest(unittest.TestCase):
         freevars = pyassem.IndexedSet()
         block = fuzzer.generate_random_block(consts, names, varnames, freevars)
         block_stack_effect = sum(
-            [opcode_cinder.opcode.stack_effects.get(i.opname) for i in block.insts]
+            [opcode_cinder.opcode.stack_effects[i.opname] for i in block.insts]
         )
         err_message = f"Block stack effect is {block_stack_effect}, should be zero\n Each instruction with individual stack effect listed below:\n"
         for i in block.insts:

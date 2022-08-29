@@ -1,7 +1,6 @@
 import dis
 import types
-from compiler import compile
-from compiler import opcode_static as opcodes
+from compiler import compile, opcode_static as opcodes
 from math import inf
 from typing import List, Tuple, Union
 
@@ -74,10 +73,6 @@ class Verifier:
                     raise VerificationError(
                         f"Operation {name} can not jump out of bounds"
                     )
-                if result[idx].jump_target() % CODEUNIT_SIZE != 0:
-                    raise VerificationError(
-                        f"Operation {name} can not jump in the middle of an instruction"
-                    )
             i += CODEUNIT_SIZE
             idx += 1
         return result
@@ -87,18 +82,17 @@ class Verifier:
         # This function creates the CFG by determining an ordering for each block of bytecode
         # Through analyzing the order in which they can be executed (via branches, returns, raises, and fall throughs)
         # View https://bernsteinbear.com/blog/discovering-basic-blocks/ for code source and more information
+        # Note that the blog post uses 3.8 semantics while this code uses 3.10
         block_starts = set([0])
         num_instrs = len(instrs)
         for instr in instrs:
             if instr.is_branch():
                 block_starts.add(instr.next_instr_idx())
                 block_starts.add(instr.jump_target_idx())
-            elif instr.is_return():
+            elif instr.is_return() or instr.is_raise():
                 next_instr_idx = instr.next_instr_idx()
                 if next_instr_idx < num_instrs:
                     block_starts.add(next_instr_idx)
-            elif instr.is_raise():
-                block_starts.add(instr.next_instr_idx())
         num_blocks = len(block_starts)
         block_starts_ordered = sorted(block_starts)
         block_map = BlockMap()

@@ -40,7 +40,7 @@ INT_UPPER_BOUND = sys.maxsize
 INT_LOWER_BOUND = -sys.maxsize - 1
 OPARG_LOWER_BOUND = 0
 OPARG_UPPER_BOUND = 2**32 - 1
-CMP_OP_LENGTH = 12
+CMP_OP_LENGTH = len(opcode_cinder.opcode.CMP_OP) - 1  # has "BAD" entry at end
 
 # % Chance of an instr being replaced (1-100)
 INSTR_RANDOMIZATION_CHANCE = 50
@@ -153,9 +153,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
                 self.graph.current.emit(
                     pyassem.Instruction(opcode, randomized_oparg, ioparg)
                 )
-            elif (
-                opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE
-            ):
+            elif opcode in Fuzzer.INSTRS_WITH_OPARG_IN_CLOSURE:
                 ioparg = replace_closure_var(
                     oparg,
                     randomized_oparg,
@@ -233,6 +231,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "POP_JUMP_IF_TRUE",
         "RETURN_VALUE",
         "RAISE_VARARGS",
+        "RERAISE",
         "JUMP_ABSOLUTE",
         "JUMP_FORWARD",
     }
@@ -285,7 +284,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
 
     INSTRS_WITH_STACK_EFFECT_2 = {
         "DUP_TOP_TWO",
-        "WITH_CLEANUP_START",
+        "MATCH_KEYS",
     }
 
     INSTRS_WITH_STACK_EFFECT_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_2)
@@ -313,6 +312,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "BINARY_AND",
         "BINARY_XOR",
         "BINARY_OR",
+        "COMPARE_OP",
         "INPLACE_POWER",
         "PRINT_EXPR",
         "YIELD_FROM",
@@ -349,8 +349,8 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
 
     INSTRS_WITH_STACK_EFFECT_NEG_3 = {
         "STORE_SUBSCR",
-        "WITH_CLEANUP_FINISH",
         "POP_EXCEPT",
+        "RERAISE",
     }
 
     INSTRS_WITH_STACK_EFFECT_NEG_3_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_3)
