@@ -189,7 +189,7 @@ class SuperTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             self.assertNotInBytecode(mod.A.g, "INVOKE_FUNCTION")
 
-    def test_repro(self):
+    def test_unsupported_case_falls_back_to_dynamic(self):
         codestr = """
         class A(Exception):
             pass
