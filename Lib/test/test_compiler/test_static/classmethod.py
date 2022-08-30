@@ -210,10 +210,6 @@ class ClassMethodTests(StaticTestBase):
             self.assertInBytecode(D.bar, "INVOKE_METHOD")
             self.assertEqual(D.bar(6), 48)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_classmethod_dynamic_subclass(self):
         codestr = """
             class C:
@@ -256,7 +252,6 @@ class ClassMethodTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().f(), 3)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_invoke_non_static_subtype_async_classmethod(self):
         codestr = """
             class C:
@@ -301,7 +296,6 @@ class ClassMethodTests(StaticTestBase):
                     self.assertInBytecode(f, "INVOKE_METHOD")
                     self.assertEqual(f(c), 3)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_classmethod_async_invoke_method_cached(self):
         cases = [True, False]
         for should_make_hot in cases:

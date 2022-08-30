@@ -611,10 +611,6 @@ class PrimitivesTests(StaticTestBase):
                         f(), expected_result, f"n_fp: {n_fp}, n_gp: {n_gp}"
                     )
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_all_arg_regs_used_mixed_gp_and_fp_coro(self):
         for n_fp in range(8, 10):
             for n_gp in range(6, 8):

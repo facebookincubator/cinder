@@ -4463,11 +4463,25 @@ PyTypeObject _PyTypedArgsInfo_Type = {
     .tp_clear = (inquiry)typedargsinfoclear,
 };
 
+/* The preamble of static functions must be [CHECK_ARGS, ...] or [GEN_START, CHECK_ARGS, ...].
+   Return the relevant index or return -1 if CHECK_ARGS is not found.
+ */
+static int get_check_args_idx(_Py_CODEUNIT* rawcode) {
+  if (_Py_OPCODE(rawcode[0]) == CHECK_ARGS) {
+      return 0;
+  }
+  if (_Py_OPCODE(rawcode[0]) == GEN_START && _Py_OPCODE(rawcode[1]) == CHECK_ARGS) {
+      return 1;
+  }
+  return -1;
+}
+
 _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives) {
     _Py_CODEUNIT* rawcode = code->co_rawcode;
-    assert(
-        _Py_OPCODE(rawcode[0]) == CHECK_ARGS);
-    PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
+    // TODO(T130757785): CHECK_ARGS should always be at index 0 and this logic should be removed.
+    int check_args_idx = get_check_args_idx(rawcode);
+    assert(check_args_idx >= 0);
+    PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[check_args_idx]));
 
     int count;
     if (only_primitives) {
@@ -4565,8 +4579,10 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyOb
 
 int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code) {
   _Py_CODEUNIT* rawcode = code->co_rawcode;
-  assert(_Py_OPCODE(rawcode[0]) == CHECK_ARGS);
-  PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
+  // TODO(T130757785): CHECK_ARGS should always be at index 0 and this logic should be removed.
+  int check_args_idx = get_check_args_idx(rawcode);
+  assert(check_args_idx >= 0);
+  PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[check_args_idx]));
   for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
     PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
 

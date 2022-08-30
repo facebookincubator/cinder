@@ -67,10 +67,6 @@ class PropertyTests(StaticTestBase):
             self.assertInBytecode(f, "INVOKE_METHOD")
             self.assertEqual(f(C()), 42)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_property_getter_async(self):
         codestr = """
             class C:

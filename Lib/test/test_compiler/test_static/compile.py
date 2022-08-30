@@ -4947,10 +4947,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_override(self):
         codestr = """
             class C:
@@ -5017,10 +5013,6 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_override_future_correct_type(self):
         codestr = """
             class C:
@@ -5047,10 +5039,6 @@ class StaticCompilationTests(StaticTestBase):
                     self.assertEqual(e.args[0], 100)
             loop.close()
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_override_future_incorrect_type(self):
         codestr = """
             class C:
@@ -5074,10 +5062,6 @@ class StaticCompilationTests(StaticTestBase):
                 d.g().send(None)
             loop.close()
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_immediate_await(self):
         codestr = """
             class C:
@@ -5098,10 +5082,6 @@ class StaticCompilationTests(StaticTestBase):
             d = D()
             self.assertEqual(asyncio.run(mod.f(d)), 1)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_immediate_await_incorrect_type(self):
         codestr = """
             class C:
@@ -5123,10 +5103,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_incorrect_type(self):
         codestr = """
             class C:
@@ -5149,10 +5125,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_incorrect_type_suspended(self):
         codestr = """
             import asyncio
@@ -5175,10 +5147,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 asyncio.run(mod.f(d))
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_throw_exception(self):
         codestr = """
             class C:
@@ -5199,10 +5167,6 @@ class StaticCompilationTests(StaticTestBase):
             with self.assertRaises(IndexError):
                 coro.send(None)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_throw(self):
         codestr = """
             class C:
@@ -5227,10 +5191,6 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertEqual(e.__cause__.args[0], 100)
             loop.close()
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_throw_incorrect_type(self):
         codestr = """
             class C:
@@ -5253,10 +5213,6 @@ class StaticCompilationTests(StaticTestBase):
                 coro.send(None)
             loop.close()
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_async_method_close(self):
         codestr = """
             class C:

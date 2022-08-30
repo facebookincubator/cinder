@@ -435,10 +435,6 @@ class StaticRuntimeTests(StaticTestBase):
             inst.a = None
             self.assertEqual(inst.a, None)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_invoke_function(self):
         my_int = "12345"
         codestr = f"""
@@ -455,10 +451,6 @@ class StaticRuntimeTests(StaticTestBase):
             test_callable = mod.test
             self.assertEqual(test_callable(), "hello" + my_int)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_awaited_invoke_function(self):
         codestr = """
             async def f() -> int:
@@ -472,10 +464,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertNotInBytecode(mod.g, "CAST")
             self.assertEqual(asyncio.run(mod.g()), 1)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_awaited_invoke_function_unjitable(self):
         codestr = """
             async def f() -> int:
@@ -494,7 +482,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.assertEqual(asyncio.run(mod.g()), 1)
             self.assert_not_jitted(mod.f)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_with_args(self):
         codestr = """
             async def f(a: int, b: int) -> int:
@@ -515,7 +502,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(mod.g)
             self.assertEqual(asyncio.run(mod.g()), 3)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_indirect_with_args(self):
         codestr = """
             async def f(a: int, b: int) -> int:
@@ -537,7 +523,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(g)
             self.assertEqual(asyncio.run(g()), 3)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_function_future(self):
         codestr = """
             from asyncio import ensure_future
@@ -563,10 +548,6 @@ class StaticRuntimeTests(StaticTestBase):
             self.make_async_func_hot(mod.f)
             asyncio.run(mod.f())
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
     def test_awaited_invoke_method(self):
         codestr = """
             class C:
@@ -582,7 +563,6 @@ class StaticRuntimeTests(StaticTestBase):
             )
             self.assertEqual(asyncio.run(mod.C().g()), 1)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_method_with_args(self):
         codestr = """
             class C:
@@ -609,7 +589,6 @@ class StaticRuntimeTests(StaticTestBase):
             asyncio.run(make_hot())
             self.assertEqual(asyncio.run(mod.C().g()), 3)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_awaited_invoke_method_future(self):
         codestr = """
             from asyncio import ensure_future

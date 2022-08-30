@@ -32,7 +32,6 @@ class StaticPatchTests(StaticTestBase):
             with patch(f"{mod.__name__}.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_patch_async_function(self):
         codestr = """
             class C:
@@ -57,7 +56,6 @@ class StaticPatchTests(StaticTestBase):
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 100)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_async_method_incorrect_type(self):
         codestr = """
             class C:
@@ -80,7 +78,6 @@ class StaticPatchTests(StaticTestBase):
                 with self.assertRaises(TypeError):
                     c.g().send(None)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_async_method_raising(self):
         codestr = """
             class C:
@@ -107,7 +104,6 @@ class StaticPatchTests(StaticTestBase):
                 with self.assertRaises(IndexError):
                     c.g().send(None)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_async_method_non_coroutine(self):
         codestr = """
             class C:
@@ -459,7 +455,6 @@ class StaticPatchTests(StaticTestBase):
                 C().g()
                 self.assertEqual(p.call_args_list[0][0], (42,))
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_patch_async_method_mock(self):
         codestr = """
             class C:
@@ -476,7 +471,6 @@ class StaticPatchTests(StaticTestBase):
                 asyncio.run(C().g())
                 self.assertEqual(p.call_args_list[0][0], (42,))
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_patch_async_method_descr(self):
         codestr = """
             class C:
@@ -500,7 +494,6 @@ class StaticPatchTests(StaticTestBase):
             C.f = Descr()
             self.assertEqual(asyncio.run(C().g()), 42)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_patch_async_static_method(self):
         codestr = """
             from typing import final
@@ -1077,7 +1070,9 @@ class StaticPatchTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "C.f has been deleted"):
                 c.g()
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
+    @skip(
+        "TODO(T130382864): There's a type error with the coroutine not getting unwrapped."
+    )
     def test_patch_final_async_function(self):
         codestr = """
             from typing import final
@@ -1128,7 +1123,6 @@ class StaticPatchTests(StaticTestBase):
                 # Ensure that the invoke in g() also hits the patched function.
                 self.assertEqual(C.g(), 42)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_final_async_classmethod(self):
         codestr = """
             from typing import final
@@ -1171,7 +1165,6 @@ class StaticPatchTests(StaticTestBase):
                 # Ensure that the invoke in g() also hits the patched function.
                 self.assertEqual(C.g(), 42)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_patch_async_classmethod(self):
         codestr = """
             class C:
@@ -1191,7 +1184,6 @@ class StaticPatchTests(StaticTestBase):
                 # Ensure that the invoke in g() also hits the patched function.
                 self.assertEqual(asyncio.run(C.g()), 44)
 
-    @skip("TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo")
     def test_patch_final_async_method_incorrect_type(self):
         codestr = """
             from typing import final
@@ -1890,7 +1882,6 @@ class StaticPatchTests(StaticTestBase):
             ):
                 asyncio.run(mod.f(mod.C()))
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_async_cached_property_patch_with_bad_return_type(self):
         codestr = """
         from cinder import async_cached_property
@@ -1929,7 +1920,6 @@ class StaticPatchTests(StaticTestBase):
             # This works, because it goes through LOAD_ATTR, and non-static code isn't type-checked
             self.assertEqual(asyncio.run(awaiter(mod.C())), "zzz")
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_async_cached_property_patch_with_good_return_type(self):
         codestr = """
         from cinder import async_cached_property
@@ -1963,7 +1953,6 @@ class StaticPatchTests(StaticTestBase):
 
             self.assertEqual(asyncio.run(awaiter(mod.C())), 131)
 
-    @skip("TODO(T129267007): failing assertion in type_vtable_setslot_typecheck")
     def test_async_cached_property_patch_with_good_return_type_already_invoked(self):
         codestr = """
         from cinder import async_cached_property
