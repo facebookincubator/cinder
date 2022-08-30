@@ -4541,7 +4541,10 @@ type_getattr(PyTypeObject *type, const char *name)
 {
     PyObject* res;
     Py_ssize_t len = strlen(name);
-    if (!_Py_bytes_isascii(name, len)) {
+    PyObject* is_ascii_obj = _Py_bytes_isascii(name, len);
+    int is_ascii = Py_IsTrue(is_ascii_obj);
+    Py_DECREF(is_ascii_obj);
+    if (!is_ascii) {
         PyObject *name_obj = PyUnicode_FromString(name);
         if (name_obj == NULL){
             return NULL;
