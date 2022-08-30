@@ -132,7 +132,8 @@ static const char usage_6[] =
 "PYTHONDEVMODE: enable the development mode.\n"
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
 "PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
-"PYTHONLAZYIMPORTS: enable lazy imports by default.\n";
+"PYTHONLAZYIMPORTS: enable lazy imports by default.\n"
+"PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -696,6 +697,7 @@ _PyConfig_InitCompatConfig(PyConfig *config)
     config->_config_init = (int)_PyConfig_INIT_COMPAT;
     config->isolated = -1;
     config->lazy_imports = -1;
+    config->use_py_compiler = 0;
     config->use_environment = -1;
     config->dev_mode = -1;
     config->install_signal_handlers = 1;
@@ -734,6 +736,7 @@ config_init_defaults(PyConfig *config)
     _PyConfig_InitCompatConfig(config);
 
     config->isolated = 0;
+    config->use_py_compiler = 0;
     config->lazy_imports = 0;
     config->use_environment = 1;
     config->site_import = 1;
@@ -932,6 +935,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_WSTR_ATTR(stdio_encoding);
     COPY_WSTR_ATTR(stdio_errors);
     COPY_ATTR(lazy_imports);
+    COPY_ATTR(use_py_compiler);
 #ifdef MS_WINDOWS
     COPY_ATTR(legacy_windows_stdio);
 #endif
@@ -1048,6 +1052,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(_isolated_interpreter);
     SET_ITEM_WSTRLIST(orig_argv);
     SET_ITEM_INT(lazy_imports);
+    SET_ITEM_INT(use_py_compiler);
 
     return dict;
 
@@ -1330,6 +1335,7 @@ _PyConfig_FromDict(PyConfig *config, PyObject *dict)
     GET_UINT(_init_main);
     GET_UINT(_isolated_interpreter);
     GET_UINT(lazy_imports);
+    GET_UINT(use_py_compiler);
 
 #undef CHECK_VALUE
 #undef GET_UINT
@@ -1672,6 +1678,7 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
     _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTS");
+    _Py_get_env_flag(use_env, &config->use_py_compiler, "PYTHONUSEPYCOMPILER");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");
@@ -1816,6 +1823,11 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONPROFILEIMPORTTIME")
        || config_get_xoption(config, L"importtime")) {
         config->import_time = 1;
+    }
+
+    if (config_get_env(config, "PYTHONUSEPYCOMPILER")
+        || config_get_xoption(config, L"usepycompiler")) {
+        config->use_py_compiler = 1;
     }
 
     PyStatus status;

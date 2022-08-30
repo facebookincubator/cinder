@@ -261,6 +261,26 @@ init_importlib_external(PyThreadState *tstate)
     return _PyImportZip_Init(tstate);
 }
 
+
+static int
+install_importlib_pycompile()
+{
+    PyObject* value;
+    PyObject *py_loader_module = PyImport_ImportModule("compiler.pysourceloader");
+    if (py_loader_module == NULL) {
+        return -1;
+    }
+    value = PyObject_CallMethod(py_loader_module,
+                                "_install_py_loader", "");
+    if (value == NULL) {
+        PyErr_Print();
+        return -1;
+    }
+    Py_XDECREF(value);
+    Py_XDECREF(py_loader_module);
+    return 0;
+}
+
 /* Helper functions to better handle the legacy C locale
  *
  * The legacy C locale assumes ASCII as the default text encoding, which
@@ -1213,6 +1233,11 @@ init_interp_main(PyThreadState *tstate)
         if (_PyStatus_EXCEPTION(status)) {
             return status;
         }
+    }
+
+    if (config->use_py_compiler) {
+        /* install the loader using Python written compiler */
+        install_importlib_pycompile();
     }
 
     if (is_main_interp) {

@@ -1644,9 +1644,8 @@ $(STRICTM_OBJS): $(STRICTM_HEADERS)
 
 TESTOPTS=	$(EXTRATESTOPTS)
 TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) $(TESTPYTHONOPTS)
-TESTRUNNER=	$(TESTPYTHON) $(srcdir)/Tools/scripts/run_tests.py
+TESTRUNNER=	$(TESTPYTHON) -X usepycompiler $(srcdir)/Tools/scripts/run_tests.py
 TESTRUNNERLAZYIMPORTS=	$(TESTPYTHON) -L $(srcdir)/Tools/scripts/run_tests.py
-TESTRUNNERPYCOMPILER=	$(TESTPYTHON) -X usepycompiler $(srcdir)/Tools/scripts/run_tests.py
 TESTTIMEOUT=	1200
 
 .PHONY: test test_with_lazy_imports testall testuniversal buildbottest pythoninfo
@@ -1737,7 +1736,6 @@ JIT_TEST_RUNNER=$(srcdir)/Tools/scripts/jit_test_runner.py dispatcher $(JIT_TEST
 
 testcinder: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDEROPTS)
-	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDEROPTS)
 
 define RUN_TESTCINDERJIT_PROFILE
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-write-profile=test_cinderjit_profile.types $(1) -mtest test_cinderjit_profile
@@ -1745,7 +1743,6 @@ define RUN_TESTCINDERJIT_PROFILE
 endef
 
 define RUN_TESTCINDERJIT
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 	# TODO re-enable when it doesn't crash on exit
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(1) -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py $(TESTOPTS)
@@ -1777,7 +1774,6 @@ testcinder_jit_shadowframe_inliner_profile: @DEF_MAKE_RULE@ platform
 
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
-	$(ASAN_TEST_ENV)$(TESTRUNNERPYCOMPILER) $(TESTCINDER_REFLEAK_OPTS)
 
 testcinder_extension: @DEF_MAKE_RULE@ platform
 	$(abs_builddir)/$(BUILDPYTHON) -m ensurepip
