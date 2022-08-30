@@ -926,7 +926,7 @@ JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
     PyObject* name,
     bool no_args_in_super_call) {
   int meth_found = 0;
-  PyObject* result = _PyEval_SuperLookupMethodOrAttr(
+  PyObject* result = Ci_SuperLookupMethodOrAttr(
       PyThreadState_GET(),
       global_super,
       (PyTypeObject*)type,
@@ -960,7 +960,7 @@ PyObject* JITRT_GetAttrFromSuper(
     PyObject* self,
     PyObject* name,
     bool no_args_in_super_call) {
-  return _PyEval_SuperLookupMethodOrAttr(
+  return Ci_SuperLookupMethodOrAttr(
       PyThreadState_GET(),
       global_super,
       (PyTypeObject*)type,

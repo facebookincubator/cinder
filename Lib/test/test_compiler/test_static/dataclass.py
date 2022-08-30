@@ -625,7 +625,6 @@ class DataclassTests(StaticTestBase):
             at="c.x",
         )
 
-    @skip("TODO(T129440601): LOAD_METHOD_SUPER interpreter support.")
     def test_frozen_field_subclass(self) -> None:
         codestr = """
         from dataclasses import dataclass
@@ -653,7 +652,6 @@ class DataclassTests(StaticTestBase):
             del d.y
             self.assertFalse(hasattr(d, "y"))
 
-    @skip("TODO(T129440601): LOAD_METHOD_SUPER interpreter support.")
     def test_frozen_no_fields(self) -> None:
         codestr = """
         from dataclasses import dataclass

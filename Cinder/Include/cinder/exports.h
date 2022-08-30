@@ -124,6 +124,15 @@ PyAPI_FUNC(PyObject *) CiGen_New_NoFrame(PyCodeObject *code);
 PyAPI_FUNC(int) CiGen_close_yf(PyObject *yf);
 PyAPI_FUNC(int) CiGen_restore_error(PyObject *et, PyObject *ev, PyObject *tb);
 
+PyAPI_FUNC(PyObject *) Ci_SuperLookupMethodOrAttr(
+    PyThreadState *tstate,
+    PyObject *super_globals,
+    PyTypeObject *type,
+    PyObject *self,
+    PyObject *name,
+    int call_no_args,
+    int *meth_found);
+
 #ifdef __cplusplus
 }
 #endif

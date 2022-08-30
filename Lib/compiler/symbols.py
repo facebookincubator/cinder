@@ -442,12 +442,12 @@ class SymbolVisitor(ASTVisitor):
             if n:
                 self.visit(n, scope.parent)
 
-        for arg in args.args:
+        for arg in args.posonlyargs:
             name = arg.arg
             scope.add_param(name)
             if arg.annotation and not self.future_annotations:
                 self.visit(arg.annotation, scope.parent)
-        for arg in getattr(args, "posonlyargs", ()):
+        for arg in args.args:
             name = arg.arg
             scope.add_param(name)
             if arg.annotation and not self.future_annotations:

@@ -2,6 +2,7 @@
 
 from test.support import captured_stdout
 from test.support.bytecode_helper import BytecodeTestCase
+from textwrap import dedent
 from opcode import shadowop
 import unittest
 import sys

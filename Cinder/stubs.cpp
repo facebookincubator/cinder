@@ -11,10 +11,6 @@
   }
 
 
-// Python/ceval.c  TODO(T127678238)
-STUB(PyObject *, _PyEval_SuperLookupMethodOrAttr, PyThreadState *, PyObject *, PyTypeObject *, PyObject *, PyObject *, int, int *)
-
-
 // Objects/genobject.c
 // TODO(T125856469) Eager coroutine execution
 STUB(PyObject *, _PyWaitHandle_New, PyObject *, PyObject *)

@@ -33,18 +33,6 @@ extern "C" {
 #define CO_SUPPRESS_JIT          0x40000000
 
 
-// Python/ceval.h
-
-// TODO(T127678238)
-PyAPI_FUNC(PyObject *) _PyEval_SuperLookupMethodOrAttr(
-    PyThreadState *tstate,
-    PyObject *super_globals,
-    PyTypeObject *type,
-    PyObject *self,
-    PyObject *name,
-    int call_no_args,
-    int *meth_found);
-
 // Include/genobject.h  TODO(T125856469) Eager coroutine execution
 typedef struct {
     PyObject_HEAD

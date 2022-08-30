@@ -5,7 +5,7 @@ import unittest
 from cinder import freeze_type
 from compiler.errors import TypedSyntaxError
 
-# from inspect import CO_SUPPRESS_JIT
+from inspect import CO_SUPPRESS_JIT
 from re import escape
 from unittest import skip
 
@@ -472,7 +472,6 @@ class StaticObjCreationTests(StaticTestBase):
             f = mod.C.__init__
             self.assertNotInBytecode(f, "INVOKE_METHOD")
 
-    @unittest.cinderPortingBrokenTest()
     def test_super_init_no_load_attr_super(self):
         codestr = """
             x = super
@@ -532,16 +531,7 @@ class StaticObjCreationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             init = mod.C.__init__
-            # TODO(T127678238): This needs to be converted back to an assertInBytecode.
-            self.assertNotInBytecode(init, "LOAD_METHOD_SUPER")
-
-        code = compile(inspect.cleandoc(codestr), "exec", "exec")
-        d = {}
-        exec(code, d)
-
-        init = d["C"].__init__
-        # TODO(T127678238): This needs to be converted back to an assertInBytecode.
-        self.assertNotInBytecode(init, "LOAD_METHOD_SUPER")
+            self.assertInBytecode(init, "LOAD_METHOD_SUPER")
 
     def test_generic_unknown_type_dict(self):
         codestr = """

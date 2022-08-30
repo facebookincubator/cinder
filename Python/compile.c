@@ -29,6 +29,7 @@
 #include "pycore_pymem.h"         // _PyMem_IsPtrFreed()
 #include "pycore_long.h"          // _PyLong_GetZero()
 #include "pycore_symtable.h"      // PySTEntryObject
+#include "cinder/porting-support.h"
 
 #define NEED_OPCODE_JUMP_TABLES
 #include "opcode.h"               // EXTENDED_ARG
@@ -203,6 +204,7 @@ struct compiler_unit {
     int u_col_offset;      /* the offset of the current stmt */
     int u_end_lineno;      /* the end line of the current stmt */
     int u_end_col_offset;  /* the end offset of the current stmt */
+    int u_suppress_jit; /* boolean to indicate that function should not be jitted*/
 };
 
 /* This struct captures the global state of a compilation.
@@ -681,6 +683,7 @@ compiler_enter_scope(struct compiler *c, identifier name,
     }
 
     u->u_private = NULL;
+    u->u_suppress_jit = 0;
 
     /* Push the old compiler_unit on the stack. */
     if (c->u) {
@@ -3765,6 +3768,12 @@ compiler_nameop(struct compiler *c, identifier name, expr_context_ty ctx)
     }
 
     assert(op);
+    if (op == LOAD_GLOBAL &&
+        c->u->u_ste->ste_type == FunctionBlock &&
+        _PyUnicode_EqualToASCIIString(mangled, "super")
+    ) {
+        c->u->u_suppress_jit = 1;
+    }
     arg = compiler_add_o(dict, mangled);
     Py_DECREF(mangled);
     if (arg < 0)
@@ -6850,6 +6859,9 @@ compute_code_flags(struct compiler *c)
             flags |= CO_VARARGS;
         if (ste->ste_varkeywords)
             flags |= CO_VARKEYWORDS;
+        if (c->u->u_suppress_jit) {
+            flags |= CO_SUPPRESS_JIT;
+        }
     }
 
     /* (Only) inherit compilerflags in PyCF_MASK */

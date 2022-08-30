@@ -902,13 +902,14 @@ class PyFlowGraph(FlowGraph):
         return self.make_code(nlocals, code, consts, firstline, lnotab)
 
     def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
+        flags = self.flags | CO_SUPPRESS_JIT if self.scope.suppress_jit else self.flags
         return CodeType(
             len(self.args),
             self.posonlyargs,
             len(self.kwonlyargs),
             nlocals,
             self.stacksize,
-            self.flags,
+            flags,
             code,
             consts,
             tuple(self.names),
@@ -1179,27 +1180,6 @@ class PyFlowGraph(FlowGraph):
 
 class PyFlowGraphCinder(PyFlowGraph):
     opcode = opcode_cinder.opcode
-
-    def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
-        flags = self.flags | CO_SUPPRESS_JIT if self.scope.suppress_jit else self.flags
-        return CodeType(
-            len(self.args),
-            self.posonlyargs,
-            len(self.kwonlyargs),
-            nlocals,
-            self.stacksize,
-            flags,
-            code,
-            consts,
-            tuple(self.names),
-            tuple(self.varnames),
-            self.filename,
-            self.name,
-            firstline,
-            lnotab,
-            tuple(self.freevars),
-            tuple(self.cellvars),
-        )
 
 
 class LineAddrTable:

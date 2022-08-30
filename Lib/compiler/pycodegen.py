@@ -312,8 +312,19 @@ class CodeGenerator(ASTVisitor):
         self._nameOp("DELETE", name)
 
     def _nameOp(self, prefix, name):
+        # TODO(T130490253): The JIT suppression should happen in the jit, not the compiler.
+        if (
+            prefix == "LOAD"
+            and name == "super"
+            and isinstance(self.scope, symbols.FunctionScope)
+        ):
+            scope = self.scope.check_name(name)
+            if scope in (SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT):
+                self.scope.suppress_jit = True
+
         name = self.mangle(name)
         scope = self.scope.check_name(name)
+
         if scope == SC_LOCAL:
             if not self.optimized:
                 self.emit(prefix + "_NAME", name)
@@ -3014,18 +3025,6 @@ class CinderCodeGenerator(CodeGenerator):
 
         return code
 
-    def _nameOp(self, prefix, name) -> None:
-        # TODO(T127678238): This need to be re-enabled with special jit support.
-        # if (
-        #     prefix == "LOAD"
-        #     and name == "super"
-        #     and isinstance(self.scope, symbols.FunctionScope)
-        # ):
-        #     scope = self.scope.check_name(name)
-        #     if scope in (SC_GLOBAL_EXPLICIT, SC_GLOBAL_IMPLICIT):
-        #         self.scope.suppress_jit = True
-        super()._nameOp(prefix, name)
-
     def _is_super_call(self, node):
         if (
             not isinstance(node, ast.Call)
@@ -3061,43 +3060,34 @@ class CinderCodeGenerator(CodeGenerator):
                 self.visit(arg)
         return (self.mangle(attr), len(super_call.args) == 0)
 
-    # TODO(T127678238): Port super() optimizations and re-enable this.
-    # def visitAttribute(self, node):
-    #     if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
-    #         self.emit("LOAD_GLOBAL", "super")
-    #         load_arg = self._emit_args_for_super(node.value, node.attr)
-    #         self.emit("LOAD_ATTR_SUPER", load_arg)
-    #     else:
-    #         super().visitAttribute(node)
+    def visitAttribute(self, node):
+        if isinstance(node.ctx, ast.Load) and self._is_super_call(node.value):
+            self.emit("LOAD_GLOBAL", "super")
+            load_arg = self._emit_args_for_super(node.value, node.attr)
+            self.emit("LOAD_ATTR_SUPER", load_arg)
+        else:
+            super().visitAttribute(node)
 
-    # TODO(T127678238): Port super() optimizations and re-enable this method.
-    # def visitCall(self, node):
-    #     self.set_lineno(node)
-    #     if (
-    #         not isinstance(node.func, ast.Attribute)
-    #         or not isinstance(node.func.ctx, ast.Load)
-    #         or node.keywords
-    #         or any(isinstance(arg, ast.Starred) for arg in node.args)
-    #     ):
-    #         # We cannot optimize this call
-    #         return super().visitCall(node)
+    def visitCall(self, node):
+        if (
+            not isinstance(node.func, ast.Attribute)
+            or not isinstance(node.func.ctx, ast.Load)
+            or node.keywords
+            or any(isinstance(arg, ast.Starred) for arg in node.args)
+            or len(node.args) >= STACK_USE_GUIDELINE
+            or not self._is_super_call(node.func.value)
+        ):
+            # We cannot optimize this call
+            return super().visitCall(node)
 
-    #     if self._is_super_call(node.func.value):
-    #         self.emit("LOAD_GLOBAL", "super")
-    #         load_arg = self._emit_args_for_super(node.func.value, node.func.attr)
-    #         self.emit("LOAD_METHOD_SUPER", load_arg)
-    #         for arg in node.args:
-    #             self.visit(arg)
-    #         self.emit("CALL_METHOD", len(node.args))
-    #         return
+        with self.temp_lineno(node.func.end_lineno):
+            self.emit("LOAD_GLOBAL", "super")
 
-    #     self.visit(node.func.value)
-    #     self.emit("LOAD_METHOD", self.mangle(node.func.attr))
-    #     for arg in node.args:
-    #         self.visit(arg)
-    #     nargs = len(node.args)
-    #     self.insertReadonlyCheck(node, nargs + 1, True)
-    #     self.emit("CALL_METHOD", nargs)
+            load_arg = self._emit_args_for_super(node.func.value, node.func.attr)
+            self.emit("LOAD_METHOD_SUPER", load_arg)
+            for arg in node.args:
+                self.visit(arg)
+            self.emit("CALL_METHOD", len(node.args))
 
     def findFutures(self, node):
         future_flags = super().findFutures(node)
