@@ -324,11 +324,7 @@ CompilationResult compilePreloader(
   // is "annotations" which doesn't impact bytecode execution.)
   if (code == nullptr ||
       ((code->co_flags & required_flags) != required_flags) ||
-      (code->co_flags & prohibited_flags) != 0 ||
-      // TODO(T127678238) Remove this condition once we port LOAD_METHOD_SUPER
-      // and family. Right now we disallow compilation of any function with
-      // __class__ in its closure (which are functions that use super()).
-      freevarsContainsClass(code)) {
+      (code->co_flags & prohibited_flags) != 0) {
     return {nullptr, PYJIT_RESULT_CANNOT_SPECIALIZE};
   }
 
