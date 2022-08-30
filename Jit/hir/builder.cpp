@@ -67,7 +67,6 @@ Register* TempAllocator::AllocateNonStack() {
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // Static Python opcodes
-    BUILD_CHECKED_MAP,
     CAST,
     CONVERT_PRIMITIVE,
     FAST_LEN,
@@ -119,6 +118,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     BINARY_TRUE_DIVIDE,
     BINARY_XOR,
     BUILD_CHECKED_LIST,
+    BUILD_CHECKED_MAP,
     BUILD_CONST_KEY_MAP,
     BUILD_LIST,
     BUILD_MAP,
