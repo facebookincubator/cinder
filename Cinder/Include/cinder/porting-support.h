@@ -30,8 +30,6 @@ extern "C" {
 // Include/code.h
 #define CO_STATICALLY_COMPILED   0x4000000
 #define CO_FUTURE_LAZY_IMPORTS   0x8000000
-#define CO_SHADOW_FRAME          0x10000000
-#define CO_NORMAL_FRAME          0x20000000
 #define CO_SUPPRESS_JIT          0x40000000
 
 

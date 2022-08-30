@@ -165,8 +165,6 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return super().make_child_codegen(
                 tree, graph, codegen_type=StrictCodeGenerator
             )
-        if ModuleFlag.SHADOW_FRAME in self.cur_mod.flags:
-            graph.setFlag(consts.CO_SHADOW_FRAME)
         return StaticCodeGenerator(
             self,
             tree,

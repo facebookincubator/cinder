@@ -846,24 +846,10 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code) {
   return PyTuple_GET_SIZE(code->co_freevars) > 0;
 }
 
-static FrameMode getFrameMode(BorrowedRef<PyCodeObject> code) {
-  /* check for code specific flags */
-  if (code->co_flags & CO_SHADOW_FRAME) {
-    return FrameMode::kShadow;
-  } else if (code->co_flags & CO_NORMAL_FRAME) {
-    return FrameMode::kNormal;
-  }
-
-  if (_PyJIT_ShadowFrame()) {
-    return FrameMode::kShadow;
-  }
-  return FrameMode::kNormal;
-}
-
 void Function::setCode(BorrowedRef<PyCodeObject> code) {
   this->code.reset(code);
   uses_runtime_func = usesRuntimeFunc(code);
-  frameMode = getFrameMode(code);
+  frameMode = _PyJIT_ShadowFrame() ? FrameMode::kShadow : FrameMode::kNormal;
 }
 
 void Function::Print() const {

@@ -10,7 +10,7 @@ import re
 import sys
 import unittest
 from cinder import StrictModule
-from compiler.consts import CO_SHADOW_FRAME, CO_STATICALLY_COMPILED
+from compiler.consts import CO_STATICALLY_COMPILED
 from compiler.pycodegen import PythonCodeGenerator
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
@@ -325,45 +325,6 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertEqual(f(x), x)
                 # Initially this would be 63 when we were double visiting
                 self.assertLess(call_count, 10)
-
-    @skipIf(cinderjit is None, "not jitting")
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
-    def test_shadow_frame(self):
-        codestr = """
-        from __static__.compiler_flags import shadow_frame
-
-        def f():
-            return 456
-        """
-        with self.in_module(codestr) as mod:
-            f = mod.f
-            self.assertTrue(f.__code__.co_flags & CO_SHADOW_FRAME)
-            self.assertEqual(f(), 456)
-            self.assert_jitted(f)
-
-    @skipIf(cinderjit is None, "not jitting")
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129260133): Failing assertion in _PyClassLoader_GetTypedArgsInfo",
-    )
-    def test_shadow_frame_generator(self):
-        codestr = """
-        from __static__.compiler_flags import shadow_frame
-
-        def g():
-            for i in range(10):
-                yield i
-        def f():
-            return list(g())
-        """
-        with self.in_module(codestr) as mod:
-            f = mod.f
-            self.assertTrue(f.__code__.co_flags & CO_SHADOW_FRAME)
-            self.assertEqual(f(), list(range(10)))
-            self.assert_jitted(f)
 
     def test_exact_invoke_function(self):
         codestr = """

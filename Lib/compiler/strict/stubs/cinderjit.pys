@@ -1,3 +1,0 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-def jit_force_normal_frame(f):
-    return f

@@ -5,7 +5,6 @@ from reprlib import recursive_repr as _recursive_repr
 import sys as _sys
 from keyword import iskeyword as _iskeyword
 from operator import itemgetter as _itemgetter
-from cinderjit import jit_force_normal_frame
 
 # a mock for weakref.proxy
 def _proxy(object, *args):

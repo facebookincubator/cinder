@@ -416,8 +416,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                             self.module.flags.add(ModuleFlag.CHECKED_DICTS)
                         elif name.name == "checked_lists":
                             self.module.flags.add(ModuleFlag.CHECKED_LISTS)
-                        elif name.name in ("noframe", "shadow_frame"):
-                            self.module.flags.add(ModuleFlag.SHADOW_FRAME)
 
     def visitModule(self, node: Module) -> None:
         self.scopes.append(

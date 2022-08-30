@@ -16,7 +16,7 @@ import unittest
 import warnings
 import weakref
 
-from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_NORMAL_FRAME, CO_SUPPRESS_JIT
+from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_SUPPRESS_JIT
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -3431,20 +3431,6 @@ class CinderJitModuleTests(StaticTestBase):
 
         with self.assertRaises(TypeError):
             cinderjit.disable(None)
-
-    def test_jit_force_normal_frame_changes_flags(self):
-        def x():
-            pass
-
-        self.assertEqual(x.__code__.co_flags & CO_NORMAL_FRAME, 0)
-
-        forced_x = cinderjit.jit_force_normal_frame(x)
-
-        self.assertEqual(x.__code__.co_flags & CO_NORMAL_FRAME, CO_NORMAL_FRAME)
-
-    def test_jit_force_normal_frame_raises_on_invalid_arg(self):
-        with self.assertRaises(TypeError):
-            cinderjit.jit_force_normal_frame(None)
 
     def test_jit_suppress(self):
         @cinderjit.jit_suppress

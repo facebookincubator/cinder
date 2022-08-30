@@ -721,7 +721,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, _y")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 80 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 79 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_keyword_name
 ---
@@ -729,7 +729,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, def")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 74 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 73 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_non_identifier_name
 ---
@@ -737,7 +737,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, ?")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 71 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 70 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_duplicate_name
 ---
@@ -745,7 +745,7 @@ from collections import namedtuple
 P = namedtuple("P", "x x")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 83 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 82 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_fields
 ---
@@ -8940,7 +8940,7 @@ X = namedtuple("P", "x y")
 X.__new__(object)
 ---
 ---
-3 0 StrictModuleUnhandledException(TypeError) 113 15 StrictModuleUserException TypeError
+3 0 StrictModuleUnhandledException(TypeError) 112 15 StrictModuleUserException TypeError
 ---
 test_namedtuple_index
 ---
@@ -9033,7 +9033,7 @@ P = namedtuple("P", 1)
 p = P(1)
 ---
 ---
-2 4 StrictModuleUnhandledException(TypeError) 54 23 StrictModuleUserException TypeError
+2 4 StrictModuleUnhandledException(TypeError) 53 23 StrictModuleUserException TypeError
 ---
 test_namedtuple_asdict
 ---

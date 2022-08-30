@@ -1127,19 +1127,6 @@ static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
   return set.release();
 }
 
-static PyObject* jit_force_normal_frame(PyObject*, PyObject* func_obj) {
-  if (!PyFunction_Check(func_obj)) {
-    PyErr_SetString(PyExc_TypeError, "Input must be a function");
-    return NULL;
-  }
-  PyFunctionObject* func = reinterpret_cast<PyFunctionObject*>(func_obj);
-
-  reinterpret_cast<PyCodeObject*>(func->func_code)->co_flags |= CO_NORMAL_FRAME;
-
-  Py_INCREF(func_obj);
-  return func_obj;
-}
-
 static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
   if (!PyFunction_Check(func_obj)) {
     PyErr_SetString(PyExc_TypeError, "Input must be a function");
@@ -1321,10 +1308,6 @@ static PyMethodDef jit_methods[] = {
      METH_O,
      "Return stack size in bytes used for register spills for a JIT-compiled "
      "function."},
-    {"jit_force_normal_frame",
-     jit_force_normal_frame,
-     METH_O,
-     "Decorator forcing a function to always use normal frame mode when JIT."},
     {"jit_suppress",
      jit_suppress,
      METH_O,
