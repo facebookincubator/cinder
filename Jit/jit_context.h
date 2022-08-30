@@ -97,6 +97,8 @@ struct _PyJITContext {
    * multithreaded_compile_test.
    */
   std::vector<std::unique_ptr<jit::CompiledFunction>> orphaned_compiled_codes;
+
+  Ref<> cinderjit_module;
 };
 
 /*

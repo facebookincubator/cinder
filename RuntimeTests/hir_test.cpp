@@ -524,6 +524,7 @@ class HIRBuildTest : public RuntimeTest {
     }
 
     auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+    auto empty_bytes = Ref<>::steal(PyBytes_FromString(""));
     auto code = Ref<PyCodeObject>::steal(PyCode_New(
         /*argcount=*/1,
         0,
@@ -539,7 +540,7 @@ class HIRBuildTest : public RuntimeTest {
         filename,
         funcname,
         0,
-        PyBytes_FromString("")));
+        empty_bytes));
     assert(code.get());
 
     auto func =
@@ -604,6 +605,7 @@ TEST_F(HIRBuildTest, LoadAssertionError) {
   auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
   auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto empty_bytes = Ref<>::steal(PyBytes_FromString(""));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       0,
       0,
@@ -619,7 +621,7 @@ TEST_F(HIRBuildTest, LoadAssertionError) {
       filename,
       funcname,
       0,
-      PyBytes_FromString("")));
+      empty_bytes));
   ASSERT_NE(code.get(), nullptr);
 
   auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
@@ -675,6 +677,7 @@ TEST_F(HIRBuildTest, SetUpdate) {
   auto param2 = Ref<>::steal(PyUnicode_FromString("param2"));
   auto varnames =
       Ref<>::steal(PyTuple_Pack(3, param0.get(), param1.get(), param2.get()));
+  auto empty_bytes = Ref<>::steal(PyBytes_FromString(""));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       /*argcount=*/3,
       0,
@@ -690,7 +693,7 @@ TEST_F(HIRBuildTest, SetUpdate) {
       filename,
       funcname,
       0,
-      PyBytes_FromString("")));
+      empty_bytes));
   ASSERT_NE(code.get(), nullptr);
 
   auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
@@ -775,6 +778,7 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
   Py_INCREF(Py_None);
   PyTuple_SET_ITEM(consts.get(), 0, Py_None);
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto empty_bytes = Ref<>::steal(PyBytes_FromString(""));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       0,
       0,
@@ -790,7 +794,7 @@ TEST_F(EdgeCaseTest, IgnoreUnreachableLoops) {
       filename,
       funcname,
       0,
-      PyBytes_FromString("")));
+      empty_bytes));
   ASSERT_NE(code.get(), nullptr);
 
   auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));

@@ -1502,6 +1502,8 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
+  jit_ctx->cinderjit_module = Ref<PyObject>::steal(mod);
+
   PyObject* modname = PyUnicode_InternFromString("cinderjit");
   if (modname == NULL) {
     return -1;
@@ -1749,17 +1751,16 @@ void _PyJIT_CodeDestroyed(PyCodeObject* code) {
 }
 
 static void dump_jit_stats() {
-  auto stats = get_and_clear_runtime_stats(nullptr, nullptr);
+  auto stats = Ref<>::steal(get_and_clear_runtime_stats(nullptr, nullptr));
   if (stats == nullptr) {
     return;
   }
-  auto stats_str = PyObject_Str(stats);
-  if (stats_str == nullptr) {
+  auto stats_str = Ref<>::steal(PyObject_Str(stats));
+  if (!stats_str) {
     return;
   }
 
-  JIT_LOG("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str));
-  Py_DECREF(stats_str);
+  JIT_LOG("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str.get()));
 }
 
 int _PyJIT_Finalize() {

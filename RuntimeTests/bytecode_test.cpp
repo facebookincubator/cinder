@@ -49,6 +49,7 @@ TEST_F(BytecodeInstructionIteratorTest, ConsumesExtendedArgs) {
   Py_INCREF(Py_None);
   PyTuple_SET_ITEM(consts.get(), 0, Py_None);
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto empty_bytes = Ref<>::steal(PyBytes_FromString(""));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       0,
       0,
@@ -64,7 +65,7 @@ TEST_F(BytecodeInstructionIteratorTest, ConsumesExtendedArgs) {
       filename,
       funcname,
       0,
-      PyBytes_FromString("")));
+      empty_bytes));
   ASSERT_NE(code.get(), nullptr);
 
   jit::BytecodeInstructionBlock bc_block{code};

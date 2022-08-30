@@ -834,6 +834,7 @@ def test_list(a):
     return [a, a, a]
 )";
 
+  auto three = Ref<>::steal(PyLong_FromLong(3));
   {
     Ref<PyObject> pyfunc(compileAndGet(pycode, "test_tuple"));
     ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
@@ -841,7 +842,7 @@ def test_list(a):
     auto compiled = GenerateCode(pyfunc);
     ASSERT_NE(compiled, nullptr);
 
-    PyObject* args[] = {PyLong_FromLong(3)};
+    PyObject* args[] = {three.get()};
     auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
 
     ASSERT_NE(res.get(), nullptr);
@@ -857,7 +858,7 @@ def test_list(a):
     auto compiled = GenerateCode(pyfunc);
     ASSERT_NE(compiled, nullptr);
 
-    PyObject* args[] = {PyLong_FromLong(3)};
+    PyObject* args[] = {three.get()};
     auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
 
     ASSERT_NE(res.get(), nullptr);
@@ -1334,6 +1335,7 @@ TEST_F(ASMGeneratorTest, GetLength) {
   auto param = Ref<>::steal(PyUnicode_FromString("param"));
   auto varnames = Ref<>::steal(PyTuple_Pack(1, param.get()));
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
+  auto empty_string = Ref<>::steal(PyBytes_FromString(""));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       /*argcount=*/1,
       0,
@@ -1349,7 +1351,7 @@ TEST_F(ASMGeneratorTest, GetLength) {
       filename,
       funcname,
       0,
-      PyBytes_FromString("")));
+      empty_string));
   ASSERT_NE(code.get(), nullptr);
 
   auto func = Ref<PyFunctionObject>::steal(PyFunction_New(code, MakeGlobals()));
