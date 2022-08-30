@@ -2125,6 +2125,33 @@ class StaticPatchTests(StaticTestBase):
             mod.patch("fn", fn2)
             mod.call_fn()
 
+    def test_patch_fn_with_optional_ret(self):
+        codestr = """
+        import __static__
+        from __static__ import int64, cbool, box
+
+        def fn(i: int) -> int | None:
+            if i == 0:
+                return None
+            return i
+
+        def call_fn():
+            z = fn(42)
+            if z is None:
+                return True
+            return False
+        """
+
+        with self.in_strict_module(codestr, freeze=False, enable_patching=True) as mod:
+
+            def fn2(i: int) -> int | None:
+                if i == 42:
+                    return None
+                return i
+
+            mod.patch("fn", fn2)
+            self.assertTrue(mod.call_fn())
+
     def test_patch_property_with_primitive_ret(self):
         codestr = """
         import __static__
