@@ -270,6 +270,10 @@ int PyReadonly_CheckReadonlyOperationOnCallable(PyObject* callable) {
         return 0;
     }
 
+    if (PyMethod_Check(callable)) {
+        callable = ((PyMethodObject *)callable)->im_func;
+    }
+
     if (PyFunction_Check(callable)) {
         PyFunctionObject *funcObj = (PyFunctionObject*)callable;
         int functionArgsMask = CLEAR_NONARG_READONLY_MASK(funcObj->readonly_mask);
