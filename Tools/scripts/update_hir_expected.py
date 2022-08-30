@@ -120,6 +120,10 @@ def map_suite_to_file(suite_name):
         snake_name = "hir_builder_test"
     elif suite_name == "HIRBuilderStaticTest":
         snake_name = "hir_builder_static_test"
+    elif suite_name == "ProfileDataHIRTest":
+        snake_name = "profile_data_hir_test"
+    elif suite_name == "ProfileDataStaticHIRTest":
+        snake_name = "profile_data_static_hir_test"
     else:
         snake_name = "_".join(map(str.lower, SUITE_NAME_RE.findall(suite_name)))
     return os.path.join(TESTS_DIR, "hir_tests", snake_name + ".txt")

@@ -6,27 +6,39 @@
 
 #include <sstream>
 
+void RuntimeTest::runCodeAndCollectProfile(
+    const char* src,
+    std::string& output) {
+  // Run the test body once with profiling enabled, save the resulting
+  // profile data, then tear down and set up again for a normal HIR test with
+  // the profile data.
+  int jit_enabled = _PyJIT_IsEnabled();
+  _PyJIT_Disable();
+  Ci_ThreadState_SetProfileInterpAll(1);
+  if (compile_static_) {
+    ASSERT_TRUE(runStaticCode(src));
+  } else {
+    ASSERT_TRUE(runCode(src));
+  }
+  std::stringstream data;
+  ASSERT_TRUE(jit::writeProfileData(data));
+  output = data.str();
+
+  TearDown();
+  SetUp();
+  if (jit_enabled) {
+    _PyJIT_Enable();
+  }
+}
+
 void HIRTest::TestBody() {
   using namespace jit::hir;
 
   if (use_profile_data_) {
-    // Run the test body once with profiling enabled, save the resulting
-    // profile data, then tear down and set up again for a normal HIR test with
-    // the profile data.
-    _PyJIT_Disable();
-    Ci_ThreadState_SetProfileInterpAll(1);
-    if (compile_static_) {
-      ASSERT_TRUE(runStaticCode(src_.c_str()));
-    } else {
-      ASSERT_TRUE(runCode(src_.c_str()));
-    }
-    std::stringstream data;
-    ASSERT_TRUE(jit::writeProfileData(data));
-    data.seekg(0);
-
-    TearDown();
-    SetUp();
-    ASSERT_TRUE(jit::readProfileData(data));
+    std::string data;
+    ASSERT_NO_FATAL_FAILURE(runCodeAndCollectProfile(src_.c_str(), data));
+    std::istringstream stream(data);
+    ASSERT_TRUE(jit::readProfileData(stream));
   }
 
   std::unique_ptr<Function> irfunc;

@@ -2242,7 +2242,7 @@ void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
       if (profile.empty()) {
         continue;
       }
-      start_instr(env, profile_pair.first);
+      start_instr(env, profile_pair.first.value());
 
       for (int row = 0; row < profile.rows() && profile.count(row) != 0;
            ++row) {

@@ -632,6 +632,7 @@ type_set_name(PyTypeObject *type, PyObject *value, void *context)
         return -1;
     }
 
+    _PyJIT_TypeNameModified(type);
     type->tp_name = tp_name;
     Py_INCREF(value);
     Py_SETREF(((PyHeapTypeObject*)type)->ht_name, value);
@@ -3567,6 +3568,7 @@ type_new_impl(type_new_ctx *ctx)
     }
 
     assert(_PyType_CheckConsistency(type));
+    _PyJIT_TypeCreated(type);
     return (PyObject *)type;
 
 error:
@@ -4637,6 +4639,14 @@ _PyDictKeys_DecRef(PyDictKeysObject *keys);
 static void
 type_dealloc(PyTypeObject *type)
 {
+    /* TODO(T113261512): Move this logic into the JIT callback.
+     *
+     * Don't tell the JIT about types that are destroyed before they were fully
+     * constructed.  */
+    if (PyType_HasFeature(type, Py_TPFLAGS_READY)) {
+        _PyJIT_TypeDestroyed(type);
+    }
+
     PyHeapTypeObject *et;
     PyObject *tp, *val, *tb;
 
@@ -7021,6 +7031,11 @@ PyType_Ready(PyTypeObject *type)
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
+    if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+      /* type_new_impl() has more work to do on heap types; only tell the JIT
+       * about static types right here. */
+      _PyJIT_TypeCreated(type);
+    }
     return 0;
 }
 

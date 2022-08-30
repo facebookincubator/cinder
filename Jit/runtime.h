@@ -267,13 +267,11 @@ struct DeoptStat {
 // Map from DeoptMetadata index to stats about that deopt point.
 using DeoptStats = std::unordered_map<std::size_t, DeoptStat>;
 
-using BytecodeOffset = int;
-
 // Profiling information for a PyCodeObject. Includes the total number of
 // bytecodes executed and type profiles for certain opcodes, keyed by bytecode
 // offset.
 struct CodeProfile {
-  UnorderedMap<BytecodeOffset, std::unique_ptr<TypeProfiler>> typed_hits;
+  UnorderedMap<BCOffset, std::unique_ptr<TypeProfiler>> typed_hits;
   int64_t total_hits;
 };
 

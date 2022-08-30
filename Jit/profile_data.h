@@ -36,17 +36,15 @@ using PolymorphicTypes = std::vector<std::vector<BorrowedRef<PyTypeObject>>>;
 
 // Map from bytecode offset within a code object to vector of vector of string
 // type names for each operand of an instruction
-using CodeProfileData = UnorderedMap<BytecodeOffset, PolymorphicProfiles>;
+using CodeProfileData = UnorderedMap<BCOffset, PolymorphicProfiles>;
 
 // Look up the profile data for the given code object, returning nullptr if
 // there is none.
 const CodeProfileData* getProfileData(PyCodeObject* code);
 
-// Return a list types materialized from a CodeProfileData and a
-// BytecodeOffset. The result will be empty if there's no data for bc_off.
-PolymorphicTypes getProfiledTypes(
-    const CodeProfileData& data,
-    BytecodeOffset bc_off);
+// Return a list types materialized from a CodeProfileData and a BCOffset. The
+// result will be empty if there's no data for bc_off.
+PolymorphicTypes getProfiledTypes(const CodeProfileData& data, BCOffset bc_off);
 
 // A CodeKey is an opaque value that uniquely identifies a specific code
 // object. It may include information about the name, file path, and contents

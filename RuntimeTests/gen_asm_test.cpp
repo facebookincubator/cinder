@@ -349,7 +349,6 @@ def test(x):
   EXPECT_EQ(PyLong_AsLong(res), 0);
 }
 
-
 TEST_F(ASMGeneratorTest, CallBoundMethod) {
   const char* pycode = R"(
 def test(l):
@@ -867,7 +866,6 @@ def test_list(a):
     ASSERT_EQ(PyList_GetItem(res.get(), 2), args[0]);
   }
 }
-
 
 static void
 UnaryTest(ASMGeneratorTest* test, const char* pycode, int inp, int expected) {

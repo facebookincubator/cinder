@@ -79,7 +79,7 @@ void readVersion1(std::istream& stream) {
 
     auto num_locations = read<uint16_t>(stream);
     for (size_t j = 0; j < num_locations; ++j) {
-      auto bc_offset = read<uint16_t>(stream);
+      auto bc_offset = BCOffset{read<uint16_t>(stream)};
 
       auto& type_list = code_map[bc_offset];
       auto num_types = read<uint8_t>(stream);
@@ -99,7 +99,7 @@ void readVersion2(std::istream& stream) {
 
     auto num_locations = read<uint16_t>(stream);
     for (size_t j = 0; j < num_locations; ++j) {
-      auto bc_offset = read<uint16_t>(stream);
+      auto bc_offset = BCOffset{read<uint16_t>(stream)};
 
       auto& type_list = code_map[bc_offset];
       auto num_profs = read<uint8_t>(stream);
@@ -160,7 +160,7 @@ void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
     writeStr(stream, code_key);
     write<uint16_t>(stream, code_data.size());
     for (auto& [bc_offset, type_vec] : code_data) {
-      write<uint16_t>(stream, bc_offset);
+      write<uint16_t>(stream, bc_offset.value());
       write<uint8_t>(stream, type_vec.size());
       for (auto& single_profile : type_vec) {
         write<uint8_t>(stream, single_profile.size());
@@ -260,7 +260,7 @@ const CodeProfileData* getProfileData(PyCodeObject* code) {
 
 PolymorphicTypes getProfiledTypes(
     const CodeProfileData& data,
-    BytecodeOffset bc_off) {
+    BCOffset bc_off) {
   auto it = data.find(bc_off);
   if (it == data.end()) {
     return {};

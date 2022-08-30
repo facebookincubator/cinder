@@ -703,7 +703,6 @@ void HIRBuilder::emitProfiledTypes(
     TranslationContext& tc,
     const CodeProfileData& profile_data,
     const BytecodeInstruction& bc_instr) {
-#ifdef CINDER_PORTING_DONE
   if (bc_instr.opcode() == CALL_METHOD) {
     // TODO(T107300350): Ignore profiling data for CALL_METHOD because we lie
     // about its stack inputs.
@@ -767,12 +766,6 @@ void HIRBuilder::emitProfiledTypes(
     }
     tc.emit<HintType>(args.size(), all_types, args);
   }
-#else
-  PORT_ASSERT("Need to handle changed/missing opcodes");
-  (void)tc;
-  (void)profile_data;
-  (void)bc_instr;
-#endif
 }
 
 InlineResult HIRBuilder::inlineHIR(

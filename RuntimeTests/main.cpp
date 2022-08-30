@@ -140,6 +140,9 @@ int main(int argc, char* argv[]) {
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
   register_test("RuntimeTests/hir_tests/simplify_uses_guard_types.txt");
   register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/profile_data_hir_test.txt",
+      HIRTest::kUseProfileData);
 #ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/dead_code_elimination_and_simplify_test.txt",
@@ -148,9 +151,7 @@ int main(int argc, char* argv[]) {
       "RuntimeTests/hir_tests/simplify_static_test.txt",
       HIRTest::kCompileStatic);
   register_test(
-      "RuntimeTests/hir_tests/profile_data_test.txt", HIRTest::kUseProfileData);
-  register_test(
-      "RuntimeTests/hir_tests/profile_data_static_test.txt",
+      "RuntimeTests/hir_tests/profile_data_static_hir_test.txt",
       HIRTest::kUseProfileData | HIRTest::kCompileStatic);
 #endif
   register_json_test("RuntimeTests/hir_tests/json_test.txt");

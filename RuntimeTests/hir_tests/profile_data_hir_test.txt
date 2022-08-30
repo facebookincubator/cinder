@@ -1,4 +1,4 @@
-ProfileDataTest
+ProfileDataHIRTest
 ---
 GuardTypeRemoval
 ---
@@ -79,24 +79,24 @@ test(True, 1)
 ---
 fun jittestmodule:test {
   bb 0 {
-    v9:Object = LoadArg<0; "x">
-    v10:Object = LoadArg<1; "y">
-    v12:NoneType = LoadConst<NoneType>
-    v13:Bool = GuardType<Bool> v9 {
-      GuiltyReg v9
+    v12:Object = LoadArg<0; "x">
+    v13:Object = LoadArg<1; "y">
+    v15:NoneType = LoadConst<NoneType>
+    v16:Bool = GuardType<Bool> v12 {
+      GuiltyReg v12
       FrameState {
         NextInstrOffset 6
-        Locals<2> v9 v10
-        Stack<2> v9 v12
+        Locals<2> v12 v13
+        Stack<2> v12 v15
       }
     }
-    UseType<Bool> v13
-    UseType<NoneType> v12
-    v29:MortalBool[False] = LoadConst<MortalBool[False]>
-    UseType<MortalBool[False]> v29
-    v30:CInt32[0] = LoadConst<CInt32[0]>
-    v28:NoneType = LoadConst<NoneType>
-    Return v28
+    UseType<Bool> v16
+    UseType<NoneType> v15
+    v34:MortalBool[False] = LoadConst<MortalBool[False]>
+    UseType<MortalBool[False]> v34
+    v35:CInt32[0] = LoadConst<CInt32[0]>
+    v33:NoneType = LoadConst<NoneType>
+    Return v33
   }
 }
 ---

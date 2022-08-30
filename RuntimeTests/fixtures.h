@@ -68,6 +68,8 @@ class RuntimeTest : public ::testing::Test {
     return res != nullptr;
   }
 
+  void runCodeAndCollectProfile(const char* src, std::string& output);
+
   Ref<> compileAndGet(const char* src, const char* name) {
     if (!runCode(src)) {
       return Ref<>(nullptr);
