@@ -12,7 +12,6 @@ import shutil
 import socket
 import ssl
 import subprocess
-import sys
 import tempfile
 import urllib.parse
 from xml.etree import ElementTree as ET
@@ -49,7 +48,6 @@ def run(
 
 
 def annotate_assembly(ir_json, perf_annotations):
-    event_names = perf_annotations["events"]
     events = perf_annotations["annotations"]
     asm = ir_json["cols"][-1]
     assert asm["name"] == "Assembly"
@@ -81,6 +79,7 @@ def gen_html(args):
     with open(json_filename, "r") as f:
         ir_json = json.load(f)
     json_basename = os.path.basename(json_filename)
+    json_dir = os.path.dirname(os.path.realpath(json_filename))
     if args.perf is not None:
         with open(args.perf, "r") as f:
             perf_annotations = json.load(f)
@@ -90,7 +89,6 @@ def gen_html(args):
         )
         with open(perf_output, "w+") as f:
             json.dump(ir_json, f)
-    json_dir = os.path.dirname(os.path.realpath(json_filename))
     html_output = os.path.join(json_dir, json_basename.replace(".json", ".html"))
     with open(html_output, "w+") as f:
         f.write(gen_html_from_json(ir_json))
