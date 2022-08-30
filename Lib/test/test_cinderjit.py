@@ -3,9 +3,12 @@ import _testcapi
 import _testcindercapi
 import asyncio
 import builtins
+import re
 import cinder
 import dis
 import faulthandler
+import os
+import subprocess
 import gc
 from importlib import is_lazy_imports_enabled
 import sys
@@ -4516,6 +4519,37 @@ def func():
 """
         self.run_test(src)
 
+
+class PerfMapTests(unittest.TestCase):
+    HELPER_FILE = os.path.join(os.path.dirname(__file__), "perf_fork_helper.py")
+
+    def test_forked_pid_map(self):
+        proc = subprocess.run(
+            [sys.executable, "-X", "jit", "-X", "jit-perfmap", self.HELPER_FILE],
+            stdout=subprocess.PIPE,
+            encoding=sys.stdout.encoding,
+        )
+        self.assertEqual(proc.returncode, 0)
+
+        def find_mapped_funcs(which):
+            pattern = rf"{which}\(([0-9]+)\) computed "
+            m = re.search(pattern, proc.stdout)
+            self.assertIsNotNone(
+                m, f"Couldn't find /{pattern}/ in stdout:\n\n{proc.stdout}"
+            )
+            pid = int(m[1])
+            try:
+                with open(f"/tmp/perf-{pid}.map") as f:
+                    map_contents = f.read()
+            except FileNotFoundError:
+                self.fail(f"{which} process (pid {pid}) did not generate a map")
+
+            funcs = set(re.findall("__CINDER_JIT:__main__:(.+)", map_contents))
+            return funcs
+
+        self.assertEqual(find_mapped_funcs("parent"), {"main", "parent", "compute"})
+        self.assertEqual(find_mapped_funcs("child1"), {"main", "child1", "compute"})
+        self.assertEqual(find_mapped_funcs("child2"), {"main", "child2", "compute"})
 
 if __name__ == "__main__":
     unittest.main()

@@ -1246,6 +1246,11 @@ static void deopt_gen_visitor(PyObject* obj, void*) {
   }
 }
 
+static PyObject* after_fork_child(PyObject*, PyObject*) {
+  _PyJIT_AfterFork_Child();
+  Py_RETURN_NONE;
+}
+
 static PyMethodDef jit_methods[] = {
     {"disable",
      (PyCFunction)(void*)disable_jit,
@@ -1353,6 +1358,10 @@ static PyMethodDef jit_methods[] = {
      page_in_profiler_dependencies,
      METH_NOARGS,
      "Read the memory needed by ebpf-based profilers."},
+    {"after_fork_child",
+     after_fork_child,
+     METH_NOARGS,
+     "Callback to be invoked by the runtime after fork()."},
     {"_deopt_gen",
      deopt_gen,
      METH_O,
@@ -1393,6 +1402,40 @@ static int onJitListImpl(
 
 int _PyJIT_OnJitList(PyFunctionObject* func) {
   return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
+}
+
+// Call posix.register_at_fork(None, None, cinderjit.after_fork_child), if it
+// exists. Returns 0 on success or if the module/function doesn't exist, and -1
+// on any other errors.
+static int register_fork_callback(BorrowedRef<> cinderjit_module) {
+  auto os_module = Ref<>::steal(
+      PyImport_ImportModuleLevel("posix", nullptr, nullptr, nullptr, 0));
+  if (os_module == nullptr) {
+    PyErr_Clear();
+    return 0;
+  }
+  auto register_at_fork =
+      Ref<>::steal(PyObject_GetAttrString(os_module, "register_at_fork"));
+  if (register_at_fork == nullptr) {
+    PyErr_Clear();
+    return 0;
+  }
+  auto callback = Ref<>::steal(
+      PyObject_GetAttrString(cinderjit_module, "after_fork_child"));
+  if (callback == nullptr) {
+    return -1;
+  }
+  auto args = Ref<>::steal(PyTuple_New(0));
+  if (args == nullptr) {
+    return -1;
+  }
+  auto kwargs = Ref<>::steal(PyDict_New());
+  if (kwargs == nullptr ||
+      PyDict_SetItemString(kwargs, "after_in_child", callback) < 0 ||
+      PyObject_Call(register_at_fork, args, kwargs) == nullptr) {
+    return -1;
+  }
+  return 0;
 }
 
 // TODO(T130105107) Fix the leak and remove this setup.
@@ -1504,6 +1547,10 @@ int _PyJIT_Initialize() {
   int st = _PyImport_FixupExtensionObject(mod, modname, modname, modules);
   Py_DECREF(modname);
   if (st == -1) {
+    return -1;
+  }
+
+  if (register_fork_callback(mod) < 0) {
     return -1;
   }
 
