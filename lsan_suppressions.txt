@@ -4,6 +4,9 @@ leak:PyThread_allocate_lock
 leak:pymain_parse_cmdline_impl
 leak:PyArena_New
 leak:pymain_init
-# Below were added for 3.8
 leak:new_interpreter
 leak:Py_NewInterpreter
+# TODO(T130105107)
+leak:_PyJIT_InitializeInternedStrings
+# TODO(T130105576)
+leak:strictmod::

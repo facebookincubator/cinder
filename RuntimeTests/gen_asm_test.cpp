@@ -389,8 +389,10 @@ def test(a, b, c=100):
   pyfunc->vectorcall = compiled->entry_point();
   ASSERT_NE(compiled, nullptr);
 
-  PyObject* args[] = {
-      PyLong_FromLong(1), PyLong_FromLong(2), PyLong_FromLong(3)};
+  auto one = Ref<>::steal(PyLong_FromLong(1));
+  auto two = Ref<>::steal(PyLong_FromLong(2));
+  auto three = Ref<>::steal(PyLong_FromLong(3));
+  PyObject* args[] = {one, two, three};
   auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
@@ -916,18 +918,16 @@ def test(a):
   ASSERT_NE(compiled, nullptr);
 
   {
-    PyObject* args[] = {
-        PyLong_FromLong(1),
-    };
+    auto one = Ref<>::steal(PyLong_FromLong(1));
+    PyObject* args[] = {one.get()};
     auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
 
     ASSERT_EQ(res.get(), Py_False);
   }
 
   {
-    PyObject* args[] = {
-        PyLong_FromLong(0),
-    };
+    auto zero = Ref<>::steal(PyLong_FromLong(0));
+    PyObject* args[] = {zero.get()};
     auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
 
     ASSERT_EQ(res.get(), Py_True);
@@ -1331,7 +1331,8 @@ TEST_F(ASMGeneratorTest, GetLength) {
   auto consts = Ref<>::steal(PyTuple_New(1));
   Py_INCREF(Py_None);
   PyTuple_SET_ITEM(consts.get(), 0, Py_None);
-  auto varnames = Ref<>::steal(PyTuple_Pack(1, PyUnicode_FromString("param")));
+  auto param = Ref<>::steal(PyUnicode_FromString("param"));
+  auto varnames = Ref<>::steal(PyTuple_Pack(1, param.get()));
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       /*argcount=*/1,

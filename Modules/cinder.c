@@ -795,8 +795,10 @@ PyInit_cinder(void)
     }
     if (PyObject_SetAttrString(
             m, "STRUCTURED_DATA_VERSION", data_version) < 0) {
+        Py_DECREF(data_version);
         return NULL;
     }
+    Py_DECREF(data_version);
 
 
     if (PyType_Ready(&PyCachedProperty_Type) < 0) {

@@ -670,11 +670,11 @@ TEST_F(HIRBuildTest, SetUpdate) {
   auto filename = Ref<>::steal(PyUnicode_FromString("filename"));
   auto funcname = Ref<>::steal(PyUnicode_FromString("funcname"));
   auto empty_tuple = Ref<>::steal(PyTuple_New(0));
-  auto varnames = Ref<>::steal(PyTuple_Pack(
-      3,
-      PyUnicode_FromString("param0"),
-      PyUnicode_FromString("param1"),
-      PyUnicode_FromString("param2")));
+  auto param0 = Ref<>::steal(PyUnicode_FromString("param0"));
+  auto param1 = Ref<>::steal(PyUnicode_FromString("param1"));
+  auto param2 = Ref<>::steal(PyUnicode_FromString("param2"));
+  auto varnames =
+      Ref<>::steal(PyTuple_Pack(3, param0.get(), param1.get(), param2.get()));
   auto code = Ref<PyCodeObject>::steal(PyCode_New(
       /*argcount=*/3,
       0,

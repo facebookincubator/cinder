@@ -97,7 +97,8 @@ class Foo:
       reinterpret_cast<PyObject*>(foo.get()), new_args, nullptr));
   ASSERT_NE(new_args, nullptr) << "Failed creating instance";
 
-  auto args = Ref<>::steal(PyTuple_Pack(1, PyLong_FromLong(42)));
+  auto forty_two = Ref<>::steal(PyLong_FromLong(42));
+  auto args = Ref<>::steal(PyTuple_Pack(1, forty_two.get()));
   ASSERT_NE(args, nullptr) << "Failed creating args";
 
   auto result = Ref<>::steal(tp_call(instance, args, nullptr));

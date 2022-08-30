@@ -14,7 +14,7 @@ import shutil
 import threading
 import unittest
 from unittest import mock
-from test.support import verbose
+from test.support import verbose, check_sanitizer
 from test.support.import_helper import forget
 from test.support.os_helper import (TESTFN, unlink, rmtree)
 from test.support import script_helper, threading_helper
@@ -245,12 +245,14 @@ class ThreadedImportTests(unittest.TestCase):
         __import__(TESTFN)
         del sys.modules[TESTFN]
 
+    @unittest.skipIf(check_sanitizer(address=True, memory=True), "T130062356")
     def test_concurrent_futures_circular_import(self):
         # Regression test for bpo-43515
         fn = os.path.join(os.path.dirname(__file__),
                           'partial', 'cfimport.py')
         script_helper.assert_python_ok(fn)
 
+    @unittest.skipIf(check_sanitizer(address=True, memory=True), "T130062356")
     def test_multiprocessing_pool_circular_import(self):
         # Regression test for bpo-41567
         fn = os.path.join(os.path.dirname(__file__),

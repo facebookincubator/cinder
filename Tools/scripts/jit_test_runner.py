@@ -733,6 +733,13 @@ def replay_main(args):
 
 
 if __name__ == "__main__":
+    # Apparently some tests need this for consistency with other Python test
+    # running environments. Notably test_embed.
+    try:
+        sys.executable = os.path.realpath(sys.executable)
+    except OSError:
+        pass
+
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 

@@ -66,6 +66,11 @@ struct JitConfig {
 };
 static JitConfig jit_config;
 
+// TODO(T130105107) Fix leak so we can remove this.
+extern "C" const char* __asan_default_options() {
+  return "detect_leaks=0";
+}
+
 void initJitConfig_() {
   jit_config = JitConfig();
 }
@@ -1399,19 +1404,16 @@ int _PyJIT_OnJitList(PyFunctionObject* func) {
   return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
 }
 
-int _PyJIT_Initialize() {
-  // We have to reference at least one of the values exported for Strobelight
-  // to ensure the linker doesn't DCE the .data section containing them.
-  JIT_CHECK(
-      __strobe_CodeRuntime_py_code == CodeRuntime::kPyCodeOffset,
-      "Unexpected code offset");
-
-  if (jit_config.init_state == JIT_INITIALIZED) {
-    return 0;
-  }
-
-  initJitConfig_();
-
+// TODO(T130105107) Fix the leak and remove this setup.
+//
+// Broken out for LSAN suppression. I really don't understand how this leaks as
+// all the strings in here are decrefed on shutdown. When I looked at this the
+// string leaking was 'HAVE_ARGUMENT' and nothing else. Tracing through with rr
+// it doesn't seem like anything else is trying to use this interned string
+// either. At least nothing that increfs it.
+// This is Deliberately not static/anonymously namespaced so it's an exposed
+// symbol.
+int _PyJIT_InitializeInternedStrings() {
   // Initialize some interned strings that can be used even when the JIT is
   // off.
 #define INTERN_STR(s)                         \
@@ -1429,6 +1431,25 @@ int _PyJIT_Initialize() {
   }
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
+  return 0;
+}
+
+int _PyJIT_Initialize() {
+  // We have to reference at least one of the values exported for Strobelight
+  // to ensure the linker doesn't DCE the .data section containing them.
+  JIT_CHECK(
+      __strobe_CodeRuntime_py_code == CodeRuntime::kPyCodeOffset,
+      "Unexpected code offset");
+
+  if (jit_config.init_state == JIT_INITIALIZED) {
+    return 0;
+  }
+
+  if (_PyJIT_InitializeInternedStrings() == -1) {
+    return -1;
+  }
+
+  initJitConfig_();
 
   initFlagProcessor();
 

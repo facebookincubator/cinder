@@ -353,6 +353,9 @@ class BaseEventLoopTests(test_utils.TestCase):
         # check disabled if debug mode is disabled
         test_thread(self.loop, False, create_loop=True)
 
+    @unittest.skipUnderCinderJIT(
+            "Relies on time-taken which can be severely delayed with JIT. "
+            "Particularly with ASAN + debug build.")
     def test__run_once(self):
         h1 = asyncio.TimerHandle(time.monotonic() + 5.0, lambda: True, (),
                                  self.loop, None)

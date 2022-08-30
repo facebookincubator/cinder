@@ -5639,6 +5639,10 @@ module_init(void)
         goto fail;
     }
 
+    if (module_initialized) {
+        return 0;
+    }
+
     current_tasks = PyDict_New();
     if (current_tasks == NULL) {
         goto fail;

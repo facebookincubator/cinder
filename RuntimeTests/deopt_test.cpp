@@ -75,10 +75,6 @@ def test(a, b):
 
   reifyFrame(frame, dm, dfm, regs);
 
-  // Frame takes ownership of refs in a and b
-  a.release();
-  b.release();
-
   auto result = Ref<>::steal(PyEval_EvalFrame(frame));
   ASSERT_NE(result, nullptr);
   ASSERT_TRUE(PyLong_CheckExact(result));
@@ -131,10 +127,6 @@ def test(a, b):
       PyFrame_New(tstate, code, PyFunction_GetGlobals(func), nullptr));
 
   reifyFrame(frame, dm, dfm, regs);
-
-  // Frame takes ownership of refs in a and b
-  a.release();
-  b.release();
 
   auto result = Ref<>::steal(PyEval_EvalFrame(frame));
   ASSERT_NE(result, nullptr);
@@ -191,10 +183,6 @@ def test(a, b):
       Ref<PyFrameObject>::steal(PyFrame_New(tstate, code, globals, nullptr));
 
   reifyFrame(frame, dm, dfm, regs);
-
-  // Frame takes ownership of refs in a and b
-  a.release();
-  b.release();
 
   auto result = Ref<>::steal(PyEval_EvalFrame(frame));
   ASSERT_NE(result, nullptr);
@@ -261,11 +249,6 @@ def test(num):
       Ref<PyFrameObject>::steal(PyFrame_New(tstate, code, globals, nullptr));
 
   reifyFrame(frame, dm, dfm, regs);
-
-  // Frame takes ownership of refs
-  num.release();
-  fact.release();
-  tmp.release();
 
   auto result = Ref<>::steal(PyEval_EvalFrame(frame));
   ASSERT_NE(result, nullptr);

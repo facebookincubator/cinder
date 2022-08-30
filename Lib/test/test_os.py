@@ -743,6 +743,10 @@ class StatAttributeTests(unittest.TestCase):
         self.assertEqual(result.st_mode, stat.S_IFBLK)
 
 
+
+@unittest.skipUnderCinderJIT(
+    "Many tests rely on time-taken which can be severely delayed with JIT. "
+    "Particularly with ASAN + debug build.")
 class UtimeTests(unittest.TestCase):
     def setUp(self):
         self.dirname = os_helper.TESTFN
@@ -3361,7 +3365,8 @@ class TestSendfile(unittest.TestCase):
         self.server.start()
         self.client = socket.socket()
         self.client.connect((self.server.host, self.server.port))
-        self.client.settimeout(1)
+        # Cinder: bumped from 1 to 10 as ASAN + JIT can really slow things down.
+        self.client.settimeout(10)
         # synchronize by waiting for "220 ready" response
         self.client.recv(1024)
         self.sockno = self.client.fileno()
