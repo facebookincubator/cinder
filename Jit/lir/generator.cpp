@@ -2188,7 +2188,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const SetDictItem*>(&i);
         bbb.AppendCall(
             instr->GetOutput(),
-            PyDict_SetItem,
+            Ci_Dict_SetItemInternal,
             instr->GetOperand(0),
             instr->GetOperand(1),
             instr->GetOperand(2));
