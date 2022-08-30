@@ -4278,7 +4278,7 @@ struct TypedArgument {
         exact(exact),
         jit_type(jit_type) {
     ThreadedCompileSerialize guard;
-    pytype = Ref<PyTypeObject>::create(pytype);
+    this->pytype = Ref<PyTypeObject>::create(pytype);
   };
 
   long locals_idx;
