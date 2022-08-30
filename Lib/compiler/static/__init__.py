@@ -483,6 +483,8 @@ class Static38CodeGenerator(StrictCodeGenerator):
             self.emit("LOAD_CONST", ("chkdict",))
             self.emit("IMPORT_NAME", "_static")
             self.emit("IMPORT_FROM", "chkdict")
+            self.emit("ROT_TWO")
+            self.emit("POP_TOP")
         else:
             super().emit_load_builtin(name)
 

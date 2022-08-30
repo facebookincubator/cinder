@@ -351,7 +351,6 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
-    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_opt_in(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -508,7 +507,6 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), dict)
 
-    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -524,7 +522,6 @@ class CheckedDictTests(StaticTestBase):
                 test = mod.testfunc
                 test()
 
-    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call_2(self):
         codestr = """
             from __static__.compiler_flags import checked_dicts
@@ -537,7 +534,6 @@ class CheckedDictTests(StaticTestBase):
             test = mod.testfunc
             self.assertEqual(type(test()), chkdict[str, int])
 
-    @skip("TODO(T129214048): Proper compiler flag support is needed.")
     def test_compile_checked_dict_from_dict_call_3(self):
         # we emit the chkdict import first before future annotations, but that
         # should be fine as we're the compiler.
