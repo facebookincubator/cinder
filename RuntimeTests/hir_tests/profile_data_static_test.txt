@@ -61,6 +61,12 @@ fun jittestmodule:test {
     v11:CInt64[10] = LoadConst<CInt64[10]>
     v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v16:LongExact = GuardType<LongExact> v6 {
+      GuiltyReg v6
+      FrameState {
+        NextInstrOffset 18
+        Locals<1> v6
+        Stack<4> v6 v11 v6 v15
+      }
     }
     v18:Object = InPlaceOp<Add> v16 v15 {
       FrameState {
