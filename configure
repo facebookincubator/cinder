@@ -840,6 +840,7 @@ enable_optimizations
 with_lto
 with_broken_cinder_tests
 with_address_sanitizer
+enable_address_sanitizer_logging
 with_memory_sanitizer
 with_undefined_behavior_sanitizer
 with_thread_sanitizer
@@ -1520,6 +1521,8 @@ Optional Features:
                           no)
   --enable-optimizations  enable expensive, stable optimizations (PGO, etc.)
                           (default is no)
+  --enable-address-sanitizer-logging=basename
+                          log ASAN messages to files of the form basename.pid
   --enable-loadable-sqlite-extensions
                           support loadable extensions in _sqlite module, see
                           Doc/library/sqlite3.rst (default is no)
@@ -9596,10 +9599,30 @@ BASECFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECFLAGS"
 BASECXXFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=address $LDFLAGS"
 
-ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=0"
+ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,handle_sigbus=0,handle_sigill=0"
 
-ASAN_TEST_ENV_WITH_LSAN="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=1 \
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-address-sanitizer-logging" >&5
+$as_echo_n "checking for --enable-address-sanitizer-logging... " >&6; }
+# Check whether --enable-address_sanitizer_logging was given.
+if test "${enable_address_sanitizer_logging+set}" = set; then :
+  enableval=$enable_address_sanitizer_logging;
+    ASAN_TEST_ENV="$ASAN_TEST_ENV,log_path=$enableval"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $enableval" >&5
+$as_echo "$enableval" >&6; }
+
+else
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+
+
+
+ASAN_TEST_ENV_WITH_LSAN="$ASAN_TEST_ENV,detect_leaks=1 \
  LSAN_OPTIONS=suppressions=$(realpath $srcdir)/lsan_suppressions.txt,print_suppressions=0"
+
+ASAN_TEST_ENV="$ASAN_TEST_ENV,detect_leaks=0"
 
 # ASan works by controlling memory allocation, our own malloc interferes.
 with_pymalloc="no"

@@ -27,8 +27,7 @@ class ForkTest(ForkWait):
             imp.acquire_lock()
             sys.modules[fake_module_name] = partial_module
             import_started.set()
-            # Cinder: bumped from 0.01 to 1 as this can be racey with JIT + ASAN
-            time.sleep(1) # Give the other thread time to try and acquire.
+            time.sleep(0.01) # Give the other thread time to try and acquire.
             sys.modules[fake_module_name] = complete_module
             imp.release_lock()
         t = threading.Thread(target=importer)

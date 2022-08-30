@@ -2603,10 +2603,25 @@ BASECFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECFLAGS"
 BASECXXFLAGS="-fsanitize=address -fno-omit-frame-pointer $BASECXXFLAGS"
 LDFLAGS="-fsanitize=address $LDFLAGS"
 
-ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=0"
+ASAN_TEST_ENV="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,handle_sigbus=0,handle_sigill=0"
 
-ASAN_TEST_ENV_WITH_LSAN="ASAN_OPTIONS=handle_segv=0,handle_sigfpe=0,detect_leaks=1 \
+AC_MSG_CHECKING(for --enable-address-sanitizer-logging)
+AC_ARG_ENABLE(address_sanitizer_logging,
+  AS_HELP_STRING([--enable-address-sanitizer-logging=basename],
+                 [log ASAN messages to files of the form basename.pid]),
+  [
+    ASAN_TEST_ENV="$ASAN_TEST_ENV,log_path=$enableval"
+    AC_MSG_RESULT($enableval)
+  ],
+  [
+    AC_MSG_RESULT(no)
+  ])
+
+
+ASAN_TEST_ENV_WITH_LSAN="$ASAN_TEST_ENV,detect_leaks=1 \
  LSAN_OPTIONS=suppressions=$(realpath $srcdir)/lsan_suppressions.txt,print_suppressions=0"
+
+ASAN_TEST_ENV="$ASAN_TEST_ENV,detect_leaks=0"
 
 # ASan works by controlling memory allocation, our own malloc interferes.
 with_pymalloc="no"

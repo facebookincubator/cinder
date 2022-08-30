@@ -1612,9 +1612,6 @@ class EventLoopTestsMixin:
         self.loop.run_until_complete(write_proto.done)
         self.assertEqual('CLOSED', write_proto.state)
 
-    @unittest.skipUnderCinderJIT(
-        "Relies on time-taken which can be severely delayed with JIT. "
-        "Particularly with ASAN + debug build.")
     def test_prompt_cancellation(self):
         r, w = socket.socketpair()
         r.setblocking(False)

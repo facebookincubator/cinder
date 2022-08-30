@@ -425,6 +425,7 @@ class JITRegrtest(Regrtest):
         success_on_test_errors: bool,
         use_rr: bool,
         recording_metadata_path: str,
+        no_retry_on_test_errors: bool,
     ):
         Regrtest.__init__(self)
         self._jit_regr_runner_logfile = logfile
@@ -433,6 +434,7 @@ class JITRegrtest(Regrtest):
         self._worker_timeout = worker_timeout
         self._use_rr = use_rr
         self._recording_metadata_path = recording_metadata_path
+        self._no_retry_on_test_errors = no_retry_on_test_errors
 
     def run_tests(self) -> List[ReplayInfo]:
         self.test_count = "/{}".format(len(self.selected))
@@ -579,7 +581,7 @@ class JITRegrtest(Regrtest):
             self._writeResultsToScuba()
             print("done.")
 
-        if self.ns.verbose2 and self.bad:
+        if not self._no_retry_on_test_errors and self.ns.verbose2 and self.bad:
             self.rerun_failed_tests()
 
         self.finalize()
@@ -710,6 +712,7 @@ def dispatcher_main(args):
                 args.success_on_test_errors,
                 args.use_rr,
                 args.recording_metadata_path,
+                args.no_retry_on_test_errors,
             )
             test_runner.num_workers = args.num_workers
             print(f"Spawning {test_runner.num_workers} workers")
@@ -785,6 +788,11 @@ if __name__ == "__main__":
         "--success-on-test-errors",
         action="store_true",
         help="Return with exit code 0 even if tests fail",
+    )
+    dispatcher_parser.add_argument(
+        "--no-retry-on-test-errors",
+        action="store_true",
+        help="Do not retry tests which fail with verbose output",
     )
     dispatcher_parser.add_argument(
         "-t",

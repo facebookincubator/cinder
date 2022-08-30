@@ -1046,9 +1046,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             del g
             gc_collect()  # For PyPy or other GCs.
 
-            # Cinder: This number bumped from 0.1 to 1 as JIT compilation + ASAN
-            # delays things so much this test fails too often.
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
         self.loop.run_until_complete(run())
         self.assertEqual(DONE, 1)
