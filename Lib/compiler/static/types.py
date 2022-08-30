@@ -3410,7 +3410,10 @@ class Callable(Object[TClass]):
         if self.has_kwarg:
             # if we accept **kwargs, the overridden method can define any kwarg it wants
             # and it remains a valid override
-            override_args = [p for p in override_args if not p.has_default]
+            arg_names = set(arg.name for arg in args)
+            override_args = [
+                p for p in override_args if not p.has_default or p.name in arg_names
+            ]
 
         if len(args) != len(override_args):
             module.syntax_error(
