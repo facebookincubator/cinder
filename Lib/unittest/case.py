@@ -1552,7 +1552,6 @@ class PortFeature(enum.Enum):
     OPC_CHECK_ARGS = enum.auto()
     OPC_CONVERT_PRIMITIVE = enum.auto()
     OPC_FAST_LEN = enum.auto()
-    OPC_INT_LOAD_CONST_OLD = enum.auto()
     OPC_INVOKE_FUNCTION = enum.auto()
     OPC_INVOKE_METHOD = enum.auto()
     OPC_JUMP_IF_NONZERO_OR_POP = enum.auto()

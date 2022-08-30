@@ -280,7 +280,6 @@ hasconst.append(171)
 def_op("STORE_LOCAL", 172)
 hasconst.append(172)
 
-def_op("INT_LOAD_CONST_OLD", 173)
 def_op("PRIMITIVE_BOX", 174)
 
 jabs_op("POP_JUMP_IF_ZERO", 175)

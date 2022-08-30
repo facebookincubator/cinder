@@ -67,7 +67,6 @@ Register* TempAllocator::AllocateNonStack() {
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // Static Python opcodes
-    INT_LOAD_CONST_OLD,
     INVOKE_FUNCTION,
     INVOKE_METHOD,
     JUMP_IF_NONZERO_OR_POP,
@@ -484,7 +483,6 @@ static bool should_snapshot(
     case DUP_TOP:
     case DUP_TOP_TWO:
     case EXTENDED_ARG:
-    case INT_LOAD_CONST_OLD:
     case IS_OP:
     case LOAD_ASSERTION_ERROR:
     case LOAD_CLOSURE:
@@ -1047,10 +1045,6 @@ void HIRBuilder::translate(
         }
         case PRIMITIVE_LOAD_CONST: {
           emitPrimitiveLoadConst(tc, bc_instr);
-          break;
-        }
-        case INT_LOAD_CONST_OLD: {
-          emitIntLoadConstOld(tc, bc_instr);
           break;
         }
         case PRIMITIVE_BOX: {
@@ -2591,14 +2585,6 @@ void HIRBuilder::emitPrimitiveLoadConst(
         : Type::fromCInt(PyLong_AsLong(num), size);
   }
   tc.emit<LoadConst>(tmp, type);
-  tc.frame.stack.push(tmp);
-}
-
-void HIRBuilder::emitIntLoadConstOld(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-  Register* tmp = temps_.AllocateStack();
-  tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
   tc.frame.stack.push(tmp);
 }
 

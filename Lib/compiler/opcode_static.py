@@ -20,7 +20,6 @@ opcode.def_op("LOAD_LOCAL", 171)
 opcode.hasconst.add(171)
 opcode.def_op("STORE_LOCAL", 172)
 opcode.hasconst.add(172)
-opcode.def_op("INT_LOAD_CONST_OLD", 173)
 opcode.def_op("PRIMITIVE_BOX", 174)
 opcode.jabs_op("POP_JUMP_IF_ZERO", 175)
 opcode.jabs_op("POP_JUMP_IF_NONZERO", 176)
@@ -70,7 +69,6 @@ opcode.stack_effects.update(
     CAST=0,
     LOAD_LOCAL=1,
     STORE_LOCAL=-1,
-    INT_LOAD_CONST_OLD=1,
     PRIMITIVE_BOX=0,
     POP_JUMP_IF_ZERO=-1,
     POP_JUMP_IF_NONZERO=-1,

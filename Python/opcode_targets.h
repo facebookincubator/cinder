@@ -172,7 +172,7 @@ static void *opcode_targets[256] = {
     &&TARGET_CAST,
     &&TARGET_LOAD_LOCAL,
     &&TARGET_STORE_LOCAL,
-    &&TARGET_INT_LOAD_CONST_OLD,
+    &&_unknown_opcode,
     &&TARGET_PRIMITIVE_BOX,
     &&TARGET_POP_JUMP_IF_ZERO,
     &&TARGET_POP_JUMP_IF_NONZERO,

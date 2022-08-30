@@ -5187,10 +5187,6 @@ main_loop:
             DISPATCH();
         }
 
-        case TARGET(INT_LOAD_CONST_OLD): {
-            PORT_ASSERT("Unsupported: INT_LOAD_CONST_OLD");
-        }
-
         case TARGET(PRIMITIVE_BOX): {
             if ((oparg & (TYPED_INT_SIGNED)) && oparg != (TYPED_DOUBLE)) {
                 /* We have a boxed value on the stack already, but we may have to

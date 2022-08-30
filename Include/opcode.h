@@ -147,7 +147,6 @@ extern "C" {
   X(CAST,                            170) \
   X(LOAD_LOCAL,                      171) \
   X(STORE_LOCAL,                     172) \
-  X(INT_LOAD_CONST_OLD,              173) \
   X(PRIMITIVE_BOX,                   174) \
   X(POP_JUMP_IF_ZERO,                175) \
   X(POP_JUMP_IF_NONZERO,             176) \
