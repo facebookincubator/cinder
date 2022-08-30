@@ -1,3 +1,4 @@
+from compiler.consts import CO_STATICALLY_COMPILED
 from compiler.pycodegen import PythonCodeGenerator
 from dataclasses import (
     _DataclassParams,
@@ -10,7 +11,6 @@ from dataclasses import (
     MISSING,
 )
 from typing import Mapping
-from unittest import skip
 
 from .common import StaticTestBase
 
@@ -1746,3 +1746,14 @@ class DataclassTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             self.assertTrue(is_dataclass(mod.C))
             self.assertTrue(mod.C.__dataclass_params__.frozen)
+
+    def test_dataclass_methods_statically_compiled(self) -> None:
+        codestr = """
+        from dataclasses import dataclass
+        @dataclass
+        class C:
+            x: int
+            y: str
+        """
+        with self.in_module(codestr) as mod:
+            self.assertTrue(mod.C.__init__.__code__.co_flags & CO_STATICALLY_COMPILED)

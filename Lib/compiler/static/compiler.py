@@ -409,6 +409,7 @@ class Compiler:
             "Lib/dataclasses.py",
             self,
             {
+                "dataclass": self.type_env.dataclass,
                 "Field": self.type_env.dataclass_field,
                 "InitVar": self.type_env.initvar,
                 "dataclass": self.type_env.dataclass,
