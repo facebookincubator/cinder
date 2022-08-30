@@ -440,8 +440,6 @@ error:
     return NULL;
 }
 
-/* TODO(T128335015): Enable this when we have async/await support. */
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static PyObject *
 ctxmgrwrp_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result)
 {
@@ -455,7 +453,6 @@ ctxmgrwrp_cb(_PyClassLoader_Awaitable *awaitable, PyObject *result)
     }
     return ctxmgrwrp_exit(result != NULL, NULL, result, awaitable->state);
 }
-#endif
 
 extern int _PyObject_GetMethod(PyObject *, PyObject *, PyObject **);
 
@@ -558,8 +555,6 @@ error:
     return NULL;
 }
 
-/* TODO(T128335015): Enable this when we have async/await support. */
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
 static int
 ctxmgrwrp_first_send(_PyClassLoader_Awaitable *self) {
     /* Handles calling __enter__ on the first step of the co-routine when
@@ -611,7 +606,6 @@ ctxmgrwrp_make_awaitable(_Py_ContextManagerWrapper *ctxmgrwrp, PyObject *ctx_mgr
     Py_XDECREF(exit);
     return res;
 }
-#endif
 
 PyTypeObject _PyContextDecoratorWrapper_Type;
 
@@ -647,14 +641,13 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
     /* Call the wrapped function */
     PyObject *res = _PyObject_Vectorcall(self->func, args, nargsf, kwargs);
     /* TODO(T128335015): Enable this when we have async/await support. */
-#ifdef CINDER_PORTING_HAVE_STATIC_PYTHON
     if (self->is_coroutine && res != NULL) {
         /* If it's a co-routine either pass up the eagerly awaited value or
          * pass out a wrapping awaitable */
         int eager = _PyWaitHandle_CheckExact(res);
         if (eager) {
             PyWaitHandleObject *handle = (PyWaitHandleObject *)res;
-            if (handle->wh_waiter == NULL) {
+            if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
                 assert(nargsf & Ci_Py_AWAITED_CALL_MARKER && exit != NULL);
                 res = ctxmgrwrp_exit(1, ctx_mgr, res, exit);
                 Py_DECREF(exit);
@@ -675,7 +668,6 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
          * out the error from creating the co-routine */
         return NULL;
     }
-#endif
 
     /* Call __exit__ */
     res = ctxmgrwrp_exit(self->is_coroutine, ctx_mgr, res, exit);
