@@ -452,7 +452,6 @@ class CheckedListTests(StaticTestBase):
 
     def test_checked_list_literal_opt_in(self):
         codestr = """
-            from __static__ import CheckedList
             from __static__.compiler_flags import checked_lists
 
             def testfunc():
@@ -464,6 +463,19 @@ class CheckedListTests(StaticTestBase):
             l = f()
             self.assertInBytecode(f, "BUILD_CHECKED_LIST")
             self.assertEqual(repr(l), "[1, 2, 3, 4]")
+            self.assertEqual(type(l), CheckedList[int])
+
+    def test_checked_list_call_opt_in(self):
+        codestr = """
+            from __static__.compiler_flags import checked_lists
+
+            def testfunc():
+                a = list[int]((1, 2))
+                return a
+        """
+        with self.in_module(codestr) as mod:
+            l = mod.testfunc()
+            self.assertEqual(repr(l), "[1, 2]")
             self.assertEqual(type(l), CheckedList[int])
 
     def test_checked_list_literal_opt_in_with_explicit_list_annotation_type_error(self):

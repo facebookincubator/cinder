@@ -478,11 +478,18 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.get_type(decorator).emit_decorator_call(class_def, self)
 
     def emit_load_builtin(self, name: str) -> None:
-        if name == "dict" and ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
+        is_checked_dict = (
+            name == "dict" and ModuleFlag.CHECKED_DICTS in self.cur_mod.flags
+        )
+        is_checked_list = (
+            name == "list" and ModuleFlag.CHECKED_LISTS in self.cur_mod.flags
+        )
+        if is_checked_dict or is_checked_list:
+            chkname = f"chk{name}"
             self.emit("LOAD_CONST", 0)
-            self.emit("LOAD_CONST", ("chkdict",))
+            self.emit("LOAD_CONST", (chkname,))
             self.emit("IMPORT_NAME", "_static")
-            self.emit("IMPORT_FROM", "chkdict")
+            self.emit("IMPORT_FROM", chkname)
             self.emit("ROT_TWO")
             self.emit("POP_TOP")
         else:
@@ -491,6 +498,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def visitModule(self, node: Module) -> None:
         if ModuleFlag.CHECKED_DICTS in self.cur_mod.flags:
             self.emit_restore_builtin("dict")
+
+        if ModuleFlag.CHECKED_LISTS in self.cur_mod.flags:
+            self.emit_restore_builtin("list")
 
         super().visitModule(node)
 
