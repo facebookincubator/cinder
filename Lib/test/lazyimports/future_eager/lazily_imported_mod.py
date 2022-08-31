@@ -1,1 +1,1 @@
-assert(False, "should never execute")
+assert False, "should never execute"
