@@ -303,7 +303,8 @@ class Block:
         return f"<block label={self.label} bid={self.bid} startdepth={self.startdepth}: {insts}>"
 
     def emit(self, instr: Instruction) -> None:
-        if instr.opname == "RETURN_VALUE":
+        # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
+        if instr.opname in ("RETURN_VALUE", "RETURN_PRIMITIVE"):
             self.returns = True
 
         self.insts.append(instr)
@@ -327,7 +328,11 @@ class Block:
         self.next = None
 
     def has_return(self):
-        return self.insts and self.insts[-1].opname == "RETURN_VALUE"
+        # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
+        return self.insts and self.insts[-1].opname in (
+            "RETURN_VALUE",
+            "RETURN_PRIMITIVE",
+        )
 
     def get_children(self):
         return list(self.outEdges) + ([self.next] if self.next is not None else [])
@@ -637,10 +642,12 @@ class PyFlowGraph(FlowGraph):
 
                 depth = new_depth
 
+                # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
                 if instr.opname in (
                     "JUMP_ABSOLUTE",
                     "JUMP_FORWARD",
                     "RETURN_VALUE",
+                    "RETURN_PRIMITIVE",
                     "RAISE_VARARGS",
                     "RERAISE",
                 ):
@@ -967,7 +974,8 @@ class PyFlowGraph(FlowGraph):
                 continue
             last_instr = block.insts[-1]
             if last_instr.lineno < 0:
-                if last_instr.opname == "RETURN_VALUE":
+                # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
+                if last_instr.opname in ("RETURN_VALUE", "RETURN_PRIMITIVE"):
                     for instr in block.insts:
                         assert instr.lineno < 0
                         instr.lineno = lineno
@@ -1125,7 +1133,13 @@ class PyFlowGraph(FlowGraph):
         """Sets the `fallthrough` and `exit` properties of a block, and ensures that the targets of
         any jumps point to non-empty blocks by following the next pointer of empty blocks."""
         for instr in block.getInstructions():
-            if instr.opname in ("RETURN_VALUE", "RAISE_VARARGS", "RERAISE"):
+            # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
+            if instr.opname in (
+                "RETURN_VALUE",
+                "RETURN_PRIMITIVE",
+                "RAISE_VARARGS",
+                "RERAISE",
+            ):
                 block.is_exit = True
                 block.no_fallthrough = True
                 continue

@@ -1513,6 +1513,10 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_primitive_defaults(self):
         code = """
             from __static__ import int64, box
@@ -1530,6 +1534,10 @@ class PrimitivesTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assertEqual(f(0), 0)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_primitive_defaults_nested_func(self):
         code = """
             from __static__ import int64, box
@@ -2844,10 +2852,6 @@ class PrimitivesTests(StaticTestBase):
                 with self.in_strict_module(codestr) as mod:
                     self.assertEqual(mod.g(), expected)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_primitive_return(self):
         cases = [
             ("cbool", True),
@@ -2932,10 +2936,6 @@ class PrimitivesTests(StaticTestBase):
                     else:
                         self.assert_jitted(f)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_primitive_return_recursive(self):
         codestr = """
             from __static__ import int32

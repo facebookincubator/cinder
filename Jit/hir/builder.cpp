@@ -68,7 +68,6 @@ Register* TempAllocator::AllocateNonStack() {
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // Static Python opcodes
     INVOKE_METHOD,
-    RETURN_PRIMITIVE,
     // Readonly
     FUNC_CREDENTIAL,
     READONLY_OPERATION,
@@ -192,6 +191,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     RAISE_VARARGS,
     REFINE_TYPE,
     RERAISE,
+    RETURN_PRIMITIVE,
     RETURN_VALUE,
     ROT_FOUR,
     ROT_N,
