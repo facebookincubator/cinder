@@ -2,7 +2,8 @@ import ast
 import re
 from compiler.static import StaticCodeGenerator
 from compiler.static.compiler import Compiler
-from compiler.static.module_table import ModuleTable
+from compiler.static.module_table import ModuleTable, ModuleTableException
+from compiler.static.types import Class, TypeName
 from textwrap import dedent
 
 from .common import bad_ret_type, StaticTestBase
@@ -233,3 +234,31 @@ class DeclarationVisitorTests(StaticTestBase):
         bcomp = compiler.compile("b", "b.py", compiler.btree, optimize=1)
         x = self.find_code(self.find_code(acomp, "C"), "f")
         self.assertInBytecode(x, "INVOKE_METHOD", (("b", "B", "g"), 0))
+
+    def test_declaring_toplevel_local_after_decl_visit_error(self) -> None:
+        codestr = """
+        class C:
+            pass
+        """
+
+        class CustomCodeGenerator(StaticCodeGenerator):
+            def visitClassDef(self, node):
+                super().visitClassDef(node)
+                self.cur_mod.declare_class(
+                    node, Class(TypeName("mod", "C"), self.compiler.type_env)
+                )
+
+        class CustomCompiler(Compiler):
+            def __init__(self):
+                super().__init__(CustomCodeGenerator)
+
+            def import_module(self, name: str, optimize: int) -> ModuleTable:
+                if name == "b":
+                    btree = ast.parse(dedent(bcode))
+
+        compiler = CustomCompiler()
+        with self.assertRaisesRegex(
+            ModuleTableException,
+            "Attempted to declare a class after the declaration visit",
+        ):
+            compiler.compile("a", "a.py", ast.parse(dedent(codestr)), optimize=1)

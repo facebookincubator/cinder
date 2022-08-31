@@ -555,7 +555,7 @@ class DataclassTests(StaticTestBase):
                 "bar",
             )
 
-    def test_cannot_assign_incorrect_type(self) -> None:
+    def test_cannot_assign_incorrect_type_toplevel(self) -> None:
         codestr = """
         from dataclasses import dataclass
 
@@ -565,6 +565,24 @@ class DataclassTests(StaticTestBase):
 
         c = C("foo")
         c.x = 1
+        """
+        with self.assertRaisesRegex(
+            TypeError, "expected 'str', got 'int' for attribute 'x'"
+        ):
+            with self.in_module(codestr):
+                pass
+
+    def test_cannot_assign_incorrect_type_static_error(self) -> None:
+        codestr = """
+        from dataclasses import dataclass
+
+        @dataclass
+        class C:
+            x: str
+
+        def func():
+            c = C("foo")
+            c.x = 1
         """
         self.type_error(
             codestr,
@@ -591,7 +609,7 @@ class DataclassTests(StaticTestBase):
                 1,
             )
 
-    def test_cannot_assign_to_frozen_dataclass_field(self) -> None:
+    def test_cannot_assign_to_frozen_dataclass_field_toplevel(self) -> None:
         codestr = """
         from dataclasses import dataclass
 
@@ -602,13 +620,47 @@ class DataclassTests(StaticTestBase):
         c = C("foo")
         c.x = "bar"
         """
+        with self.assertRaisesRegex(FrozenInstanceError, "cannot assign to field 'x'"):
+            with self.in_module(codestr):
+                pass
+
+    def test_cannot_assign_to_frozen_dataclass_field_static(self) -> None:
+        codestr = """
+        from dataclasses import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        def f():
+            c = C("foo")
+            c.x = "bar"
+        """
         self.type_error(
             codestr,
             "cannot assign to field 'x' of frozen dataclass '<module>.C'",
             at='c.x = "bar"',
         )
 
-    def test_cannot_delete_frozen_dataclass_field(self) -> None:
+    def test_cannot_delete_frozen_dataclass_field_static_error(self) -> None:
+        codestr = """
+        from dataclasses import dataclass
+
+        @dataclass(frozen=True)
+        class C:
+            x: str
+
+        def func():
+            c = C("foo")
+            del c.x
+        """
+        self.type_error(
+            codestr,
+            "cannot delete field 'x' of frozen dataclass '<module>.C'",
+            at="c.x",
+        )
+
+    def test_cannot_delete_frozen_dataclass_field_toplevel_dynamic_error(self) -> None:
         codestr = """
         from dataclasses import dataclass
 
@@ -619,11 +671,9 @@ class DataclassTests(StaticTestBase):
         c = C("foo")
         del c.x
         """
-        self.type_error(
-            codestr,
-            "cannot delete field 'x' of frozen dataclass '<module>.C'",
-            at="c.x",
-        )
+        with self.assertRaisesRegex(FrozenInstanceError, "cannot delete field 'x'"):
+            with self.in_module(codestr):
+                pass
 
     def test_frozen_field_subclass(self) -> None:
         codestr = """

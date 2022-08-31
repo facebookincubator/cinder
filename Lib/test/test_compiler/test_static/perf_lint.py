@@ -116,8 +116,9 @@ class PerfLintTests(StaticTestBase):
         class C(B):
             pass
 
-        c = C()
-        c.a
+        def func():
+            c = C()
+            c.a
         """
 
         errors = self.perf_lint(codestr)
@@ -154,8 +155,9 @@ class PerfLintTests(StaticTestBase):
         class C(B):
             pass
 
-        c = C()
-        c.a = 1
+        def f():
+            c = C()
+            c.a = 1
         """
 
         errors = self.perf_lint(codestr)
@@ -174,8 +176,9 @@ class PerfLintTests(StaticTestBase):
             def a(self) -> int:
                 return 0
 
-        c = C()
-        c.a
+        def func():
+            c = C()
+            c.a
         """
 
         errors = self.perf_lint(codestr)
@@ -213,8 +216,9 @@ class PerfLintTests(StaticTestBase):
             def a(self, value: int) -> None:
                 pass
 
-        c = C()
-        c.a = 1
+        def func():
+            c = C()
+            c.a = 1
         """
 
         errors = self.perf_lint(codestr)
