@@ -87,7 +87,6 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     SEQUENCE_GET,
     SEQUENCE_REPEAT,
     SEQUENCE_SET,
-    STORE_FIELD,
 
     // Readonly
     FUNC_CREDENTIAL,
@@ -210,6 +209,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     STORE_ATTR,
     STORE_DEREF,
     STORE_FAST,
+    STORE_FIELD,
     STORE_LOCAL,
     STORE_SUBSCR,
     TP_ALLOC,
