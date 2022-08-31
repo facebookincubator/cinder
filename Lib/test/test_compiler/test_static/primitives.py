@@ -886,10 +886,6 @@ class PrimitivesTests(StaticTestBase):
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
         self.assertEqual(f(1, 2), False)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_int_compare_mixed(self):
         codestr = """
         from __static__ import box, ssize_t
@@ -1575,6 +1571,10 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_error_nested_starargs_ann(self):
         code = """
             from __static__ import int64
@@ -1590,6 +1590,10 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_error_nested_kwargs_ann(self):
         code = """
             from __static__ import int64
@@ -2624,6 +2628,10 @@ class PrimitivesTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 print(mod.n(-128, 2))
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_primitive_args_funcdef_missing_starargs(self):
         codestr = """
             from __static__ import int8, box
@@ -2704,6 +2712,10 @@ class PrimitivesTests(StaticTestBase):
                     else:
                         self.assertEqual(mod.x(val), val)
 
+    @skipIf(
+        cinderjit is not None,
+        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
+    )
     def test_primitive_args_funcdef_missing_kw_call(self):
         codestr = """
             from __static__ import int8, box

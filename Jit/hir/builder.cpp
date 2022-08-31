@@ -69,14 +69,7 @@ const std::unordered_set<int> kUnsupportedOpcodes = {
     // Static Python opcodes
     INVOKE_METHOD,
     LOAD_ITERABLE_ARG,
-    PRIMITIVE_BINARY_OP,
-    PRIMITIVE_BOX,
-    PRIMITIVE_COMPARE_OP,
-    PRIMITIVE_LOAD_CONST,
-    PRIMITIVE_UNARY_OP,
-    PRIMITIVE_UNBOX,
     RETURN_PRIMITIVE,
-
     // Readonly
     FUNC_CREDENTIAL,
     READONLY_OPERATION,
@@ -190,6 +183,12 @@ const std::unordered_set<int> kSupportedOpcodes = {
     POP_JUMP_IF_TRUE,
     POP_JUMP_IF_ZERO,
     POP_TOP,
+    PRIMITIVE_BINARY_OP,
+    PRIMITIVE_BOX,
+    PRIMITIVE_COMPARE_OP,
+    PRIMITIVE_LOAD_CONST,
+    PRIMITIVE_UNARY_OP,
+    PRIMITIVE_UNBOX,
     RAISE_VARARGS,
     REFINE_TYPE,
     RERAISE,
