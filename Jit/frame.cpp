@@ -180,11 +180,10 @@ Ref<PyFrameObject> createPyFrame(
         static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
     JIT_CHECK(!frame_state->isGen(), "unexpected generator in inlined frame");
   }
-  PyFrameConstructor py_frame_ctor = {
-      .fc_globals = frame_state->globals(),
-      .fc_builtins = frame_state->builtins(),
-      .fc_code = frame_state->code(),
-  };
+  PyFrameConstructor py_frame_ctor = {};
+  py_frame_ctor.fc_globals = frame_state->globals();
+  py_frame_ctor.fc_builtins = frame_state->builtins();
+  py_frame_ctor.fc_code = frame_state->code();
   Ref<PyFrameObject> py_frame = Ref<PyFrameObject>::steal(
       _PyFrame_New_NoTrack(tstate, &py_frame_ctor, nullptr));
   _PyObject_GC_TRACK(py_frame);
@@ -268,6 +267,7 @@ PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
       JIT_CHECK(false, "completed generators don't have frames");
     }
   }
+  Py_UNREACHABLE();
 }
 
 // Ensure that a PyFrameObject with f_lasti equal to last_instr_offset exists
