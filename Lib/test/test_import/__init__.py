@@ -1171,6 +1171,10 @@ class ImportTracebackTests(unittest.TestCase):
         self.assert_traceback(tb, [__file__, 'foo.py', 'bar.py'])
 
     # A few more examples from issue #15425
+    @unittest.skipIf(getattr(sys.implementation, '_is_cinder', False),
+                     "Cinder's Python compiler in Python (-X usepycompiler) "
+                     "will cause some extra frames and extra files to be in "
+                     "the exception traceback.")
     def test_syntax_error(self):
         self.create_module("foo", "invalid syntax is invalid")
         try:
