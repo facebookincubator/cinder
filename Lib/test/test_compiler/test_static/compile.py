@@ -54,9 +54,10 @@ RICHARDS_PATH = path.join(
     "..",
     "..",
     "..",
+    "..",
     "Tools",
     "benchmarks",
-    "richards_static.py",
+    "richards_static_lib.py",
 )
 
 
@@ -4270,7 +4271,6 @@ class StaticCompilationTests(StaticTestBase):
     def test_richards(self):
         with open(RICHARDS_PATH) as f:
             codestr = f.read()
-
         with self.in_module(codestr) as mod:
             Richards = mod.Richards
             self.assertTrue(Richards().run(1))

@@ -6220,7 +6220,17 @@ main_loop:
         }
 
         case TARGET(PRIMITIVE_STORE_FAST): {
-            PORT_ASSERT("Unsupported: PRIMITIVE_STORE_FAST");
+            int type = oparg & 0xF;
+            int idx = oparg >> 4;
+            PyObject *value = POP();
+            if (type == TYPED_DOUBLE) {
+                SETLOCAL(idx, POP());
+            } else {
+                Py_ssize_t val = unbox_primitive_int_and_decref(value);
+                SETLOCAL(idx, box_primitive(type, val));
+            }
+
+            DISPATCH();
         }
 
         case TARGET(CAST_CACHED_OPTIONAL): {
@@ -6245,7 +6255,15 @@ main_loop:
         }
 
         case TARGET(LOAD_PRIMITIVE_FIELD): {
-            PORT_ASSERT("Unsupported: LOAD_PRIMITIVE_FIELD");
+            _FieldCache *cache = _PyShadow_GetFieldCache(&shadow, oparg);
+            PyObject *value = load_field(cache->type, ((char *)TOP()) + cache->offset);
+            if (value == NULL) {
+                goto error;
+            }
+
+            Py_DECREF(TOP());
+            SET_TOP(value);
+            DISPATCH();
         }
 
         case TARGET(STORE_PRIMITIVE_FIELD): {
@@ -6258,7 +6276,20 @@ main_loop:
         }
 
         case TARGET(LOAD_OBJ_FIELD): {
-            PORT_ASSERT("Unsupported: LOAD_OBJ_FIELD");
+            PyObject *self = TOP();
+            PyObject **addr = FIELD_OFFSET(self, oparg * sizeof(PyObject *));
+            PyObject *value = *addr;
+            if (value == NULL) {
+                PyErr_Format(PyExc_AttributeError,
+                             "'%.50s' object has no attribute",
+                             Py_TYPE(self)->tp_name);
+                goto error;
+            }
+
+            Py_INCREF(value);
+            Py_DECREF(self);
+            SET_TOP(value);
+            DISPATCH();
         }
 
         case TARGET(STORE_OBJ_FIELD): {
