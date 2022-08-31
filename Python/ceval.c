@@ -6261,7 +6261,12 @@ main_loop:
         }
 
         case TARGET(CAST_CACHED_OPTIONAL_EXACT): {
-            PORT_ASSERT("Unsupported: CAST_CACHED_OPTIONAL_EXACT");
+            PyObject *val = TOP();
+            PyTypeObject *type = (PyTypeObject *)_PyShadow_GetCastType(&shadow, oparg);
+            if (!_PyObject_TypeCheckOptional(val, type, /* opt */ 1, /* exact */ 1)) {
+                CAST_COERCE_OR_ERROR(val, type, /* exact */ 1);
+            }
+            DISPATCH();
         }
 
         case TARGET(LOAD_PRIMITIVE_FIELD): {
