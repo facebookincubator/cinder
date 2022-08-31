@@ -66,8 +66,6 @@ Register* TempAllocator::AllocateNonStack() {
 // This contains the set of unsupported opcodes. Move opcodes from this set
 // into the one in the `#else` block below to enable them in the JIT.
 const std::unordered_set<int> kUnsupportedOpcodes = {
-    // Static Python opcodes
-    INVOKE_METHOD,
     // Readonly
     FUNC_CREDENTIAL,
     READONLY_OPERATION,
@@ -143,6 +141,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_TRUE_DIVIDE,
     INPLACE_XOR,
     INVOKE_FUNCTION,
+    INVOKE_METHOD,
     IS_OP,
     JUMP_ABSOLUTE,
     JUMP_FORWARD,

@@ -12,10 +12,6 @@ except ImportError:
 
 
 class CheckedDictTests(StaticTestBase):
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_chkdict_method(self):
         codestr = """
         from __static__ import CheckedDict

@@ -1513,10 +1513,6 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_primitive_defaults(self):
         code = """
             from __static__ import int64, box
@@ -1534,10 +1530,6 @@ class PrimitivesTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assertEqual(f(0), 0)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_primitive_defaults_nested_func(self):
         code = """
             from __static__ import int64, box
@@ -1579,10 +1571,6 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_error_nested_starargs_ann(self):
         code = """
             from __static__ import int64
@@ -1598,10 +1586,6 @@ class PrimitivesTests(StaticTestBase):
         ):
             self.compile(code)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_error_nested_kwargs_ann(self):
         code = """
             from __static__ import int64
@@ -2636,10 +2620,6 @@ class PrimitivesTests(StaticTestBase):
             with self.assertRaises(TypeError):
                 print(mod.n(-128, 2))
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_primitive_args_funcdef_missing_starargs(self):
         codestr = """
             from __static__ import int8, box
@@ -2720,10 +2700,6 @@ class PrimitivesTests(StaticTestBase):
                     else:
                         self.assertEqual(mod.x(val), val)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Blocked on eager evaluation of coroutines.",
-    )
     def test_primitive_args_funcdef_missing_kw_call(self):
         codestr = """
             from __static__ import int8, box

@@ -396,7 +396,6 @@ class CheckedListTests(StaticTestBase):
             type_mismatch("chklist[Union[int, str]]", "chklist[int]"),
         )
 
-    @skipIf(cinderjit is not None, "TODO(T129449837): The function isn't jitted.")
     def test_checked_list_literal_basic_unpack(self):
         codestr = """
             from __static__ import CheckedList

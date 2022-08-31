@@ -1657,10 +1657,6 @@ class StaticCompilationTests(StaticTestBase):
                 """
             )
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_cast(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
             codestr = """
@@ -1683,10 +1679,6 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertTrue(isinstance(f(), C))
                 self.assert_jitted(f)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_cast_fail(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
             codestr = """
@@ -1725,10 +1717,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaises(TypedSyntaxError):
             self.compile(codestr)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_cast_optional(self):
         for code_gen in (StaticCodeGenerator, PythonCodeGenerator):
             codestr = """
@@ -1849,10 +1837,6 @@ class StaticCompilationTests(StaticTestBase):
             C = mod.C
             self.assertEqual(C().g(), 42)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_builtin_func(self):
         codestr = """
         from xxclassloader import foo
@@ -1889,10 +1873,6 @@ class StaticCompilationTests(StaticTestBase):
         finally:
             sys.modules["xxclassloader"] = xxclassloader
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_builtin_func_arg(self):
         codestr = """
         from xxclassloader import bar
@@ -1909,10 +1889,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertEqual(f(), 42)
             self.assert_jitted(f)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_func_unexistent_module(self):
         codestr = """
         from xxclassloader import bar
@@ -1937,10 +1913,6 @@ class StaticCompilationTests(StaticTestBase):
             finally:
                 sys.modules["xxclassloader"] = xxclassloader
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_meth_o(self):
         codestr = """
         from xxclassloader import spamobj
@@ -3934,10 +3906,6 @@ class StaticCompilationTests(StaticTestBase):
             c = C()
             self.assertEqual(c.x, None)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_and_raise_shadow_frame_strictmod(self):
         codestr = """
         from __static__.compiler_flags import shadow_frame
@@ -5350,10 +5318,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f11"), 0))
 
     @disable_hir_inliner
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_strict_module_deep_unjitable(self):
         codestr = """
             def f12(): return 42
@@ -5440,10 +5404,6 @@ class StaticCompilationTests(StaticTestBase):
             )
             self.assertEqual(fib(4), 3)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_strict_module_mutual_recursive(self):
         codestr = """
             def fib1(number):
@@ -5473,10 +5433,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assert_jitted(fib1)
             self.assertEqual(fib(4), 3)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T129264702): assert_jitted returning false, when expecting true",
-    )
     def test_invoke_strict_module_pre_invoked(self):
         codestr = """
             def f():
