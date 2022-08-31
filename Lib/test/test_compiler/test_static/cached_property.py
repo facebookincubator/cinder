@@ -186,13 +186,16 @@ class CachedPropertyTests(StaticTestBase):
         with self.in_strict_module(codestr) as mod:
             C = mod.C
             with self.assertRaisesRegex(
-                AttributeError,
-                f"This object has no __dict__",
+                TypeError,
+                f"No '__dict__' attribute on 'C' instance to cache 'x' property.",
             ):
                 C().x
 
             D = mod.D
-            with self.assertRaisesRegex(AttributeError, "This object has no __dict__"):
+            with self.assertRaisesRegex(
+                TypeError,
+                f"No '__dict__' attribute on 'D' instance to cache 'x' property.",
+            ):
                 D().x
 
     def test_cached_property_override_property(self):
