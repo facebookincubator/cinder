@@ -29,7 +29,7 @@ def parse_arguments():
 TEST_RUN_RE = re.compile(r"^\[ RUN +\] ([^.]+)\.(.+)$")
 ACTUAL_TEXT_RE = re.compile(r'^    Which is: "(.+)\\n"$')
 EXPECTED_VAR_RE = re.compile(r"^  ([^ ]+)$")
-SUITE_NAME_RE = re.compile(r"[A-Z][a-z0-9]+")
+SUITE_NAME_RE = re.compile(r"(HIR|[A-Z][a-z0-9]+)")
 FINISHED_LINE = "[----------] Global test environment tear-down"
 
 PORTING_BROKEN_TEST_PREFIX = "@porting_broken_test "
@@ -115,17 +115,22 @@ TESTS_DIR = os.path.normpath(
 )
 
 
+def map_suite_to_file_basename(suite_name):
+    return "_".join(map(str.lower, SUITE_NAME_RE.findall(suite_name)))
+
+
+assert map_suite_to_file_basename("HIRBuilderTest") == "hir_builder_test"
+assert (
+    map_suite_to_file_basename("ProfileDataStaticHIRTest")
+    == "profile_data_static_hir_test"
+)
+assert (
+    map_suite_to_file_basename("SomethingEndingWithHIR") == "something_ending_with_hir"
+)
+
+
 def map_suite_to_file(suite_name):
-    if suite_name == "HIRBuilderTest":
-        snake_name = "hir_builder_test"
-    elif suite_name == "HIRBuilderStaticTest":
-        snake_name = "hir_builder_static_test"
-    elif suite_name == "ProfileDataHIRTest":
-        snake_name = "profile_data_hir_test"
-    elif suite_name == "ProfileDataStaticHIRTest":
-        snake_name = "profile_data_static_hir_test"
-    else:
-        snake_name = "_".join(map(str.lower, SUITE_NAME_RE.findall(suite_name)))
+    snake_name = map_suite_to_file_basename(suite_name)
     return os.path.join(TESTS_DIR, "hir_tests", snake_name + ".txt")
 
 
