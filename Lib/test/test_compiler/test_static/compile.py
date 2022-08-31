@@ -5232,6 +5232,18 @@ class StaticCompilationTests(StaticTestBase):
                 self.assertEqual(g(), 42)
             self.assertInBytecode(g, "INVOKE_FUNCTION", ((mod.__name__, "f"), 0))
 
+    def test_cast_optional_nonexact_type(self):
+        codestr = """
+            def f(x):
+                a: str | None = x
+                return 0
+        """
+        with self.in_module(codestr, freeze=True) as mod:
+            f = mod.f
+            self.assertInBytecode(f, "CAST")
+            for i in range(100):
+                self.assertEqual(f("AA" if i % 2 == 0 else None), 0)
+
     def test_invoke_with_cell(self):
         codestr = """
             def f(l: list):
