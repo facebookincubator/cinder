@@ -2716,6 +2716,21 @@ async_cached_property_init_impl(PyAsyncCachedPropertyDescrObject *self,
            PyErr_SetString(PyExc_TypeError, "async_cached_property: incompatible descriptor");
            return -1;
         }
+
+        /* change our type to enable setting the cached property, we don't allow
+         * subtypes because we can't change their type, and the descriptor would
+         * need to account for doing the lookup, and we'd need to dynamically
+         * create a subtype of them too, not to mention dealing with extra ref
+         * counting on the types */
+        if (Py_TYPE(self) != &PyAsyncCachedProperty_Type &&
+            Py_TYPE(self) != &PyAsyncCachedPropertyWithDescr_Type) {
+            PyErr_SetString(
+                PyExc_TypeError,
+                "async_cached_property: descr cannot be used with subtypes of async_cached_property");
+            return -1;
+        }
+
+        Py_TYPE(self) = &PyAsyncCachedPropertyWithDescr_Type;
         self->name_or_descr = name_or_descr;
     } else if (PyFunction_Check(func)) {
         self->name_or_descr = ((PyFunctionObject *)func)->func_name;
@@ -2853,6 +2868,28 @@ async_cached_property_get_slot(PyAsyncCachedPropertyDescrObject *cp, void *closu
     Py_RETURN_NONE;
 }
 
+static int
+async_cached_property_set(PyObject *self, PyObject *obj, PyObject *value)
+{
+    PyAsyncCachedPropertyDescrObject *cp = (PyAsyncCachedPropertyDescrObject *)self;
+    PyObject **dictptr;
+
+    if (Py_TYPE(cp->name_or_descr) == &PyMemberDescr_Type) {
+        return Py_TYPE(cp->name_or_descr)->tp_descr_set(cp->name_or_descr, obj, value);
+    }
+
+    dictptr = _PyObject_GetDictPtr(obj);
+
+    if (dictptr == NULL) {
+        PyErr_SetString(PyExc_AttributeError,
+                        "This object has no __dict__");
+        return -1;
+    }
+
+    return _PyObjectDict_SetItem(Py_TYPE(obj), dictptr, cp->name_or_descr, value);
+}
+
+
 static PyGetSetDef async_cached_property_getsetlist[] = {
     {"__doc__", (getter)async_cached_property_get___doc__, NULL, NULL, NULL},
     {"name", (getter)async_cached_property_get_name, NULL, NULL, NULL},
@@ -2884,6 +2921,26 @@ PyTypeObject PyAsyncCachedProperty_Type = {
     .tp_alloc = PyType_GenericAlloc,
     .tp_free = PyObject_GC_Del,
 };
+
+PyTypeObject PyAsyncCachedPropertyWithDescr_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "async_cached_property_with_descr",
+    .tp_basicsize = sizeof(PyAsyncCachedPropertyDescrObject),
+    .tp_dealloc =  (destructor)async_cached_property_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
+        Py_TPFLAGS_BASETYPE,
+    .tp_doc = async_cached_property_init__doc__,
+    .tp_traverse = (traverseproc)async_cached_property_traverse,
+    .tp_descr_get = async_cached_property_get,
+    .tp_descr_set = async_cached_property_set,
+    .tp_members = async_cached_property_members,
+    .tp_getset = async_cached_property_getsetlist,
+    .tp_new = PyType_GenericNew,
+    .tp_init = async_cached_property_init,
+    .tp_alloc = PyType_GenericAlloc,
+    .tp_free = PyObject_GC_Del,
+};
+
 
 /* end fb T82701047 */
 /* fb T82701047 */

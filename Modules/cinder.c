@@ -813,6 +813,9 @@ PyInit_cinder(void)
     if (PyType_Ready(&PyAsyncCachedProperty_Type) < 0) {
         return NULL;
     }
+    if (PyType_Ready(&PyAsyncCachedPropertyWithDescr_Type) < 0) {
+        return NULL;
+    }
     if (PyType_Ready(&PyAsyncCachedClassProperty_Type) < 0) {
         return NULL;
     }
