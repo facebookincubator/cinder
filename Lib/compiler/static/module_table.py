@@ -290,6 +290,7 @@ class ModuleTable:
 
                 if isinstance(node, ast.AnnAssign):
                     typ = self.resolve_annotation(node.annotation, is_declaration=True)
+                    is_final_dynamic = False
                     if typ is not None:
                         # Special case Final[dynamic] to use inferred type.
                         target = node.target
@@ -300,9 +301,15 @@ class ModuleTable:
                             and isinstance(typ, FinalClass)
                             and isinstance(typ.unwrap(), DynamicClass)
                         ):
+                            is_final_dynamic = True
                             instance = self._get_inferred_type(value) or instance
 
+                        # We keep track of annotated finals in the named_finals field - we can
+                        # safely remove that information here to ensure that the rest of the type
+                        # system can safely ignore it.
                         if isinstance(target, ast.Name):
+                            if not is_final_dynamic and isinstance(typ, FinalClass):
+                                instance = typ.unwrap().instance
                             self.children[target.id] = instance
 
                     if isinstance(typ, FinalClass):

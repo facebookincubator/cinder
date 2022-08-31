@@ -50,3 +50,17 @@ class ImportTests(StaticTestBase):
             reveal_type(x)
             """
             self.type_error(codestr, r"reveal_type\(x\): 'dynamic'")
+
+    def test_known_final_value_does_not_expose_final_across_modules(self):
+        acode = """
+        from typing import Final
+        x: Final[bool] = True
+        """
+        bcode = """
+            from a import x
+            reveal_type(x)
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"reveal_type\(x\): 'Exact\[bool\]'"
+        ):
+            self.compiler(a=acode, b=bcode).compile_module("b")
