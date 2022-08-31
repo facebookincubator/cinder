@@ -58,7 +58,6 @@ PyAPI_FUNC(PyObject *) _PyGen_NewNoFrame(PyCodeObject *code);
 // Include/cpython/abstract.h
 // TODO(T125856469) Eager coroutine execution
 // This needs to be "static inline" when implemented.
-Py_ssize_t PyVectorcall_FLAGS(size_t n);
 PyObject *_PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags);
 
 

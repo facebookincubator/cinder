@@ -487,7 +487,10 @@ static TRetType call_statically_with_primitive_signature_template(
       return call_statically_with_primitive_signature_worker<
           TRetType,
           TVectorcall>(
-          func, arg_space, total_args | PyVectorcall_FLAGS(nargsf), arg_info);
+          func,
+          arg_space,
+          total_args | Ci_PyVectorcall_FLAGS(nargsf),
+          arg_info);
     }
 
     _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
@@ -573,7 +576,7 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
   if (code->co_flags & CO_VARKEYWORDS) {
     nargs -= 1;
   }
-  Py_ssize_t flags = PyVectorcall_FLAGS(nargsf);
+  Py_ssize_t flags = Ci_PyVectorcall_FLAGS(nargsf);
   return _PyFunction_Vectorcall(func, args, nargs | flags, new_kwnames);
 }
 

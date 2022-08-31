@@ -4159,10 +4159,6 @@ class StaticCompilationTests(StaticTestBase):
             self.assertInBytecode(f, "CHECK_ARGS", ())
             self.assertEqual(f("abc"), 42)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Eager coroutine execution",
-    )
     def test_method_prologue_kwonly(self):
         codestr = """
         def f(*, x: str):
@@ -4176,10 +4172,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(x=42)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Eager coroutine execution",
-    )
     def test_method_prologue_kwonly_2(self):
         codestr = """
         def f(x, *, y: str):
@@ -4193,10 +4185,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(1, y=object())
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Eager coroutine execution",
-    )
     def test_method_prologue_kwonly_3(self):
         codestr = """
         def f(x, *, y: str, z=1):
@@ -4210,10 +4198,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(1, y=object())
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Eager coroutine execution",
-    )
     def test_method_prologue_kwonly_4(self):
         codestr = """
         def f(x, *, y: str, **rest):
@@ -4227,10 +4211,6 @@ class StaticCompilationTests(StaticTestBase):
             ):
                 f(1, y=object(), z=2)
 
-    @skipIf(
-        cinderjit is not None,
-        "TODO(T125856469): Eager coroutine execution",
-    )
     def test_method_prologue_kwonly_no_annotation(self):
         codestr = """
         def f(*, x):

@@ -28,10 +28,6 @@ STUB(PyObject *, _PyAsyncGen_NewNoFrame, PyCodeObject *)
 STUB(PyObject *, _PyGen_NewNoFrame, PyCodeObject *)
 
 
-// Include/cpython/abstract.h  TODO(T125856469) Eager coroutine execution
-STUB(Py_ssize_t, PyVectorcall_FLAGS, size_t)
-
-
 // Objects/call.c  TODO(T125856469) Eager coroutine execution
 STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 

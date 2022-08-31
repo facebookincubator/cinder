@@ -68,6 +68,12 @@ PyVectorcall_NARGS(size_t n)
     return n & Ci_PY_VECTORCALL_ARGUMENT_MASK;
 }
 
+static inline Py_ssize_t
+Ci_PyVectorcall_FLAGS(size_t n)
+{
+    return n & ~Ci_PY_VECTORCALL_ARGUMENT_MASK;
+}
+
 static inline vectorcallfunc
 PyVectorcall_Function(PyObject *callable)
 {
