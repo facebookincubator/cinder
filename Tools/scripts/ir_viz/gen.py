@@ -372,6 +372,7 @@ def make_explorer_class(process_args, prod_hostname=None):
                     ("jit-list-file", jitlist_path),
                     ("jit-dump-hir-passes-json", json_dir),
                     ("jit-asm-syntax", asm_syntax),
+                    "usepycompiler",
                 )
                 timeout = ["timeout", "--signal=KILL", f"{TIMEOUT_SEC}s"]
                 if use_static_python or use_strict_compiler:
