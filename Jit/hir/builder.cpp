@@ -68,7 +68,6 @@ Register* TempAllocator::AllocateNonStack() {
 const std::unordered_set<int> kUnsupportedOpcodes = {
     // Static Python opcodes
     INVOKE_METHOD,
-    LOAD_ITERABLE_ARG,
     RETURN_PRIMITIVE,
     // Readonly
     FUNC_CREDENTIAL,
@@ -165,6 +164,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     LOAD_FAST,
     LOAD_FIELD,
     LOAD_GLOBAL,
+    LOAD_ITERABLE_ARG,
     LOAD_LOCAL,
     LOAD_METHOD,
     LOAD_METHOD_SUPER,
