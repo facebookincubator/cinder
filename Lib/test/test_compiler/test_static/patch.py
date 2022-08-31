@@ -1070,9 +1070,6 @@ class StaticPatchTests(StaticTestBase):
             with self.assertRaisesRegex(TypeError, "C.f has been deleted"):
                 c.g()
 
-    @skip(
-        "TODO(T130382864): There's a type error with the coroutine not getting unwrapped."
-    )
     def test_patch_final_async_function(self):
         codestr = """
             from typing import final
