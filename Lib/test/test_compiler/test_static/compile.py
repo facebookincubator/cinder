@@ -5244,6 +5244,19 @@ class StaticCompilationTests(StaticTestBase):
             for i in range(100):
                 self.assertEqual(f("AA" if i % 2 == 0 else None), 0)
 
+    def test_cast_exact_shadowcode(self):
+        codestr = """
+            from typing import Annotated
+            def f(x) -> int:
+                a: Annotated[int, "Exact"] = x
+                return a
+        """
+        with self.in_module(codestr, freeze=True) as mod:
+            f = mod.f
+            self.assertInBytecode(f, "CAST")
+            for i in range(100):
+                self.assertEqual(f(i), i)
+
     def test_invoke_with_cell(self):
         codestr = """
             def f(l: list):
