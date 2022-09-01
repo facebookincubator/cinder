@@ -1,5 +1,4 @@
 import itertools
-import unittest
 from compiler.static.types import TypedSyntaxError
 from unittest import skip
 

@@ -26,12 +26,6 @@ typedef enum {
      or give up as best fits the case. */
   PYJIT_RESULT_RETRY,
 
-  /* JIT list is enabled and this function is not on it. */
-  PYJIT_RESULT_NOT_ON_JITLIST,
-
-  /* No preloader is available for this function. Compilation may work later. */
-  PYJIT_RESULT_NO_PRELOADER,
-
   PYJIT_RESULT_UNKNOWN_ERROR
 } _PyJIT_Result;
 
