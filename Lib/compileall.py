@@ -16,6 +16,7 @@ import importlib.util
 import py_compile
 import struct
 import filecmp
+from compiler.pysourceloader import PySourceFileLoader
 
 from functools import partial
 from pathlib import Path
@@ -48,7 +49,8 @@ def _walk_dir(dir, maxlevels, quiet=0):
 def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                 rx=None, quiet=0, legacy=False, optimize=-1, workers=1,
                 invalidation_mode=None, *, stripdir=None,
-                prependdir=None, limit_sl_dest=None, hardlink_dupes=False):
+                prependdir=None, limit_sl_dest=None, hardlink_dupes=False,
+                loader_override=None):
     """Byte-compile all modules in the given directory tree.
 
     Arguments (only dir is required):
@@ -72,6 +74,7 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
     limit_sl_dest: ignore symlinks if they are pointing outside of
                    the defined path
     hardlink_dupes: hardlink duplicated pyc files
+    loader_override: loader type to use instead of default SourceFileLoader
     """
     ProcessPoolExecutor = None
     if ddir is not None and (stripdir is not None or prependdir is not None):
@@ -109,7 +112,8 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                                            stripdir=stripdir,
                                            prependdir=prependdir,
                                            limit_sl_dest=limit_sl_dest,
-                                           hardlink_dupes=hardlink_dupes),
+                                           hardlink_dupes=hardlink_dupes,
+                                           loader_override=loader_override),
                                    files)
             success = min(results, default=True)
     else:
@@ -118,14 +122,15 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                                 legacy, optimize, invalidation_mode,
                                 stripdir=stripdir, prependdir=prependdir,
                                 limit_sl_dest=limit_sl_dest,
-                                hardlink_dupes=hardlink_dupes):
+                                hardlink_dupes=hardlink_dupes,
+                                loader_override=loader_override):
                 success = False
     return success
 
 def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                  legacy=False, optimize=-1,
                  invalidation_mode=None, *, stripdir=None, prependdir=None,
-                 limit_sl_dest=None, hardlink_dupes=False):
+                 limit_sl_dest=None, hardlink_dupes=False, loader_override=None):
     """Byte-compile one file.
 
     Arguments (only fullname is required):
@@ -147,6 +152,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
     limit_sl_dest: ignore symlinks if they are pointing outside of
                    the defined path.
     hardlink_dupes: hardlink duplicated pyc files
+    loader_override: loader type to use instead of default SourceFileLoader
     """
 
     if ddir is not None and (stripdir is not None or prependdir is not None):
@@ -239,7 +245,8 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                     cfile = opt_cfiles[opt_level]
                     ok = py_compile.compile(fullname, cfile, dfile, True,
                                             optimize=opt_level,
-                                            invalidation_mode=invalidation_mode)
+                                            invalidation_mode=invalidation_mode,
+                                            loader_override=loader_override)
                     if index > 0 and hardlink_dupes:
                         previous_cfile = opt_cfiles[optimize[index - 1]]
                         if filecmp.cmp(cfile, previous_cfile, shallow=False):
@@ -273,7 +280,7 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
 
 def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                  legacy=False, optimize=-1,
-                 invalidation_mode=None):
+                 invalidation_mode=None, loader_override=None):
     """Byte-compile all module on sys.path.
 
     Arguments (all optional):
@@ -285,6 +292,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
     legacy: as for compile_dir() (default False)
     optimize: as for compile_dir() (default -1)
     invalidation_mode: as for compiler_dir()
+    loader_override: as for compiler_dir()
     """
     success = True
     for dir in sys.path:
@@ -301,6 +309,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                 legacy=legacy,
                 optimize=optimize,
                 invalidation_mode=invalidation_mode,
+                loader_override=loader_override,
             )
     return success
 
@@ -375,6 +384,9 @@ def main():
     parser.add_argument('--hardlink-dupes', action='store_true',
                         dest='hardlink_dupes',
                         help='Hardlink duplicated pyc files')
+    parser.add_argument('--python-loader',
+                        action='store_true', dest='use_py_loader',
+                        help=('use loader that uses non default compiler in Lib/compiler'))
 
     args = parser.parse_args()
     compile_dests = args.compile_dest
@@ -422,6 +434,7 @@ def main():
         invalidation_mode = None
 
     success = True
+    loader_override = PySourceFileLoader if args.use_py_loader else None
     try:
         if compile_dests:
             for dest in compile_dests:
@@ -433,7 +446,8 @@ def main():
                                         prependdir=args.prependdir,
                                         optimize=args.opt_levels,
                                         limit_sl_dest=args.limit_sl_dest,
-                                        hardlink_dupes=args.hardlink_dupes):
+                                        hardlink_dupes=args.hardlink_dupes,
+                                        loader_override=loader_override):
                         success = False
                 else:
                     if not compile_dir(dest, maxlevels, args.ddir,
@@ -444,13 +458,15 @@ def main():
                                        prependdir=args.prependdir,
                                        optimize=args.opt_levels,
                                        limit_sl_dest=args.limit_sl_dest,
-                                       hardlink_dupes=args.hardlink_dupes):
+                                       hardlink_dupes=args.hardlink_dupes,
+                                       loader_override=loader_override):
                         success = False
             return success
         else:
             return compile_path(legacy=args.legacy, force=args.force,
                                 quiet=args.quiet,
-                                invalidation_mode=invalidation_mode)
+                                invalidation_mode=invalidation_mode,
+                                loader_override=loader_override)
     except KeyboardInterrupt:
         if args.quiet < 2:
             print("\n[interrupted]")
