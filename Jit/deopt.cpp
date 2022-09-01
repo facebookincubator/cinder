@@ -119,6 +119,7 @@ static void reifyStack(
   frame->f_stackdepth = frame_meta.stack.size();
   for (int i = frame_meta.stack.size() - 1; i >= 0; i--) {
     const auto& value = meta.getStackValue(i, frame_meta);
+    PyObject* obj = mem.read(value);
     if (value.isLoadMethodResult()) {
       // When we are deoptimizing a JIT-compiled function that contains an
       // optimizable LoadMethod, we need to be able to know whether or not the
@@ -126,13 +127,13 @@ static void reifyStack(
       // reconstruct the stack for the interpreter. We use Py_None as the
       // LoadMethodResult to indicate that it was a non-method like object,
       // which we need to replace with NULL to match the interpreter semantics.
-      if (mem.read(value) == Py_None) {
+      if (obj == Py_None) {
+        Py_DECREF(obj);
         frame->f_valuestack[i] = nullptr;
       } else {
-        frame->f_valuestack[i] = mem.read(value);
+        frame->f_valuestack[i] = obj;
       }
     } else {
-      PyObject* obj = mem.read(value);
       frame->f_valuestack[i] = obj;
     }
   }
