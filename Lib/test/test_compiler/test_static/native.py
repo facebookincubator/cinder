@@ -108,7 +108,7 @@ class NativeDecoratorTests(StaticTestBase):
         def abs(i: int64, j: int64 = 4) -> int64:
             pass
         """
-        self.type_error(binding_codestr, "@native callables cannot contain kw args")
+        self.type_error(binding_codestr, "@native callables cannot contain kwargs")
 
     def test_native_usage_with_posonly_arg(self):
         binding_codestr = """
@@ -149,4 +149,32 @@ class NativeDecoratorTests(StaticTestBase):
         self.type_error(
             binding_codestr,
             "type mismatch: int received for positional arg 'i', expected int64",
+        )
+
+    def test_decorate_already_decorated_fn(self):
+        codestr = """
+        from __static__ import native
+        from typing import final
+
+        @native("so.so")
+        @final
+        def fn(self):
+            pass
+        """
+        self.type_error(
+            codestr, "@native decorator cannot be used with other decorators"
+        )
+
+    def test_decorate_native_fn(self):
+        codestr = """
+        from __static__ import native
+        from typing import final
+
+        @final
+        @native("so.so")
+        def fn():
+            pass
+        """
+        self.type_error(
+            codestr, "@native decorator cannot be used with other decorators"
         )
