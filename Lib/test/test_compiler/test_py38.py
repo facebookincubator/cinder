@@ -3,7 +3,7 @@ import dis
 import inspect
 import io
 from compiler.dis_stable import Disassembler
-from compiler.pycodegen import CodeGenerator
+from compiler.pycodegen import BaseCodeGenerator
 from textwrap import dedent
 
 from .common import CompilerTest
@@ -21,22 +21,22 @@ class Python38Tests(CompilerTest):
 
     def _check(self, src, optimize=-1):
         src = dedent(src).strip()
-        actual = dump_code(self.compile(src, CodeGenerator, optimize=optimize))
+        actual = dump_code(self.compile(src, BaseCodeGenerator, optimize=optimize))
         expected = dump_code(compile(src, "", mode="exec", optimize=optimize))
         self.assertEqual(actual, expected)
 
     def test_sanity(self) -> None:
         """basic test that the compiler can generate a function"""
-        code = self.compile("f()", CodeGenerator)
+        code = self.compile("f()", BaseCodeGenerator)
         self.assertInBytecode(code, "CALL_FUNCTION")
         self.assertEqual(code.co_posonlyargcount, 0)
 
     def test_walrus_if(self):
-        code = self.compile("if x:= y: pass", CodeGenerator)
+        code = self.compile("if x:= y: pass", BaseCodeGenerator)
         self.assertInBytecode(code, "STORE_NAME", "x")
 
     def test_walrus_call(self):
-        code = self.compile("f(x:= y)", CodeGenerator)
+        code = self.compile("f(x:= y)", BaseCodeGenerator)
         self.assertInBytecode(code, "STORE_NAME", "x")
 
     def test_while_codegen(self) -> None:
@@ -402,7 +402,7 @@ def f():
         self._check(source)
 
     def test_posonly_args(self):
-        code = self.compile("def f(a, /, b): pass", CodeGenerator)
+        code = self.compile("def f(a, /, b): pass", BaseCodeGenerator)
 
         f = self.find_code(code)
         self.assertEqual(f.co_posonlyargcount, 1)

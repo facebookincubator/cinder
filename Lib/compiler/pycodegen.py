@@ -3010,8 +3010,12 @@ class Entry:
         self.unwinding_datum = unwinding_datum
 
 
-class CinderCodeGenerator(CodeGenerator):
+# This is identical to the base code generator, except for the fact that CO_SUPPRESS_JIT is emitted.
+class CinderBaseCodeGenerator(CodeGenerator):
     flow_graph = pyassem.PyFlowGraphCinder
+
+
+class CinderCodeGenerator(CinderBaseCodeGenerator):
     _SymbolVisitor = symbols.CinderSymbolVisitor
 
     def set_qual_name(self, qualname):
@@ -3169,6 +3173,12 @@ def get_default_generator():
     return CodeGenerator
 
 
+def get_base_generator():
+    if "cinder" in sys.version:
+        return CinderBaseCodeGenerator
+    return CodeGenerator
+
+
 def get_docstring(
     node: ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> str | None:
@@ -3205,6 +3215,7 @@ class OpFinder:
 
 
 PythonCodeGenerator = get_default_generator()
+BaseCodeGenerator = get_base_generator()
 
 
 if __name__ == "__main__":
