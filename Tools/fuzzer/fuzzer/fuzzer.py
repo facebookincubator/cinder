@@ -226,6 +226,7 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "JUMP_ABSOLUTE",
         "JUMP_FORWARD",
         "JUMP_IF_FALSE_OR_POP",
+        "JUMP_IF_NOT_EXC_MATCH",
         "JUMP_IF_TRUE_OR_POP",
         "POP_JUMP_IF_FALSE",
         "POP_JUMP_IF_TRUE",
@@ -236,16 +237,24 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "JUMP_FORWARD",
     }
 
-    def opcodes_with_stack_effect(n):
-        return {
+    def opcodes_with_stack_effect(n, without=()):
+        all_opcodes = {
             op for op, eff in opcode_cinder.opcode.stack_effects.items() if eff == n
         }
+        for opcode in without:
+            assert opcode in all_opcodes, f"Opcode {opcode} not found in list"
+        result = all_opcodes - set(without)
+        assert (
+            len(result) > 1
+        ), "Not enough opcodes in list to prevent unbounded recursion"
+        return result
 
     INSTRS_WITH_STACK_EFFECT_0 = opcodes_with_stack_effect(0)
 
     INSTRS_WITH_STACK_EFFECT_0_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_0)
 
-    INSTRS_WITH_STACK_EFFECT_1 = opcodes_with_stack_effect(1)
+    # WITH_EXCEPT_START expects 7 things on the stack as a precondition.
+    INSTRS_WITH_STACK_EFFECT_1 = opcodes_with_stack_effect(1, {"WITH_EXCEPT_START"})
 
     INSTRS_WITH_STACK_EFFECT_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_1)
 
@@ -257,11 +266,14 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
 
     INSTRS_WITH_STACK_EFFECT_NEG_1_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_1)
 
-    INSTRS_WITH_STACK_EFFECT_NEG_2 = opcodes_with_stack_effect(-2)
+    INSTRS_WITH_STACK_EFFECT_NEG_2 = opcodes_with_stack_effect(
+        -2,
+    )
 
     INSTRS_WITH_STACK_EFFECT_NEG_2_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_2)
 
-    INSTRS_WITH_STACK_EFFECT_NEG_3 = opcodes_with_stack_effect(-3)
+    # RERAISE has some preconditions about the blockstack.
+    INSTRS_WITH_STACK_EFFECT_NEG_3 = opcodes_with_stack_effect(-3, {"RERAISE"})
 
     INSTRS_WITH_STACK_EFFECT_NEG_3_SEQ = tuple(INSTRS_WITH_STACK_EFFECT_NEG_3)
 
@@ -269,7 +281,28 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         op
         for op, eff in opcode_cinder.opcode.stack_effects.items()
         if not isinstance(eff, int)
+    } - {
+        # TODO(emacs): Figure out why BUILD_SLICE is excluded.
+        "BUILD_SLICE",
+        # TODO(emacs): Figure out why FOR_ITER is excluded.
+        "FOR_ITER",
+        # TODO(emacs): Figure out why FORMAT_VALUE is excluded.
+        "FORMAT_VALUE",
+        # TODO(emacs): Figure out why INVOKE_METHOD' is excluded.
+        "INVOKE_METHOD",
+        # TODO(emacs): Figure out why JUMP_IF_X_OR_POP group is excluded.
+        "JUMP_IF_FALSE_OR_POP",
+        "JUMP_IF_TRUE_OR_POP",
+        # Exclude instructions that modify the blockstack.
+        "SETUP_ASYNC_WITH",
+        "SETUP_FINALLY",
+        "SETUP_WITH",
+        # Exclude readonly operations.
+        "READONLY_OPERATION",
     }
+    assert (
+        len(INSTRS_WITH_OPARG_AFFECTING_STACK) > 1
+    ), "Not enough opcodes in list to prevent unbounded recursion"
 
 
 class FuzzerReturnTypes(enum.Enum):
@@ -541,6 +574,9 @@ def generate_oparg_for_randomized_opcode(
         new_oparg = randomize_variable("")
         freevars.get_index(new_oparg)
         return new_oparg
+    elif randomized_opcode == "GEN_START":
+        # oparg must be < 3 according to an assert in ceval.c
+        return generate_random_integer(-1, 0, 3)
     else:
         # if it isn't in one of the tuples, just return a random integer within oparg bounds
         return generate_random_integer(-1, OPARG_LOWER_BOUND, OPARG_UPPER_BOUND)
