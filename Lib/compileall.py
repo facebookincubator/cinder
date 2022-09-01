@@ -17,6 +17,7 @@ import py_compile
 import struct
 import filecmp
 from compiler.pysourceloader import PySourceFileLoader
+from compiler.strict.loader import strict_compile as strict_compile_fn
 
 from functools import partial
 from pathlib import Path
@@ -50,7 +51,7 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                 rx=None, quiet=0, legacy=False, optimize=-1, workers=1,
                 invalidation_mode=None, *, stripdir=None,
                 prependdir=None, limit_sl_dest=None, hardlink_dupes=False,
-                loader_override=None):
+                loader_override=None, strict_compile=False):
     """Byte-compile all modules in the given directory tree.
 
     Arguments (only dir is required):
@@ -75,6 +76,7 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                    the defined path
     hardlink_dupes: hardlink duplicated pyc files
     loader_override: loader type to use instead of default SourceFileLoader
+    strict_compile: Whether to use the strict compiler instead of the default.
     """
     ProcessPoolExecutor = None
     if ddir is not None and (stripdir is not None or prependdir is not None):
@@ -113,7 +115,8 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                                            prependdir=prependdir,
                                            limit_sl_dest=limit_sl_dest,
                                            hardlink_dupes=hardlink_dupes,
-                                           loader_override=loader_override),
+                                           loader_override=loader_override,
+                                           strict_compile=strict_compile),
                                    files)
             success = min(results, default=True)
     else:
@@ -123,14 +126,16 @@ def compile_dir(dir, maxlevels=None, ddir=None, force=False,
                                 stripdir=stripdir, prependdir=prependdir,
                                 limit_sl_dest=limit_sl_dest,
                                 hardlink_dupes=hardlink_dupes,
-                                loader_override=loader_override):
+                                loader_override=loader_override,
+                                strict_compile=strict_compile):
                 success = False
     return success
 
 def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
                  legacy=False, optimize=-1,
                  invalidation_mode=None, *, stripdir=None, prependdir=None,
-                 limit_sl_dest=None, hardlink_dupes=False, loader_override=None):
+                 limit_sl_dest=None, hardlink_dupes=False, loader_override=None,
+                 strict_compile=False):
     """Byte-compile one file.
 
     Arguments (only fullname is required):
@@ -243,7 +248,8 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
             try:
                 for index, opt_level in enumerate(optimize):
                     cfile = opt_cfiles[opt_level]
-                    ok = py_compile.compile(fullname, cfile, dfile, True,
+                    compile_fn = strict_compile_fn if strict_compile else py_compile.compile
+                    ok = compile_fn(fullname, cfile, dfile, True,
                                             optimize=opt_level,
                                             invalidation_mode=invalidation_mode,
                                             loader_override=loader_override)
@@ -280,7 +286,8 @@ def compile_file(fullname, ddir=None, force=False, rx=None, quiet=0,
 
 def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                  legacy=False, optimize=-1,
-                 invalidation_mode=None, loader_override=None):
+                 invalidation_mode=None, loader_override=None,
+                 strict_compile=False):
     """Byte-compile all module on sys.path.
 
     Arguments (all optional):
@@ -310,6 +317,7 @@ def compile_path(skip_curdir=1, maxlevels=0, force=False, quiet=0,
                 optimize=optimize,
                 invalidation_mode=invalidation_mode,
                 loader_override=loader_override,
+                strict_compile=strict_compile,
             )
     return success
 
@@ -387,6 +395,10 @@ def main():
     parser.add_argument('--python-loader',
                         action='store_true', dest='use_py_loader',
                         help=('use loader that uses non default compiler in Lib/compiler'))
+    parser.add_argument('--strict-compile',
+                        action='store_true', dest='strict_compile',
+                        help=('use the bytecode compiler bundled with '
+                              'the strict-module loader'))
 
     args = parser.parse_args()
     compile_dests = args.compile_dest
@@ -435,6 +447,7 @@ def main():
 
     success = True
     loader_override = PySourceFileLoader if args.use_py_loader else None
+    strict_compile = args.strict_compile
     try:
         if compile_dests:
             for dest in compile_dests:
@@ -447,7 +460,8 @@ def main():
                                         optimize=args.opt_levels,
                                         limit_sl_dest=args.limit_sl_dest,
                                         hardlink_dupes=args.hardlink_dupes,
-                                        loader_override=loader_override):
+                                        loader_override=loader_override,
+                                        strict_compile=strict_compile):
                         success = False
                 else:
                     if not compile_dir(dest, maxlevels, args.ddir,
@@ -459,14 +473,16 @@ def main():
                                        optimize=args.opt_levels,
                                        limit_sl_dest=args.limit_sl_dest,
                                        hardlink_dupes=args.hardlink_dupes,
-                                       loader_override=loader_override):
+                                       loader_override=loader_override,
+                                       strict_compile=strict_compile):
                         success = False
             return success
         else:
             return compile_path(legacy=args.legacy, force=args.force,
                                 quiet=args.quiet,
                                 invalidation_mode=invalidation_mode,
-                                loader_override=loader_override)
+                                loader_override=loader_override,
+                                strict_compile=strict_compile)
     except KeyboardInterrupt:
         if args.quiet < 2:
             print("\n[interrupted]")
