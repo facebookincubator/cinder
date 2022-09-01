@@ -61,7 +61,7 @@ class StrictCompileTest(StrictTestBase):
         ]
 
         self.assertEqual(
-            files,
+            sorted(files),
             [
                 f"__init__.{STRICT_PYC_SUFFIX}",
                 f"bar.{STRICT_PYC_SUFFIX}",
