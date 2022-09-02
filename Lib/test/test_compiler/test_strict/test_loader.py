@@ -2780,3 +2780,43 @@ class StrictLoaderTest(StrictTestBase):
 
             # the thing printed by `a.py` above should be the patched version
             self.assertEqual(output, "<built-in function __build_cinder_class__>\n")
+
+    def test_allow_side_effects(self) -> None:
+        module_types = ["__strict__", "__static__"]
+
+        for module_type in module_types:
+            with self.subTest(module_type=module_type):
+                self.sbx.write_file(
+                    "a.py",
+                    f"""
+                    import {module_type}
+
+                    from __strict__ import allow_side_effects
+
+                    from b import f
+
+                    f()
+
+                    class C:
+                        pass
+                    """,
+                )
+
+                self.sbx.write_file(
+                    "b.py",
+                    """
+                    def f():
+                        pass
+                    """,
+                )
+
+                mod_a = self.sbx.strict_import("a")
+
+                # It should be a StrictModule, even if analysis was skipped
+                self.assertEqual(type(mod_a), StrictModule)
+
+                # Types should be frozen
+                with self.assertRaisesRegex(
+                    TypeError, "type 'C' has been frozen and cannot be modified"
+                ):
+                    mod_a.C.something = 100

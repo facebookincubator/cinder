@@ -8,3 +8,5 @@ from compiler.strict.runtime import (
     _mark_cached_property,
     set_freeze_enabled,
 )
+
+allow_side_effects = object()
