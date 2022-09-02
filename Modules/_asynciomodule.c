@@ -3917,9 +3917,6 @@ task_step_impl(TaskObj *task, PyObject *exc)
             goto fail;
         }
     }
-    if (_PyObject_LookupAttrId(result, &PyId__asyncio_future_blocking, &o) < 0) {
-        goto fail;
-    }
     if (blocking_state == BLOCKING_TRUE || blocking_state == BLOCKING_FALSE) {
         /* `result` is a Future-compatible object */
         PyObject *wrapper;
@@ -3975,7 +3972,6 @@ task_step_impl(TaskObj *task, PyObject *exc)
         Py_RETURN_NONE;
     }
 
-    Py_XDECREF(o);
     /* Check if `result` is a generator */
     res = PyObject_IsInstance(result, (PyObject*)&PyGen_Type);
     if (res < 0) {
