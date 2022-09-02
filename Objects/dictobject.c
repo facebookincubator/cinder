@@ -4819,25 +4819,14 @@ dictreviter_iternext(dictiterobject *di)
     di->len--;
 
     if (Py_IS_TYPE(di, &PyDictRevIterKey_Type)) {
-        Py_INCREF(key);
+        Py_DECREF(value);
         return key;
     }
     else if (Py_IS_TYPE(di, &PyDictRevIterValue_Type)) {
-        Py_INCREF(value);
+        Py_DECREF(key);
         return value;
     }
     else if (Py_IS_TYPE(di, &PyDictRevIterItem_Type)) {
-        Py_INCREF(key);
-        Py_INCREF(value);
-    // if (Py_TYPE(di) == &PyDictRevIterKey_Type) {
-    //     Py_DECREF(value);
-    //     return key;
-    // }
-    // else if (Py_TYPE(di) == &PyDictRevIterValue_Type) {
-    //     Py_DECREF(key);
-    //     return value;
-    // }
-    // else if (Py_TYPE(di) == &PyDictRevIterItem_Type) {
         result = di->di_result;
         if (Py_REFCNT(result) == 1) {
             PyObject *oldkey = PyTuple_GET_ITEM(result, 0);
