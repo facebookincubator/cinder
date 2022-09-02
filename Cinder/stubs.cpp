@@ -15,12 +15,15 @@
 // TODO(T125856469) Eager coroutine execution
 STUB(PyObject *, _PyWaitHandle_New, PyObject *, PyObject *)
 STUB(void, _PyWaitHandle_Release, PyObject *)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject PyWaitHandle_Type = {
     .ob_base = PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "wait handle NOT IMPLEMENTED",
     .tp_basicsize = sizeof(PyWaitHandleObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
 };
+#pragma GCC diagnostic pop
 
 // TODO(T125845107) Shadow frames
 STUB(PyObject *, _PyCoro_NewNoFrame, PyThreadState *, PyCodeObject *)
@@ -37,9 +40,12 @@ STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 // If we decide to move the array module into CPython core we'll need to
 // figure out how we want to expose PyArray_Type to the JIT's type system.
 // 75bf107c converted the module to use heap types stored in the module's state.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject PyArray_Type = {
     .ob_base = PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "array stub NOT IMPLEMENTED",
     .tp_basicsize = sizeof(PyStaticArrayObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
 };
+#pragma GCC diagnostic pop

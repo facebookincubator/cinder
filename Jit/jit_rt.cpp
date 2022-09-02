@@ -543,11 +543,10 @@ static PyFrameObject* allocateFrame(
   if (code->co_zombieframe != NULL) {
     __builtin_prefetch(code->co_zombieframe);
   }
-  PyFrameConstructor frame_ctor = {
-      .fc_globals = globals,
-      .fc_builtins = builtins,
-      .fc_code = reinterpret_cast<PyObject*>(code),
-  };
+  PyFrameConstructor frame_ctor = {};
+  frame_ctor.fc_globals = globals;
+  frame_ctor.fc_builtins = builtins;
+  frame_ctor.fc_code = reinterpret_cast<PyObject*>(code);
   return _PyFrame_New_NoTrack(tstate, &frame_ctor, nullptr);
 }
 
@@ -709,14 +708,15 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   JIT_DCHECK(PyTuple_CheckExact(pargs), "Expected pargs to be a tuple");
 
   // Make function call using normalized args.
-  if (PyCFunction_Check(func)) {
-    // TODO(jbower): For completeness we should use a vector-call if possible to
-    // take into account is_awaited. My guess is there aren't going to be many C
-    // functions which handle Ci_Py_AWAITED_CALL_MARKER.
-    return PyCFunction_Call(func, pargs, kwargs);
-  }
-  if (is_awaited && _PyVectorcall_Function(func) != NULL) {
-    return _PyVectorcall_Call(func, pargs, kwargs, Ci_Py_AWAITED_CALL_MARKER);
+
+  if (_PyVectorcall_Function(func) != NULL) {
+    if (is_awaited) {
+      PORT_ASSERT("Need to pass Ci_Py_AWAITED_CALL_MARKER");
+    }
+    // TODO(T125856469) - Some implementation of this should exist when the
+    // PORT_ASSERT above can be resolved.
+    //  return _PyVectorcall_Call(func, pargs, kwargs, is_awaited ?
+    //  Ci_Py_AWAITED_CALL_MARKER : 0);
   }
   return PyObject_Call(func, pargs, kwargs);
 }

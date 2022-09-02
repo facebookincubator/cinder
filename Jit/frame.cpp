@@ -267,7 +267,7 @@ PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
       JIT_CHECK(false, "completed generators don't have frames");
     }
   }
-  Py_UNREACHABLE();
+  JIT_CHECK(false, "Invalid generator state");
 }
 
 // Ensure that a PyFrameObject with f_lasti equal to last_instr_offset exists

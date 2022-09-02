@@ -771,8 +771,8 @@ LoadMethodCache::~LoadMethodCache() {
   for (auto& entry : entries_) {
     if (entry.type != nullptr) {
       lm_watcher.unwatch(entry.type, this);
-      entry.type = nullptr;
-      entry.value = nullptr;
+      entry.type.reset();
+      entry.value.reset();
     }
   }
 }
@@ -780,8 +780,8 @@ LoadMethodCache::~LoadMethodCache() {
 void LoadMethodCache::typeChanged(PyTypeObject* type) {
   for (auto& entry : entries_) {
     if (entry.type == type) {
-      entry.type = nullptr;
-      entry.value = nullptr;
+      entry.type.reset();
+      entry.value.reset();
     }
   }
 }
