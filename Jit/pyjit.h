@@ -455,6 +455,12 @@ PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
  */
 PyAPI_FUNC(PyFrameObject*) _PyJIT_GetFrame(PyThreadState* tstate);
 
+/*
+ * Set output format for function disassembly. E.g. with -X jit-disas-funcs.
+ */
+PyAPI_FUNC(void) _PyJIT_SetDisassemblySyntaxATT(void);
+PyAPI_FUNC(int) _PyJIT_IsDisassemblySyntaxIntel(void);
+
 #ifdef __cplusplus
 bool _PyJIT_UseHugePages();
 } /* extern "C" */

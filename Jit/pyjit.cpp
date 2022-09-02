@@ -2287,3 +2287,11 @@ PyFrameObject* _PyJIT_GetFrame(PyThreadState* tstate) {
   }
   return tstate->frame;
 }
+
+void _PyJIT_SetDisassemblySyntaxATT(void) {
+  set_att_syntax();
+}
+
+int _PyJIT_IsDisassemblySyntaxIntel(void) {
+  return is_intel_syntax();
+}

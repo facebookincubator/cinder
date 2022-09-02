@@ -5,6 +5,12 @@
 #include <stdexcept>
 namespace strictmod {
 
+//-------------------------PySymtableDeleter---------------------------
+
+void PySymtableDeleter::operator()(PySymtable* p) {
+  _PySymtable_Free(p);
+}
+
 //-------------------------Symtable---------------------------
 
 SymtableEntry Symtable::entryFromAst(void* key) const {

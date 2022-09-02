@@ -19,9 +19,7 @@ struct PySymtableDeleter {
   and must be deleted using _PySymtable_Free. This is a custom
   deleter that does that and can be used in smart pointers
   */
-  void operator()(PySymtable* p) {
-    _PySymtable_Free(p);
-  }
+  void operator()(PySymtable* p);
 };
 
 class SymtableEntry;

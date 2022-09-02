@@ -317,7 +317,8 @@ TEST_F(CmdLineTest, JITEnable) {
             ASSERT_EQ(
                 _PyJIT_AreTypeSlotsEnabled(),
                 1); // set to 1 if associated flag is NOT set
-            ASSERT_EQ(is_intel_syntax(), 0); // default to AT&T syntax
+            ASSERT_EQ(
+                _PyJIT_IsDisassemblySyntaxIntel(), 0); // default to AT&T syntax
           }),
       0);
 
@@ -450,16 +451,16 @@ TEST_F(CmdLineTest, ASMSyntax) {
       try_flag_and_envvar_effect(
           L"jit-asm-syntax=intel",
           "PYTHONJITASMSYNTAX=intel",
-          []() { set_att_syntax(); },
-          []() { ASSERT_EQ(is_intel_syntax(), 1); }),
+          []() { _PyJIT_SetDisassemblySyntaxATT(); },
+          []() { ASSERT_EQ(_PyJIT_IsDisassemblySyntaxIntel(), 1); }),
       0);
 
   ASSERT_EQ(
       try_flag_and_envvar_effect(
           L"jit-asm-syntax=att",
           "PYTHONJITASMSYNTAX=att",
-          []() { set_att_syntax(); },
-          []() { ASSERT_EQ(is_intel_syntax(), 0); }),
+          []() { _PyJIT_SetDisassemblySyntaxATT(); },
+          []() { ASSERT_EQ(_PyJIT_IsDisassemblySyntaxIntel(), 0); }),
       0);
 }
 
@@ -482,7 +483,7 @@ TEST_F(CmdLineTest, JITList) {
       try_flag_and_envvar_effect(
           xarg,
           const_cast<char*>(("PYTHONJITLISTFILE=" + list_file).c_str()),
-          []() { set_att_syntax(); },
+          []() { _PyJIT_SetDisassemblySyntaxATT(); },
           []() { ASSERT_EQ(_PyJIT_IsEnabled(), 1); }),
       0);
 
