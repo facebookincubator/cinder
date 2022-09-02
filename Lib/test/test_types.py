@@ -975,14 +975,14 @@ class UnionTests(unittest.TestCase):
             self.skipTest('Cannot get total reference count.')
         gc.collect()
         before = sys.gettotalrefcount()
-        for _ in range(30):
+        for _ in range(1000):
             T = typing.TypeVar('T')
             U = int | list[T]
             T.blah = U
             del T
             del U
         gc.collect()
-        leeway = 15
+        leeway = 100
         self.assertLessEqual(sys.gettotalrefcount() - before, leeway,
                              msg='Check for union reference leak.')
 
