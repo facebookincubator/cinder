@@ -70,6 +70,8 @@ def compile_c_extension(
             extra_link_args.append("/LTCG:OFF")
         else:
             extra_compile_args.append("-O0")
+            extra_compile_args.append("-U_FORTIFY_SOURCE")
+            extra_compile_args.append("-Wp,-U_FORTIFY_SOURCE")
             if sysconfig.get_config_var("GNULD") == "yes":
                 extra_link_args.append("-fno-lto")
     extension = [
