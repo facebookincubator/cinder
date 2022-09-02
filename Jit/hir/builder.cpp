@@ -2165,7 +2165,7 @@ bool HIRBuilder::emitInvokeFunction(
         // Direct invoke is safe whether we succeeded in JIT-compiling or not,
         // it'll just have an extra indirection if not JIT compiled.
         Register* out = temps_.AllocateStack();
-        Type typ = target.return_type <= TCEnum ? TCInt64 : target.return_type;
+        Type typ = target.return_type;
         auto call =
             tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
         for (auto i = nargs - 1; i >= 0; i--) {
