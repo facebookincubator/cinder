@@ -132,6 +132,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kTpAlloc:
     case Opcode::kUnaryOp:
     case Opcode::kUnicodeCompare:
+    case Opcode::kUnicodeConcat:
     case Opcode::kUnicodeRepeat:
     case Opcode::kUnpackExToTuple:
     case Opcode::kVectorCall:

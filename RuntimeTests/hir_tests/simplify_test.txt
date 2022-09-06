@@ -1406,6 +1406,79 @@ fun jittestmodule:test {
   }
 }
 ---
+UnicodeConcatEmittedWhenWhenAddingString
+---
+def test():
+  x = "hello"
+  y = " world"
+  return x+y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
+    v8:MortalUnicodeExact[" world"] = LoadConst<MortalUnicodeExact[" world"]>
+    v13:UnicodeExact = UnicodeConcat v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Return v13
+  }
+}
+---
+UnicodeConcatDoesNotEmitWhenStringAddingLong
+---
+def test():
+  x = "hello"
+  y = 1
+  return x+y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    v6:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
+    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v12:Object = BinaryOp<Add> v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Return v12
+  }
+}
+---
+UnicodeConcatEmittedWhenSimplyfingAddingTwoUnicode
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = LoadArg<1>
+    v3 = RefineType<UnicodeExact> v1
+    v4 = RefineType<UnicodeExact> v2
+    v5:UnicodeExact = BinaryOp<Add> v3 v4
+    Return v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Object = LoadArg<1>
+    v3:UnicodeExact = RefineType<UnicodeExact> v1
+    v4:UnicodeExact = RefineType<UnicodeExact> v2
+    v6:UnicodeExact = UnicodeConcat v3 v4 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v6
+  }
+}
+---
 UnicodeRepeatEmittedWhenMultiplyingString
 ---
 def test():
@@ -1443,28 +1516,6 @@ fun jittestmodule:test {
     v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
     v8:MortalBool[True] = LoadConst<MortalBool[True]>
     v12:Object = BinaryOp<Multiply> v6 v8 {
-      FrameState {
-        NextInstrOffset 14
-        Locals<2> v6 v8
-      }
-    }
-    Return v12
-  }
-}
----
-UnicodeRepeatDoesNotEmitDuringStringAddition
----
-def test():
-  a = "abc"
-  b = "xyz"
-  return a+b
----
-fun jittestmodule:test {
-  bb 0 {
-    v5:Nullptr = LoadConst<Nullptr>
-    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
-    v8:MortalUnicodeExact["xyz"] = LoadConst<MortalUnicodeExact["xyz"]>
-    v12:Object = BinaryOp<Add> v6 v8 {
       FrameState {
         NextInstrOffset 14
         Locals<2> v6 v8

@@ -402,6 +402,7 @@ struct FrameState {
   V(TpAlloc)                           \
   V(UnaryOp)                           \
   V(UnicodeCompare)                    \
+  V(UnicodeConcat)                     \
   V(UnicodeRepeat)                     \
   V(UnpackExToTuple)                   \
   V(UseType)                           \
@@ -2313,6 +2314,14 @@ class INSTR_CLASS(
  private:
   CompareOp op_;
 };
+
+// Perform BinaryOp<Add> with two strings
+DEFINE_SIMPLE_INSTR(
+    UnicodeConcat,
+    (TUnicodeExact, TUnicodeExact),
+    HasOutput,
+    Operands<2>,
+    DeoptBase)
 
 DEFINE_SIMPLE_INSTR(
     UnicodeRepeat,
