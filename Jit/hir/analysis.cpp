@@ -42,19 +42,11 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kCheckFreevar:
     case Opcode::kCheckNeg:
     case Opcode::kCheckVar:
+    case Opcode::kGuardIs:
     case Opcode::kGuardType:
     case Opcode::kRefineType:
     case Opcode::kUseType:
       return true;
-
-    // GuardIs returns a copy of its input with a more specialized type, so it
-    // looks like a passthrough instruction at first glance. However, its
-    // purpose is to verify that a runtime value is a specific object, breaking
-    // the dependency on the instruction that produced the runtime value. It's
-    // possible to augment RefcountInsertion to support this pattern but let's
-    // wait to see if more instructions need it before adding that complexity.
-    case Opcode::kGuardIs:
-      return false;
 
     // Cast is pass-through except when we are casting to float, in which case
     // we may coerce an incoming int to a new float.
@@ -199,7 +191,10 @@ bool isPassthrough(const Instr& instr) {
 
 Register* modelReg(Register* reg) {
   auto orig_reg = reg;
-  while (isPassthrough(*reg->instr())) {
+  // Even though GuardIs is a passthrough, it verifies that a runtime value is a
+  // specific object, breaking the dependency on the instruction that produced
+  // the runtime value
+  while (isPassthrough(*reg->instr()) && !(reg->instr()->IsGuardIs())) {
     reg = reg->instr()->GetOperand(0);
     JIT_DCHECK(reg != orig_reg, "Hit cycle while looking for model reg");
   }

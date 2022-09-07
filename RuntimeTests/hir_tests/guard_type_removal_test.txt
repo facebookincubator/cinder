@@ -358,3 +358,31 @@ fun test {
   }
 }
 ---
+KeepsGuardTypeWhenGuardIsIsUsed
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    v3 = GuardType<Tuple> v0
+    v4 = GuardIs<Py_None> v3
+    UseType<Bottom> v4
+    Return v4
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v3:Tuple = GuardType<Tuple> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v4:Bottom = GuardIs<0xdeadbeef> v3 {
+    }
+    UseType<Bottom> v4
+    Return v4
+  }
+}
+---

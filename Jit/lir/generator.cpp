@@ -125,7 +125,7 @@ void LIRGenerator::AnalyzeCopies() {
       // XXX(bsimmers) Cast doesn't have to be a special case once it deopts
       // and always returns its input.
       if (instr.GetOutput() != nullptr && !instr.IsCast() &&
-          (hir::isPassthrough(instr) || instr.IsGuardIs())) {
+          hir::isPassthrough(instr)) {
         env_->copy_propagation_map.emplace(
             instr.GetOutput()->name(), instr.GetOperand(0)->name());
       }

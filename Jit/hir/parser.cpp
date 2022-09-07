@@ -507,6 +507,17 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<GuardType>(dst, ty, operand);
+  } else if (strcmp(opcode, "GuardIs") == 0) {
+    expect("<");
+    // Since we print raw pointer values for GuardIs, we should parse values
+    // as pointers as well. However, since pointers to memory aren't stable,
+    // we cannot currently turn them into meaningful values, and since we can't
+    // execute parsed HIR code yet, we only support Py_None as the target object
+    // for now.
+    expect("Py_None");
+    expect(">");
+    auto operand = ParseRegister();
+    NEW_INSTR(GuardIs, dst, Py_None, operand);
   } else if (strcmp(opcode, "IsTruthy") == 0) {
     auto src = ParseRegister();
     instruction = newInstr<IsTruthy>(dst, src);

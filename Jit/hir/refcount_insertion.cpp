@@ -943,7 +943,10 @@ void processOutput(Env& env, const Instr& instr, const MemoryEffects& effects) {
     return;
   }
 
-  if (isPassthrough(instr)) {
+  // Even though GuardIs is a passthrough, it verifies that a runtime value is a
+  // specific object, breaking the dependency on the instruction that produced
+  // the runtime value
+  if (isPassthrough(instr) && !instr.IsGuardIs()) {
     auto& rstate = map_get(env.live_regs, output);
     rstate.addCopy(output);
     if (isUncounted(output)) {
