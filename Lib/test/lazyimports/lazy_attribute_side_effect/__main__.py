@@ -11,4 +11,4 @@ try:
 finally:
     pass
 
-assert(test.lazyimports.lazy_attribute_side_effect.versioned.__version__ == "1.0")
+assert test.lazyimports.lazy_attribute_side_effect.versioned.__version__ == "1.0"

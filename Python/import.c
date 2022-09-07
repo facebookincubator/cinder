@@ -2405,9 +2405,11 @@ _imp_is_lazy_import_impl(PyObject *module, PyObject *dict, PyObject *name)
 }
 
 /*[clinic input]
-_imp.set_lazy_imports
+_imp._set_lazy_imports
 
-    excluding: object
+    enabled: object = True
+    /
+    excluding: object = NULL
 
 Programmatic API for enabling lazy imports at runtime.
 
@@ -2416,29 +2418,47 @@ within which all imports will remain eager.
 [clinic start generated code]*/
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module, PyObject *excluding)
-/*[clinic end generated code: output=e384bf92cca5597d input=84051ca0cfa80ac5]*/
+_imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
+                            PyObject *excluding)
+/*[clinic end generated code: output=bb6e4196f8cf4569 input=c16f11904690a50f]*/
 {
-    if (excluding != Py_None) {
-        if (PySequence_Contains(excluding, Py_None) == -1) {
-            goto error;
-        }
-        Py_INCREF(excluding);
-    }
-    else {
-        excluding = NULL;
-    }
-
+    PyObject *result = NULL;
     PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (interp->eager_imports != NULL) {
-        Py_CLEAR(interp->eager_imports);
+    assert(interp != NULL);
+
+    result = PyTuple_Pack(
+        2,
+        interp->lazy_imports == -1 ? Py_None : interp->lazy_imports ? Py_True : Py_False,
+        interp->eager_imports == NULL ? Py_None : interp->eager_imports
+    );
+    if (result == NULL) {
+        goto error;
     }
-    interp->eager_imports = excluding;
 
-    PyImport_EnableLazyImports();
-    Py_RETURN_NONE;
+    int _enabled = PyObject_IsTrue(enabled);
+    if (_enabled < 0) {
+        goto error;
+    }
 
-error:
+    if (excluding != NULL) {
+        if (Py_IsNone(excluding)) {
+            Py_XDECREF(interp->eager_imports);
+            interp->eager_imports = NULL;
+        } else {
+            if (PySequence_Contains(excluding, Py_None) == -1) {
+                goto error;
+            }
+            Py_XDECREF(interp->eager_imports);
+            interp->eager_imports = Py_NewRef(excluding);
+        }
+    }
+
+    interp->lazy_imports = Py_IsNone(enabled) ? -1 : _enabled;
+
+    return result;
+
+  error:
+    Py_XDECREF(result);
     return NULL;
 }
 
@@ -2478,7 +2498,7 @@ static PyMethodDef imp_methods[] = {
     _IMP__FIX_CO_FILENAME_METHODDEF
     _IMP_SOURCE_HASH_METHODDEF
     _IMP_IS_LAZY_IMPORT_METHODDEF
-    _IMP_SET_LAZY_IMPORTS_METHODDEF
+    _IMP__SET_LAZY_IMPORTS_METHODDEF
     _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
@@ -2640,22 +2660,13 @@ int
 PyImport_IsLazyImportsEnabled()
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (interp->lazy_imports_enabled ||
+    if (interp->lazy_imports == 1 ||
         _PyInterpreterState_GetConfig(interp)->lazy_imports)
     {
         return 1;
     }
     return 0;
 }
-
-void
-PyImport_EnableLazyImports()
-{
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    assert(interp != NULL);
-    interp->lazy_imports_enabled = 1;
-}
-
 
 #ifdef __cplusplus
 }

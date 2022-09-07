@@ -61,31 +61,17 @@ import warnings
 
 from ._bootstrap import __import__
 
-def is_lazy_import(dict, key):
-    """Check if `name` is a lazy import object in `dict`
-
-    Returns 1 if `name` in `dict` contains a lazy import object.
-    Returns 0 if `name` in `dict` is not a lazy import object.
-    Returns -1 if `name` doesn't exist in `dict`, or an error occurred.
-    """
-    return _imp.is_lazy_import(dict, key)
+is_lazy_imports_enabled = _imp.is_lazy_imports_enabled
+is_lazy_import = _imp.is_lazy_import
 
 
-def set_lazy_imports(excluding=None):
+def set_lazy_imports(enable = True, *, excluding = None):
     """Programmatic API for enabling lazy imports at runtime.
 
     The optional argument `excluding` can be any container of strings; all imports
     within modules whose full name is present in the container will be eager.
     """
-    _imp.set_lazy_imports(excluding)
-
-
-def is_lazy_imports_enabled():
-    """Check if Lazy Imports is enabled
-
-    Return True if Lazy Imports is enabled, False if not.
-    """
-    return _imp.is_lazy_imports_enabled()
+    _imp._set_lazy_imports(enable, excluding=excluding)
 
 
 class eager_imports:

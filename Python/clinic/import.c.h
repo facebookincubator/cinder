@@ -487,8 +487,8 @@ exit:
     return return_value;
 }
 
-PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
-"set_lazy_imports($module, /, excluding)\n"
+PyDoc_STRVAR(_imp__set_lazy_imports__doc__,
+"_set_lazy_imports($module, enabled=True, /, excluding=<unrepresentable>)\n"
 "--\n"
 "\n"
 "Programmatic API for enabling lazy imports at runtime.\n"
@@ -496,27 +496,40 @@ PyDoc_STRVAR(_imp_set_lazy_imports__doc__,
 "`excluding` is an optional container of module names\n"
 "within which all imports will remain eager.");
 
-#define _IMP_SET_LAZY_IMPORTS_METHODDEF    \
-    {"set_lazy_imports", (PyCFunction)(void(*)(void))_imp_set_lazy_imports, METH_FASTCALL|METH_KEYWORDS, _imp_set_lazy_imports__doc__},
+#define _IMP__SET_LAZY_IMPORTS_METHODDEF    \
+    {"_set_lazy_imports", (PyCFunction)(void(*)(void))_imp__set_lazy_imports, METH_FASTCALL|METH_KEYWORDS, _imp__set_lazy_imports__doc__},
 
 static PyObject *
-_imp_set_lazy_imports_impl(PyObject *module, PyObject *excluding);
+_imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
+                            PyObject *excluding);
 
 static PyObject *
-_imp_set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+_imp__set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"excluding", NULL};
-    static _PyArg_Parser _parser = {NULL, _keywords, "set_lazy_imports", 0};
-    PyObject *argsbuf[1];
-    PyObject *excluding;
+    static const char * const _keywords[] = {"", "excluding", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_set_lazy_imports", 0};
+    PyObject *argsbuf[2];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *enabled = Py_True;
+    PyObject *excluding = NULL;
 
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 2, 0, argsbuf);
     if (!args) {
         goto exit;
     }
-    excluding = args[0];
-    return_value = _imp_set_lazy_imports_impl(module, excluding);
+    if (nargs < 1) {
+        goto skip_optional_posonly;
+    }
+    noptargs--;
+    enabled = args[0];
+skip_optional_posonly:
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    excluding = args[1];
+skip_optional_pos:
+    return_value = _imp__set_lazy_imports_impl(module, enabled, excluding);
 
 exit:
     return return_value;
@@ -547,4 +560,4 @@ _imp_is_lazy_imports_enabled(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef _IMP_EXEC_DYNAMIC_METHODDEF
     #define _IMP_EXEC_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_EXEC_DYNAMIC_METHODDEF) */
-/*[clinic end generated code: output=d789340365b484df input=a9049054013a1b77]*/
+/*[clinic end generated code: output=df70c1a6d9c9b1e5 input=a9049054013a1b77]*/

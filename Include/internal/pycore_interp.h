@@ -318,7 +318,7 @@ struct _is {
     struct type_cache type_cache;
 
     /* whether lazy imports was enabled at runtime */
-    int lazy_imports_enabled;
+    int lazy_imports;
 };
 
 extern void _PyInterpreterState_ClearModules(PyInterpreterState *interp);
