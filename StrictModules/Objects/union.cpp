@@ -40,8 +40,7 @@ static std::vector<std::shared_ptr<BaseStrictObject>> dedupAndFlattenArgsHelper(
 StrictUnion::StrictUnion(
     std::weak_ptr<StrictModuleObject> creator,
     std::vector<std::shared_ptr<BaseStrictObject>> args)
-    : StrictInstance(UnionType(), std::move(creator)),
-      args_(dedupAndFlattenArgsHelper(args)) {}
+    : StrictInstance(UnionType(), std::move(creator)), args_(args) {}
 
 std::string StrictUnion::getDisplayName() const {
   return fmt::format("{}", fmt::join(args_, "|"));
@@ -124,8 +123,11 @@ std::shared_ptr<BaseStrictObject> unionOrHelper(
     std::shared_ptr<BaseStrictObject> left,
     std::shared_ptr<BaseStrictObject> right) {
   if (isUnionableHelper(left) && isUnionableHelper(right)) {
-    std::vector<std::shared_ptr<BaseStrictObject>> args{
-        std::move(left), std::move(right)};
+    auto args = dedupAndFlattenArgsHelper({std::move(left), std::move(right)});
+
+    if (args.size() == 1) {
+      return args[0];
+    }
     return std::make_shared<StrictUnion>(caller.caller, std::move(args));
   }
   return NotImplemented();

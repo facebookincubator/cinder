@@ -197,12 +197,20 @@ std::unique_ptr<StrictMTestSuite> ReadStrictMTestSuite(
       varNames.append(kVarDelim);
     }
 
-    std::vector<std::string> varNameVec;
+    std::vector<VarMatcher> varVec;
     auto start = 0;
     auto end = varNames.find(kVarDelim);
-
     while (end != varNames.npos) {
-      varNameVec.push_back(varNames.substr(start, end - start));
+      auto varDef = varNames.substr(start, end - start);
+      size_t col = varDef.find(":");
+      if (col != varDef.npos) {
+        auto name = varDef.substr(0, col);
+        auto type = varDef.substr(col + 1);
+        varVec.emplace_back(std::move(name), std::move(type));
+      } else {
+        varVec.emplace_back(std::move(varDef), std::nullopt);
+      }
+
       start = end + kVarDelim.length();
       end = varNames.find(kVarDelim, start);
     }
@@ -228,11 +236,7 @@ std::unique_ptr<StrictMTestSuite> ReadStrictMTestSuite(
     }
 
     suite->test_cases.emplace_back(
-        name,
-        src,
-        std::move(varNameVec),
-        std::move(excShortStringVec),
-        disabled);
+        name, src, std::move(varVec), std::move(excShortStringVec), disabled);
   }
 
   return suite;

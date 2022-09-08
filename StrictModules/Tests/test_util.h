@@ -2,26 +2,36 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
+
+struct VarMatcher {
+  std::string name;
+  std::optional<std::string> type;
+
+  VarMatcher(std::string name, std::optional<std::string> type)
+      : name{std::move(name)}, type{std::move(type)} {};
+};
 
 struct StrictMTestCase {
   StrictMTestCase(
       std::string n,
       std::string src,
-      std::vector<std::string> varNames,
+      std::vector<VarMatcher> vars,
       std::vector<std::string> exc,
       bool isDisabled)
       : name(n),
         src(std::move(src)),
-        varNames(std::move(varNames)),
+        vars(std::move(vars)),
         exceptions(std::move(exc)),
         isDisabled(isDisabled) {}
 
   std::string name;
   std::string src;
-  std::vector<std::string> varNames;
+  std::vector<VarMatcher> vars;
   std::vector<std::string> exceptions;
   bool isDisabled;
 };
@@ -45,7 +55,7 @@ struct StrictMTestSuite {
 // ---
 // <Python code>
 // ---
-// <var1> <var2> <var3>
+// <var1>[:type] <var2>[:type] <var3>[:type]
 // ---
 // <exception short string>
 // ---

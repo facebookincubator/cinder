@@ -6831,7 +6831,7 @@ is_None_instance = isinstance(None, t)
 has_int = issubclass(int, t)
 has_str = issubclass(str, t)
 ---
-is_int_instance is_str_instance is_None_instance has_int has_str
+t:int is_int_instance is_str_instance is_None_instance has_int has_str
 ---
 ---
 test_union_builtin_syntax_8
@@ -6843,7 +6843,7 @@ is_None_instance = isinstance(None, t)
 has_int = issubclass(int, t)
 has_str = issubclass(str, t)
 ---
-is_int_instance is_str_instance is_None_instance has_int has_str
+t:str is_int_instance is_str_instance is_None_instance has_int has_str
 ---
 ---
 test_union_builtin_with_typing_0

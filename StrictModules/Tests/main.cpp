@@ -32,7 +32,7 @@ static void register_test(const char* path, const char* ignorePath) {
         [=]() -> PythonTest* {
           return new ModuleLoaderComparisonTest(
               test_case.src,
-              std::move(test_case.varNames),
+              std::move(test_case.vars),
               std::move(test_case.exceptions));
         });
   }

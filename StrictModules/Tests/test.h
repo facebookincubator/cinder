@@ -214,10 +214,10 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
  public:
   ModuleLoaderComparisonTest(
       std::string src,
-      std::vector<std::string> vars,
+      std::vector<VarMatcher> vars,
       std::vector<std::string> exceptions)
       : source_(src),
-        varNames_(std::move(vars)),
+        vars_(std::move(vars)),
         exceptions_(std::move(exceptions)) {}
 
   void TestBody() override {
@@ -245,7 +245,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
 
     auto pyMod = PyImport_ExecCodeModule(modname, code);
     PyObject* global = nullptr;
-    if (varNames_.empty()) {
+    if (vars_.empty()) {
       // Only care about errors. In this case we allow python code
       // to throw
       PyErr_Clear();
@@ -255,7 +255,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       ASSERT_NE(global, nullptr);
     }
 
-    for (auto vName : varNames_) {
+    for (auto [vName, vType] : vars_) {
       auto value = modValue->getAttr(vName);
       ASSERT_NE(value, nullptr);
       auto pyValue = PyDict_GetItemString(global, vName.c_str());
@@ -265,6 +265,9 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
       auto repr = PyObject_Repr(pyValue);
       EXPECT_TRUE(PyObject_RichCompareBool(pyValue, strictPyValue.get(), Py_EQ))
           << value->getDisplayName() << " : " << PyUnicode_AsUTF8(repr);
+      if (vType) {
+        EXPECT_EQ(vType.value(), getType(value)->getDisplayName());
+      }
       Py_XDECREF(repr);
     }
 
@@ -281,6 +284,14 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
 
  private:
   std::string source_;
-  std::vector<std::string> varNames_;
+  std::vector<VarMatcher> vars_;
   std::vector<std::string> exceptions_;
+
+  static std::shared_ptr<strictmod::StrictType> getType(
+      const std::shared_ptr<strictmod::BaseStrictObject>& object) {
+    if (auto type = std::dynamic_pointer_cast<strictmod::StrictType>(object)) {
+      return type;
+    }
+    return object->getType();
+  }
 };
