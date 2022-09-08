@@ -1957,6 +1957,110 @@ gc_get_freeze_count_impl(PyObject *module)
     return gc_list_size(&gcstate->permanent_generation.head);
 }
 
+#ifdef Py_IMMORTAL_INSTANCES
+
+PyDoc_STRVAR(gc_immortalize_heap__doc__,
+"immortalize_heap($module, /)\n"
+"--\n"
+"\n"
+"Immortalize all instances accessible through the GC roots.");
+
+#define GC_IMMORTALIZE_HEAP_METHODDEF    \
+    {"immortalize_heap", (PyCFunction)PyGC_Immortalize_Heap, METH_NOARGS, gc_immortalize_heap__doc__},
+
+int _PyImmortal_RecursiveHeapWalk = 0;
+
+static int
+immortalize_object(PyObject *obj, PyObject * /* unused */ args)
+{
+    if (Py_IS_IMMORTAL(obj)) {
+        return 0;
+    }
+
+    Py_SET_IMMORTAL(obj);
+
+    if (PyCode_Check(obj)) {
+        PyCodeObject *code = (PyCodeObject *)obj;
+        Py_SET_IMMORTAL(code->co_code);
+        Py_SET_IMMORTAL(code->co_consts);
+        Py_SET_IMMORTAL(code->co_names);
+        Py_SET_IMMORTAL(code->co_varnames);
+        Py_SET_IMMORTAL(code->co_freevars);
+        Py_SET_IMMORTAL(code->co_cellvars);
+        Py_SET_IMMORTAL(code->co_filename);
+        Py_SET_IMMORTAL(code->co_name);
+        Py_SET_IMMORTAL(code->co_linetable);
+    }
+
+    /* Cache the hash value of unicode object to reduce Copy-on-writes */
+    if (PyUnicode_CheckExact(obj)) {
+        PyObject_Hash(obj);
+    }
+
+    if (!_PyImmortal_RecursiveHeapWalk) {
+      return 0;
+    }
+
+    /* Immortalize objects not discoverable through GC  */
+    if (!PyObject_IS_GC(obj) || !_PyObject_GC_IS_TRACKED(obj)) {
+
+        if (Py_TYPE(obj)->tp_traverse == 0) {
+            return 0;
+        }
+
+        /* tp_traverse can not be called for non-heap type object  */
+        if (PyType_Check(obj) && !PyType_HasFeature((PyTypeObject*)(obj), Py_TPFLAGS_HEAPTYPE)) {
+            return 0;
+        }
+
+        Py_TYPE(obj)->tp_traverse(
+              obj, (visitproc)immortalize_object, NULL);
+    }
+
+    return 0;
+}
+
+PyObject* PyGC_Immortalize_Heap(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    fprintf(stderr, "Recursive heap walk for immortalization: %d \n", _PyImmortal_RecursiveHeapWalk);
+
+    PyGC_Head *gc, *list;
+
+    /* Remove any dead objects to avoid immortalizing them */
+    PyGC_Collect();
+
+    /* Move all instances into the permanent generation */
+    gc_freeze_impl(module);
+
+    /* Immortalize all instances in the permanent generation */
+    GCState *gcstate = get_gc_state();
+    list = &gcstate->permanent_generation.head;
+    for (gc = GC_NEXT(list); gc != list; gc = GC_NEXT(gc)) {
+        immortalize_object(FROM_GC(gc), NULL);
+        Py_TYPE(FROM_GC(gc))->tp_traverse(
+              FROM_GC(gc), (visitproc)immortalize_object, NULL);
+    }
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(gc_is_immortal_heap__doc__,
+"is_immortal($module, $obj)\n"
+"--\n"
+"\n"
+"Check if the object is immortal (ref counting not disabled)\n");
+static PyObject *
+gc_is_immortal(PyObject *module, PyObject *obj)
+{
+    if (Py_IS_IMMORTAL(obj)) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
+#define GC_IS_IMMORTAL_METHODDEF    \
+    {"is_immortal", (PyCFunction)gc_is_immortal, METH_O, gc_is_immortal_heap__doc__},
+
+#endif
 
 PyDoc_STRVAR(gc__doc__,
 "This module provides access to the garbage collector for reference cycles.\n"
@@ -1976,6 +2080,9 @@ PyDoc_STRVAR(gc__doc__,
 "is_finalized() -- Returns true if a given object has been already finalized.\n"
 "get_referrers() -- Return the list of objects that refer to an object.\n"
 "get_referents() -- Return the list of objects that an object refers to.\n"
+#ifdef Py_IMMORTAL_INSTANCES
+"immportalize_heap() -- Immortalize all instances accessible through the GC roots.\n"
+#endif
 "freeze() -- Freeze all tracked objects and ignore them for future collections.\n"
 "unfreeze() -- Unfreeze all objects in the permanent generation.\n"
 "get_freeze_count() -- Return the number of objects in the permanent generation.\n");
@@ -1998,6 +2105,10 @@ static PyMethodDef GcMethods[] = {
         gc_get_referrers__doc__},
     {"get_referents",  gc_get_referents, METH_VARARGS,
         gc_get_referents__doc__},
+#ifdef Py_IMMORTAL_INSTANCES
+    GC_IMMORTALIZE_HEAP_METHODDEF
+    GC_IS_IMMORTAL_METHODDEF
+#endif
     GC_FREEZE_METHODDEF
     GC_UNFREEZE_METHODDEF
     GC_GET_FREEZE_COUNT_METHODDEF

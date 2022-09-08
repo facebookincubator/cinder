@@ -10,11 +10,6 @@
 
 namespace jit {
 
-// TODO(T125857223): Use the external immortal refcount kImmortalInitialCount
-// instead of this local copy.
-static const Py_ssize_t kImmortalBitPos = 8 * sizeof(Py_ssize_t) - 4;
-static const Py_ssize_t kImmortalBit = 1L << kImmortalBitPos;
-static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
 PyObject g_iterDoneSentinel = {
     _PyObject_EXTRA_INIT kImmortalInitialCount,
     nullptr};

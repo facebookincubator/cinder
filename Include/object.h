@@ -148,12 +148,6 @@ static inline int _Py_IS_TYPE(const PyObject *ob, const PyTypeObject *type) {
 #define Py_IS_TYPE(ob, type) _Py_IS_TYPE(_PyObject_CAST_CONST(ob), type)
 
 
-static inline void _Py_SET_REFCNT(PyObject *ob, Py_ssize_t refcnt) {
-    ob->ob_refcnt = refcnt;
-}
-#define Py_SET_REFCNT(ob, refcnt) _Py_SET_REFCNT(_PyObject_CAST(ob), refcnt)
-
-
 static inline void _Py_SET_TYPE(PyObject *ob, PyTypeObject *type) {
     ob->ob_type = type;
 }
@@ -502,6 +496,42 @@ PyAPI_FUNC(void) _Py_NegativeRefcount(const char *filename, int lineno,
                                       PyObject *op);
 #endif /* Py_REF_DEBUG */
 
+#define Py_IMMORTAL_INSTANCES
+
+/* Immortalizing causes the instance to not participate in reference counting.
+ * The object will be kept alive until the runtime finalization.
+ * This avoids an unnecessary copy-on-write for applications that share
+ * a common python heap across many processes. */
+#ifdef Py_IMMORTAL_INSTANCES
+
+/* The GC bit-shifts refcounts left by two, and after that shift we still
+ * need this to be >>0, so leave three high zero bits (the sign bit and
+ * room for a shift of two.) */
+static const Py_ssize_t kImmortalBitPos = 8 * sizeof(Py_ssize_t) - 4;
+static const Py_ssize_t kImmortalBit = 1L << kImmortalBitPos;
+static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
+
+#define Py_IS_IMMORTAL(op) ((((PyObject *)op)->ob_refcnt & kImmortalBit) != 0)
+
+#define Py_SET_IMMORTAL(op) (((PyObject *)op)->ob_refcnt = kImmortalBit)
+
+#else
+
+static const Py_ssize_t kImmortalInitialCount = 1;
+
+#endif
+
+static inline void _Py_SET_REFCNT(PyObject *ob, Py_ssize_t refcnt) {
+#ifdef Py_IMMORTAL_INSTANCES
+    if (Py_IS_IMMORTAL(ob)) {
+        return;
+    }
+#endif
+    ob->ob_refcnt = refcnt;
+}
+
+#define Py_SET_REFCNT(ob, refcnt) _Py_SET_REFCNT(_PyObject_CAST(ob), refcnt)
+
 PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
 
 /*
@@ -518,6 +548,11 @@ PyAPI_FUNC(void) _Py_DecRef(PyObject *);
 
 static inline void _Py_INCREF(PyObject *op)
 {
+#ifdef Py_IMMORTAL_INSTANCES
+    if (Py_IS_IMMORTAL(op)) {
+        return;
+    }
+#endif
 #if defined(Py_REF_DEBUG) && defined(Py_LIMITED_API) && Py_LIMITED_API+0 >= 0x030A0000
     // Stable ABI for Python 3.10 built in debug mode.
     _Py_IncRef(op);
@@ -538,6 +573,11 @@ static inline void _Py_DECREF(
 #endif
     PyObject *op)
 {
+#ifdef Py_IMMORTAL_INSTANCES
+    if (Py_IS_IMMORTAL(op)) {
+        return;
+    }
+#endif
 #if defined(Py_REF_DEBUG) && defined(Py_LIMITED_API) && Py_LIMITED_API+0 >= 0x030A0000
     // Stable ABI for Python 3.10 built in debug mode.
     _Py_DecRef(op);

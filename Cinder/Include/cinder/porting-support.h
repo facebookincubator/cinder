@@ -51,10 +51,6 @@ PyAPI_FUNC(PyObject *) _PyCoro_NewNoFrame(
 PyAPI_FUNC(PyObject *) _PyAsyncGen_NewNoFrame(PyCodeObject *code);
 PyAPI_FUNC(PyObject *) _PyGen_NewNoFrame(PyCodeObject *code);
 
-// TODO(T124996749): Until we port immortal objects, it's safe to always say
-// nothing is immortal.
-#define Py_IS_IMMORTAL(v) ((void)v, 0)
-
 // Include/cpython/abstract.h
 // TODO(T125856469) Eager coroutine execution
 // This needs to be "static inline" when implemented.
