@@ -47,7 +47,6 @@ from unittest.mock import patch
 from . import sandbox as base_sandbox
 from .common import (
     cinder310_porting_skip_until_cinder,
-    cinder310_porting_skip_until_static_python,
     init_cached_properties,
     StrictTestBase,
 )
@@ -459,7 +458,6 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(type(mod.C), type)
         self.assertEqual(type(mod.x), mod.C)
 
-    @cinder310_porting_skip_until_static_python
     def test_cross_module_static(self) -> None:
         self.sbx.write_file(
             "astatic.py",
@@ -491,7 +489,6 @@ class StrictLoaderTest(StrictTestBase):
             dis.dis(amod.C.f, file=out)
             self.assertIn("CHECK_ARGS", out.getvalue())
 
-    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -517,7 +514,6 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("INVOKE_FUNCTION", disassembly)
 
-    @cinder310_porting_skip_until_static_python
     def test_cross_module_nonstatic_typestub(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -541,7 +537,6 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("CALL_FUNCTION", disassembly)
 
-    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub_ensure_types_untrusted(self) -> None:
         self.sbx.write_file(
             "math.pyi",
@@ -567,7 +562,6 @@ class StrictLoaderTest(StrictTestBase):
             disassembly = out.getvalue()
             self.assertIn("INVOKE_FUNCTION", disassembly)
 
-    @cinder310_porting_skip_until_static_python
     def test_cross_module_static_typestub_missing(self) -> None:
         self.sbx.write_file(
             "astatic.py",
@@ -2124,7 +2118,6 @@ class StrictLoaderTest(StrictTestBase):
         a = self.sbx.strict_import("a")
         self.assertTrue(isinstance(a, ModuleType))
 
-    @cinder310_porting_skip_until_static_python
     def test_static_python(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2140,7 +2133,6 @@ class StrictLoaderTest(StrictTestBase):
             a = mod.C()
             self.assertEqual(a.x, None)
 
-    @cinder310_porting_skip_until_static_python
     def test_static_python_del_builtin(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2167,7 +2159,6 @@ class StrictLoaderTest(StrictTestBase):
         with self.sbx.in_strict_module("a") as mod:
             self.assertIs(mod.List, List)
 
-    @cinder310_porting_skip_until_static_python
     def test_static_python_final_globals_patch(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2700,7 +2691,6 @@ class StrictLoaderTest(StrictTestBase):
             "ValueError: Strict module stubs path does not exist: /nonexistent", output
         )
 
-    @cinder310_porting_skip_until_static_python
     def test_static_module_patches_build_class(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -2738,7 +2728,9 @@ class StrictLoaderTest(StrictTestBase):
                 stderr=subprocess.STDOUT,
             )
 
-            b_pyc_file = bytecode_path + str(self.sbx.root) + "/b.cpython-38.strict.pyc"
+            b_pyc_file = (
+                bytecode_path + str(self.sbx.root) + "/b.cpython-310.strict.pyc"
+            )
 
             # Ensure that compilation was done
             self.assertTrue(pathlib.Path(b_pyc_file).is_file())

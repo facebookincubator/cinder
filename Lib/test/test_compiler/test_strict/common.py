@@ -226,9 +226,6 @@ def porting_skip_with_reason(reason: str):
     return decorator
 
 
-cinder310_porting_skip_until_static_python = porting_skip_with_reason(
-    "skiped until static python ported"
-)
 cinder310_porting_skip_until_cinder = porting_skip_with_reason(
     "skiped until cinder module fully ported"
 )
