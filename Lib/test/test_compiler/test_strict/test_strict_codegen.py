@@ -3,11 +3,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from .common import (
-    cinder310_porting_skip_until_cinder,
-    StrictTestBase,
-    StrictTestWithCheckerBase,
-)
+from .common import StrictTestBase, StrictTestWithCheckerBase
 
 try:
     import cinderjit
@@ -16,7 +12,6 @@ except ImportError:
 
 
 class StrictCompilationTests(StrictTestBase):
-    @cinder310_porting_skip_until_cinder
     def test_strictmod_freeze_type(self):
         codestr = """
         class C:
@@ -75,7 +70,6 @@ class StrictCompilationTests(StrictTestBase):
                 "<classes>",
             )
 
-    @cinder310_porting_skip_until_cinder
     def test_strictmod_freeze_class_in_function(self):
         codestr = """
         def f():
@@ -109,7 +103,6 @@ class StrictCompilationTests(StrictTestBase):
             "<classes>",
         )
 
-    @cinder310_porting_skip_until_cinder
     def test_strictmod_fixed_modules_typing(self):
         codestr = """
         from typing import final
@@ -676,7 +669,6 @@ class StrictBuiltinCompilationTests(StrictTestWithCheckerBase):
 
 
 class StrictCheckedCompilationTests(StrictTestWithCheckerBase):
-    @cinder310_porting_skip_until_cinder
     def test_strictmod_freeze_type(self):
         codestr = """
         import __strict__

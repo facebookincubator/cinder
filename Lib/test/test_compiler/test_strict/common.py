@@ -217,15 +217,3 @@ class StrictTestWithCheckerBase(StrictTestBase):
             yield m
         finally:
             self._finalize_module(name, d)
-
-
-def porting_skip_with_reason(reason: str):
-    def decorator(func):
-        return skip(reason)(func)
-
-    return decorator
-
-
-cinder310_porting_skip_until_cinder = porting_skip_with_reason(
-    "skiped until cinder module fully ported"
-)

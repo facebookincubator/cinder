@@ -45,11 +45,7 @@ from unittest import skip
 from unittest.mock import patch
 
 from . import sandbox as base_sandbox
-from .common import (
-    cinder310_porting_skip_until_cinder,
-    init_cached_properties,
-    StrictTestBase,
-)
+from .common import init_cached_properties, StrictTestBase
 from .sandbox import (
     file_loader,
     on_sys_path,
@@ -1595,7 +1591,6 @@ class StrictLoaderTest(StrictTestBase):
             [k for k in mod.__dict__.keys() if not k.startswith("__")], ["x", "y", "z"]
         )
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass")
         with ensure_type_patch():
@@ -1603,7 +1598,6 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 42
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze_mutate_after(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nclass C: pass\nC.foo = 42")
         with ensure_type_patch():
@@ -1612,7 +1606,6 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1628,7 +1621,6 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func_loop(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1647,7 +1639,6 @@ class StrictLoaderTest(StrictTestBase):
                 with self.assertRaises(TypeError):
                     C.foo = 100
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze_func_mutate_after(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1665,7 +1656,6 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(TypeError):
                 C.foo = 100
 
-    @cinder310_porting_skip_until_cinder
     def test_type_freeze_nested(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1704,7 +1694,6 @@ class StrictLoaderTest(StrictTestBase):
             C.foo = 42
             self.assertEqual(C.foo, 42)
 
-    @cinder310_porting_skip_until_cinder
     def test_loose_slots(self) -> None:
         self.sbx.write_file(
             "a.py",
@@ -1762,7 +1751,6 @@ class StrictLoaderTest(StrictTestBase):
                 ],
             )
 
-    @cinder310_porting_skip_until_cinder
     def test_loose_slots_with_unknown_bases(self) -> None:
         self.sbx.write_file(
             "b.py",

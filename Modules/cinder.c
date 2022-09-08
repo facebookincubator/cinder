@@ -147,8 +147,6 @@ PyDoc_STRVAR(freeze_type_doc,
 Marks a type as being frozen and disallows any future mutations to it."
 );
 
-#ifdef CINDER_PORTING_DONE
-
 static PyObject *
 cinder_warn_on_inst_dict(PyObject *self, PyObject *o)
 {
@@ -157,7 +155,7 @@ cinder_warn_on_inst_dict(PyObject *self, PyObject *o)
             PyExc_TypeError,
             "warn_on_inst_dict requires a type");
         return NULL;
-    } else if (((PyTypeObject *)o)->tp_flags & Py_TPFLAGS_FROZEN) {
+    } else if (((PyTypeObject *)o)->tp_flags & Ci_Py_TPFLAGS_FROZEN) {
         PyErr_SetString(
             PyExc_TypeError,
             "can't call warn_on_inst_dict on a frozen type");
@@ -175,7 +173,6 @@ PyDoc_STRVAR(cinder_warn_on_inst_dict_doc,
 Causes a warning to be emitted when a type dictionary is created."
 );
 
-#endif
 
 static PyObject *
 cinder_set_warn_handler(PyObject *self, PyObject *o)
@@ -648,12 +645,10 @@ static struct PyMethodDef cinder_module_methods[] = {
     {"setknobs", cinder_setknobs, METH_O, setknobs_doc},
     {"getknobs", cinder_getknobs, METH_NOARGS, getknobs_doc},
     {"freeze_type", cinder_freeze_type, METH_O, freeze_type_doc},
-#ifdef CINDER_PORTING_DONE
     {"warn_on_inst_dict",
      cinder_warn_on_inst_dict,
      METH_O,
      cinder_warn_on_inst_dict_doc},
-#endif
     {"cinder_set_warn_handler",
      cinder_set_warn_handler,
      METH_O,
