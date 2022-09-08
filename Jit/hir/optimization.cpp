@@ -869,12 +869,16 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     // This explicit temporary is necessary because HIRBuilder takes a const
     // reference and stores it and we need to make sure the target doesn't go
     // away.
-    Preloader preloader(func);
-    if (!canInlineWithPreloader(call_instr, fullname, preloader)) {
+    auto preloader = Preloader::getPreloader(func);
+    if (!preloader) {
       JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
-    HIRBuilder hir_builder(preloader);
+    if (!canInlineWithPreloader(call_instr, fullname, *preloader)) {
+      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      return;
+    }
+    HIRBuilder hir_builder(*preloader);
     result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   }
   if (result.entry == nullptr) {

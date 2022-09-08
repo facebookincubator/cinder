@@ -134,7 +134,10 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   PyObject* container;
   auto callable =
       Ref<>::steal(_PyClassLoader_ResolveFunction(descr, &container));
-  JIT_CHECK(callable != nullptr, "unknown invoke target %s", repr(descr));
+  if (callable == nullptr) {
+    JIT_LOG("unknown invoke target %s during preloading", repr(descr));
+    return nullptr;
+  }
 
   int coroutine, optional, exact, classmethod;
   auto return_pytype =
@@ -285,7 +288,7 @@ BorrowedRef<> Preloader::constArg(BytecodeInstruction& bc_instr) const {
   return PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
 }
 
-void Preloader::preload() {
+bool Preloader::preload() {
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
     return_type_ = to_jit_type(
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
@@ -369,8 +372,13 @@ void Preloader::preload() {
         BorrowedRef<PyObject> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         auto& map = bc_instr.opcode() == INVOKE_FUNCTION ? func_targets_
                                                          : meth_targets_;
-        map.emplace(descr, resolve_target_descr(descr, bc_instr.opcode()));
-        break;
+        auto target = resolve_target_descr(descr, bc_instr.opcode());
+        if (target) {
+          map.emplace(descr, resolve_target_descr(descr, bc_instr.opcode()));
+          break;
+        } else {
+          return false;
+        }
       }
     }
   }
@@ -379,6 +387,7 @@ void Preloader::preload() {
     prim_args_info_ = Ref<_PyTypedArgsInfo>::steal(
         _PyClassLoader_GetTypedArgsInfo(code_, true));
   }
+  return true;
 }
 
 } // namespace hir

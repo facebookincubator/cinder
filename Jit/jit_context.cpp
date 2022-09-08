@@ -385,8 +385,12 @@ CompilationResult compileCode(
   JIT_CHECK(
       !jit::g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
-  return compilePreloader(
-      ctx, jit::hir::Preloader(code, globals, builtins, fullname));
+  auto preloader =
+      jit::hir::Preloader::getPreloader(code, globals, builtins, fullname);
+  if (!preloader) {
+    return {nullptr, PYJIT_RESULT_UNKNOWN_ERROR};
+  }
+  return compilePreloader(ctx, *preloader);
 }
 } // namespace
 
