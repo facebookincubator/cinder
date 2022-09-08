@@ -411,6 +411,21 @@ done:
 }
 
 
+// These are used in native calling tests, ensure the compiler
+// doesn't hide or remove these symbols
+__attribute__((used))
+__attribute__((visibility("default")))
+int64_t native_add(int64_t a, int64_t b) {
+    return a + b;
+}
+
+__attribute__((used))
+__attribute__((visibility("default")))
+int64_t native_sub(int64_t a, uint8_t b) {
+    return a - b;
+}
+
+
 static PyMethodDef TestMethods[] = {
     {"get_configs", get_configs, METH_NOARGS},
     {"get_recursion_depth", get_recursion_depth, METH_NOARGS},

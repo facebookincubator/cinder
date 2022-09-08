@@ -37,6 +37,8 @@ opcode.def_op("FAST_LEN", 186)
 opcode.def_op("CONVERT_PRIMITIVE", 187)
 opcode.def_op("CHECK_ARGS", 188)
 opcode.hasconst.add(188)
+opcode.def_op("INVOKE_NATIVE", 189)
+opcode.hasconst.add(189)
 opcode.def_op("LOAD_CLASS", 190)
 opcode.hasconst.add(190)
 opcode.def_op("BUILD_CHECKED_MAP", 191)
@@ -79,6 +81,7 @@ opcode.stack_effects.update(
     LOAD_ITERABLE_ARG=1,
     LOAD_MAPPING_ARG=_load_mapping_arg_effect,
     INVOKE_FUNCTION=lambda oparg, jmp=0: (-oparg[1]) + 1,
+    INVOKE_NATIVE=lambda oparg, jmp=0: (-len(oparg[1])) + 2,
     JUMP_IF_ZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     JUMP_IF_NONZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     FAST_LEN=0,

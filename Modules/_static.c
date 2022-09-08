@@ -1196,6 +1196,15 @@ error:
     return cls;
 }
 
+PyObject *resolve_primitive_descr(PyObject *mod, PyObject *descr) {
+    int type_code = _PyClassLoader_ResolvePrimitiveType(descr);
+    if (type_code < 0) {
+        return NULL;
+    }
+    return PyLong_FromLong(type_code);
+}
+
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"rand", (PyCFunction)&static_rand_def, Ci_METH_TYPED, ""},
@@ -1210,6 +1219,7 @@ static PyMethodDef static_methods[] = {
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, Ci_METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, Ci_METH_TYPED, ""},
     {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
+    {"resolve_primitive_descr", (PyCFunction)(void(*)(void))resolve_primitive_descr, METH_O, ""},
     {"__build_cinder_class__",
      (PyCFunction)_static___build_cinder_class__,
      METH_FASTCALL | METH_KEYWORDS,

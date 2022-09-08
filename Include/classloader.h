@@ -687,6 +687,13 @@ _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
 
 int _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key);
 
+PyObject* _PyClassloader_InvokeNativeFunction(
+    PyObject *lib_name,
+    PyObject *symbol_name,
+    PyObject *signature,
+    PyObject **args,
+    int64_t nargs
+);
 
 #endif
 

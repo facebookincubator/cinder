@@ -800,6 +800,7 @@ class PyFlowGraph(FlowGraph):
         "LOAD_CONST": _convert_LOAD_CONST,
         "INVOKE_FUNCTION": _convert_LOAD_CONST,
         "INVOKE_METHOD": _convert_LOAD_CONST,
+        "INVOKE_NATIVE": _convert_LOAD_CONST,
         "LOAD_FIELD": _convert_LOAD_CONST,
         "STORE_FIELD": _convert_LOAD_CONST,
         "CAST": _convert_LOAD_CONST,
