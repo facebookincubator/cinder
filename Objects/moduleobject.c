@@ -1223,8 +1223,10 @@ static PyObject * strict_module_name_get(PyObject *self, void *closure)
 static PyObject * strict_module_patch_enabled(PyObject *self, void *closure)
 {
     if (((PyStrictModuleObject *) self) -> global_setter != NULL) {
+        Py_INCREF(Py_True);
         return Py_True;
     }
+    Py_INCREF(Py_False);
     return Py_False;
 }
 

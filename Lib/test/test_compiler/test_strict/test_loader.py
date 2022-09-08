@@ -47,7 +47,6 @@ from unittest.mock import patch
 from . import sandbox as base_sandbox
 from .common import (
     cinder310_porting_skip_until_cinder,
-    cinder310_porting_skip_until_classloader,
     cinder310_porting_skip_until_static_python,
     init_cached_properties,
     StrictTestBase,
@@ -244,7 +243,6 @@ def sandbox() -> Generator[Sandbox, None, None]:
 
 @final
 class StrictLoaderInstallTest(StrictTestBase):
-    @cinder310_porting_skip_until_classloader
     def test_install(self) -> None:
         with file_loader(NORMAL_LOADER):
             orig_hooks_len = len(sys.path_hooks)
@@ -1347,7 +1345,6 @@ class StrictLoaderTest(StrictTestBase):
             self.assertEqual(path.split(calls[0])[-1], "b.py")
             self.assertEqual(path.split(calls[1])[-1], "a.py")
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_setter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1360,7 +1357,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 100)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_twice(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1375,7 +1371,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 200)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_no_attribute(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\n")
 
@@ -1390,7 +1385,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 200)
             self.assertFalse(hasattr(a, "x"))
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_set_then_del_no_attribute(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\n")
 
@@ -1405,7 +1399,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertFalse(hasattr(a, "x"))
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_setter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1421,7 +1414,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_deleter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1434,7 +1426,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_deleter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1450,7 +1441,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_not_disposed(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1477,7 +1467,6 @@ class StrictLoaderTest(StrictTestBase):
                 "Patch(es) x failed to be detached from strict module 'a'\n",
             )
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_not_enabled(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1486,7 +1475,6 @@ class StrictLoaderTest(StrictTestBase):
             with self.assertRaises(ValueError):
                 StrictModuleTestingPatchProxy(a)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_setter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1503,7 +1491,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(a.x, 100)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_setter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1527,7 +1514,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertEqual(len(object.__getattribute__(proxy, "_patches")), 0)
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_deleter(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 
@@ -1544,7 +1530,6 @@ class StrictLoaderTest(StrictTestBase):
                 self.assertFalse(hasattr(a, "x"))
             self.assertEqual(a.x, 2)
 
-    @cinder310_porting_skip_until_classloader
     def test_proxy_nested_deleter_restore(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
 

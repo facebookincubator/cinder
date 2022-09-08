@@ -105,10 +105,8 @@ class StrictTestBase(CompilerTest):
             self._finalize_module(name, d)
 
     def setUp(self):
-        # TODO Cinder-porting: re-enable this once class loader is ported
-        pass
         # ensure clean classloader/vtable slate for all tests
-        # cinder.clear_classloader_caches()
+        cinder.clear_classloader_caches()
 
     def subTest(self, **kwargs):
         cinder.clear_classloader_caches()
@@ -230,9 +228,6 @@ def porting_skip_with_reason(reason: str):
 
 cinder310_porting_skip_until_static_python = porting_skip_with_reason(
     "skiped until static python ported"
-)
-cinder310_porting_skip_until_classloader = porting_skip_with_reason(
-    "skiped until classloader ported"
 )
 cinder310_porting_skip_until_cinder = porting_skip_with_reason(
     "skiped until cinder module fully ported"
