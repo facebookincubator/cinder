@@ -7,6 +7,7 @@
 
 namespace jit {
 
+// these must be opcodes whose oparg is a jump target index
 const std::unordered_set<int> kBranchOpcodes = {
     FOR_ITER,
     JUMP_ABSOLUTE,
@@ -20,13 +21,20 @@ const std::unordered_set<int> kBranchOpcodes = {
     POP_JUMP_IF_TRUE,
     POP_JUMP_IF_ZERO,
     POP_JUMP_IF_NONZERO,
-    RERAISE,
 };
 
 const std::unordered_set<int> kRelBranchOpcodes = {
     FOR_ITER,
     JUMP_FORWARD,
     SETUP_FINALLY,
+};
+
+// we always consider branches block terminators; no need to duplicate them here
+const std::unordered_set<int> kBlockTerminatorOpcodes = {
+    RETURN_VALUE,
+    RETURN_PRIMITIVE,
+    RAISE_VARARGS,
+    RERAISE,
 };
 
 } // namespace jit

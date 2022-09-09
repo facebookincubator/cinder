@@ -15,6 +15,7 @@ namespace jit {
 
 extern const std::unordered_set<int> kBranchOpcodes;
 extern const std::unordered_set<int> kRelBranchOpcodes;
+extern const std::unordered_set<int> kBlockTerminatorOpcodes;
 
 // A structured, immutable representation of a CPython bytecode
 class BytecodeInstruction {
@@ -87,11 +88,11 @@ class BytecodeInstruction {
   }
 
   bool IsReturn() const {
-    return opcode() == RETURN_VALUE;
+    return opcode() == RETURN_VALUE || opcode() == RETURN_PRIMITIVE;
   }
 
   bool IsTerminator() const {
-    return IsBranch() || IsReturn() || IsRaiseVarargs();
+    return IsBranch() || kBlockTerminatorOpcodes.count(opcode());
   }
 
   BCOffset GetJumpTarget() const {
@@ -99,6 +100,9 @@ class BytecodeInstruction {
   }
 
   BCIndex GetJumpTargetAsIndex() const {
+    JIT_DCHECK(
+        IsBranch(),
+        "calling GetJumpTargetAsIndex() on non-branch gives nonsense");
     if (kRelBranchOpcodes.count(opcode())) {
       return NextInstrIndex() + oparg();
     }

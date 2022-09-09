@@ -556,8 +556,7 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
       if (
           // We always split after YIELD_FROM to handle the case where it's the
           // top of an async-for loop and so generate a HIR conditional jump.
-          (opcode == RAISE_VARARGS) || (opcode == RETURN_VALUE) ||
-          (opcode == YIELD_FROM)) {
+          bc_instr.IsTerminator() || (opcode == YIELD_FROM)) {
         maybe_add_next_instr(bc_instr);
       } else {
         JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
