@@ -30,7 +30,7 @@ PyAPI_FUNC(PyObject *) _PyBytes_DecodeEscape(const char *, Py_ssize_t,
 
 /* Macro, trading safety for speed */
 #define PyBytes_AS_STRING(op) (assert(PyBytes_Check(op)), \
-                                (((PyBytesObject *)(op))->ob_sval))
+                                ((char *)((PyBytesObject *)(op))->ob_sval))
 #define PyBytes_GET_SIZE(op)  (assert(PyBytes_Check(op)),Py_SIZE(op))
 
 /* _PyBytes_Join(sep, x) is like sep.join(x).  sep must be PyBytesObject*,
