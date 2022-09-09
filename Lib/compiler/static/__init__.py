@@ -177,25 +177,14 @@ class Static38CodeGenerator(StrictCodeGenerator):
             enable_patching=self.enable_patching,
         )
 
-    def make_func_codegen(
-        self,
-        func: FuncOrLambda | CompNode,
-        func_args: ast.arguments,
-        name: str,
-        first_lineno: int,
-    ) -> CodeGenerator:
-        gen = super().make_func_codegen(func, func_args, name, first_lineno)
-        self._processArgTypes(func, func_args, gen)
-        return gen
-
-    def _processArgTypes(
+    def _get_arg_types(
         self,
         func: FuncOrLambda | CompNode,
         args: ast.arguments,
-        gen: CodeGenerator,
-    ) -> None:
+        graph: PyFlowGraph,
+    ) -> tuple[object, ...]:
         arg_checks = []
-        cellvars = gen.graph.cellvars
+        cellvars = graph.cellvars
         is_comprehension = not isinstance(
             func, (ast.AsyncFunctionDef, ast.FunctionDef, ast.Lambda)
         )
@@ -244,7 +233,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         # we should never emit arg checks for object
         assert not any(td == ("builtins", "object") for td in arg_checks[1::2])
 
-        gen.emit("CHECK_ARGS", tuple(arg_checks))
+        return tuple(arg_checks)
 
     def get_type(self, node: AST) -> Value:
         return self.cur_mod.types[node]
@@ -296,6 +285,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return graph
 
         graph.setFlag(consts.CO_STATICALLY_COMPILED)
+        arg_types = self._get_arg_types(func, func_args, graph)
+        graph.emit("CHECK_ARGS", arg_types)
+        ret_type = self._get_return_type(func)
+        graph.extra_consts.append(ret_type.type_descr)
+        return graph
+
+    def _get_return_type(self, func: FuncOrLambda | CompNode) -> Class:
         if isinstance(func, (FunctionDef, AsyncFunctionDef)):
             function = self.get_func_container(func)
             klass = function.return_type.resolved()
@@ -303,9 +299,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             klass = self.get_type(func).klass
         if isinstance(klass, AwaitableType):
             klass = klass.type_args[0]
-        type_descr = klass.type_descr
-        graph.extra_consts.append(type_descr)
-        return graph
+        return klass
 
     @contextmanager
     def new_loopidx(self) -> Generator[str, None, None]:

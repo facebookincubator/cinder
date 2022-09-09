@@ -36,17 +36,20 @@ class CompilerTest(TestCase):
         dis.dis(co, file=s)
         return s.getvalue()
 
-    def assertInBytecode(self, x, opname, argval=_UNSPECIFIED):
+    def assertInBytecode(self, x, opname, argval=_UNSPECIFIED, *, index=_UNSPECIFIED):
         """Returns instr if op is found, otherwise throws AssertionError"""
-        for instr in dis.get_instructions(x):
+        for i, instr in enumerate(dis.get_instructions(x)):
             if instr.opname == opname:
-                if argval is _UNSPECIFIED or instr.argval == argval:
+                argmatch = argval is _UNSPECIFIED or instr.argval == argval
+                indexmatch = index is _UNSPECIFIED or i == index
+                if argmatch and indexmatch:
                     return instr
         disassembly = self.get_disassembly_as_string(x)
+        loc_msg = "" if index is _UNSPECIFIED else f" at index {index}"
         if argval is _UNSPECIFIED:
-            msg = f"{opname} not found in bytecode:\n{disassembly}"
+            msg = f"{opname} not found in bytecode{loc_msg}:\n{disassembly}"
         else:
-            msg = f"({opname},{argval}) not found in bytecode:\n{disassembly}"
+            msg = f"({opname},{argval}) not found in bytecode{loc_msg}:\n{disassembly}"
         self.fail(msg)
 
     def assertNotInBytecode(self, x, opname, argval=_UNSPECIFIED):

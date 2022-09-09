@@ -2844,6 +2844,7 @@ class CodeGenerator(ASTVisitor):
         graph = self.make_function_graph(
             func, func_args, filename, symbols.scopes, class_name, name, first_lineno
         )
+        graph.emit_gen_start()
         res = self.make_child_codegen(func, graph)
         res.optimized = 1
         res.class_name = class_name

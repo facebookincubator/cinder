@@ -26,13 +26,6 @@
 extern "C" {
 #endif
 
-
-// Include/code.h
-#define CO_STATICALLY_COMPILED   0x4000000
-#define CO_FUTURE_LAZY_IMPORTS   0x8000000
-#define CO_SUPPRESS_JIT          0x40000000
-
-
 // Include/genobject.h  TODO(T125856469) Eager coroutine execution
 typedef struct {
     PyObject_HEAD

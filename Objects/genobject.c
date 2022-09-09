@@ -209,7 +209,15 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, PyObject **presult,
     }
 
     assert(Ci_GenIsRunnable(gen));
-    assert(!Ci_GenIsJustStarted(gen) || ((unsigned char *)PyBytes_AS_STRING(((PyCodeObject*)gen->gi_code)->co_code))[0] == GEN_START);
+    assert(
+        !Ci_GenIsJustStarted(gen)
+        || (((unsigned char *)PyBytes_AS_STRING(((PyCodeObject*)gen->gi_code)->co_code))[0] == GEN_START)
+        || (
+            (((PyCodeObject*)gen->gi_code)->co_flags & CO_STATICALLY_COMPILED)
+            && (((unsigned char *)PyBytes_AS_STRING(((PyCodeObject*)gen->gi_code)->co_code))[0] == CHECK_ARGS)
+            && (((unsigned char *)PyBytes_AS_STRING(((PyCodeObject*)gen->gi_code)->co_code))[2] == GEN_START)
+        )
+    );
     result = arg ? arg : Py_None;
     // Push arg to be sent in onto stack for interpreted generator. JIT
     // generators have an explicit mechanism for sending in values on resume.

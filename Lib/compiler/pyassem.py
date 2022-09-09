@@ -505,6 +505,8 @@ class PyFlowGraph(FlowGraph):
             self.gen_kind = 2
         elif flags & CO_GENERATOR:
             self.gen_kind = 0
+
+    def emit_gen_start(self) -> None:
         if self.gen_kind is not None:
             self.emit("GEN_START", self.gen_kind, -1)
 

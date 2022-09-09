@@ -1404,7 +1404,11 @@ void HIRBuilder::translate(
           // functions. This should be fine as long as we can't de-opt after the
           // function is started but before GEN_START. This check ensures this.
           JIT_DCHECK(
-              bc_instr.index() == 0, "GEN_START must be first instruction");
+              bc_instr.index() == 0 ||
+                  (bc_instr.index() == 1 &&
+                   bc_instrs.begin()->opcode() == CHECK_ARGS),
+              "GEN_START must be first instruction, or preceded only by "
+              "CHECK_ARGS");
           break;
         }
         case DICT_UPDATE: {

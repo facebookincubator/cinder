@@ -2,6 +2,15 @@ from .common import StaticTestBase
 
 
 class ElideTypeChecksTests(StaticTestBase):
+    def test_check_args_precedes_gen_start(self) -> None:
+        codestr = """
+            async def f():
+                pass
+        """
+        with self.in_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "CHECK_ARGS", (), index=0)
+            self.assertInBytecode(mod.f, "GEN_START", 1, index=1)
+
     def test_elide_check_with_one_optional(self) -> None:
         codestr = """
             from typing import Optional
