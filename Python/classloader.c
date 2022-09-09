@@ -865,8 +865,6 @@ done:
     return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
 
-// TODO(T128338759): Port and enable these.
-#ifdef CINDER_PORTING_DONE
 PyObject *_PyFunction_CallStatic(PyFunctionObject *func,
                                  PyObject **args,
                                  Py_ssize_t nargsf,
@@ -875,26 +873,11 @@ PyObject *_PyEntry_StaticEntry(PyFunctionObject *func,
                                PyObject **args,
                                Py_ssize_t nargsf,
                                PyObject *kwnames);
-PyObject *_PyEntry_StaticEntryNArgs(PyFunctionObject *func,
-                                    PyObject **args,
-                                    Py_ssize_t nargsf,
-                                    PyObject *kwnames);
-PyObject *_PyEntry_StaticEntryP0Defaults(PyFunctionObject *func,
-                                         PyObject **args,
-                                         Py_ssize_t nargsf,
-                                         PyObject *kwnames);
-#endif
 
 static inline int
 is_static_entry(vectorcallfunc func)
 {
-  return 0;
-  // TODO(T128338759): Re-enable.
-#ifdef CINDER_PORTING_DONE
-    return func == (vectorcallfunc)_PyEntry_StaticEntry ||
-           func == (vectorcallfunc)_PyEntry_StaticEntryNArgs ||
-           func == (vectorcallfunc)_PyEntry_StaticEntryP0Defaults;
-#endif
+    return func == (vectorcallfunc)_PyEntry_StaticEntry;
 }
 
 /**
@@ -921,9 +904,8 @@ type_vtable_func_lazyinit(PyTupleObject *state,
             vtable->vt_entries[index].vte_state = (PyObject *)func;
             if (is_static_entry(func->vectorcall)) {
                 /* this will always be invoked statically via the v-table */
-                // TODO(T128338759): Re-enable.
-                /* vtable->vt_entries[index].vte_entry = */
-                /*     (vectorcallfunc)_PyFunction_CallStatic; */
+                vtable->vt_entries[index].vte_entry =
+                    (vectorcallfunc)_PyFunction_CallStatic;
             } else {
                 vtable->vt_entries[index].vte_entry = func->vectorcall;
             }
@@ -1049,10 +1031,9 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
         Py_XDECREF(vtable->vt_entries[slot].vte_state);
         vtable->vt_entries[slot].vte_state = value;
         if (is_static_entry(entry)) {
-          // TODO(T128338759): Re-enable.
             /* this will always be invoked statically via the v-table */
-            /* vtable->vt_entries[slot].vte_entry = */
-            /*     (vectorcallfunc)_PyFunction_CallStatic; */
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)_PyFunction_CallStatic;
             vtable->vt_entries[slot].vte_entry = entry;
         } else {
             vtable->vt_entries[slot].vte_entry = entry;
