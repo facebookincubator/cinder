@@ -7911,13 +7911,100 @@ do_call_core(PyThreadState *tstate,
     return PyObject_Call(func, callargs, kwdict);
 }
 
+
+
+PyObject *_Py_HOT_FUNCTION
+_PyFunction_CallStatic(PyFunctionObject *func,
+                       PyObject* const* args,
+                       Py_ssize_t nargsf,
+                       PyObject *kwnames)
+{
+    assert(PyFunction_Check(func));
+    PyCodeObject *co = (PyCodeObject *)func->func_code;
+
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    assert(nargs == 0 || args != NULL);
+#ifdef CINDER_DONE_PORTING
+    Py_ssize_t awaited = _Py_AWAITED_CALL(nargsf);
+#else
+    Py_ssize_t awaited = 0;
+#endif
+    PyFrameConstructor *con = PyFunction_AS_FRAME_CONSTRUCTOR(func);
+    PyThreadState *tstate = _PyThreadState_GET();
+    assert(tstate != NULL);
+
+    /* We are bound to a specific function that is known at compile time, and
+     * all of the arguments are guaranteed to be provided */
+    assert(co->co_argcount == nargs);
+    assert(co->co_flags & CO_STATICALLY_COMPILED);
+    assert(co->co_flags & CO_OPTIMIZED);
+    assert(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY);
+    assert(kwnames == NULL);
+
+    // the rest of this is _PyEval_Vector plus skipping CHECK_ARGS
+
+    // we could save some unnecessary checks by copying in
+    // and simplifying _PyEval_MakeFrameVector instead of calling it
+    PyFrameObject *f = _PyEval_MakeFrameVector(
+        tstate, con, NULL, args, nargs, kwnames);
+    if (f == NULL) {
+        return NULL;
+    }
+    assert(((unsigned char *)PyBytes_AS_STRING(co->co_code))[0] == CHECK_ARGS);
+    f->f_lasti = 0; /* skip CHECK_ARGS */
+
+    if (co->co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
+        if (awaited) {
+            PORT_ASSERT("Unsupported: Eager await static coroutine");
+        }
+        return make_coro(con, f);
+    }
+    PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);
+
+    /* decref'ing the frame can cause __del__ methods to get invoked,
+       which can call back into Python.  While we're done with the
+       current Python frame (f), the associated C stack is still in use,
+       so recursion_depth must be boosted for the duration.
+    */
+    if (Py_REFCNT(f) > 1) {
+        Py_DECREF(f);
+        _PyObject_GC_TRACK(f);
+    }
+    else {
+        ++tstate->recursion_depth;
+        Py_DECREF(f);
+        --tstate->recursion_depth;
+    }
+    return retval;
+}
+
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntry(PyFunctionObject *func,
+                     PyObject **args,
+                     Py_ssize_t nargsf,
+                     PyObject *kwnames)
+{
+
+    if (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    return _PyFunction_Vectorcall((PyObject *)func, args, nargsf, kwnames);
+}
+
 void
 PyEntry_initnow(PyFunctionObject *func)
 {
     // Check that func hasn't already been initialized.
     assert(func->vectorcall == (vectorcallfunc)PyEntry_LazyInit);
+    PyCodeObject *co = (PyCodeObject *)func->func_code;
 
-    func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    if (co->co_flags & CO_STATICALLY_COMPILED)
+    {
+        func->vectorcall = (vectorcallfunc)_PyEntry_StaticEntry;
+    } else {
+        func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    }
 }
 
 PyObject *

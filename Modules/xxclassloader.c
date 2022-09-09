@@ -514,12 +514,32 @@ traverse_heap(PyObject *self, PyObject *Py_UNUSED(args))
     Py_RETURN_NONE;
 }
 
+PyObject *
+unsafe_change_type(PyObject *self, PyObject **args, Py_ssize_t nargs)
+{
+    PyObject *obj;
+    PyObject *new_type;
+    if (!_PyArg_ParseStack(args, nargs, "OO:unsafe_change_type", &obj, &new_type)) {
+        return NULL;
+    }
+    if (Py_TYPE(new_type) != &PyType_Type) {
+        PyErr_SetString(PyExc_TypeError, "second argument must be a type");
+        return NULL;
+    }
+    PyObject *old_type = (PyObject *)obj->ob_type;
+    Py_INCREF(new_type);
+    obj->ob_type = (PyTypeObject *)new_type;
+    Py_DECREF(old_type);
+    Py_RETURN_NONE;
+}
+
 
 static PyMethodDef xxclassloader_methods[] = {
     {"foo", (PyCFunction)&xxclassloader_foo_def, Ci_METH_TYPED, ""},
     {"bar", (PyCFunction)&xxclassloader_bar_def, Ci_METH_TYPED, ""},
     {"neg", (PyCFunction)&xxclassloader_neg_def, Ci_METH_TYPED, ""},
     {"traverse_heap", traverse_heap, METH_NOARGS},
+    {"unsafe_change_type", (PyCFunction)(void(*)(void))unsafe_change_type, METH_FASTCALL},
     {}
 };
 

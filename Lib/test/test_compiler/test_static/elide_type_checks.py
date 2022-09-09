@@ -11,6 +11,38 @@ class ElideTypeChecksTests(StaticTestBase):
             self.assertInBytecode(mod.f, "CHECK_ARGS", (), index=0)
             self.assertInBytecode(mod.f, "GEN_START", 1, index=1)
 
+    def test_invoke_skips_arg_type_checks(self) -> None:
+        codestr = """
+            from xxclassloader import unsafe_change_type
+
+            class A:
+                pass
+
+            class B:
+                pass
+
+            def g(a: A) -> str:
+                return a.__class__.__name__
+
+            def f() -> str:
+                a = A()
+                # compiler is unaware that this changes the type of `a`,
+                # so it unsafely allows the following call g(a)
+                unsafe_change_type(a, B)
+                return g(a)
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertInBytecode(mod.f, "INVOKE_FUNCTION", ((mod.__name__, "g"), 1))
+            # Non-static call should always check arg types
+            with self.assertRaisesRegex(
+                TypeError, "g expected 'A' for argument a, got 'B'"
+            ):
+                mod.g(mod.B())
+            # Should not raise a TypeError because static invokes skip arg
+            # checks.  This results in an unsound call in this case, but only
+            # because we are using an unsound C extension method.
+            self.assertEqual(mod.f(), "B")
+
     def test_elide_check_with_one_optional(self) -> None:
         codestr = """
             from typing import Optional
