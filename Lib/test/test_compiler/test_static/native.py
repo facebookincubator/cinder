@@ -1,5 +1,7 @@
 from .common import StaticTestBase, type_mismatch
 
+import _testinternalcapi  # usort: skip
+
 
 class NativeDecoratorTests(StaticTestBase):
     def test_native_no_lib(self):
@@ -47,6 +49,32 @@ class NativeDecoratorTests(StaticTestBase):
         self.type_error(
             codestr,
             "@native decorator accepts a single parameter, the path to .so file",
+        )
+
+    def test_native_no_arg(self):
+        codestr = """
+        from __static__ import native, int64
+
+        @native()
+        def something(i: int64) -> int64:
+            return 1
+        """
+        self.type_error(
+            codestr,
+            "@native decorator accepts a single parameter, the path to .so file",
+        )
+
+    def test_native_non_str_arg(self):
+        codestr = """
+        from __static__ import native, int64
+
+        @native(1)
+        def something(i: int64) -> int64:
+            return 1
+        """
+        self.type_error(
+            codestr,
+            "type mismatch: Literal\[1] received for positional arg 'lib', expected str",
         )
 
     def test_native_decorate_class(self):
@@ -178,3 +206,86 @@ class NativeDecoratorTests(StaticTestBase):
         self.type_error(
             codestr, "@native decorator cannot be used with other decorators"
         )
+
+    def test_invoke_native_fn(self):
+        codestr = """
+        from __static__ import native, int64, box
+
+        @native("libc.so.6")
+        def labs(i: int64) -> int64:
+            pass
+
+        def invoke_abs(i: int) -> int:
+            j: int64 = int64(i)
+            return box(labs(j))
+        """
+
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.invoke_abs(-5), 5)
+
+    def test_invoke_native_fn_final_libname(self):
+        codestr = """
+        from __static__ import native, int64, box
+        from typing import Final
+
+        LIB_NAME: Final[str] = "libc.so.6"
+
+        @native(LIB_NAME)
+        def labs(i: int64) -> int64:
+            pass
+
+        def invoke_abs(i: int) -> int:
+            j: int64 = int64(i)
+            return box(labs(j))
+        """
+
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.invoke_abs(-5), 5)
+
+    def test_invoke_native_fn_multiple_args(self):
+        codestr = f"""
+        from __static__ import native, int64, box
+        from typing import Final
+
+        LIB_NAME: Final[str] = "{_testinternalcapi.__file__}"
+
+        @native(LIB_NAME)
+        def native_add(a: int64, b: int64) -> int64:
+            pass
+
+        def invoke_add(i: int, j: int) -> int:
+            k: int64 = int64(i)
+            l: int64 = int64(j)
+            return box(native_add(k, l))
+        """
+
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.invoke_add(6, 5), 11)
+            self.assertEqual(mod.invoke_add(-1, 5), 4)
+            self.assertEqual(mod.invoke_add(-1, -5), -6)
+
+    def test_invoke_native_fn_heterogenous_args(self):
+        codestr = f"""
+        from __static__ import native, int64, uint8, box
+        from typing import Final
+
+        LIB_NAME: Final[str] = "{_testinternalcapi.__file__}"
+
+        @native(LIB_NAME)
+        def native_sub(a: int64, b: uint8) -> int64:
+            pass
+
+        def invoke_sub(i: int, j: int) -> int:
+            k: int64 = int64(i)
+            l: uint8 = uint8(j)
+            return box(native_sub(k, l))
+        """
+
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.invoke_sub(6, 5), 1)
+            self.assertEqual(mod.invoke_sub(-1, 5), -6)
+            self.assertEqual(mod.invoke_sub(-1, 0), -1)
+
+            with self.assertRaisesRegex(OverflowError, "int overflow"):
+                # -1 can't be represented in uint8
+                mod.invoke_sub(0, -1)

@@ -3792,7 +3792,7 @@ class Function(Callable[Class], FunctionContainer):
                 module.resolve_decorator(decorator) or self.klass.type_env.dynamic
             )
             new = decorator_type.resolve_decorate_function(res, decorator)
-            if new and new is not res and not isinstance(new, NativeDecoratedFunction):
+            if new and new is not res:
                 new = new.finish_bind(module, klass)
             if new is None:
                 # With an un-analyzable decorator we want to force late binding
@@ -4710,6 +4710,12 @@ class DoNotCompileDecorator(Class):
 
 
 class NativeDecoratedFunction(Function):
+    def finish_bind(
+        self, module: ModuleTable, klass: Class | None
+    ) -> Function | DecoratedMethod | None:
+        module.types[self.node] = self
+        return self
+
     def emit_function(
         self,
         node: ast.FunctionDef | ast.AsyncFunctionDef,
@@ -4801,6 +4807,22 @@ class NativeDecoratedFunction(Function):
 
         return super().bind_function_inner(node, visitor)
 
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        decorator = code_gen.get_type(self.node.decorator_list[0])
+        assert isinstance(decorator, NativeDecorator)
+
+        for arg in node.args:
+            code_gen.visit(arg)
+
+        call_signature = []
+        for arg in self.args:
+            call_signature.append(arg.type_ref.resolved().type_descr)
+        call_signature.append(self.return_type.resolved().type_descr)
+        code_gen.emit(
+            "INVOKE_NATIVE",
+            ((decorator.lib_name, self.node.name), tuple(call_signature)),
+        )
+
 
 class NativeDecorator(Callable[Class]):
     def __init__(self, type_env: TypeEnvironment) -> None:
@@ -4821,6 +4843,42 @@ class NativeDecorator(Callable[Class]):
             ResolvedTypeRef(type_env.dynamic),
         )
         self.type_env = type_env
+        self.lib_name: Optional[str] = None
+
+    def bind_call_self(
+        self,
+        node: ast.Call,
+        visitor: TypeBinder,
+        type_ctx: Optional[Class],
+        self_expr: Optional[ast.expr] = None,
+    ) -> NarrowingEffect:
+        result = super().bind_call_self(node, visitor, type_ctx, self_expr)
+
+        lib_arg = self.args_by_name.get("lib")
+        assert lib_arg is not None  # ensured by declaration visit
+
+        lib_arg_node = node.args[0]
+
+        if not isinstance(lib_arg_node, ast.Constant):
+            lib_arg_final_node = visitor.get_final_literal(lib_arg_node)
+            if lib_arg_final_node is None:
+                visitor.syntax_error(
+                    f"@native decorator 'lib' argument must be a `str`",
+                    lib_arg_node,
+                )
+            lib_arg_node = lib_arg_final_node
+
+        assert isinstance(lib_arg_node, ast.Constant)
+        value = lib_arg_node.value
+        if not isinstance(value, str):
+            visitor.syntax_error(
+                f"@native decorator 'lib' argument must be a `str` not {type(value)}",
+                lib_arg_node,
+            )
+
+        self.lib_name = value
+        visitor.set_type(node, self)
+        return NO_EFFECT
 
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
@@ -4834,7 +4892,7 @@ class NativeDecorator(Callable[Class]):
             raise TypedSyntaxError("@native decorator takes no keyword arguments")
 
         args = decorator.args
-        if len(args) > 1:
+        if len(args) != 1:
             raise TypedSyntaxError(
                 "@native decorator accepts a single parameter, the path to .so file"
             )

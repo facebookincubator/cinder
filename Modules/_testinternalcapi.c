@@ -175,6 +175,21 @@ test_shadowframe_walk_and_populate(PyObject *self, PyObject *args)
 #undef _SF_STACK_SIZE
 
 
+// These are used in native calling tests, ensure the compiler
+// doesn't hide or remove these symbols
+__attribute__((used))
+__attribute__((visibility("default")))
+int64_t native_add(int64_t a, int64_t b) {
+    return a + b;
+}
+
+__attribute__((used))
+__attribute__((visibility("default")))
+int64_t native_sub(int64_t a, uint8_t b) {
+    return a - b;
+}
+
+
 static PyMethodDef TestMethods[] = {
     {"get_configs", get_configs, METH_NOARGS},
     {"test_shadowframe_walk_and_populate", test_shadowframe_walk_and_populate, METH_NOARGS},

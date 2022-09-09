@@ -5646,6 +5646,19 @@ main_loop:
             goto error;
         }
 
+        case TARGET(INVOKE_NATIVE): {
+            PyObject *value = GETITEM(consts, oparg);
+            assert(PyTuple_CheckExact(value));
+            PyObject *target = PyTuple_GET_ITEM(value, 0);
+            PyObject *name = PyTuple_GET_ITEM(target, 0);
+            PyObject *symbol = PyTuple_GET_ITEM(target, 1);
+            PyObject *signature = PyTuple_GET_ITEM(value, 1);
+            Py_ssize_t nargs = PyTuple_GET_SIZE(signature) - 1;
+            PyObject **sp = stack_pointer - nargs;
+            PyObject *res = _PyClassloader_InvokeNativeFunction(name, symbol, signature, sp, nargs);
+            _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, 0, res);
+        }
+
         case TARGET(JUMP_IF_ZERO_OR_POP): {
             PyObject *cond = TOP();
             int is_nonzero = Py_SIZE(cond);

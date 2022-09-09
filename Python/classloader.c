@@ -4600,3 +4600,71 @@ int _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key) {
   PyDict_DelItem(classloader_cache_module_to_keys, key);
   return 0;
 }
+
+static PyObject *invoke_native_helper = NULL;
+
+static inline int import_invoke_native() {
+  if (_Py_UNLIKELY(invoke_native_helper == NULL)) {
+    PyObject *native_utils = PyImport_ImportModule("__static__.native_utils");
+    if (native_utils == NULL) {
+      return -1;
+    }
+    invoke_native_helper =
+        PyObject_GetAttrString(native_utils, "invoke_native");
+    Py_DECREF(native_utils);
+    if (invoke_native_helper == NULL) {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+PyObject *_PyClassloader_InvokeNativeFunction(PyObject *lib_name,
+                                              PyObject *symbol_name,
+                                              PyObject *signature,
+                                              PyObject **args, Py_ssize_t nargs) {
+  if (!PyUnicode_CheckExact(lib_name)) {
+    PyErr_Format(PyExc_RuntimeError, "'lib_name' must be a str, got '%s'",
+                 Py_TYPE(lib_name)->tp_name);
+    return NULL;
+  }
+  if (!PyUnicode_CheckExact(lib_name)) {
+    PyErr_Format(PyExc_RuntimeError, "'symbol_name' must be a str, got '%s'",
+                 Py_TYPE(lib_name)->tp_name);
+    return NULL;
+  }
+  if (!PyTuple_CheckExact(signature)) {
+    PyErr_Format(PyExc_RuntimeError,
+                 "'signature' must be a tuple of type descriptors",
+                 Py_TYPE(lib_name)->tp_name);
+    return NULL;
+  }
+
+  int return_typecode =
+      _PyClassLoader_ResolvePrimitiveType(PyTuple_GET_ITEM(signature, nargs));
+  if (return_typecode == -1) {
+    // exception must be set already
+    assert(PyErr_Occurred());
+    return NULL;
+  }
+
+  // build arg tuple.. this is kinda wasteful, but we're not optimizing for the
+  // interpreter here
+  PyObject *arguments = PyTuple_New(nargs);
+  if (arguments == NULL) {
+    return NULL;
+  }
+  for (int i = 0; i < nargs; i++) {
+    PyTuple_SET_ITEM(arguments, i, args[i]);
+    Py_INCREF(args[i]);
+  }
+
+  if (import_invoke_native() < 0) {
+    return NULL;
+  }
+  PyObject *res = PyObject_CallFunction(invoke_native_helper, "OOOO", lib_name, symbol_name,
+                               signature, arguments);
+
+  Py_DECREF(arguments);
+  return res;
+}

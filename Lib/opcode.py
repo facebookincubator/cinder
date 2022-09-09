@@ -302,6 +302,9 @@ hasconst.append(188)
 def_op("LOAD_CLASS", 190)
 hasconst.append(190)
 
+def_op("INVOKE_NATIVE", 189)
+hasconst.append(189)
+
 def_op("BUILD_CHECKED_MAP", 191)
 hasconst.append(191)
 

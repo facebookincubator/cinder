@@ -188,7 +188,7 @@ static void *opcode_targets[256] = {
     &&TARGET_FAST_LEN,
     &&TARGET_CONVERT_PRIMITIVE,
     &&TARGET_CHECK_ARGS,
-    &&_unknown_opcode,
+    &&TARGET_INVOKE_NATIVE,
     &&TARGET_LOAD_CLASS,
     &&TARGET_BUILD_CHECKED_MAP,
     &&TARGET_SEQUENCE_GET,

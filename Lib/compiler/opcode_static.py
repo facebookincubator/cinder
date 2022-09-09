@@ -34,6 +34,8 @@ opcode.def_op("FAST_LEN", 186)
 opcode.def_op("CONVERT_PRIMITIVE", 187)
 opcode.def_op("CHECK_ARGS", 188)
 opcode.hasconst.add(188)
+opcode.def_op("INVOKE_NATIVE", 189)
+opcode.hasconst.add(189)
 opcode.def_op("LOAD_CLASS", 190)
 opcode.hasconst.add(190)
 opcode.def_op("BUILD_CHECKED_MAP", 191)
@@ -80,6 +82,7 @@ opcode.stack_effects.update(  # noqa: C408
     PRIMITIVE_UNBOX=0,
     INVOKE_FUNCTION=lambda oparg, jmp=0: (-oparg[1]) + 1,
     INVOKE_METHOD=lambda oparg, jmp: -oparg[1],
+    INVOKE_NATIVE=lambda oparg, jmp=0: (-len(oparg[1])) + 2,
     JUMP_IF_NONZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     JUMP_IF_ZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     LIST_DEL=-2,

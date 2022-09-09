@@ -156,6 +156,7 @@ extern "C" {
   X(FAST_LEN,                        186) \
   X(CONVERT_PRIMITIVE,               187) \
   X(CHECK_ARGS,                      188) \
+  X(INVOKE_NATIVE,                   189) \
   X(LOAD_CLASS,                      190) \
   X(BUILD_CHECKED_MAP,               191) \
   X(SEQUENCE_GET,                    192) \
