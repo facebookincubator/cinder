@@ -856,11 +856,15 @@ libpython$(VERSION).sl: $(LIBRARY_OBJS)
 #
 # Distributors are likely to want to install this somewhere else e.g. relative
 # to the stripped DWARF data for the shared library.
-gdbhooks: $(BUILDPYTHON)-gdb.py
+gdbhooks: $(BUILDPYTHON)-gdb.py $(BUILDPYTHON)-lldb.py
 
 SRC_GDB_HOOKS=$(srcdir)/Tools/gdb/libpython.py
 $(BUILDPYTHON)-gdb.py: $(SRC_GDB_HOOKS)
 	$(INSTALL_DATA) $(SRC_GDB_HOOKS) $(BUILDPYTHON)-gdb.py
+
+SRC_LLDB_HOOKS=$(srcdir)/Tools/gdb/libpython_lldb.py
+$(BUILDPYTHON)-lldb.py: $(SRC_LLDB_HOOKS)
+	$(INSTALL_DATA) $(SRC_LLDB_HOOKS) $(BUILDPYTHON)-lldb.py
 
 # This rule is here for OPENSTEP/Rhapsody/MacOSX. It builds a temporary
 # minimal framework (not including the Lib directory and such) in the current
