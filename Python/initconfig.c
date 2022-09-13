@@ -98,6 +98,7 @@ static const char usage_3[] = "\
          -X lazyimportswarmup: Warmup lazy imports\n\
          -X usepycompiler: use python written compiler\n\
          -X usereadonlycompiler: use python written readonly compiler\n\
+         -X install-strict-loader: use strict/static module loader\n\
          -X jit-help: print all available Cinder JIT flags and exits\n\
 \n\
 --check-hash-based-pycs always|default|never:\n\
@@ -137,7 +138,8 @@ static const char usage_6[] =
 "PYTHONLAZYIMPORTSALL: Enable lazy imports by default.\n"
 "PYTHONLAZYIMPORTSWARMUP: Warmup lazy imports.\n"
 "PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n"
-"PYTHONUSEREADONLYCOMPILER: use readonly compiler in Lib/compiler.\n";
+"PYTHONUSEREADONLYCOMPILER: use readonly compiler in Lib/compiler.\n"
+"PYTHONINSTALLSTRICTLOADER: install strict/static module loader.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -860,6 +862,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_ATTR(lazy_imports_warmup);
     COPY_ATTR(use_py_compiler);
     COPY_ATTR(use_readonly_compiler);
+    COPY_ATTR(install_strict_loader);
     COPY_ATTR(skip_source_first_line);
     COPY_WSTR_ATTR(run_command);
     COPY_WSTR_ATTR(run_module);
@@ -962,6 +965,7 @@ config_as_dict(const PyConfig *config)
     SET_ITEM_INT(lazy_imports_warmup);
     SET_ITEM_INT(use_py_compiler);
     SET_ITEM_INT(use_readonly_compiler);
+    SET_ITEM_INT(install_strict_loader);
     SET_ITEM_INT(skip_source_first_line);
     SET_ITEM_WSTR(run_command);
     SET_ITEM_WSTR(run_module);
@@ -1475,6 +1479,11 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONUSEREADONLYCOMPILER")
        || config_get_xoption(config, L"usereadonlycompiler")) {
         config->use_readonly_compiler = 1;
+    }
+
+    if (config_get_env(config, "PYTHONINSTALLSTRICTLOADER")
+       || config_get_xoption(config, L"install-strict-loader")) {
+        config->install_strict_loader = 1;
     }
 
     PyStatus status;

@@ -54,6 +54,8 @@ _Py_IDENTIFIER(stdout);
 _Py_IDENTIFIER(stderr);
 _Py_IDENTIFIER(threading);
 
+PyAPI_DATA(int) Py_LazyImportsAllFlag;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -214,6 +216,11 @@ init_importlib_external(PyInterpreterState *interp)
 
 static int
 _install_importlib_pycompile_helper(const char* loader_installer) {
+    // need to ensure global lazy imports are off while importing python
+    // compiler; it needs to be fully eagerly imported while we are still under
+    // the C compiler, since it won't be able to compile itself later.
+    int lazy_imports_all = Py_LazyImportsAllFlag;
+    Py_LazyImportsAllFlag = 0;
     PyObject* value;
     PyObject *py_loader_module = PyImport_ImportModule("compiler.pysourceloader");
     if (py_loader_module == NULL) {
@@ -226,6 +233,7 @@ _install_importlib_pycompile_helper(const char* loader_installer) {
     }
     Py_XDECREF(value);
     Py_XDECREF(py_loader_module);
+    Py_LazyImportsAllFlag = lazy_imports_all;
     return 0;
 }
 
@@ -239,6 +247,12 @@ static int
 install_importlib_readonly_compile()
 {
     return _install_importlib_pycompile_helper("_install_readonly_loader");
+}
+
+static int
+install_importlib_strict_compile()
+{
+    return _install_importlib_pycompile_helper("_install_strict_loader");
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -1076,6 +1090,14 @@ pyinit_main(_PyRuntimeState *runtime, PyInterpreterState *interp)
             fprintf(stderr, "installing readonly compiler failed, traceback:\n");
             PyErr_Print();
             return _PyStatus_ERR("can't install readonly compiler");
+        }
+    }
+    if (config->install_strict_loader) {
+        /* install the strict/static loader */
+        if(install_importlib_strict_compile()) {
+            fprintf(stderr, "installing strict/static compiler failed, traceback:\n");
+            PyErr_Print();
+            return _PyStatus_ERR("can't install strict/static compiler");
         }
     }
 

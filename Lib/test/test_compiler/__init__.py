@@ -10,6 +10,7 @@ from .test_optimizer import AstOptimizerTests
 from .test_peephole import PeepHoleTests
 from .test_py37 import Python37Tests
 from .test_py38 import Python38Tests
+from .test_pysourceloader import PySourceLoaderTest
 from .test_sbs_stdlib import SbsCompileTests
 from .test_symbols import SymbolVisitorTests
 from .test_unparse import UnparseTests
