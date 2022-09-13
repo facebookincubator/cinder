@@ -1063,12 +1063,20 @@ pyinit_main(_PyRuntimeState *runtime, PyInterpreterState *interp)
 
     if (config->use_py_compiler) {
         /* install the loader using Python written compiler */
-        install_importlib_pycompile();
+        if(install_importlib_pycompile()) {
+            fprintf(stderr, "installing py-compiler failed, traceback:\n");
+            PyErr_Print();
+            return _PyStatus_ERR("can't install py-compiler");
+        }
     }
     // note that readonly compiler overrides the python compiler
     if (config->use_readonly_compiler) {
         /* install the loader using Python written readonly compiler */
-        install_importlib_readonly_compile();
+        if(install_importlib_readonly_compile()) {
+            fprintf(stderr, "installing readonly compiler failed, traceback:\n");
+            PyErr_Print();
+            return _PyStatus_ERR("can't install readonly compiler");
+        }
     }
 
 
