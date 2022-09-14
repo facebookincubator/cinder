@@ -2,6 +2,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
 import argparse
+import html
 import http.server
 import json
 import mimetypes
@@ -387,7 +388,8 @@ def make_explorer_class(process_args, prod_hostname=None):
                         self.wfile.write(b"Command timed out")
                         return
                     if "SyntaxError" in e.stderr or "StrictModuleError" in e.stderr:
-                        self.wfile.write(f"<pre>{e.stderr}</pre>".encode("utf-8"))
+                        escaped = html.escape(e.stderr)
+                        self.wfile.write(f"<pre>{escaped}</pre>".encode("utf-8"))
                         return
                     print(e.stderr)
                     self.wfile.write(b"Internal server error")
