@@ -372,6 +372,14 @@ int _PyClassLoader_UpdateSlot(PyTypeObject *type,
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type);
 
+PyObject *_PyClassloader_SizeOf_DlSym_Cache(void);
+PyObject *_PyClassloader_SizeOf_DlOpen_Cache(void);
+void _PyClassloader_Clear_DlSym_Cache(void);
+void _PyClassloader_Clear_DlOpen_Cache(void);
+
+PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
+                                      PyObject *symbol_name);
+
 static inline
 int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional, int exact) {
     return Py_TYPE(val) == type ||
