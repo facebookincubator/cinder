@@ -373,6 +373,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeCompare, dst, *op, left, right);
+  } else if (strcmp(opcode, "UnicodeConcat") == 0) {
+    auto left = ParseRegister();
+    auto right = ParseRegister();
+    NEW_INSTR(UnicodeConcat, dst, left, right, FrameState{});
   } else if (strcmp(opcode, "UnicodeRepeat") == 0) {
     auto left = ParseRegister();
     auto right = ParseRegister();

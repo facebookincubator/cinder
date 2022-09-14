@@ -560,6 +560,7 @@ Type outputType(
       return get_op_type(0) & type;
     }
 
+    case Opcode::kUnicodeConcat:
     case Opcode::kUnicodeRepeat: {
       return TUnicodeExact;
     }

@@ -1490,6 +1490,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             static_cast<int>(instr->op()));
         break;
       }
+      case Opcode::kUnicodeConcat: {
+        auto instr = static_cast<const UnicodeConcat*>(&i);
+
+        bbb.AppendCall(
+            instr->dst(),
+            PyUnicode_Concat,
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kUnicodeRepeat: {
         auto instr = static_cast<const UnicodeRepeat*>(&i);
 

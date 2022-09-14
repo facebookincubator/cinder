@@ -446,6 +446,11 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     env.emit<IsNegativeAndErrOccurred>(unboxed_rhs, *instr->frameState());
     return env.emit<UnicodeRepeat>(lhs, unboxed_rhs, *instr->frameState());
   }
+  if ((lhs->isA(TUnicodeExact) && rhs->isA(TUnicodeExact)) &&
+      (instr->op() == BinaryOpKind::kAdd)) {
+    return env.emit<UnicodeConcat>(lhs, rhs, *instr->frameState());
+  }
+
   // Unsupported case.
   return nullptr;
 }
