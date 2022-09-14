@@ -87,6 +87,16 @@ class NativeDecoratorTests(StaticTestBase):
         """
         self.type_error(codestr, "Cannot decorate a class with @native")
 
+    def test_native_decorate_async_fn(self):
+        codestr = """
+        from __static__ import native
+
+        @native("so.so")
+        async def something(j: int64) -> int64:
+            pass
+        """
+        self.type_error(codestr, "@native decorator cannot be used on async functions")
+
     def test_native_decorate_method(self):
         codestr = """
         from __static__ import native
