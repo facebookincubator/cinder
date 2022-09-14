@@ -123,6 +123,7 @@ Tools/unicode/data/
 /python-config.py
 /python.bat
 /python-gdb.py
+/python-lldb.py
 /python.exe-gdb.py
 /reflog.txt
 /coverage/
