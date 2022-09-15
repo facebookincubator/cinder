@@ -1976,15 +1976,6 @@ class Class(Object["Class"]):
         with module.error_context(node):
             new_value = my_value.finish_bind(module, self)
             if new_value is None:
-                # TODO(T131958792): UnknownDecoratedMethod's should be refactored away to no longer
-                # show up at all here.
-                if node is not None and isinstance(
-                    module.types.get(node), UnknownDecoratedMethod
-                ):
-                    # If a class has an unknown decorated method, the dynamic member
-                    # needs to be registered to avoid invoking methods to incorrect
-                    # static types.
-                    return self.type_env.DYNAMIC
                 return None
             my_value = new_value
 
