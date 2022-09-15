@@ -1803,6 +1803,10 @@ static void dump_jit_stats() {
 }
 
 int _PyJIT_Finalize() {
+  // Disable the JIT first so nothing we do in here ends up attempting to
+  // invoke the JIT while we're finalizing our data structures.
+  jit_config.is_enabled = 0;
+
   // Deopt all JIT generators, since JIT generators reference code and other
   // metadata that we will be freeing later in this function.
   _PyGC_VisitObjects(deopt_gen_visitor, nullptr);
