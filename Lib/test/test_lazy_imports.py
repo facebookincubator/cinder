@@ -42,7 +42,7 @@ class LazyImportsTest(unittest.TestCase):
 
     def run_and_check(self, module, lazy_imports=True, expected_rc=0, expected_out="", expected_err=""):
         rc, out, err = self.python_run(module, lazy=lazy_imports)
-        self.assertEqual(rc, expected_rc)
+        self.assertEqual(rc, expected_rc, err)
         self.assertEqual(out, expected_out)
         self.assertEqual(err, expected_err)
 
@@ -72,6 +72,9 @@ class LazyImportsTest(unittest.TestCase):
         self.run_and_check("test.lazyimports.importlib_apis.set_lazy_imports_excluding_list")
         self.run_and_check("test.lazyimports.importlib_apis.set_lazy_imports_excluding_cb")
         self.run_and_check("test.lazyimports.importlib_apis.set_lazy_imports_excluding_cb_list")
+
+    def test_set_lazy_imports_false(self):
+        self.run_and_check("test.lazyimports.set_lazy_imports_false", True)
 
     def test_future_eager_imports(self):
         self.run_and_check("test.lazyimports.future_eager.future_eager_mod", True)

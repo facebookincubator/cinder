@@ -2428,7 +2428,7 @@ _imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
 
     result = PyTuple_Pack(
         2,
-        interp->lazy_imports == -1 ? Py_None : interp->lazy_imports ? Py_True : Py_False,
+        interp->lazy_imports ? Py_True : Py_False,
         interp->eager_imports == NULL ? Py_None : interp->eager_imports
     );
     if (result == NULL) {
@@ -2453,7 +2453,7 @@ _imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
         }
     }
 
-    interp->lazy_imports = Py_IsNone(enabled) ? -1 : _enabled;
+    interp->lazy_imports = Py_IsNone(enabled) ? interp->config.lazy_imports : _enabled;
 
     return result;
 
@@ -2657,15 +2657,15 @@ PyImport_AppendInittab(const char *name, PyObject* (*initfunc)(void))
 }
 
 int
+_PyImport_IsLazyImportsEnabled(PyThreadState *tstate) {
+    return tstate->interp->lazy_imports;
+}
+
+int
 PyImport_IsLazyImportsEnabled()
 {
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (interp->lazy_imports == 1 ||
-        _PyInterpreterState_GetConfig(interp)->lazy_imports)
-    {
-        return 1;
-    }
-    return 0;
+    PyThreadState *tstate = _PyThreadState_GET();
+    return _PyImport_IsLazyImportsEnabled(tstate);
 }
 
 #ifdef __cplusplus

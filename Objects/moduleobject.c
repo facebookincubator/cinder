@@ -8,8 +8,6 @@
 #include "structmember.h"         // PyMemberDef
 #include "classloader.h"          // _PyClassLoader_UpdateModuleName
 
-PyAPI_DATA(int) Py_LazyImportsFlag;
-
 static Py_ssize_t max_module_number;
 
 _Py_IDENTIFIER(__doc__);

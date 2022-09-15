@@ -358,7 +358,6 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 int _PyEval_ShadowByteCodeEnabled = 1;
 
 #define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
-PyAPI_DATA(int) Py_LazyImportsFlag;
 
 void _Py_NO_RETURN
 _Py_FatalError_TstateNULL(const char *func)
@@ -3574,7 +3573,7 @@ main_loop:
             }
 
             if (lazy_imports_eager_import == 0
-                && PyImport_IsLazyImportsEnabled()
+                && _PyImport_IsLazyImportsEnabled(tstate)
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {
                 res = PyImport_LazyImportName(name,
