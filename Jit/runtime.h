@@ -293,7 +293,6 @@ class Runtime {
 
   template <typename... Args>
   CodeRuntime* allocateCodeRuntime(Args&&... args) {
-    ThreadedCompileSerialize guard;
     return code_runtimes_.allocate(std::forward<Args>(args)...);
   }
 
