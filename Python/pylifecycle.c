@@ -263,22 +263,39 @@ init_importlib_external(PyThreadState *tstate)
 
 
 static int
-install_importlib_pycompile()
-{
+_install_importlib_pycompile_helper(const char* loader_installer) {
+    // need to ensure global lazy imports are off while importing python
+    // compiler; it needs to be fully eagerly imported while we are still under
+    // the C compiler, since it won't be able to compile itself later.
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    int orig_lazy_imports = interp->lazy_imports;
+    interp->lazy_imports = 0;
     PyObject* value;
     PyObject *py_loader_module = PyImport_ImportModule("compiler.pysourceloader");
     if (py_loader_module == NULL) {
         return -1;
     }
-    value = PyObject_CallMethod(py_loader_module,
-                                "_install_py_loader", "");
+    value = PyObject_CallMethod(py_loader_module, loader_installer, "");
     if (value == NULL) {
         PyErr_Print();
         return -1;
     }
     Py_XDECREF(value);
     Py_XDECREF(py_loader_module);
+    interp->lazy_imports = orig_lazy_imports;
     return 0;
+}
+
+static int
+install_importlib_pycompile()
+{
+    return _install_importlib_pycompile_helper("_install_py_loader");
+}
+
+static int
+install_importlib_strict_compile()
+{
+    return _install_importlib_pycompile_helper("_install_strict_loader");
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -1245,6 +1262,16 @@ init_interp_main(PyThreadState *tstate)
             return _PyStatus_ERR("can't install py-compiler");
         }
     }
+    if (config->install_strict_loader) {
+        /* install the strict/static loader */
+        if(install_importlib_strict_compile()) {
+            fprintf(stderr, "installing strict/static compiler failed, traceback:\n");
+            PyErr_Print();
+            return _PyStatus_ERR("can't install strict/static compiler");
+        }
+    }
+
+
 
     if (is_main_interp) {
 #ifndef MS_WINDOWS

@@ -18,7 +18,7 @@ from .readonly import ReadonlyCodeGenerator
 
 
 # pyre-fixme[13]: path inherited but not initialized
-class PySourceFileLoader(importlib.machinery.SourceFileLoader):
+class PySourceFileLoader(SourceFileLoader):
     def source_to_code(self, data, path, *, _optimize=-1):
         """Similar to SourceFileLoader.source_to_code
         but use the python based bytecode generator from
@@ -30,7 +30,7 @@ class PySourceFileLoader(importlib.machinery.SourceFileLoader):
 
 
 # pyre-fixme[13]: path inherited but not initialized
-class ReadonlySourceFileLoader(importlib.machinery.SourceFileLoader):
+class ReadonlySourceFileLoader(SourceFileLoader):
     def source_to_code(self, data, path, *, _optimize=-1):
         """Similar to SourceFileLoader.source_to_code
         but use the python based bytecode generator from
@@ -64,3 +64,9 @@ def _install_py_loader():
 
 def _install_readonly_loader():
     _install_source_loader_helper(ReadonlySourceFileLoader)
+
+
+def _install_strict_loader():
+    from .strict.loader import install
+
+    install()

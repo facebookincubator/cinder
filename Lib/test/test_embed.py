@@ -436,6 +436,7 @@ class InitConfigTests(EmbeddingTestsMixin, unittest.TestCase):
         '_isolated_interpreter': 0,
 
         'use_py_compiler': GET_DEFAULT_CONFIG,
+        'install_strict_loader': 0,
     }
     if MS_WINDOWS:
         CONFIG_COMPAT.update({

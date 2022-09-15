@@ -38,7 +38,14 @@ from .visitor import ASTVisitor, walk
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
-    from typing import Generator, List, Optional, Sequence, Tuple, Type, Union
+    from typing import Generator, List, Optional, Sequence, Type, Union
+
+try:
+    from cinder import _set_qualname
+except ImportError:
+
+    def _set_qualname(code, qualname):
+        pass
 
 
 callfunc_opcode_info = {
@@ -3024,8 +3031,6 @@ class CinderCodeGenerator(CinderBaseCodeGenerator):
 
     def getCode(self):
         code = super().getCode()
-        from cinder import _set_qualname
-
         _set_qualname(code, self._qual_name)
 
         return code

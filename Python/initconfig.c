@@ -96,6 +96,10 @@ static const char usage_3[] = "\
          -X pycache_prefix=PATH: enable writing .pyc files to a parallel tree rooted at the\n\
              given directory instead of to the code tree\n\
          -X warn_default_encoding: enable opt-in EncodingWarning for 'encoding=None'\n\
+         -X usepycompiler: use python written compiler\n\
+         -X install-strict-loader: use strict/static module loader\n\
+         -X jit-help: print all available Cinder JIT flags and exits\n\
+\n\
 --check-hash-based-pycs always|default|never:\n\
     control how Python invalidates hash-based .pyc files\n\
 ";
@@ -133,7 +137,8 @@ static const char usage_6[] =
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
 "PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
 "PYTHONLAZYIMPORTS: enable lazy imports by default.\n"
-"PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n";
+"PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n"
+"PYTHONINSTALLSTRICTLOADER: install strict/static module loader.\n";
 
 #if defined(MS_WINDOWS)
 #  define PYTHONHOMEHELP "<prefix>\\python{major}{minor}"
@@ -934,8 +939,6 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_WSTR_ATTR(filesystem_errors);
     COPY_WSTR_ATTR(stdio_encoding);
     COPY_WSTR_ATTR(stdio_errors);
-    COPY_ATTR(lazy_imports);
-    COPY_ATTR(use_py_compiler);
 #ifdef MS_WINDOWS
     COPY_ATTR(legacy_windows_stdio);
 #endif
@@ -949,6 +952,8 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_ATTR(_isolated_interpreter);
     COPY_WSTRLIST(orig_argv);
     COPY_ATTR(lazy_imports);
+    COPY_ATTR(use_py_compiler);
+    COPY_ATTR(install_strict_loader);
 
 #undef COPY_ATTR
 #undef COPY_WSTR_ATTR
@@ -1037,7 +1042,6 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(buffered_stdio);
     SET_ITEM_WSTR(stdio_encoding);
     SET_ITEM_WSTR(stdio_errors);
-    SET_ITEM_INT(lazy_imports);
 #ifdef MS_WINDOWS
     SET_ITEM_INT(legacy_windows_stdio);
 #endif
@@ -1053,6 +1057,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_WSTRLIST(orig_argv);
     SET_ITEM_INT(lazy_imports);
     SET_ITEM_INT(use_py_compiler);
+    SET_ITEM_INT(install_strict_loader);
 
     return dict;
 
@@ -1419,7 +1424,6 @@ config_get_global_vars(PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
-    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1458,7 +1462,6 @@ config_set_global_vars(const PyConfig *config)
     COPY_FLAG(parser_debug, Py_DebugFlag);
     COPY_FLAG(verbose, Py_VerboseFlag);
     COPY_FLAG(quiet, Py_QuietFlag);
-    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
 #ifdef MS_WINDOWS
     COPY_FLAG(legacy_windows_stdio, Py_LegacyWindowsStdioFlag);
 #endif
@@ -1678,7 +1681,6 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
     _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTS");
-    _Py_get_env_flag(use_env, &config->use_py_compiler, "PYTHONUSEPYCOMPILER");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");
@@ -1828,6 +1830,11 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONUSEPYCOMPILER")
         || config_get_xoption(config, L"usepycompiler")) {
         config->use_py_compiler = 1;
+    }
+
+    if (config_get_env(config, "PYTHONINSTALLSTRICTLOADER")
+       || config_get_xoption(config, L"install-strict-loader")) {
+        config->install_strict_loader = 1;
     }
 
     PyStatus status;
