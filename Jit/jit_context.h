@@ -9,7 +9,6 @@
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
 #include "Jit/ref.h"
-#include "Jit/slot_gen.h"
 #include "Jit/util.h"
 
 #include <functional>
@@ -40,40 +39,14 @@ struct std::hash<CompilationKey> {
   }
 };
 
-/* Deoptimization information for a compiled type. */
-struct TypeDeoptInfo {
-  explicit TypeDeoptInfo(PyTypeObject* type)
-      : orig_tp_call{type->tp_call},
-        orig_tp_init{type->tp_init},
-        orig_tp_repr{type->tp_repr},
-        orig_tp_str{type->tp_str},
-        orig_tp_getattro{type->tp_getattro},
-        orig_tp_descr_get{type->tp_descr_get} {}
-
-  // Original values for compiled type objects.
-  ternaryfunc orig_tp_call;
-  initproc orig_tp_init;
-  reprfunc orig_tp_repr;
-  reprfunc orig_tp_str;
-  getattrofunc orig_tp_getattro;
-  descrgetfunc orig_tp_descr_get;
-};
-
 /*
  * A JIT context encapsulates all the state managed by an instance of the JIT.
  */
 struct _PyJITContext {
   ~_PyJITContext();
 
-  jit::SlotGen slot_gen;
-
   /* General purpose jit compiler */
   jit::Compiler jit_compiler;
-
-  /*
-   * Map from compiled types to deoptimization information.
-   */
-  jit::UnorderedMap<BorrowedRef<PyTypeObject>, TypeDeoptInfo> type_deopt;
 
   /*
    * Set of which functions have JIT-compiled entrypoints.
@@ -101,18 +74,6 @@ struct _PyJITContext {
  * during multithreaded_compile_test.
  */
 void _PyJITContext_ClearCache(_PyJITContext* ctx);
-
-/*
- * Generate specialized functions for type object slots. Calls the other
- * _PyJITContext_Specialize* functions and handles setting up deoptimization
- * support.
- *
- * Returns PYJIT_RESULT_OK on success.
- */
-_PyJIT_Result _PyJITContext_SpecializeType(
-    _PyJITContext* ctx,
-    BorrowedRef<PyTypeObject> type,
-    _PyJIT_TypeSlots* slots);
 
 /*
  * JIT compile func and patch its entry point.

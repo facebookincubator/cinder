@@ -120,14 +120,6 @@ static PyObject *slot_new_object_init_vectorcall(PyTypeObject *type,
                                                  size_t nargsf,
                                                  PyObject *kwnames);
 
-static _PyJIT_TypeSlots _jit_default_slots = {
-  .tp_repr = slot_tp_repr,
-  .tp_str = slot_tp_str,
-  .tp_call = slot_tp_call,
-  .tp_getattro = slot_tp_getattr_hook,
-  .tp_descr_get = slot_tp_descr_get,
-};
-
 static void
 clear_slotdefs(void);
 
@@ -1068,14 +1060,6 @@ fused_init(PyObject *self, PyObject *args, PyObject *kwds)
     return -1;
 }
 
-void maybe_specialize_type(PyTypeObject *type, PyObject *obj) {
-    if (PyType_Check(obj) &&
-        PyObject_TypeCheck(type, &PyType_Type) &&
-        _PyJIT_AreTypeSlotsEnabled()) {
-        _PyJIT_SpecializeType((PyTypeObject *) obj, &_jit_default_slots);
-    }
-}
-
 static PyObject *
 type_repr(PyTypeObject *type)
 {
@@ -1153,16 +1137,6 @@ type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
         else {
             assert(!_PyErr_Occurred(tstate));
         }
-    }
-
-    // Optimize types produced by calls that
-    // successfully create a type, but not calls to
-    // type(x), and not non-metaclasses
-    if ((obj != NULL) &&
-        (type != &PyType_Type ||
-            PyTuple_Size(args) != 1 ||
-            (kwds != NULL && PyDict_Size(kwds)))) {
-        maybe_specialize_type(type, obj);
     }
 
     return obj;
@@ -4695,12 +4669,6 @@ slot_new_object_init_vectorcall(PyTypeObject *type,
         }
     }
 
-    // Optimize types produced by calls that
-    // successfully create a type, but not calls to
-    // type(x), and not non-metaclasses
-    if (type != &PyType_Type || nargs != 1 || (kwnames != NULL && PyTuple_GET_SIZE(kwnames))) {
-        maybe_specialize_type(type, result);
-    }
     return result;
 }
 
@@ -4784,10 +4752,6 @@ object_new_slot_init_vectorcall(PyTypeObject *type,
         return NULL;
     }
     Py_DECREF(res);
-
-    if (PyType_Check(obj) && _PyJIT_AreTypeSlotsEnabled()) {
-        _PyJIT_SpecializeType((PyTypeObject *)obj, &_jit_default_slots);
-    }
 
     return obj;
 }

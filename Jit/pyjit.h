@@ -78,16 +78,6 @@ PyAPI_FUNC(int) _PyJIT_IsEnabled(void);
 PyAPI_FUNC(void) _PyJIT_AfterFork_Child(void);
 
 /*
- * Enable type slot specialization.
- */
-PyAPI_FUNC(int) _PyJIT_EnableTypeSlots(void);
-
-/*
- * Returns 1 if type slot specialization is enabled and 0 otherwise.
- */
-PyAPI_FUNC(int) _PyJIT_AreTypeSlotsEnabled(void);
-
-/*
  * Returns 1 if auto-JIT is enabled and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_IsAutoJITEnabled(void);
@@ -129,17 +119,6 @@ PyAPI_FUNC(int) _PyJIT_HotCodeSectionSize(void);
  * code sections aren't enabled.
  */
 PyAPI_FUNC(int) _PyJIT_ColdCodeSectionSize(void);
-
-/*
- * JITs slot functions for the type object, and handles setting up
- * deoptimization support for the type. The caller provides the type object and
- * a struct containing the pointers to the current slot functions.
- *
- * Returns PYJIT_RESULT_OK if all operations succeed, or one of the error codes
- * on failure.
- */
-PyAPI_FUNC(_PyJIT_Result)
-    _PyJIT_SpecializeType(PyTypeObject* type, _PyJIT_TypeSlots* slots);
 
 /*
  * JIT compile func and patch its entry point.
