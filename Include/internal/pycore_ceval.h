@@ -50,7 +50,7 @@ _PyEval_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 extern PyObject *
 _PyEval_Vector(PyThreadState *tstate,
             PyFrameConstructor *desc, PyObject *locals,
-            PyObject* const* args, size_t argcount,
+            PyObject* const* args, size_t argcountf,
             PyObject *kwnames);
 
 #ifdef EXPERIMENTAL_ISOLATED_SUBINTERPRETERS

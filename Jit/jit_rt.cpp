@@ -707,16 +707,9 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   }
   JIT_DCHECK(PyTuple_CheckExact(pargs), "Expected pargs to be a tuple");
 
-  // Make function call using normalized args.
-
   if (_PyVectorcall_Function(func) != NULL) {
-    if (is_awaited) {
-      PORT_ASSERT("Need to pass Ci_Py_AWAITED_CALL_MARKER");
-    }
-    // TODO(T125856469) - Some implementation of this should exist when the
-    // PORT_ASSERT above can be resolved.
-    //  return _PyVectorcall_Call(func, pargs, kwargs, is_awaited ?
-    //  Ci_Py_AWAITED_CALL_MARKER : 0);
+    return Ci_PyVectorcall_Call_WithFlags(
+        func, pargs, kwargs, is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   }
   return PyObject_Call(func, pargs, kwargs);
 }
@@ -1385,7 +1378,7 @@ static inline PyObject* make_gen_object(
     Py_CLEAR(f->f_back);
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(
-          _PyCoro_NewTstate(tstate, f, code->co_name, code->co_qualname));
+          PyCoro_New(f, code->co_name, code->co_qualname));
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {
       gen = reinterpret_cast<PyGenObject*>(
           PyAsyncGen_New(f, code->co_name, code->co_qualname));

@@ -2672,46 +2672,34 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kWaitHandleLoadWaiter: {
-#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleLoadWaiter&>(i);
         bbb.AppendCode(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
-            offsetof(PyWaitHandleObject, wh_waiter));
-#else
-        PORT_ASSERT("Needs eager coroutine execution support");
-#endif
+            offsetof(Ci_PyWaitHandleObject, wh_waiter));
         break;
       }
       case Opcode::kWaitHandleLoadCoroOrResult: {
-#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleLoadCoroOrResult&>(i);
         bbb.AppendCode(
             "Load {}, {}, {}",
             instr.GetOutput()->name(),
             instr.reg(),
-            offsetof(PyWaitHandleObject, wh_coro_or_result));
-#else
-        PORT_ASSERT("Needs eager coroutine execution support");
-#endif
+            offsetof(Ci_PyWaitHandleObject, wh_coro_or_result));
         break;
       }
       case Opcode::kWaitHandleRelease: {
-#ifdef CINDER_PORTING_DONE
         const auto& instr = static_cast<const WaitHandleRelease&>(i);
         std::string null_var = GetSafeTempName();
         bbb.AppendCode(
             "Store 0, {}, {}",
             instr.reg(),
-            offsetof(PyWaitHandleObject, wh_coro_or_result));
+            offsetof(Ci_PyWaitHandleObject, wh_coro_or_result));
         bbb.AppendCode(
             "Store 0, {}, {}",
             instr.reg(),
-            offsetof(PyWaitHandleObject, wh_waiter));
-#else
-        PORT_ASSERT("Needs eager coroutine execution support");
-#endif
+            offsetof(Ci_PyWaitHandleObject, wh_waiter));
         break;
       }
       case Opcode::kDeleteSubscr: {

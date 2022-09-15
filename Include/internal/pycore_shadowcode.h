@@ -585,7 +585,7 @@ _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
         PyCachedPropertyDescrObject *cp =
             (PyCachedPropertyDescrObject *)entry->value;
         PyObject *stack[1] = {owner};
-        res = _PyFunction_FastCallDict(cp->func, stack, 1, NULL);
+        res = Ci_PyFunction_FastCallDict(cp->func, stack, 1, NULL);
         if (res == NULL || _PyObjectDict_SetItem(Py_TYPE(owner),
                                                  _PyObject_GetDictPtr(owner),
                                                  cp->name_or_descr,
@@ -661,7 +661,7 @@ _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
             PyCachedPropertyDescrObject *cp =
                 (PyCachedPropertyDescrObject *)entry->value;
             PyObject *stack[1] = {owner};
-            res = _PyFunction_FastCallDict(cp->func, stack, 1, NULL);
+            res = Ci_PyFunction_FastCallDict(cp->func, stack, 1, NULL);
             if (res == NULL) {
                 return NULL;
             }

@@ -12,27 +12,8 @@
 
 
 // Objects/genobject.c
-// TODO(T125856469) Eager coroutine execution
-STUB(PyObject *, _PyWaitHandle_New, PyObject *, PyObject *)
-STUB(void, _PyWaitHandle_Release, PyObject *)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-PyTypeObject PyWaitHandle_Type = {
-    .ob_base = PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    .tp_name = "wait handle NOT IMPLEMENTED",
-    .tp_basicsize = sizeof(PyWaitHandleObject),
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-};
-#pragma GCC diagnostic pop
-
-// TODO(T125845107) Shadow frames
-STUB(PyObject *, _PyCoro_NewNoFrame, PyThreadState *, PyCodeObject *)
 STUB(PyObject *, _PyAsyncGen_NewNoFrame, PyCodeObject *)
 STUB(PyObject *, _PyGen_NewNoFrame, PyCodeObject *)
-
-
-// Objects/call.c  TODO(T125856469) Eager coroutine execution
-STUB(PyObject *, _PyVectorcall_Call, PyObject *, PyObject *, PyObject *, size_t)
 
 
 // Python/arraymodule.c  TODO(T124996100) Static Python

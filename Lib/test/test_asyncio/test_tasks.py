@@ -3160,7 +3160,7 @@ class GatherTestsBase:
         self.assertIsNone(cinder._get_coro_awaiter(a34))
         self.assertIsNone(cinder._get_coro_awaiter(a56))
 
-    @unittest.skip("TODO(T125856469): Tests eager execution of coroutines")
+    @unittest.skip("TODO(T125856469)")
     def test_gather_cr_awaiter_eager(self):
         async def eager_awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)
@@ -3168,7 +3168,7 @@ class GatherTestsBase:
 
         self._test_cr_awaiter_impl(eager_awaiter)
 
-    @unittest.skip("TODO(T125856469): Requires C impl of _GatheringFuture")
+    @unittest.skip("TODO(T127601945): Requires C impl of _GatheringFuture")
     def test_gather_cr_awaiter(self):
         async def awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)

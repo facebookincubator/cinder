@@ -38,7 +38,7 @@ struct _frame {
     char f_trace_lines;         /* Emit per-line trace events? */
     char f_trace_opcodes;       /* Emit per-opcode trace events? */
 
-    /* Borrowed reference to a generator, or NULL */
+    /* Borrowed reference to a generator (or coroutine), or NULL */
     PyObject *f_gen;
 
     int f_lasti;                /* Last instruction if called */

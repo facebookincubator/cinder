@@ -44,6 +44,7 @@ PyAPI_FUNC(PyObject *) _Py_CheckFunctionResult(
 /* Call callable using tp_call. Arguments are like PyObject_Vectorcall()
    or PyObject_FastCallDict() (both forms are supported),
    except that nargs is plainly the number of arguments without flags. */
+
 PyAPI_FUNC(PyObject *) _PyObject_MakeTpCall(
     PyThreadState *tstate,
     PyObject *callable,
@@ -52,26 +53,37 @@ PyAPI_FUNC(PyObject *) _PyObject_MakeTpCall(
 
 #define PY_VECTORCALL_ARGUMENTS_OFFSET ((size_t)1 << (8 * sizeof(size_t) - 1))
 #define Ci_Py_AWAITED_CALL_MARKER  ((size_t)1 << (8 * sizeof(size_t) - 2))
+#define Ci_Py_AWAITED_CALL(n) ((n)&Ci_Py_AWAITED_CALL_MARKER)
 #define Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS  (8 * sizeof(size_t) - 3)
 #define Ci_Py_VECTORCALL_INVOKED_STATICALLY                                     \
     ((size_t)1 << Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS)
 #define Ci_Py_VECTORCALL_INVOKED_METHOD ((size_t)1 << (8 * sizeof(size_t) - 4))
 #define Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD ((size_t)1 << (8 * sizeof(size_t) - 5))
-#define Ci_PY_VECTORCALL_ARGUMENT_MASK                                           \
+#define Ci_Py_VECTORCALL_ARGUMENT_MASK                                           \
     ~(PY_VECTORCALL_ARGUMENTS_OFFSET | Ci_Py_AWAITED_CALL_MARKER |              \
       Ci_Py_VECTORCALL_INVOKED_STATICALLY | Ci_Py_VECTORCALL_INVOKED_METHOD |     \
       Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD)
 
+#define Ci_RELEASE_FRAME(tstate, f)                                              \
+    if (Py_REFCNT(f) > 1) {                                                   \
+        Py_DECREF(f);                                                         \
+        _PyObject_GC_TRACK(f);                                                \
+    } else {                                                                  \
+        ++tstate->recursion_depth;                                            \
+        Py_DECREF(f);                                                         \
+        --tstate->recursion_depth;                                            \
+    }
+
 static inline Py_ssize_t
 PyVectorcall_NARGS(size_t n)
 {
-    return n & Ci_PY_VECTORCALL_ARGUMENT_MASK;
+    return n & Ci_Py_VECTORCALL_ARGUMENT_MASK;
 }
 
 static inline Py_ssize_t
 Ci_PyVectorcall_FLAGS(size_t n)
 {
-    return n & ~Ci_PY_VECTORCALL_ARGUMENT_MASK;
+    return n & ~Ci_Py_VECTORCALL_ARGUMENT_MASK;
 }
 
 static inline vectorcallfunc
@@ -157,9 +169,23 @@ PyAPI_FUNC(PyObject *) PyObject_VectorcallDict(
     size_t nargsf,
     PyObject *kwargs);
 
+/* Same as PyVectorcall_Call but allows passing extra flags to function being called */
+PyAPI_FUNC(PyObject *) Ci_PyVectorcall_CallTstate_WithFlags(
+    PyThreadState *tstate, PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags);
+
 /* Call "callable" (which must support vectorcall) with positional arguments
    "tuple" and keyword arguments "dict". "dict" may also be NULL */
 PyAPI_FUNC(PyObject *) PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *dict);
+
+/* Same as PyVectorcall_Call but allows passing extra flags to function being called */
+static inline PyObject *
+Ci_PyVectorcall_Call_WithFlags(PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags)
+{
+    return Ci_PyVectorcall_CallTstate_WithFlags(PyThreadState_GET(), callable, tuple, kwargs, flags);
+}
+
+PyAPI_FUNC(PyObject *) Ci_PyObject_CallTstate(
+    PyThreadState *tstate, PyObject *callable, PyObject *args, PyObject *kwargs);
 
 static inline PyObject *
 _PyObject_FastCallTstate(PyThreadState *tstate, PyObject *func, PyObject *const *args, Py_ssize_t nargs)

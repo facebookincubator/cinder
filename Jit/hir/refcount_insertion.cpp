@@ -636,8 +636,8 @@ void useSimpleInState(Env& env, BasicBlock* block) {
       map_get(env.live_regs, reg).setUncounted();
     }
   } else if (term->IsCondBranchCheckType()) {
-    // PyWaitHandleObject is an uncounted singleton, so we adjust its reference
-    // state here to avoid refcounting it.
+    // Ci_PyWaitHandleObject is an uncounted singleton, so we adjust its
+    // reference state here to avoid refcounting it.
     auto cond = static_cast<CondBranchCheckType*>(term);
     if (cond->type() == TWaitHandle) {
       if (block == cond->true_bb()) {

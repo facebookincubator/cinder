@@ -496,11 +496,11 @@ _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, a
     awaitable->awaiter = NULL;
 
     if (eager) {
-        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        Py_INCREF(handle->wh_coro_or_result_NOT_IMPLEMENTED);
-        awaitable->coro = handle->wh_coro_or_result_NOT_IMPLEMENTED;
-        awaitable->iter = handle->wh_coro_or_result_NOT_IMPLEMENTED;
-        handle->wh_coro_or_result_NOT_IMPLEMENTED = (PyObject *)awaitable;
+        Ci_PyWaitHandleObject *handle = (Ci_PyWaitHandleObject *)coro;
+        Py_INCREF(handle->wh_coro_or_result);
+        awaitable->coro = handle->wh_coro_or_result;
+        awaitable->iter = handle->wh_coro_or_result;
+        handle->wh_coro_or_result = (PyObject *)awaitable;
         return coro;
     }
 
@@ -647,15 +647,15 @@ type_vtable_coroutine_property(_PyClassLoader_TypeCheckState *state,
         coro = _PyObject_Vectorcall(descr, args, nargsf, kwnames);
     }
 
-    eager = _PyWaitHandle_CheckExact(coro);
+    eager = Ci_PyWaitHandle_CheckExact(coro);
     if (eager) {
-        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
+        Ci_PyWaitHandleObject *handle = (Ci_PyWaitHandleObject *)coro;
+        if (handle->wh_waiter == NULL) {
             if (rettype_check(Py_TYPE(descr),
-                    handle->wh_coro_or_result_NOT_IMPLEMENTED, (_PyClassLoader_RetTypeInfo *)state)) {
+                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
                 return coro;
             }
-            _PyWaitHandle_Release(coro);
+            Ci_PyWaitHandle_Release(coro);
             return NULL;
         }
     }
@@ -723,15 +723,15 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
         return NULL;
     }
 
-    int eager = _PyWaitHandle_CheckExact(coro);
+    int eager = Ci_PyWaitHandle_CheckExact(coro);
     if (eager) {
-        PyWaitHandleObject *handle = (PyWaitHandleObject *)coro;
-        if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
+        Ci_PyWaitHandleObject *handle = (Ci_PyWaitHandleObject *)coro;
+        if (handle->wh_waiter == NULL) {
             if (rettype_check(Py_TYPE(callable),
-                    handle->wh_coro_or_result_NOT_IMPLEMENTED, (_PyClassLoader_RetTypeInfo *)state)) {
+                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
                 return coro;
             }
-            _PyWaitHandle_Release(coro);
+            Ci_PyWaitHandle_Release(coro);
             return NULL;
         }
     }

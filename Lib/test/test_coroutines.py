@@ -9,6 +9,7 @@ import unittest
 import warnings
 from test import support
 from test.support import import_helper
+from test.support import maybe_get_event_loop_policy
 from test.support import warnings_helper
 from test.support.script_helper import assert_python_ok
 
@@ -2142,7 +2143,6 @@ class CoroutineAwaiterTest(unittest.TestCase):
         def __await__(self):
             return iter(["future"])
 
-    @unittest.skip("TODO(T125856469): Tests eager execution of coroutines")
     def test_eager_await(self):
         async def awaitee():
             nonlocal awaitee_frame
@@ -2471,6 +2471,97 @@ class CAPITest(unittest.TestCase):
         with self.assertRaisesRegex(
                 TypeError, "__await__.*returned non-iterator of type 'int'"):
             self.assertEqual(foo().send(None), 1)
+
+
+class TestEagerExecution(unittest.TestCase):
+
+    def setUp(self):
+        self._asyncio = import_helper.import_module('asyncio')
+        policy = maybe_get_event_loop_policy()
+        self.addCleanup(lambda: self._asyncio.set_event_loop_policy(policy))
+
+    async def _raise_IndexError_eager(self, x=None):
+        try:
+            raise IndexError
+        except:
+            pass
+
+
+    async def _raise_IndexError_suspended(self, x=None):
+        try:
+            raise IndexError
+        except:
+            await self._asyncio.sleep(0)
+
+
+    def _check(self, expected_coro, actual_coro):
+        def run(coro):
+            try:
+                self._asyncio.run(coro)
+                self.fail("Exception expected")
+            except RuntimeError as e:
+                return type(e.__context__)
+        self.assertEqual(run(expected_coro), run(actual_coro))
+
+    def _do_test_exc_handler(self, f):
+        async def actual_1():
+            try:
+                raise ValueError
+            except:
+                await f()
+                raise RuntimeError
+        async def expected_1():
+            try:
+                raise ValueError
+            except:
+                coro = f()
+                await coro
+                raise RuntimeError
+        async def actual_2():
+            try:
+                raise ValueError
+            except:
+                await f(x=1)
+                raise RuntimeError
+        async def expected_2():
+            try:
+                raise ValueError
+            except:
+                coro = f(x=1)
+                await coro
+                raise RuntimeError
+        self._check(expected_1(), actual_1())
+        self._check(expected_2(), actual_2())
+
+    def _do_test_no_err(self, f):
+        async def actual_1():
+            await f()
+            raise RuntimeError
+        async def expected_1():
+            coro = f()
+            await coro
+            raise RuntimeError
+        async def actual_2():
+            await f(x=1)
+            raise RuntimeError
+        async def expected_2():
+            coro = f(x=1)
+            await coro
+            raise RuntimeError
+        self._check(expected_1(), actual_1())
+        self._check(expected_2(), actual_2())
+
+    def test_eager_await_no_error_eager(self):
+        self._do_test_no_err(self._raise_IndexError_eager)
+
+    def test_suspended_await_no_error_suspended(self):
+        self._do_test_no_err(self._raise_IndexError_suspended)
+
+    def test_suspended_await_in_catch_eager(self):
+        self._do_test_exc_handler(self._raise_IndexError_eager)
+
+    def test_suspended_await_in_catch_suspended(self):
+        self._do_test_exc_handler(self._raise_IndexError_suspended)
 
 
 if __name__=="__main__":

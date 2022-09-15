@@ -63,10 +63,13 @@ _Py_IDENTIFIER(__name__);
 /* Forward declarations */
 Py_LOCAL_INLINE(PyObject *) call_function(
     PyThreadState *tstate, PyTraceInfo *, PyObject ***pp_stack,
-    Py_ssize_t oparg, PyObject *kwnames);
-static PyObject * do_call_core(
-    PyThreadState *tstate, PyTraceInfo *, PyObject *func,
-    PyObject *callargs, PyObject *kwdict);
+    Py_ssize_t oparg, PyObject *kwnames, size_t flags);
+static PyObject * do_call_core(PyThreadState *tstate,
+             PyTraceInfo *trace_info,
+             PyObject *func,
+             PyObject *callargs,
+             PyObject *kwdict,
+             int awaited);
 
 #ifdef LLTRACE
 static int lltrace;
@@ -358,6 +361,7 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 int _PyEval_ShadowByteCodeEnabled = 1;
 
 #define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
+PyAPI_DATA(int) Py_LazyImportsFlag;
 
 void _Py_NO_RETURN
 _Py_FatalError_TstateNULL(const char *func)
@@ -396,6 +400,32 @@ PyEval_ThreadsInitialized(void)
     return _PyEval_ThreadsInitialized(runtime);
 }
 #endif
+
+#define DISPATCH_EAGER_CORO_RESULT(r, X)                                    \
+        assert(Ci_PyWaitHandle_CheckExact(r));                                \
+        PyObject *coro_or_result = ((Ci_PyWaitHandleObject*)r)->wh_coro_or_result; \
+        X(coro_or_result);                                                  \
+        assert(_Py_OPCODE(*next_instr) == GET_AWAITABLE);                   \
+        assert(_Py_OPCODE(*(next_instr + 1)) == LOAD_CONST);                \
+        if (((Ci_PyWaitHandleObject*)r)->wh_waiter) {                          \
+            f->f_state = FRAME_SUSPENDED;                                   \
+            if (f->f_gen != NULL && (co->co_flags & CO_COROUTINE)) {        \
+                _PyAwaitable_SetAwaiter(coro_or_result, f->f_gen);          \
+            }                                                               \
+            f->f_stackdepth = (int)(stack_pointer - f->f_valuestack);         \
+            retval = ((Ci_PyWaitHandleObject*)r)->wh_waiter;                   \
+            Ci_PyWaitHandle_Release(r);                                       \
+            assert(f->f_lasti > 0);                                            \
+            f->f_lasti = INSTR_OFFSET() + 1;                                                    \
+            goto exiting;                                             \
+        }                                                                   \
+        else {                                                              \
+            Ci_PyWaitHandle_Release(r);                                       \
+            f->f_state = FRAME_EXECUTING;                                     \
+            assert(_Py_OPCODE(*(next_instr + 2)) == YIELD_FROM);            \
+            next_instr += 3;                                                \
+            DISPATCH();                                                     \
+        }
 
 PyStatus
 _PyEval_InitGIL(PyThreadState *tstate)
@@ -1250,6 +1280,57 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
 {
     PyThreadState *tstate = _PyThreadState_GET();
     return _PyEval_EvalFrame(tstate, f, throwflag);
+}
+
+// steals the reference to frame
+PyObject *
+_PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, PyObject *qualname)
+{
+#define RELEASE_EXC_INFO(exc_info)                                            \
+    Py_XDECREF((exc_info).exc_type);                                          \
+    Py_XDECREF((exc_info).exc_value);                                         \
+    Py_XDECREF((exc_info).exc_traceback);
+
+    _PyErr_StackItem *previous_exc_info = tstate->exc_info;
+    _PyErr_StackItem exc_info = {.exc_type = NULL,
+                                 .exc_value = NULL,
+                                 .exc_traceback = NULL,
+                                 .previous_item = previous_exc_info};
+    tstate->exc_info = &exc_info;
+    f->f_valuestack[(f->f_stackdepth)++] = Py_None;
+    Py_INCREF(Py_None);
+    f->f_state = FRAME_EXECUTING;
+    PyObject *retval = PyEval_EvalFrameEx(f, 0);
+    tstate->exc_info = previous_exc_info;
+    if (!retval) {
+        f->f_state = FRAME_SUSPENDED;
+        RELEASE_EXC_INFO(exc_info);
+        Ci_RELEASE_FRAME(tstate, f);
+        return NULL;
+    }
+    if (f->f_stackdepth != 0) {
+        PyCoroObject *coro =
+            (PyCoroObject*)_PyCoro_ForFrame(tstate, f, name, qualname);
+        if (coro == NULL) {
+            RELEASE_EXC_INFO(exc_info);
+            Ci_RELEASE_FRAME(tstate, f);
+            return NULL;
+        }
+        coro->cr_exc_state = exc_info;
+        PyObject *yf = _PyGen_yf((PyGenObject *)coro);
+        f->f_state = FRAME_SUSPENDED;
+        if (yf) {
+            _PyAwaitable_SetAwaiter(yf, (PyObject *)coro);
+            Py_DECREF(yf);
+        }
+        return Ci_PyWaitHandle_New((PyObject *)coro, retval);
+    }
+    RELEASE_EXC_INFO(exc_info);
+    Ci_RELEASE_FRAME(tstate, f);
+
+#undef RELEASE_EXC_INFO
+
+    return Ci_PyWaitHandle_New(retval, NULL);
 }
 
 static inline Py_ssize_t
@@ -4068,6 +4149,7 @@ main_loop:
             PyObject **sp, *res, *meth;
 
             sp = stack_pointer;
+            int awaited = IS_AWAITED();
 
             meth = PEEK(oparg + 2);
             if (meth == NULL) {
@@ -4085,7 +4167,12 @@ main_loop:
                    `callable` will be POPed by call_function.
                    NULL will will be POPed manually later.
                 */
-                res = call_function(tstate, &trace_info, &sp, oparg, NULL);
+                res = call_function(tstate,
+                    &trace_info,
+                    &sp,
+                    oparg,
+                    NULL,
+                    awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
                 stack_pointer = sp;
                 (void)POP(); /* POP the NULL. */
             }
@@ -4102,13 +4189,24 @@ main_loop:
                   We'll be passing `oparg + 1` to call_function, to
                   make it accept the `self` as a first argument.
                 */
-                res = call_function(tstate, &trace_info, &sp, oparg + 1, NULL);
+                res = call_function(tstate,
+                                    &trace_info,
+                                    &sp,
+                                    oparg + 1,
+                                    NULL,
+                                    (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
+                                        Ci_Py_VECTORCALL_INVOKED_METHOD);
                 stack_pointer = sp;
             }
-
-            PUSH(res);
-            if (res == NULL)
+            if (res == NULL) {
+                PUSH(NULL);
                 goto error;
+            }
+            if (awaited && Ci_PyWaitHandle_CheckExact(res)) {
+                DISPATCH_EAGER_CORO_RESULT(res, PUSH);
+            }
+            assert(!Ci_PyWaitHandle_CheckExact(res));
+            PUSH(res);
             CHECK_EVAL_BREAKER();
             DISPATCH();
         }
@@ -4117,12 +4215,23 @@ main_loop:
             PREDICTED(CALL_FUNCTION);
             PyObject **sp, *res;
             sp = stack_pointer;
-            res = call_function(tstate, &trace_info, &sp, oparg, NULL);
+            int awaited = IS_AWAITED();
+            res = call_function(tstate,
+                                &trace_info,
+                                &sp,
+                                oparg,
+                                NULL,
+                                awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
             stack_pointer = sp;
-            PUSH(res);
             if (res == NULL) {
+                PUSH(NULL);
                 goto error;
             }
+            if (awaited && Ci_PyWaitHandle_CheckExact(res)) {
+                DISPATCH_EAGER_CORO_RESULT(res, PUSH);
+            }
+            assert(!Ci_PyWaitHandle_CheckExact(res));
+            PUSH(res);
             CHECK_EVAL_BREAKER();
             DISPATCH();
         }
@@ -4131,18 +4240,31 @@ main_loop:
             PyObject **sp, *res, *names;
 
             names = POP();
+
             assert(PyTuple_Check(names));
             assert(PyTuple_GET_SIZE(names) <= oparg);
             /* We assume without checking that names contains only strings */
             sp = stack_pointer;
-            res = call_function(tstate, &trace_info, &sp, oparg, names);
+            int awaited = IS_AWAITED();
+            res = call_function(tstate,
+                                &trace_info,
+                                &sp,
+                                oparg,
+                                names,
+                                awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
             stack_pointer = sp;
-            PUSH(res);
             Py_DECREF(names);
 
             if (res == NULL) {
+                PUSH(NULL);
                 goto error;
             }
+            if (awaited && Ci_PyWaitHandle_CheckExact(res)) {
+                DISPATCH_EAGER_CORO_RESULT(res, PUSH);
+            }
+            assert(!Ci_PyWaitHandle_CheckExact(res));
+
+            PUSH(res);
             CHECK_EVAL_BREAKER();
             DISPATCH();
         }
@@ -4180,16 +4302,21 @@ main_loop:
                 }
             }
             assert(PyTuple_CheckExact(callargs));
-
-            result = do_call_core(tstate, &trace_info, func, callargs, kwargs);
+            int awaited = IS_AWAITED();
+            result = do_call_core(tstate, &trace_info, func, callargs, kwargs, awaited);
             Py_DECREF(func);
             Py_DECREF(callargs);
             Py_XDECREF(kwargs);
 
-            SET_TOP(result);
             if (result == NULL) {
+                SET_TOP(NULL);
                 goto error;
             }
+            if (awaited && Ci_PyWaitHandle_CheckExact(result)) {
+                DISPATCH_EAGER_CORO_RESULT(result, SET_TOP);
+            }
+            assert(!Ci_PyWaitHandle_CheckExact(result));
+            SET_TOP(result);
             CHECK_EVAL_BREAKER();
             DISPATCH();
         }
@@ -4889,10 +5016,10 @@ main_loop:
             if (res == NULL) {                                    \
                 goto error;                                       \
             }                                                     \
-             /* if (awaited && _PyWaitHandle_CheckExact(res)) {       \ */\
-            /*     DISPATCH_EAGER_CORO_RESULT(res, PUSH);            \ */\
-            /* }                                                     \ */\
-            assert(!_PyWaitHandle_CheckExact(res));               \
+            if (awaited && Ci_PyWaitHandle_CheckExact(res)) {     \
+                DISPATCH_EAGER_CORO_RESULT(res, PUSH);            \
+            }                                                     \
+            assert(!Ci_PyWaitHandle_CheckExact(res));             \
             PUSH(res);                                            \
             DISPATCH();                                           \
 
@@ -7005,15 +7132,21 @@ make_coro(PyFrameConstructor *con, PyFrameObject *f)
 PyObject *
 _PyEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
                PyObject *locals,
-               PyObject* const* args, size_t argcount,
+               PyObject* const* args, size_t argcountf,
                PyObject *kwnames)
 {
+    Py_ssize_t argcount = PyVectorcall_NARGS(argcountf);
+    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(argcountf);
     PyFrameObject *f = _PyEval_MakeFrameVector(
         tstate, con, locals, args, argcount, kwnames);
     if (f == NULL) {
         return NULL;
     }
-    if (((PyCodeObject *)con->fc_code)->co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
+    const int co_flags = ((PyCodeObject *)con->fc_code)->co_flags;
+    if (awaited && (co_flags & CO_COROUTINE)) {
+        return _PyEval_EvalEagerCoro(tstate, f, f->f_code->co_name, con->fc_qualname);
+    }
+    if (co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
         return make_coro(con, f);
     }
     PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);
@@ -7806,6 +7939,7 @@ trace_call_function(PyThreadState *tstate,
     return PyObject_Vectorcall(func, args, nargs | PY_VECTORCALL_ARGUMENTS_OFFSET, kwnames);
 }
 
+
 /* Issue #29227: Inline call_function() into _PyEval_EvalFrameDefault()
    to reduce the stack consumption. */
 Py_LOCAL_INLINE(PyObject *) _Py_HOT_FUNCTION
@@ -7813,7 +7947,8 @@ call_function(PyThreadState *tstate,
               PyTraceInfo *trace_info,
               PyObject ***pp_stack,
               Py_ssize_t oparg,
-              PyObject *kwnames)
+              PyObject *kwnames,
+              size_t flags)
 {
     PyObject **pfunc = (*pp_stack) - oparg - 1;
     PyObject *func = *pfunc;
@@ -7821,12 +7956,12 @@ call_function(PyThreadState *tstate,
     Py_ssize_t nkwargs = (kwnames == NULL) ? 0 : PyTuple_GET_SIZE(kwnames);
     Py_ssize_t nargs = oparg - nkwargs;
     PyObject **stack = (*pp_stack) - nargs - nkwargs;
-
+    flags |= PY_VECTORCALL_ARGUMENTS_OFFSET;
     if (trace_info->cframe.use_tracing) {
         x = trace_call_function(tstate, trace_info, func, stack, nargs, kwnames);
     }
     else {
-        x = PyObject_Vectorcall(func, stack, nargs | PY_VECTORCALL_ARGUMENTS_OFFSET, kwnames);
+        x = PyObject_Vectorcall(func, stack, nargs | flags, kwnames);
     }
 
     assert((x != NULL) ^ (_PyErr_Occurred(tstate) != NULL));
@@ -7874,7 +8009,8 @@ do_call_core(PyThreadState *tstate,
              PyTraceInfo *trace_info,
              PyObject *func,
              PyObject *callargs,
-             PyObject *kwdict)
+             PyObject *kwdict,
+             int awaited)
 {
     PyObject *result;
 
@@ -7906,6 +8042,9 @@ do_call_core(PyThreadState *tstate,
             Py_DECREF(func);
             return result;
         }
+    }
+    if (awaited && _PyVectorcall_Function(func) != NULL) {
+        return Ci_PyVectorcall_Call_WithFlags(func, callargs, kwdict, Ci_Py_AWAITED_CALL_MARKER);
     }
     return PyObject_Call(func, callargs, kwdict);
 }

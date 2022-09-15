@@ -4956,7 +4956,7 @@ AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
         return NULL;
     }
 
-    if (!_PyWaitHandle_CheckExact(result)) {
+    if (!Ci_PyWaitHandle_CheckExact(result)) {
         // function being called is not a coroutine
         PyObject *iter = _PyCoro_GetAwaitableIter(result);
         Py_DECREF(result);
@@ -4970,16 +4970,16 @@ AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
     }
 
     *did_step = 1;
-    if (((PyWaitHandleObject *)result)->wh_waiter_NOT_IMPLEMENTED == NULL) {
-        PyObject *retval = ((PyWaitHandleObject *)result)->wh_coro_or_result_NOT_IMPLEMENTED;
-        _PyWaitHandle_Release(result);
+    if (((Ci_PyWaitHandleObject *)result)->wh_waiter == NULL) {
+        PyObject *retval = ((Ci_PyWaitHandleObject *)result)->wh_coro_or_result;
+        Ci_PyWaitHandle_Release(result);
         return retval;
     }
 
-    self->alvc_coroobj = ((PyWaitHandleObject *)result)->wh_coro_or_result_NOT_IMPLEMENTED;
+    self->alvc_coroobj = ((Ci_PyWaitHandleObject *)result)->wh_coro_or_result;
     forward_and_clear_pending_awaiter(self);
-    PyObject *waiter = ((PyWaitHandleObject *)result)->wh_waiter_NOT_IMPLEMENTED;
-    _PyWaitHandle_Release(result);
+    PyObject *waiter = ((Ci_PyWaitHandleObject *)result)->wh_waiter;
+    Ci_PyWaitHandle_Release(result);
     return waiter;
 }
 

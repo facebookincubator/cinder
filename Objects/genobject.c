@@ -1406,16 +1406,111 @@ PyCoro_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
 }
 
 PyObject *
-_PyCoro_NewTstate(PyThreadState *tstate, PyFrameObject *f,
-                  PyObject *name, PyObject *qualname)
-{
-    return coro_new(tstate, f, f->f_code, name, qualname);
-}
-
-PyObject *
 CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code)
 {
     return coro_new(tstate, NULL, code, code->co_name, code->co_qualname);
+}
+
+PyObject *
+_PyCoro_ForFrame(PyThreadState *tstate,
+                 PyFrameObject *f,
+                 PyObject *name,
+                 PyObject *qualname)
+{
+    /* Don't need to keep the reference to f_back, it will be set
+     * when the generator is resumed. */
+    Py_CLEAR(f->f_back);
+
+    /* Create a new generator that owns the ready to run frame
+     * and return that as the value. */
+    PyObject *gen = coro_new(tstate, f, f->f_code, name, qualname);
+    if (gen == NULL) {
+        return NULL;
+    }
+
+    assert(!_PyObject_GC_IS_TRACKED(f));
+    _PyObject_GC_TRACK(f);
+
+    return gen;
+}
+
+/* ========= Wait Handles ========= */
+PyTypeObject Ci_PyWaitHandle_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    "wait handle",                              /* tp_name */
+    sizeof(Ci_PyWaitHandleObject),              /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    /* methods */
+    0,                                          /* tp_dealloc */
+    0,                                          /* tp_vectorcall_offset */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_as_async */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                         /* tp_flags */
+    0,                                          /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    0,                                          /* tp_methods */
+    0,                                          /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    0,                                          /* tp_init */
+    0,                                          /* tp_alloc */
+    0,                                          /* tp_new */
+    0,                                          /* tp_free */
+    0,                                          /* tp_is_gc */
+    0,                                          /* tp_bases */
+    0,                                          /* tp_mro */
+    0,                                          /* tp_cache */
+    0,                                          /* tp_subclasses */
+    0,                                          /* tp_weaklist */
+    0,                                          /* tp_del */
+    0,                                          /* tp_version_tag */
+    0,                                          /* tp_finalize */
+};
+
+static Ci_PyWaitHandleObject Ci_PyWaitHandle = {
+    {_PyObject_EXTRA_INIT
+    1, &Ci_PyWaitHandle_Type}, NULL, NULL
+};
+
+PyObject *
+Ci_PyWaitHandle_New(PyObject *coro_or_result, PyObject *waiter)
+{
+    if (Ci_PyWaitHandle.wh_coro_or_result != NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Ci_PyWaitHandle_New is called when singleton wait handle is still in use.");
+        return NULL;
+    }
+    Ci_PyWaitHandle.wh_coro_or_result = coro_or_result;
+    Ci_PyWaitHandle.wh_waiter = waiter;
+    return (PyObject *)&Ci_PyWaitHandle;
+}
+
+void
+Ci_PyWaitHandle_Release(PyObject *wait_handle)
+{
+    assert(Ci_PyWaitHandle_CheckExact(wait_handle));
+    ((Ci_PyWaitHandleObject *)wait_handle)->wh_coro_or_result = NULL;
+    ((Ci_PyWaitHandleObject *)wait_handle)->wh_waiter = NULL;
 }
 
 

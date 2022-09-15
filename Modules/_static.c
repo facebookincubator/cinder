@@ -644,16 +644,19 @@ ctxmgrwrp_vectorcall(PyFunctionObject *func, PyObject *const *args,
     if (self->is_coroutine && res != NULL) {
         /* If it's a co-routine either pass up the eagerly awaited value or
          * pass out a wrapping awaitable */
-        int eager = _PyWaitHandle_CheckExact(res);
+        int eager = Ci_PyWaitHandle_CheckExact(res);
         if (eager) {
-            PyWaitHandleObject *handle = (PyWaitHandleObject *)res;
-            if (handle->wh_waiter_NOT_IMPLEMENTED == NULL) {
+            Ci_PyWaitHandleObject *handle = (Ci_PyWaitHandleObject *)res;
+            if (handle->wh_waiter == NULL) {
                 assert(nargsf & Ci_Py_AWAITED_CALL_MARKER && exit != NULL);
-                res = ctxmgrwrp_exit(1, ctx_mgr, res, exit);
+                // pass in unwrapped result into exit so it could be released in error case
+                PyObject *result = ctxmgrwrp_exit(1, ctx_mgr, handle->wh_coro_or_result, exit);
                 Py_DECREF(exit);
                 Py_XDECREF(ctx_mgr);
-                if (res == NULL) {
-                    _PyWaitHandle_Release((PyObject *)handle);
+                if (result == NULL) {
+                    // wrapped result is released in ctxmgrwrp_exit, now release the waithandle itself
+                    Ci_PyWaitHandle_Release((PyObject *)handle);
+                    return NULL;
                 }
                 return res;
             }

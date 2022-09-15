@@ -1932,6 +1932,7 @@ _PyTypes_Init(void)
     INIT_TYPE(_PyWeakref_ProxyType);
     INIT_TYPE(_PyWeakref_RefType);
     INIT_TYPE(_PyUnion_Type);
+    INIT_TYPE(Ci_PyWaitHandle_Type);
 
     return _PyStatus_OK();
 #undef INIT_TYPE

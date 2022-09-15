@@ -9,7 +9,6 @@ extern "C" {
 #endif
 
 #include "pystate.h"   /* _PyErr_StackItem */
-#include "abstract.h" /* PySendResult */
 
 #include "internal/pycore_shadow_frame_struct.h"
 
@@ -57,6 +56,20 @@ PyAPI_FUNC(int) _PyGen_FetchStopIterationValue(PyObject **);
 PyObject *_PyGen_yf(PyGenObject *);
 PyAPI_FUNC(void) _PyGen_Finalize(PyObject *self);
 
+typedef struct {
+    PyObject_HEAD
+    PyObject *wh_coro_or_result;
+    PyObject *wh_waiter;
+} Ci_PyWaitHandleObject;
+
+PyAPI_DATA(PyTypeObject) Ci_PyWaitHandle_Type;
+
+#define Ci_PyWaitHandle_CheckExact(op) (Py_TYPE(op) == &Ci_PyWaitHandle_Type)
+
+PyAPI_FUNC(PyObject *)
+    Ci_PyWaitHandle_New(PyObject *coro_or_result, PyObject *waiter);
+PyAPI_FUNC(void) Ci_PyWaitHandle_Release(PyObject *wait_handle);
+
 #ifndef Py_LIMITED_API
 typedef struct _coro {
     _PyGenObject_HEAD(cr)
@@ -71,11 +84,6 @@ PyAPI_DATA(PyTypeObject) _PyCoroWrapper_Type;
 PyAPI_FUNC(PyObject *) _PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
     PyObject *name, PyObject *qualname);
-PyAPI_FUNC(PyObject *) _PyCoro_NewTstate(
-    PyThreadState *tstate,
-    struct _frame *,
-    PyObject *name,
-    PyObject *qualname);
 
 static inline void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter) {
     PyTypeObject *ty = Py_TYPE(receiver);
@@ -88,6 +96,12 @@ static inline void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter
         ame->ame_setawaiter(receiver, awaiter);
     }
 }
+
+PyAPI_FUNC(PyObject *) _PyCoro_ForFrame(
+    PyThreadState *tstate,
+    struct _frame *,
+    PyObject *name,
+    PyObject *qualname);
 
 /* Asynchronous Generators */
 

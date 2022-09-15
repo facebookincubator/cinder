@@ -26,29 +26,11 @@
 extern "C" {
 #endif
 
-// Include/genobject.h  TODO(T125856469) Eager coroutine execution
-typedef struct {
-    PyObject_HEAD
-    PyObject *wh_coro_or_result_NOT_IMPLEMENTED;
-    PyObject *wh_waiter_NOT_IMPLEMENTED;
-} PyWaitHandleObject;
-PyAPI_DATA(PyTypeObject) PyWaitHandle_Type;
-#define _PyWaitHandle_CheckExact(op) (Py_TYPE(op) == &PyWaitHandle_Type)
-PyAPI_FUNC(PyObject *)
-    _PyWaitHandle_New(PyObject *coro_or_result, PyObject *waiter);
-PyAPI_FUNC(void) _PyWaitHandle_Release(PyObject *wait_handle);
-
 // TODO(T125845107) Shadow frames
 PyAPI_FUNC(PyObject *) _PyCoro_NewNoFrame(
     PyThreadState *tstate, PyCodeObject *code);
 PyAPI_FUNC(PyObject *) _PyAsyncGen_NewNoFrame(PyCodeObject *code);
 PyAPI_FUNC(PyObject *) _PyGen_NewNoFrame(PyCodeObject *code);
-
-// Include/cpython/abstract.h
-// TODO(T125856469) Eager coroutine execution
-// This needs to be "static inline" when implemented.
-PyObject *_PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags);
-
 
 #ifdef __cplusplus
 } // extern "C"

@@ -187,7 +187,7 @@ These optimizations resulted in a significant (~5%) CPU efficiency improvement.
 This is mostly implemented in ``Python/ceval.c``, via a new vectorcall flag
 ``Ci_Py_AWAITED_CALL_MARKER``, indicating the caller is immediately awaiting
 this call. Look for uses of the ``IS_AWAITED()`` macro and this vectorcall
-flag, as well as the ``_PyEval_EvalEagerCoro`` function.
+flag.
 
 The Cinder JIT
 ~~~~~~~~~~~~~~

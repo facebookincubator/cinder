@@ -27,17 +27,14 @@ from textwrap import dedent
 from unittest.case import PortFeature
 
 
-if unittest.cinder_enable_broken_tests():
-    from compiler.static import StaticCodeGenerator
+from compiler.static import StaticCodeGenerator
 
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            from .test_compiler.test_static.common import StaticTestBase
-    except ImportError:
-        from test_compiler.test_static.common import StaticTestBase
-else:
-    StaticTestBase = unittest.TestCase
+try:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from .test_compiler.test_static.common import StaticTestBase
+except ImportError:
+    from test_compiler.test_static.common import StaticTestBase
 
 from contextlib import contextmanager
 
@@ -2435,7 +2432,6 @@ class CoroutinesTest(unittest.TestCase):
         self.assertTrue(executed_finally_block)
 
 
-@unittest.cinderPortingBrokenTest()
 class EagerCoroutineDispatch(StaticTestBase):
     def _assert_awaited_flag_seen(self, async_f_under_test):
         awaited_capturer = _testcapi.TestAwaitedCall()
@@ -2472,11 +2468,11 @@ class EagerCoroutineDispatch(StaticTestBase):
 
     @unittest.failUnlessJITCompiled
     async def _call_ex_kw(self, t):
-        t(*[1], **{2: 3})
+        t(*[1], **{"2": 3})
 
     @unittest.failUnlessJITCompiled
     async def _call_ex_kw_awaited(self, t):
-        await t(*[1], **{2: 3})
+        await t(*[1], **{"2": 3})
 
     @unittest.failUnlessJITCompiled
     async def _call_method(self, t):

@@ -7268,6 +7268,58 @@ static PyTypeObject ContainerNoGC_type = {
 };
 
 
+/************** Eagerly executed coroutine test helpers ***********************/
+typedef struct {
+    PyObject_HEAD
+    vectorcallfunc vectorcall;
+    long last_awaited;
+} TestAwaitedCallObject;
+
+static PyObject *
+TestAwaitedCall_vectorcall(
+        PyObject* self, PyObject *const *stack, size_t nargsf, PyObject *kw)
+{
+    ((TestAwaitedCallObject*)self)->last_awaited =
+        !!(nargsf & Ci_Py_AWAITED_CALL_MARKER);
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+TestAwaitedCall_new(PyTypeObject* type, PyObject* args, PyObject* kw)
+{
+    TestAwaitedCallObject *op = (TestAwaitedCallObject *)type->tp_alloc(type, 0);
+    op->vectorcall = TestAwaitedCall_vectorcall;
+    op->last_awaited = -1;
+    return (PyObject *)op;
+}
+
+static PyObject*
+TestAwaitedCall_last_awaited(PyObject* self, PyObject* Py_UNUSED(arg)) {
+    int last = ((TestAwaitedCallObject*)self)->last_awaited;
+    ((TestAwaitedCallObject*)self)->last_awaited = -1;
+    if (last == -1) {
+        Py_RETURN_NONE;
+    }
+    return PyBool_FromLong(last);
+}
+
+static PyMethodDef TestAwaitedCall_methods[] = {
+    {"last_awaited", TestAwaitedCall_last_awaited, METH_NOARGS, NULL},
+    {NULL}  /* sentinel */
+};
+
+static PyTypeObject TestAwaitedCall_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "TestAwaitedCall",
+    sizeof(TestAwaitedCallObject),
+    .tp_new = TestAwaitedCall_new,
+    .tp_call = PyVectorcall_Call,
+    .tp_vectorcall_offset = offsetof(TestAwaitedCallObject, vectorcall),
+    .tp_flags = Py_TPFLAGS_DEFAULT | _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_methods = TestAwaitedCall_methods
+};
+
+
 /************** ContextAwareTask testing helpers ****************************/
 typedef PyObject *(*acquire_context_hook)(void);
 
@@ -7552,6 +7604,12 @@ PyInit__testcapi(void)
     if (PyModule_AddObject(m, "ContainerNoGC",
                            (PyObject *) &ContainerNoGC_type) < 0)
         return NULL;
+
+    if (PyType_Ready(&TestAwaitedCall_Type) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&TestAwaitedCall_Type);
+    PyModule_AddObject(m, "TestAwaitedCall", (PyObject *)&TestAwaitedCall_Type);
 
     PyState_AddModule(m, &_testcapimodule);
     return m;

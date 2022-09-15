@@ -47,7 +47,7 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
         {TTuple, &PyTuple_Type},
         {TType, &PyType_Type},
         {TUnicode, &PyUnicode_Type},
-        {TWaitHandle, &PyWaitHandle_Type},
+        {TWaitHandle, &Ci_PyWaitHandle_Type},
         {TNoneType, &_PyNone_Type},
     };
 

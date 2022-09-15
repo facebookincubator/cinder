@@ -273,6 +273,54 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
 
 
 PyObject *
+Ci_PyVectorcall_CallTstate_WithFlags(PyThreadState *tstate, PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags)
+{
+    vectorcallfunc func;
+
+    /* get vectorcallfunc as in PyVectorcall_Function, but without
+     * the Py_TPFLAGS_HAVE_VECTORCALL check */
+    Py_ssize_t offset = Py_TYPE(callable)->tp_vectorcall_offset;
+    if (offset <= 0) {
+        _PyErr_Format(tstate, PyExc_TypeError,
+                      "'%.200s' object does not support vectorcall",
+                      Py_TYPE(callable)->tp_name);
+        return NULL;
+    }
+    memcpy(&func, (char *) callable + offset, sizeof(func));
+    if (func == NULL) {
+        _PyErr_Format(tstate, PyExc_TypeError,
+                      "'%.200s' object does not support vectorcall",
+                      Py_TYPE(callable)->tp_name);
+        return NULL;
+    }
+
+    Py_ssize_t nargs = PyTuple_GET_SIZE(tuple);
+    flags |= nargs;
+
+    /* Fast path for no keywords */
+    if (kwargs == NULL || PyDict_GET_SIZE(kwargs) == 0) {
+        return func(callable, _PyTuple_ITEMS(tuple), flags, NULL);
+    }
+
+    /* Convert arguments & call */
+    PyObject *const *args;
+    PyObject *kwnames;
+    args = _PyStack_UnpackDict(tstate,
+                               _PyTuple_ITEMS(tuple), nargs,
+                               kwargs, &kwnames);
+    if (args == NULL) {
+        return NULL;
+    }
+
+    flags |= PY_VECTORCALL_ARGUMENTS_OFFSET;
+    PyObject *result = func(callable, args, flags, kwnames);
+    _PyStack_UnpackDict_Free(args, nargs, kwnames);
+
+    return _Py_CheckFunctionResult(tstate, callable, result, NULL);
+}
+
+
+PyObject *
 _PyObject_Call(PyThreadState *tstate, PyObject *callable,
                PyObject *args, PyObject *kwargs)
 {
@@ -335,14 +383,15 @@ _PyFunction_Vectorcall(PyObject *func, PyObject* const* stack,
     assert(PyFunction_Check(func));
     PyFrameConstructor *f = PyFunction_AS_FRAME_CONSTRUCTOR(func);
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(nargsf);
     assert(nargs >= 0);
     PyThreadState *tstate = _PyThreadState_GET();
     assert(nargs == 0 || stack != NULL);
     if (((PyCodeObject *)f->fc_code)->co_flags & CO_OPTIMIZED) {
-        return _PyEval_Vector(tstate, f, NULL, stack, nargs, kwnames);
+        return _PyEval_Vector(tstate, f, NULL, stack, nargs | awaited, kwnames);
     }
     else {
-        return _PyEval_Vector(tstate, f, f->fc_globals, stack, nargs, kwnames);
+        return _PyEval_Vector(tstate, f, f->fc_globals, stack, nargs | awaited, kwnames);
     }
 }
 
