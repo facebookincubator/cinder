@@ -1237,7 +1237,11 @@ init_interp_main(PyThreadState *tstate)
 
     if (config->use_py_compiler) {
         /* install the loader using Python written compiler */
-        install_importlib_pycompile();
+        if(install_importlib_pycompile()) {
+            fprintf(stderr, "installing py-compiler failed, traceback:\n");
+            PyErr_Print();
+            return _PyStatus_ERR("can't install py-compiler");
+        }
     }
 
     if (is_main_interp) {
