@@ -2228,6 +2228,11 @@ classloader_get_original_static_def(PyTypeObject *tp, PyObject *name, PyObject *
         } else if (get_func_or_special_callable(tp, name, original)) {
             return -1;
         }
+        // If a static type has a non-static member (for instance, due to having a decorated method)
+        // we need to keep looking up the MRO for a static base.
+        if (*original == NULL || !used_in_vtable(*original)) {
+            Py_CLEAR(*original);
+        }
     }
 
     if (*original == NULL) {
