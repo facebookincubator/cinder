@@ -8,6 +8,7 @@
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include <bit>
 #include <shared_mutex>
 
 using jit::codegen::PhyLocation;
@@ -57,21 +58,10 @@ const char* deoptReasonName(DeoptReason reason) {
 }
 
 BorrowedRef<> MemoryView::readBorrowed(const LiveValue& value) const {
-  uint64_t raw = readRaw(value);
-
-  switch (value.value_kind) {
-    case jit::hir::ValueKind::kUnsigned:
-      // FALLTHROUGH
-    case jit::hir::ValueKind::kSigned:
-      // FALLTHROUGH
-    case jit::hir::ValueKind::kDouble:
-      // FALLTHROUGH
-    case jit::hir::ValueKind::kBool:
-      JIT_CHECK(false, "borrow can only get raw pyobjects");
-    case jit::hir::ValueKind::kObject:
-      return reinterpret_cast<PyObject*>(raw);
-  }
-  return nullptr;
+  JIT_CHECK(
+      value.value_kind == jit::hir::ValueKind::kObject,
+      "cannot materialize a borrowed primitive value");
+  return reinterpret_cast<PyObject*>(readRaw(value));
 }
 
 Ref<> MemoryView::readOwned(const LiveValue& value) const {
@@ -79,8 +69,7 @@ Ref<> MemoryView::readOwned(const LiveValue& value) const {
 
   switch (value.value_kind) {
     case jit::hir::ValueKind::kSigned: {
-      Py_ssize_t raw_signed;
-      std::memcpy(&raw_signed, &raw, sizeof(uint64_t));
+      Py_ssize_t raw_signed = bit_cast<Py_ssize_t, uint64_t>(raw);
       return Ref<>::steal(PyLong_FromSsize_t(raw_signed));
     }
     case jit::hir::ValueKind::kUnsigned:
@@ -92,7 +81,7 @@ Ref<> MemoryView::readOwned(const LiveValue& value) const {
     case jit::hir::ValueKind::kObject:
       return Ref<>::create(reinterpret_cast<PyObject*>(raw));
   }
-  return nullptr;
+  JIT_CHECK(false, "Unhandled ValueKind");
 }
 
 static void reifyLocalsplus(
@@ -107,7 +96,8 @@ static void reifyLocalsplus(
       Py_CLEAR(frame->f_localsplus[i]);
       continue;
     }
-    Py_XSETREF(frame->f_localsplus[i], mem.readOwned(*value).release());
+    PyObject* obj = mem.readOwned(*value).release();
+    Py_XSETREF(frame->f_localsplus[i], obj);
   }
 }
 

@@ -246,7 +246,7 @@ struct MemoryView {
       return regs[loc.loc];
     } else {
       uint64_t rbp = regs[jit::codegen::PhyLocation::RBP];
-      // loc.loc is negative when loc is a memory location relative to RBP
+      // loc.loc is relative offset from RBP (i.e. negative as stack grows down)
       return *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
     }
   }
