@@ -56,40 +56,41 @@ const char* deoptReasonName(DeoptReason reason) {
   JIT_CHECK(false, "Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
-PyObject* MemoryView::read(const LiveValue& value, bool borrow) const {
-  uint64_t raw;
-  PhyLocation loc = value.location;
-  if (loc.is_register()) {
-    raw = regs[loc.loc];
-  } else {
-    uint64_t rbp = regs[PhyLocation::RBP];
-    // loc.loc is negative when loc is a memory location relative to RBP
-    raw = *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
-  }
+BorrowedRef<> MemoryView::readBorrowed(const LiveValue& value) const {
+  uint64_t raw = readRaw(value);
 
   switch (value.value_kind) {
-    case jit::hir::ValueKind::kSigned:
-      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-      return PyLong_FromSsize_t((Py_ssize_t)raw);
     case jit::hir::ValueKind::kUnsigned:
-      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-      return PyLong_FromSize_t(raw);
+      // FALLTHROUGH
+    case jit::hir::ValueKind::kSigned:
+      // FALLTHROUGH
+    case jit::hir::ValueKind::kDouble:
+      // FALLTHROUGH
+    case jit::hir::ValueKind::kBool:
+      JIT_CHECK(false, "borrow can only get raw pyobjects");
+    case jit::hir::ValueKind::kObject:
+      return reinterpret_cast<PyObject*>(raw);
+  }
+  return nullptr;
+}
+
+Ref<> MemoryView::readOwned(const LiveValue& value) const {
+  uint64_t raw = readRaw(value);
+
+  switch (value.value_kind) {
+    case jit::hir::ValueKind::kSigned: {
+      Py_ssize_t raw_signed;
+      std::memcpy(&raw_signed, &raw, sizeof(uint64_t));
+      return Ref<>::steal(PyLong_FromSsize_t(raw_signed));
+    }
+    case jit::hir::ValueKind::kUnsigned:
+      return Ref<>::steal(PyLong_FromSize_t(raw));
     case hir::ValueKind::kDouble:
-      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-      return PyFloat_FromDouble(raw);
-    case jit::hir::ValueKind::kBool: {
-      JIT_CHECK(!borrow, "borrow can only get raw pyobjects");
-      PyObject* res = raw ? Py_True : Py_False;
-      Py_INCREF(res);
-      return res;
-    }
-    case jit::hir::ValueKind::kObject: {
-      PyObject* res = reinterpret_cast<PyObject*>(raw);
-      if (!borrow) {
-        Py_XINCREF(res);
-      }
-      return res;
-    }
+      return Ref<>::steal(PyFloat_FromDouble(raw));
+    case jit::hir::ValueKind::kBool:
+      return Ref<>::create(raw ? Py_True : Py_False);
+    case jit::hir::ValueKind::kObject:
+      return Ref<>::create(reinterpret_cast<PyObject*>(raw));
   }
   return nullptr;
 }
@@ -106,8 +107,7 @@ static void reifyLocalsplus(
       Py_CLEAR(frame->f_localsplus[i]);
       continue;
     }
-    PyObject* obj = mem.read(*value);
-    Py_XSETREF(frame->f_localsplus[i], obj);
+    Py_XSETREF(frame->f_localsplus[i], mem.readOwned(*value).release());
   }
 }
 
@@ -119,7 +119,7 @@ static void reifyStack(
   frame->f_stackdepth = frame_meta.stack.size();
   for (int i = frame_meta.stack.size() - 1; i >= 0; i--) {
     const auto& value = meta.getStackValue(i, frame_meta);
-    PyObject* obj = mem.read(value);
+    Ref<> obj = mem.readOwned(value);
     if (value.isLoadMethodResult()) {
       // When we are deoptimizing a JIT-compiled function that contains an
       // optimizable LoadMethod, we need to be able to know whether or not the
@@ -128,13 +128,12 @@ static void reifyStack(
       // LoadMethodResult to indicate that it was a non-method like object,
       // which we need to replace with NULL to match the interpreter semantics.
       if (obj == Py_None) {
-        Py_DECREF(obj);
         frame->f_valuestack[i] = nullptr;
       } else {
-        frame->f_valuestack[i] = obj;
+        frame->f_valuestack[i] = obj.release();
       }
     } else {
-      frame->f_valuestack[i] = obj;
+      frame->f_valuestack[i] = obj.release();
     }
   }
 }
@@ -144,8 +143,7 @@ Ref<> profileDeopt(
     const DeoptMetadata& meta,
     const MemoryView& mem) {
   const LiveValue* live_val = meta.getGuiltyValue();
-  auto guilty_obj =
-      Ref<>::steal(live_val == nullptr ? nullptr : mem.read(*live_val, false));
+  Ref<> guilty_obj = live_val == nullptr ? nullptr : mem.readOwned(*live_val);
   Runtime::get()->recordDeopt(deopt_idx, guilty_obj.get());
   return guilty_obj;
 }
@@ -225,9 +223,8 @@ void releaseRefs(const DeoptMetadata& meta, const MemoryView& mem) {
         continue;
       }
       case jit::hir::RefKind::kOwned: {
-        PyObject* obj = mem.read(value, true);
-        // Reference may be NULL if value is not definitely assigned
-        Py_XDECREF(obj);
+        // Read as borrowed then steal to decref.
+        Ref<>::steal(mem.readBorrowed(value));
         break;
       }
     }

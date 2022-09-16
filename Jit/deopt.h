@@ -236,10 +236,20 @@ void reifyGeneratorFrame(
 struct MemoryView {
   const uint64_t* regs;
 
-  // reads the value from memory and returns an object with a new
-  // ref count added. If the borrow flag is true the addition of the
-  // new ref count is skipped.
-  PyObject* read(const LiveValue& value, bool borrow = false) const;
+  BorrowedRef<> readBorrowed(const LiveValue& value) const;
+  Ref<> readOwned(const LiveValue& value) const;
+
+ private:
+  uint64_t readRaw(const LiveValue& value) const {
+    jit::codegen::PhyLocation loc = value.location;
+    if (loc.is_register()) {
+      return regs[loc.loc];
+    } else {
+      uint64_t rbp = regs[jit::codegen::PhyLocation::RBP];
+      // loc.loc is negative when loc is a memory location relative to RBP
+      return *(reinterpret_cast<uint64_t*>(rbp + loc.loc));
+    }
+  }
 };
 
 // Release any owned references in the given set of registers or spill data.
