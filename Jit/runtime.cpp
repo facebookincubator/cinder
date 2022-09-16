@@ -12,7 +12,7 @@ const int64_t CodeRuntime::kPyCodeOffset =
 
 namespace {
 template <typename F>
-requires Callable<F, int, PyObject*>
+REQUIRES_CALLABLE(F, int, PyObject*)
 int forEachOwnedRef(PyGenObject* gen, std::size_t deopt_idx, F func) {
   const DeoptMetadata& meta = Runtime::get()->getDeoptMetadata(deopt_idx);
   auto base = reinterpret_cast<char*>(gen->gi_jit_data);

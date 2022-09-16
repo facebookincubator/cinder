@@ -10,7 +10,6 @@
 #ifdef __cplusplus
 #include "Jit/log.h"
 
-#include <concepts>
 #include <cstdarg>
 #include <cstddef>
 #include <memory>
@@ -216,11 +215,25 @@ struct FreeDeleter {
 template <typename T>
 using unique_c_ptr = std::unique_ptr<T, FreeDeleter>;
 
+// TODO(T132146975) The clangd we're using at Meta for LSP gets very upset if we
+// try to use C++20 Concepts and fails to compile most further code. So we
+// shoehorn -D__BUILT_VIA_COMPILE_COMMANDS_JSON into our compile_commands.json
+// to avoid this. Not a great solution but at least gets most things working.
+#ifdef __BUILT_VIA_COMPILE_COMMANDS_JSON
+
+#define REQUIRES_CALLABLE(...)
+
+#else // not defined __BUILT_VIA_COMPILE_COMMANDS_JSON
+#include <concepts>
+
+#define REQUIRES_CALLABLE(...) requires jit::Callable<__VA_ARGS__>
 // Similar to std::invocable<F, Args...>, but also constrains the return type.
 template <typename F, typename Ret, typename... Args>
 concept Callable = requires(F f, Args&&... args) {
   { f(std::forward<Args>(args)...) } -> std::convertible_to<Ret>;
 };
+
+#endif
 
 } // namespace jit
 
