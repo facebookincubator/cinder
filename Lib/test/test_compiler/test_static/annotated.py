@@ -192,11 +192,9 @@ class AnnotatedTests(StaticTestBase):
             from typing import Annotated
 
             x: Annotated[int, "Exact"] = 3
+            reveal_type(x)
         """
-        # TODO(T113108364): This should be allowed.
-        self.type_error(
-            codestr, r"type mismatch: Literal\[3\] cannot be assigned to Exact\[int\]"
-        )
+        self.revealed_type(codestr, "Exact[int]")
 
     def test_exact_final_type_error_on_subclass_assignment(self) -> None:
         codestr = """
