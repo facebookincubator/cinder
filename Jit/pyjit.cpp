@@ -52,7 +52,6 @@ struct JitConfig {
 
   int is_enabled{0};
   FrameModeJitConfig frame_mode{PY_FRAME};
-  int are_type_slots_enabled{1};
   int allow_jit_list_wildcards{0};
   int compile_all_static_functions{0};
   size_t batch_compile_workers{0};
@@ -472,18 +471,6 @@ void initFlagProcessor() {
           }
         },
         "enable shadow frame mode");
-
-    xarg_flag_processor.addOption(
-        "jit-no-type-slots",
-        "PYTHONJITNOTYPESLOTS",
-        [](int val) {
-          if (use_jit) {
-            jit_config.are_type_slots_enabled = !val;
-          } else {
-            warnJITOff("jit-no-type-slots");
-          }
-        },
-        "turn off type slots");
 
     xarg_flag_processor
         .addOption(
@@ -1576,11 +1563,6 @@ void _PyJIT_AfterFork_Child() {
   perf::afterForkChild();
 }
 
-int _PyJIT_AreTypeSlotsEnabled() {
-  return (jit_config.init_state == JIT_INITIALIZED) &&
-      jit_config.are_type_slots_enabled;
-}
-
 unsigned int _PyJIT_AutoJITThreshold() {
   return jit_config.auto_jit_threshold;
 }
@@ -1627,23 +1609,8 @@ int _PyJIT_Enable() {
   return 0;
 }
 
-int _PyJIT_EnableTypeSlots() {
-  if (!_PyJIT_IsEnabled()) {
-    return 0;
-  }
-  jit_config.are_type_slots_enabled = 1;
-  return 1;
-}
-
 void _PyJIT_Disable() {
   jit_config.is_enabled = 0;
-  jit_config.are_type_slots_enabled = 0;
-}
-
-_PyJIT_Result _PyJIT_SpecializeType(
-    PyTypeObject* type,
-    _PyJIT_TypeSlots* slots) {
-  return _PyJITContext_SpecializeType(jit_ctx, type, slots);
 }
 
 _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {

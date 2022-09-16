@@ -315,9 +315,6 @@ TEST_F(CmdLineTest, JITEnable) {
           []() {
             ASSERT_EQ(_PyJIT_IsEnabled(), 1);
             ASSERT_EQ(
-                _PyJIT_AreTypeSlotsEnabled(),
-                1); // set to 1 if associated flag is NOT set
-            ASSERT_EQ(
                 _PyJIT_IsDisassemblySyntaxIntel(), 0); // default to AT&T syntax
           }),
       0);
@@ -366,26 +363,6 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
 }
 
 #endif
-
-TEST_F(CmdLineTest, JITEnabledFlags_NoTypeSlots) {
-  ASSERT_EQ(
-      try_flag_and_envvar_effect(
-          L"jit-no-type-slots",
-          NULL,
-          []() {},
-          []() { ASSERT_EQ(_PyJIT_AreTypeSlotsEnabled(), 0); },
-          false),
-      0);
-
-  ASSERT_EQ(
-      try_flag_and_envvar_effect(
-          L"jit-no-type-slots",
-          NULL,
-          []() {},
-          []() { ASSERT_EQ(_PyJIT_AreTypeSlotsEnabled(), 0); },
-          true),
-      0);
-}
 
 TEST_F(CmdLineTest, JITEnabledFlags_MultithreadCompile) {
   ASSERT_EQ(

@@ -489,7 +489,6 @@ JIT_OBJS=       \
 		Jit/pyjit.o \
 		Jit/runtime.o \
 		Jit/runtime_support.o \
-		Jit/slot_gen.o \
 		Jit/strobelight_exports.o \
 		Jit/type_profiler.o \
 		Jit/util.o \
@@ -1343,7 +1342,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/runtime.h \
 		$(srcdir)/Jit/runtime_support.h \
 		$(srcdir)/Jit/slab_arena.h \
-		$(srcdir)/Jit/slot_gen.h \
 		$(srcdir)/Jit/stack.h \
 		$(srcdir)/Jit/strobelight_exports.h \
 		$(srcdir)/Jit/type_profiler.h \
@@ -2627,7 +2625,6 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/regalloc_test.o \
 	${RUNTIME_TESTS_DIR}/sanity_test.o \
 	${RUNTIME_TESTS_DIR}/slab_arena_test.o \
-	${RUNTIME_TESTS_DIR}/slot_gen_test.o \
 	${RUNTIME_TESTS_DIR}/testutil.o \
 	${RUNTIME_TESTS_DIR}/type_profiler_test.o \
 	${RUNTIME_TESTS_DIR}/util_test.o
