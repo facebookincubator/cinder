@@ -12,8 +12,6 @@
 #include "pycore_moduleobject.h"
 #include "pycore_object.h"
 
-#include "cinder/porting-support.h"
-
 #include <stdint.h>
 
 #ifndef Py_SHADOWCODE_H

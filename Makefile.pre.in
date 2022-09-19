@@ -525,11 +525,6 @@ I386_DASM_OBJS = \
 		ThirdParty/i386-dis/dis-buf.o
 
 ##########################################################################
-# Cinder common objects
-CINDER_OBJS = \
-		Cinder/stubs.o
-
-##########################################################################
 # Strict Modules
 STRICTM_OBJS=       \
 		StrictModules/Compiler/analyzed_module.o \
@@ -680,7 +675,6 @@ LIBRARY_OBJS_OMIT_FROZEN=	\
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS)    \
 		$(STRICTM_OBJS) \
-		$(CINDER_OBJS) \
 		$(I386_DASM_OBJS)    \
 		$(MODULE_OBJS) \
 		$(MODOBJS)
@@ -1015,7 +1009,6 @@ Modules/getbuildinfo.o: $(PARSER_OBJS) \
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS) \
 		$(STRICTM_OBJS) \
-		$(CINDER_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS) \
 		$(DTRACE_OBJS) \
@@ -1451,7 +1444,6 @@ STRICTM_HEADERS = \
 		$(STRICTM_PUBLIC_HEADERS)
 
 CINDER_HEADERS= \
-		$(srcdir)/Cinder/Include/cinder/porting-support.h \
 		$(srcdir)/Cinder/Include/cinder/port-assert.h \
 		$(srcdir)/Cinder/Include/cinder/exports.h
 

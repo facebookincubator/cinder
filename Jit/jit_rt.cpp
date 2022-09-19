@@ -4,7 +4,6 @@
 #include "Objects/dict-common.h"
 #include "Python.h"
 #include "cinder/exports.h"
-#include "cinder/porting-support.h"
 #include "classloader.h"
 #include "frameobject.h"
 #include "listobject.h"

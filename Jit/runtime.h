@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Python.h"
-#include "cinder/porting-support.h"
 
 #include "Jit/containers.h"
 #include "Jit/debug_info.h"

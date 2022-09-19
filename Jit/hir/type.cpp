@@ -1,8 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/hir/type.h"
 
-#include "cinder/porting-support.h"
-
 #include "Jit/hir/hir.h"
 #include "Jit/log.h"
 

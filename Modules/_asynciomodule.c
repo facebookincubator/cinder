@@ -6,7 +6,6 @@
 #include "structmember.h"
 #include "weakrefobject.h"
 #include "cinder/exports.h"
-#include "cinder/porting-support.h"
 
 
 /*[clinic input]

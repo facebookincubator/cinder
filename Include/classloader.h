@@ -2,8 +2,8 @@
 #ifndef Py_CLASSLOADER_H
 #define Py_CLASSLOADER_H
 
-#include "cinder/porting-support.h"
 #include "cinder/exports.h"
+#include "internal/pycore_moduleobject.h"
 
 #ifdef __cplusplus
 extern "C" {

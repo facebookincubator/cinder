@@ -3,7 +3,6 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
-#include "cinder/porting-support.h"
 #include "internal/pycore_interp.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
