@@ -28,7 +28,6 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 
 #include "Jit/pyjit.h"
-#include "arraymodule.h"
 #include "code.h"
 #include "dictobject.h"
 #include "frameobject.h"
@@ -5714,7 +5713,6 @@ main_loop:
                   (oparg == FAST_LEN_DICT && PyDict_CheckExact(collection)) ||
                   (oparg == FAST_LEN_SET && PyAnySet_CheckExact(collection)) ||
                   (oparg == FAST_LEN_TUPLE && PyTuple_CheckExact(collection)) ||
-                  (oparg == FAST_LEN_ARRAY && PyStaticArray_CheckExact(collection)) ||
                   (oparg == FAST_LEN_STR && PyUnicode_CheckExact(collection))) {
                 inexact = 0;
               }

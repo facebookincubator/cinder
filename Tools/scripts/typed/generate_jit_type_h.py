@@ -56,7 +56,6 @@ BASIC_FINAL_TYPES: List[str] = [
 # Basic types that can be subtyped by users. These will be expanded into *User
 # and *Exact variants.
 BASIC_BASE_TYPES: List[str] = [
-    "Array",
     "BaseException",
     "Bytes",
     "Dict",

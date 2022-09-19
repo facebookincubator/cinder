@@ -278,10 +278,7 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define FAST_LEN_DICT 1
 #define FAST_LEN_SET 2
 #define FAST_LEN_TUPLE 3
-#define FAST_LEN_ARRAY 4
 #define FAST_LEN_STR 5
-
-#define TYPED_ARRAY 0x80
 
 // At the time of defining these, we needed to remain backwards compatible,
 // so SEQ_LIST had to be zero. Therefore, we let the array types occupy the
@@ -290,14 +287,6 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define SEQ_LIST 0
 #define SEQ_TUPLE 1
 #define SEQ_LIST_INEXACT 2
-#define SEQ_ARRAY_INT8 ((TYPED_INT8 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_INT16 ((TYPED_INT16 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_INT32 ((TYPED_INT32 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_INT64 ((TYPED_INT64 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_UINT8 ((TYPED_UINT8 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_UINT16 ((TYPED_UINT16 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_UINT32 ((TYPED_UINT32 << 4) | TYPED_ARRAY)
-#define SEQ_ARRAY_UINT64 ((TYPED_UINT64 << 4) | TYPED_ARRAY)
 #define SEQ_SUBSCR_UNCHECKED (1 << 3)
 #define SEQ_REPEAT_INEXACT_SEQ (1 << 4)
 #define SEQ_REPEAT_INEXACT_NUM (1 << 5)

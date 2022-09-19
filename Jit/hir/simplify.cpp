@@ -316,7 +316,7 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
         env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, left, right);
     return env.emit<IntConvert>(result, TCInt32);
   }
-  if (ty <= TListExact || ty <= TTupleExact || ty <= TArray) {
+  if (ty <= TListExact || ty <= TTupleExact) {
     Register* obj = instr->GetOperand(0);
     env.emit<UseType>(obj, ty);
     Register* size = env.emit<LoadField>(

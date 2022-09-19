@@ -2,7 +2,6 @@
 #include "Jit/hir/builder.h"
 
 #include "Python.h"
-#include "arraymodule.h"
 #include "boolobject.h"
 #include "ceval.h"
 #include "object.h"
@@ -2691,22 +2690,6 @@ static inline bool is_double_binop(int oparg) {
 
 static inline Type element_type_from_seq_type(int seq_type) {
   switch (seq_type) {
-    case SEQ_ARRAY_INT8:
-      return TCInt8;
-    case SEQ_ARRAY_INT16:
-      return TCInt16;
-    case SEQ_ARRAY_INT32:
-      return TCInt32;
-    case SEQ_ARRAY_INT64:
-      return TCInt64;
-    case SEQ_ARRAY_UINT8:
-      return TCUInt8;
-    case SEQ_ARRAY_UINT16:
-      return TCUInt16;
-    case SEQ_ARRAY_UINT32:
-      return TCUInt32;
-    case SEQ_ARRAY_UINT64:
-      return TCUInt64;
     case SEQ_LIST:
     case SEQ_LIST_INEXACT:
     case SEQ_CHECKED_LIST:
@@ -2848,10 +2831,6 @@ void HIRBuilder::emitFastLen(
     name = "ob_size";
   } else if (oparg == FAST_LEN_TUPLE) {
     type = TTupleExact;
-    offset = offsetof(PyVarObject, ob_size);
-    name = "ob_size";
-  } else if (oparg == FAST_LEN_ARRAY) {
-    type = TArrayExact;
     offset = offsetof(PyVarObject, ob_size);
     name = "ob_size";
   } else if (oparg == FAST_LEN_DICT) {
@@ -3141,10 +3120,7 @@ void HIRBuilder::emitSequenceGet(
   auto ob_item = temps_.AllocateStack();
   auto result = temps_.AllocateStack();
   int offset;
-  if (_Py_IS_TYPED_ARRAY(oparg)) {
-    offset = offsetof(PyStaticArrayObject, ob_item);
-  } else if (
-      oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT ||
+  if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT ||
       oparg == SEQ_CHECKED_LIST) {
     offset = offsetof(PyListObject, ob_item);
   } else {
@@ -3245,9 +3221,7 @@ void HIRBuilder::emitSequenceSet(
   tc.emit<CheckSequenceBounds>(adjusted_idx, sequence, idx, tc.frame);
   auto ob_item = temps_.AllocateStack();
   int offset;
-  if (_Py_IS_TYPED_ARRAY(oparg)) {
-    offset = offsetof(PyStaticArrayObject, ob_item);
-  } else if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
+  if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
     offset = offsetof(PyListObject, ob_item);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_SET: %d", oparg);

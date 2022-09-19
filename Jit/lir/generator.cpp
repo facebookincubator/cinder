@@ -477,10 +477,10 @@ void LIRGenerator::MakeDecref(
 // those floats where PyObject_RichCompareBool is used and it short
 // circuits on object identity.
 bool isTypeWithReasonablePointerEq(Type t) {
-  return t <= TArrayExact || t <= TBytesExact || t <= TDictExact ||
-      t <= TListExact || t <= TSetExact || t <= TTupleExact ||
-      t <= TTypeExact || t <= TLongExact || t <= TBool || t <= TFunc ||
-      t <= TGen || t <= TNoneType || t <= TSlice;
+  return t <= TBytesExact || t <= TDictExact || t <= TListExact ||
+      t <= TSetExact || t <= TTupleExact || t <= TTypeExact ||
+      t <= TLongExact || t <= TBool || t <= TFunc || t <= TGen ||
+      t <= TNoneType || t <= TSlice;
 }
 
 namespace {
