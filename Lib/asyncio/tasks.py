@@ -975,6 +975,7 @@ try:
     from _asyncio import (_register_task, _unregister_task,
                           _enter_task, _leave_task,
                           _current_tasks,
+                          current_task,
                           all_tasks,
                           Task as CTask,
                           AsyncLazyValue as _ASYNC_LAZY_VALUE_TYPE,
