@@ -1,4 +1,6 @@
 import unittest
+
+from compiler.consts import CO_STATICALLY_COMPILED
 from compiler.pycodegen import CinderCodeGenerator
 from unittest import skip
 
@@ -357,6 +359,47 @@ class NonStaticInheritanceTests(StaticTestBase):
                 r"'B' is non-static",
             ):
                 self.run_code(static)
+
+    def test_nonstatic_derived_method_in_static_class(self):
+        # Having the decorator live in a non-static module ensures that the generated function
+        # doesn't have the CO_STATICALLY_COMPILED flag.
+        nonstatic = """
+            def decorate(f):
+                def foo(*args, **kwargs):
+                    return f(*args, **kwargs)
+                return foo
+        """
+        static = """
+            from nonstatic import decorate
+            class C:
+               def f(self):
+                   return 1
+
+            class D(C):
+               @decorate
+               def f(self):
+                   return 2
+
+            def invoke_f(c: C):
+                return c.f()
+
+            def invoke_d_f():
+                d = D()
+                return d.f()
+        """
+        with self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ), self.in_module(static) as mod:
+            # Ensure that the decorator results in a non-static function.
+            self.assertEqual(mod.D.f.__code__.co_flags & CO_STATICALLY_COMPILED, 0)
+            self.assertEqual(mod.invoke_f(mod.C()), 1)
+            self.assertEqual(mod.invoke_f(mod.D()), 2)
+            # TODO(T131831297): The return value here should be 2 instead of 1.
+            self.assertEqual(mod.invoke_d_f(), 1)
+            # TODO(T131831297): This should be an INVOKE_METHOD.
+            self.assertInBytecode(
+                mod.invoke_d_f, "INVOKE_FUNCTION", ((mod.__name__, "C", "f"), 1)
+            )
 
 
 if __name__ == "__main__":
