@@ -358,6 +358,7 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.10b1 3443 (remove primitive enums, migrate PRIMITIVE_(UN)BOX back to opargs)
 #     Python 3.10b1 3444 (optimizations of LOAD_METHOD_SUPER and LOAD_ATTR_SUPER)
 #     Python 3.10b1 3445 (comprehension inliner)
+#     Python 3.10b1 3446 (Set default PyCodeObject.co_qualname missed in 3442)
 
 
 #
@@ -368,7 +369,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3445).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3446).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'

@@ -1637,7 +1637,6 @@ class C:
         return G.y
 
 
-@unittest.cinderPortingBrokenTest()
 class CodeObjectQualnameTest(unittest.TestCase):
     def test_qualnames(self):
         self.assertEqual(cinder._get_qualname(f.__code__), "f")
@@ -2328,41 +2327,6 @@ class C:
                 pass
 
         return G.y
-
-
-class CodeObjectQualnameTest(unittest.TestCase):
-    def test_qualnames(self):
-        self.assertEqual(cinder._get_qualname(f.__code__), "f")
-
-        self.assertEqual(cinder._get_qualname(C.x.__code__), "C.x")
-        self.assertEqual(cinder._get_qualname(C.sm.__code__), "C.sm")
-        self.assertEqual(cinder._get_qualname(C.cm.__code__), "C.cm")
-
-        self.assertEqual(cinder._get_qualname(C().f().__code__), "C.f.<locals>.G.y")
-
-        c = f.__code__
-        co = CodeType(
-            c.co_argcount,
-            c.co_posonlyargcount,
-            c.co_kwonlyargcount,
-            c.co_nlocals,
-            c.co_stacksize,
-            c.co_flags,
-            c.co_code,
-            c.co_consts,
-            c.co_names,
-            c.co_varnames,
-            c.co_filename,
-            c.co_name,
-            c.co_firstlineno,
-            c.co_lnotab,
-            c.co_freevars,
-            c.co_cellvars,
-        )
-        self.assertIsNone(cinder._get_qualname(co))
-
-        co = c.replace(co_flags=c.co_flags)
-        self.assertEquals(cinder._get_qualname(co), "f")
 
 
 class SysTests:
