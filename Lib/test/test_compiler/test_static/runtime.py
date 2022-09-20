@@ -49,13 +49,13 @@ class StaticRuntimeTests(StaticTestBase):
 
             class C:
                 __slots__ = ("x",)
-                __slot_types__ = {"x": ("__static__", "int32")}
+                __slot_types__ = {"x": ("__static__", "int32", "#")}
                 x = 42
 
     def test_typed_slots_bad_inst(self):
         class C:
             __slots__ = ("a",)
-            __slot_types__ = {"a": ("__static__", "int32")}
+            __slot_types__ = {"a": ("__static__", "int32", "#")}
 
         class D:
             pass
