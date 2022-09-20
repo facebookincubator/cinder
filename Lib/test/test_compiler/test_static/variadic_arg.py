@@ -404,6 +404,5 @@ class VariadicArgTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            # TODO(T129715008): This needs to be converted to `assertInBytecode` once we inline the comprehension.
-            self.assertNotInBytecode(f, "LOAD_MAPPING_ARG", 3)
+            self.assertInBytecode(f, "LOAD_MAPPING_ARG", 3)
             self.assertEqual(f(), [])

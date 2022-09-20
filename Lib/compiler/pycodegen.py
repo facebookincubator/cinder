@@ -3026,6 +3026,10 @@ class CinderBaseCodeGenerator(CodeGenerator):
 class CinderCodeGenerator(CinderBaseCodeGenerator):
     _SymbolVisitor = symbols.CinderSymbolVisitor
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.inlined_comprehensions = []
+
     def set_qual_name(self, qualname):
         self._qual_name = qualname
 
@@ -3106,70 +3110,91 @@ class CinderCodeGenerator(CinderBaseCodeGenerator):
                 future_flags |= consts.CO_FUTURE_EAGER_IMPORTS
         return future_flags
 
-    # TODO(T129715008): Port inlining of comprehensions.
-    # def compile_comprehension(
-    #     self,
-    #     node: CompNode,
-    #     name: str,
-    #     elt: ast.expr,
-    #     val: ast.expr | None,
-    #     opcode: str,
-    #     oparg: object = 0,
-    # ) -> None:
-    #     # fetch the scope that correspond to comprehension
-    #     scope = self.scopes[node]
-    #     if scope.inlined:
-    #         # for inlined comprehension process with current generator
-    #         gen = self
-    #     else:
-    #         gen = self.make_func_codegen(
-    #             node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
-    #         )
-    #     gen.set_lineno(node)
+    # TODO(T132400505): Split into smaller methods.
+    def compile_comprehension(
+        self,
+        node: CompNode,
+        name: str,
+        elt: ast.expr,
+        val: ast.expr | None,
+        opcode: str,
+        oparg: object = 0,
+    ) -> None:
+        # fetch the scope that correspond to comprehension
+        scope = self.scopes[node]
+        if scope.inlined:
+            # for inlined comprehension process with current generator
+            gen = self
+            if self.inlined_comprehensions:
+                # Have a parent inlined comprehension; use that
+                is_async_function = self.inlined_comprehensions[-1].coroutine
+            else:
+                # No parent inlined comprehension; use outer function
+                is_async_function = self.scope.coroutine
+            self.inlined_comprehensions.append(scope)
+            is_async_generator = scope.coroutine
+            # TODO also add check for PyCF_ALLOW_TOP_LEVEL_AWAIT
+            if (
+                is_async_generator
+                and not is_async_function
+                and not isinstance(node, ast.GeneratorExp)
+            ):
+                raise self.syntax_error(
+                    "asynchronous comprehension outside of an asynchronous function",
+                    node,
+                )
+        else:
+            gen = self.make_func_codegen(
+                node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
+            )
+        gen.set_lineno(node)
 
-    #     if opcode:
-    #         gen.emit(opcode, oparg)
+        if opcode:
+            gen.emit(opcode, oparg)
 
-    #     gen.compile_comprehension_generator(
-    #         node.generators, 0, 0, elt, val, type(node), not scope.inlined
-    #     )
+        gen.compile_comprehension_generator(
+            node.generators, 0, 0, elt, val, type(node), not scope.inlined
+        )
 
-    #     if scope.inlined:
-    #         # collect list of defs that were introduced by comprehension
-    #         # note that we need to exclude:
-    #         # - .0 parameter since it is used
-    #         # - non-local names (typically named expressions), they are
-    #         #   defined in enclosing scope and thus should not be deleted
-    #         to_delete = [
-    #             v
-    #             for v in scope.defs
-    #             if v != ".0" and v not in scope.nonlocals and v not in scope.cells
-    #         ]
-    #         # sort names to have deterministic deletion order
-    #         to_delete.sort()
-    #         for v in to_delete:
-    #             self.delName(v)
-    #         return
+        if scope.inlined:
+            # collect list of defs that were introduced by comprehension
+            # note that we need to exclude:
+            # - .0 parameter since it is used
+            # - non-local names (typically named expressions), they are
+            #   defined in enclosing scope and thus should not be deleted
+            to_delete = [
+                v
+                for v in scope.defs
+                if v != ".0" and v not in scope.nonlocals and v not in scope.cells
+            ]
+            # sort names to have deterministic deletion order
+            to_delete.sort()
+            for v in to_delete:
+                self.delName(v)
+            return
 
-    #     if not isinstance(node, ast.GeneratorExp):
-    #         gen.emit("RETURN_VALUE")
+        if not isinstance(node, ast.GeneratorExp):
+            gen.emit("RETURN_VALUE")
 
-    #     gen.finishFunction()
+        gen.finishFunction()
 
-    #     self._makeClosure(gen, 0)
+        self._makeClosure(gen, 0)
 
-    #     # precomputation of outmost iterable
-    #     self.visit(node.generators[0].iter)
-    #     if node.generators[0].is_async:
-    #         self.emit("GET_AITER")
-    #     else:
-    #         self.emit("GET_ITER")
-    #     self.emit("CALL_FUNCTION", 1)
+        # precomputation of outmost iterable
+        self.visit(node.generators[0].iter)
+        if node.generators[0].is_async:
+            self.emit("GET_AITER")
+        else:
+            self.emit("GET_ITER")
+        self.emit("CALL_FUNCTION", 1)
 
-    #     if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
-    #         self.emit("GET_AWAITABLE")
-    #         self.emit("LOAD_CONST", None)
-    #         self.emit("YIELD_FROM")
+        if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
+            self.emit("GET_AWAITABLE")
+            self.emit("LOAD_CONST", None)
+            self.emit("YIELD_FROM")
+
+        if scope.inlined:
+            self.inlined_comprehensions.pop()
 
 
 def get_default_generator():

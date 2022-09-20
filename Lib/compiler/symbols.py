@@ -819,9 +819,7 @@ class CinderSymbolVisitor(SymbolVisitor):
             scope.generator = True
         elif isinstance(parent, FunctionScope):
             # record itself as possibly inlinable comprehension in parent scope
-            # TODO(T129715008): Un-comment this line of code when inlined comprehensions are ported.
-            # parent.add_comprehension(scope)
-            pass
+            parent.add_comprehension(scope)
 
         if (
             parent.nested

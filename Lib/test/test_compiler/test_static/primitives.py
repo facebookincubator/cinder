@@ -1689,8 +1689,7 @@ class PrimitivesTests(StaticTestBase):
         """
         with self.in_module(code) as mod:
             f = mod.f
-            # TODO(T129715008): This needs to be converted to `assertInBytecode` once we inline the comprehension.
-            self.assertNotInBytecode(f.__code__, "POP_JUMP_IF_ZERO")
+            self.assertInBytecode(f.__code__, "POP_JUMP_IF_ZERO")
             self.assertEqual(f([1, 2, 3]), [])
 
     def test_generator_primitive_iter(self):

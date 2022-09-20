@@ -2,10 +2,16 @@
 import asyncio
 import asyncio.tasks
 import cinder
+import contextlib
+import dis
 import inspect
+import io
+import re
 import sys
 import unittest
 import weakref
+
+from compiler.pycodegen import compile as py_compile
 
 if unittest.cinder_enable_broken_tests():
     from cinder import (

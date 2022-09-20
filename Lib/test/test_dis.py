@@ -143,10 +143,20 @@ dis_bug708901 = """\
        bug708901.__code__.co_firstlineno + 1)
 
 
+def compile_and_get(code_str, funcname):
+    _tmp_globals = {}
+    code = compile(code_str, __file__, "exec")
+    exec(code, _tmp_globals)
+    return _tmp_globals[funcname]
+
+
+bug1333982_str = """
 def bug1333982(x=[]):
     assert 0, ([s for s in x] +
               1)
     pass
+"""
+bug1333982 = compile_and_get(bug1333982_str, "bug1333982")
 
 dis_bug1333982 = """\
 %3d           0 LOAD_ASSERTION_ERROR
@@ -426,11 +436,14 @@ async def _co(x):
     async for item in _ag(x):
         pass
 
+_h_str = """
 def _h(y):
     def foo(x):
         '''funcdoc'''
         return [x + z for z in y]
     return foo
+"""
+_h = compile_and_get(_h_str, "_h")
 
 dis_nested_0 = """\
 %3d           0 LOAD_CLOSURE             0 (y)
