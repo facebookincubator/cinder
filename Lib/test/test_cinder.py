@@ -13,6 +13,9 @@ import weakref
 
 from compiler.pycodegen import compile as py_compile
 
+import _testcindercapi
+from test.support.cinder import verify_stack
+
 if unittest.cinder_enable_broken_tests():
     from cinder import (
         async_cached_classproperty,
@@ -2467,6 +2470,94 @@ class TestCinderCachedPropertyCompatibility(unittest.TestCase):
 
     def test_doc(self):
         self.assertEqual(CachedCostItem.cost.__doc__, "The cost of the item.")
+
+
+class WalkShadowFramesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    def test_walk_and_populate_stack(self):
+        stacks = None
+
+        async def a1():
+            nonlocal stacks
+            stacks = _testcindercapi._shadowframe_walk_and_populate()
+
+        async def a2():
+            await a1()
+
+        async def a3():
+            return await asyncio.ensure_future(a2())
+
+        async def a4():
+            return await a3()
+
+        async def a5():
+            return await a4()
+
+        async def drive():
+            await a5()
+
+        asyncio.run(drive())
+
+        async_stack, sync_stack = stacks
+
+        class _StackEntry:
+            def __init__(self, entry: str):
+                self.filename, self.lineno, self.qualname = entry.split(":")
+
+        async_entries = [_StackEntry(e) for e in async_stack]
+        # async stack ends at `drive`
+        self.assertEqual(len(async_entries), 6)
+
+        # All entries in the async stack must have the correct filename
+        self.assertTrue(all(e.filename == __file__ for e in async_entries))
+
+        # Return a line number of the given offset within a function, as a string.
+        def lineno(func, offset):
+            return str(func.__code__.co_firstlineno + offset)
+
+        # These are the line numbers corresponding to a1, a2, etc above.
+        self.assertEqual(
+            [e.lineno for e in async_entries],
+            [
+                lineno(a1, 2),
+                lineno(a2, 1),
+                lineno(a3, 1),
+                lineno(a4, 1),
+                lineno(a5, 1),
+                lineno(drive, 1),
+            ],
+        )
+
+        verify_stack(
+            self,
+            async_stack[::-1],
+            ["drive", "a5", "a4", "a3", "a2", "a1"],
+        )
+
+        sync_entries = [_StackEntry(e) for e in sync_stack]
+
+        # Must have at least 4 entries in the sync stack
+        self.assertGreaterEqual(len(sync_entries), 4)
+
+        # Sync stack has entries outside of this file (such as the event loop),
+        # we only verify the filename for the known entries (first two).
+        self.assertTrue(all(e.filename == __file__ for e in sync_entries[:2]))
+
+        # These are the line numbers corresponding to a1, a2 above.
+        self.assertEqual(
+            [e.lineno for e in sync_entries[:2]], [lineno(a1, 2), lineno(a2, 1)]
+        )
+
+        # the sync stack can't capture how a3 is awaiting on a2
+        verify_stack(self, sync_stack[::-1], ["_run", "a2", "a1"])
 
 
 if __name__ == "__main__":

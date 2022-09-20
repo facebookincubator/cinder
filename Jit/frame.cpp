@@ -553,7 +553,6 @@ using AsyncFrameHandler = std::function<bool(const CodeObjLoc&)>;
 
 // Invoke handler for each shadow frame on the async stack.
 void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
-#ifdef CINDER_PORTING_DONE
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   while (shadow_frame != nullptr) {
     _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
@@ -587,11 +586,6 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
       shadow_frame = shadow_frame->prev;
     }
   }
-#else
-  PORT_ASSERT("Needs awaiter pointer");
-  (void)tstate;
-  (void)handler;
-#endif // CINDER_PORTING_DONE
 }
 
 const char* shadowFrameKind(_PyShadowFrame* sf) {
@@ -763,16 +757,12 @@ _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
       // but we also did not fail.
       return nullptr;
     }
-#ifdef CINDER_PORTING_DONE
     PyCoroObject* awaiter = ((PyCoroObject*)gen)->cr_awaiter;
     if (!awaiter) {
       // This is fine, not every coroutine needs to have an awaiter
       return nullptr;
     }
     return &(awaiter->cr_shadow_frame);
-#else
-    PORT_ASSERT("Needs cr_awaiter and cr_shadow_frame");
-#endif
   }
   return nullptr;
 }
