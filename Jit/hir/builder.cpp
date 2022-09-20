@@ -141,6 +141,7 @@ const std::unordered_set<int> kSupportedOpcodes = {
     INPLACE_XOR,
     INVOKE_FUNCTION,
     INVOKE_METHOD,
+    INVOKE_NATIVE,
     IS_OP,
     JUMP_ABSOLUTE,
     JUMP_FORWARD,
@@ -950,7 +951,8 @@ void HIRBuilder::translate(
         case CALL_FUNCTION_KW:
         case CALL_METHOD:
         case INVOKE_FUNCTION:
-        case INVOKE_METHOD: {
+        case INVOKE_METHOD:
+        case INVOKE_NATIVE: {
           emitAnyCall(irfunc.cfg, tc, bc_it, bc_instrs);
           break;
         }
@@ -1713,6 +1715,10 @@ void HIRBuilder::emitAnyCall(
       call_used_is_awaited = emitInvokeFunction(tc, bc_instr, is_awaited);
       break;
     }
+    case INVOKE_NATIVE: {
+      call_used_is_awaited = emitInvokeNative(tc, bc_instr);
+      break;
+    }
     case INVOKE_METHOD: {
       call_used_is_awaited = emitInvokeMethod(tc, bc_instr, is_awaited);
       break;
@@ -2216,6 +2222,31 @@ bool HIRBuilder::emitInvokeFunction(
   tc.frame.stack.push(out);
 
   return true;
+}
+
+bool HIRBuilder::emitInvokeNative(
+    TranslationContext& tc,
+    const jit::BytecodeInstruction& bc_instr) {
+  BorrowedRef<> arg = constArg(bc_instr);
+  BorrowedRef<> native_target_descr = PyTuple_GET_ITEM(arg.get(), 0);
+  const NativeTarget& target =
+      preloader_.invokeNativeTarget(native_target_descr);
+
+  BorrowedRef<> signature = PyTuple_GET_ITEM(arg.get(), 1);
+
+  // The last entry in the signature is the return type, so subtract 1
+  Py_ssize_t nargs = PyTuple_GET_SIZE(signature.get()) - 1;
+
+  Register* out = temps_.AllocateStack();
+  Type typ = target.return_type;
+  auto call = tc.emit<CallStatic>(nargs, out, target.callable, typ);
+  for (auto i = nargs - 1; i >= 0; i--) {
+    Register* operand = tc.frame.stack.pop();
+    call->SetOperand(i, operand);
+  }
+
+  tc.frame.stack.push(out);
+  return false;
 }
 
 bool HIRBuilder::emitInvokeMethod(

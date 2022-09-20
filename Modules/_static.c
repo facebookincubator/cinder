@@ -1206,7 +1206,11 @@ static PyObject *lookup_native_symbol(PyObject *Py_UNUSED(module),
   }
   PyObject *lib_name = args[0];
   PyObject *symbol_name = args[1];
-  return _PyClassloader_LookupSymbol(lib_name, symbol_name);
+  void* addr = _PyClassloader_LookupSymbol(lib_name, symbol_name);
+  if (addr == NULL) {
+      return NULL;
+  }
+  return PyLong_FromVoidPtr(addr);
 }
 
 PyObject* sizeof_dlopen_cache(PyObject *Py_UNUSED(module)) {

@@ -209,6 +209,41 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   return target;
 }
 
+static std::unique_ptr<NativeTarget> resolve_native_target(
+    BorrowedRef<> native_descr,
+    BorrowedRef<> signature) {
+  auto target = std::make_unique<NativeTarget>();
+  void* raw_ptr = _PyClassloader_LookupSymbol(
+      PyTuple_GET_ITEM(native_descr.get(), 0),
+      PyTuple_GET_ITEM(native_descr.get(), 1));
+
+  JIT_CHECK(
+      raw_ptr != nullptr, "invalid address for native function: %p", raw_ptr);
+
+  target->callable = raw_ptr;
+
+  Py_ssize_t siglen = PyTuple_GET_SIZE(signature.get());
+  auto return_type_code = _PyClassLoader_ResolvePrimitiveType(
+      PyTuple_GET_ITEM(signature.get(), siglen - 1));
+  target->return_type = prim_type_to_type(return_type_code);
+  JIT_DCHECK(
+      target->return_type <= TCInt,
+      "native function return type must be a primitive");
+
+  // Fill in the primitive arg type map in the target (index -> Type)
+  ArgToType& primitive_arg_types = target->primitive_arg_types;
+  for (Py_ssize_t i = 0; i < siglen - 1; i++) {
+    int arg_type_code = _PyClassLoader_ResolvePrimitiveType(
+        PyTuple_GET_ITEM(signature.get(), i));
+    Type typ = prim_type_to_type(arg_type_code);
+    JIT_DCHECK(typ <= TCInt, "native function arg type must be a primitive");
+
+    primitive_arg_types.emplace(i, typ);
+  }
+
+  return target;
+}
+
 BorrowedRef<PyFunctionObject> InvokeTarget::func() const {
   JIT_CHECK(is_function, "not a PyFunctionObject");
   return reinterpret_cast<PyFunctionObject*>(callable.get());
@@ -242,6 +277,10 @@ const InvokeTarget& Preloader::invokeFunctionTarget(BorrowedRef<> descr) const {
 
 const InvokeTarget& Preloader::invokeMethodTarget(BorrowedRef<> descr) const {
   return *(map_get(meth_targets_, descr));
+}
+
+const NativeTarget& Preloader::invokeNativeTarget(BorrowedRef<> target) const {
+  return *(map_get(native_targets_, target));
 }
 
 Type Preloader::checkArgType(long local_idx) const {
@@ -379,6 +418,13 @@ bool Preloader::preload() {
         } else {
           return false;
         }
+      }
+      case INVOKE_NATIVE: {
+        BorrowedRef<> target_descr = PyTuple_GetItem(constArg(bc_instr), 0);
+        BorrowedRef<> signature = PyTuple_GetItem(constArg(bc_instr), 1);
+        native_targets_.emplace(
+            target_descr, resolve_native_target(target_descr, signature));
+        break;
       }
     }
   }

@@ -284,6 +284,9 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
       bool is_awaited);
+  bool emitInvokeNative(
+      TranslationContext& tc,
+      const jit::BytecodeInstruction& bc_instr);
   void emitGetIter(TranslationContext& tc, uint8_t readonly_mask);
   void emitGetYieldFromIter(CFG& cfg, TranslationContext& tc);
   void emitListAppend(
@@ -301,10 +304,6 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
       bool is_awaited);
-  void emitInvokeTypedMethod(
-      TranslationContext& tc,
-      PyMethodDef* method,
-      Py_ssize_t nargs);
   void emitLoadField(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
