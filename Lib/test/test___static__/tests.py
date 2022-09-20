@@ -6,39 +6,36 @@ the static-Python uses are tested in test_compiler/test_static.py.
 
 """
 import unittest
-if unittest.cinder_enable_broken_tests():
-    from __static__ import (
-        Array,
-        Vector,
-        byte,
-        char,
-        cbool,
-        int8,
-        int16,
-        int32,
-        int64,
-        uint8,
-        uint16,
-        uint32,
-        uint64,
-        single,
-        double,
-        size_t,
-        ssize_t,
-        allow_weakrefs,
-        dynamic_return,
-        box,
-        unbox,
-        cast,
-        CheckedDict,
-        chkdict,
-        pydict,
-        PyDict,
-        clen,
-        rand,
-        RAND_MAX,
-    )
-    from typing import Generic, Optional, TypeVar, Union, Dict
+from __static__ import (
+    byte,
+    char,
+    cbool,
+    int8,
+    int16,
+    int32,
+    int64,
+    uint8,
+    uint16,
+    uint32,
+    uint64,
+    single,
+    double,
+    size_t,
+    ssize_t,
+    allow_weakrefs,
+    dynamic_return,
+    box,
+    unbox,
+    cast,
+    CheckedDict,
+    chkdict,
+    pydict,
+    PyDict,
+    clen,
+    rand,
+    RAND_MAX,
+)
+from typing import Generic, Optional, TypeVar, Union, Dict
 
 try:
     import _static
@@ -46,7 +43,6 @@ except ImportError:
     _static = None
 
 
-@unittest.cinderPortingBrokenTest()
 class StaticTests(unittest.TestCase):
     def test_chkdict(self):
         tgt = dict if _static is None else _static.chkdict
@@ -88,49 +84,6 @@ class StaticTests(unittest.TestCase):
             with self.subTest(typ=typ):
                 x = typ(1.0)
                 self.assertEqual(x, 1.0)
-
-    def test_array(self):
-        x = Array[int8]([1])
-        self.assertEqual(x[0], 1)
-
-    def test_array_size(self):
-        with self.assertRaisesRegex(OverflowError, "greater than maximum"):
-            x = Array[int8]([300])
-
-    def test_array_no_bare_instantiation(self):
-        with self.assertRaisesRegex(TypeError, "Cannot create plain Array"):
-            Array(42)
-
-    def test_array_no_subclass(self):
-        with self.assertRaisesRegex(
-            TypeError, "type 'Array' is not an acceptable base type"
-        ):
-
-            class MyArray(Array):
-                pass
-
-    def test_vector(self):
-        x = Vector[int8]([1])
-        self.assertEqual(x[0], 1)
-        x.append(5)
-        self.assertEqual(x[1], 5)
-
-    def test_vector_size(self):
-        x = Vector[int8]()
-        with self.assertRaisesRegex(OverflowError, "overflow|.*greater than maximum"):
-            x.append(300)
-
-    def test_vector_no_bare_instantiation(self):
-        with self.assertRaisesRegex(TypeError, "Cannot create plain Vector"):
-            Vector()
-
-    def test_vector_no_subclass(self):
-        with self.assertRaisesRegex(
-            TypeError, "type 'Vector' is not an acceptable base type"
-        ):
-
-            class MyVec(Vector):
-                pass
 
     def test_box(self):
         self.assertEqual(box(1), 1)

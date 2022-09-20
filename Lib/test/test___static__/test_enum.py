@@ -5,29 +5,27 @@ import pickle
 import unittest
 from typing import final
 
-if unittest.cinder_enable_broken_tests():
-    from __static__.enum import Enum
+from __static__.enum import Enum
 
-    @final
-    class Colour(Enum):
-        RED = 1
-        BLUE = 2
-
-
-    @final
-    class Shape(Enum):
-        CIRCLE = 1
-        SQUARE = 2
+@final
+class Colour(Enum):
+    RED = 1
+    BLUE = 2
 
 
-    @final
-    class DummyEnum(Enum):
-        BLAH = "blah"
-        A = "duplicate"
-        B = "duplicate"
+@final
+class Shape(Enum):
+    CIRCLE = 1
+    SQUARE = 2
 
 
-@unittest.cinderPortingBrokenTest()
+@final
+class DummyEnum(Enum):
+    BLAH = "blah"
+    A = "duplicate"
+    B = "duplicate"
+
+
 @final
 class TestEnum(unittest.TestCase):
     def test_eq(self) -> None:
