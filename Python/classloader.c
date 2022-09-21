@@ -12,10 +12,23 @@
 #include "pycore_unionobject.h" // _Py_Union()
 #include "unicodeobject.h"
 
+#include <dlfcn.h>
+
 static PyObject *classloader_cache;
 static PyObject *classloader_cache_module_to_keys;
 static PyObject *genericinst_cache;
 static PyTypeObject *static_enum;
+
+// This is a dict containing a mapping of lib name to "handle"
+// as returned by `dlopen()`.
+// Dict[str, int]
+static PyObject *dlopen_cache;
+
+// This is a dict containing a mapping of (lib_name, symbol_name) to
+// the raw address as returned by `dlsym()`.
+// Dict[Tuple[str, str], int]
+static PyObject *dlsym_cache;
+
 
 static void
 vtabledealloc(_PyType_VTable *op)
@@ -4685,5 +4698,189 @@ PyObject *_PyClassloader_InvokeNativeFunction(PyObject *lib_name,
                                signature, arguments);
 
   Py_DECREF(arguments);
+  return res;
+}
+
+// Returns the size of the dlsym_cache dict (0 if uninitialized)
+PyObject *_PyClassloader_SizeOf_DlSym_Cache() {
+  if (dlsym_cache == NULL) {
+    return PyLong_FromLong(0);
+  }
+  Py_ssize_t size = PyDict_Size(dlsym_cache);
+  return PyLong_FromSsize_t(size);
+}
+
+// Returns the size of the dlopen_cache dict (0 if uninitialized)
+PyObject *_PyClassloader_SizeOf_DlOpen_Cache() {
+  if (dlopen_cache == NULL) {
+    return PyLong_FromLong(0);
+  }
+  Py_ssize_t size = PyDict_Size(dlopen_cache);
+  return PyLong_FromSsize_t(size);
+}
+
+// Clears the dlsym_cache dict
+void _PyClassloader_Clear_DlSym_Cache() {
+  if (dlsym_cache != NULL) {
+    PyDict_Clear(dlsym_cache);
+  }
+}
+
+// Clears the dlopen_cache dict
+void _PyClassloader_Clear_DlOpen_Cache() {
+  if (dlopen_cache != NULL) {
+    PyObject *name, *handle;
+    Py_ssize_t i = 0;
+    while (PyDict_Next(dlopen_cache, &i, &name, &handle)) {
+      void *raw_handle = PyLong_AsVoidPtr(handle);
+      // Ignore errors - we can't do much even if they occur
+      dlclose(raw_handle);
+    }
+
+    PyDict_Clear(dlopen_cache);
+  }
+}
+
+// Thin wrapper over dlopen, returns the handle of the opened lib
+static void *classloader_dlopen(PyObject *lib_name) {
+  assert(PyUnicode_CheckExact(lib_name));
+  const char *raw_lib_name = PyUnicode_AsUTF8(lib_name);
+  if (raw_lib_name == NULL) {
+    return NULL;
+  }
+  void *handle = dlopen(raw_lib_name, RTLD_NOW | RTLD_LOCAL);
+  if (handle == NULL) {
+    PyErr_Format(PyExc_RuntimeError,
+                 "classloader: Could not load library '%s': %s", raw_lib_name,
+                 dlerror());
+    return NULL;
+  }
+  return handle;
+}
+
+// Looks up the cached handle to the shared lib of given name. If not found,
+// proceeds to load it and populates the cache.
+static void *classloader_lookup_sharedlib(PyObject *lib_name) {
+  assert(PyUnicode_CheckExact(lib_name));
+  PyObject *val = NULL;
+
+  // Ensure cache exists
+  if (dlopen_cache == NULL) {
+    dlopen_cache = PyDict_New();
+    if (dlopen_cache == NULL) {
+      return NULL;
+    }
+  }
+
+  val = PyDict_GetItem(dlopen_cache, lib_name);
+  if (val != NULL) {
+    // Cache hit
+    return PyLong_AsVoidPtr(val);
+  }
+
+  // Lookup the lib
+  void *handle = classloader_dlopen(lib_name);
+  if (handle == NULL) {
+    return NULL;
+  }
+
+  // Populate the cache with the handle
+  val = PyLong_FromVoidPtr(handle);
+  if (val == NULL) {
+    return NULL;
+  }
+  int res = PyDict_SetItem(dlopen_cache, lib_name, val);
+  Py_DECREF(val);
+  if (res < 0) {
+    return NULL;
+  }
+  return handle;
+}
+
+// Wrapper over `dlsym`.
+static PyObject *classloader_lookup_symbol(PyObject *lib_name, PyObject *symbol_name) {
+  void *handle = classloader_lookup_sharedlib(lib_name);
+  if (handle == NULL) {
+    assert(PyErr_Occurred());
+    return NULL;
+  }
+
+  const char *raw_symbol_name = PyUnicode_AsUTF8(symbol_name);
+  if (raw_symbol_name == NULL) {
+    return NULL;
+  }
+
+  void *res = dlsym(handle, raw_symbol_name);
+  if (res == NULL) {
+    // Technically, `res` could actually have the value `NULL`, but we're
+    // in the business of looking up callables, so we raise an exception
+    // (NULL cannot be called anyway).
+    //
+    // To be 100% correct, we could clear existing errors with `dlerror`,
+    // call `dlsym` and then call `dlerror` again, to check whether an
+    // error occured, but that'll be more work than we need.
+    PyErr_Format(PyExc_RuntimeError,
+                 "classloader: unable to lookup '%U' in '%U': %s", symbol_name,
+                 lib_name, dlerror());
+    return NULL;
+  }
+
+  PyObject *symbol = PyLong_FromVoidPtr(res);
+  if (symbol == NULL) {
+    return NULL;
+  }
+  return symbol;
+}
+
+// Looks up the raw symbol address from the given lib, and returns
+// a boxed value of it.
+PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
+                                      PyObject *symbol_name) {
+  if (!PyUnicode_CheckExact(lib_name)) {
+    PyErr_Format(PyExc_TypeError,
+                 "classloader: 'lib_name' must be a str, got '%s'",
+                 Py_TYPE(lib_name)->tp_name);
+    return NULL;
+  }
+  if (!PyUnicode_CheckExact(symbol_name)) {
+    PyErr_Format(PyExc_TypeError,
+                 "classloader: 'symbol_name' must be a str, got '%s'",
+                 Py_TYPE(symbol_name)->tp_name);
+    return NULL;
+  }
+
+  // Ensure cache exists
+  if (dlsym_cache == NULL) {
+    dlsym_cache = PyDict_New();
+    if (dlsym_cache == NULL) {
+      return NULL;
+    }
+  }
+
+  PyObject *key = PyTuple_Pack(2, lib_name, symbol_name);
+  if (key == NULL) {
+    return NULL;
+  }
+
+  PyObject *res = PyDict_GetItem(dlsym_cache, key);
+
+  if (res != NULL) {
+    Py_DECREF(key);
+    Py_INCREF(res);
+    return res;
+  }
+
+  res = classloader_lookup_symbol(lib_name, symbol_name);
+  if (res == NULL) {
+    Py_DECREF(key);
+    return NULL;
+  }
+
+  if (PyDict_SetItem(dlsym_cache, key, res) < 0) {
+    Py_DECREF(key);
+    Py_DECREF(res);
+    return NULL;
+  }
+  Py_DECREF(key);
   return res;
 }

@@ -1269,6 +1269,36 @@ PyObject *resolve_primitive_descr(PyObject *mod, PyObject *descr) {
     return PyLong_FromLong(type_code);
 }
 
+static PyObject *lookup_native_symbol(PyObject *Py_UNUSED(module),
+                                      PyObject **args, Py_ssize_t nargs) {
+  if (nargs != 2) {
+    PyErr_SetString(PyExc_TypeError,
+                    "lookup_native_symbol: Expected 2 arguments");
+    return NULL;
+  }
+  PyObject *lib_name = args[0];
+  PyObject *symbol_name = args[1];
+  return _PyClassloader_LookupSymbol(lib_name, symbol_name);
+}
+
+PyObject* sizeof_dlopen_cache(PyObject *Py_UNUSED(module)) {
+    return _PyClassloader_SizeOf_DlOpen_Cache();
+}
+
+PyObject* sizeof_dlsym_cache(PyObject *Py_UNUSED(module)) {
+    return _PyClassloader_SizeOf_DlSym_Cache();
+}
+
+PyObject* clear_dlopen_cache(PyObject *Py_UNUSED(module)) {
+    _PyClassloader_Clear_DlOpen_Cache();
+    Py_RETURN_NONE;
+}
+
+PyObject* clear_dlsym_cache(PyObject *Py_UNUSED(module)) {
+    _PyClassloader_Clear_DlSym_Cache();
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"specialize_function", (PyCFunction)(void(*)(void))specialize_function, METH_FASTCALL, ""},
@@ -1289,6 +1319,11 @@ static PyMethodDef static_methods[] = {
      (PyCFunction)_static___build_cinder_class__,
      METH_FASTCALL | METH_KEYWORDS,
      ""},
+    {"lookup_native_symbol", (PyCFunction)(void(*)(void))lookup_native_symbol, METH_FASTCALL, ""},
+    {"_sizeof_dlopen_cache", (PyCFunction)(void(*)(void))sizeof_dlopen_cache, METH_FASTCALL, ""},
+    {"_sizeof_dlsym_cache", (PyCFunction)(void(*)(void))sizeof_dlsym_cache, METH_FASTCALL, ""},
+    {"_clear_dlopen_cache", (PyCFunction)(void(*)(void))clear_dlopen_cache, METH_FASTCALL, ""},
+    {"_clear_dlsym_cache", (PyCFunction)(void(*)(void))clear_dlsym_cache, METH_FASTCALL, ""},
     {}
 };
 
