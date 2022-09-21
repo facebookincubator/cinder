@@ -62,6 +62,16 @@ struct InvokeTarget {
   bool builtin_returns_error_code{false};
 };
 
+// The target of an INVOKE_NATIVE
+struct NativeTarget {
+  // the address of target
+  void* callable;
+  // return type (must be a primitive int for native calls)
+  Type return_type{TObject};
+  // map argnum to primitive type code for primitive args only
+  ArgToType primitive_arg_types;
+};
+
 // Preloads all globals and classloader type descrs referenced by a code object.
 // We need to do this in advance because it can resolve lazy imports (or
 // generally just trigger imports) which is Python code execution, which we
@@ -112,6 +122,7 @@ class Preloader {
 
   const InvokeTarget& invokeFunctionTarget(BorrowedRef<> descr) const;
   const InvokeTarget& invokeMethodTarget(BorrowedRef<> descr) const;
+  const NativeTarget& invokeNativeTarget(BorrowedRef<> target) const;
 
   // get the type from CHECK_ARGS for the given locals index, or TObject
   Type checkArgType(long local_idx) const;
@@ -190,6 +201,7 @@ class Preloader {
   std::unordered_map<PyObject*, FieldInfo> fields_;
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> func_targets_;
   std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> meth_targets_;
+  std::unordered_map<PyObject*, std::unique_ptr<NativeTarget>> native_targets_;
   // keyed by locals index
   std::unordered_map<long, Type> check_arg_types_;
   std::map<long, PyTypeOpt> check_arg_pytypes_;

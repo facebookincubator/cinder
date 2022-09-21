@@ -324,7 +324,7 @@ PyObject *_PyClassloader_SizeOf_DlOpen_Cache(void);
 void _PyClassloader_Clear_DlSym_Cache(void);
 void _PyClassloader_Clear_DlOpen_Cache(void);
 
-PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
+void* _PyClassloader_LookupSymbol(PyObject *lib_name,
                                       PyObject *symbol_name);
 
 static inline

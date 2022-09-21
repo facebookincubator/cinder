@@ -4834,7 +4834,7 @@ static PyObject *classloader_lookup_symbol(PyObject *lib_name, PyObject *symbol_
 
 // Looks up the raw symbol address from the given lib, and returns
 // a boxed value of it.
-PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
+void *_PyClassloader_LookupSymbol(PyObject *lib_name,
                                       PyObject *symbol_name) {
   if (!PyUnicode_CheckExact(lib_name)) {
     PyErr_Format(PyExc_TypeError,
@@ -4866,8 +4866,7 @@ PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
 
   if (res != NULL) {
     Py_DECREF(key);
-    Py_INCREF(res);
-    return res;
+    return PyLong_AsVoidPtr(res);
   }
 
   res = classloader_lookup_symbol(lib_name, symbol_name);
@@ -4881,6 +4880,9 @@ PyObject *_PyClassloader_LookupSymbol(PyObject *lib_name,
     Py_DECREF(res);
     return NULL;
   }
+
+  void* addr = PyLong_AsVoidPtr(res);
   Py_DECREF(key);
-  return res;
+  Py_DECREF(res);
+  return addr;
 }
