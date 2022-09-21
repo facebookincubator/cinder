@@ -53,6 +53,12 @@ def allow_weakrefs(klass):
 
 def inline(f): return f
 
+def native(so_path):
+    def _inner_native(func):
+        return func
+
+    return _inner_native
+
 def rand():
     return 42
 
