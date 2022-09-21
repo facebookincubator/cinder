@@ -2888,7 +2888,6 @@ def f(x):
         rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b"True")
 
-    @unittest.cinderPortingBrokenTest("Uses gc.immortalize_heap()")
     def test_load_unshadowed_immortal_method_split_dict(self):
         code = f"""if 1:
             class Oracle:
@@ -2941,7 +2940,6 @@ def f(x):
         rc, out, err = skip_ret_code_check_for_leaking_test_in_asan_mode('-c', code)
         self.assertEqual(out.strip(), b'42')
 
-    @unittest.cinderPortingBrokenTest("Uses gc.immortalize_heap()")
     def test_load_unshadowed_immortal_method_combineddict(self):
         code = f"""if 1:
             class Oracle:

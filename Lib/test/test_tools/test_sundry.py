@@ -29,7 +29,6 @@ class TestSundryScripts(unittest.TestCase):
 
     skiplist = denylist + allowlist + windows_only + other
 
-    @unittest.cinderPortingBrokenTest()
     def test_sundry(self):
         old_modules = import_helper.modules_setup()
         try:
