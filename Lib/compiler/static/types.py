@@ -4906,6 +4906,12 @@ class NativeDecorator(Callable[Class]):
             raise TypedSyntaxError(
                 "@native decorator cannot be used with other decorators"
             )
+
+        if isinstance(fn.node, ast.AsyncFunctionDef):
+            raise TypedSyntaxError(
+                "@native decorator cannot be used on async functions"
+            )
+
         assert not isinstance(fn, DecoratedMethod)
 
         native_fn = NativeDecoratedFunction(fn.node, fn.module, fn.return_type)
