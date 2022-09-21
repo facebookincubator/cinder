@@ -74,7 +74,7 @@ class NativeDecoratorTests(StaticTestBase):
         """
         self.type_error(
             codestr,
-            "type mismatch: Literal\[1] received for positional arg 'lib', expected str",
+            r"type mismatch: Literal\[1] received for positional arg 'lib', expected str",
         )
 
     def test_native_decorate_class(self):
