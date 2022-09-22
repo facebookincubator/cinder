@@ -769,7 +769,6 @@ def test(a, b):
   EXPECT_EQ(PyLong_AsLong(res.get()), 2);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ASMGeneratorTest, ReplaceReassignedFirstArgInExceptionFrame) {
   const char* pycode = R"(
 def test(x, y):
@@ -805,10 +804,14 @@ def test(x, y):
   auto val = Ref<>::steal(eval);
   auto tb = Ref<>::steal(etb);
   EXPECT_TRUE(PyErr_GivenExceptionMatches(typ, PyExc_AttributeError));
-  ASSERT_NE(val.get(), nullptr);
-  ASSERT_TRUE(PyUnicode_Check(val));
-  std::string msg = PyUnicode_AsUTF8(val);
-  ASSERT_EQ(msg, "'dict' object has no attribute 'invalid'");
+  EXPECT_TRUE(PyExceptionInstance_Check(val.get()));
+  auto exc_args = Ref<>::steal(PyObject_GetAttrString(val.get(), "args"));
+  EXPECT_TRUE(PyTuple_Check(exc_args.get()));
+  EXPECT_EQ(PyObject_Length(exc_args.get()), 1);
+  auto msg = Ref<>::create(PyTuple_GetItem(exc_args.get(), 0));
+  ASSERT_TRUE(PyUnicode_Check(msg));
+  std::string msg_str = PyUnicode_AsUTF8(msg);
+  ASSERT_EQ(msg_str, "'dict' object has no attribute 'invalid'");
 
   auto tb_frame = Ref<>::steal(PyObject_GetAttrString(tb, "tb_frame"));
   ASSERT_NE(tb_frame.get(), nullptr);
@@ -822,8 +825,6 @@ def test(x, y):
   PyObject* y = PyDict_GetItemString(locals, "y");
   ASSERT_EQ(y, arg2.get());
 }
-
-#endif
 
 TEST_F(ASMGeneratorTest, TupleListTest) {
   const char* pycode = R"(
@@ -1268,7 +1269,6 @@ def test(a, func):
   ASSERT_EQ(PyLong_AsLong(res), 20);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 // This can't be tested in the pure Python test suite as it messes with
 // __import__.
 TEST_F(ASMGeneratorTest, TestImportNameWithImportOverride) {
@@ -1316,7 +1316,6 @@ def test_override_builtin_import(locals):
   EXPECT_EQ(res1.get(), Py_True)
       << "Failed to run test_override_builtin_import(True)";
 }
-#endif
 
 TEST_F(ASMGeneratorTest, GetLength) {
   //  0 LOAD_FAST  0

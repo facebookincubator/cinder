@@ -87,7 +87,6 @@ class LIRGeneratorTest : public RuntimeTest {
   }
 };
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(LIRGeneratorTest, StaticLoadInteger) {
   const char* pycode = R"(
 from __static__ import int64
@@ -301,7 +300,6 @@ BB %20 - preds: %12 %16
       reinterpret_cast<uint64_t>(Py_IncRef));
   ASSERT_EQ(lir_str, lir_expected);
 }
-#endif
 
 TEST_F(LIRGeneratorTest, ParserDataTypeTest) {
   auto lir_str = fmt::format(R"(Function:

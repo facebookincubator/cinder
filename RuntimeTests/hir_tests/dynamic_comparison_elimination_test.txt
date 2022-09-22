@@ -86,7 +86,7 @@ fun test {
   }
 }
 ---
-@disabled_CINDER_PORTING_NEEDS_LOAD_GLOBAL_IsInstanceFastpath
+IsInstanceFastpath
 ---
 def test(x):
   if isinstance(x, str):

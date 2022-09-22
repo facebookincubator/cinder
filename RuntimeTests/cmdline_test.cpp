@@ -328,8 +328,6 @@ TEST_F(CmdLineTest, JITEnable) {
       0);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-
 // start of tests associated with flags the setting of which is dependant upon
 // if jit is enabled
 TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
@@ -361,8 +359,6 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           true),
       0);
 }
-
-#endif
 
 TEST_F(CmdLineTest, JITEnabledFlags_MultithreadCompile) {
   ASSERT_EQ(

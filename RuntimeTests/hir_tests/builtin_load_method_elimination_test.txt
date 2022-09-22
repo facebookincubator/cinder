@@ -129,7 +129,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@disabled_CINDER_PORTING_NEEDS_ASYNC_LoadMethodCallMethodAwaitedTurnsIntoVectorCallStaticAwaited
+LoadMethodCallMethodAwaitedTurnsIntoVectorCallStaticAwaited
 ---
 async def test():
     return await "Hello".upper()
@@ -147,7 +147,7 @@ fun jittestmodule:test {
     v14:MortalUnicodeExact["Hello"] = Assign v12
     v15:Object = VectorCallStatic<1, awaited> v13 v12 {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
       }
     }
     CondBranchCheckType<4, 2, WaitHandle> v15
@@ -164,7 +164,7 @@ fun jittestmodule:test {
     SetCurrentAwaiter v16
     v18:Object = YieldAndYieldFrom v17 v16 {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
         Stack<1> v15
       }
     }
@@ -179,7 +179,7 @@ fun jittestmodule:test {
     v20:OptObject = CallCFunc<_PyCoro_GetAwaitableIter> v15
     v21:Object = CheckExc v20 {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
       }
     }
     CondBranchCheckType<7, 8, ObjectUser[coroutine:Exact]> v21
@@ -193,7 +193,7 @@ fun jittestmodule:test {
   bb 9 (preds 7) {
     RaiseStatic<RuntimeError, "coroutine is being awaited already", <<0>>> {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
       }
     }
   }
@@ -203,7 +203,8 @@ fun jittestmodule:test {
     SetCurrentAwaiter v21
     v25:Object = YieldFrom v23 v21 {
       FrameState {
-        NextInstrOffset 6
+        NextInstrOffset 8
+        Stack<1> v21
       }
     }
     Branch<3>
@@ -219,7 +220,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@disabled_CINDER_PORTING_NEEDS_LOAD_GLOBAL_LoadMethodOnTypeObjectDoesNotChange
+LoadMethodOnTypeObjectDoesNotChange
 ---
 def test():
     return str.upper("Hello")

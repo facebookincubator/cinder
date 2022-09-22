@@ -44,12 +44,8 @@ static void register_test(
             test_case.name.c_str(),
             g_porting_broken_test_prefix,
             sizeof(g_porting_broken_test_prefix) - 1) == 0) {
-#ifdef CINDER_ENABLE_BROKEN_TESTS
       test_case.name =
           test_case.name.substr(sizeof(g_porting_broken_test_prefix));
-#else
-      continue;
-#endif
     }
     ::testing::RegisterTest(
         suite->name.c_str(),
@@ -112,29 +108,23 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/dynamic_comparison_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/hir_builder_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/hir_builder_static_test.txt",
       HIRTest::kCompileStatic);
-#endif
   register_test("RuntimeTests/hir_tests/guard_type_removal_test.txt");
   register_test("RuntimeTests/hir_tests/inliner_test.txt");
   register_test("RuntimeTests/hir_tests/inliner_elimination_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/inliner_static_test.txt",
       HIRTest::kCompileStatic);
   register_test(
       "RuntimeTests/hir_tests/inliner_elimination_static_test.txt",
       HIRTest::kCompileStatic);
-#endif
   register_test("RuntimeTests/hir_tests/phi_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/refcount_insertion_test.txt");
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/refcount_insertion_static_test.txt",
       HIRTest::kCompileStatic);
-#endif
   register_test(
       "RuntimeTests/hir_tests/super_access_test.txt", HIRTest::kCompileStatic);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
@@ -143,7 +133,6 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/profile_data_hir_test.txt",
       HIRTest::kUseProfileData);
-#ifdef CINDER_ENABLE_BROKEN_TESTS
   register_test(
       "RuntimeTests/hir_tests/dead_code_elimination_and_simplify_test.txt",
       HIRTest::kCompileStatic);
@@ -153,7 +142,6 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/profile_data_static_hir_test.txt",
       HIRTest::kUseProfileData | HIRTest::kCompileStatic);
-#endif
   register_json_test("RuntimeTests/hir_tests/json_test.txt");
   register_test(
       "RuntimeTests/hir_tests/builtin_load_method_elimination_test.txt");

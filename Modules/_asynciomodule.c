@@ -5614,6 +5614,8 @@ module_free(void *m)
     Py_CLEAR(fallback_dispatch_table);
     Py_CLEAR(context_aware_task_hooks);
 
+    Py_CLEAR(minus_one);
+
     all_asyncio_tasks = NULL;
 
     module_free_freelists();

@@ -256,9 +256,7 @@ def test(num):
   ASSERT_EQ(PyLong_AsLong(result), 120);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(ReifyFrameTest, ReifyStaticCompareWithBool) {
-#ifdef CINDER_PORTING_DONE
   const char* src = R"(
 from __static__ import size_t, unbox
 def test(x, y):
@@ -297,7 +295,7 @@ def test(x, y):
     DeoptFrameMetadata dfm;
     dfm.localsplus = {0};
     dfm.stack = {0};
-    dfm.next_instr_offset = jump_index;
+    dfm.next_instr_offset = BCOffset(jump_index);
     dm.frame_meta.push_back(dfm);
     dm.code_rt = &code_rt;
 
@@ -312,11 +310,7 @@ def test(x, y):
     ASSERT_TRUE(PyBool_Check(result));
     ASSERT_EQ(result, i ? Py_True : Py_False);
   }
-#else
-  PORT_ASSERT("Needs PyCodeObject::co_rawcode");
-#endif
 }
-#endif
 
 class DeoptStressTest : public RuntimeTest {
  public:
@@ -627,7 +621,6 @@ def test(x, y):
   runTest(src, args, 2, result);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(DeoptStressTest, Closures) {
   const char* src = R"(
 def test(n):
@@ -642,7 +635,6 @@ def test(n):
   auto result = Ref<>::steal(PyLong_FromLong(15));
   runTest(src, args, 1, result);
 }
-#endif
 
 TEST_F(DeoptStressTest, StoreSubscr) {
   const char* src = R"(
