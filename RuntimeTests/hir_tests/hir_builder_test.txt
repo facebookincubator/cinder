@@ -2952,7 +2952,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test NestedFunction
+NestedFunction
 ---
 def test(a):
   def nested(a=a):
@@ -2999,7 +2999,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test Cellvar
+Cellvar
 ---
 def test():
   a = 1
@@ -3053,7 +3053,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test CellvarArgument
+CellvarArgument
 ---
 def test(a):
   def g():
@@ -3104,7 +3104,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test CellvarWithStackLoadAndBlockCanonicalization
+CellvarWithStackLoadAndBlockCanonicalization
 ---
 def test(a):
   def g():

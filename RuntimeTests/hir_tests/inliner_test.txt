@@ -287,7 +287,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test CalleeWithCellvars2
+CalleeWithCellvars2
 ---
 def test():
   local = 5
@@ -340,7 +340,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test CalleeFunctionWithoutObjectSpec
+CalleeFunctionWithoutObjectSpec
 ---
 def test():
   def inside():

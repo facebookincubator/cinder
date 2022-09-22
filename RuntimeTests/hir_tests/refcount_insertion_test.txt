@@ -737,7 +737,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test LoadCellItemOutputIsIncrefed
+LoadCellItemOutputIsIncrefed
 ---
 def test(a):
   a.foo()
@@ -1108,7 +1108,7 @@ fun jittestmodule:test {
   }
 }
 ---
-@porting_broken_test OptimizeLongDecrefRuns
+OptimizeLongDecrefRuns
 ---
 def test():
   gen = lambda: 1

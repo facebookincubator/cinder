@@ -11,7 +11,6 @@
 #include <iostream>
 
 static constexpr char g_disabled_prefix[] = "@disabled";
-static constexpr char g_porting_broken_test_prefix[] = "@porting_broken_test";
 
 static void register_test(
     const char* path,
@@ -39,13 +38,6 @@ static void register_test(
             g_disabled_prefix,
             sizeof(g_disabled_prefix) - 1) == 0) {
       continue;
-    }
-    if (strncmp(
-            test_case.name.c_str(),
-            g_porting_broken_test_prefix,
-            sizeof(g_porting_broken_test_prefix) - 1) == 0) {
-      test_case.name =
-          test_case.name.substr(sizeof(g_porting_broken_test_prefix));
     }
     ::testing::RegisterTest(
         suite->name.c_str(),

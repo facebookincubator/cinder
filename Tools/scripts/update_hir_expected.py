@@ -32,8 +32,6 @@ EXPECTED_VAR_RE = re.compile(r"^  ([^ ]+)$")
 SUITE_NAME_RE = re.compile(r"(HIR|[A-Z][a-z0-9]+)")
 FINISHED_LINE = "[----------] Global test environment tear-down"
 
-PORTING_BROKEN_TEST_PREFIX = "@porting_broken_test "
-
 
 def unescape_gtest_string(s):
     result = []
@@ -158,10 +156,6 @@ def update_text_test(old_lines, suite_name, failed_tests):
             test_case = next(line_iter)
             if test_case == "@disabled":
                 test_case += "\n" + next(line_iter)
-            if test_case.startswith(PORTING_BROKEN_TEST_PREFIX):
-                actual_name = test_case[len(PORTING_BROKEN_TEST_PREFIX):]
-                if actual_name in failed_tests:
-                    test_case = actual_name
             new_lines.append(test_case)
             expect("---")
             while True:
