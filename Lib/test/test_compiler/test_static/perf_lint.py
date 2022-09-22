@@ -176,8 +176,7 @@ class PerfLintTests(StaticTestBase):
             def a(self) -> int:
                 return 0
 
-        def func():
-            c = C()
+        def func(c: C):
             c.a
         """
 

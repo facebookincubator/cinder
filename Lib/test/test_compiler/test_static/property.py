@@ -24,6 +24,21 @@ class PropertyTests(StaticTestBase):
             self.assertEqual(f(C()), 42)
             self.assertInBytecode(f, "INVOKE_FUNCTION")
 
+    def test_property_getter_known_exact(self):
+        codestr = """
+            class C:
+                @property
+                def foo(self) -> int:
+                    return 42
+
+            def bar() -> int:
+                return C().foo
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.bar
+            self.assertEqual(f(), 42)
+            self.assertInBytecode(f, "INVOKE_FUNCTION")
+
     def test_property_getter_final_class(self):
         codestr = """
             from typing import final

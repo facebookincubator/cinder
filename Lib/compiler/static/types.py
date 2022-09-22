@@ -4453,7 +4453,7 @@ class PropertyMethod(DecoratedMethod):
     def emit_load_attr_from(
         self, node: Attribute, code_gen: Static38CodeGenerator, klass: Class
     ) -> None:
-        if self.function.is_final or klass.is_final:
+        if self.function.is_final or klass.is_final or klass.is_exact:
             code_gen.emit("EXTENDED_ARG", 0)
             code_gen.emit("INVOKE_FUNCTION", (self.getter_type_descr, 1))
         else:
