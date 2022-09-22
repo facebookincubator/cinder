@@ -35,18 +35,22 @@ class RuntimeTest : public ::testing::Test {
   }
 
   bool runCode(const char* src) {
-    auto compile_result =
-        Ref<>::steal(PyRun_String(src, Py_file_input, globals_, globals_));
-    return compile_result != nullptr;
+    return runCodeModuleExec(src, "compiler", "exec_cinder");
   }
 
   bool runStaticCode(const char* src) {
-    auto compiler = Ref<>::steal(PyImport_ImportModule("compiler.static"));
+    return runCodeModuleExec(src, "compiler.static", "exec_static");
+  }
+
+  bool runCodeModuleExec(
+      const char* src,
+      const char* compiler_module,
+      const char* exec_fn) {
+    auto compiler = Ref<>::steal(PyImport_ImportModule(compiler_module));
     if (compiler == nullptr) {
       return false;
     }
-    auto exec_static =
-        Ref<>::steal(PyObject_GetAttrString(compiler, "exec_static"));
+    auto exec_static = Ref<>::steal(PyObject_GetAttrString(compiler, exec_fn));
     if (exec_static == nullptr) {
       return false;
     }

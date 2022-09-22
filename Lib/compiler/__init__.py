@@ -15,7 +15,26 @@ compileFile(filename)
     Generates a .pyc file by compiling filename.
 """
 
-from .pycodegen import compile, compileFile
+from .pycodegen import CinderCodeGenerator, compile, compileFile
 from .visitor import walk
 
-__all__ = ("compile", "compileFile", "walk")
+
+CodeType = type(compile.__code__)
+
+
+def exec_cinder(
+    source,
+    locals,
+    globals,
+    modname="<module>",
+) -> None:
+    if isinstance(source, CodeType):
+        code = source
+    else:
+        code = compile(
+            source, "<module>", "exec", compiler=CinderCodeGenerator, modname=modname
+        )
+    exec(code, locals, globals)
+
+
+__all__ = ("compile", "compileFile", "exec_cinder", "walk")
