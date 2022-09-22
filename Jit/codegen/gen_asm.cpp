@@ -529,6 +529,8 @@ x86::Gp get_arg_location(int arg) {
   JIT_CHECK(false, "should only be used with first six args");
 }
 
+constexpr size_t kConstStackAlignmentRequirement = 16;
+
 void NativeGenerator::loadOrGenerateLinkFrame(
     asmjit::x86::Gp tstate_reg,
     const std::vector<
@@ -563,17 +565,19 @@ void NativeGenerator::loadOrGenerateLinkFrame(
       load_tstate_and_move();
       break;
     case FrameMode::kNormal: {
-      bool align_stack = save_regs.size() % 2;
+      size_t rsp_offset = 0;
       for (const auto& pair : save_regs) {
         if (pair.first.isGpq()) {
           as_->push((asmjit::x86::Gpq&)pair.first);
         } else if (pair.first.isXmm()) {
-          as_->sub(x86::rsp, 16);
+          as_->sub(x86::rsp, pair.first.size());
           as_->movdqu(x86::dqword_ptr(x86::rsp), (asmjit::x86::Xmm&)pair.first);
         } else {
           JIT_CHECK(false, "unsupported saved register type");
         }
+        rsp_offset += pair.first.size();
       }
+      bool align_stack = rsp_offset % kConstStackAlignmentRequirement;
       if (align_stack) {
         as_->push(x86::rax);
       }
