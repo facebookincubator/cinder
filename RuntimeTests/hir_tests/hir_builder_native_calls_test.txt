@@ -1,0 +1,45 @@
+HIRBuilderNativeCallsTest
+---
+---
+NativeInvokeBasic
+---
+from __static__ import native, int64, box
+
+@native("libc.so.6")
+def labs(i: int64) -> int64:
+    pass
+
+def test(i: int) -> int:
+    j: int64 = int64(i)
+    return box(labs(j))
+
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "i", Long>
+    v0 = CheckVar<"i"> v0 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v0 v1
+      }
+    }
+    v0 = RefineType<Long> v0
+    v2 = PrimitiveUnbox<CInt64> v0
+    v3 = IsNegativeAndErrOccurred v2 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v0 v1
+      }
+    }
+    v1 = Assign v2
+    v4 = CallStatic<1> v1
+    v5 = PrimitiveBox<CInt64> v4 {
+      FrameState {
+        NextInstrOffset 16
+        Locals<2> v0 v1
+      }
+    }
+    Return v5
+  }
+}
+---

@@ -138,6 +138,9 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/builtin_load_method_elimination_test.txt");
   register_test("RuntimeTests/hir_tests/all_passes_test.txt");
+  register_test(
+      "RuntimeTests/hir_tests/hir_builder_native_calls_test.txt",
+      HIRTest::kCompileStatic);
 
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {
