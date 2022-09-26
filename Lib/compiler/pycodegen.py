@@ -3026,10 +3026,6 @@ class CinderBaseCodeGenerator(CodeGenerator):
 class CinderCodeGenerator(CinderBaseCodeGenerator):
     _SymbolVisitor = symbols.CinderSymbolVisitor
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.inlined_comprehensions = []
-
     def set_qual_name(self, qualname):
         self._qual_name = qualname
 
@@ -3125,24 +3121,6 @@ class CinderCodeGenerator(CinderBaseCodeGenerator):
         if scope.inlined:
             # for inlined comprehension process with current generator
             gen = self
-            if self.inlined_comprehensions:
-                # Have a parent inlined comprehension; use that
-                is_async_function = self.inlined_comprehensions[-1].coroutine
-            else:
-                # No parent inlined comprehension; use outer function
-                is_async_function = self.scope.coroutine
-            self.inlined_comprehensions.append(scope)
-            is_async_generator = scope.coroutine
-            # TODO also add check for PyCF_ALLOW_TOP_LEVEL_AWAIT
-            if (
-                is_async_generator
-                and not is_async_function
-                and not isinstance(node, ast.GeneratorExp)
-            ):
-                raise self.syntax_error(
-                    "asynchronous comprehension outside of an asynchronous function",
-                    node,
-                )
         else:
             gen = self.make_func_codegen(
                 node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
@@ -3192,9 +3170,6 @@ class CinderCodeGenerator(CinderBaseCodeGenerator):
             self.emit("GET_AWAITABLE")
             self.emit("LOAD_CONST", None)
             self.emit("YIELD_FROM")
-
-        if scope.inlined:
-            self.inlined_comprehensions.pop()
 
 
 def get_default_generator():
