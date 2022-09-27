@@ -2513,10 +2513,10 @@ test_strict_module: strict_module_tests
 ASMJIT_CXXFLAGS = # -DASMJIT_EMBED -DASMJIT_BUILD_X86 -DASMJIT_DISABLE_BUILDER -DASMJIT_DISABLE_LOGGING
 
 ${ASMJIT}/src/asmjit/base/%.o: ${ASMJIT}/src/asmjit/base/%.cpp
-	$(V)$(CXX) $(CXXFLAGS) -I$(ASMJIT)/src/asmjit $(ASMJIT_CXXFLAGS) $<
+	$(V)$(CXX) $(CXXFLAGS) -I$(ASMJIT)/src/asmjit $(ASMJIT_CXXFLAGS) -lrt $<
 
 ${ASMJIT}/src/asmjit/x86/%.o: ${ASMJIT}/src/asmjit/x86/%.cpp
-	$(V)$(CXX) $(CXXFLAGS) -I$(ASMJIT)/src/asmjit $(ASMJIT_CXXFLAGS) $<
+	$(V)$(CXX) $(CXXFLAGS) -I$(ASMJIT)/src/asmjit $(ASMJIT_CXXFLAGS) -lrt $<
 
 
 
