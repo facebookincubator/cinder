@@ -4,6 +4,8 @@ import asyncio
 import builtins
 import dis
 import gc
+import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -50,7 +52,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         def g():
             return sys._getframe()
 
-        self.assert_code_and_lineno(g(), g, 51)
+        self.assert_code_and_lineno(g(), g, 53)
 
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
@@ -62,7 +64,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield sys._getframe()
             yield z
 
-        initial_lineno = 60
+        initial_lineno = 62
         gen = g(1, 2)
         frame = next(gen)
         self.assert_code_and_lineno(frame, g, initial_lineno)
@@ -81,7 +83,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield z
 
         gen = g(0)
-        initial_lineno = 76
+        initial_lineno = 78
         self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
         v = next(gen)
         self.assertEqual(v, 1)
@@ -122,7 +124,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         gen1.send(None)
         with self.assertRaises(TestException):
             gen1.throw(TestException())
-        initial_lineno = 100
+        initial_lineno = 102
         self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
         self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
 
@@ -145,8 +147,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
 
         res = double(5)
         self.assertEqual(res, 10)
-        self.assertEqual(stack[-1].lineno, 136)
-        self.assertEqual(stack[-2].lineno, 142)
+        self.assertEqual(stack[-1].lineno, 138)
+        self.assertEqual(stack[-2].lineno, 144)
 
 
 @unittest.failUnlessJITCompiled
@@ -204,11 +206,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_siblings), 2)
         stacks = get_stack_siblings()
         # Call to get_stack
-        self.assertEqual(stacks[0][-1].lineno, 155)
-        self.assertEqual(stacks[0][-2].lineno, 176)
+        self.assertEqual(stacks[0][-1].lineno, 157)
+        self.assertEqual(stacks[0][-2].lineno, 178)
         # Call to get_stack2
-        self.assertEqual(stacks[1][-1].lineno, 170)
-        self.assertEqual(stacks[1][-2].lineno, 176)
+        self.assertEqual(stacks[1][-1].lineno, 172)
+        self.assertEqual(stacks[1][-2].lineno, 178)
 
     @jit_suppress
     @unittest.skipIf(
@@ -221,10 +223,10 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         # Call to get_stack_multi should be inlined
         self.assertEqual(cinderjit.get_num_inlined_functions(call_get_stack_multi), 1)
         stacks = call_get_stack_multi()
-        self.assertEqual(stacks[0][-1].lineno, 182)
-        self.assertEqual(stacks[0][-2].lineno, 191)
-        self.assertEqual(stacks[1][-1].lineno, 184)
-        self.assertEqual(stacks[1][-2].lineno, 191)
+        self.assertEqual(stacks[0][-1].lineno, 184)
+        self.assertEqual(stacks[0][-2].lineno, 193)
+        self.assertEqual(stacks[1][-1].lineno, 186)
+        self.assertEqual(stacks[1][-2].lineno, 193)
 
     @jit_suppress
     @unittest.skipIf(
@@ -239,11 +241,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_twice), 2)
         stacks = get_stack_twice()
         # First call to double
-        self.assertEqual(stacks[0][-1].lineno, 155)
-        self.assertEqual(stacks[0][-2].lineno, 162)
+        self.assertEqual(stacks[0][-1].lineno, 157)
+        self.assertEqual(stacks[0][-2].lineno, 164)
         # Second call to double
-        self.assertEqual(stacks[1][-1].lineno, 155)
-        self.assertEqual(stacks[1][-2].lineno, 163)
+        self.assertEqual(stacks[1][-1].lineno, 157)
+        self.assertEqual(stacks[1][-2].lineno, 165)
 
 
 # Decorator to return a new version of the function with an alternate globals
@@ -3599,6 +3601,28 @@ class OtherTests(unittest.TestCase):
     def test_page_in_profiler_dependencies(self):
         qualnames = cinderjit.page_in_profiler_dependencies()
         self.assertTrue(len(qualnames) > 0)
+
+
+class PreloadTests(unittest.TestCase):
+    SCRIPT_FILE = "cinder_preload_helper_main.py"
+
+    def test_func_destroyed_during_preload(self):
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-batch-compile-workers=4",
+                "-mcompiler",
+                "--static",
+                self.SCRIPT_FILE,
+            ],
+            cwd=os.path.dirname(__file__),
+            # stdout=subprocess.PIPE,
+            encoding=sys.stdout.encoding,
+        )
+        self.assertEqual(proc.returncode, 0)
 
 
 if __name__ == "__main__":

@@ -105,6 +105,12 @@ static JITList* g_jit_list{nullptr};
 
 // Function and code objects ("units") registered for compilation.
 static std::unordered_set<BorrowedRef<>> jit_reg_units;
+
+// Only set during preloading. Used to keep track of functions that were
+// deleted as a side effect of preloading.
+using UnitDeletedCallback = std::function<void(PyObject*)>;
+static UnitDeletedCallback handle_unit_deleted_during_preload = nullptr;
+
 // Every unit that is a code object has corresponding entry in jit_code_data.
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
 // Every unit has an entry in preloaders if we are doing multithreaded compile.
@@ -632,12 +638,20 @@ static void multithread_compile_all() {
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
   std::vector<BorrowedRef<>> compilation_units;
+  // units that were deleted during preloading
+  std::unordered_set<PyObject*> deleted_units;
   // first we have to preload everything we are going to compile
   while (jit_reg_units.size() > 0) {
     std::vector<BorrowedRef<>> preload_units = {
         jit_reg_units.begin(), jit_reg_units.end()};
     jit_reg_units.clear();
     for (auto unit : preload_units) {
+      if (deleted_units.contains(unit)) {
+        continue;
+      }
+      handle_unit_deleted_during_preload = [&](PyObject* deleted_unit) {
+        deleted_units.emplace(deleted_unit);
+      };
       compilation_units.push_back(unit);
       if (PyFunction_Check(unit)) {
         BorrowedRef<PyFunctionObject> func(unit);
@@ -659,6 +673,18 @@ static void multithread_compile_all() {
       }
     }
   }
+  handle_unit_deleted_during_preload = nullptr;
+
+  // Filter out any units that were deleted as a side effect of preloading
+  std::vector<BorrowedRef<>> live_compilation_units;
+  live_compilation_units.reserve(compilation_units.size());
+  for (BorrowedRef<> unit : compilation_units) {
+    if (deleted_units.contains(unit)) {
+      continue;
+    }
+    live_compilation_units.emplace_back(unit);
+  }
+
   // Disable checks for using GIL protected data across threads.
   // Conceptually what we're doing here is saying we're taking our own
   // responsibility for managing locking of CPython runtime data structures.
@@ -671,7 +697,7 @@ static void multithread_compile_all() {
   int old_gil_check_enabled = _PyGILState_check_enabled;
   _PyGILState_check_enabled = 0;
 
-  g_threaded_compile_context.startCompile(std::move(compilation_units));
+  g_threaded_compile_context.startCompile(std::move(live_compilation_units));
   std::vector<std::thread> worker_threads;
   JIT_CHECK(jit_config.batch_compile_workers, "Zero workers for compile");
   {
@@ -1602,7 +1628,11 @@ void _PyJIT_FuncModified(PyFunctionObject* func) {
 
 void _PyJIT_FuncDestroyed(PyFunctionObject* func) {
   if (_PyJIT_IsEnabled()) {
-    jit_reg_units.erase(reinterpret_cast<PyObject*>(func));
+    auto func_obj = reinterpret_cast<PyObject*>(func);
+    jit_reg_units.erase(func_obj);
+    if (handle_unit_deleted_during_preload != nullptr) {
+      handle_unit_deleted_during_preload(func_obj);
+    }
   }
   if (jit_ctx) {
     _PyJITContext_FuncDestroyed(jit_ctx, func);
@@ -1611,8 +1641,12 @@ void _PyJIT_FuncDestroyed(PyFunctionObject* func) {
 
 void _PyJIT_CodeDestroyed(PyCodeObject* code) {
   if (_PyJIT_IsEnabled()) {
-    jit_reg_units.erase(reinterpret_cast<PyObject*>(code));
+    auto code_obj = reinterpret_cast<PyObject*>(code);
+    jit_reg_units.erase(code_obj);
     jit_code_data.erase(code);
+    if (handle_unit_deleted_during_preload != nullptr) {
+      handle_unit_deleted_during_preload(code_obj);
+    }
   }
 }
 
