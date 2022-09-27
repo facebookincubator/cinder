@@ -302,6 +302,9 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto receiver = ParseRegister();
     auto value = ParseRegister();
     instruction = newInstr<StoreAttr>(dst, receiver, value, idx);
+  } else if (strcmp(opcode, "GetLength") == 0) {
+    auto container = ParseRegister();
+    NEW_INSTR(GetLength, dst, container, FrameState{});
   } else if (strcmp(opcode, "DeleteSubscr") == 0) {
     auto container = ParseRegister();
     auto sub = ParseRegister();

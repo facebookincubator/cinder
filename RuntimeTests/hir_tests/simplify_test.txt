@@ -1013,7 +1013,7 @@ fun jittestmodule:test {
     v5:MortalListExact[list:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: a'
     }
-    UseType<MortalListExact[list:0xdeadbeef]> v5
+    UseType<MortalListExact> v5
     v9:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v5
     v10:CInt32 = IntConvert<CInt32> v9
     CondBranch<1, 2> v10

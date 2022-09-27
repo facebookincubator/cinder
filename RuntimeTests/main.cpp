@@ -120,6 +120,7 @@ int main(int argc, char* argv[]) {
   register_test(
       "RuntimeTests/hir_tests/super_access_test.txt", HIRTest::kCompileStatic);
   register_test("RuntimeTests/hir_tests/simplify_test.txt");
+  register_test("RuntimeTests/hir_tests/simplify310_test.txt");
   register_test("RuntimeTests/hir_tests/simplify_uses_guard_types.txt");
   register_test("RuntimeTests/hir_tests/dead_code_elimination_test.txt");
   register_test(

@@ -194,6 +194,44 @@ Register* simplifyCast(const Cast* instr) {
   return nullptr;
 }
 
+Register* emitGetLengthInt64(Env& env, Register* obj) {
+  Type ty = obj->type();
+  if (ty <= TListExact || ty <= TTupleExact) {
+    env.emit<UseType>(obj, ty.unspecialized());
+    return env.emit<LoadField>(
+        obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
+  }
+  if (ty <= TDictExact || ty <= TSetExact || ty <= TUnicodeExact) {
+    std::size_t offset = 0;
+    const char* name = nullptr;
+    if (ty <= TDictExact) {
+      offset = offsetof(PyDictObject, ma_used);
+      name = "ma_used";
+    } else if (ty <= TSetExact) {
+      offset = offsetof(PySetObject, used);
+      name = "used";
+    } else if (ty <= TUnicodeExact) {
+      // Note: In debug mode, the interpreter has an assert that ensures the
+      // string is "ready", check PyUnicode_GET_LENGTH for strings.
+      offset = offsetof(PyASCIIObject, length);
+      name = "length";
+    } else {
+      JIT_CHECK(false, "unexpected type");
+    }
+    env.emit<UseType>(obj, ty.unspecialized());
+    return env.emit<LoadField>(obj, name, offset, TCInt64);
+  }
+  return nullptr;
+}
+
+Register* simplifyGetLength(Env& env, const GetLength* instr) {
+  Register* obj = instr->GetOperand(0);
+  if (Register* size = emitGetLengthInt64(env, obj)) {
+    return env.emit<PrimitiveBox>(size, TCInt64, *instr->frameState());
+  }
+  return nullptr;
+}
+
 Register* simplifyIntConvert(Env& env, const IntConvert* instr) {
   Register* src = instr->GetOperand(0);
   if (src->isA(instr->type())) {
@@ -316,33 +354,7 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
         env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, left, right);
     return env.emit<IntConvert>(result, TCInt32);
   }
-  if (ty <= TListExact || ty <= TTupleExact) {
-    Register* obj = instr->GetOperand(0);
-    env.emit<UseType>(obj, ty);
-    Register* size = env.emit<LoadField>(
-        obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
-    return env.emit<IntConvert>(size, TCInt32);
-  }
-  if (ty <= TDictExact || ty <= TSetExact || ty <= TUnicodeExact) {
-    Register* obj = instr->GetOperand(0);
-    env.emit<UseType>(obj, ty.unspecialized());
-    std::size_t offset = 0;
-    const char* name = nullptr;
-    if (ty <= TDictExact) {
-      offset = offsetof(PyDictObject, ma_used);
-      name = "ma_used";
-    } else if (ty <= TSetExact) {
-      offset = offsetof(PySetObject, used);
-      name = "used";
-    } else if (ty <= TUnicodeExact) {
-      // Note: In debug mode, the interpreter has an assert that ensures the
-      // string is "ready", check PyUnicode_GET_LENGTH for strings.
-      offset = offsetof(PyASCIIObject, length);
-      name = "length";
-    } else {
-      JIT_CHECK(false, "unexpected type");
-    }
-    Register* size = env.emit<LoadField>(obj, name, offset, TCInt64);
+  if (Register* size = emitGetLengthInt64(env, instr->GetOperand(0))) {
     return env.emit<IntConvert>(size, TCInt32);
   }
   if (ty <= TLongExact) {
@@ -614,6 +626,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kCondBranchCheckType:
       return simplifyCondBranchCheckType(
           env, static_cast<const CondBranchCheckType*>(instr));
+
+    case Opcode::kGetLength:
+      return simplifyGetLength(env, static_cast<const GetLength*>(instr));
 
     case Opcode::kIntConvert:
       return simplifyIntConvert(env, static_cast<const IntConvert*>(instr));
