@@ -858,7 +858,7 @@ int HIRParser::GetNextNameIdx() {
 BorrowedRef<> HIRParser::GetNextUnicode() {
   const char* str = GetNextToken();
   auto obj = Ref<>::steal(PyUnicode_InternFromString(str));
-  JIT_CHECK(str != nullptr, "Failed to intern string %s", str);
+  JIT_CHECK(obj != nullptr, "Failed to intern string %s", str);
   return env_->addReference(std::move(obj));
 }
 
