@@ -393,6 +393,9 @@ func_set_qualname(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
     }
     Py_INCREF(value);
     Py_XSETREF(op->func_qualname, value);
+    if (!_PyJIT_IsCompiled((PyObject *)op)) {
+        PyEntry_init(op);
+    }
     return 0;
 }
 

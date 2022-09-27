@@ -69,6 +69,21 @@ class JitListTest(unittest.TestCase):
         _no_jit_function()
         self.assertFalse(cinderjit.is_jit_compiled(_no_jit_function))
 
+    @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
+    def test_change_func_qualname(self) -> None:
+        def inner_func():
+            return 24
+
+        cinderjit.jit_list_append(
+            f"{inner_func.__module__}:{inner_func.__qualname__}_foo"
+        )
+
+        self.assertEqual(inner_func(), 24)
+        self.assertFalse(cinderjit.is_jit_compiled(inner_func))
+        inner_func.__qualname__ += "_foo"
+        self.assertEqual(inner_func(), 24)
+        self.assertTrue(cinderjit.is_jit_compiled(inner_func))
+
 
 if __name__ == "__main__":
     unittest.main()
