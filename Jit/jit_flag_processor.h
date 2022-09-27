@@ -110,6 +110,9 @@ struct FlagProcessor {
   // Return true if one or more flags have been registered
   bool hasOptions();
 
+  // Return true if the option has been added and false otherwise.
+  bool canHandle(const char* provided_option);
+
  private:
   std::vector<std::unique_ptr<Option>> options_;
 };

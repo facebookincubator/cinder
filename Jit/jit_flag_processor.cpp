@@ -120,6 +120,15 @@ Option& FlagProcessor::addOption(
       cmdline_flag, environment_variable, setter, flag_description);
 }
 
+bool FlagProcessor::canHandle(const char* provided_option) {
+  for (auto const& option : options_) {
+    if (option->cmdline_flag == provided_option) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void FlagProcessor::setFlags(PyObject* cmdline_args) {
   assert(cmdline_args != nullptr);
 
@@ -154,6 +163,20 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
                    option->debug_message.empty() ? option->flag_description
                                                  : option->debug_message)
                    .c_str());
+    }
+  }
+
+  PyObject* key;
+  PyObject* value;
+  auto jit_str = Ref<>::steal(PyUnicode_FromString("jit"));
+  for (Py_ssize_t pos = 0; PyDict_Next(cmdline_args, &pos, &key, &value);) {
+    int match = PyUnicode_Tailmatch(
+        key, jit_str, /*start=*/0, /*end=*/3, /*direction=*/-1);
+    JIT_DCHECK(match != -1, "An error occurred");
+    const char* option = PyUnicode_AsUTF8(key);
+    JIT_DCHECK(option != nullptr, "An error occurred");
+    if (match && !canHandle(option)) {
+      JIT_LOG("Warning: JIT cannot handle X-option %s", option);
     }
   }
 }
