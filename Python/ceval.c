@@ -8150,11 +8150,45 @@ PyEntry_LazyInit(PyFunctionObject *func,
   return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
 }
 
+static unsigned int count_calls(PyCodeObject* code) {
+  // The interpreter will only increment up to the shadowcode threshold
+  // PYSHADOW_INIT_THRESHOLD. After that, it will stop incrementing. If someone
+  // sets -X jit-auto above the PYSHADOW_INIT_THRESHOLD, we still have to keep
+  // counting.
+  unsigned int ncalls = code->co_cache.ncalls;
+  if (ncalls > PYSHADOW_INIT_THRESHOLD) {
+    ncalls++;
+    code->co_cache.ncalls = ncalls;
+  }
+  return ncalls;
+}
+
+PyObject*
+PyEntry_AutoJIT(PyFunctionObject *func,
+                PyObject **stack,
+                Py_ssize_t nargsf,
+                PyObject *kwnames) {
+    PyCodeObject* code = (PyCodeObject*)func->func_code;
+    if (count_calls(code) > _PyJIT_AutoJITThreshold()) {
+        if (_PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
+            func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+            PyEntry_initnow(func);
+        }
+        assert(func->vectorcall != (vectorcallfunc)PyEntry_AutoJIT);
+        return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
+    }
+    return _PyFunction_Vectorcall((PyObject *)func, stack, nargsf, kwnames);
+}
+
 void
 PyEntry_init(PyFunctionObject *func)
 {
   assert(!_PyJIT_IsCompiled((PyObject *)func));
   // TODO(T126410180): Enable autojit
+  if (_PyJIT_IsAutoJITEnabled()) {
+    func->vectorcall = (vectorcallfunc)PyEntry_AutoJIT;
+    return;
+  }
   func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
   if (!_PyJIT_RegisterFunction(func)) {
     PyEntry_initnow(func);
