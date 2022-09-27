@@ -219,6 +219,11 @@ class Ref : public RefBase<T> {
     return Ref(reinterpret_cast<T*>(obj), StealTag{});
   }
 
+  // Stealing from another Ref doesn't make sense; either move it or explicitly
+  // copy it.
+  template <typename V>
+  static Ref steal(const Ref<V>&) = delete;
+
   template <
       typename X = T,
       typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>

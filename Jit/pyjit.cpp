@@ -883,10 +883,8 @@ static PyObject* disassemble(PyObject* /* self */, PyObject* func) {
 static PyObject* get_jit_list(PyObject* /* self */, PyObject*) {
   if (g_jit_list == nullptr) {
     Py_RETURN_NONE;
-  } else {
-    auto jit_list = Ref<>::steal(g_jit_list->getList());
-    return jit_list.release();
   }
+  return g_jit_list->getList().release();
 }
 
 static PyObject* jit_list_append(PyObject* /* self */, PyObject* line) {

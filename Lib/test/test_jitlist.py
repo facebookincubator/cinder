@@ -27,7 +27,6 @@ class _JitClass:
         pass
 
 
-@unittest.cinderPortingBrokenTest()
 class JitListTest(unittest.TestCase):
     @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
     def test_comments(self) -> None:
