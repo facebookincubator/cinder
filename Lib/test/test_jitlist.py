@@ -30,11 +30,11 @@ class _JitClass:
 class JitListTest(unittest.TestCase):
     @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
     def test_comments(self) -> None:
-        cinderjit.jit_list_append('')
+        cinderjit.jit_list_append("")
         initial_jit_list = cinderjit.get_jit_list()
-        cinderjit.jit_list_append('# asdfasdfasd')
-        cinderjit.jit_list_append('# x:y.z')
-        cinderjit.jit_list_append('# x@y:1')
+        cinderjit.jit_list_append("# asdfasdfasd")
+        cinderjit.jit_list_append("# x:y.z")
+        cinderjit.jit_list_append("# x@y:1")
         self.assertEqual(initial_jit_list, cinderjit.get_jit_list())
 
     @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
@@ -62,9 +62,7 @@ class JitListTest(unittest.TestCase):
         )
         py_code_objs = cinderjit.get_jit_list()[1]
         thisfile = os.path.basename(__file__)
-        self.assertIn(
-            code_obj.co_firstlineno,
-            py_code_objs[code_obj.co_name][thisfile])
+        self.assertIn(code_obj.co_firstlineno, py_code_objs[code_obj.co_name][thisfile])
         self.assertNotIn(_no_jit_function.__code__.co_name, py_code_objs)
         _jit_function_2()
         self.assertTrue(cinderjit.is_jit_compiled(_jit_function_2))
