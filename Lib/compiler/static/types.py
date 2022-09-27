@@ -622,6 +622,8 @@ class TypeEnvironment:
         return concrete
 
     def get_literal_type(self, base_type: Value, literal_value: object) -> Value:
+        # Literals are always exact
+        base_type = base_type.exact()
         key = (base_type, literal_value)
         if key not in self._literal_types:
             self._literal_types[key] = literal_type = base_type.make_literal(
