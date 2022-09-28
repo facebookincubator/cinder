@@ -8184,7 +8184,6 @@ void
 PyEntry_init(PyFunctionObject *func)
 {
   assert(!_PyJIT_IsCompiled((PyObject *)func));
-  // TODO(T126410180): Enable autojit
   if (_PyJIT_IsAutoJITEnabled()) {
     func->vectorcall = (vectorcallfunc)PyEntry_AutoJIT;
     return;
