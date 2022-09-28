@@ -3619,10 +3619,20 @@ class PreloadTests(unittest.TestCase):
                 self.SCRIPT_FILE,
             ],
             cwd=os.path.dirname(__file__),
-            # stdout=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             encoding=sys.stdout.encoding,
         )
         self.assertEqual(proc.returncode, 0)
+        expected_stdout = """resolving a_func
+loading helper_a
+defining main_func()
+disabling jit
+loading helper_b
+jit disabled
+<class 'NoneType'>
+hello from b_func!
+"""
+        self.assertEqual(proc.stdout, expected_stdout)
 
 
 if __name__ == "__main__":
