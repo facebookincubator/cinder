@@ -4547,5 +4547,39 @@ class PerfMapTests(unittest.TestCase):
         self.assertEqual(find_mapped_funcs("child1"), {"main", "child1", "compute"})
         self.assertEqual(find_mapped_funcs("child2"), {"main", "child2", "compute"})
 
+
+class PreloadTests(unittest.TestCase):
+    SCRIPT_FILE = "cinder_preload_helper_main.py"
+
+    def test_func_destroyed_during_preload(self):
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-batch-compile-workers=4",
+                # Enable lazy imports
+                "-L",
+                "-mcompiler",
+                "--static",
+                self.SCRIPT_FILE,
+            ],
+            cwd=os.path.dirname(__file__),
+            stdout=subprocess.PIPE,
+            encoding=sys.stdout.encoding,
+        )
+        self.assertEqual(proc.returncode, 0)
+        expected_stdout = """resolving a_func
+loading helper_a
+defining main_func()
+disabling jit
+loading helper_b
+jit disabled
+<class 'NoneType'>
+hello from b_func!
+"""
+        self.assertEqual(proc.stdout, expected_stdout)
+
 if __name__ == "__main__":
     unittest.main()
