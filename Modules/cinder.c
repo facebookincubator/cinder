@@ -435,7 +435,7 @@ set_profile_interp_all(PyObject *self, PyObject *arg) {
     if (is_true < 0) {
         return NULL;
     }
-    g_profile_new_interp_threads = is_true;
+    _PyJIT_SetProfileNewInterpThreads(is_true);
     Ci_ThreadState_SetProfileInterpAll(is_true);
 
     Py_RETURN_NONE;

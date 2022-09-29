@@ -394,12 +394,6 @@ PyAPI_FUNC(PyObject*) _PyJIT_GetGlobals(PyThreadState* tstate);
 PyAPI_FUNC(PyObject*) _PyJIT_GetBuiltins(PyThreadState* tstate);
 
 /*
- * Indicates whether or not newly-created interpreter threads should have type
- * profiling enabled by default.
- */
-extern int g_profile_new_interp_threads;
-
-/*
  * Record a type profile for the current instruction.
  */
 PyAPI_FUNC(void) _PyJIT_ProfileCurrentInstr(
@@ -439,6 +433,9 @@ PyAPI_FUNC(PyFrameObject*) _PyJIT_GetFrame(PyThreadState* tstate);
  */
 PyAPI_FUNC(void) _PyJIT_SetDisassemblySyntaxATT(void);
 PyAPI_FUNC(int) _PyJIT_IsDisassemblySyntaxIntel(void);
+
+PyAPI_FUNC(void) _PyJIT_SetProfileNewInterpThreads(int);
+PyAPI_FUNC(int) _PyJIT_GetProfileNewInterpThreads(void);
 
 #ifdef __cplusplus
 bool _PyJIT_UseHugePages();

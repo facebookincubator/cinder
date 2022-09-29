@@ -635,7 +635,7 @@ new_threadstate(PyInterpreterState *interp, int init)
     tstate->shadow_frame = NULL;
 
     tstate->profile_interp = 0;
-    if (g_profile_new_interp_threads) {
+    if (_PyJIT_GetProfileNewInterpThreads()) {
       Ci_ThreadState_SetProfileInterp(tstate, 1);
     }
 

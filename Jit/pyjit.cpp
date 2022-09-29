@@ -179,7 +179,11 @@ static std::array<PyObject*, 256> s_opnames;
 
 static double total_compliation_time = 0.0;
 
-int g_profile_new_interp_threads = 0;
+/*
+ * Indicates whether or not newly-created interpreter threads should have type
+ * profiling enabled by default.
+ */
+static int profile_new_interp_threads = 0;
 
 struct CompilationTimer {
   explicit CompilationTimer(BorrowedRef<PyFunctionObject> f)
@@ -1525,7 +1529,7 @@ int _PyJIT_Initialize() {
       use_jit = 0;
       JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
     }
-    g_profile_new_interp_threads = 1;
+    _PyJIT_SetProfileNewInterpThreads(true);
     Ci_ThreadState_SetProfileInterpAll(1);
     if (!write_profile_file.empty()) {
       g_write_profile_file = write_profile_file;
@@ -2303,4 +2307,12 @@ void _PyJIT_SetDisassemblySyntaxATT(void) {
 
 int _PyJIT_IsDisassemblySyntaxIntel(void) {
   return is_intel_syntax();
+}
+
+void _PyJIT_SetProfileNewInterpThreads(int enabled) {
+  profile_new_interp_threads = enabled;
+}
+
+int _PyJIT_GetProfileNewInterpThreads(void) {
+  return profile_new_interp_threads;
 }

@@ -504,8 +504,8 @@ TEST_F(CmdLineTest, WriteProfile) {
       try_flag_and_envvar_effect(
           xarg,
           const_cast<char*>(("PYTHONJITWRITEPROFILE=" + list_file).c_str()),
-          []() { g_profile_new_interp_threads = 0; },
-          []() { ASSERT_EQ(g_profile_new_interp_threads, 1); }),
+          []() { _PyJIT_SetProfileNewInterpThreads(0); },
+          []() { ASSERT_EQ(_PyJIT_GetProfileNewInterpThreads(), 1); }),
       0);
 
   delete[] xarg;
@@ -518,8 +518,8 @@ TEST_F(CmdLineTest, ProfileInterp) {
       try_flag_and_envvar_effect(
           L"jit-profile-interp",
           "PYTHONJITPROFILEINTERP",
-          []() { g_profile_new_interp_threads = 0; },
-          []() { ASSERT_EQ(g_profile_new_interp_threads, 1); }),
+          []() { _PyJIT_SetProfileNewInterpThreads(0); },
+          []() { ASSERT_EQ(_PyJIT_GetProfileNewInterpThreads(), 1); }),
       0);
 }
 
