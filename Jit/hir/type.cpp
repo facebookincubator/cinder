@@ -499,6 +499,13 @@ PyTypeObject* Type::uniquePyType() const {
   return nullptr;
 }
 
+PyTypeObject* Type::runtimePyType() const {
+  if (!isExact()) {
+    return nullptr;
+  }
+  return hasTypeSpec() ? typeSpec() : uniquePyType();
+}
+
 PyObject* Type::asObject() const {
   if (*this <= TNoneType) {
     return Py_None;

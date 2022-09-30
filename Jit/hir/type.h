@@ -95,6 +95,19 @@ class Type {
   // (TObject - TLong).uniquePyType() == nullptr
   PyTypeObject* uniquePyType() const;
 
+  // Return the type object that an object of this Type would have at runtime.
+  // If this Type represents a non-empty set of values (i.e., it isn't TBottom)
+  // and every object in that set has the same ob_type, return that type.
+  // Otherwise, return nullptr.
+  //
+  // Some examples:
+  // TLong.runtimePyType() == nullptr
+  // TLongExact.runtimePyType() == &PyLong_Type
+  // TLongUser.runtimePyType() == nullptr
+  // TLongExact[123].runtimePyType() == &PyLong_Type
+  // TBool.runtimePyType() == &PyBool_Type
+  PyTypeObject* runtimePyType() const;
+
   // Return the PyObject* that this type represents, or nullptr if it
   // represents more than one object (or a non-object type). This is similar to
   // objectSpec() (but with support for NoneType) and is the inverse of

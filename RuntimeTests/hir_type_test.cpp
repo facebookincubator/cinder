@@ -183,6 +183,54 @@ my_obj = MyClass()
   EXPECT_EQ(Type::fromObject(my_obj).uniquePyType(), nullptr);
 }
 
+TEST_F(HIRTypeTest, RuntimePyType) {
+  EXPECT_EQ(TBottom.runtimePyType(), nullptr);
+  EXPECT_EQ(TLong.runtimePyType(), nullptr);
+  EXPECT_EQ(TImmortalLong.runtimePyType(), nullptr);
+  EXPECT_EQ(TMortalList.runtimePyType(), nullptr);
+  EXPECT_EQ(TBool.runtimePyType(), &PyBool_Type);
+  EXPECT_EQ(TUnicode.runtimePyType(), nullptr);
+  EXPECT_EQ(TList.runtimePyType(), nullptr);
+  EXPECT_EQ(TListExact.runtimePyType(), &PyList_Type);
+  EXPECT_EQ(TObject.runtimePyType(), nullptr);
+  EXPECT_EQ(TObjectExact.runtimePyType(), &PyBaseObject_Type);
+
+  EXPECT_EQ(TBuiltinExact.runtimePyType(), nullptr);
+  EXPECT_EQ((TLong | TUnicode).runtimePyType(), nullptr);
+  EXPECT_EQ((TObject - TLong).runtimePyType(), nullptr);
+  EXPECT_EQ(TNullptr.runtimePyType(), nullptr);
+  EXPECT_EQ(TCInt32.runtimePyType(), nullptr);
+
+  EXPECT_EQ(
+      Type::fromObject(reinterpret_cast<PyObject*>(&PyLong_Type))
+          .runtimePyType(),
+      &PyType_Type);
+
+  // None is a singleton, so Type makes no distinction between None the value
+  // and NoneType.
+  EXPECT_EQ(Type::fromObject(Py_None).runtimePyType(), &_PyNone_Type);
+
+  // Other specialized values have their object's ob_type as runtime types.
+  auto one = Ref<>::steal(PyLong_FromLong(1));
+  ASSERT_NE(one, nullptr);
+  EXPECT_EQ(Type::fromObject(one).runtimePyType(), &PyLong_Type);
+
+  ASSERT_TRUE(runCode(R"(
+class MyClass:
+  pass
+my_obj = MyClass()
+)"));
+  Ref<PyTypeObject> my_class(getGlobal("MyClass"));
+  ASSERT_NE(my_class, nullptr);
+  Ref<> my_obj(getGlobal("my_obj"));
+  ASSERT_NE(my_obj, nullptr);
+
+  EXPECT_EQ(Type::fromType(my_class).runtimePyType(), nullptr);
+  EXPECT_EQ(Type::fromTypeExact(my_class).runtimePyType(), my_class);
+  EXPECT_EQ(Type::fromObject(my_class).runtimePyType(), &PyType_Type);
+  EXPECT_EQ(Type::fromObject(my_obj).runtimePyType(), my_class);
+}
+
 TEST_F(HIRTypeTest, IsExact) {
   EXPECT_FALSE(TObject.isExact());
   EXPECT_TRUE(TObjectExact.isExact());

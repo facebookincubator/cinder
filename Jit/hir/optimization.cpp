@@ -1075,16 +1075,7 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
         receiver_type <= TUnicodeExact)) {
     return;
   }
-  // TODO(T128244182): Replace the ternary if below with
-  // `receiver_type.runtimePyType()` when it exists.
-  //
-  // Types with object specialization like LongExact[1] will not have a uniue
-  // PyTypeObject but they will have type specialization. Types without object
-  // specialization like MortalLongExact will not have type specialization but
-  // they will have a unique PyTypeObject.
-  PyTypeObject* type = receiver_type.hasTypeSpec()
-      ? receiver_type.typeSpec()
-      : receiver_type.uniquePyType();
+  PyTypeObject* type = receiver_type.runtimePyType();
   if (type == nullptr) {
     // This might happen for a variety of reasons, such as encountering a
     // method load on a maybe-defined value where the definition occurs in a
