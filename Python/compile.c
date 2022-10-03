@@ -356,7 +356,9 @@ PyAST_CompileObject(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
         goto finally;
     }
 
-    c.c_st = _PySymtable_BuildObjectOptFlags(mod, filename, c.c_future, 1);
+    const char *envval = getenv("PYTHONNOINLINECOMPREHENSIONS");
+    int inline_comprehensions = !envval || envval[0] == '\0';
+    c.c_st = _PySymtable_BuildObjectOptFlags(mod, filename, c.c_future, inline_comprehensions);
     if (c.c_st == NULL) {
         if (!PyErr_Occurred())
             PyErr_SetString(PyExc_SystemError, "no symtable");
