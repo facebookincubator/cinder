@@ -136,7 +136,7 @@ static const char usage_6[] =
 "PYTHONDEVMODE: enable the development mode.\n"
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
 "PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
-"PYTHONLAZYIMPORTS: enable lazy imports by default.\n"
+"PYTHONLAZYIMPORTSALL: enable lazy imports by default.\n"
 "PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n"
 "PYTHONINSTALLSTRICTLOADER: install strict/static module loader.\n";
 
@@ -1680,7 +1680,7 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->verbose, "PYTHONVERBOSE");
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
-    _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTS");
+    _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTSALL");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");

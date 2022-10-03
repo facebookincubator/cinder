@@ -92,7 +92,7 @@ Usage
 
 Naturally, to use Cinder's Lazy Imports, you must use Cinder!
 
-Lazy Imports can be enabled globally with the ``PYTHONLAZYIMPORTS``
+Lazy Imports can be enabled globally with the ``PYTHONLAZYIMPORTSALL``
 environment variable, or by invoking Python with the ``-L`` flag.
 
 If enabled globally, all modules are loaded lazily. Lazy Imports can be

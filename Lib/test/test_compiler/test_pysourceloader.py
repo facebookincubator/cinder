@@ -21,7 +21,7 @@ class PySourceLoaderTest(TestCase):
                     else:
                         env["PYTHONUSEPYCOMPILER"] = "1"
                     if lazy_imports:
-                        env["PYTHONLAZYIMPORTS"] = "1"
+                        env["PYTHONLAZYIMPORTSALL"] = "1"
                     if no_pycs:
                         env["PYTHONPYCACHEPREFIX"] = tmpdir
                     proc = subprocess.run(
