@@ -302,6 +302,8 @@ def _args_from_interpreter_flags():
             args.append('-E')
         if sys.flags.no_user_site:
             args.append('-s')
+        if sys.flags.lazy_imports:
+            args.append('-L')
 
     # -W options
     warnopts = sys.warnoptions[:]
