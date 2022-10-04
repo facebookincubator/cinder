@@ -134,4 +134,4 @@ PyAPI_FUNC(void) _PyDict_SetHasDeferredObjects(PyObject *);
 /* Unflag dictionary as having deferred objects in it */
 PyAPI_FUNC(void) _PyDict_UnsetHasDeferredObjects(PyObject *);
 
-PyAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *, int);
+PyAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *);

@@ -1670,7 +1670,6 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
                             Py_DECREF(frmlst);
                             if (frm != NULL) {
                                 PyLazyImport *v = (PyLazyImport *)PyLazyImportObject_NewObject(frm, child);
-                                v->lz_skip_warmup = 1;
                                 Py_DECREF(frm);
                                 if (v != NULL) {
                                     /* Only set side effects if the deferred object being set is different */
@@ -1940,8 +1939,6 @@ PyImport_LoadLazyObject(PyObject *deferred)
         obj = _imp_load_lazy_import_impl(lz);
         if (obj != NULL) {
             lz->lz_obj = obj;
-        } else {
-            lz->lz_skip_warmup = 1;
         }
     }
     return obj;
