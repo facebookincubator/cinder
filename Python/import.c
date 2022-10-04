@@ -1643,7 +1643,6 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
     }
 
     olevel = PyLong_FromLong(0);
-    // get filename and line number for potential LazyImportError
     deferred = PyLazyImportModule_NewObject(abs_name, globals, locals, fromlist, olevel);
 
     if (deferred != NULL) {
@@ -1942,14 +1941,6 @@ PyImport_LoadLazyObject(PyObject *deferred)
         if (obj != NULL) {
             lz->lz_obj = obj;
         } else {
-            PyThreadState *tstate = _PyThreadState_GET();
-            // only preserve the most recent (innermost) LazyImportError
-            if (tstate->curexc_type != PyExc_LazyImportError) {
-                _PyErr_FormatFromCauseTstate(
-                    tstate, PyExc_LazyImportError,
-                    "Error occurred when loading a lazy import. Original import was at file %S, line %d",
-                    lz->lz_filename, lz->lz_lineno);
-            }
             lz->lz_skip_warmup = 1;
         }
     }

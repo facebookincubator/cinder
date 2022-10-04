@@ -113,8 +113,6 @@ typedef struct {
     PyObject *lz_next;
     int lz_resolving;
     int lz_skip_warmup;
-    PyObject *lz_filename;
-    int lz_lineno;
 } PyLazyImport;
 
 int PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name);

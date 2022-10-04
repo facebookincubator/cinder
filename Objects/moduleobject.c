@@ -1568,18 +1568,6 @@ PyTypeObject PyStrictModule_Type = {
 
  Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
 
-static void
-set_lazy_import_error_metadata(PyLazyImport *lazy_import)
-{
-    // store the original import filename and line number for LazyImportError
-    PyThreadState *tstate = _PyThreadState_GET();
-    PyFrameObject *frame = PyThreadState_GetFrame(tstate);
-    PyCodeObject *code = PyFrame_GetCode(frame);
-    Py_INCREF(code->co_filename);
-    lazy_import->lz_filename = code->co_filename;
-    lazy_import->lz_lineno = PyFrame_GetLineNumber(frame);
-}
-
 PyObject *
 PyLazyImportModule_NewObject(
     PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
@@ -1610,7 +1598,6 @@ PyLazyImportModule_NewObject(
     m->lz_next = NULL;
     m->lz_resolving = 0;
     m->lz_skip_warmup = 0;
-    set_lazy_import_error_metadata(m);
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1656,7 +1643,6 @@ PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name)
     m->lz_next = NULL;
     m->lz_resolving = 0;
     m->lz_skip_warmup = 0;
-    set_lazy_import_error_metadata(m);
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -1672,7 +1658,6 @@ lazy_import_dealloc(PyLazyImport *m)
     Py_XDECREF(m->lz_level);
     Py_XDECREF(m->lz_obj);
     Py_XDECREF(m->lz_next);
-    Py_XDECREF(m->lz_filename);
     Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
@@ -1717,7 +1702,6 @@ lazy_import_traverse(PyLazyImport *m, visitproc visit, void *arg)
     Py_VISIT(m->lz_level);
     Py_VISIT(m->lz_obj);
     Py_VISIT(m->lz_next);
-    Py_VISIT(m->lz_filename);
     return 0;
 }
 
@@ -1732,7 +1716,6 @@ lazy_import_clear(PyLazyImport *m)
     Py_CLEAR(m->lz_level);
     Py_CLEAR(m->lz_obj);
     Py_CLEAR(m->lz_next);
-    Py_CLEAR(m->lz_filename);
     return 0;
 }
 
