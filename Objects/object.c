@@ -2023,7 +2023,6 @@ _PyTypes_Init(void)
     /* fb T95601127 */
     INIT_TYPE(&_PyTypedDescriptorWithDefaultValue_Type, "typed descriptor with default");
     /* end fb T95601127 */
-    INIT_TYPE(&PyConst_Type, "const object");
     return _PyStatus_OK();
 
 #undef INIT_TYPE

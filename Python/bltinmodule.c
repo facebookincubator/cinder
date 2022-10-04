@@ -2866,7 +2866,6 @@ _PyBuiltin_Init(void)
     SETBUILTIN("bytes",                 &PyBytes_Type);
     SETBUILTIN("classmethod",           &PyClassMethod_Type);
     SETBUILTIN("complex",               &PyComplex_Type);
-    SETBUILTIN("const",                 &PyConst_Type);
     SETBUILTIN("dict",                  &PyDict_Type);
     SETBUILTIN("enumerate",             &PyEnum_Type);
     SETBUILTIN("filter",                &PyFilter_Type);

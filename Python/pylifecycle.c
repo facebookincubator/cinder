@@ -1441,7 +1441,6 @@ _Py_FinalizeEx(int skip_cleanup)
     PyMethod_Fini();
     PyFrame_Fini();
     PyCFunction_Fini();
-    PyConst_Fini();
     PyTuple_Fini();
     PyList_Fini();
     PySet_Fini();
