@@ -135,7 +135,9 @@ def import_fresh_module(name, fresh=(), blocked=(), deprecated=False):
                     __import__(modname)
             except ImportError:
                 return None
-            return importlib.import_module(name)
+            mod = importlib.import_module(name)
+            mod.__dict__.values()
+            return mod
         finally:
             _save_and_remove_modules(names)
             sys.modules.update(orig_modules)

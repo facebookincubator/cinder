@@ -69,7 +69,7 @@ XXX: provide complete list of token types.
 
 import re
 import sys
-import urllib   # For urllib.parse.unquote
+import urllib.parse   # For urllib.parse.unquote
 from string import hexdigits
 from operator import itemgetter
 from email import _encoded_words as _ew

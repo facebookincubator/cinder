@@ -30,7 +30,7 @@ class AllTest(unittest.TestCase):
             ("", ResourceWarning),
             quiet=True):
             try:
-                exec("import %s" % modname, names)
+                exec("import %s; %s" % (modname, modname), names)
                 # Force loading `modname` to trigger FailedImport earlier
                 if importlib.is_lazy_imports_enabled():
                     exec("%s" % modname)

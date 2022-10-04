@@ -2,7 +2,7 @@
 import os
 import unittest
 import getpass
-import urllib
+import urllib.request
 import warnings
 
 from test.support import run_unittest
