@@ -26,18 +26,7 @@ if unittest.cinder_enable_broken_tests():
         StrictModule,
     )
 
-    from test.support import (
-        gc_collect,
-        requires_type_collecting,
-        temp_dir,
-        TESTFN,
-        unlink,
-    )
     from test.support.cinder import get_await_stack, verify_stack
-else:
-
-    def requires_type_collecting(x):
-        return x
 
 
 from cinder import cached_property
@@ -139,23 +128,6 @@ class CinderTest(unittest.TestCase):
             cinder.setknobs({"shadowcode": original})
             knobs = cinder.getknobs()
             self.assertEqual(knobs["shadowcode"], original)
-
-    @requires_type_collecting
-    def test_global_del_SystemExit(self):
-        code = """if 1:
-            import cinder
-            cinder.setknobs({'skipfinalcleanup': True})
-            class ClassWithDel:
-                def __del__(self):
-                    print('__del__ called')
-            a = ClassWithDel()
-            a.link = a
-            raise SystemExit(0)"""
-        self.addCleanup(unlink, TESTFN)
-        with open(TESTFN, "w") as script:
-            script.write(code)
-        rc, out, err = assert_python_ok(TESTFN)
-        self.assertEqual(out.strip(), b"")
 
     def test_type_freeze(self):
         class C:
@@ -906,29 +878,6 @@ class CinderTest(unittest.TestCase):
             TypeError, "can't call warn_on_inst_dict on a frozen type"
         ):
             cinder.warn_on_inst_dict(C)
-
-    def test_gen_free_list(self):
-        knobs = cinder.getknobs()
-        self.assertEqual(knobs["genfreelist"], False)
-
-        cinder.setknobs({"genfreelist": True})
-        knobs = cinder.getknobs()
-        self.assertEqual(knobs["genfreelist"], True)
-
-        def f():
-            yield 42
-
-        a = f()
-        id1 = id(a)
-        del a
-        a = f()
-
-        id2 = id(a)
-        self.assertEqual(id1, id2)
-
-        cinder.setknobs({"genfreelist": False})
-        knobs = cinder.getknobs()
-        self.assertEqual(knobs["genfreelist"], False)
 
     # def test_polymorphic_cache(self):
     #     knobs = cinder.getknobs()

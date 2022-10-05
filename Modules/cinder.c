@@ -11,11 +11,6 @@
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
-#ifdef CINDER_PORTING_DONE
-extern int _Py_SkipFinalCleanup;
-extern int _Py_SetShortcutTypeCall;
-#endif
-
 /* facebook begin */
 static PyObject *
 cinder_setknobs(PyObject *self, PyObject *o)
@@ -31,36 +26,12 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _PyEval_ShadowByteCodeEnabled = enabled != -1 && enabled;
     }
 
-#ifdef CINDER_PORTING_DONE
-    PyObject *genfreelist = PyDict_GetItemString(o, "genfreelist");
-    if (genfreelist != NULL) {
-        int enabled = PyObject_IsTrue(genfreelist);
-        _PyGen_FreeListEnabled = enabled != -1 && enabled;
-        if (!enabled) {
-            _PyGen_ClearFreeList();
-        }
-    }
-#endif
-
     PyObject *polymorphic = PyDict_GetItemString(o, "polymorphiccache");
     if (polymorphic != NULL) {
         int enabled = PyObject_IsTrue(polymorphic);
         _PyShadow_PolymorphicCacheEnabled = enabled != -1 && enabled;
     }
 
-#ifdef CINDER_PORTING_DONE
-    PyObject *skip_final_cleanup = PyDict_GetItemString(o, "skipfinalcleanup");
-    if (skip_final_cleanup) {
-        int skip_cleanup = PyObject_IsTrue(skip_final_cleanup);
-        _Py_SkipFinalCleanup = skip_cleanup != -1 && skip_cleanup;
-    }
-    PyObject *set_shortcut_typecall = PyDict_GetItemString(o, "setshortcuttypecall");
-    if (set_shortcut_typecall) {
-        int ok = PyObject_IsTrue(set_shortcut_typecall);
-        _Py_SetShortcutTypeCall = ok != -1 && ok;
-    }
-
-#endif
     Py_RETURN_NONE;
 }
 
@@ -84,23 +55,6 @@ cinder_getknobs(PyObject *self, PyObject *args)
                          _PyEval_ShadowByteCodeEnabled ? Py_True : Py_False);
     if (err == -1)
         return NULL;
-
-#ifdef CINDER_PORTING_DONE
-    err = PyDict_SetItemString(
-        res, "genfreelist", _PyGen_FreeListEnabled ? Py_True : Py_False);
-    if (err == -1) {
-        return NULL;
-    }
-
-    err = PyDict_SetItemString(res,
-                               "skipfinalcleanup",
-                               _Py_SkipFinalCleanup ? Py_True
-                                                    : Py_False);
-
-    if (err == -1) {
-        return NULL;
-    }
-#endif
 
     err = PyDict_SetItemString(res,
                                "polymorphiccache",
