@@ -95,7 +95,7 @@ PyObject *_PyDict_GetItem_String_KnownHash(PyObject *op,
                                            Py_ssize_t len,
                                            Py_hash_t hash);
 PyObject *_PyDict_GetItem_UnicodeExact(PyObject *op, PyObject *key);
-PyObject *_PyDict_GetItem_StackKnownHash(PyObject *op,
+PyAPI_FUNC(PyObject *) _PyDict_GetItem_StackKnownHash(PyObject *op,
                                          PyObject *const *stack,
                                          Py_ssize_t nargs,
                                          Py_hash_t hash);

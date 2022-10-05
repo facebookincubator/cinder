@@ -7,6 +7,10 @@
 #include "pycore_initconfig.h"    // _PyStatus_OK()
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 
+#include "internal/pycore_tuple.h"
+
+#include "cinder/exports.h"
+
 /*[clinic input]
 class tuple "PyTupleObject *" "&PyTuple_Type"
 [clinic start generated code]*/
@@ -403,10 +407,9 @@ error:
 /* Tests have shown that it's not worth to cache the hash value, see
    https://bugs.python.org/issue9685 */
 static Py_hash_t
-tuplehash(PyTupleObject *v)
+ci_tuple_hash_items(PyObject *const *item, Py_ssize_t len)
 {
-    Py_ssize_t i, len = Py_SIZE(v);
-    PyObject **item = v->ob_item;
+    Py_ssize_t i;
 
     Py_uhash_t acc = _PyHASH_XXPRIME_5;
     for (i = 0; i < len; i++) {
@@ -426,6 +429,12 @@ tuplehash(PyTupleObject *v)
         return 1546275796;
     }
     return acc;
+}
+
+static Py_hash_t
+tuplehash(PyTupleObject *v)
+{
+    return ci_tuple_hash_items(v->ob_item, Py_SIZE(v));
 }
 
 static Py_ssize_t
@@ -1209,4 +1218,8 @@ tuple_iter(PyObject *seq)
     it->it_seq = (PyTupleObject *)seq;
     _PyObject_GC_TRACK(it);
     return (PyObject *)it;
+}
+
+Py_hash_t Ci_TupleHashItems(PyObject *const *items, Py_ssize_t len) {
+    return ci_tuple_hash_items(items, len);
 }

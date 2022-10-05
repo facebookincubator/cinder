@@ -1018,6 +1018,9 @@ class PyBuildExt(build_ext):
         # Cinder specific module
         self.add(Extension('cinder', ['cinder.c']) )
 
+        # Memoize module
+        self.add(Extension('memoize', ['memoizemodule.c'],extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
+
         #
         # Here ends the simple stuff.  From here on, modules need certain
         # libraries, are platform-specific, or present other surprises.

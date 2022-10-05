@@ -2,6 +2,10 @@
 #include "Python.h"
 #include "structmember.h"
 
+#include "internal/pycore_tuple.h"
+
+#include "cinder/exports.h"
+
 /* facebook begin */
 
 static PyTypeObject memoize_func_wrapper_type;
@@ -180,7 +184,7 @@ func_memoize_wrapper_impl(memoize_func_wrapper_object *self,
                         "cache_fetcher must return a dictionary");
         goto exit;
     }
-    Py_hash_t hash = _PyTuple_HashStack(cache_key, cache_keysize);
+    Py_hash_t hash = Ci_TupleHashItems(cache_key, cache_keysize);
     if (hash == -1) {
         goto exit;
     }

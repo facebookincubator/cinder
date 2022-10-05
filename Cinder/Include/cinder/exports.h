@@ -21,6 +21,9 @@ PyObject *Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method);
 PyAPI_FUNC(PyObject *) Ci_dict_subscript(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) Ci_list_subscript(PyObject *list, PyObject *item);
 PyAPI_FUNC(PyObject *) Ci_tuple_subscript(PyObject *self, PyObject *item);
+
+PyAPI_FUNC(Py_hash_t) Ci_TupleHashItems(PyObject *const *items, Py_ssize_t len);
+
 #define Ci_List_GET_SIZE(op) Py_SIZE((PyListObject *)op)
 #define Ci_List_SET_ITEM(op, i, v) ((void)(((PyListObject *)op)->ob_item[i] = (v)))
 #define Ci_List_GET_ITEM(op, i) (((PyListObject *)op)->ob_item[i])
@@ -132,6 +135,7 @@ PyAPI_FUNC(PyObject *) Ci_SuperLookupMethodOrAttr(
     PyObject *name,
     int call_no_args,
     int *meth_found);
+
 
 #ifdef __cplusplus
 }
