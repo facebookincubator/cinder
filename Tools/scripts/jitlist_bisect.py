@@ -107,6 +107,17 @@ def bisect_impl(command, fixed, jitlist, indent=""):
 
 
 def run_bisect(command):
+    prev_arg = ""
+    for arg in command:
+        if arg.startswith("-Xjit-log-file") or (
+            prev_arg == "-X" and arg.startswith("jit-log-file")
+        ):
+            sys.exit(
+                "Your command includes -X jit-log-file, which is incompatible "
+                "with this script. Please remove it and try again."
+            )
+        prev_arg = arg
+
     jitlist = get_compiled_funcs(command)
 
     logging.info("Verifying jit-list")
