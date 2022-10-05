@@ -11,15 +11,11 @@ from test.support.script_helper import assert_python_ok, run_python_until_end
 from unittest import skipIf
 from unittest.case import CINDERJIT_ENABLED
 import cinder
-try:
-    from cinder import (
-        cached_property,
-        StrictModule,
-        strict_module_patch,
-    )
-except ImportError:
-    cached_property = None
-    StrictModule = None
+from cinder import (
+    cached_property,
+    StrictModule,
+    strict_module_patch,
+)
 
 # Sets the number of repetitions required in order to hit caching
 REPETITION = 100
@@ -38,10 +34,7 @@ if "shadowcode" in knobs:
 # Tests with immortalizaiton will cause expected leaks
 # This function skips return code check for ASAN build
 def skip_ret_code_check_for_leaking_test_in_asan_mode(*args, **env_vars):
-    # TODO(T126940174): Remove this
-    raise unittest.SkipTest("sys._built_with_asan not yet ported")
-
-    if sys._built_with_asan:
+    if cinder._built_with_asan:
         res, _ = run_python_until_end(*args, **env_vars)
         return res
     else:

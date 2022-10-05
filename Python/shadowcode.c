@@ -1345,9 +1345,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                     cache_type = &_PyShadow_InstanceCacheSlot;
                     goto done;
                 }
-            }
-#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
-            else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
+            } else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
                 PyCachedPropertyDescrObject *member =
                     (PyCachedPropertyDescrObject *)descr;
                 if (Py_TYPE(member->name_or_descr) == &PyMemberDescr_Type) {
@@ -1363,7 +1361,6 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                 cache_type = &_PyShadow_InstanceCacheDictNoDescr;
                 goto done;
             }
-#endif
 
             /* not a special data descriptor */
             cache_type = &_PyShadow_InstanceCacheNoDictDescr;

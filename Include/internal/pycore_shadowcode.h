@@ -576,23 +576,20 @@ _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
                                         PyObject *owner)
 {
     PyObject *res;
-#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
     if (entry->value != NULL) {
         /* cached_property descriptor, we need to create the value */
         assert(Py_TYPE(entry->value) == &PyCachedProperty_Type);
         PyCachedPropertyDescrObject *cp =
             (PyCachedPropertyDescrObject *)entry->value;
         PyObject *stack[1] = {owner};
-        res = Ci_PyFunction_FastCallDict(cp->func, stack, 1, NULL);
+        res = _PyObject_FastCall(cp->func, stack, 1);
         if (res == NULL || _PyObjectDict_SetItem(Py_TYPE(owner),
                                                  _PyObject_GetDictPtr(owner),
                                                  cp->name_or_descr,
                                                  res)) {
             return NULL;
         }
-    } else
-#endif
-    {
+    } else {
         _PyShadow_SetLoadAttrError(owner, entry->name);
         return NULL;
     }
@@ -652,21 +649,18 @@ _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
 {
     PyObject *res = *(PyObject **)((char *)owner + entry->splitoffset);
     if (res == NULL) {
-#ifdef CINDER_PORTING_HAVE_CACHED_PROPERTY
         if (entry->value != NULL &&
             Py_TYPE(entry->value) == &PyCachedProperty_Type) {
             /* cached_property descriptor, we need to create the value */
             PyCachedPropertyDescrObject *cp =
                 (PyCachedPropertyDescrObject *)entry->value;
             PyObject *stack[1] = {owner};
-            res = Ci_PyFunction_FastCallDict(cp->func, stack, 1, NULL);
+            res = _PyObject_FastCall(cp->func, stack, 1);
             if (res == NULL) {
                 return NULL;
             }
             *(PyObject **)((char *)owner + entry->splitoffset) = res;
-        } else
-#endif
-        {
+        } else {
             PyErr_SetObject(PyExc_AttributeError, entry->name);
             return NULL;
         }

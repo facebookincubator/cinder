@@ -813,19 +813,34 @@ PyInit_cinder(void)
     if (cached_classproperty == NULL) {
         return NULL;
     }
+    if (PyObject_SetAttrString(m, "cached_classproperty", cached_classproperty) < 0) {
+        Py_DECREF(cached_classproperty);
+        return NULL;
+    }
+    Py_DECREF(cached_classproperty);
 
 #define ADDITEM(NAME, OBJECT) \
     if (PyObject_SetAttrString(m, NAME, (PyObject *)OBJECT) < 0) {      \
-        Py_DECREF(cached_classproperty);                                \
         return NULL;                                                    \
     }
 
-    ADDITEM("cached_classproperty", cached_classproperty);
     ADDITEM("cached_property", &PyCachedProperty_Type);
     ADDITEM("StrictModule", &PyStrictModule_Type);
     ADDITEM("async_cached_property", &PyAsyncCachedProperty_Type);
     ADDITEM("async_cached_classproperty", &PyAsyncCachedClassProperty_Type);
-    Py_DECREF(cached_classproperty);
+
+#ifdef __SANITIZE_ADDRESS__
+    ADDITEM("_built_with_asan", Py_True);
+#elif defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+      ADDITEM("_built_with_asan", Py_True);
+#  else
+      ADDITEM("_built_with_asan", Py_False);
+#  endif
+#else
+    ADDITEM("_built_with_asan", Py_False);
+#endif
+
 
 #undef ADDITEM
 

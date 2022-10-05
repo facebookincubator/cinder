@@ -125,7 +125,6 @@ class CinderTest(unittest.TestCase):
             f(1, 2)
         self.assertEqual(f(a=1, b=2), "kwonly")
 
-    @unittest.skip("re-enable once shadowcode is ported")
     def test_knob(self):
         try:
             knobs = cinder.getknobs()
