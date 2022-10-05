@@ -2251,11 +2251,6 @@ static PyMemberDef cached_classproperty_members[] = {
 
 static PyType_Slot PyCachedClassProperty_slots[] = {
     {Py_tp_dealloc, cached_classproperty_dealloc},
-    {Py_tp_doc,
-    "cached_classproperty(function) --> cached_property object\n\
-\n\
-Provides a cached class property.  Works with normal types and frozen types\n\
-to create values on demand and cache them in the class."},
     {Py_tp_traverse, cached_classproperty_traverse},
     {Py_tp_descr_get, cached_classproperty_get},
     {Py_tp_members, cached_classproperty_members},

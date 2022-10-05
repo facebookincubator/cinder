@@ -2,39 +2,29 @@
 import asyncio
 import asyncio.tasks
 import cinder
-import contextlib
-import dis
 import gc
 import inspect
-import io
-import re
 import sys
 import unittest
 import weakref
 
-from compiler.pycodegen import compile as py_compile
-
 import _testcindercapi
-from test.support.cinder import verify_stack
 
-if unittest.cinder_enable_broken_tests():
-    from cinder import (
-        async_cached_classproperty,
-        async_cached_property,
-        cached_classproperty,
-        strict_module_patch,
-        StrictModule,
-    )
+from cinder import (
+    async_cached_classproperty,
+    async_cached_property,
+    cached_classproperty,
+    cached_property,
+    strict_module_patch,
+    StrictModule,
+)
 
-    from test.support.cinder import get_await_stack, verify_stack
-
-
-from cinder import cached_property
 from functools import wraps
 from textwrap import dedent
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
 
+from test.support.cinder import get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
 
 
@@ -61,7 +51,6 @@ def strict_module_from_module(mod, enable_patching=False):
     return StrictModule(dict(mod.__dict__), enable_patching)
 
 
-@unittest.cinderPortingBrokenTest()
 class CinderTest(unittest.TestCase):
     def test_type_cache(self):
         class C:
@@ -343,6 +332,7 @@ class CinderTest(unittest.TestCase):
 
         self.assertEqual(C.__dict__["f"].__doc__, "hi")
         self.assertEqual(C.__dict__["f"].name, "f")
+        self.assertEqual(C.__dict__["f"].__name__, "f")
         self.assertEqual(type(C.__dict__["f"].func), FunctionType)
 
     def test_warn_on_type_dict_non_type(self):
@@ -423,6 +413,7 @@ class CinderTest(unittest.TestCase):
         finally:
             cinder.cinder_set_warn_handler(None)
 
+    @unittest.cinderPortingBrokenTest()
     def test_raise_immutability_warning(self):
         warns = None
 
@@ -879,17 +870,17 @@ class CinderTest(unittest.TestCase):
         ):
             cinder.warn_on_inst_dict(C)
 
-    # def test_polymorphic_cache(self):
-    #     knobs = cinder.getknobs()
-    #     self.assertEqual(knobs["polymorphiccache"], False)
+    def test_polymorphic_cache(self):
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["polymorphiccache"], True)
 
-    #     cinder.setknobs({"polymorphiccache": True})
-    #     knobs = cinder.getknobs()
-    #     self.assertEqual(knobs["polymorphiccache"], True)
+        cinder.setknobs({"polymorphiccache": False})
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["polymorphiccache"], False)
 
-    #     cinder.setknobs({"polymorphiccache": False})
-    #     knobs = cinder.getknobs()
-    #     self.assertEqual(knobs["polymorphiccache"], False)
+        cinder.setknobs({"polymorphiccache": True})
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["polymorphiccache"], True)
 
     def test_strictmodule_type(self):
         foo = strict_module_from_module(ModuleType("foo"))
@@ -984,7 +975,7 @@ class CinderTest(unittest.TestCase):
         wr = weakref.ref(m)
         self.assertIs(wr(), m)
         del m
-        gc_collect()
+        gc.collect()
         self.assertIs(wr(), None)
 
     def test_strictmodule_getattr(self):

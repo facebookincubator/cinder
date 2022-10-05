@@ -449,8 +449,6 @@ get_coro_awaiter(PyObject *Py_UNUSED(self), PyObject *coro) {
     return (PyObject *)awaiter;
 }
 
-#ifdef CINDER_PORTING_DONE
-
 static PyObject*
 has_no_shadowing_instances(PyObject *self, PyObject *type) {
     if (!PyType_Check(type)) {
@@ -531,8 +529,6 @@ err:
   Py_XDECREF(stack);
   return NULL;
 }
-
-#endif
 
 static PyObject *
 watch_sys_modules(PyObject *self, PyObject *obj)
@@ -680,7 +676,6 @@ static struct PyMethodDef cinder_module_methods[] = {
      get_coro_awaiter,
      METH_O,
      "Get the awaiter of the given coroutine, or None if one is not set."},
-#ifdef CINDER_PORTING_DONE
     {"_has_no_shadowing_instances",
      has_no_shadowing_instances,
      METH_O,
@@ -694,7 +689,6 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_entire_call_stack_as_qualnames,
         METH_NOARGS,
         "Return the current stack as a list of qualnames."},
-#endif
     {"watch_sys_modules",
         watch_sys_modules,
         METH_NOARGS,
