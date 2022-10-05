@@ -4,6 +4,7 @@ import asyncio.tasks
 import cinder
 import contextlib
 import dis
+import gc
 import inspect
 import io
 import re
@@ -2543,6 +2544,59 @@ class WalkShadowFramesTest(unittest.TestCase):
 
         # the sync stack can't capture how a3 is awaiting on a2
         verify_stack(self, sync_stack[::-1], ["_run", "a2", "a1"])
+
+
+class GCImmortalizeTests(unittest.TestCase):
+    # These tests need to be run in a separate process since gc.immortalize_heap
+    # is irreversible. Once called all objects on the heap become uncleanable
+
+    def test_not_immortal(self):
+        obj = []
+        self.assertFalse(gc.is_immortal(obj))  # noqa: F821
+
+    def test_is_immortal(self):
+        code = """if 1:
+            import gc
+            obj = []
+            gc.immortalize_heap()
+            print(gc.is_immortal(obj))
+            """
+        rc, out, err = assert_python_ok("-c", code)
+        self.assertEqual(out.strip(), b"True")
+
+    def test_post_immortalize(self):
+        code = """if 1:
+            import gc
+            gc.immortalize_heap()
+            obj = []
+            print(gc.is_immortal(obj))
+            """
+        rc, out, err = assert_python_ok("-c", code)
+        self.assertEqual(out.strip(), b"False")
+
+    def test_recursive_heap_walk_when_immortalize(self):
+        code = """if 1:
+            import gc
+            gc.ci_set_recursive_heap_walk(True)
+            # long string to avoid string interning
+            obj = {"a" : {"b" : "c" * 5120}}
+            gc.immortalize_heap()
+            print(gc.is_immortal(obj["a"]["b"]))
+            """
+        rc, out, err = assert_python_ok("-c", code)
+        self.assertEqual(out.strip(), b"True")
+
+    def test_no_recursive_heap_walk_when_immortalize(self):
+        code = """if 1:
+            import gc
+            gc.ci_set_recursive_heap_walk(False)
+            # long string to avoid string interning
+            obj = {"a" : {"b" : "c" * 5120}}
+            gc.immortalize_heap()
+            print(gc.is_immortal(obj["a"]["b"]))
+            """
+        rc, out, err = assert_python_ok("-c", code)
+        self.assertEqual(out.strip(), b"False")
 
 
 if __name__ == "__main__":

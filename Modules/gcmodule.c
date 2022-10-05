@@ -1968,7 +1968,13 @@ PyDoc_STRVAR(gc_immortalize_heap__doc__,
 #define GC_IMMORTALIZE_HEAP_METHODDEF    \
     {"immortalize_heap", (PyCFunction)PyGC_Immortalize_Heap, METH_NOARGS, gc_immortalize_heap__doc__},
 
-int _PyImmortal_RecursiveHeapWalk = 0;
+static int _PyImmortal_RecursiveHeapWalk = 0;
+
+static PyObject *
+_ci_gc_set_recursive_heap_walk(PyObject *Py_UNUSED(mod), PyObject *v) {
+    _PyImmortal_RecursiveHeapWalk = v == Py_False ? 0 : 1;
+    Py_RETURN_NONE;
+}
 
 static int
 immortalize_object(PyObject *obj, PyObject * /* unused */ args)
@@ -2108,6 +2114,7 @@ static PyMethodDef GcMethods[] = {
 #ifdef Py_IMMORTAL_INSTANCES
     GC_IMMORTALIZE_HEAP_METHODDEF
     GC_IS_IMMORTAL_METHODDEF
+    {"ci_set_recursive_heap_walk", (PyCFunction)_ci_gc_set_recursive_heap_walk, METH_O, NULL},
 #endif
     GC_FREEZE_METHODDEF
     GC_UNFREEZE_METHODDEF
