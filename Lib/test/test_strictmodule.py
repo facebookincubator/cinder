@@ -3,11 +3,9 @@ import ast
 import unittest
 from textwrap import dedent
 
-if unittest.cinder_enable_broken_tests():
-    from _strictmodule import StrictModuleLoader, StrictAnalysisResult
+from _strictmodule import StrictModuleLoader, StrictAnalysisResult
 
 
-@unittest.cinderPortingBrokenTest()
 class StrictModuleTest(unittest.TestCase):
     def get_loader(self):
         return StrictModuleLoader([], "", [], [])
@@ -39,15 +37,15 @@ class StrictModuleTest(unittest.TestCase):
         self.assertEqual(
             ast.dump(res.ast),
             "Module(body=[Import("
-            + "names=[alias(name='__strict__', asname=None)]), "
-            + "ImportFrom(module='__strict__', names=[alias(name='strict_slots', asname=None)], level=0), "
+            + "names=[alias(name='__strict__')]), "
+            + "ImportFrom(module='__strict__', names=[alias(name='strict_slots')], level=0), "
             + "ClassDef(name='C', bases=[], keywords=[], body=[Pass()], "
             + "decorator_list=[Name(id='strict_slots', ctx=Load())])], type_ignores=[])",
         )
         self.assertEqual(
             ast.dump(res.ast_preprocessed),
-            "Module(body=[Import(names=[alias(name='__strict__', asname=None)]),"
-            + " ImportFrom(module='__strict__', names=[alias(name='strict_slots', asname=None)], level=0),"
+            "Module(body=[Import(names=[alias(name='__strict__')]),"
+            + " ImportFrom(module='__strict__', names=[alias(name='strict_slots')], level=0),"
             + " ClassDef(name='C', bases=[], keywords=[], body=[Pass()],"
             + " decorator_list=[Name(id='strict_slots', ctx=Load()), Name(id='<enable_slots>', ctx=Load())])], type_ignores=[])",
         )
