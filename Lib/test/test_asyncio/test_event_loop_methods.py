@@ -5,7 +5,6 @@ import unittest
 
 
 class EventLoopMethodsTestCase(unittest.TestCase):
-    @unittest.cinderPortingBrokenTest()
     def test_call_soon_calls(self):
         get_debug_called = False
 

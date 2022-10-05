@@ -756,7 +756,6 @@ release_args(PyObject *args)
 {
     if (Py_REFCNT(args) > 1) {
         // arg was captured during the call - release our end
-        PyObject_GC_Track(args);
         Py_DECREF(args);
         return;
     }
