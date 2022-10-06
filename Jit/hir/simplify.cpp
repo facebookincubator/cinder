@@ -238,6 +238,23 @@ Register* simplifyIntConvert(Env& env, const IntConvert* instr) {
     env.emit<UseType>(src, instr->type());
     return instr->GetOperand(0);
   }
+  if (src->instr()->IsPrimitiveCompare()) {
+    auto primitive_compare = static_cast<PrimitiveCompare*>(src->instr());
+    if (primitive_compare->op() == PrimitiveCompareOp::kEqual) {
+      Register* lhs = primitive_compare->GetOperand(0);
+      if (lhs->isA(TBool)) {
+        Type rhs_type = primitive_compare->GetOperand(1)->type();
+        if (rhs_type <= TBool && rhs_type.hasObjectSpec() &&
+            rhs_type.objectSpec() == Py_True) {
+          if (lhs->instr()->IsPrimitiveBox()) {
+            auto primitive_box = static_cast<PrimitiveBox*>(lhs->instr());
+            Register* unboxed = primitive_box->GetOperand(0);
+            return env.emit<IntConvert>(unboxed, instr->type());
+          }
+        }
+      }
+    }
+  }
   return nullptr;
 }
 

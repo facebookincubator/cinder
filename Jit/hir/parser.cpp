@@ -384,6 +384,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeRepeat, dst, left, right, FrameState{});
+  } else if (strcmp(opcode, "IntConvert") == 0) {
+    expect("<");
+    Type type = Type::parse(env_, GetNextToken());
+    expect(">");
+    auto src = ParseRegister();
+    NEW_INSTR(IntConvert, dst, src, type);
   } else if (strcmp(opcode, "PrimitiveCompare") == 0) {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
