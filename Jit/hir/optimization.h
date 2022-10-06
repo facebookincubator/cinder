@@ -92,11 +92,7 @@ class DynamicComparisonElimination : public Pass {
       VectorCall* vectorcall,
       IsTruthy* truthy);
 
-  void InitBuiltins();
-
   DISALLOW_COPY_AND_ASSIGN(DynamicComparisonElimination);
-  bool inited_builtins_{false};
-  PyCFunction isinstance_func_{nullptr};
 };
 
 // Eliminate Assign instructions by propagating copies.

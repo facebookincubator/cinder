@@ -1,6 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/runtime.h"
 
+#include "internal/pycore_interp.h"
+
 #include <sys/mman.h>
 
 #include <memory>
@@ -69,6 +71,75 @@ PyObject* GenYieldPoint::yieldFromValue(GenDataFooter* gen_footer) const {
   }
   return reinterpret_cast<PyObject*>(
       *(reinterpret_cast<uint64_t*>(gen_footer) + yieldFromOffs_));
+}
+
+void Builtins::init() {
+  ThreadedCompileSerialize guard;
+  if (is_initialized_) {
+    return;
+  }
+  // we want to check the exact function address, rather than relying on
+  // modules which can be mutated.  First find builtins, which we have
+  // to do a search for because PyEval_GetBuiltins() returns the
+  // module dict.
+  PyObject* mods = _PyInterpreterState_GET()->modules_by_index;
+  PyModuleDef* builtins = nullptr;
+  for (Py_ssize_t i = 0; i < PyList_GET_SIZE(mods); i++) {
+    PyObject* cur = PyList_GET_ITEM(mods, i);
+    if (cur == Py_None) {
+      continue;
+    }
+    PyModuleDef* def = PyModule_GetDef(cur);
+    if (def == nullptr) {
+      PyErr_Clear();
+      continue;
+    }
+    if (std::strcmp(def->m_name, "builtins") == 0) {
+      builtins = def;
+      break;
+    }
+  }
+  JIT_CHECK(builtins != nullptr, "could not find builtins module");
+
+  auto add = [this](const std::string& name, PyMethodDef* meth) {
+    cfunc_to_name_[meth] = name;
+    name_to_cfunc_[name] = meth;
+  };
+  // Find all free functions.
+  for (PyMethodDef* fdef = builtins->m_methods; fdef->ml_name != NULL; fdef++) {
+    add(fdef->ml_name, fdef);
+  }
+  // Find all methods on types.
+  PyTypeObject* types[] = {
+      &PyDict_Type,
+      &PyList_Type,
+      &PyTuple_Type,
+      &PyUnicode_Type,
+  };
+  for (auto type : types) {
+    for (PyMethodDef* fdef = type->tp_methods; fdef->ml_name != NULL; fdef++) {
+      add(fmt::format("{}.{}", type->tp_name, fdef->ml_name), fdef);
+    }
+  }
+  // Only mark as initialized after everything is done to avoid concurrent
+  // reads of an unfinished map.
+  is_initialized_ = true;
+}
+
+std::optional<std::string> Builtins::find(PyMethodDef* meth) const {
+  auto result = cfunc_to_name_.find(meth);
+  if (result == cfunc_to_name_.end()) {
+    return std::nullopt;
+  }
+  return result->second;
+}
+
+std::optional<PyMethodDef*> Builtins::find(const std::string& name) const {
+  auto result = name_to_cfunc_.find(name);
+  if (result == name_to_cfunc_.end()) {
+    return std::nullopt;
+  }
+  return result->second;
 }
 
 Runtime* Runtime::s_runtime_{nullptr};

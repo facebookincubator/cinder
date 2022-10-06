@@ -276,6 +276,21 @@ struct CodeProfile {
 
 using TypeProfiles = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
 
+class Builtins {
+ public:
+  void init();
+  bool isInitialized() const {
+    return is_initialized_;
+  }
+  std::optional<std::string> find(PyMethodDef* meth) const;
+  std::optional<PyMethodDef*> find(const std::string& name) const;
+
+ private:
+  std::atomic<bool> is_initialized_{false};
+  UnorderedMap<PyMethodDef*, std::string> cfunc_to_name_;
+  UnorderedMap<std::string, PyMethodDef*> name_to_cfunc_;
+};
+
 // Runtime owns all metadata created by the JIT.
 class Runtime {
  public:
@@ -379,6 +394,15 @@ class Runtime {
     return store_attr_caches_.allocate();
   }
 
+  const Builtins& builtins() {
+    // Lock-free fast path followed by single-lock slow path during
+    // initialization.
+    if (!builtins_.isInitialized()) {
+      builtins_.init();
+    }
+    return builtins_;
+  }
+
   // Some profilers need to walk the code_rt->code->qualname chain for jitted
   // functions on the call stack. The JIT rarely touches this memory and, as a
   // result, the OS may page it out. Out of process profilers (i.e. those that
@@ -419,5 +443,6 @@ class Runtime {
   // References to Python objects held by this Runtime
   std::unordered_set<Ref<PyObject>> references_;
   std::vector<std::unique_ptr<DeoptPatcher>> deopt_patchers_;
+  Builtins builtins_;
 };
 } // namespace jit

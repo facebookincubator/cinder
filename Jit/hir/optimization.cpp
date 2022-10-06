@@ -101,43 +101,6 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
       *get_frame_state(*truthy));
 }
 
-void DynamicComparisonElimination::InitBuiltins() {
-  if (inited_builtins_) {
-    return;
-  }
-
-  inited_builtins_ = true;
-
-  // we want to check the exact function address, rather than relying on
-  // modules which can be mutated.  First find builtins, which we have
-  // to do a search for because PyEval_GetBuiltins() returns the
-  // module dict.
-  PyObject* mods = _PyInterpreterState_GET()->modules_by_index;
-  PyModuleDef* builtins = nullptr;
-  for (Py_ssize_t i = 0; i < PyList_GET_SIZE(mods); i++) {
-    PyObject* cur = PyList_GET_ITEM(mods, i);
-    if (cur == Py_None) {
-      continue;
-    }
-    PyModuleDef* def = PyModule_GetDef(cur);
-    if (def != nullptr && strcmp(def->m_name, "builtins") == 0) {
-      builtins = def;
-      break;
-    }
-  }
-
-  if (builtins == nullptr) {
-    return;
-  }
-
-  for (PyMethodDef* fdef = builtins->m_methods; fdef->ml_name != NULL; fdef++) {
-    if (strcmp(fdef->ml_name, "isinstance") == 0) {
-      isinstance_func_ = fdef->ml_meth;
-      break;
-    }
-  }
-}
-
 Instr* DynamicComparisonElimination::ReplaceVectorCall(
     Function& irfunc,
     CondBranch& cond_branch,
@@ -150,11 +113,10 @@ Instr* DynamicComparisonElimination::ReplaceVectorCall(
     return nullptr;
   }
 
-  InitBuiltins();
-
+  const Builtins& builtins = Runtime::get()->builtins();
   auto funcobj = func->type().objectSpec();
   if (Py_TYPE(funcobj) == &PyCFunction_Type &&
-      PyCFunction_GET_FUNCTION(funcobj) == isinstance_func_ &&
+      builtins.find(((PyCFunctionObject*)funcobj)->m_ml) == "isinstance" &&
       vectorcall->numArgs() == 2 &&
       vectorcall->GetOperand(2)->type() <= TType) {
     auto obj_op = vectorcall->GetOperand(1);

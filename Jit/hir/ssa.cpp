@@ -7,6 +7,7 @@
 #include "Jit/hir/printer.h"
 #include "Jit/hir/type.h"
 #include "Jit/log.h"
+#include "Jit/runtime.h"
 
 #include <fmt/ostream.h>
 
@@ -272,12 +273,96 @@ bool checkFunc(const Function& func, std::ostream& err) {
   return env.ok;
 }
 
+static const UnorderedMap<std::string, Type> kBuiltinFunctionTypes = {
+    {"dict.copy", TDictExact},
+    {"hasattr", TBool},
+    {"len", TLongExact},
+    {"list.copy", TListExact},
+    {"list.count", TLongExact},
+    {"list.index", TLongExact},
+    {"str.capitalize", TUnicodeExact},
+    {"str.center", TUnicodeExact},
+    {"str.count", TLongExact},
+    {"str.endswith", TBool},
+    {"str.find", TLongExact},
+    {"str.format", TUnicodeExact},
+    {"str.index", TLongExact},
+    {"str.isalnum", TBool},
+    {"str.isalpha", TBool},
+    {"str.isascii", TBool},
+    {"str.isdecimal", TBool},
+    {"str.isdigit", TBool},
+    {"str.isidentifier", TBool},
+    {"str.islower", TBool},
+    {"str.isnumeric", TBool},
+    {"str.isprintable", TBool},
+    {"str.isspace", TBool},
+    {"str.istitle", TBool},
+    {"str.isupper", TBool},
+    {"str.join", TUnicodeExact},
+    {"str.lower", TUnicodeExact},
+    {"str.lstrip", TUnicodeExact},
+    {"str.partition", TTupleExact},
+    {"str.replace", TUnicodeExact},
+    {"str.rfind", TLongExact},
+    {"str.rindex", TLongExact},
+    {"str.rpartition", TTupleExact},
+    {"str.rsplit", TListExact},
+    {"str.split", TListExact},
+    {"str.splitlines", TListExact},
+    {"str.upper", TUnicodeExact},
+    {"tuple.count", TLongExact},
+    {"tuple.index", TLongExact},
+};
+
+Type returnType(PyMethodDef* meth) {
+  // To make sure we have the right function, look up the PyMethodDef in the
+  // fixed builtins. Any joker can make a new C method called "len", for
+  // example.
+  const Builtins& builtins = Runtime::get()->builtins();
+  auto name = builtins.find(meth);
+  if (!name.has_value()) {
+    return TObject;
+  }
+  auto return_type = kBuiltinFunctionTypes.find(name.value());
+  if (return_type == kBuiltinFunctionTypes.end()) {
+    return TObject;
+  }
+  return return_type->second;
+}
+
+Type returnType(Type callable) {
+  if (!callable.hasObjectSpec()) {
+    return TObject;
+  }
+  PyObject* callable_obj = callable.objectSpec();
+  if (Py_TYPE(callable_obj) == &PyCFunction_Type) {
+    PyCFunctionObject* func =
+        reinterpret_cast<PyCFunctionObject*>(callable_obj);
+    return returnType(func->m_ml);
+  }
+  if (Py_TYPE(callable_obj) == &PyMethodDescr_Type) {
+    PyMethodDescrObject* meth =
+        reinterpret_cast<PyMethodDescrObject*>(callable_obj);
+    return returnType(meth->d_method);
+  }
+  return TObject;
+}
+
 Type outputType(
     const Instr& instr,
     const std::function<Type(std::size_t)>& get_op_type) {
   switch (instr.opcode()) {
     case Opcode::kCallEx:
+      return returnType(static_cast<const CallEx&>(instr).func()->type());
     case Opcode::kCallExKw:
+      return returnType(static_cast<const CallExKw&>(instr).func()->type());
+    case Opcode::kVectorCall:
+    case Opcode::kVectorCallKW:
+    case Opcode::kVectorCallStatic:
+      return returnType(
+          static_cast<const VectorCallBase&>(instr).func()->type());
+
     case Opcode::kCallMethod:
     case Opcode::kCompare:
     case Opcode::kDictSubscr:
@@ -300,9 +385,6 @@ Type outputType(
     case Opcode::kLoadTupleItem:
     case Opcode::kMatchKeys:
     case Opcode::kUnaryOp:
-    case Opcode::kVectorCall:
-    case Opcode::kVectorCallKW:
-    case Opcode::kVectorCallStatic:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
