@@ -137,3 +137,43 @@ fun jittestmodule:test {
   }
 }
 ---
+CompareInReturnsBool
+---
+def test(x, y):
+  return x in y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "x">
+    v4:Object = LoadArg<1; "y">
+    v7:Bool = Compare<In> v3 v4 {
+      LiveValues<2> b:v3 b:v4
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v3 v4
+      }
+    }
+    Return v7
+  }
+}
+---
+CompareNotInReturnsBool
+---
+def test(x, y):
+  return x not in y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "x">
+    v4:Object = LoadArg<1; "y">
+    v7:Bool = Compare<NotIn> v3 v4 {
+      LiveValues<2> b:v3 b:v4
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v3 v4
+      }
+    }
+    Return v7
+  }
+}
+---

@@ -363,8 +363,15 @@ Type outputType(
       return returnType(
           static_cast<const VectorCallBase&>(instr).func()->type());
 
+    case Opcode::kCompare: {
+      CompareOp op = static_cast<const Compare&>(instr).op();
+      if (op == CompareOp::kIn || op == CompareOp::kNotIn) {
+        return TBool;
+      }
+      return TObject;
+    }
+
     case Opcode::kCallMethod:
-    case Opcode::kCompare:
     case Opcode::kDictSubscr:
     case Opcode::kBinaryOp:
     case Opcode::kFillTypeAttrCache:
