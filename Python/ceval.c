@@ -8054,11 +8054,6 @@ _PyFunction_CallStatic(PyFunctionObject *func,
 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
     assert(nargs == 0 || args != NULL);
-#ifdef CINDER_DONE_PORTING
-    Py_ssize_t awaited = _Py_AWAITED_CALL(nargsf);
-#else
-    Py_ssize_t awaited = 0;
-#endif
     PyFrameConstructor *con = PyFunction_AS_FRAME_CONSTRUCTOR(func);
     PyThreadState *tstate = _PyThreadState_GET();
     assert(tstate != NULL);
@@ -8083,10 +8078,11 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     assert(((unsigned char *)PyBytes_AS_STRING(co->co_code))[0] == CHECK_ARGS);
     f->f_lasti = 0; /* skip CHECK_ARGS */
 
+    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(nargsf);
+    if (awaited && (co->co_flags & CO_COROUTINE)) {
+        return _PyEval_EvalEagerCoro(tstate, f, func->func_name, func->func_qualname);
+    }
     if (co->co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
-        if (awaited) {
-            PORT_ASSERT("Unsupported: Eager await static coroutine");
-        }
         return make_coro(con, f);
     }
     PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);

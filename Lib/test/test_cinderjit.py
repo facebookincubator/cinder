@@ -2541,23 +2541,27 @@ class EagerCoroutineDispatch(StaticTestBase):
         async def await_x() -> None:
             await x()
 
+        # Exercise call path through _PyFunction_CallStatic
+        async def await_await_x() -> None:
+            await await_x()
+
         async def call_x() -> None:
             c = x()
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_function")
-        await_x = self.find_code(c, "await_x")
-        self.assertInBytecode(
-            await_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
-        )
-        call_x = self.find_code(c, "call_x")
-        self.assertInBytecode(
-            call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
-        )
-        with self.in_module(codestr) as mod:
+        with self.in_module(codestr, name="test_invoke_function") as mod:
+            self.assertInBytecode(
+                mod.await_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
+            )
+            self.assertInBytecode(
+                mod.await_await_x, "INVOKE_FUNCTION", (("test_invoke_function", "await_x"), 0)
+            )
+            self.assertInBytecode(
+                mod.call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
+            )
             mod.x = _testcapi.TestAwaitedCall()
             self.assertIsInstance(mod.x, _testcapi.TestAwaitedCall)
             self.assertIsNone(mod.x.last_awaited())
-            coro = mod.await_x()
+            coro = mod.await_await_x()
             with self.assertRaisesRegex(
                 TypeError, r".*can't be used in 'await' expression"
             ):
@@ -2586,16 +2590,13 @@ class EagerCoroutineDispatch(StaticTestBase):
         async def call_x(x: X) -> None:
             x.x()
         """
-        c = self.compile(codestr, StaticCodeGenerator, modname="test_invoke_method")
-        await_x = self.find_code(c, "await_x")
-        self.assertInBytecode(
-            await_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
-        )
-        call_x = self.find_code(c, "call_x")
-        self.assertInBytecode(
-            call_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
-        )
-        with self.in_module(codestr) as mod:
+        with self.in_module(codestr, name="test_invoke_method") as mod:
+            self.assertInBytecode(
+                mod.await_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
+            )
+            self.assertInBytecode(
+                mod.call_x, "INVOKE_METHOD", (("test_invoke_method", "X", "x"), 0)
+            )
             awaited_capturer = mod.X.x = _testcapi.TestAwaitedCall()
             self.assertIsNone(awaited_capturer.last_awaited())
             coro = mod.await_x(mod.X())
