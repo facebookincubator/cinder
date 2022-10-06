@@ -54,7 +54,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
-    case Opcode::kPrimitiveBox:
     case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kPrimitiveUnbox:
@@ -68,6 +67,16 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter:
       return commonEffects(inst, AEmpty);
+
+      // If boxing a bool, we return borrowed references to Py_True and
+      // Py_False.
+    case Opcode::kPrimitiveBox: {
+      if (static_cast<const PrimitiveBox&>(inst).type() <= TCBool) {
+        return borrowFrom(inst, AEmpty);
+      } else {
+        return commonEffects(inst, AEmpty);
+      }
+    }
 
     // These push/pop shadow frames and should not get DCE'd.
     case Opcode::kBeginInlinedFunction:

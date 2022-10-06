@@ -2769,11 +2769,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         case Opcode::kPrimitiveBox: {
           auto& pb = static_cast<const PrimitiveBox&>(i);
-          if (pb.value()->type() <= TCBool) {
-            // JITRT_BoxBool cannot fail since it returns one of two globals and
-            // does not allocate.
-            break;
-          }
+          JIT_DCHECK(
+              !(pb.value()->type() <= TCBool), "should not be able to deopt");
           emitExceptionCheck(*db, bbb);
           break;
         }

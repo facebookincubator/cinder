@@ -2553,6 +2553,20 @@ class INSTR_CLASS(
     return type_;
   }
 
+  virtual DeoptBase* asDeoptBase() {
+    if (type() <= TCBool) {
+      return nullptr;
+    }
+    return this;
+  }
+
+  virtual const DeoptBase* asDeoptBase() const {
+    if (type() <= TCBool) {
+      return nullptr;
+    }
+    return this;
+  }
+
   OperandType GetOperandTypeImpl(std::size_t /* i */) const {
     return type_;
   }
