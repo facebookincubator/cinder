@@ -129,6 +129,34 @@ fun jittestmodule:test {
   }
 }
 ---
+ChainedCallMethod
+---
+def test():
+  return "x".lower().upper()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
+    UseType<MortalUnicodeExact> v7
+    v8:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
+    v9:MortalUnicodeExact["x"] = Assign v7
+    v10:UnicodeExact = VectorCallStatic<1> v8 v7 {
+      FrameState {
+        NextInstrOffset 6
+      }
+    }
+    UseType<UnicodeExact> v10
+    v11:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
+    v12:UnicodeExact = Assign v10
+    v13:UnicodeExact = VectorCallStatic<1> v11 v10 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v13
+  }
+}
+---
 LoadMethodCallMethodAwaitedTurnsIntoVectorCallStaticAwaited
 ---
 async def test():

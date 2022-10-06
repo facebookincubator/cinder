@@ -1013,7 +1013,9 @@ struct MethodInvoke {
   CallMethod* call_method{nullptr};
 };
 
-static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
+// Returns true if LoadMethod/CallMethod/GetLoadMethodInstance were removed.
+// Returns false if they could not be removed.
+static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   ThreadedCompileSerialize guard;
   PyCodeObject* code = invoke.load_method->frameState()->code;
   PyObject* names = code->co_names;
@@ -1035,7 +1037,7 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
         receiver_type <= TLongExact || receiver_type <= TNoneType ||
         receiver_type <= TSetExact || receiver_type <= TTupleExact ||
         receiver_type <= TUnicodeExact)) {
-    return;
+    return false;
   }
   PyTypeObject* type = receiver_type.runtimePyType();
   if (type == nullptr) {
@@ -1046,18 +1048,18 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
         receiver_type == TBottom,
         "type %s expected to have PyTypeObject*",
         receiver_type);
-    return;
+    return false;
   }
   auto method_obj = Ref<>::create(_PyType_Lookup(type, name));
   if (method_obj == nullptr) {
     // No such method. Let the LoadMethod fail at runtime. _PyType_Lookup does
     // not raise an exception.
-    return;
+    return false;
   }
   if (Py_TYPE(method_obj) == &PyStaticMethod_Type) {
     // This is slightly tricky and nobody uses this except for
     // bytearray/bytes/str.maketrans. Not worth optimizing.
-    return;
+    return false;
   }
   Register* method_reg = invoke.load_method->dst();
   auto load_const = LoadConst::create(
@@ -1095,34 +1097,40 @@ static void tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   delete invoke.load_method;
   delete invoke.get_instance;
   delete invoke.call_method;
+  return true;
 }
 
 void BuiltinLoadMethodElimination::Run(Function& irfunc) {
-  std::vector<MethodInvoke> invokes;
-  for (auto& block : irfunc.cfg.blocks) {
-    for (auto& instr : block) {
-      if (!instr.IsCallMethod()) {
-        continue;
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    std::vector<MethodInvoke> invokes;
+    for (auto& block : irfunc.cfg.blocks) {
+      for (auto& instr : block) {
+        if (!instr.IsCallMethod()) {
+          continue;
+        }
+        auto cm = static_cast<CallMethod*>(&instr);
+        auto func_instr = cm->func()->instr();
+        if (func_instr->IsLoadMethodSuper()) {
+          continue;
+        }
+        JIT_DCHECK(
+            func_instr->IsLoadMethod(),
+            "LoadMethod/CallMethod should be paired");
+        auto lm = static_cast<LoadMethod*>(func_instr);
+        JIT_DCHECK(
+            cm->self()->instr()->IsGetLoadMethodInstance(),
+            "GetLoadMethodInstance/CallMethod should be paired");
+        auto glmi = static_cast<GetLoadMethodInstance*>(cm->self()->instr());
+        invokes.push_back(MethodInvoke{lm, glmi, cm});
       }
-      auto cm = static_cast<CallMethod*>(&instr);
-      auto func_instr = cm->func()->instr();
-      if (func_instr->IsLoadMethodSuper()) {
-        continue;
-      }
-      JIT_DCHECK(
-          func_instr->IsLoadMethod(), "LoadMethod/CallMethod should be paired");
-      auto lm = static_cast<LoadMethod*>(func_instr);
-      JIT_DCHECK(
-          cm->self()->instr()->IsGetLoadMethodInstance(),
-          "GetLoadMethodInstance/CallMethod should be paired");
-      auto glmi = static_cast<GetLoadMethodInstance*>(cm->self()->instr());
-      invokes.push_back(MethodInvoke{lm, glmi, cm});
     }
+    for (MethodInvoke& invoke : invokes) {
+      changed |= tryEliminateLoadMethod(irfunc, invoke);
+    }
+    reflowTypes(irfunc);
   }
-  for (MethodInvoke& invoke : invokes) {
-    tryEliminateLoadMethod(irfunc, invoke);
-  }
-  reflowTypes(irfunc);
 }
 
 } // namespace hir
