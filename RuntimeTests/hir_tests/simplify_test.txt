@@ -1664,3 +1664,25 @@ fun test {
   }
 }
 ---
+BooleanNotTurnsIntoPrimitive
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v1 = LoadArg<0; "x", Bool>
+    v2 = UnaryOp<Not> v1
+    Return v2
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v1:Bool = LoadArg<0, Bool>
+    UseType<Bool> v1
+    v3:CBool = PrimitiveUnbox<CBool> v1
+    v4:CBool = PrimitiveUnaryOp<Not> v3
+    v5:Bool = PrimitiveBox<CBool> v4
+    Return v5
+  }
+}
+---

@@ -391,7 +391,6 @@ Type outputType(
     case Opcode::kLoadMethodSuper:
     case Opcode::kLoadTupleItem:
     case Opcode::kMatchKeys:
-    case Opcode::kUnaryOp:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kYieldAndYieldFrom:
     case Opcode::kYieldFrom:
@@ -404,6 +403,13 @@ Type outputType(
       return TLongExact;
     case Opcode::kCopyDictWithoutKeys:
       return TDictExact;
+    case Opcode::kUnaryOp: {
+      auto op = static_cast<const UnaryOp&>(instr).op();
+      if (op == UnaryOpKind::kNot) {
+        return TBool;
+      }
+      return TObject;
+    }
     // Many opcodes just return a possibly-null PyObject*. Some of these will
     // be further specialized based on the input types in the hopefully near
     // future.

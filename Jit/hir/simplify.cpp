@@ -510,6 +510,20 @@ Register* simplifyLongBinaryOp(Env& env, const LongBinaryOp* instr) {
   return nullptr;
 }
 
+Register* simplifyUnaryOp(Env& env, const UnaryOp* instr) {
+  Register* operand = instr->operand();
+
+  if (instr->op() == UnaryOpKind::kNot && operand->isA(TBool)) {
+    env.emit<UseType>(operand, TBool);
+    Register* unboxed = env.emit<PrimitiveUnbox>(operand, TCBool);
+    Register* negated =
+        env.emit<PrimitiveUnaryOp>(PrimitiveUnaryOpKind::kNotInt, unboxed);
+    return env.emit<PrimitiveBox>(negated, TCBool, *instr->frameState());
+  }
+
+  return nullptr;
+}
+
 Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   Register* unboxed_value = instr->GetOperand(0);
   Type unbox_output_type = instr->GetOutput()->type();
@@ -665,6 +679,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
       return simplifyBinaryOp(env, static_cast<const BinaryOp*>(instr));
     case Opcode::kLongBinaryOp:
       return simplifyLongBinaryOp(env, static_cast<const LongBinaryOp*>(instr));
+    case Opcode::kUnaryOp:
+      return simplifyUnaryOp(env, static_cast<const UnaryOp*>(instr));
 
     case Opcode::kPrimitiveUnbox:
       return simplifyPrimitiveUnbox(
