@@ -935,6 +935,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp = GetSafeTempName();
         uint64_t func = 0;
 
+        // Boxing a boolean is a matter of selecting between Py_True and
+        // Py_False.
+        if (src_type <= TCBool) {
+          auto dest = instr->GetOutput();
+          auto temp = GetSafeTempName();
+          bbb.AppendCode(
+              "Move {}, {:#x}", temp, reinterpret_cast<uint64_t>(Py_True));
+          bbb.AppendCode(
+              "Select {}, {}, {}, {:#x}",
+              dest,
+              src,
+              temp,
+              reinterpret_cast<uint64_t>(Py_False));
+          break;
+        }
+
         if (src_type == TNullptr) {
           // special case for an uninitialized variable, we'll
           // load zero
@@ -950,12 +966,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
         } else if (src_type <= TCDouble) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
-        } else if (src_type <= (TCBool | TCUInt8 | TCUInt16)) {
+        } else if (src_type <= (TCUInt8 | TCUInt16)) {
           bbb.AppendCode(
               "ConvertUnsigned {}:CUInt32, {}:{}", tmp, src, src_type);
           src = tmp;
-          func = reinterpret_cast<uint64_t>(
-              (src_type <= TCBool) ? JITRT_BoxBool : JITRT_BoxU32);
+          func = reinterpret_cast<uint64_t>(JITRT_BoxU32);
           src_type = TCUInt32;
         } else if (src_type <= (TCInt8 | TCInt16)) {
           bbb.AppendCode("Convert {}:CInt32, {}:{}", tmp, src, src_type);
@@ -1567,11 +1582,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
                 compare_result,
                 instr->left(),
                 instr->right());
+            auto one = GetSafeTempName();
+            bbb.AppendCode("Move {}, {:#x}", one, uint32_t{1});
             bbb.AppendCode(
-                "Select {}, {}, {:#x}, {:#x}",
+                "Select {}, {}, {}, {:#x}",
                 instr->GetOutput(),
                 compare_result,
-                static_cast<uint32_t>(1),
+                one,
                 static_cast<uint32_t>(0));
             break;
           }

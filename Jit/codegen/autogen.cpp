@@ -1142,10 +1142,9 @@ BEGIN_RULES(Instruction::kYieldValue)
 END_RULES
 
 BEGIN_RULES(Instruction::kSelect)
-  GEN("Rrii", ASM(mov, OP(0), OP(3)),
+  GEN("Rrri", ASM(mov, OP(0), OP(3)),
               ASM(test, OP(1), OP(1)),
-              ASM(mov, OP(1), OP(2)),
-              ASM(cmovnz, OP(0), OP(1)))
+              ASM(cmovnz, OP(0), OP(2)))
 END_RULES
 
 END_RULE_TABLE
