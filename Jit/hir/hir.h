@@ -1268,24 +1268,33 @@ class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
   uint8_t readonly_flags_;
 };
 
+#define FOREACH_INPLACE_OP_KIND(V) \
+  V(Add)                           \
+  V(And)                           \
+  V(FloorDivide)                   \
+  V(LShift)                        \
+  V(MatrixMultiply)                \
+  V(Modulo)                        \
+  V(Multiply)                      \
+  V(Or)                            \
+  V(Power)                         \
+  V(RShift)                        \
+  V(Subtract)                      \
+  V(TrueDivide)                    \
+  V(Xor)
+
 enum class InPlaceOpKind {
-  kAdd = 0,
-  kAnd = 1,
-  kFloorDivide = 2,
-  kLShift = 3,
-  kMatrixMultiply = 4,
-  kModulo = 5,
-  kMultiply = 6,
-  kOr = 7,
-  kPower = 8,
-  kRShift = 9,
-  kSubtract = 10,
-  kTrueDivide = 11,
-  kXor = 12,
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_INPLACE_OP_KIND(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetInPlaceOpName(InPlaceOpKind op);
-InPlaceOpKind ParseInPlaceOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumInPlaceOpKinds = FOREACH_INPLACE_OP_KIND(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetInPlaceOpName(InPlaceOpKind op);
+InPlaceOpKind ParseInPlaceOpName(std::string_view name);
 
 // Perform a in place operator x += 2
 class INSTR_CLASS(

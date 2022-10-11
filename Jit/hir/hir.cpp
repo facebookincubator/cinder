@@ -730,33 +730,23 @@ PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name) {
 
 // NB: This needs to be in the order that the values appear in the InPlaceOpKind
 // enum
-static const char* gInPlaceOpNames[] = {
-    "Add",
-    "And",
-    "FloorDivide",
-    "LShift",
-    "MatrixMultiply",
-    "Modulo",
-    "Multiply",
-    "Or",
-    "Power",
-    "RShift",
-    "Subtract",
-    "TrueDivide",
-    "Xor",
+constexpr std::array<std::string_view, kNumInPlaceOpKinds> kInPlaceOpNames = {
+#define OP_STR(NAME) #NAME,
+    FOREACH_INPLACE_OP_KIND(OP_STR)
+#undef OP_STR
 };
 
-const char* GetInPlaceOpName(InPlaceOpKind op) {
-  return gInPlaceOpNames[static_cast<int>(op)];
+std::string_view GetInPlaceOpName(InPlaceOpKind op) {
+  return kInPlaceOpNames[static_cast<int>(op)];
 }
 
-InPlaceOpKind ParseInPlaceOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gInPlaceOpNames); i++) {
-    if (strcmp(name, gInPlaceOpNames[i]) == 0) {
-      return (InPlaceOpKind)i;
+InPlaceOpKind ParseInPlaceOpName(std::string_view name) {
+  for (size_t i = 0; i < kInPlaceOpNames.size(); ++i) {
+    if (name == kInPlaceOpNames[i]) {
+      return static_cast<InPlaceOpKind>(i);
     }
   }
-  return (InPlaceOpKind)-1;
+  JIT_CHECK(false, "Invalid InPlaceOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the FunctionAttr

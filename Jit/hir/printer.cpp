@@ -583,7 +583,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kInPlaceOp: {
       const auto& inplace_op = static_cast<const InPlaceOp&>(instr);
-      return GetInPlaceOpName(inplace_op.op());
+      return std::string{GetInPlaceOpName(inplace_op.op())};
     }
     case Opcode::kBuildSlice: {
       const auto& build_slice = static_cast<const BuildSlice&>(instr);
