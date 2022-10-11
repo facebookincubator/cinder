@@ -668,38 +668,23 @@ PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name) {
   return (PrimitiveCompareOp)-1;
 }
 
-// NB: This needs to be in the order that the values appear in the BinaryOpKind
-// enum
-static const char* gBinaryOpNames[] = {
-    "Add",
-    "And",
-    "FloorDivide",
-    "LShift",
-    "MatrixMultiply",
-    "Modulo",
-    "Multiply",
-    "Or",
-    "Power",
-    "RShift",
-    "Subscript",
-    "Subtract",
-    "TrueDivide",
-    "Xor",
-    "FloorDivideUnsigned",
-    "ModuloUnsigned",
-    "RShiftUnsigned"};
+constexpr std::array<std::string_view, kNumBinaryOpKinds> kBinaryOpNames = {
+#define OP_STR(NAME) #NAME,
+    FOREACH_BINARY_OP_KIND(OP_STR)
+#undef OP_STR
+};
 
-const char* GetBinaryOpName(BinaryOpKind op) {
-  return gBinaryOpNames[static_cast<int>(op)];
+std::string_view GetBinaryOpName(BinaryOpKind op) {
+  return kBinaryOpNames[static_cast<int>(op)];
 }
 
-BinaryOpKind ParseBinaryOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gBinaryOpNames); i++) {
-    if (strcmp(name, gBinaryOpNames[i]) == 0) {
-      return (BinaryOpKind)i;
+BinaryOpKind ParseBinaryOpName(std::string_view name) {
+  for (size_t i = 0; i < kBinaryOpNames.size(); ++i) {
+    if (name == kBinaryOpNames[i]) {
+      return static_cast<BinaryOpKind>(i);
     }
   }
-  return (BinaryOpKind)-1;
+  JIT_CHECK(false, "Invalid BinaryOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the UnaryOpKind

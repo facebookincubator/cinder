@@ -22,6 +22,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1147,30 +1148,38 @@ class InstrT<T, opcode, HasOutput, Tys...> : public InstrT<T, opcode, Tys...> {
     using InstrT::InstrT;                       \
   };
 
+#define FOREACH_BINARY_OP_KIND(V) \
+  V(Add)                          \
+  V(And)                          \
+  V(FloorDivide)                  \
+  V(LShift)                       \
+  V(MatrixMultiply)               \
+  V(Modulo)                       \
+  V(Multiply)                     \
+  V(Or)                           \
+  V(Power)                        \
+  V(RShift)                       \
+  V(Subscript)                    \
+  V(Subtract)                     \
+  V(TrueDivide)                   \
+  V(Xor)                          \
+  V(FloorDivideUnsigned)          \
+  V(ModuloUnsigned)               \
+  V(RShiftUnsigned)               \
+  V(PowerUnsigned)
+
 enum class BinaryOpKind {
-  kAdd = 0,
-  kAnd,
-  kFloorDivide,
-  kLShift,
-  kMatrixMultiply,
-  kModulo,
-  kMultiply,
-  kOr,
-  kPower,
-  kRShift,
-  kSubscript,
-  kSubtract,
-  kTrueDivide,
-  kXor,
-  kFloorDivideUnsigned,
-  kModuloUnsigned,
-  kRShiftUnsigned,
-  kNumBinaryOps,
-  kPowerUnsigned,
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_BINARY_OP_KIND(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetBinaryOpName(BinaryOpKind op);
-BinaryOpKind ParseBinaryOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumBinaryOpKinds = FOREACH_BINARY_OP_KIND(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetBinaryOpName(BinaryOpKind op);
+BinaryOpKind ParseBinaryOpName(std::string_view name);
 
 // Perform a binary operation (e.g. '+', '-')
 class INSTR_CLASS(

@@ -331,7 +331,7 @@ static std::string format_immediates(const Instr& instr) {
         return fmt::format(
             "{}, {}", GetBinaryOpName(bin_op.op()), bin_op.readonly_flags());
       } else {
-        return GetBinaryOpName(bin_op.op());
+        return std::string{GetBinaryOpName(bin_op.op())};
       }
     }
     case Opcode::kUnaryOp: {
@@ -439,7 +439,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kLongBinaryOp: {
       const auto& bin = static_cast<const LongBinaryOp&>(instr);
-      return GetBinaryOpName(bin.op());
+      return std::string{GetBinaryOpName(bin.op())};
     }
     case Opcode::kCompareBool: {
       const auto& cmp = static_cast<const Compare&>(instr);
@@ -467,7 +467,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kDoubleBinaryOp: {
       const auto& bin_op = static_cast<const DoubleBinaryOp&>(instr);
-      return GetBinaryOpName(bin_op.op());
+      return std::string{GetBinaryOpName(bin_op.op())};
     }
     case Opcode::kLoadArg: {
       const auto& load = static_cast<const LoadArg&>(instr);
@@ -509,7 +509,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kIntBinaryOp: {
       const auto& bin_op = static_cast<const IntBinaryOp&>(instr);
-      return GetBinaryOpName(bin_op.op());
+      return std::string{GetBinaryOpName(bin_op.op())};
     }
     case Opcode::kPrimitiveCompare: {
       const auto& cmp = static_cast<const PrimitiveCompare&>(instr);
