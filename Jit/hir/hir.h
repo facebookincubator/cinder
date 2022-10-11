@@ -2523,23 +2523,31 @@ class INSTR_CLASS(IntConvert, (TPrimitive), HasOutput, Operands<1>) {
   Type type_;
 };
 
-// Perform the comparison indicated by op
+#define FOREACH_PRIMITIVE_COMPARE_OP(V) \
+  V(LessThan)                           \
+  V(LessThanEqual)                      \
+  V(Equal)                              \
+  V(NotEqual)                           \
+  V(GreaterThan)                        \
+  V(GreaterThanEqual)                   \
+  V(GreaterThanUnsigned)                \
+  V(GreaterThanEqualUnsigned)           \
+  V(LessThanUnsigned)                   \
+  V(LessThanEqualUnsigned)
+
 enum class PrimitiveCompareOp {
-  kLessThan = 0,
-  kLessThanEqual,
-  kEqual,
-  kNotEqual,
-  kGreaterThan,
-  kGreaterThanEqual,
-  kGreaterThanUnsigned,
-  kGreaterThanEqualUnsigned,
-  kLessThanUnsigned,
-  kLessThanEqualUnsigned,
-  kNumPrimitiveCompareOps
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_PRIMITIVE_COMPARE_OP(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op);
-PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumPrimitiveCompareOps =
+    FOREACH_PRIMITIVE_COMPARE_OP(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetPrimitiveCompareOpName(PrimitiveCompareOp op);
+PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name);
 
 class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
  public:

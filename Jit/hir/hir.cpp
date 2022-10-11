@@ -634,30 +634,24 @@ CompareOp ParseCompareOpName(std::string_view name) {
   JIT_CHECK(false, "Invalid CompareOp '%s'", name);
 }
 
-static const char* gPrimitiveCompareOpNames[] = {
-    "LessThan",
-    "LessThanEqual",
-    "Equal",
-    "NotEqual",
-    "GreaterThan",
-    "GreaterThanEqual",
-    "GreaterThanUnsigned",
-    "GreaterThanEqualUnsigned",
-    "LessThanUnsigned",
-    "LessThanEqualUnsigned",
+constexpr std::array<std::string_view, kNumPrimitiveCompareOps>
+    kPrimitiveCompareOpNames = {
+#define OP_STR(NAME) #NAME,
+        FOREACH_PRIMITIVE_COMPARE_OP(OP_STR)
+#undef OP_STR
 };
 
-const char* GetPrimitiveCompareOpName(PrimitiveCompareOp op) {
-  return gPrimitiveCompareOpNames[static_cast<int>(op)];
+std::string_view GetPrimitiveCompareOpName(PrimitiveCompareOp op) {
+  return kPrimitiveCompareOpNames[static_cast<int>(op)];
 }
 
-PrimitiveCompareOp ParsePrimitiveCompareOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gPrimitiveCompareOpNames); i++) {
-    if (strcmp(name, gPrimitiveCompareOpNames[i]) == 0) {
-      return (PrimitiveCompareOp)i;
+PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name) {
+  for (size_t i = 0; i < kPrimitiveCompareOpNames.size(); i++) {
+    if (name == kPrimitiveCompareOpNames[i]) {
+      return static_cast<PrimitiveCompareOp>(i);
     }
   }
-  return (PrimitiveCompareOp)-1;
+  JIT_CHECK(false, "Invalid PrimitiveCompareOp '%s'", name);
 }
 
 constexpr std::array<std::string_view, kNumBinaryOpKinds> kBinaryOpNames = {
@@ -698,9 +692,10 @@ UnaryOpKind ParseUnaryOpName(std::string_view name) {
   JIT_CHECK(false, "Invalid UnaryOpKind '%s'", name);
 }
 
-constexpr std::array<std::string_view, kNumPrimitiveUnaryOpKinds> kPrimitiveUnaryOpNames = {
+constexpr std::array<std::string_view, kNumPrimitiveUnaryOpKinds>
+    kPrimitiveUnaryOpNames = {
 #define OP_STR(NAME) #NAME,
-    FOREACH_PRIMITIVE_UNARY_OP_KIND(OP_STR)
+        FOREACH_PRIMITIVE_UNARY_OP_KIND(OP_STR)
 #undef OP_STR
 };
 
