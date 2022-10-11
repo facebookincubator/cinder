@@ -687,26 +687,23 @@ BinaryOpKind ParseBinaryOpName(std::string_view name) {
   JIT_CHECK(false, "Invalid BinaryOpKind '%s'", name);
 }
 
-// NB: This needs to be in the order that the values appear in the UnaryOpKind
-// enum
-static const char* gUnaryOpNames[] = {
-    "Not",
-    "Negative",
-    "Positive",
-    "Invert",
+constexpr std::array<std::string_view, kNumUnaryOpKinds> kUnaryOpNames = {
+#define OP_STR(NAME) #NAME,
+    FOREACH_UNARY_OP_KIND(OP_STR)
+#undef OP_STR
 };
 
-const char* GetUnaryOpName(UnaryOpKind op) {
-  return gUnaryOpNames[static_cast<int>(op)];
+std::string_view GetUnaryOpName(UnaryOpKind op) {
+  return kUnaryOpNames[static_cast<int>(op)];
 }
 
-UnaryOpKind ParseUnaryOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gUnaryOpNames); i++) {
-    if (strcmp(name, gUnaryOpNames[i]) == 0) {
-      return (UnaryOpKind)i;
+UnaryOpKind ParseUnaryOpName(std::string_view name) {
+  for (size_t i = 0; i < kUnaryOpNames.size(); ++i) {
+    if (name == kUnaryOpNames[i]) {
+      return static_cast<UnaryOpKind>(i);
     }
   }
-  return (UnaryOpKind)-1;
+  JIT_CHECK(false, "Invalid UnaryOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the

@@ -1760,7 +1760,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = UnaryOp<Negative> v0 {
+    v1 = UnaryOp<Negate> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<1> v0

@@ -1900,10 +1900,10 @@ static inline UnaryOpKind get_unary_op_kind(
       return UnaryOpKind::kNot;
 
     case UNARY_NEGATIVE:
-      return UnaryOpKind::kPositive;
+      return UnaryOpKind::kNegate;
 
     case UNARY_POSITIVE:
-      return UnaryOpKind::kNegate;
+      return UnaryOpKind::kPositive;
 
     case UNARY_INVERT:
       return UnaryOpKind::kInvert;

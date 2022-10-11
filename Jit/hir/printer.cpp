@@ -340,7 +340,7 @@ static std::string format_immediates(const Instr& instr) {
         return fmt::format(
             "{}, {}", GetUnaryOpName(unary_op.op()), unary_op.readonly_flags());
       } else {
-        return GetUnaryOpName(unary_op.op());
+        return std::string{GetUnaryOpName(unary_op.op())};
       }
     }
     case Opcode::kBranch: {

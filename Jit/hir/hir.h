@@ -1221,15 +1221,24 @@ class INSTR_CLASS(
   uint8_t readonly_flags_;
 };
 
+#define FOREACH_UNARY_OP_KIND(V) \
+  V(Not)                         \
+  V(Negate)                      \
+  V(Positive)                    \
+  V(Invert)
+
 enum class UnaryOpKind {
-  kNot = 0,
-  kPositive = 1,
-  kNegate = 2,
-  kInvert = 3,
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_UNARY_OP_KIND(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetUnaryOpName(UnaryOpKind op);
-UnaryOpKind ParseUnaryOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumUnaryOpKinds = FOREACH_UNARY_OP_KIND(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetUnaryOpName(UnaryOpKind op);
+UnaryOpKind ParseUnaryOpName(std::string_view name);
 
 // Perform a unary operator (-x, ~x, etc...)
 class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
