@@ -2266,29 +2266,37 @@ class INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
   PrimitiveUnaryOpKind op_;
 };
 
+#define FOREACH_COMPARE_OP(V)          \
+  /* Begin rich comparison opcodes. */ \
+  V(LessThan)                          \
+  V(LessThanEqual)                     \
+  V(Equal)                             \
+  V(NotEqual)                          \
+  V(GreaterThan)                       \
+  V(GreaterThanEqual)                  \
+  /* End rich comparison opcodes. */   \
+  V(In)                                \
+  V(NotIn)                             \
+  V(Is)                                \
+  V(IsNot)                             \
+  V(ExcMatch)                          \
+  V(GreaterThanUnsigned)               \
+  V(GreaterThanEqualUnsigned)          \
+  V(LessThanUnsigned)                  \
+  V(LessThanEqualUnsigned)
+
 enum class CompareOp {
-  // Begin rich comparison opcodes
-  kLessThan = 0,
-  kLessThanEqual,
-  kEqual,
-  kNotEqual,
-  kGreaterThan,
-  kGreaterThanEqual,
-  // End rich comparison opcodes
-  kIn,
-  kNotIn,
-  kIs,
-  kIsNot,
-  kExcMatch,
-  kGreaterThanUnsigned,
-  kGreaterThanEqualUnsigned,
-  kLessThanUnsigned,
-  kLessThanEqualUnsigned,
-  kNumCompareOps
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_COMPARE_OP(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetCompareOpName(CompareOp op);
-std::optional<CompareOp> ParseCompareOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumCompareOps = FOREACH_COMPARE_OP(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetCompareOpName(CompareOp op);
+CompareOp ParseCompareOpName(std::string_view name);
 
 // Perform the comparison indicated by op
 class INSTR_CLASS(

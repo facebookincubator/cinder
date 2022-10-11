@@ -349,8 +349,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     NEW_INSTR(IntBinaryOp, dst, op, left, right);
   } else if (strcmp(opcode, "Compare") == 0) {
     expect("<");
-    std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());
-    JIT_CHECK(op.has_value(), "Invalid CompareOp");
+    CompareOp op = ParseCompareOpName(GetNextToken());
     uint8_t readonly_flags = 0;
     if (strcmp(peekNextToken(), ",") == 0) {
       expect(",");
@@ -359,23 +358,21 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<Compare>(dst, *op, readonly_flags, left, right);
+    instruction = newInstr<Compare>(dst, op, readonly_flags, left, right);
   } else if (strcmp(opcode, "LongCompare") == 0) {
     expect("<");
-    std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());
-    JIT_CHECK(op.has_value(), "Invalid CompareOp");
+    CompareOp op = ParseCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    NEW_INSTR(LongCompare, dst, *op, left, right);
+    NEW_INSTR(LongCompare, dst, op, left, right);
   } else if (strcmp(opcode, "UnicodeCompare") == 0) {
     expect("<");
-    std::optional<CompareOp> op = ParseCompareOpName(GetNextToken());
-    JIT_CHECK(op.has_value(), "Invalid CompareOp");
+    CompareOp op = ParseCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    NEW_INSTR(UnicodeCompare, dst, *op, left, right);
+    NEW_INSTR(UnicodeCompare, dst, op, left, right);
   } else if (strcmp(opcode, "UnicodeConcat") == 0) {
     auto left = ParseRegister();
     auto right = ParseRegister();

@@ -615,31 +615,23 @@ CFG::~CFG() {
   }
 }
 
-static const char* gCompareOpNames[] = {
-    "LessThan",
-    "LessThanEqual",
-    "Equal",
-    "NotEqual",
-    "GreaterThan",
-    "GreaterThanEqual",
-    "In",
-    "NotIn",
-    "Is",
-    "IsNot",
-    "ExcMatch",
+constexpr std::array<std::string_view, kNumCompareOps> kCompareOpNames = {
+#define OP_STR(NAME) #NAME,
+    FOREACH_COMPARE_OP(OP_STR)
+#undef OP_STR
 };
 
-const char* GetCompareOpName(CompareOp op) {
-  return gCompareOpNames[static_cast<int>(op)];
+std::string_view GetCompareOpName(CompareOp op) {
+  return kCompareOpNames[static_cast<int>(op)];
 }
 
-std::optional<CompareOp> ParseCompareOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gCompareOpNames); i++) {
-    if (strcmp(name, gCompareOpNames[i]) == 0) {
+CompareOp ParseCompareOpName(std::string_view name) {
+  for (size_t i = 0; i < kCompareOpNames.size(); ++i) {
+    if (name == kCompareOpNames[i]) {
       return static_cast<CompareOp>(i);
     }
   }
-  return std::nullopt;
+  JIT_CHECK(false, "Invalid CompareOp '%s'", name);
 }
 
 static const char* gPrimitiveCompareOpNames[] = {
