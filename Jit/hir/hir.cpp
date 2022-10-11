@@ -706,26 +706,23 @@ UnaryOpKind ParseUnaryOpName(std::string_view name) {
   JIT_CHECK(false, "Invalid UnaryOpKind '%s'", name);
 }
 
-// NB: This needs to be in the order that the values appear in the
-// PrimitiveUnaryOpKind enum
-static const char* gPrimitiveUnaryOpNames[] = {
-    "Negative",
-    "Invert",
-    "Not",
+constexpr std::array<std::string_view, kNumPrimitiveUnaryOpKinds> kPrimitiveUnaryOpNames = {
+#define OP_STR(NAME) #NAME,
+    FOREACH_PRIMITIVE_UNARY_OP_KIND(OP_STR)
+#undef OP_STR
 };
 
-const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op) {
-  return gPrimitiveUnaryOpNames[static_cast<int>(op)];
+std::string_view GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op) {
+  return kPrimitiveUnaryOpNames[static_cast<int>(op)];
 }
 
-PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name) {
-  for (size_t i = 0; i < ARRAYSIZE(gPrimitiveUnaryOpNames); i++) {
-    if (strcmp(name, gPrimitiveUnaryOpNames[i]) == 0) {
+PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(std::string_view name) {
+  for (size_t i = 0; i < kPrimitiveUnaryOpNames.size(); ++i) {
+    if (name == kPrimitiveUnaryOpNames[i]) {
       return static_cast<PrimitiveUnaryOpKind>(i);
     }
   }
-  JIT_CHECK(false, "Bad primitive unary op name: %s", name);
-  return (PrimitiveUnaryOpKind)-1;
+  JIT_CHECK(false, "Invalid PrimitiveUnaryOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the InPlaceOpKind

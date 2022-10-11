@@ -1680,7 +1680,7 @@ fun jittestmodule:test {
     v1:Bool = LoadArg<0, Bool>
     UseType<Bool> v1
     v3:CBool = PrimitiveUnbox<CBool> v1
-    v4:CBool = PrimitiveUnaryOp<Not> v3
+    v4:CBool = PrimitiveUnaryOp<NotInt> v3
     v5:Bool = PrimitiveBox<CBool> v4
     Return v5
   }

@@ -451,7 +451,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kPrimitiveUnaryOp: {
       const auto& unary = static_cast<const PrimitiveUnaryOp&>(instr);
-      return GetPrimitiveUnaryOpName(unary.op());
+      return std::string{GetPrimitiveUnaryOpName(unary.op())};
     }
     case Opcode::kCondBranch:
     case Opcode::kCondBranchIterNotDone:

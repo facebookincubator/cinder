@@ -2229,14 +2229,24 @@ class INSTR_CLASS(EndInlinedFunction, (), Operands<0>), public InlineBase {
   int inline_depth_{-1};
 };
 
+#define FOREACH_PRIMITIVE_UNARY_OP_KIND(V) \
+  V(NegateInt)                             \
+  V(InvertInt)                             \
+  V(NotInt)
+
 enum class PrimitiveUnaryOpKind {
-  kNegateInt = 0,
-  kInvertInt = 1,
-  kNotInt = 2,
+#define DEFINE_OP(NAME) k##NAME,
+  FOREACH_PRIMITIVE_UNARY_OP_KIND(DEFINE_OP)
+#undef DEFINE_OP
 };
 
-const char* GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op);
-PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(const char* name);
+#define COUNT_OP(NAME) +1
+constexpr size_t kNumPrimitiveUnaryOpKinds =
+    FOREACH_PRIMITIVE_UNARY_OP_KIND(COUNT_OP);
+#undef COUNT_OP
+
+std::string_view GetPrimitiveUnaryOpName(PrimitiveUnaryOpKind op);
+PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(std::string_view name);
 
 // Perform a unary operation (e.g. '~', '-') on primitive operands
 class INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
