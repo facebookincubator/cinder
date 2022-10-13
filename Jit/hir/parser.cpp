@@ -450,7 +450,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
       expect(">");
     }
     auto var = ParseRegister();
-    NEW_INSTR(Return, var);
+    NEW_INSTR(Return, var, type);
   } else if (opcode == "YieldValue") {
     Register* value = ParseRegister();
     instruction = newInstr<YieldValue>(dst, value);
