@@ -76,7 +76,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     int num_args = GetNextInteger();
     bool is_awaited = false;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       expect("awaited");
       is_awaited = true;
@@ -124,7 +124,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<FormatValue>(dst, fmt_spec, val, conversion);
   } else if (strcmp(opcode, "CallEx") == 0) {
     bool is_awaited = false;
-    if (strcmp(peekNextToken(), "<") == 0) {
+    if (peekNextToken() == "<") {
       expect("<");
       expect("awaited");
       expect(">");
@@ -135,7 +135,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<CallEx>(dst, func, pargs, is_awaited);
   } else if (strcmp(opcode, "CallExKw") == 0) {
     bool is_awaited = false;
-    if (strcmp(peekNextToken(), "<") == 0) {
+    if (peekNextToken() == "<") {
       expect("<");
       expect("awaited");
       expect(">");
@@ -200,7 +200,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     int idx = GetNextNameIdx();
     Type ty = TObject;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       ty = Type::parse(env_, GetNextToken());
     }
@@ -222,7 +222,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     int num_args = GetNextInteger();
     bool is_awaited = false;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       expect("awaited");
       is_awaited = true;
@@ -325,7 +325,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
     uint8_t readonly_flags = 0;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       readonly_flags = GetNextInteger();
     }
@@ -351,7 +351,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
     uint8_t readonly_flags = 0;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       readonly_flags = GetNextInteger();
     }
@@ -423,7 +423,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect("<");
     UnaryOpKind op = ParseUnaryOpName(GetNextToken());
     uint8_t readonly_flags = 0;
-    if (strcmp(peekNextToken(), ",") == 0) {
+    if (peekNextToken() == ",") {
       expect(",");
       readonly_flags = GetNextInteger();
     }
@@ -440,7 +440,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     NEW_INSTR(RaiseAwaitableError, type_reg, prev_opcode, opcode, FrameState{});
   } else if (strcmp(opcode, "Return") == 0) {
     Type type = TObject;
-    if (strcmp(peekNextToken(), "<") == 0) {
+    if (peekNextToken() == "<") {
       GetNextToken();
       type = Type::parse(env_, GetNextToken());
       expect(">");
@@ -454,7 +454,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<InitialYield>(dst);
   } else if (strcmp(opcode, "GetIter") == 0) {
     uint8_t readonly_flags = 0;
-    if (strcmp(peekNextToken(), "<") == 0) {
+    if (peekNextToken() == "<") {
       GetNextToken();
       readonly_flags = GetNextInteger();
       expect(">");
@@ -497,8 +497,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     PhiInfo info{dst};
     while (true) {
       info.inputs.emplace_back(PhiInput{GetNextInteger(), nullptr});
-      auto token = peekNextToken();
-      if (strcmp(token, ">") == 0) {
+      if (peekNextToken() == ">") {
         GetNextToken();
         break;
       }
@@ -548,16 +547,14 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
       while (true) {
         Type ty = Type::parse(env_, GetNextToken());
         single_profile.emplace_back(ty);
-        auto token = peekNextToken();
-        if (strcmp(token, ">") == 0) {
+        if (peekNextToken() == ">") {
           GetNextToken();
           break;
         }
         expect(",");
       }
       types.emplace_back(single_profile);
-      auto token = peekNextToken();
-      if (strcmp(token, ">") == 0) {
+      if (peekNextToken() == ">") {
         GetNextToken();
         break;
       }
@@ -586,7 +583,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     instruction = newInstr<CheckVar>(dst, operand, name);
   } else if (strcmp(opcode, "Snapshot") == 0) {
     auto snapshot = Snapshot::create();
-    if (strcmp(peekNextToken(), "{") == 0) {
+    if (peekNextToken() == "{") {
       snapshot->setFrameState(parseFrameState());
     }
     instruction = snapshot;
@@ -681,7 +678,7 @@ FrameState HIRParser::parseFrameState() {
       }
     } else if (strcmp(token, "BlockStack") == 0) {
       expect("{");
-      while (strcmp(peekNextToken(), "}") != 0) {
+      while (peekNextToken() != "}") {
         ExecutionBlock block;
         expect("Opcode");
         block.opcode = GetNextInteger();
@@ -701,7 +698,7 @@ FrameState HIRParser::parseFrameState() {
 }
 
 BasicBlock* HIRParser::ParseBasicBlock(CFG& cfg) {
-  if (strcmp(peekNextToken(), "bb") != 0) {
+  if (peekNextToken() != "bb") {
     return nullptr;
   }
 
@@ -710,16 +707,16 @@ BasicBlock* HIRParser::ParseBasicBlock(CFG& cfg) {
   auto bb = cfg.AllocateBlock();
   bb->id = id;
 
-  if (strcmp(peekNextToken(), "(") == 0) {
+  if (peekNextToken() == "(") {
     // Skip over optional "(preds 1, 2, 3)".
     while (strcmp(GetNextToken(), ")") != 0) {
     }
   }
   expect("{");
 
-  while (strcmp(peekNextToken(), "}") != 0) {
+  while (peekNextToken() != "}") {
     Register* dst = nullptr;
-    if (strcmp(peekNextToken(1), "=") == 0) {
+    if (peekNextToken(1) == "=") {
       dst = ParseRegister();
       expect("=");
     }
@@ -853,7 +850,7 @@ void HIRParser::realizePhis() {
 // ignored).
 int HIRParser::GetNextNameIdx() {
   auto idx = GetNextInteger();
-  if (strcmp(peekNextToken(), ";") == 0) {
+  if (peekNextToken() == ";") {
     // Ignore ; and name.
     GetNextToken();
     GetNextToken();

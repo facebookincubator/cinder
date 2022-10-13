@@ -7,6 +7,7 @@
 #include <iterator>
 #include <list>
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -43,15 +44,18 @@ class HIRParser {
   const char* GetNextToken() {
     JIT_CHECK(token_iter_ != tokens_.end(), "No more tokens");
     return (token_iter_++)->c_str();
-  };
-  const char* peekNextToken(int n = 0) {
+  }
+
+  std::string_view peekNextToken(int n = 0) {
     auto it = token_iter_;
     std::advance(it, n);
-    return it->c_str();
+    return *it;
   }
+
   int GetNextInteger() {
     return atoi(GetNextToken());
-  };
+  }
+
   int GetNextNameIdx();
   RegState GetNextRegState();
   BorrowedRef<> GetNextUnicode();
@@ -75,17 +79,17 @@ class HIRParser {
 
   template <class T, typename... Args>
   Instr* newInstr(Args&&... args) {
-    if (strcmp(peekNextToken(), "{") != 0) {
+    if (peekNextToken() != "{") {
       return T::create(std::forward<Args>(args)..., FrameState{});
     }
     expect("{");
     std::vector<RegState> reg_states;
-    if (strcmp(peekNextToken(), "LiveValues") == 0) {
+    if (peekNextToken() == "LiveValues") {
       expect("LiveValues");
       reg_states = parseRegStates();
     }
     FrameState fs;
-    if (strcmp(peekNextToken(), "FrameState") == 0) {
+    if (peekNextToken() == "FrameState") {
       expect("FrameState");
       fs = parseFrameState();
     }
