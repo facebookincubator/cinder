@@ -25,9 +25,9 @@ namespace hir {
   auto instr = type::create(__VA_ARGS__); \
   instruction = instr;
 
-void HIRParser::expect(const char* expected) {
-  const char* actual = GetNextToken();
-  if (strcmp(expected, actual) != 0) {
+void HIRParser::expect(std::string_view expected) {
+  std::string_view actual = GetNextToken();
+  if (expected != actual) {
     JIT_LOG("Expected \"%s\", but got \"%s\"", expected, actual);
     std::abort();
   }
@@ -51,32 +51,32 @@ Register* HIRParser::allocateRegister(std::string_view name) {
 }
 
 Register* HIRParser::ParseRegister() {
-  const char* name = GetNextToken();
+  std::string_view name = GetNextToken();
   return allocateRegister(name);
 }
 
 HIRParser::ListOrTuple HIRParser::parseListOrTuple() {
-  const char* kind = GetNextToken();
-  if (strcmp(kind, "list") == 0) {
+  std::string_view kind = GetNextToken();
+  if (kind == "list") {
     return ListOrTuple::List;
   }
-  if (strcmp(kind, "tuple") == 0) {
+  if (kind == "tuple") {
     return ListOrTuple::Tuple;
   }
   JIT_CHECK(false, "Invalid kind %s, expected list or tuple", kind);
 }
 
-Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
+Instr*
+HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   Instr* instruction = nullptr;
-  if (strcmp(opcode, "Branch") == 0) {
+  if (opcode == "Branch") {
     NEW_INSTR(Branch, nullptr);
     expect("<");
     branches_.emplace(instr, GetNextInteger());
     expect(">");
   } else if (
-      strcmp(opcode, "VectorCall") == 0 ||
-      strcmp(opcode, "VectorCallStatic") == 0 ||
-      strcmp(opcode, "VectorCallKW") == 0) {
+      opcode == "VectorCall" || opcode == "VectorCallStatic" ||
+      opcode == "VectorCallKW") {
     expect("<");
     int num_args = GetNextInteger();
     bool is_awaited = false;
@@ -93,11 +93,11 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         args.end(),
         std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
 
-    if (strcmp(opcode, "VectorCall") == 0) {
+    if (opcode == "VectorCall") {
       instruction = newInstr<VectorCall>(num_args + 1, dst, is_awaited);
-    } else if (strcmp(opcode, "VectorCallStatic") == 0) {
+    } else if (opcode == "VectorCallStatic") {
       instruction = newInstr<VectorCallStatic>(num_args + 1, dst, is_awaited);
-    } else if (strcmp(opcode, "VectorCallKW") == 0) {
+    } else if (opcode == "VectorCallKW") {
       instruction = newInstr<VectorCallKW>(num_args + 1, dst, is_awaited);
     } else {
       JIT_CHECK(false, "Unhandled opcode {}", opcode);
@@ -107,17 +107,17 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     for (int i = 0; i < num_args; i++) {
       instruction->SetOperand(i + 1, args[i]);
     }
-  } else if (strcmp(opcode, "FormatValue") == 0) {
+  } else if (opcode == "FormatValue") {
     expect("<");
     auto tok = GetNextToken();
     auto conversion = [&] {
-      if (strcmp(tok, "None") == 0) {
+      if (tok == "None") {
         return FVC_NONE;
-      } else if (strcmp(tok, "Str") == 0) {
+      } else if (tok == "Str") {
         return FVC_STR;
-      } else if (strcmp(tok, "Repr") == 0) {
+      } else if (tok == "Repr") {
         return FVC_REPR;
-      } else if (strcmp(tok, "ASCII") == 0) {
+      } else if (tok == "ASCII") {
         return FVC_ASCII;
       }
       JIT_CHECK(false, "Bad FormatValue conversion type: %s", tok);
@@ -126,7 +126,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Register* fmt_spec = ParseRegister();
     Register* val = ParseRegister();
     instruction = newInstr<FormatValue>(dst, fmt_spec, val, conversion);
-  } else if (strcmp(opcode, "CallEx") == 0) {
+  } else if (opcode == "CallEx") {
     bool is_awaited = false;
     if (peekNextToken() == "<") {
       expect("<");
@@ -137,7 +137,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Register* func = ParseRegister();
     Register* pargs = ParseRegister();
     instruction = newInstr<CallEx>(dst, func, pargs, is_awaited);
-  } else if (strcmp(opcode, "CallExKw") == 0) {
+  } else if (opcode == "CallExKw") {
     bool is_awaited = false;
     if (peekNextToken() == "<") {
       expect("<");
@@ -149,20 +149,20 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Register* pargs = ParseRegister();
     Register* kwargs = ParseRegister();
     instruction = newInstr<CallExKw>(dst, func, pargs, kwargs, is_awaited);
-  } else if (strcmp(opcode, "ImportFrom") == 0) {
+  } else if (opcode == "ImportFrom") {
     expect("<");
     int name_idx = GetNextInteger();
     expect(">");
     Register* module = ParseRegister();
     instruction = newInstr<ImportFrom>(dst, module, name_idx);
-  } else if (strcmp(opcode, "ImportName") == 0) {
+  } else if (opcode == "ImportName") {
     expect("<");
     int name_idx = GetNextInteger();
     expect(">");
     Register* fromlist = ParseRegister();
     Register* level = ParseRegister();
     instruction = newInstr<ImportName>(dst, name_idx, fromlist, level);
-  } else if (strcmp(opcode, "InitListTuple") == 0) {
+  } else if (opcode == "InitListTuple") {
     expect("<");
     auto kind = parseListOrTuple();
     expect(",");
@@ -181,7 +181,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     for (int i = 0; i < num_args; i++) {
       instr->SetOperand(i + 1, args[i]);
     }
-  } else if (strcmp(opcode, "MakeListTuple") == 0) {
+  } else if (opcode == "MakeListTuple") {
     expect("<");
     auto kind = parseListOrTuple();
     expect(",");
@@ -190,17 +190,17 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
 
     instruction =
         newInstr<MakeListTuple>(kind == ListOrTuple::Tuple, dst, nvalues);
-  } else if (strcmp(opcode, "MakeSet") == 0) {
+  } else if (opcode == "MakeSet") {
     NEW_INSTR(MakeSet, dst);
-  } else if (strcmp(opcode, "SetSetItem") == 0) {
+  } else if (opcode == "SetSetItem") {
     auto receiver = ParseRegister();
     auto item = ParseRegister();
     NEW_INSTR(SetSetItem, dst, receiver, item);
-  } else if (strcmp(opcode, "SetUpdate") == 0) {
+  } else if (opcode == "SetUpdate") {
     auto receiver = ParseRegister();
     auto item = ParseRegister();
     NEW_INSTR(SetUpdate, dst, receiver, item);
-  } else if (strcmp(opcode, "LoadArg") == 0) {
+  } else if (opcode == "LoadArg") {
     expect("<");
     int idx = GetNextNameIdx();
     Type ty = TObject;
@@ -210,19 +210,19 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     }
     expect(">");
     NEW_INSTR(LoadArg, dst, idx, ty);
-  } else if (strcmp(opcode, "LoadMethod") == 0) {
+  } else if (opcode == "LoadMethod") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
     instruction = newInstr<LoadMethod>(dst, receiver, idx);
-  } else if (strcmp(opcode, "LoadTupleItem") == 0) {
+  } else if (opcode == "LoadTupleItem") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
     NEW_INSTR(LoadTupleItem, dst, receiver, idx);
-  } else if (strcmp(opcode, "CallMethod") == 0) {
+  } else if (opcode == "CallMethod") {
     expect("<");
     int num_args = GetNextInteger();
     bool is_awaited = false;
@@ -241,7 +241,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     for (std::size_t i = 0; i < args.size(); i++) {
       instruction->SetOperand(i, args[i]);
     }
-  } else if (strcmp(opcode, "CondBranch") == 0) {
+  } else if (opcode == "CondBranch") {
     expect("<");
     auto true_bb = GetNextInteger();
     expect(",");
@@ -253,7 +253,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         std::piecewise_construct,
         std::forward_as_tuple(instr),
         std::forward_as_tuple(true_bb, false_bb));
-  } else if (strcmp(opcode, "CondBranchCheckType") == 0) {
+  } else if (opcode == "CondBranchCheckType") {
     expect("<");
     auto true_bb = GetNextInteger();
     expect(",");
@@ -267,29 +267,29 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         std::piecewise_construct,
         std::forward_as_tuple(instr),
         std::forward_as_tuple(true_bb, false_bb));
-  } else if (strcmp(opcode, "Decref") == 0) {
+  } else if (opcode == "Decref") {
     auto var = ParseRegister();
     NEW_INSTR(Decref, var);
-  } else if (strcmp(opcode, "Incref") == 0) {
+  } else if (opcode == "Incref") {
     auto var = ParseRegister();
     NEW_INSTR(Incref, var);
-  } else if (strcmp(opcode, "LoadAttr") == 0) {
+  } else if (opcode == "LoadAttr") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
     instruction = newInstr<LoadAttr>(dst, receiver, idx);
-  } else if (strcmp(opcode, "LoadConst") == 0) {
+  } else if (opcode == "LoadConst") {
     expect("<");
     Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     NEW_INSTR(LoadConst, dst, ty);
-  } else if (strcmp(opcode, "LoadGlobal") == 0) {
+  } else if (opcode == "LoadGlobal") {
     expect("<");
     int name_idx = GetNextNameIdx();
     expect(">");
     instruction = newInstr<LoadGlobal>(dst, name_idx);
-  } else if (strcmp(opcode, "LoadGlobalCached") == 0) {
+  } else if (opcode == "LoadGlobalCached") {
     expect("<");
     int name_idx = GetNextNameIdx();
     expect(">");
@@ -299,33 +299,33 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         /*builtins=*/nullptr,
         /*globals=*/nullptr,
         name_idx);
-  } else if (strcmp(opcode, "StoreAttr") == 0) {
+  } else if (opcode == "StoreAttr") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
     auto value = ParseRegister();
     instruction = newInstr<StoreAttr>(dst, receiver, value, idx);
-  } else if (strcmp(opcode, "GetLength") == 0) {
+  } else if (opcode == "GetLength") {
     auto container = ParseRegister();
     NEW_INSTR(GetLength, dst, container, FrameState{});
-  } else if (strcmp(opcode, "DeleteSubscr") == 0) {
+  } else if (opcode == "DeleteSubscr") {
     auto container = ParseRegister();
     auto sub = ParseRegister();
     newInstr<DeleteSubscr>(container, sub);
-  } else if (strcmp(opcode, "DictSubscr") == 0) {
+  } else if (opcode == "DictSubscr") {
     auto dict = ParseRegister();
     auto key = ParseRegister();
     NEW_INSTR(DictSubscr, dst, dict, key, FrameState{});
-  } else if (strcmp(opcode, "StoreSubscr") == 0) {
+  } else if (opcode == "StoreSubscr") {
     auto receiver = ParseRegister();
     auto index = ParseRegister();
     auto value = ParseRegister();
     NEW_INSTR(StoreSubscr, dst, receiver, index, value);
-  } else if (strcmp(opcode, "Assign") == 0) {
+  } else if (opcode == "Assign") {
     auto src = ParseRegister();
     NEW_INSTR(Assign, dst, src);
-  } else if (strcmp(opcode, "BinaryOp") == 0) {
+  } else if (opcode == "BinaryOp") {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
     uint8_t readonly_flags = 0;
@@ -337,21 +337,21 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<BinaryOp>(dst, op, readonly_flags, left, right);
-  } else if (strcmp(opcode, "LongBinaryOp") == 0) {
+  } else if (opcode == "LongBinaryOp") {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<LongBinaryOp>(dst, op, left, right);
-  } else if (strcmp(opcode, "IntBinaryOp") == 0) {
+  } else if (opcode == "IntBinaryOp") {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(IntBinaryOp, dst, op, left, right);
-  } else if (strcmp(opcode, "Compare") == 0) {
+  } else if (opcode == "Compare") {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
     uint8_t readonly_flags = 0;
@@ -363,67 +363,67 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<Compare>(dst, op, readonly_flags, left, right);
-  } else if (strcmp(opcode, "LongCompare") == 0) {
+  } else if (opcode == "LongCompare") {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(LongCompare, dst, op, left, right);
-  } else if (strcmp(opcode, "UnicodeCompare") == 0) {
+  } else if (opcode == "UnicodeCompare") {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeCompare, dst, op, left, right);
-  } else if (strcmp(opcode, "UnicodeConcat") == 0) {
+  } else if (opcode == "UnicodeConcat") {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeConcat, dst, left, right, FrameState{});
-  } else if (strcmp(opcode, "UnicodeRepeat") == 0) {
+  } else if (opcode == "UnicodeRepeat") {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeRepeat, dst, left, right, FrameState{});
-  } else if (strcmp(opcode, "IntConvert") == 0) {
+  } else if (opcode == "IntConvert") {
     expect("<");
     Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto src = ParseRegister();
     NEW_INSTR(IntConvert, dst, src, type);
-  } else if (strcmp(opcode, "PrimitiveCompare") == 0) {
+  } else if (opcode == "PrimitiveCompare") {
     expect("<");
     PrimitiveCompareOp op = ParsePrimitiveCompareOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(PrimitiveCompare, dst, op, left, right);
-  } else if (strcmp(opcode, "PrimitiveUnaryOp") == 0) {
+  } else if (opcode == "PrimitiveUnaryOp") {
     expect("<");
     PrimitiveUnaryOpKind op = ParsePrimitiveUnaryOpName(GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnaryOp, dst, op, operand);
-  } else if (strcmp(opcode, "PrimitiveUnbox") == 0) {
+  } else if (opcode == "PrimitiveUnbox") {
     expect("<");
     Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnbox, dst, operand, type);
-  } else if (strcmp(opcode, "PrimitiveBox") == 0) {
+  } else if (opcode == "PrimitiveBox") {
     expect("<");
     Type type = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<PrimitiveBox>(dst, operand, type);
-  } else if (strcmp(opcode, "InPlaceOp") == 0) {
+  } else if (opcode == "InPlaceOp") {
     expect("<");
     InPlaceOpKind op = ParseInPlaceOpName(GetNextToken());
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
     instruction = newInstr<InPlaceOp>(dst, op, left, right);
-  } else if (strcmp(opcode, "UnaryOp") == 0) {
+  } else if (opcode == "UnaryOp") {
     expect("<");
     UnaryOpKind op = ParseUnaryOpName(GetNextToken());
     uint8_t readonly_flags = 0;
@@ -434,7 +434,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<UnaryOp>(dst, op, readonly_flags, operand);
-  } else if (strcmp(opcode, "RaiseAwaitableError") == 0) {
+  } else if (opcode == "RaiseAwaitableError") {
     expect("<");
     int prev_opcode = GetNextInteger();
     expect(",");
@@ -442,7 +442,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto type_reg = ParseRegister();
     NEW_INSTR(RaiseAwaitableError, type_reg, prev_opcode, opcode, FrameState{});
-  } else if (strcmp(opcode, "Return") == 0) {
+  } else if (opcode == "Return") {
     Type type = TObject;
     if (peekNextToken() == "<") {
       GetNextToken();
@@ -451,12 +451,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     }
     auto var = ParseRegister();
     NEW_INSTR(Return, var);
-  } else if (strcmp(opcode, "YieldValue") == 0) {
+  } else if (opcode == "YieldValue") {
     Register* value = ParseRegister();
     instruction = newInstr<YieldValue>(dst, value);
-  } else if (strcmp(opcode, "InitialYield") == 0) {
+  } else if (opcode == "InitialYield") {
     instruction = newInstr<InitialYield>(dst);
-  } else if (strcmp(opcode, "GetIter") == 0) {
+  } else if (opcode == "GetIter") {
     uint8_t readonly_flags = 0;
     if (peekNextToken() == "<") {
       GetNextToken();
@@ -465,7 +465,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     }
     auto iterable = ParseRegister();
     instruction = newInstr<GetIter>(dst, iterable, readonly_flags);
-  } else if (strcmp(opcode, "GetLoadMethodInstance") == 0) {
+  } else if (opcode == "GetLoadMethodInstance") {
     expect("<");
     int num_args = GetNextInteger();
     expect(">");
@@ -477,13 +477,13 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
 
     NEW_INSTR(GetLoadMethodInstance, num_args, dst, args);
-  } else if (strcmp(opcode, "LoadTypeAttrCacheItem") == 0) {
+  } else if (opcode == "LoadTypeAttrCacheItem") {
     expect("<");
     int cache_id = GetNextInteger();
     int item_idx = GetNextInteger();
     expect(">");
     NEW_INSTR(LoadTypeAttrCacheItem, dst, cache_id, item_idx);
-  } else if (strcmp(opcode, "FillTypeAttrCache") == 0) {
+  } else if (opcode == "FillTypeAttrCache") {
     expect("<");
     int cache_id = GetNextInteger();
     int name_idx = GetNextInteger();
@@ -491,12 +491,12 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     auto receiver = ParseRegister();
     instruction =
         newInstr<FillTypeAttrCache>(dst, receiver, name_idx, cache_id);
-  } else if (strcmp(opcode, "LoadArrayItem") == 0) {
+  } else if (opcode == "LoadArrayItem") {
     auto ob_item = ParseRegister();
     auto idx = ParseRegister();
     auto array_unused = ParseRegister();
     NEW_INSTR(LoadArrayItem, dst, ob_item, idx, array_unused, 0, TObject);
-  } else if (strcmp(opcode, "Phi") == 0) {
+  } else if (opcode == "Phi") {
     expect("<");
     PhiInfo info{dst};
     while (true) {
@@ -511,16 +511,16 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
       input.value = ParseRegister();
     }
     phis_[bb_index].emplace_back(std::move(info));
-  } else if (strcmp(opcode, "Guard") == 0) {
+  } else if (opcode == "Guard") {
     auto operand = ParseRegister();
     instruction = newInstr<Guard>(operand);
-  } else if (strcmp(opcode, "GuardType") == 0) {
+  } else if (opcode == "GuardType") {
     expect("<");
     Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<GuardType>(dst, ty, operand);
-  } else if (strcmp(opcode, "GuardIs") == 0) {
+  } else if (opcode == "GuardIs") {
     expect("<");
     // Since we print raw pointer values for GuardIs, we should parse values
     // as pointers as well. However, since pointers to memory aren't stable,
@@ -531,16 +531,16 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(GuardIs, dst, Py_None, operand);
-  } else if (strcmp(opcode, "IsTruthy") == 0) {
+  } else if (opcode == "IsTruthy") {
     auto src = ParseRegister();
     instruction = newInstr<IsTruthy>(dst, src);
-  } else if (strcmp(opcode, "UseType") == 0) {
+  } else if (opcode == "UseType") {
     expect("<");
     Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(UseType, operand, ty);
-  } else if (strcmp(opcode, "HintType") == 0) {
+  } else if (opcode == "HintType") {
     ProfiledTypes types;
     expect("<");
     int num_args = GetNextInteger();
@@ -570,38 +570,39 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
         args.end(),
         std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
     NEW_INSTR(HintType, num_args, types, args);
-  } else if (strcmp(opcode, "RefineType") == 0) {
+  } else if (opcode == "RefineType") {
     expect("<");
     Type ty = Type::parse(env_, GetNextToken());
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(RefineType, dst, ty, operand);
-  } else if (strcmp(opcode, "CheckExc") == 0) {
+  } else if (opcode == "CheckExc") {
     auto operand = ParseRegister();
     instruction = newInstr<CheckExc>(dst, operand);
-  } else if (strcmp(opcode, "CheckVar") == 0) {
+  } else if (opcode == "CheckVar") {
     expect("<");
     BorrowedRef<> name = GetNextUnicode();
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<CheckVar>(dst, operand, name);
-  } else if (strcmp(opcode, "Snapshot") == 0) {
+  } else if (opcode == "Snapshot") {
     auto snapshot = Snapshot::create();
     if (peekNextToken() == "{") {
       snapshot->setFrameState(parseFrameState());
     }
     instruction = snapshot;
-  } else if (strcmp(opcode, "Deopt") == 0) {
+  } else if (opcode == "Deopt") {
     instruction = newInstr<Deopt>();
-  } else if (strcmp(opcode, "MakeDict") == 0) {
+  } else if (opcode == "MakeDict") {
     expect("<");
     auto capacity = GetNextInteger();
     expect(">");
     instruction = newInstr<MakeDict>(dst, capacity);
-  } else if (strcmp(opcode, "InvokeStaticFunction") == 0) {
+  } else if (opcode == "InvokeStaticFunction") {
     expect("<");
     auto name = GetNextToken();
-    auto mod_name = Ref<>::steal(PyUnicode_FromString(name));
+    auto mod_name =
+        Ref<>::steal(PyUnicode_FromStringAndSize(name.data(), name.size()));
     JIT_CHECK(mod_name != nullptr, "failed to allocate mod name");
     auto dot = Ref<>::steal(PyUnicode_FromString("."));
     JIT_CHECK(dot != nullptr, "failed to allocate mod name");
@@ -624,9 +625,9 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
 
     instruction = newInstr<InvokeStaticFunction>(argcount, dst, func, ty);
-  } else if (strcmp(opcode, "LoadCurrentFunc") == 0) {
+  } else if (opcode == "LoadCurrentFunc") {
     NEW_INSTR(LoadCurrentFunc, dst);
-  } else if (strcmp(opcode, "RepeatList") == 0) {
+  } else if (opcode == "RepeatList") {
     Register* list = ParseRegister();
     Register* count = ParseRegister();
     instruction = newInstr<RepeatList>(dst, list, count);
@@ -644,7 +645,7 @@ std::vector<Register*> HIRParser::parseRegisterVector() {
   std::vector<Register*> registers;
   for (int i = 0; i < num_items; i++) {
     auto name = GetNextToken();
-    if (strcmp(name, "<null>") == 0) {
+    if (name == "<null>") {
       registers.emplace_back(nullptr);
     } else {
       registers.emplace_back(allocateRegister(name));
@@ -669,18 +670,18 @@ FrameState HIRParser::parseFrameState() {
   FrameState fs;
   expect("{");
   auto token = GetNextToken();
-  while (strcmp(token, "}") != 0) {
-    if (strcmp(token, "NextInstrOffset") == 0) {
+  while (token != "}") {
+    if (token == "NextInstrOffset") {
       fs.next_instr_offset = BCOffset{GetNextInteger()};
-    } else if (strcmp(token, "Locals") == 0) {
+    } else if (token == "Locals") {
       fs.locals = parseRegisterVector();
-    } else if (strcmp(token, "Cells") == 0) {
+    } else if (token == "Cells") {
       fs.cells = parseRegisterVector();
-    } else if (strcmp(token, "Stack") == 0) {
+    } else if (token == "Stack") {
       for (Register* r : parseRegisterVector()) {
         fs.stack.push(r);
       }
-    } else if (strcmp(token, "BlockStack") == 0) {
+    } else if (token == "BlockStack") {
       expect("{");
       while (peekNextToken() != "}") {
         ExecutionBlock block;
@@ -713,7 +714,7 @@ BasicBlock* HIRParser::ParseBasicBlock(CFG& cfg) {
 
   if (peekNextToken() == "(") {
     // Skip over optional "(preds 1, 2, 3)".
-    while (strcmp(GetNextToken(), ")") != 0) {
+    while (GetNextToken() != ")") {
     }
   }
   expect("{");
@@ -724,7 +725,7 @@ BasicBlock* HIRParser::ParseBasicBlock(CFG& cfg) {
       dst = ParseRegister();
       expect("=");
     }
-    const char* token = GetNextToken();
+    std::string_view token = GetNextToken();
     auto* instr = parseInstr(token, dst, id);
     if (instr != nullptr) {
       bb->Append(instr);
@@ -863,18 +864,21 @@ int HIRParser::GetNextNameIdx() {
 }
 
 BorrowedRef<> HIRParser::GetNextUnicode() {
-  const char* str = GetNextToken();
-  auto obj = Ref<>::steal(PyUnicode_InternFromString(str));
+  std::string_view str = GetNextToken();
+  auto raw_obj = PyUnicode_FromStringAndSize(str.data(), str.size());
+  JIT_CHECK(raw_obj != nullptr, "Failed to create string %s", str);
+  PyUnicode_InternInPlace(&raw_obj);
+  auto obj = Ref<>::steal(raw_obj);
   JIT_CHECK(obj != nullptr, "Failed to intern string %s", str);
   return env_->addReference(std::move(obj));
 }
 
 RegState HIRParser::GetNextRegState() {
   auto token = GetNextToken();
-  auto end = strchr(token, ':');
-  JIT_CHECK(end != NULL, "invalid reg state: %s", token);
+  auto end = token.find(':');
+  JIT_CHECK(end != std::string::npos, "Invalid reg state: %s", token);
   RegState rs;
-  rs.reg = allocateRegister(end + 1);
+  rs.reg = allocateRegister(token.substr(end + 1));
   switch (token[0]) {
     case 'b':
       rs.ref_kind = RefKind::kBorrowed;

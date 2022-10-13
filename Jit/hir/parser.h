@@ -42,12 +42,12 @@ class HIRParser {
   std::unordered_map<int, std::vector<PhiInfo>> phis_;
   int max_reg_id_{0};
 
-  const char* GetNextToken() {
+  std::string_view GetNextToken() {
     JIT_CHECK(token_iter_ != tokens_.end(), "No more tokens");
-    return (token_iter_++)->c_str();
+    return *(token_iter_++);
   }
 
-  std::string_view peekNextToken(int n = 0) {
+  std::string_view peekNextToken(int n = 0) const {
     auto it = token_iter_;
     std::advance(it, n);
     return *it;
@@ -64,11 +64,11 @@ class HIRParser {
   RegState GetNextRegState();
   BorrowedRef<> GetNextUnicode();
 
-  void expect(const char* expected);
+  void expect(std::string_view expected);
 
   BasicBlock* ParseBasicBlock(CFG& cfg);
 
-  Instr* parseInstr(const char* opcode, Register* dst, int bb_index);
+  Instr* parseInstr(std::string_view opcode, Register* dst, int bb_index);
 
   Register* ParseRegister();
 
