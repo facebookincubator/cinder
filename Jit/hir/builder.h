@@ -488,6 +488,10 @@ class HIRBuilder {
       long nargs);
   void fixStaticReturn(TranslationContext& tc, Register* reg, Type ret_type);
 
+  // Box the primitive value from src into dst, using the given type.
+  void
+  boxPrimitive(TranslationContext& tc, Register* dst, Register* src, Type type);
+
   // Unbox the primitive value from src into dst, using the given type. Similar
   // to TranslationContext::emitChecked(), but uses IsNegativeAndErrOccurred
   // instead of the normal CheckExc because of the primitive output value.

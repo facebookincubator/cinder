@@ -68,15 +68,12 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kWaitHandleLoadWaiter:
       return commonEffects(inst, AEmpty);
 
-      // If boxing a bool, we return borrowed references to Py_True and
-      // Py_False.
-    case Opcode::kPrimitiveBox: {
-      if (static_cast<const PrimitiveBox&>(inst).type() <= TCBool) {
-        return borrowFrom(inst, AEmpty);
-      } else {
-        return commonEffects(inst, AEmpty);
-      }
-    }
+    // If boxing a bool, we return a borrowed reference to Py_True or Py_False.
+    case Opcode::kPrimitiveBoxBool:
+      return borrowFrom(inst, AEmpty);
+
+    case Opcode::kPrimitiveBox:
+      return commonEffects(inst, AEmpty);
 
     // These push/pop shadow frames and should not get DCE'd.
     case Opcode::kBeginInlinedFunction:

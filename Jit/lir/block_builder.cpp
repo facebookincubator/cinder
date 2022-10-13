@@ -65,10 +65,8 @@ std::size_t BasicBlockBuilder::makeDeoptMetadata() {
   JIT_CHECK(
       cur_hir_instr_ != nullptr,
       "Can't make DeoptMetadata with a nullptr HIR instruction");
-  auto deopt_base = dynamic_cast<const hir::DeoptBase*>(cur_hir_instr_);
-  JIT_CHECK(
-      deopt_base != nullptr,
-      "Current HIR instruction doesn't inherit from DeoptBase");
+  auto deopt_base = cur_hir_instr_->asDeoptBase();
+  JIT_CHECK(deopt_base != nullptr, "Current HIR instruction can't deopt");
 
   if (!cur_deopt_metadata_.has_value()) {
     cur_deopt_metadata_ = env_->rt->addDeoptMetadata(

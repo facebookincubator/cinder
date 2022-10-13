@@ -928,28 +928,30 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         break;
       }
+      case Opcode::kPrimitiveBoxBool: {
+        // Boxing a boolean is a matter of selecting between Py_True and
+        // Py_False.
+        Register* dest = i.GetOutput();
+        // TODO(T134705663) Use src's name rather than the Register* because
+        // Select can't handle an immediate condition.
+        std::string src = i.GetOperand(0)->name();
+        std::string temp_true = GetSafeTempName();
+        bbb.AppendCode(
+            "Move {}, {:#x}", temp_true, reinterpret_cast<uint64_t>(Py_True));
+        bbb.AppendCode(
+            "Select {}, {}, {}, {:#x}",
+            dest,
+            src,
+            temp_true,
+            reinterpret_cast<uint64_t>(Py_False));
+        break;
+      }
       case Opcode::kPrimitiveBox: {
         auto instr = static_cast<const PrimitiveBox*>(&i);
         std::string src = instr->value()->name();
         Type src_type = instr->value()->type();
         std::string tmp = GetSafeTempName();
         uint64_t func = 0;
-
-        // Boxing a boolean is a matter of selecting between Py_True and
-        // Py_False.
-        if (src_type <= TCBool) {
-          auto dest = instr->GetOutput();
-          auto temp = GetSafeTempName();
-          bbb.AppendCode(
-              "Move {}, {:#x}", temp, reinterpret_cast<uint64_t>(Py_True));
-          bbb.AppendCode(
-              "Select {}, {}, {}, {:#x}",
-              dest,
-              src,
-              temp,
-              reinterpret_cast<uint64_t>(Py_False));
-          break;
-        }
 
         if (src_type == TNullptr) {
           // special case for an uninitialized variable, we'll

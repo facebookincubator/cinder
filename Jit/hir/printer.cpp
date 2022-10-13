@@ -273,6 +273,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
     case Opcode::kMergeSetUnpack:
+    case Opcode::kPrimitiveBoxBool:
     case Opcode::kRaise:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:

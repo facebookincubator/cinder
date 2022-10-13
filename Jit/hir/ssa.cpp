@@ -588,6 +588,10 @@ Type outputType(
       return TTupleExact;
     }
 
+    case Opcode::kPrimitiveBoxBool: {
+      return TBool;
+    }
+
     case Opcode::kPrimitiveBox: {
       // This duplicates the logic in Type::asBoxed(), but it has enough
       // special cases (for exactness/optionality/nullptr) that it's not worth
@@ -600,9 +604,6 @@ Type outputType(
       if (pb.value()->type() <= (TCUnsigned | TCSigned | TNullptr)) {
         // Special Nullptr case for an uninitialized variable; load zero.
         return TLongExact;
-      }
-      if (pb.value()->type() <= TCBool) {
-        return TBool;
       }
       JIT_CHECK(
           false,

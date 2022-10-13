@@ -1317,7 +1317,7 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<Equal> v3 v4
-    v9:Bool = PrimitiveBox<CBool> v8
+    v9:Bool = PrimitiveBoxBool v8
     Return v9
   }
 }
@@ -1332,7 +1332,7 @@ fun jittestmodule:test {
     v3:Object = LoadArg<0; "x">
     v4:Object = LoadArg<1; "y">
     v8:CBool = PrimitiveCompare<NotEqual> v3 v4
-    v9:Bool = PrimitiveBox<CBool> v8
+    v9:Bool = PrimitiveBoxBool v8
     Return v9
   }
 }
@@ -1639,7 +1639,7 @@ CompareOfBoxedBoolToTrueSimplifiedToOriginalBool
 fun test {
   bb 0 {
     v0 = LoadArg<0, CBool>
-    v1 = PrimitiveBox<CBool> v0
+    v1 = PrimitiveBoxBool v0
     v2 = LoadConst<Bool[True]>
     v3 = PrimitiveCompare<Equal> v1 v2
     Return<CBool> v3
@@ -1649,7 +1649,7 @@ fun test {
 fun test {
   bb 0 {
     v0:CBool = LoadArg<0, CBool>
-    v1:Bool = PrimitiveBox<CBool> v0
+    v1:Bool = PrimitiveBoxBool v0
     v2:MortalBool[True] = LoadConst<MortalBool[True]>
     Return<CBool> v0
   }
@@ -1672,7 +1672,7 @@ fun jittestmodule:test {
     UseType<Bool> v1
     v3:CBool = PrimitiveUnbox<CBool> v1
     v4:CBool = PrimitiveUnaryOp<NotInt> v3
-    v5:Bool = PrimitiveBox<CBool> v4
+    v5:Bool = PrimitiveBoxBool v4
     Return v5
   }
 }

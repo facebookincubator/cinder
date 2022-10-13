@@ -268,7 +268,7 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
                                       : PrimitiveCompareOp::kNotEqual,
         instr->left(),
         instr->right());
-    return env.emit<PrimitiveBox>(cbool, TCBool, *instr->frameState());
+    return env.emit<PrimitiveBoxBool>(cbool);
   }
   if (left->isA(TNoneType) && right->isA(TNoneType)) {
     if (op == CompareOp::kEqual || op == CompareOp::kNotEqual) {
@@ -501,7 +501,7 @@ Register* simplifyUnaryOp(Env& env, const UnaryOp* instr) {
     Register* unboxed = env.emit<PrimitiveUnbox>(operand, TCBool);
     Register* negated =
         env.emit<PrimitiveUnaryOp>(PrimitiveUnaryOpKind::kNotInt, unboxed);
-    return env.emit<PrimitiveBox>(negated, TCBool, *instr->frameState());
+    return env.emit<PrimitiveBoxBool>(negated);
   }
 
   return nullptr;
@@ -511,8 +511,7 @@ Register* simplifyPrimitiveCompare(const PrimitiveCompare* instr) {
   if (instr->op() == PrimitiveCompareOp::kEqual) {
     Register* lhs = instr->GetOperand(0);
     Type rhs_type = instr->GetOperand(1)->type();
-    if (lhs->isA(TBool) && lhs->instr()->IsPrimitiveBox() &&
-        rhs_type.asObject() == Py_True) {
+    if (lhs->instr()->IsPrimitiveBoxBool() && rhs_type.asObject() == Py_True) {
       // If we're comparing a boxed bool to Py_True, return the original,
       // unboxed CBool.
       return lhs->instr()->GetOperand(0);

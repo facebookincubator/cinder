@@ -149,6 +149,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadVarObjectSize:
     case Opcode::kLongCompare:
     case Opcode::kPrimitiveBox:
+    case Opcode::kPrimitiveBoxBool:
     case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kPrimitiveUnbox:

@@ -346,6 +346,7 @@ struct FrameState {
   V(InitListTuple)                     \
   V(InitialYield)                      \
   V(IntBinaryOp)                       \
+  V(PrimitiveBoxBool)                  \
   V(PrimitiveBox)                      \
   V(PrimitiveCompare)                  \
   V(IntConvert)                        \
@@ -2584,6 +2585,8 @@ class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
   PrimitiveCompareOp op_;
 };
 
+DEFINE_SIMPLE_INSTR(PrimitiveBoxBool, (TCBool), HasOutput, Operands<1>);
+
 class INSTR_CLASS(
     PrimitiveBox,
     (TPrimitive),
@@ -2596,7 +2599,11 @@ class INSTR_CLASS(
       Register* value,
       Type type,
       const FrameState& frame)
-      : InstrT(dst, value, frame), type_(type) {}
+      : InstrT(dst, value, frame), type_(type) {
+    JIT_CHECK(
+        !(type <= TCBool),
+        "PrimitiveBox does not support TCBool; use PrimitiveBoxBool instead.");
+  }
 
   Register* value() const {
     return GetOperand(0);
@@ -2604,20 +2611,6 @@ class INSTR_CLASS(
 
   Type type() const {
     return type_;
-  }
-
-  virtual DeoptBase* asDeoptBase() {
-    if (type() <= TCBool) {
-      return nullptr;
-    }
-    return this;
-  }
-
-  virtual const DeoptBase* asDeoptBase() const {
-    if (type() <= TCBool) {
-      return nullptr;
-    }
-    return this;
   }
 
   OperandType GetOperandTypeImpl(std::size_t /* i */) const {

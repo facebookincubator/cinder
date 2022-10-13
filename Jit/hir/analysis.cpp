@@ -126,6 +126,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kPrimitiveBox:
+    case Opcode::kPrimitiveBoxBool:
     case Opcode::kPrimitiveUnaryOp:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:

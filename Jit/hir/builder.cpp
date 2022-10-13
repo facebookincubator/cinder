@@ -2122,7 +2122,7 @@ std::vector<Register*> HIRBuilder::setupStaticArgs(
     for (auto [argnum, type] : target.primitive_arg_types) {
       Register* reg = arg_regs.at(argnum);
       auto boxed_primitive_tmp = temps_.AllocateStack();
-      tc.emit<PrimitiveBox>(boxed_primitive_tmp, reg, type, tc.frame);
+      boxPrimitive(tc, boxed_primitive_tmp, reg, type);
       arg_regs[argnum] = boxed_primitive_tmp;
     }
   }
@@ -2596,7 +2596,7 @@ void HIRBuilder::emitPrimitiveBox(
   Register* tmp = temps_.AllocateStack();
   Register* src = tc.frame.stack.pop();
   Type typ = prim_type_to_type(bc_instr.oparg());
-  tc.emit<PrimitiveBox>(tmp, src, typ, tc.frame);
+  boxPrimitive(tc, tmp, src, typ);
   tc.frame.stack.push(tmp);
 }
 
@@ -2608,6 +2608,18 @@ void HIRBuilder::emitPrimitiveUnbox(
   Type typ = prim_type_to_type(bc_instr.oparg());
   unboxPrimitive(tc, tmp, src, typ);
   tc.frame.stack.push(tmp);
+}
+
+void HIRBuilder::boxPrimitive(
+    TranslationContext& tc,
+    Register* dst,
+    Register* src,
+    Type type) {
+  if (type <= TCBool) {
+    tc.emit<PrimitiveBoxBool>(dst, src);
+  } else {
+    tc.emit<PrimitiveBox>(dst, src, type, tc.frame);
+  }
 }
 
 void HIRBuilder::unboxPrimitive(

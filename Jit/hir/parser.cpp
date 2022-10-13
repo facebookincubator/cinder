@@ -410,6 +410,9 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     NEW_INSTR(PrimitiveUnbox, dst, operand, type);
+  } else if (opcode == "PrimitiveBoxBool") {
+    auto operand = ParseRegister();
+    NEW_INSTR(PrimitiveBoxBool, dst, operand);
   } else if (opcode == "PrimitiveBox") {
     expect("<");
     Type type = Type::parse(env_, GetNextToken());
