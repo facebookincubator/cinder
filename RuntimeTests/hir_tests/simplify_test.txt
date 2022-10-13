@@ -1633,7 +1633,7 @@ fun jittestmodule:test {
   }
 }
 ---
-CompareOfBoxedBoolStrengthReducedToCompareOfBool
+CompareOfBoxedBoolToTrueSimplifiedToOriginalBool
 ---
 # HIR
 fun test {
@@ -1642,9 +1642,7 @@ fun test {
     v1 = PrimitiveBox<CBool> v0
     v2 = LoadConst<Bool[True]>
     v3 = PrimitiveCompare<Equal> v1 v2
-    v4 = IntConvert<CInt32> v3
-    v5 = PrimitiveBox<CInt32> v4
-    Return v5
+    Return<CBool> v3
   }
 }
 ---
@@ -1653,14 +1651,7 @@ fun test {
     v0:CBool = LoadArg<0, CBool>
     v1:Bool = PrimitiveBox<CBool> v0
     v2:MortalBool[True] = LoadConst<MortalBool[True]>
-    v3:CBool = PrimitiveCompare<Equal> v1 v2
-    v6:CInt32 = IntConvert<CInt32> v0
-    v5:LongExact = PrimitiveBox<CInt32> v6 {
-      FrameState {
-        NextInstrOffset 0
-      }
-    }
-    Return v5
+    Return<CBool> v0
   }
 }
 ---

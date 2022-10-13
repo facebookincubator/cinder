@@ -238,23 +238,6 @@ Register* simplifyIntConvert(Env& env, const IntConvert* instr) {
     env.emit<UseType>(src, instr->type());
     return instr->GetOperand(0);
   }
-  if (src->instr()->IsPrimitiveCompare()) {
-    auto primitive_compare = static_cast<PrimitiveCompare*>(src->instr());
-    if (primitive_compare->op() == PrimitiveCompareOp::kEqual) {
-      Register* lhs = primitive_compare->GetOperand(0);
-      if (lhs->isA(TBool)) {
-        Type rhs_type = primitive_compare->GetOperand(1)->type();
-        if (rhs_type <= TBool && rhs_type.hasObjectSpec() &&
-            rhs_type.objectSpec() == Py_True) {
-          if (lhs->instr()->IsPrimitiveBox()) {
-            auto primitive_box = static_cast<PrimitiveBox*>(lhs->instr());
-            Register* unboxed = primitive_box->GetOperand(0);
-            return env.emit<IntConvert>(unboxed, instr->type());
-          }
-        }
-      }
-    }
-  }
   return nullptr;
 }
 
@@ -524,6 +507,20 @@ Register* simplifyUnaryOp(Env& env, const UnaryOp* instr) {
   return nullptr;
 }
 
+Register* simplifyPrimitiveCompare(const PrimitiveCompare* instr) {
+  if (instr->op() == PrimitiveCompareOp::kEqual) {
+    Register* lhs = instr->GetOperand(0);
+    Type rhs_type = instr->GetOperand(1)->type();
+    if (lhs->isA(TBool) && lhs->instr()->IsPrimitiveBox() &&
+        rhs_type.asObject() == Py_True) {
+      // If we're comparing a boxed bool to Py_True, return the original,
+      // unboxed CBool.
+      return lhs->instr()->GetOperand(0);
+    }
+  }
+  return nullptr;
+}
+
 Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   Register* unboxed_value = instr->GetOperand(0);
   Type unbox_output_type = instr->GetOutput()->type();
@@ -682,6 +679,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kUnaryOp:
       return simplifyUnaryOp(env, static_cast<const UnaryOp*>(instr));
 
+    case Opcode::kPrimitiveCompare:
+      return simplifyPrimitiveCompare(
+          static_cast<const PrimitiveCompare*>(instr));
     case Opcode::kPrimitiveUnbox:
       return simplifyPrimitiveUnbox(
           env, static_cast<const PrimitiveUnbox*>(instr));
