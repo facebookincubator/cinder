@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Jit/hir/hir.h"
+#include "Jit/util.h"
 
 #include <cstdlib>
 #include <iterator>
@@ -53,7 +54,10 @@ class HIRParser {
   }
 
   int GetNextInteger() {
-    return atoi(GetNextToken());
+    auto token = GetNextToken();
+    auto n = parseInt<int>(token);
+    JIT_CHECK(n.has_value(), "Cannot parse '%s' as an integer", token);
+    return *n;
   }
 
   int GetNextNameIdx();
@@ -68,7 +72,7 @@ class HIRParser {
 
   Register* ParseRegister();
 
-  Register* allocateRegister(const char* name);
+  Register* allocateRegister(std::string_view name);
 
   void realizePhis();
 

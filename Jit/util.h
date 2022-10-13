@@ -10,10 +10,13 @@
 #ifdef __cplusplus
 #include "Jit/log.h"
 
+#include <charconv>
 #include <cstdarg>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <queue>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -99,6 +102,16 @@ void setUseStablePointers(bool enable);
 
 inline std::size_t combineHash(std::size_t seed, std::size_t hash) {
   return seed ^ (hash + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+template <class T>
+std::optional<T> parseInt(std::string_view s) {
+  T n = 0;
+  auto result = std::from_chars(s.begin(), s.end(), n);
+  if (result.ec == std::errc{}) {
+    return n;
+  }
+  return std::nullopt;
 }
 
 std::string codeFullname(PyObject* module, PyCodeObject* code);

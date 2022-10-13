@@ -33,10 +33,14 @@ void HIRParser::expect(const char* expected) {
   }
 }
 
-Register* HIRParser::allocateRegister(const char* name) {
+Register* HIRParser::allocateRegister(std::string_view name) {
   JIT_CHECK(
       name[0] == 'v', "invalid register name (must be v[0-9]+): %s", name);
-  int id = atoi(name + 1);
+  auto opt_id = parseInt<int>(name.substr(1));
+  JIT_CHECK(
+      opt_id.has_value(), "Cannot parse register '%s' into an integer", name);
+  auto id = *opt_id;
+
   auto reg = env_->getRegister(id);
   if (reg == nullptr) {
     reg = env_->addRegister(std::make_unique<Register>(id));

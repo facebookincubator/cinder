@@ -51,7 +51,7 @@ class Type {
 
   // Parse a Type from the given string. Unions and PyObject* specializations
   // are not supported. Returns TBottom on error.
-  static Type parse(Environment* env, std::string str);
+  static Type parse(Environment* env, std::string_view str);
 
   // Create a Type from a PyTypeObject, optionally flagged as not allowing
   // subtypes. The resulting Type is not guaranteed to be specialized (for
