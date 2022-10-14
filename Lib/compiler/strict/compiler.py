@@ -83,6 +83,10 @@ class Compiler(StaticCompiler):
             os.getenv("PYTHONSTRICTVERBOSE")
             or sys._xoptions.get("strict-verbose") is True
         )
+        self.disable_analysis = bool(
+            os.getenv("PYTHONSTRICTDISABLEANALYSIS")
+            or sys._xoptions.get("strict-disable-analysis") is True
+        )
         self.loader: IStrictModuleLoader = loader_factory(
             self.import_path,
             str(stub_root),
@@ -91,6 +95,7 @@ class Compiler(StaticCompiler):
             True,  # _load_strictmod_builtin
             list(self.allow_list_regex),
             self.verbose,  # _verbose_logging
+            self.disable_analysis,  # _disable_analysis
         )
         self.raise_on_error = raise_on_error
         self.log_time_func = log_time_func

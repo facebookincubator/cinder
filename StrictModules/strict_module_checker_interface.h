@@ -66,6 +66,8 @@ int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker);
 
 int StrictModuleChecker_EnableVerboseLogging(StrictModuleChecker* checker);
 
+int StrictModuleChecker_DisableAnalysis(StrictModuleChecker* checker);
+
 void StrictModuleChecker_Free(StrictModuleChecker* checker);
 
 /** Return the analyzed module

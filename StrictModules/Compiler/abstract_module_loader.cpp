@@ -517,7 +517,12 @@ AnalyzedModule* ModuleLoader::analyze(std::unique_ptr<ModuleInfo> modInfo) {
   BaseErrorSink* errorSinkBorrowed = errorSink.get();
   auto mod_kind_result = getModuleKind(modInfo.get());
   ModuleKind kind = mod_kind_result.first;
-  ShouldAnalyze should_analyze = mod_kind_result.second;
+  ShouldAnalyze should_analyze;
+  if (disableAnalysis_) {
+    should_analyze = ShouldAnalyze::kNo;
+  } else {
+    should_analyze = mod_kind_result.second;
+  }
   modInfo->raiseAnyFlagError(errorSinkBorrowed);
   AnalyzedModule* analyzedModule =
       new AnalyzedModule(kind, std::move(errorSink), std::move(modInfo));
@@ -676,6 +681,11 @@ bool ModuleLoader::loadStrictModuleModule() {
 
 bool ModuleLoader::enableVerboseLogging() {
   verbose_ = true;
+  return true;
+}
+
+bool ModuleLoader::disableAnalysis() {
+  disableAnalysis_ = true;
   return true;
 }
 

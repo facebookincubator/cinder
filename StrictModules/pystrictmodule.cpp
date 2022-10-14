@@ -305,16 +305,18 @@ static int StrictModuleLoaderObject_init(
   PyObject* allow_list_regex_obj = nullptr;
   load_strictmod_builtin = Py_True;
   PyObject* verbose_logging = Py_False;
+  PyObject* disable_analysis = Py_False;
   if (!PyArg_ParseTuple(
           args,
-          "OOOO|OOO",
+          "OOOO|OOOO",
           &import_paths_obj,
           &stub_import_path_obj,
           &allow_list_obj,
           &allow_list_exact_obj,
           &load_strictmod_builtin,
           &allow_list_regex_obj,
-          &verbose_logging)) {
+          &verbose_logging,
+          &disable_analysis)) {
     return -1;
   }
 
@@ -354,6 +356,15 @@ static int StrictModuleLoaderObject_init(
         stub_import_path_obj);
     return -1;
   }
+
+  if (!PyBool_Check(disable_analysis)) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "disable_analysis is expect to be bool, but got %S object",
+        stub_import_path_obj);
+    return -1;
+  }
+
   // Import paths
   Py_ssize_t import_size = PyList_GET_SIZE(import_paths_obj);
   const char* import_paths_arr[import_size];
@@ -440,6 +451,17 @@ static int StrictModuleLoaderObject_init(
   }
   if (should_enable_verbose_logging) {
     StrictModuleChecker_EnableVerboseLogging(self->checker);
+  }
+
+  int should_disable_analysis = PyObject_IsTrue(disable_analysis);
+  if (should_disable_analysis < 0) {
+    PyErr_SetString(
+        PyExc_RuntimeError,
+        "error checking 'disable_analysis' on StrictModuleLoader");
+    return -1;
+  }
+  if (should_disable_analysis) {
+    StrictModuleChecker_DisableAnalysis(self->checker);
   }
 
   // load strict module builtins

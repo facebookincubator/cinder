@@ -608,6 +608,7 @@ class StaticTestsStrictModuleLoader:
         _load_strictmod_builtin: bool = True,
         _allow_list_regex: List[str] | None = None,
         _verbose_logs: bool = False,
+        _disable_analysis: bool = False,
         /,
     ) -> None:
         pass
