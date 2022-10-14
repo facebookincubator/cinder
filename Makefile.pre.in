@@ -471,6 +471,7 @@ JIT_OBJS=       \
 		Jit/hir/preload.o \
 		Jit/hir/printer.o \
 		Jit/hir/refcount_insertion.o \
+		Jit/hir/register.o \
 		Jit/hir/simplify.o \
 		Jit/hir/ssa.o \
 		Jit/hir/type.o \
@@ -1313,6 +1314,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/hir/parser.h \
 		$(srcdir)/Jit/hir/preload.h \
 		$(srcdir)/Jit/hir/printer.h \
+		$(srcdir)/Jit/hir/register.h \
 		$(srcdir)/Jit/hir/ssa.h \
 		$(srcdir)/Jit/hir/type.h \
 		$(srcdir)/Jit/hir/type_generated.h \
