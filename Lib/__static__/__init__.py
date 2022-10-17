@@ -1,18 +1,16 @@
 # pyre-strict
 from __future__ import annotations
 
-import array
 import functools
 import random
 import time
 from asyncio import iscoroutinefunction
-from types import FunctionType, UnionType as typesUnion
+from types import UnionType as typesUnion
 from typing import (
     _GenericAlias,
     _tp_cache,
     Dict,
     final,
-    Iterable,
     Literal,
     Optional,
     Tuple,
@@ -186,39 +184,6 @@ class char(int):
 class cbool(int):
     pass
 
-
-ArrayElement = TypeVar(
-    "ArrayElement",
-    int8,
-    int16,
-    int32,
-    int64,
-    uint8,
-    uint16,
-    uint32,
-    uint64,
-    char,
-    float,
-    double,
-)
-
-_TYPE_SIZES = {tc: array.array(tc).itemsize for tc in array.typecodes}
-
-# These should be in sync with the array module
-_TYPE_CODES = {
-    int8: "b",
-    uint8: "B",
-    int16: "h",
-    uint16: "H",
-    # apparently, l is equivalent to q for us, but that may not be true everywhere.
-    int32: "i" if _TYPE_SIZES["i"] == 4 else "l",
-    uint32: "I" if _TYPE_SIZES["I"] == 4 else "L",
-    int64: "q",
-    uint64: "Q",
-    float: "f",
-    double: "d",
-    char: "B",
-}
 
 TVarOrType = Union[TypeVar, Type[object]]
 
