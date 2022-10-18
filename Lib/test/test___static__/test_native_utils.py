@@ -22,7 +22,7 @@ class TestNativeInvoke(unittest.TestCase):
         target = "libc.so.6"
         symbol = "labs"
 
-        signature = (("__static__", "int64", "!"), ("__static__", "int64", "!"))
+        signature = (("__static__", "int64", "#"), ("__static__", "int64", "#"))
 
         self.assertEqual(invoke_native(target, symbol, signature, (-4,)), 4)
 

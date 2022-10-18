@@ -113,7 +113,7 @@ class PrimitivesTests(StaticTestBase):
         slot_types = [
             # signed
             (
-                ("__static__", "byte"),
+                ("__static__", "byte", "#"),
                 0,
                 1,
                 [(1 << 7) - 1, -(1 << 7)],
@@ -121,7 +121,7 @@ class PrimitivesTests(StaticTestBase):
                 ["abc"],
             ),
             (
-                ("__static__", "int8"),
+                ("__static__", "int8", "#"),
                 0,
                 1,
                 [(1 << 7) - 1, -(1 << 7)],
@@ -129,7 +129,7 @@ class PrimitivesTests(StaticTestBase):
                 ["abc"],
             ),
             (
-                ("__static__", "int16"),
+                ("__static__", "int16", "#"),
                 0,
                 2,
                 [(1 << 15) - 1, -(1 << 15)],
@@ -137,18 +137,32 @@ class PrimitivesTests(StaticTestBase):
                 ["abc"],
             ),
             (
-                ("__static__", "int32"),
+                ("__static__", "int32", "#"),
                 0,
                 4,
                 [(1 << 31) - 1, -(1 << 31)],
                 [1 << 31, -(1 << 31) - 1],
                 ["abc"],
             ),
-            (("__static__", "int64"), 0, 8, [(1 << 63) - 1, -(1 << 63)], [], [1 << 63]),
-            # unsigned
-            (("__static__", "uint8"), 0, 1, [(1 << 8) - 1, 0], [1 << 8, -1], ["abc"]),
             (
-                ("__static__", "uint16"),
+                ("__static__", "int64", "#"),
+                0,
+                8,
+                [(1 << 63) - 1, -(1 << 63)],
+                [],
+                [1 << 63],
+            ),
+            # unsigned
+            (
+                ("__static__", "uint8", "#"),
+                0,
+                1,
+                [(1 << 8) - 1, 0],
+                [1 << 8, -1],
+                ["abc"],
+            ),
+            (
+                ("__static__", "uint16", "#"),
                 0,
                 2,
                 [(1 << 16) - 1, 0],
@@ -156,17 +170,17 @@ class PrimitivesTests(StaticTestBase):
                 ["abc"],
             ),
             (
-                ("__static__", "uint32"),
+                ("__static__", "uint32", "#"),
                 0,
                 4,
                 [(1 << 32) - 1, 0],
                 [1 << 32, -1],
                 ["abc"],
             ),
-            (("__static__", "uint64"), 0, 8, [(1 << 64) - 1, 0], [], [1 << 64]),
+            (("__static__", "uint64", "#"), 0, 8, [(1 << 64) - 1, 0], [], [1 << 64]),
             # pointer
             (
-                ("__static__", "ssize_t"),
+                ("__static__", "ssize_t", "#"),
                 0,
                 self.ptr_size,
                 [1, sys.maxsize, -sys.maxsize - 1],
@@ -174,11 +188,11 @@ class PrimitivesTests(StaticTestBase):
                 [sys.maxsize + 1, -sys.maxsize - 2],
             ),
             # floating point
-            (("__static__", "single"), 0.0, 4, [1.0], [], ["abc"]),
-            (("__static__", "double"), 0.0, 8, [1.0], [], ["abc"]),
+            (("__static__", "single", "#"), 0.0, 4, [1.0], [], ["abc"]),
+            (("__static__", "double", "#"), 0.0, 8, [1.0], [], ["abc"]),
             # misc
-            (("__static__", "char"), "\x00", 1, ["a"], [], ["abc"]),
-            (("__static__", "cbool"), False, 1, [True], [], ["abc", 1]),
+            (("__static__", "char", "#"), "\x00", 1, ["a"], [], ["abc"]),
+            (("__static__", "cbool", "#"), False, 1, [True], [], ["abc", 1]),
         ]
 
         target_size = (
@@ -1008,7 +1022,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "#")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1060,7 +1074,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "#")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1081,7 +1095,7 @@ class PrimitivesTests(StaticTestBase):
         self.assertEqual(f(), 100)
 
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "#")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         self.assertInBytecode(f, "PRIMITIVE_COMPARE_OP", PRIM_OP_LT_INT)
         self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
@@ -1098,7 +1112,7 @@ class PrimitivesTests(StaticTestBase):
         code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "#")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
@@ -1301,7 +1315,7 @@ class PrimitivesTests(StaticTestBase):
         code = self.compile(codestr)
         f = self.find_code(code)
         self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST", (42, TYPED_INT64))
-        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "!")))
+        self.assertInBytecode(f, "LOAD_LOCAL", (0, ("__static__", "int64", "#")))
         self.assertInBytecode(f, "PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
         f = self.run_code(codestr)["f"]
         self.assertEqual(f(), 43)
@@ -3396,7 +3410,7 @@ class PrimitivesTests(StaticTestBase):
                     f = mod.f
                     self.assertInBytecode(f, "PRIMITIVE_LOAD_CONST")
                     self.assertInBytecode(
-                        f, "STORE_LOCAL", (0, ("__static__", "cbool", "!"))
+                        f, "STORE_LOCAL", (0, ("__static__", "cbool", "#"))
                     )
                     self.assertInBytecode(f, "POP_JUMP_IF_ZERO")
                     self.assertEqual(f(), 1 if b == "True" else 2)

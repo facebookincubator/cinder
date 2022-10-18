@@ -2958,7 +2958,8 @@ classloader_get_member(PyObject *path,
         // If we are getting a member from an exact or an optional type, simply skip these markers.
         if (PyUnicode_Check(name) &&
               (PyUnicode_CompareWithASCIIString(name, "?") == 0 ||
-               (PyUnicode_CompareWithASCIIString(name, "!") == 0))) {
+               PyUnicode_CompareWithASCIIString(name, "#") == 0 ||
+               PyUnicode_CompareWithASCIIString(name, "!") == 0)) {
           continue;
         }
 
@@ -3065,18 +3066,29 @@ int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
     return Ci_PyHeapType_CINDER_EXTRA(type)->type_code;
 }
 
+
 /* Resolve a tuple type descr to a `prim_type` integer (`TYPED_*`); return -1
  * and set an error if the type cannot be resolved. */
 int
 _PyClassLoader_ResolvePrimitiveType(PyObject *descr) {
-    int optional, exact;
-    PyTypeObject *type = _PyClassLoader_ResolveType(descr, &optional, &exact);
-    if (type == NULL) {
+    if (!PyTuple_Check(descr) || PyTuple_GET_SIZE(descr) < 2) {
+        PyErr_Format(PyExc_TypeError, "unknown type %R", descr);
         return -1;
     }
-    int res = _PyClassLoader_GetTypeCode(type);
-    Py_DECREF(type);
-    return res;
+
+    PyObject *last_elem = PyTuple_GetItem(descr, PyTuple_GET_SIZE(descr) - 1);
+    if (PyUnicode_CheckExact(last_elem) &&
+        PyUnicode_CompareWithASCIIString(last_elem, "#") == 0) {
+        int optional, exact;
+        PyTypeObject *type = _PyClassLoader_ResolveType(descr, &optional, &exact);
+        if (type == NULL) {
+            return -1;
+        }
+        int res = _PyClassLoader_GetTypeCode(type);
+        Py_DECREF(type);
+        return res;
+    }
+    return TYPED_OBJECT;
 }
 
 /* Resolve a tuple type descr in the form ("module", "submodule", "Type") to a
@@ -3101,8 +3113,10 @@ _PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact)
             *optional = 1;
         } else if (PyUnicode_CompareWithASCIIString(last, "!") == 0) {
             *exact = 1;
-        } else {
+        } else if (PyUnicode_CompareWithASCIIString(last, "#") != 0) {
             break;
+        } else {
+            *exact = 1;
         }
         items--;
         last = PyTuple_GET_ITEM(descr, items - 1);
