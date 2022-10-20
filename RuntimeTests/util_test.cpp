@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
+#include "Jit/symbolizer.h"
 #include "Jit/util.h"
 
 #include "RuntimeTests/fixtures.h"
@@ -35,4 +36,27 @@ TEST(UtilTest, ScopeExitRunsAtScopeEnd) {
     EXPECT_EQ(value, 0);
   }
   EXPECT_EQ(value, 1);
+}
+
+TEST(UtilTest, SymbolizerWithNonexistentSymbolReturnsNull) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string_view> result =
+      symbolizer.symbolize(reinterpret_cast<void*>(0xffffffffffffffff));
+  EXPECT_FALSE(result.has_value());
+}
+
+TEST(UtilTest, SymbolizerResolvesDynamicSymbol) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string_view> result =
+      symbolizer.symbolize(reinterpret_cast<void*>(std::labs));
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, "labs");
+}
+
+TEST(UtilTest, SymbolizerResolvesStaticSymbol) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string_view> result =
+      symbolizer.symbolize(reinterpret_cast<void*>(PyObject_Size));
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, "PyObject_Size");
 }

@@ -11,11 +11,13 @@
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"
 #include "Jit/slab_arena.h"
+#include "Jit/symbolizer.h"
 #include "Jit/threaded_compile.h"
 #include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -415,6 +417,10 @@ class Runtime {
   // memory was paged in.
   Ref<> pageInProfilerDependencies();
 
+  std::optional<std::string_view> symbolize(const void* func) {
+    return symbolizer_.symbolize(func);
+  }
+
  private:
   static Runtime* s_runtime_;
 
@@ -444,5 +450,7 @@ class Runtime {
   std::unordered_set<Ref<PyObject>> references_;
   std::vector<std::unique_ptr<DeoptPatcher>> deopt_patchers_;
   Builtins builtins_;
+  Symbolizer symbolizer_;
 };
+
 } // namespace jit
