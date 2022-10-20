@@ -9,8 +9,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-extern struct PyModuleDef _staticmodule;
-
 namespace jit {
 
 Symbolizer::Symbolizer(const char* exe_path) {

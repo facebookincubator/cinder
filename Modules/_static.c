@@ -1258,7 +1258,7 @@ static PyMethodDef static_methods[] = {
     {}
 };
 
-struct PyModuleDef _staticmodule = {PyModuleDef_HEAD_INIT,
+static struct PyModuleDef _staticmodule = {PyModuleDef_HEAD_INIT,
                                            "_static",
                                            _static__doc__,
                                            0,
