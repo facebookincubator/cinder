@@ -146,10 +146,10 @@ void BasicBlockBuilder::createBasicCallInstr(
     if (dest_idx < tokens.size() && IsConstant(tokens[dest_idx])) {
       std::string helper_id = GetId(tokens[dest_idx]);
       uint64_t helper_addr = std::stoull(helper_id, nullptr, 0);
-      Dl_info helper_info;
-      if (dladdr(reinterpret_cast<void*>(helper_addr), &helper_info) != 0 &&
-          helper_info.dli_sname != NULL) {
-        JIT_LOG("Call to function %s.", helper_info.dli_sname);
+      std::optional<std::string> name =
+          symbolize(reinterpret_cast<void*>(helper_addr));
+      if (name.has_value()) {
+        JIT_LOG("Call to function %s.", *name);
       } else {
         JIT_LOG("Call to function at %s.", tokens[dest_idx]);
       }

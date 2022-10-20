@@ -4,6 +4,7 @@
 #include "Python.h"
 
 #include "Jit/hir/hir.h"
+#include "Jit/runtime.h"
 #include "Jit/util.h"
 
 #include <fmt/format.h>
@@ -366,11 +367,29 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kCallStatic: {
       const auto& call = static_cast<const CallStatic&>(instr);
-      return fmt::format("{}", call.NumOperands());
+      std::optional<std::string> func_name = symbolize(call.addr());
+      if (func_name.has_value()) {
+        return fmt::format(
+            "{}@{}, {}",
+            *func_name,
+            getStablePointer(call.addr()),
+            call.NumOperands());
+      }
+      return fmt::format(
+          "{}, {}", getStablePointer(call.addr()), call.NumOperands());
     }
     case Opcode::kCallStaticRetVoid: {
-      const auto& call = static_cast<const CallStatic&>(instr);
-      return fmt::format("{}", call.NumOperands());
+      const auto& call = static_cast<const CallStaticRetVoid&>(instr);
+      std::optional<std::string> func_name = symbolize(call.addr());
+      if (func_name.has_value()) {
+        return fmt::format(
+            "{}@{}, {}",
+            *func_name,
+            getStablePointer(call.addr()),
+            call.NumOperands());
+      }
+      return fmt::format(
+          "{}, {}", getStablePointer(call.addr()), call.NumOperands());
     }
     case Opcode::kInvokeStaticFunction: {
       const auto& call = static_cast<const InvokeStaticFunction&>(instr);

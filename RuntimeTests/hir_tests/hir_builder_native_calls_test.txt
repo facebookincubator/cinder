@@ -32,7 +32,7 @@ fun jittestmodule:test {
       }
     }
     v1 = Assign v2
-    v4 = CallStatic<1> v1
+    v4 = CallStatic<labs@0xdeadbeef, 1> v1
     v5 = PrimitiveBox<CInt64> v4 {
       FrameState {
         NextInstrOffset 16

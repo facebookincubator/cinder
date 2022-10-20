@@ -1431,7 +1431,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v2 = CallStatic<0>
+    v2 = CallStatic<static_rand@0xdeadbeef, 0>
     v3 = IntConvert<CInt64> v2
     v0 = Assign v3
     v4 = PrimitiveBox<CInt64> v0 {

@@ -13,7 +13,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v9:Nullptr = LoadConst<Nullptr>
-    v10:CInt32 = CallStatic<0>
+    v10:CInt32 = CallStatic<static_rand@0xdeadbeef, 0>
     v11:CInt64 = IntConvert<CInt64> v10
     v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
     v16:CInt64 = IntBinaryOp<FloorDivide> v11 v19
