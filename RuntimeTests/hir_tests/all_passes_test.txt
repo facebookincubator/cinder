@@ -98,13 +98,14 @@ fun jittestmodule:test {
         Stack<1> v4
       }
     }
-    v7:LongExact = VectorCall<1> v4 v6 {
-      LiveValues<2> b:v4 b:v6
+    v9:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v6
+    v10:LongExact = PrimitiveBox<CInt64> v9 {
+      LiveValues<1> s:v9
       FrameState {
         NextInstrOffset 6
       }
     }
-    Return v7
+    Return v10
   }
 }
 ---
@@ -174,6 +175,38 @@ fun jittestmodule:test {
       }
     }
     Return v7
+  }
+}
+---
+ListAppendMethodEmitsListAppend
+---
+def test():
+  x = []
+  x.append(1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:MortalListExact = MakeListTuple<list, 0> {
+      LiveValues<1> unc:v8
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v8
+      }
+    }
+    InitListTuple<list, 0> v9
+    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v18:CInt32 = ListAppend v9 v15 {
+      LiveValues<2> o:v9 b:v15
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v9
+      }
+    }
+    Decref v9
+    v17:NoneType = LoadConst<NoneType>
+    Incref v17
+    Return v17
   }
 }
 ---

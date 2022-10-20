@@ -6,6 +6,7 @@
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
+#include "Jit/runtime.h"
 
 #include <fmt/ostream.h>
 
@@ -621,6 +622,33 @@ Register* simplifyIsNegativeAndErrOccurred(
   return env.emit<LoadConst>(Type::fromCInt(0, output_type));
 }
 
+static bool isBuiltin(PyMethodDef* meth, const char* name) {
+  // To make sure we have the right function, look up the PyMethodDef in the
+  // fixed builtins. Any joker can make a new C method called "len", for
+  // example.
+  const Builtins& builtins = Runtime::get()->builtins();
+  return builtins.find(meth) == name;
+}
+
+static bool isBuiltin(Register* callable, const char* name) {
+  Type callable_type = callable->type();
+  if (!callable_type.hasObjectSpec()) {
+    return false;
+  }
+  PyObject* callable_obj = callable_type.objectSpec();
+  if (Py_TYPE(callable_obj) == &PyCFunction_Type) {
+    PyCFunctionObject* func =
+        reinterpret_cast<PyCFunctionObject*>(callable_obj);
+    return isBuiltin(func->m_ml, name);
+  }
+  if (Py_TYPE(callable_obj) == &PyMethodDescr_Type) {
+    PyMethodDescrObject* meth =
+        reinterpret_cast<PyMethodDescrObject*>(callable_obj);
+    return isBuiltin(meth->d_method, name);
+  }
+  return false;
+}
+
 Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
   Register* target = instr->GetOperand(0);
   Type target_type = target->type();
@@ -628,6 +656,20 @@ Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
     env.emit<UseType>(target, env.type_object);
     return env.emit<LoadField>(
         instr->GetOperand(1), "ob_type", offsetof(PyObject, ob_type), TType);
+  }
+  if (isBuiltin(target, "len") && instr->numArgs() == 1) {
+    env.emit<UseType>(target, target->type());
+    return env.emit<GetLength>(instr->arg(0), *instr->frameState());
+  }
+  return nullptr;
+}
+
+Register* simplifyVectorCallStatic(Env& env, const VectorCallStatic* instr) {
+  Register* func = instr->func();
+  if (isBuiltin(func, "list.append") && instr->numArgs() == 2) {
+    env.emit<UseType>(func, func->type());
+    env.emit<ListAppend>(instr->arg(0), instr->arg(1), *instr->frameState());
+    return env.emit<LoadConst>(TNoneType);
   }
   return nullptr;
 }
@@ -691,6 +733,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kVectorCall:
       return simplifyVectorCall(env, static_cast<const VectorCall*>(instr));
+    case Opcode::kVectorCallStatic:
+      return simplifyVectorCallStatic(
+          env, static_cast<const VectorCallStatic*>(instr));
     default:
       return nullptr;
   }

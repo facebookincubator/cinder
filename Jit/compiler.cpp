@@ -114,6 +114,7 @@ void Compiler::runPasses(
     runPass<jit::hir::BeginInlinedFunctionElimination>(irfunc, callback);
   }
   runPass<jit::hir::BuiltinLoadMethodElimination>(irfunc, callback);
+  runPass<jit::hir::Simplify>(irfunc, callback);
   runPass<jit::hir::DeadCodeElimination>(irfunc, callback);
   runPass<jit::hir::RefcountInsertion>(irfunc, callback);
   JIT_LOGIF(
