@@ -3,9 +3,11 @@
 #include "Jit/log.h"
 #include "Jit/util.h"
 
+#include <cxxabi.h>
 #include <dlfcn.h>
 
 #include <cstdio>
+#include <cstdlib>
 
 extern struct PyModuleDef _staticmodule;
 
@@ -205,6 +207,28 @@ void Symbolizer::deinit() {
   symtab_ = nullptr;
   strtab_ = nullptr;
   cache_.clear();
+}
+
+std::optional<std::string> demangle(const std::string& mangled_name) {
+  int status;
+  char* demangled_name =
+      abi::__cxa_demangle(mangled_name.c_str(), nullptr, nullptr, &status);
+  if (demangled_name == nullptr) {
+    if (status == -1) {
+      JIT_DLOG("Could not allocate memory for demangled name");
+    } else if (status == -2) {
+      JIT_DLOG("Mangled name '%s' is not valid", mangled_name);
+      // Couldn't demangle. Oh well. Probably better to have some name than
+      // none at all.
+      return mangled_name;
+    } else if (status == -3) {
+      JIT_DLOG("Invalid input to __cxa_demangle");
+    }
+    return std::nullopt;
+  }
+  std::string result{demangled_name};
+  std::free(demangled_name);
+  return result;
 }
 
 } // namespace jit

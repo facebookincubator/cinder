@@ -50,4 +50,6 @@ class Symbolizer {
   std::unordered_map<const void*, std::string> cache_;
 };
 
+std::optional<std::string> demangle(const std::string& mangled_name);
+
 } // namespace jit

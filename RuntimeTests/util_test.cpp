@@ -60,3 +60,24 @@ TEST(UtilTest, SymbolizerResolvesStaticSymbol) {
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(*result, "PyObject_Size");
 }
+
+TEST(UtilTest, DemangleWithCNameReturnsName) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string> result = jit::demangle("PyObject_Size");
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, "PyObject_Size");
+}
+
+TEST(UtilTest, DemangleWithCXXNameReturnsDemangledName) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string> result = jit::demangle("_ZN3jit7Runtime3getEv");
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, "jit::Runtime::get()");
+}
+
+TEST(UtilTest, DemangleWithInvalidCXXNameReturnsInput) {
+  jit::Symbolizer symbolizer;
+  std::optional<std::string> result = jit::demangle("_ZWTFBBQ");
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, "_ZWTFBBQ");
+}

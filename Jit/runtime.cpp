@@ -300,4 +300,13 @@ void Runtime::releaseReferences() {
   references_.clear();
 }
 
+std::optional<std::string> symbolize(const void* func) {
+  std::optional<std::string_view> mangled_name =
+      Runtime::get()->symbolize(func);
+  if (!mangled_name.has_value()) {
+    return std::nullopt;
+  }
+  return jit::demangle(std::string{*mangled_name});
+}
+
 } // namespace jit

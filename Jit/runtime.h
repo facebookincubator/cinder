@@ -453,4 +453,7 @@ class Runtime {
   Symbolizer symbolizer_;
 };
 
+// Symbolize and demangle the given function.
+std::optional<std::string> symbolize(const void* func);
+
 } // namespace jit
