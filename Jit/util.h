@@ -248,6 +248,32 @@ concept Callable = requires(F f, Args&&... args) {
 
 #endif
 
+template <class T>
+class ScopeExit {
+ public:
+  ScopeExit(T&& action) : lambda_(std::move(action)) {}
+  ~ScopeExit() {
+    lambda_();
+  }
+
+ private:
+  T lambda_;
+};
+
+#define SCOPE_EXIT_INTERNAL2(lname, aname, ...) \
+  auto lname = [&]() { __VA_ARGS__; };          \
+  jit::ScopeExit<decltype(lname)> aname(std::move(lname));
+
+#define SCOPE_EXIT_TOKENPASTE(x, y) SCOPE_EXIT_##x##y
+
+#define SCOPE_EXIT_INTERNAL1(ctr, ...)       \
+  SCOPE_EXIT_INTERNAL2(                      \
+      SCOPE_EXIT_TOKENPASTE(func_, ctr),     \
+      SCOPE_EXIT_TOKENPASTE(instance_, ctr), \
+      __VA_ARGS__)
+
+#define SCOPE_EXIT(...) SCOPE_EXIT_INTERNAL1(__COUNTER__, __VA_ARGS__)
+
 } // namespace jit
 
 template <typename D, typename S>

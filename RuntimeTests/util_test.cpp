@@ -26,3 +26,13 @@ TEST(UtilTestNoFixture, Worklist) {
   wl.pop();
   EXPECT_TRUE(wl.empty());
 }
+
+TEST(UtilTest, ScopeExitRunsAtScopeEnd) {
+  int value = 0;
+  {
+    EXPECT_EQ(value, 0);
+    SCOPE_EXIT(value++);
+    EXPECT_EQ(value, 0);
+  }
+  EXPECT_EQ(value, 1);
+}
