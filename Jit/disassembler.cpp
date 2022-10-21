@@ -2,6 +2,7 @@
 #include "Jit/disassembler.h"
 
 #include "Jit/log.h"
+#include "Jit/runtime.h"
 
 #include <cstdarg>
 #include <cstddef>
@@ -30,11 +31,14 @@ void print_address(vma_t vma, disassemble_info* info) {
       vma);
 }
 
-void print_symbol(const char* symbol, disassemble_info* info) {
-  // This currently uses dladdr and works okay right now but at some point in
-  // the future we may want a more complete solution like
+void print_symbol(vma_t addr, disassemble_info* info) {
+  // At some point in the future we may want a more complete solution like
   // https://github.com/facebook/hhvm/blob/0ff8dca4f1174f3ffa9c5d282ae1f5b5523fe56c/hphp/util/abi-cxx.cpp#L64
-  info->fprintf_func(info->stream, " (%s)", symbol);
+  std::optional<std::string> symbol =
+      symbolize(reinterpret_cast<const void*>(addr));
+  if (symbol.has_value()) {
+    info->fprintf_func(info->stream, " (%s)", symbol->c_str());
+  }
 }
 
 } // namespace
