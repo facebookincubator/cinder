@@ -5753,6 +5753,202 @@ get_context(PyObject *Py_UNUSED(module), PyObject *args)
     return getter_ptr(self);
 }
 
+static PyObject *context_holder;
+
+static int
+_allocate_context_holder()
+{
+    if (context_holder != NULL) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "Context holder is already allocated");
+        return -1;
+    }
+    context_holder = PyCell_New(NULL);
+    if (context_holder == NULL) {
+        return -1;
+    }
+    return 0;
+}
+
+static PyObject *
+_release_context_holder()
+{
+    if (context_holder == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Context holder is not allocated");
+    }
+    Py_CLEAR(context_holder);
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+_get_current_context(void)
+{
+    if (context_holder == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Context holder is not allocated");
+    }
+    PyObject *val = PyCell_Get(context_holder);
+    if (val != NULL) {
+        return val;
+    }
+    if (!PyErr_Occurred()) {
+        PyErr_SetString(PyExc_RuntimeError, "Context not set");
+    }
+    return NULL;
+}
+
+static PyObject *
+_set_current_context(PyObject *val)
+{
+    if (context_holder == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Context holder is not allocated");
+    }
+    if (PyCell_Set(context_holder, val) < 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static int
+_restore_context(PyObject *task,
+                 PyObject *ctx,
+                 int (*set_task_ctx)(PyObject *, PyObject *))
+{
+    PyObject *o = _set_current_context(ctx);
+    if (o == NULL) {
+        return -1;
+    }
+    Py_DECREF(o);
+    if (set_task_ctx != NULL) {
+        assert(task != NULL);
+        return set_task_ctx(task, ctx);
+    }
+    return PyObject_SetAttrString(task, "ctx_", ctx);
+}
+
+// execute base step
+typedef PyObject *(*execute_base_step)(PyObject *self, PyObject *exc);
+
+static PyObject *
+_step_task(PyObject *task,
+           PyObject *exc,
+           PyObject *context,
+           execute_base_step execute)
+{
+    PyObject *curr = _get_current_context();
+    if (curr == NULL) {
+        return NULL;
+    }
+    PyObject *task_ctx = PyObject_GetAttrString(task, "ctx_");
+    if (task_ctx == NULL) {
+        Py_DECREF(curr);
+        return NULL;
+    }
+    PyObject *o = _set_current_context(task_ctx);
+    if (o == NULL) {
+        Py_DECREF(task_ctx);
+        Py_DECREF(curr);
+        return NULL;
+    }
+    Py_DECREF(o);
+    Py_DECREF(task_ctx);
+
+    PyObject *res = execute(task, exc);
+    o = _set_current_context(curr);
+    Py_DECREF(curr);
+    if (o == NULL) {
+        Py_XDECREF(res);
+        res = NULL;
+    }
+    Py_DECREF(o);
+    return res;
+}
+
+static PyObject *
+_get_context_helpers_for_task_impl()
+{
+    PyObject *get_current = NULL, *step = NULL, *get_ctx = NULL;
+    get_current = PyCapsule_New(_get_current_context, NULL, NULL);
+    if (get_current == NULL) {
+        goto fail;
+    }
+    step = PyCapsule_New(_step_task, NULL, NULL);
+    if (get_current == NULL) {
+        goto fail;
+    }
+    get_ctx = PyCapsule_New(_step_task, NULL, NULL);
+    if (get_ctx == NULL) {
+        goto fail;
+    }
+    PyObject *res = PyTuple_New(3);
+    if (res == NULL) {
+        goto fail;
+    }
+    PyTuple_SET_ITEM(res, 0, get_current);
+    PyTuple_SET_ITEM(res, 1, step);
+    PyTuple_SET_ITEM(res, 2, get_ctx);
+    return res;
+fail:
+    Py_XDECREF(get_current);
+    Py_XDECREF(step);
+    Py_XDECREF(get_ctx);
+    return NULL;
+}
+
+static PyObject *
+_initialize_context_helpers(PyObject *Py_UNUSED(module),
+                            PyObject *Py_UNUSED(arg))
+{
+    if (_allocate_context_holder() < 0) {
+        return NULL;
+    }
+    PyObject *get_current = NULL, *reset = NULL;
+    get_current = PyCapsule_New(_get_current_context, NULL, NULL);
+    if (get_current == NULL) {
+        goto fail;
+    }
+    reset = PyCapsule_New(_restore_context, NULL, NULL);
+    if (reset == NULL) {
+        goto fail;
+    }
+    PyObject *res = PyTuple_New(2);
+    if (res == NULL) {
+        goto fail;
+    }
+    PyTuple_SET_ITEM(res, 0, get_current);
+    PyTuple_SET_ITEM(res, 1, reset);
+
+    return res;
+fail:
+    Py_XDECREF(get_current);
+    Py_XDECREF(reset);
+    return NULL;
+}
+
+static PyObject *
+_modify_context(PyObject *Py_UNUSED(module), PyObject *val)
+{
+    return _set_current_context(val);
+}
+
+static PyObject *
+_delete_context(PyObject *Py_UNUSED(module), PyObject *Py_UNUSED(arg))
+{
+    return _release_context_holder();
+}
+
+static PyObject *
+_get_context(PyObject *Py_UNUSED(module), PyObject *Py_UNUSED(arg))
+{
+    return _get_current_context();
+}
+
+static PyObject *
+_get_context_helpers_for_task(PyObject *Py_UNUSED(module),
+                              PyObject *Py_UNUSED(arg))
+{
+    return _get_context_helpers_for_task_impl();
+}
+
 static PyMethodDef TestMethods[] = {
     {"raise_exception",         raise_exception,                 METH_VARARGS},
     {"raise_memoryerror",       raise_memoryerror,               METH_NOARGS},
@@ -6037,6 +6233,11 @@ static PyMethodDef TestMethods[] = {
     {"get_context_indirect", get_context, METH_VARARGS},
     {"cinder_enable_broken_tests", cinder_enable_broken_tests, METH_NOARGS},
     {"test_dict_can_watch", test_dict_can_watch, METH_NOARGS},
+    {"initialize_context_helpers", _initialize_context_helpers, METH_NOARGS},
+    {"modify_context", _modify_context, METH_O},
+    {"delete_context", _delete_context, METH_NOARGS},
+    {"get_context", _get_context, METH_NOARGS},
+    {"get_context_helpers_for_task", _get_context_helpers_for_task, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 
@@ -7322,9 +7523,6 @@ static PyTypeObject TestAwaitedCall_Type = {
 
 /************** ContextAwareTask testing helpers ****************************/
 typedef PyObject *(*acquire_context_hook)(void);
-
-// execute base step
-typedef PyObject *(*execute_base_step)(PyObject *self, PyObject *exc);
 
 // execute step
 typedef PyObject *(*execute_step_hook)(PyObject *self,

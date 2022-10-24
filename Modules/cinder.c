@@ -441,7 +441,7 @@ get_coro_awaiter(PyObject *Py_UNUSED(self), PyObject *coro) {
                      Py_TYPE(coro)->tp_name);
         return NULL;
     }
-    PyCoroObject *awaiter = ((PyCoroObject *)coro)->cr_awaiter;
+    PyCoroObject *awaiter = ((PyCoroObject *)coro)->ci_cr_awaiter;
     if (!awaiter) {
         Py_RETURN_NONE;
     }

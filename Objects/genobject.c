@@ -49,6 +49,18 @@ gen_traverse(PyGenObject *gen, visitproc visit, void *arg)
     return exc_state_traverse(&gen->gi_exc_state, visit, arg);
 }
 
+void Ci_PyGen_MarkJustStartedGenAsCompleted(PyGenObject *gen)
+{
+    if (Ci_GenIsJustStarted(gen)) {
+        if (gen->gi_jit_data) {
+            Ci_MarkJITGenCompleted(gen);
+        }
+        else {
+            Py_CLEAR(gen->gi_frame);
+        }
+    }
+}
+
 void
 _PyGen_Finalize(PyObject *self)
 {
@@ -308,7 +320,7 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, PyObject **presult,
     }
 
     if (PyCoro_CheckExact(gen)) {
-        ((PyCoroObject *)gen)->cr_awaiter = NULL;
+        ((PyCoroObject *)gen)->ci_cr_awaiter = NULL;
     }
     /* generator can't be rerun, so release the frame */
     /* first clean reference cycle through stored exception traceback */
@@ -325,6 +337,21 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, PyObject **presult,
     *presult = result;
     return result ? PYGEN_RETURN : PYGEN_ERROR;
 }
+
+int
+Ci_PyGen_IsSuspended(PyGenObject *gen)
+{
+    if (Ci_GenIsExecuting(gen)) {
+        return 0;
+    }
+    if (gen->gi_jit_data) {
+        return Ci_GetJITGenState(gen) == Ci_JITGenState_Running;
+    } else {
+        PyFrameObject *f = gen->gi_frame;
+        return f && f->f_state == FRAME_SUSPENDED;
+    }
+}
+
 
 static PySendResult
 PyGen_am_send(PyGenObject *gen, PyObject *arg, PyObject **result)
@@ -1146,7 +1173,7 @@ static void
 coro_set_awaiter(PyCoroObject *coro, PyCoroObject *awaiter) {
     assert(awaiter == NULL || PyCoro_CheckExact(awaiter));
     if (!Ci_GenIsCompleted((PyGenObject *)coro)) {
-        coro->cr_awaiter = awaiter;
+        coro->ci_cr_awaiter = awaiter;
     }
 }
 
@@ -1383,7 +1410,7 @@ coro_new(PyThreadState *tstate, PyFrameObject *f,
     }
 
     int origin_depth = tstate->coroutine_origin_tracking_depth;
-    ((PyCoroObject *)coro)->cr_awaiter = NULL;
+    ((PyCoroObject *)coro)->ci_cr_awaiter = NULL;
 
     if (origin_depth == 0) {
         ((PyCoroObject *)coro)->cr_origin = NULL;

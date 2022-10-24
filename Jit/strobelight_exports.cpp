@@ -15,7 +15,8 @@ int64_t __strobe_PyCodeObject_filename = offsetof(PyCodeObject, co_filename);
 int64_t __strobe_PyCodeObject_name = offsetof(PyCodeObject, co_name);
 int64_t __strobe_PyCodeObject_qualname = offsetof(PyCodeObject, co_qualname);
 int64_t __strobe_PyCodeObject_varnames = offsetof(PyCodeObject, co_varnames);
-int64_t __strobe_PyCoroObject_cr_awaiter = offsetof(PyCoroObject, cr_awaiter);
+int64_t __strobe_PyCoroObject_cr_awaiter =
+    offsetof(PyCoroObject, ci_cr_awaiter);
 int64_t __strobe_PyFrameObject_back = offsetof(PyFrameObject, f_back);
 int64_t __strobe_PyFrameObject_code = offsetof(PyFrameObject, f_code);
 int64_t __strobe_PyFrameObject_gen = offsetof(PyFrameObject, f_gen);

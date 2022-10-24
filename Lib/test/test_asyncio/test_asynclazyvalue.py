@@ -181,7 +181,6 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stack[0].cr_code, g.__code__)
         self.assertIs(await_stack[1], h_coro)
 
-    @unittest.cinderPortingBrokenTest()
     @async_test
     async def test_get_awaiter_from_gathered(self) -> None:
         async def g(f):

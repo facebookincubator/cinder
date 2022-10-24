@@ -15,11 +15,13 @@ import textwrap
 import traceback
 import types
 import unittest
+import warnings
 import weakref
 from unittest import mock
 from types import GenericAlias
 
 import asyncio
+import _asyncio
 from _asyncio import ContextAwareTask
 from asyncio import coroutines
 from asyncio import futures
@@ -31,7 +33,12 @@ from _testcapi import (
     AcquireContextPtr,
     DoStepPtr,
     GetContextRef,
-    get_context_indirect
+    get_context_indirect,
+    initialize_context_helpers,
+    get_context,
+    modify_context as _modify_current_context,
+    delete_context,
+    get_context_helpers_for_task,
 )
 
 def tearDownModule():
@@ -2585,10 +2592,10 @@ class BaseTaskTests:
         finally:
             loop.close()
 
-    def test_cr_awaiter(self):
+    def test_ci_cr_awaiter(self):
         ctask = getattr(tasks, '_CTask', None)
         if ctask is None or not issubclass(self.Task, ctask):
-            self.skipTest("Only subclasses of _CTask set cr_awaiter on wrapped coroutines")
+            self.skipTest("Only subclasses of _CTask set ci_cr_awaiter on wrapped coroutines")
 
         async def coro():
             self.assertIs(cinder._get_coro_awaiter(coro_obj), awaiter_obj)
@@ -3132,7 +3139,7 @@ class GatherTestsBase:
                                                '-c', code)
         self.assertEqual(stdout.rstrip(), b'True')
 
-    def _test_cr_awaiter_impl(self, awaiter):
+    def _test_ci_cr_awaiter_impl(self, awaiter):
         async def add(a, b):
             self_coro = cinder._get_frame_gen(sys._getframe())
             self.assertIsInstance(self_coro, types.CoroutineType)
@@ -3160,22 +3167,20 @@ class GatherTestsBase:
         self.assertIsNone(cinder._get_coro_awaiter(a34))
         self.assertIsNone(cinder._get_coro_awaiter(a56))
 
-    @unittest.skip("TODO(T125856469)")
-    def test_gather_cr_awaiter_eager(self):
+    def test_gather_ci_cr_awaiter_eager(self):
         async def eager_awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)
             return await asyncio.gather(o1, o2, t3)
 
-        self._test_cr_awaiter_impl(eager_awaiter)
+        self._test_ci_cr_awaiter_impl(eager_awaiter)
 
-    @unittest.skip("TODO(T127601945): Requires C impl of _GatheringFuture")
-    def test_gather_cr_awaiter(self):
+    def test_gather_ci_cr_awaiter(self):
         async def awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)
             gatherer = asyncio.gather(o1, o2, t3)
             return await gatherer
 
-        self._test_cr_awaiter_impl(awaiter)
+        self._test_ci_cr_awaiter_impl(awaiter)
 
 
 class FutureGatherTests(GatherTestsBase, test_utils.TestCase):
@@ -3273,6 +3278,11 @@ class FutureGatherTests(GatherTestsBase, test_utils.TestCase):
         self.assertEqual(res, [1, zde, None, 3, None, rte])
         cb.assert_called_once_with(fut)
 
+class CPythonFutureGatherTests(FutureGatherTests, test_utils.TestCase):
+    gather = staticmethod(asyncio.gather)
+
+class IgFutureGatherTests(FutureGatherTests, test_utils.TestCase):
+    gather = staticmethod(_asyncio.ig_gather)
 
 class CoroutineGatherTests(GatherTestsBase, test_utils.TestCase):
 
@@ -3403,6 +3413,19 @@ class CoroutineGatherTests(GatherTestsBase, test_utils.TestCase):
             # NameError should not happen:
             self.one_loop.call_exception_handler.assert_not_called()
 
+class CPythonCoroutineGatherTests(CoroutineGatherTests, test_utils.TestCase):
+    gather = staticmethod(asyncio.gather)
+
+    def test_duplicate_coroutines(self):
+        async def coro(s):
+            return s
+        c = coro('abc')
+        fut = self.gather(c, c, coro('def'), c, loop=self.one_loop)
+        self._run_loop(self.one_loop)
+        self.assertEqual(fut.result(), ['abc', 'abc', 'def', 'abc'])
+
+class IgCoroutineGatherTests(CoroutineGatherTests, test_utils.TestCase):
+    gather = staticmethod(_asyncio.ig_gather)
 
 class RunCoroutineThreadsafeTests(test_utils.TestCase):
     """Test case for asyncio.run_coroutine_threadsafe."""
@@ -3719,6 +3742,328 @@ class ContextAwareTaskTests(BaseTaskTests, test_utils.TestCase):
         self.loop.run_until_complete(t)
         self.assertEqual(ctx, {"context_var": 42})
 
+class GatherTests:
+    Task = None
+    Future = None
+    gather = None
+
+    def new_task(self, loop, coro):
+        return self.Task(coro, loop=loop)
+
+    def new_future(self, loop):
+        return self.Future(loop=loop)
+
+    def setUp(self):
+        super().setUp()
+        self.loop = self.new_test_loop()
+        self.loop.set_task_factory(self.new_task)
+        self.loop.create_future = lambda: self.new_future(self.loop)
+
+    def test_no_warnings_after_eager_fail(self):
+        class Err(Exception):
+            pass
+
+        async def fail():
+            raise Err
+
+        async def coro2():
+            self.fail("Should never happen")
+
+        async def main():
+            try:
+                await self.gather(fail(), coro2())
+                self.fail("Exception expected")
+            except Err:
+                pass
+
+        with warnings.catch_warnings(record=True) as w:
+            self.loop.run_until_complete(main())
+            non_awaited = [
+                e for e in w
+                if e.category is RuntimeWarning and "coro2' was never awaited" in e.message.args[0]
+            ]
+            self.assertEquals(non_awaited, [])
+
+    def test_gather_with_suspended_coro(self):
+        async def coro1():
+            return 100
+
+        async def coro2():
+            await asyncio.sleep(0)
+            return 200
+
+        async def drive():
+            res = await self.__class__.gather(coro1(), coro2())
+            self.assertEqual(res, [100, 200])
+
+        self.loop.run_until_complete(drive())
+
+def modify_context(val):
+    _modify_current_context(val)
+    try:
+        asyncio.current_task().ctx_ = val
+    except RuntimeError:
+        pass
+
+class ContextAwareGatherBase:
+    def is_context_aware_task(self):
+        return isinstance(self.__class__.Task, ContextAwareTask)
+
+    def new_task(self, loop, coro):
+        return self.__class__.Task(coro, loop=loop)
+
+    def new_future(self, loop):
+        return self.__class__.Future(loop=loop)
+
+    def setUp(self):
+        super().setUp()
+
+        helpers = initialize_context_helpers()
+        _asyncio._set_context_helpers(*helpers)
+
+        self.loop = self.new_test_loop()
+        self.loop.set_task_factory(self.new_task)
+        self.loop.create_future = lambda: self.new_future(self.loop)
+
+    def tearDown(self):
+        _asyncio._reset_context_helpers()
+        delete_context()
+        self.loop.close()
+        asyncio.set_event_loop(None)
+        super().tearDown()
+
+class ContextAwareGatherTests(ContextAwareGatherBase):
+
+    def test_context_aware_eager_gather_ok(self):
+        async def coro1():
+            self.assertEqual(get_context(), 1)
+            modify_context(2)
+            self.assertEqual(get_context(), 2)
+            self.assertEqual(asyncio.current_task().ctx_, 2)
+
+            await asyncio.sleep(0)
+
+            if self.is_context_aware_task():
+                self.assertEqual(get_context(), 2)
+                self.assertEqual(asyncio.current_task().ctx_, 2)
+
+            return 100
+
+        async def coro2():
+            self.assertEqual(get_context(), 1)
+            modify_context(3)
+            self.assertEqual(get_context(), 3)
+            self.assertEqual(asyncio.current_task().ctx_, 3)
+
+            return 200
+
+        async def drive():
+            modify_context(1)
+            a, b = await asyncio.gather(coro1(), coro2())
+            self.assertEqual(get_context(), 1)
+            self.assertEqual(asyncio.current_task().ctx_, 1)
+
+        self.loop.run_until_complete(drive())
+
+    def test_context_aware_eager_gather_failed(self):
+        class E(Exception):
+            pass
+        async def coro1():
+            self.assertEqual(get_context(), 1)
+            modify_context(2)
+            return 10
+
+        async def coro2():
+            self.assertEqual(get_context(), 1)
+            modify_context(3)
+            raise E
+
+        async def drive():
+            modify_context(1)
+            try:
+                await asyncio.gather(coro1(), coro2())
+            except E:
+                pass
+            else:
+                self.fail("Error expected")
+            self.assertEqual(get_context(), 1)
+            self.assertEqual(asyncio.current_task().ctx_, 1)
+
+        self.loop.run_until_complete(drive())
+
+class CTaskCFutureContextAwareGatherTests(ContextAwareGatherTests, test_utils.TestCase):
+    Task = getattr(tasks, '_CTask', None)
+    Future = getattr(futures, '_CFuture', None)
+
+class PyTaskPyFutureContextAwareGatherTests(ContextAwareGatherTests, test_utils.TestCase):
+    Task = tasks._PyTask
+    Future = futures._PyFuture
+
+class GatherTestContextAwareTask(ContextAwareTask):
+    _acquire_context, _execute_step, _get_context = get_context_helpers_for_task()
+
+    def get_current_context(self):
+        return get_context_indirect(self, GatherTestContextAwareTask._get_context)
+
+class ContextAwareTaskCFutureContextAwareGatherTests(ContextAwareGatherTests, test_utils.TestCase):
+    Task = GatherTestContextAwareTask
+    Future = getattr(futures, '_CFuture', None)
+
+    def setUp(self):
+        super().setUp()
+        #  set initial value for the context
+        modify_context(None)
+
+class StartImmediateTests(ContextAwareGatherBase):
+    def test_start_immediate_eager_ok(self):
+        async def coro():
+            self.assertEqual(get_context(), 1)
+            modify_context(2)
+            return 10
+
+        async def drive():
+            modify_context(1)
+            res = _asyncio._start_immediate(coro(), self.loop)
+            self.assertEqual(get_context(), 1)
+            self.assertEqual(asyncio.current_task().ctx_, 1)
+            self.assertIsInstance(res, _asyncio.AwaitableValue)
+            self.assertEqual(res.value, 10)
+
+        self.loop.run_until_complete(drive())
+
+    def test_start_immediate_eager_err(self):
+        class E(Exception):
+            pass
+        async def coro():
+            self.assertEqual(get_context(), 1)
+            modify_context(2)
+            raise E()
+
+        async def drive():
+            modify_context(1)
+            try:
+                _asyncio._start_immediate(coro(), self.loop)
+            except E:
+                pass
+            else:
+                self.fail("Exception expected")
+            self.assertEqual(get_context(), 1)
+            self.assertEqual(asyncio.current_task().ctx_, 1)
+
+        self.loop.run_until_complete(drive())
+
+class CTaskCFutureStartImmediateTests(StartImmediateTests, test_utils.TestCase):
+    Task = getattr(tasks, '_CTask', None)
+    Future = getattr(futures, '_CFuture', None)
+
+class PyTaskPyFutureStartImmediateTests(StartImmediateTests, test_utils.TestCase):
+    Task = tasks._PyTask
+    Future = futures._PyFuture
+
+class ContextAwareTaskCFutureStartImmediateTests(StartImmediateTests, test_utils.TestCase):
+    Task = GatherTestContextAwareTask
+    Future = getattr(futures, '_CFuture', None)
+
+    def setUp(self):
+        super().setUp()
+        #  set initial value for the context
+        modify_context(None)
+
+class CTaskCFutureGatherTests(GatherTests, test_utils.TestCase):
+    Task = getattr(tasks, '_CTask', None)
+    Future = getattr(futures, '_CFuture', None)
+    gather = asyncio.gather
+
+    @unittest.skipUnless(hasattr(_asyncio, 'ig_gather_no_raise'), 'requires _asyncio.ig_gather_no_raise')
+    def test_return_exceptions(self):
+        class E(Exception):
+            pass
+
+        async def c0():
+            return 100
+
+        async def c1():
+            raise E()
+
+        async def c2():
+            return 42
+
+        async def run():
+            res = await _asyncio.ig_gather_no_raise(c0(), c1(), c2())
+            self.assertEqual(res[0], 100)
+            self.assertIsInstance(res[1], E)
+            self.assertEqual(res[2], 42)
+
+        self.loop.run_until_complete(run())
+
+    def test_non_native_coro(self):
+        class C:
+            def __init__(self, res):
+                self.res = res
+                self.i = 0
+            def send(self, value):
+                if self.i == 0:
+                    self.i = 1
+                    #  yield
+                    return None
+                if self.i == 1:
+                    raise StopIteration(self.res)
+
+            def throw(self, *args):
+                raise NotImplementedError()
+
+            def close(self):
+                raise NotImplementedError()
+
+            def __await__(self):
+                return self
+
+            def  __next__(self):
+                return self.send(None)
+
+        async def run():
+            res = await asyncio.gather(C(42), C(100))
+            self.assertEqual(res, [42, 100])
+
+        self.loop.run_until_complete(run())
+
+
+    @unittest.skipUnless(False and hasattr(_asyncio, 'ig_gather'), 'requires _asyncio.ig_gather')
+    def test_tasks_cancelled_on_error(self):
+        class E(Exception):
+            pass
+
+        async def c0():
+            await asyncio.sleep(0)
+            self.fail("should not be here")
+
+        async def c1():
+            raise E()
+
+        async def run():
+            try:
+                await _asyncio.ig_gather(c0(), c0(), c1())
+                self.fail("Exception expected")
+            except E:
+                pass
+
+        self.loop.run_until_complete(run())
+
+    def test_multiple_coroutines(self):
+        async def c(i):
+            await asyncio.sleep(0)
+            return i
+
+        async def run():
+            res = await asyncio.gather(*[c(i) for i in range(100)])
+            self.assertEqual(res, [i for i in range(100)])
+
+        self.loop.run_until_complete(run())
+
+class PyTaskCFutureGatherTests(GatherTests, test_utils.TestCase):
+    Task = Task = tasks._PyTask
+    Future = getattr(futures, '_CFuture', None)
+    gather = asyncio.gather
 
 if __name__ == '__main__':
     unittest.main()

@@ -771,6 +771,89 @@ exit:
     return return_value;
 }
 
+static int
+_asyncio_AwaitableValue___init___impl(AwaitableValueObj *self,
+                                      PyObject *value);
+
+static int
+_asyncio_AwaitableValue___init__(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    int return_value = -1;
+    PyObject *value;
+
+    if (Py_IS_TYPE(self, (PyTypeObject *)&AwaitableValue_Type) &&
+        !_PyArg_NoKeywords("AwaitableValue", kwargs)) {
+        goto exit;
+    }
+    if (!_PyArg_CheckPositional("AwaitableValue", PyTuple_GET_SIZE(args), 1, 1)) {
+        goto exit;
+    }
+    value = PyTuple_GET_ITEM(args, 0);
+    return_value = _asyncio_AwaitableValue___init___impl((AwaitableValueObj *)self, value);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio__GatheringFuture__make_cancelled_error__doc__,
+"_make_cancelled_error($self, /)\n"
+"--\n"
+"\n"
+"Create the CancelledError to raise if the _GatheringFuture is cancelled.\n"
+"\n"
+"This should only be called once when handling a cancellation since\n"
+"it erases the context exception value.");
+
+#define _ASYNCIO__GATHERINGFUTURE__MAKE_CANCELLED_ERROR_METHODDEF    \
+    {"_make_cancelled_error", (PyCFunction)_asyncio__GatheringFuture__make_cancelled_error, METH_NOARGS, _asyncio__GatheringFuture__make_cancelled_error__doc__},
+
+static PyObject *
+_asyncio__GatheringFuture__make_cancelled_error_impl(_GatheringFutureObj *self);
+
+static PyObject *
+_asyncio__GatheringFuture__make_cancelled_error(_GatheringFutureObj *self, PyObject *Py_UNUSED(ignored))
+{
+    return _asyncio__GatheringFuture__make_cancelled_error_impl(self);
+}
+
+PyDoc_STRVAR(_asyncio__GatheringFuture_cancel__doc__,
+"cancel($self, /, msg=None)\n"
+"--\n"
+"\n"
+"Cancel the future and schedule callbacks.");
+
+#define _ASYNCIO__GATHERINGFUTURE_CANCEL_METHODDEF    \
+    {"cancel", (PyCFunction)(void(*)(void))_asyncio__GatheringFuture_cancel, METH_FASTCALL|METH_KEYWORDS, _asyncio__GatheringFuture_cancel__doc__},
+
+static PyObject *
+_asyncio__GatheringFuture_cancel_impl(_GatheringFutureObj *self,
+                                      PyObject *msg);
+
+static PyObject *
+_asyncio__GatheringFuture_cancel(_GatheringFutureObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"msg", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "cancel", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *msg = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    msg = args[0];
+skip_optional_pos:
+    return_value = _asyncio__GatheringFuture_cancel_impl(self, msg);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio__get_running_loop__doc__,
 "_get_running_loop($module, /)\n"
 "--\n"
@@ -1069,6 +1152,115 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_asyncio__is_coro_suspended__doc__,
+"_is_coro_suspended($module, coro, /)\n"
+"--\n"
+"\n"
+"Returns true if coroutine being passed is in suspended state");
+
+#define _ASYNCIO__IS_CORO_SUSPENDED_METHODDEF    \
+    {"_is_coro_suspended", (PyCFunction)_asyncio__is_coro_suspended, METH_O, _asyncio__is_coro_suspended__doc__},
+
+PyDoc_STRVAR(_asyncio__register_known_coroutine_type__doc__,
+"_register_known_coroutine_type($module, coro_type, /)\n"
+"--\n"
+"\n"
+"Records type as known coroutine type");
+
+#define _ASYNCIO__REGISTER_KNOWN_COROUTINE_TYPE_METHODDEF    \
+    {"_register_known_coroutine_type", (PyCFunction)_asyncio__register_known_coroutine_type, METH_O, _asyncio__register_known_coroutine_type__doc__},
+
+PyDoc_STRVAR(_asyncio__set_context_helpers__doc__,
+"_set_context_helpers($module, get_current_context_obj,\n"
+"                     reset_context_obj, /)\n"
+"--\n"
+"\n"
+"Internal function used to supply custom context management hooks.\n"
+"\n"
+"Hooks are provided as function pointers wrapped in PyCapsule objects");
+
+#define _ASYNCIO__SET_CONTEXT_HELPERS_METHODDEF    \
+    {"_set_context_helpers", (PyCFunction)(void(*)(void))_asyncio__set_context_helpers, METH_FASTCALL, _asyncio__set_context_helpers__doc__},
+
+static PyObject *
+_asyncio__set_context_helpers_impl(PyObject *module,
+                                   PyObject *get_current_context_obj,
+                                   PyObject *reset_context_obj);
+
+static PyObject *
+_asyncio__set_context_helpers(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+    PyObject *get_current_context_obj;
+    PyObject *reset_context_obj;
+
+    if (!_PyArg_CheckPositional("_set_context_helpers", nargs, 2, 2)) {
+        goto exit;
+    }
+    get_current_context_obj = args[0];
+    reset_context_obj = args[1];
+    return_value = _asyncio__set_context_helpers_impl(module, get_current_context_obj, reset_context_obj);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_asyncio__reset_context_helpers__doc__,
+"_reset_context_helpers($module, /)\n"
+"--\n"
+"\n"
+"Internal function used to reset custom context management hooks to default values.");
+
+#define _ASYNCIO__RESET_CONTEXT_HELPERS_METHODDEF    \
+    {"_reset_context_helpers", (PyCFunction)_asyncio__reset_context_helpers, METH_NOARGS, _asyncio__reset_context_helpers__doc__},
+
+static PyObject *
+_asyncio__reset_context_helpers_impl(PyObject *module);
+
+static PyObject *
+_asyncio__reset_context_helpers(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _asyncio__reset_context_helpers_impl(module);
+}
+
+PyDoc_STRVAR(_asyncio__start_immediate__doc__,
+"_start_immediate($module, coro, loop=None, /)\n"
+"--\n"
+"\n"
+"Executes provided coroutine eagerly.\n"
+"\n"
+"If coroutine is completed - returns AwaitableValue that contain the result.\n"
+"If coroutine is not completed - returns a task that wraps the coroutine");
+
+#define _ASYNCIO__START_IMMEDIATE_METHODDEF    \
+    {"_start_immediate", (PyCFunction)(void(*)(void))_asyncio__start_immediate, METH_FASTCALL, _asyncio__start_immediate__doc__},
+
+static PyObject *
+_asyncio__start_immediate_impl(PyObject *module, PyObject *coro,
+                               PyObject *loop);
+
+static PyObject *
+_asyncio__start_immediate(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+    PyObject *coro;
+    PyObject *loop = Py_None;
+
+    if (!_PyArg_CheckPositional("_start_immediate", nargs, 1, 2)) {
+        goto exit;
+    }
+    coro = args[0];
+    if (nargs < 2) {
+        goto skip_optional;
+    }
+    loop = args[1];
+skip_optional:
+    return_value = _asyncio__start_immediate_impl(module, coro, loop);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio__AwaitingFuture___init____doc__,
 "_AwaitingFuture(awaited, *, loop=None)\n"
 "--\n"
@@ -1222,4 +1414,4 @@ _asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=7a1bfbd0ec4f5a5f input=a9049054013a1b77]*/
+/*[clinic end generated code: output=0c2e477286f8723a input=a9049054013a1b77]*/

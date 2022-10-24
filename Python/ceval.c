@@ -359,7 +359,6 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 
 int _PyEval_ShadowByteCodeEnabled = 1;
 
-#define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
 PyAPI_DATA(int) Py_LazyImportsFlag;
 
 void _Py_NO_RETURN
@@ -400,6 +399,7 @@ PyEval_ThreadsInitialized(void)
 }
 #endif
 
+#define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
 #define DISPATCH_EAGER_CORO_RESULT(r, X)                                    \
         assert(Ci_PyWaitHandle_CheckExact(r));                                \
         PyObject *coro_or_result = ((Ci_PyWaitHandleObject*)r)->wh_coro_or_result; \
@@ -8007,7 +8007,16 @@ do_call_core(PyThreadState *tstate,
     PyObject *result;
 
     if (PyCFunction_CheckExact(func) || PyCMethod_CheckExact(func)) {
-        C_TRACE(result, PyObject_Call(func, callargs, kwdict));
+        if ((kwdict == NULL || PyDict_GET_SIZE(kwdict) == 0) && ((PyCFunction_GET_FLAGS(func) & METH_VARARGS) == 0)) {
+            C_TRACE(result, _PyObject_Vectorcall(
+                                func,
+                                _PyTuple_ITEMS(callargs),
+                                PyTuple_GET_SIZE(callargs) | (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0),
+                                NULL));
+        }
+        else {
+            C_TRACE(result, PyObject_Call(func, callargs, kwdict));
+        }
         return result;
     }
     else if (Py_IS_TYPE(func, &PyMethodDescr_Type)) {

@@ -56,6 +56,9 @@ PyAPI_FUNC(int) _PyGen_FetchStopIterationValue(PyObject **);
 PyObject *_PyGen_yf(PyGenObject *);
 PyAPI_FUNC(void) _PyGen_Finalize(PyObject *self);
 
+PyAPI_FUNC(int) Ci_PyGen_IsSuspended(PyGenObject *self);
+PyAPI_FUNC(void) Ci_PyGen_MarkJustStartedGenAsCompleted(PyGenObject *gen);
+
 typedef struct {
     PyObject_HEAD
     PyObject *wh_coro_or_result;
@@ -74,7 +77,7 @@ PyAPI_FUNC(void) Ci_PyWaitHandle_Release(PyObject *wait_handle);
 typedef struct _coro {
     _PyGenObject_HEAD(cr)
     PyObject *cr_origin;
-    struct _coro *cr_awaiter;
+    struct _coro *ci_cr_awaiter;
 } PyCoroObject;
 
 PyAPI_DATA(PyTypeObject) PyCoro_Type;

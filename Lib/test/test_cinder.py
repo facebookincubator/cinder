@@ -8,8 +8,6 @@ import sys
 import unittest
 import weakref
 
-import _testcindercapi
-
 from cinder import (
     async_cached_classproperty,
     async_cached_property,
@@ -21,8 +19,13 @@ from cinder import (
 
 from functools import wraps
 from textwrap import dedent
+
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
+
+import _testcindercapi
+
+from test import libregrtest
 
 from test.support.cinder import get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
@@ -1120,7 +1123,6 @@ def async_test(f):
     return impl
 
 
-@unittest.cinderPortingBrokenTest()
 class AsyncCinderTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -1614,7 +1616,6 @@ class CodeObjectQualnameTest(unittest.TestCase):
         self.assertEqual(g["clsname"], "C")
 
 
-@unittest.cinderPortingBrokenTest()
 class TestNoShadowingInstances(unittest.TestCase):
     def check_no_shadowing(self, typ, expected):
         got = cinder._has_no_shadowing_instances(typ)
@@ -1754,7 +1755,6 @@ class TestNoShadowingInstances(unittest.TestCase):
         self.check_no_shadowing(Derived, False)
 
 
-@unittest.cinderPortingBrokenTest()
 class GetCallStackTest(unittest.TestCase):
     def a(self):
         return self.b()
@@ -1781,7 +1781,6 @@ class GetCallStackTest(unittest.TestCase):
         self.assertEqual(stack[-5:], expected)
 
 
-@unittest.cinderPortingBrokenTest()
 class GetEntireCallStackTest(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -2078,7 +2077,6 @@ class TestClearAwaiter(unittest.TestCase):
         self.assertIs(cinder._get_coro_awaiter(outer_coro), None)
 
 
-@unittest.cinderPortingBrokenTest()
 class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -2094,6 +2092,9 @@ class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
         """The awaiter for pending gathered coroutines should not be cleared when other
         gathered coroutines complete normally.
         """
+
+        class MyException(Exception):
+            pass
 
         async def noop(rendez):
             rendez.started.set_result(None)
@@ -2192,6 +2193,9 @@ class TestAwaiterForNonExceptingGatheredTask(unittest.TestCase):
         """Ensure that the awaiter is cleared for gathered coroutines when a gathered
         coroutine is cancelled and the gather propagates exceptions.
         """
+
+        if libregrtest.isRunningRefleakTest():
+            self.skipTest("See T135884863")
 
         async def noop(rendez):
             rendez.started.set_result(None)

@@ -181,6 +181,7 @@ typedef void (*setawaiterfunc)(PyObject *receiver, PyObject *awaiter);
 
 typedef struct {
     PyAsyncMethods ame_async_methods;
+    sendfunc ame_send;
     setawaiterfunc ame_setawaiter;
 } PyAsyncMethodsWithExtra;
 

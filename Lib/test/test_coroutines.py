@@ -2238,7 +2238,7 @@ class CoroutineAwaiterTest(unittest.TestCase):
             await cr
             yield "hi"
 
-        # cr_awaiter should always be None or a coroutine object, and async
+        # ci_cr_awaiter should always be None or a coroutine object, and async
         # generators aren't coroutines.
         coro_obj = coro()
         self.assertIsNone(cinder._get_coro_awaiter(coro_obj))

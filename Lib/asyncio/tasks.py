@@ -144,7 +144,8 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
         self._coro = coro
         self._context = contextvars.copy_context()
 
-        self._loop.call_soon(self.__step, context=self._context)
+        if not _is_coro_suspended(coro):
+            self._loop.call_soon(self.__step, context=self._context)
         _register_task(self)
 
     def __del__(self):
@@ -282,56 +283,65 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
             raise
         except BaseException as exc:
             super().set_exception(exc)
-        else:
-            blocking = getattr(result, '_asyncio_future_blocking', None)
-            if blocking is not None:
-                # Yielded Future must come from Future.__iter__().
-                if futures._get_loop(result) is not self._loop:
-                    new_exc = RuntimeError(
-                        f'Task {self!r} got Future '
-                        f'{result!r} attached to a different loop')
-                    self._loop.call_soon(
-                        self.__step, new_exc, context=self._context)
-                elif blocking:
-                    if result is self:
-                        new_exc = RuntimeError(
-                            f'Task cannot await on itself: {self!r}')
-                        self._loop.call_soon(
-                            self.__step, new_exc, context=self._context)
-                    else:
-                        result._asyncio_future_blocking = False
-                        result.add_done_callback(
-                            self.__wakeup, context=self._context)
-                        self._fut_waiter = result
-                        if self._must_cancel:
-                            if self._fut_waiter.cancel(
-                                    msg=self._cancel_message):
-                                self._must_cancel = False
-                else:
-                    new_exc = RuntimeError(
-                        f'yield was used instead of yield from '
-                        f'in task {self!r} with {result!r}')
-                    self._loop.call_soon(
-                        self.__step, new_exc, context=self._context)
 
-            elif result is None:
-                # Bare yield relinquishes control for one event loop iteration.
-                self._loop.call_soon(self.__step, context=self._context)
-            elif inspect.isgenerator(result):
-                # Yielding a generator is just wrong.
-                new_exc = RuntimeError(
-                    f'yield was used instead of yield from for '
-                    f'generator in task {self!r} with {result!r}')
-                self._loop.call_soon(
-                    self.__step, new_exc, context=self._context)
-            else:
-                # Yielding something else is an error.
-                new_exc = RuntimeError(f'Task got bad yield: {result!r}')
-                self._loop.call_soon(
-                    self.__step, new_exc, context=self._context)
+        else:
+            self._set_fut_waiter(result)
         finally:
             _leave_task(self._loop, self)
             self = None  # Needed to break cycles when an exception occurs.
+
+    def _set_task_context(self, context):
+        self._context = context
+
+    def _set_fut_waiter(self, result):
+        blocking = getattr(result, '_asyncio_future_blocking', None)
+        if blocking is not None:
+            # Yielded Future must come from Future.__iter__().
+            if futures._get_loop(result) is not self._loop:
+                new_exc = RuntimeError(
+                    f'Task {self!r} got Future '
+                    f'{result!r} attached to a different loop')
+                self._loop.call_soon(
+                    self.__step, new_exc, context=self._context)
+            elif blocking:
+                if result is self:
+                    new_exc = RuntimeError(
+                        f'Task cannot await on itself: {self!r}')
+                    self._loop.call_soon(
+                        self.__step, new_exc, context=self._context)
+                else:
+                    result._asyncio_future_blocking = False
+                    result.add_done_callback(
+                        self.__wakeup, context=self._context)
+                    self._fut_waiter = result
+                    if self._must_cancel:
+                        if self._fut_waiter.cancel():
+                            self._must_cancel = False
+            else:
+                new_exc = RuntimeError(
+                    f'yield was used instead of yield from '
+                    f'in task {self!r} with {result!r}')
+                self._loop.call_soon(
+                    self.__step, new_exc, context=self._context)
+
+        elif result is None:
+            # Bare yield relinquishes control for one event loop iteration.
+            self._loop.call_soon(self.__step, context=self._context)
+        elif inspect.isgenerator(result):
+            # Yielding a generator is just wrong.
+            new_exc = RuntimeError(
+                f'yield was used instead of yield from for '
+                f'generator in task {self!r} with {result!r}')
+            self._loop.call_soon(
+                self.__step, new_exc, context=self._context)
+        else:
+            # Yielding something else is an error.
+            new_exc = RuntimeError(f'Task got bad yield: {result!r}')
+            self._loop.call_soon(
+                self.__step, new_exc, context=self._context)
+
+    # Needed to be compatible with the C version
+    _step = __step
 
     def __wakeup(self, future):
         try:
@@ -682,6 +692,11 @@ def _wrap_awaitable(awaitable):
 
 _wrap_awaitable._is_coroutine = _is_coroutine
 
+def _is_coro_suspended(coro):
+    # this version will be used if _asyncio module
+    # does not export native version of gather
+    # so coroutine will always be not started
+    return False
 
 class _GatheringFuture(futures.Future):
     """Helper for gather().
@@ -962,7 +977,9 @@ try:
                           _enter_task, _leave_task,
                           _current_tasks,
                           all_tasks,
-                          AsyncLazyValue as _ASYNC_LAZY_VALUE_TYPE)
+                          AsyncLazyValue as _ASYNC_LAZY_VALUE_TYPE,
+                          gather,
+                          _is_coro_suspended)
 except ImportError:
     pass
 else:

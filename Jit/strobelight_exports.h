@@ -15,6 +15,8 @@ PyAPI_DATA(int64_t) __strobe_PyCodeObject_filename;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_name;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_qualname;
 PyAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
+// Not using "ci_cr_awaiter" for backward compatability with existing
+// Strobelight symbol lookup.
 PyAPI_DATA(int64_t) __strobe_PyCoroObject_cr_awaiter;
 PyAPI_DATA(int64_t) __strobe_PyFrameObject_back;
 PyAPI_DATA(int64_t) __strobe_PyFrameObject_code;

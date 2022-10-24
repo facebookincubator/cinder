@@ -757,7 +757,7 @@ _PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
       // but we also did not fail.
       return nullptr;
     }
-    PyCoroObject* awaiter = ((PyCoroObject*)gen)->cr_awaiter;
+    PyCoroObject* awaiter = ((PyCoroObject*)gen)->ci_cr_awaiter;
     if (!awaiter) {
       // This is fine, not every coroutine needs to have an awaiter
       return nullptr;
