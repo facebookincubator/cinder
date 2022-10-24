@@ -23,6 +23,11 @@ except ImportError:
 
 import cinder
 
+_RUNNING_REF_LEAK_TEST = False
+
+def isRunningRefleakTest():
+    return _RUNNING_REF_LEAK_TEST
+
 
 def dash_R(ns, test_name, test_func):
     """Run a test multiple times, looking for reference leaks.
@@ -30,6 +35,8 @@ def dash_R(ns, test_name, test_func):
     Returns:
         False if the test didn't leak references; True if we detected refleaks.
     """
+    global _RUNNING_REF_LEAK_TEST
+
     # This code is hackish and inelegant, but it seems to do the job.
     import copyreg
     import collections.abc
@@ -90,26 +97,30 @@ def dash_R(ns, test_name, test_func):
 
     dash_R_cleanup(fs, ps, pic, zdc, abcs)
 
-    for i in rep_range:
-        test_func()
-        dash_R_cleanup(fs, ps, pic, zdc, abcs)
+    _RUNNING_REF_LEAK_TEST = True
+    try:
+        for i in rep_range:
+            test_func()
+            dash_R_cleanup(fs, ps, pic, zdc, abcs)
 
-        # dash_R_cleanup() ends with collecting cyclic trash:
-        # read memory statistics immediately after.
-        alloc_after = getallocatedblocks()
-        rc_after = gettotalrefcount()
-        fd_after = fd_count()
+            # dash_R_cleanup() ends with collecting cyclic trash:
+            # read memory statistics immediately after.
+            alloc_after = getallocatedblocks()
+            rc_after = gettotalrefcount()
+            fd_after = fd_count()
 
-        if not ns.quiet:
-            print('.', end='', file=sys.stderr, flush=True)
+            if not ns.quiet:
+                print('.', end='', file=sys.stderr, flush=True)
 
-        rc_deltas[i] = get_pooled_int(rc_after - rc_before)
-        alloc_deltas[i] = get_pooled_int(alloc_after - alloc_before)
-        fd_deltas[i] = get_pooled_int(fd_after - fd_before)
+            rc_deltas[i] = get_pooled_int(rc_after - rc_before)
+            alloc_deltas[i] = get_pooled_int(alloc_after - alloc_before)
+            fd_deltas[i] = get_pooled_int(fd_after - fd_before)
 
-        alloc_before = alloc_after
-        rc_before = rc_after
-        fd_before = fd_after
+            alloc_before = alloc_after
+            rc_before = rc_after
+            fd_before = fd_after
+    finally:
+        _RUNNING_REF_LEAK_TEST = False
 
     if not ns.quiet:
         print(file=sys.stderr)
