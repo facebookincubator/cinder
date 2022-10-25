@@ -117,6 +117,10 @@ PyAPI_FUNC(void) _PyDict_Watch(PyObject *);
 /* Stop watching the given dict. */
 PyAPI_FUNC(void) _PyDict_Unwatch(PyObject *);
 
+/* Return false if PyDict_Lookup() on the given dict is guaranteed to not cause
+ * any heap mutations. */
+PyAPI_FUNC(int) _PyDict_HasUnsafeKeys(PyObject *);
+
 /* Increment the given dict's version tag for a set operation, notifying any
  * watchers of the new value.
  */

@@ -342,6 +342,15 @@ _PyDict_Unwatch(PyObject *dict)
 }
 
 int
+_PyDict_HasUnsafeKeys(PyObject *dict)
+{
+    assert(PyDict_Check(dict));
+    dict_lookup_func lookup = ((PyDictObject *)dict)->ma_keys->dk_lookup;
+    return lookup != lookdict_unicode && lookup != lookdict_unicode_nodummy &&
+        lookup != lookdict_split;
+}
+
+int
 _PyDict_HasDeferredObjects(PyObject *dict)
 {
     assert(PyDict_Check(dict));

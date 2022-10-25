@@ -312,6 +312,95 @@ test_dict_iteration(PyObject* self, PyObject *Py_UNUSED(ignored))
     Py_RETURN_NONE;
 }
 
+static PyType_Slot StrSubtype_slots[] = {
+    {0, 0},
+};
+
+static PyType_Spec StrSubtype_spec = {
+    "_testcapi.StrSubtype",
+    sizeof(PyUnicodeObject),
+    0,
+    Py_TPFLAGS_DEFAULT,
+    StrSubtype_slots,
+};
+
+static PyObject *
+test_dict_has_unsafe_keys(PyObject *self, PyObject *Py_UNUSED(ignored))
+{
+    PyObject *dict = NULL;
+    PyObject *str_subtype = NULL;
+    PyObject *str_subtype_bases = NULL;
+    PyObject *str = NULL;
+    PyObject *str_subtype_obj = NULL;
+
+    dict = PyDict_New();
+    if (dict == NULL) {
+        goto error;
+    }
+
+    if (_PyDict_HasUnsafeKeys(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_has_unsafe_keys: new, empty dict has unsafe keys");
+        goto error;
+    }
+
+    if (PyDict_SetItemString(dict, "some_key", Py_None) < 0 ||
+        PyDict_SetItemString(dict, "some_other_key", Py_None) < 0) {
+        goto error;
+    }
+    if (_PyDict_HasUnsafeKeys(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_has_unsafe_keys: dict with only str keys has unsafe keys");
+        goto error;
+    }
+
+    str_subtype_bases = PyTuple_Pack(1, &PyUnicode_Type);
+    if (str_subtype_bases == NULL) {
+        goto error;
+    }
+    str_subtype = PyType_FromSpecWithBases(&StrSubtype_spec, str_subtype_bases);
+    if (str_subtype == NULL) {
+        goto error;
+    }
+
+    str = PyUnicode_FromString("hello");
+    if (str == NULL) {
+        goto error;
+    }
+    str_subtype_obj = PyObject_CallFunction(str_subtype, "O", str);
+    if (str_subtype_obj == NULL) {
+        goto error;
+    }
+
+    if (PyDict_SetItem(dict, str_subtype_obj, Py_None) < 0) {
+        goto error;
+    }
+    if (!_PyDict_HasUnsafeKeys(dict)) {
+        PyErr_SetString(
+            TestError,
+            "test_dict_has_unsafe_keys: dict with str subtype key does not have unsafe keys");
+        goto error;
+    }
+
+    int error = 0;
+    goto done;
+error:
+    error = 1;
+done:
+    Py_XDECREF(dict);
+    Py_XDECREF(str_subtype);
+    Py_XDECREF(str_subtype_bases);
+    Py_XDECREF(str);
+    Py_XDECREF(str_subtype_obj);
+
+    if (error) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyObject*
 dict_getitem_knownhash(PyObject *self, PyObject *args)
 {
@@ -6238,6 +6327,7 @@ static PyMethodDef TestMethods[] = {
     {"delete_context", _delete_context, METH_NOARGS},
     {"get_context", _get_context, METH_NOARGS},
     {"get_context_helpers_for_task", _get_context_helpers_for_task, METH_NOARGS},
+    {"test_dict_has_unsafe_keys", test_dict_has_unsafe_keys, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 
