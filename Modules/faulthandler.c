@@ -1374,11 +1374,11 @@ _PyFaulthandler_Init(int enable)
 #ifdef FAULTHANDLER_USE_ALT_STACK
     memset(&stack, 0, sizeof(stack));
     stack.ss_flags = 0;
-    /* bpo-21131: allocate dedicated stack of SIGSTKSZ*2 bytes, instead of just
+    /* bpo-21131: allocate dedicated stack of SIGSTKSZ*128 bytes, instead of just
        SIGSTKSZ bytes. Calling the previous signal handler in faulthandler
        signal handler uses more than SIGSTKSZ bytes of stack memory on some
        platforms. */
-    stack.ss_size = SIGSTKSZ * 2;
+    stack.ss_size = SIGSTKSZ * 128;  // 1024 kb
 #ifdef AT_MINSIGSTKSZ
     /* bpo-46968: Query Linux for minimal stack size to ensure signal delivery
        for the hardware running CPython. This OS feature is available in
