@@ -1,5 +1,7 @@
 #include "Jit/profile_data.h"
 
+#include "Objects/dict-common.h"
+
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/containers.h"
 #include "Jit/hir/type.h"
@@ -35,6 +37,9 @@ const uint64_t kMagicHeader = 0x7265646e6963;
 
 using ProfileData = UnorderedMap<CodeKey, CodeProfileData>;
 ProfileData s_profile_data;
+
+using TypeDictKeys = UnorderedMap<std::string, std::vector<std::string>>;
+TypeDictKeys s_type_dict_keys;
 
 LiveTypeMap s_live_types;
 
@@ -115,10 +120,10 @@ void readVersion2(std::istream& stream) {
   }
 }
 
-void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
+void writeVersion3(std::ostream& stream, const TypeProfiles& profiles) {
   ProfileData data;
+  std::unordered_set<BorrowedRef<PyTypeObject>> dict_key_types;
 
-  // First, collect only monomorphic results in data.
   for (auto& [code_obj, code_profile] : profiles) {
     CodeProfileData code_data;
     for (auto& profile_pair : code_profile.typed_hits) {
@@ -143,6 +148,9 @@ void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
           if (type == nullptr) {
             single_profile.emplace_back("<NULL>");
           } else {
+            if (numCachedKeys(type) > 0) {
+              dict_key_types.emplace(type);
+            }
             single_profile.emplace_back(typeFullname(type));
           }
         }
@@ -170,6 +178,27 @@ void writeVersion2(std::ostream& stream, const TypeProfiles& profiles) {
       }
     }
   }
+
+  write<uint32_t>(stream, dict_key_types.size());
+  for (const BorrowedRef<PyTypeObject>& type : dict_key_types) {
+    writeStr(stream, typeFullname(type));
+    write<uint16_t>(stream, numCachedKeys(type));
+    enumerateCachedKeys(type, [&](BorrowedRef<> key) {
+      writeStr(stream, unicodeAsString(key));
+    });
+  }
+}
+
+void readVersion3(std::istream& stream) {
+  readVersion2(stream);
+  auto num_type_key_lists = read<uint32_t>(stream);
+  for (size_t i = 0; i < num_type_key_lists; ++i) {
+    auto& vec = s_type_dict_keys[readStr(stream)];
+    auto num_key_names = read<uint16_t>(stream);
+    for (size_t j = 0; j < num_key_names; ++j) {
+      vec.emplace_back(readStr(stream));
+    }
+  }
 }
 
 } // namespace
@@ -182,8 +211,9 @@ bool readProfileData(const std::string& filename) {
   }
   if (readProfileData(file)) {
     JIT_LOG(
-        "Loaded data for %d code objects from %s",
+        "Loaded data for %d code objects and %d types from %s",
         s_profile_data.size(),
+        s_type_dict_keys.size(),
         filename);
     return true;
   }
@@ -203,6 +233,8 @@ bool readProfileData(std::istream& stream) {
       readVersion1(stream);
     } else if (version == 2) {
       readVersion2(stream);
+    } else if (version == 3) {
+      readVersion3(stream);
     } else {
       JIT_LOG("Unknown profile data version %d", version);
       return false;
@@ -238,8 +270,8 @@ bool writeProfileData(std::ostream& stream) {
   try {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     write<uint64_t>(stream, kMagicHeader);
-    write<uint32_t>(stream, 2);
-    writeVersion2(stream, Runtime::get()->typeProfiles());
+    write<uint32_t>(stream, 3);
+    writeVersion3(stream, Runtime::get()->typeProfiles());
   } catch (const std::runtime_error& e) {
     JIT_LOG("Failed to write profile data to stream: %s", e.what());
     return false;
@@ -295,8 +327,69 @@ std::string codeQualname(PyCodeObject* code) {
   return "<unknown>";
 }
 
+int numCachedKeys(BorrowedRef<PyTypeObject> type) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+    return 0;
+  }
+  BorrowedRef<PyHeapTypeObject> ht(type);
+  if (ht->ht_cached_keys == nullptr) {
+    return 0;
+  }
+  return ht->ht_cached_keys->dk_nentries;
+}
+
+void enumerateCachedKeys(
+    BorrowedRef<PyTypeObject> type,
+    std::function<void(BorrowedRef<>)> callback) {
+  int num_keys = numCachedKeys(type);
+  if (num_keys <= 0) {
+    return;
+  }
+  BorrowedRef<PyHeapTypeObject> ht(type);
+  PyDictKeyEntry* entries = _PyDictKeys_GetEntries(ht->ht_cached_keys);
+  for (Py_ssize_t i = 0; i < num_keys; ++i) {
+    callback(entries[i].me_key);
+  }
+}
+
 void registerProfiledType(PyTypeObject* type) {
   s_live_types.insert(type);
+
+  if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+    return;
+  }
+  std::string name = typeFullname(type);
+  auto it = s_type_dict_keys.find(name);
+  if (it == s_type_dict_keys.end()) {
+    return;
+  }
+  auto dunder_dict = Ref<>::steal(PyUnicode_InternFromString("__dict__"));
+  if (dunder_dict == nullptr) {
+    return;
+  }
+  auto dict = Ref<>::steal(PyDict_New());
+  if (dict == nullptr) {
+    PyErr_Clear();
+    return;
+  }
+  for (const std::string& key : it->second) {
+    if (PyDict_SetItemString(dict, key.c_str(), Py_None) < 0) {
+      return;
+    }
+  }
+
+  PyDictKeysObject* keys = _PyDict_MakeKeysShared(dict);
+  if (keys == nullptr) {
+    return;
+  }
+  BorrowedRef<PyHeapTypeObject> ht{reinterpret_cast<PyObject*>(type)};
+  PyDictKeysObject* old_keys = ht->ht_cached_keys;
+  ht->ht_cached_keys = keys;
+  PyType_Modified(type);
+  _PyType_Lookup(type, dunder_dict);
+  if (old_keys != nullptr) {
+    _PyDictKeys_DecRef(old_keys);
+  }
 }
 
 void unregisterProfiledType(PyTypeObject* type) {

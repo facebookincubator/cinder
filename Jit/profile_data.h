@@ -58,6 +58,15 @@ CodeKey codeKey(PyCodeObject* code);
 // "<unknown>" if not set.
 std::string codeQualname(PyCodeObject* code);
 
+// Return the number of cached split dict keys in the given type.
+int numCachedKeys(BorrowedRef<PyTypeObject> type);
+
+// Call `callback' 0 or more times, once for each split dict key in the given
+// type.
+void enumerateCachedKeys(
+    BorrowedRef<PyTypeObject> type,
+    std::function<void(BorrowedRef<>)> callback);
+
 // Inform the profiling code that a type has been created.
 void registerProfiledType(PyTypeObject* type);
 
