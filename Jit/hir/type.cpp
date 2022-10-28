@@ -134,6 +134,9 @@ std::string Type::specString() const {
     if (*this <= TCBool) {
       return int_ ? "true" : "false";
     }
+    if (*this <= TCPtr) {
+      return fmt::format("{}", getStablePointer(ptr_));
+    }
     JIT_DCHECK(
         *this <= TCInt8 || *this <= TCInt16 || *this <= TCInt32 ||
             *this <= TCInt64 || *this <= TCUInt8 || *this <= TCUInt16 ||

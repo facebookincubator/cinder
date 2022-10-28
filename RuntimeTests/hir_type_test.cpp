@@ -305,6 +305,10 @@ TEST_F(HIRTypeTest, ToString) {
       (TMortalDict | TCBool | TNullptr).toString(),
       "{CBool|MortalDict|Nullptr}");
 
+  EXPECT_EQ(
+      Type::fromCPtr(reinterpret_cast<void*>(0x12345)).toString(),
+      "CPtr[0xdeadbeef]");
+
   EXPECT_EQ(Type::fromObject(Py_True).toString(), "MortalBool[True]");
   EXPECT_EQ(Type::fromObject(Py_False).toString(), "MortalBool[False]");
 
