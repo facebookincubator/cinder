@@ -39,6 +39,7 @@ struct symtable {
                                        the symbol table */
     int recursion_depth;            /* current recursion depth */
     int recursion_limit;            /* recursion limit */
+    int st_inline_comprehensions;   /* inline comprehensions? */
 };
 
 typedef struct _symtable_entry {
@@ -72,6 +73,7 @@ typedef struct _symtable_entry {
     int ste_end_col_offset;  /* end offset of first line of block */
     int ste_opt_lineno;      /* lineno of last exec or import * */
     int ste_opt_col_offset;  /* offset of last exec or import * */
+    unsigned int ste_inlined_comprehension; /* comprehension is inlined; symbols merged in parent scope */
     struct symtable *ste_table;
 } PySTEntryObject;
 
@@ -85,6 +87,11 @@ extern struct symtable* _PySymtable_Build(
     struct _mod *mod,
     PyObject *filename,
     PyFutureFeatures *future);
+extern struct symtable* _PySymtable_BuildEx(
+    struct _mod *mod,
+    PyObject *filename,
+    PyFutureFeatures *future,
+    int inline_comprehensions);
 PyAPI_FUNC(PySTEntryObject *) PySymtable_Lookup(struct symtable *, void *);
 
 extern void _PySymtable_Free(struct symtable *);

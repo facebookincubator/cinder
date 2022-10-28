@@ -3018,13 +3018,86 @@ class Entry:
         self.unwinding_datum = unwinding_datum
 
 
-# This is identical to the base code generator, except for the fact that CO_SUPPRESS_JIT is emitted.
 class CinderBaseCodeGenerator(CodeGenerator):
+    """
+    Code generator equivalent to `Python/compile.c` in Cinder.
+
+    The base `CodeGenerator` is equivalent to upstream `Python/compile.c`.
+    """
+
     flow_graph = pyassem.PyFlowGraphCinder
+    _SymbolVisitor = symbols.CinderSymbolVisitor
+
+    # TODO(T132400505): Split into smaller methods.
+    def compile_comprehension(
+        self,
+        node: CompNode,
+        name: str,
+        elt: ast.expr,
+        val: ast.expr | None,
+        opcode: str,
+        oparg: object = 0,
+    ) -> None:
+        # fetch the scope that correspond to comprehension
+        scope = self.scopes[node]
+        if scope.inlined:
+            # for inlined comprehension process with current generator
+            gen = self
+        else:
+            gen = self.make_func_codegen(
+                node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
+            )
+        gen.set_lineno(node)
+
+        if opcode:
+            gen.emit(opcode, oparg)
+
+        gen.compile_comprehension_generator(
+            node.generators, 0, 0, elt, val, type(node), not scope.inlined
+        )
+
+        if scope.inlined:
+            # collect list of defs that were introduced by comprehension
+            # note that we need to exclude:
+            # - .0 parameter since it is used
+            # - non-local names (typically named expressions), they are
+            #   defined in enclosing scope and thus should not be deleted
+            to_delete = [
+                v
+                for v in scope.defs
+                if v != ".0"
+                and v not in scope.nonlocals
+                and v not in scope.parent.cells
+            ]
+            # sort names to have deterministic deletion order
+            to_delete.sort()
+            for v in to_delete:
+                self.delName(v)
+            return
+
+        if not isinstance(node, ast.GeneratorExp):
+            gen.emit("RETURN_VALUE")
+
+        gen.finishFunction()
+
+        self._makeClosure(gen, 0)
+
+        # precomputation of outmost iterable
+        self.visit(node.generators[0].iter)
+        if node.generators[0].is_async:
+            self.emit("GET_AITER")
+        else:
+            self.emit("GET_ITER")
+        self.emit("CALL_FUNCTION", 1)
+
+        if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
+            self.emit("GET_AWAITABLE")
+            self.emit("LOAD_CONST", None)
+            self.emit("YIELD_FROM")
 
 
 class CinderCodeGenerator(CinderBaseCodeGenerator):
-    _SymbolVisitor = symbols.CinderSymbolVisitor
+    """Contains some optimizations not (yet) present in Python/compile.c."""
 
     def set_qual_name(self, qualname):
         self._qual_name = qualname
@@ -3105,71 +3178,6 @@ class CinderCodeGenerator(CinderBaseCodeGenerator):
             if feature == "eager_imports":
                 future_flags |= consts.CO_FUTURE_EAGER_IMPORTS
         return future_flags
-
-    # TODO(T132400505): Split into smaller methods.
-    def compile_comprehension(
-        self,
-        node: CompNode,
-        name: str,
-        elt: ast.expr,
-        val: ast.expr | None,
-        opcode: str,
-        oparg: object = 0,
-    ) -> None:
-        # fetch the scope that correspond to comprehension
-        scope = self.scopes[node]
-        if scope.inlined:
-            # for inlined comprehension process with current generator
-            gen = self
-        else:
-            gen = self.make_func_codegen(
-                node, self.conjure_arguments([ast.arg(".0", None)]), name, node.lineno
-            )
-        gen.set_lineno(node)
-
-        if opcode:
-            gen.emit(opcode, oparg)
-
-        gen.compile_comprehension_generator(
-            node.generators, 0, 0, elt, val, type(node), not scope.inlined
-        )
-
-        if scope.inlined:
-            # collect list of defs that were introduced by comprehension
-            # note that we need to exclude:
-            # - .0 parameter since it is used
-            # - non-local names (typically named expressions), they are
-            #   defined in enclosing scope and thus should not be deleted
-            to_delete = [
-                v
-                for v in scope.defs
-                if v != ".0" and v not in scope.nonlocals and v not in scope.cells
-            ]
-            # sort names to have deterministic deletion order
-            to_delete.sort()
-            for v in to_delete:
-                self.delName(v)
-            return
-
-        if not isinstance(node, ast.GeneratorExp):
-            gen.emit("RETURN_VALUE")
-
-        gen.finishFunction()
-
-        self._makeClosure(gen, 0)
-
-        # precomputation of outmost iterable
-        self.visit(node.generators[0].iter)
-        if node.generators[0].is_async:
-            self.emit("GET_AITER")
-        else:
-            self.emit("GET_ITER")
-        self.emit("CALL_FUNCTION", 1)
-
-        if gen.scope.coroutine and type(node) is not ast.GeneratorExp:
-            self.emit("GET_AWAITABLE")
-            self.emit("LOAD_CONST", None)
-            self.emit("YIELD_FROM")
 
 
 def get_default_generator():

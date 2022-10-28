@@ -777,6 +777,11 @@ class CinderFunctionScope(FunctionScope):
             for u in comp.uses.keys():
                 self.add_use(u)
 
+            # cell vars in comprehension become cells in current scope
+            for c in comp.cells.keys():
+                if c != ".0":
+                    self.cells[c] = 1
+
             # splice children of comprehension into current scope
             # replacing existing entry for 'comp'
             i = self.children.index(comp)

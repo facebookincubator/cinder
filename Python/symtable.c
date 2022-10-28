@@ -107,6 +107,7 @@ ste_new(struct symtable *st, identifier name, _Py_block_ty block,
     ste->ste_needs_class_closure = 0;
     ste->ste_comp_iter_target = 0;
     ste->ste_comp_iter_expr = 0;
+    ste->ste_inlined_comprehension = 0;
 
     ste->ste_symbols = PyDict_New();
     ste->ste_varnames = PyList_New(0);
@@ -281,6 +282,12 @@ symtable_new(void)
 struct symtable *
 _PySymtable_Build(mod_ty mod, PyObject *filename, PyFutureFeatures *future)
 {
+    return _PySymtable_BuildEx(mod, filename, future, 0);
+}
+
+struct symtable *
+_PySymtable_BuildEx(mod_ty mod, PyObject *filename, PyFutureFeatures *future, int inline_comprehensions)
+{
     struct symtable *st = symtable_new();
     asdl_stmt_seq *seq;
     int i;
@@ -297,6 +304,7 @@ _PySymtable_Build(mod_ty mod, PyObject *filename, PyFutureFeatures *future)
     Py_INCREF(filename);
     st->st_filename = filename;
     st->st_future = future;
+    st->st_inline_comprehensions = inline_comprehensions;
 
     /* Setup recursion depth check counters */
     tstate = _PyThreadState_GET();
@@ -571,8 +579,6 @@ analyze_name(PySTEntryObject *ste, PyObject *scopes, PyObject *name, long flags,
     return 1;
 }
 
-#undef SET_SCOPE
-
 /* If a name is defined in free and also in locals, then this block
    provides the binding for the free variable.  The name should be
    marked CELL in this block and removed from the free list.
@@ -742,15 +748,162 @@ error:
 
 static int
 analyze_child_block(PySTEntryObject *entry, PyObject *bound, PyObject *free,
-                    PyObject *global, PyObject* child_free);
+                    PyObject *global, PyObject* child_free, PyObject *implicit_globals);
+
+// check if any defs from symtable entry are present in set of local names
+static int
+local_names_include_any_ste_defs(PySTEntryObject *comp_entry, PyObject *local_names)
+{
+    PyObject *k, *v;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(comp_entry->ste_symbols, &pos, &k, &v)) {
+        long val = PyLong_AS_LONG(v);
+        // skip comprehension parameters
+        if (val & DEF_PARAM && _PyUnicode_EqualToASCIIString(k, ".0")) {
+            continue;
+        }
+        // skip non-locals as they are defined in enclosing scope
+        if (val & DEF_NONLOCAL) {
+            continue;
+        }
+        if (val & DEF_BOUND) {
+            int exists = PySet_Contains(local_names, k);
+            if (exists < 0) {
+                return -1;
+            }
+            if (exists) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int
+is_free_in_comp_children(PySTEntryObject *comp, PyObject *key)
+{
+    for (Py_ssize_t i = 0; i < PyList_GET_SIZE(comp->ste_children); ++i) {
+        PySTEntryObject *child_ste = (PySTEntryObject *)PyList_GET_ITEM(comp->ste_children, i);
+        long scope = _PyST_GetScope(child_ste, key);
+        if (scope == FREE) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Merge local defs from comprehension symtable entry into entry for enclosing scope.
+// For merge items, add matching record into scopes dict.
+// For free names from comprehension scope that correspond to local names in encloding scope -
+// remove them from the set of free names for comprehension.
+static int
+merge_comprehension_symbols(PySTEntryObject *ste,
+                            PySTEntryObject *comp,
+                            PyObject *scopes,
+                            PyObject *comp_all_free)
+{
+    // iterate over symbols in comprehension
+    PyObject *k, *v;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(comp->ste_symbols, &pos, &k, &v)) {
+        // skip comprehension parameter
+        long comp_flags = PyLong_AS_LONG(v);
+        if (comp_flags & DEF_PARAM) {
+            assert(_PyUnicode_EqualToASCIIString(k, ".0"));
+            continue;
+        }
+        int scope = (comp_flags >> SCOPE_OFFSET) & SCOPE_MASK;
+        int only_flags = comp_flags & ((1 << SCOPE_OFFSET) - 1);
+        // comprehension cannot contain explicit global names
+        assert(scope != GLOBAL_EXPLICIT);
+        PyObject *existing = PyDict_GetItemWithError(ste->ste_symbols, k);
+        if (existing == NULL && PyErr_Occurred()) {
+            // error fetching symbol from the current scope
+            return 0;
+        }
+        if (!existing) {
+            // name is either not free or it should be present in comp_all_free
+            assert(scope != FREE || PySet_Contains(comp_all_free, k) == 1);
+            // name is missing in current scope - add it
+            PyObject *v_flags = PyLong_FromLong(only_flags);
+            if (v_flags == NULL) {
+                return 0;
+            }
+            int ok = PyDict_SetItem(ste->ste_symbols, k, v_flags);
+            Py_DECREF(v_flags);
+            if (ok < 0) {
+                return 0;
+            }
+            SET_SCOPE(scopes, k, scope);
+        }
+        else {
+            // name is found in current scope, get an entry from scopes
+            PyObject *v_existing_scope = PyDict_GetItemWithError(scopes, k);
+            assert(v_existing_scope);
+            long existing_scope = PyLong_AS_LONG(v_existing_scope);
+            // if existing scope entry is not cell and name in comprehension was cell
+            // promote existing scope entry to cell
+            if (scope == CELL && existing_scope != CELL) {
+                SET_SCOPE(scopes, k, CELL);
+            }
+            else {
+                // now we can convert free name into local
+                // unless it is also free in children of the comprehension
+                if ((PyLong_AS_LONG(existing) & DEF_BOUND) && !is_free_in_comp_children(comp, k)) {
+                    if (PySet_Discard(comp_all_free, k) < 0) {
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+#undef SET_SCOPE
+
+static int
+record_comprehension(PyObject *list, Py_ssize_t i, PyObject *comp, PyObject *free)
+{
+    // save tuple (index, comp_ste, set of free vars for comp) in storage
+    PyObject *index = NULL;
+
+    index = PyLong_FromLong(i);
+    if (index == NULL) {
+        goto error;
+    }
+    PyObject *t = PyTuple_New(3);
+    if (t == NULL) {
+        goto error;
+    }
+    PyTuple_SET_ITEM(t, 0, index); // steal
+    PyTuple_SET_ITEM(t, 1, comp);
+    Py_INCREF(comp);
+
+    PyTuple_SET_ITEM(t, 2, free);
+    Py_INCREF(free);
+
+    int ok = PyList_Append(list, t);
+    Py_DECREF(t);
+    return ok == 0;
+error:
+    Py_XDECREF(index);
+    return 0;
+}
 
 static int
 analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
-              PyObject *global)
+              PyObject *global, PyObject *implicit_globals)
 {
     PyObject *name, *v, *local = NULL, *scopes = NULL, *newbound = NULL;
     PyObject *newglobal = NULL, *newfree = NULL, *allfree = NULL;
     PyObject *temp;
+
+    // list of comprehensions that could potentially be inlined at call-site
+    // item: tuple (index, comprehension ste, set of free names in comprehension)
+    PyObject *inlinable_comprehensions = NULL;
+    PyObject *local_names = NULL;
+    PyObject *implicit_globals_in_block = NULL;
     int i, success = 0;
     Py_ssize_t pos = 0;
 
@@ -760,6 +913,11 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
     scopes = PyDict_New();  /* collect scopes defined for each name */
     if (!scopes)
         goto error;
+
+    implicit_globals_in_block = PySet_New(NULL);
+    if (implicit_globals_in_block == NULL) {
+        goto error;
+    }
 
     /* Allocate new global and bound variable dictionaries.  These
        dictionaries hold the names visible in nested blocks.  For
@@ -839,6 +997,20 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
             goto error;
     }
 
+    // create set of names that inlined comprehension should never stomp on
+    local_names = PySet_New(NULL);
+    if (local_names == NULL) {
+        goto error;
+    }
+    // collect all local defs and params
+    PyObject *k;
+    pos = 0;
+    while (PyDict_Next(ste->ste_symbols, &pos, &k, &v)) {
+        if (PySet_Add(local_names, k) < 0) {
+            goto error;
+        }
+    }
+
     /* Recursively call analyze_child_block() on each child block.
 
        newbound, newglobal now contain the names visible in
@@ -853,9 +1025,115 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
         PySTEntryObject* entry;
         assert(c && PySTEntry_Check(c));
         entry = (PySTEntryObject*)c;
-        if (!analyze_child_block(entry, newbound, newfree, newglobal,
-                                 allfree))
+
+        PyObject *f = allfree;
+        int inline_comp =
+            ste->ste_table->st_inline_comprehensions &&
+            ste->ste_type == FunctionBlock &&
+            entry->ste_comprehension &&
+            !entry->ste_generator;
+
+        if (inline_comp) {
+            if (inlinable_comprehensions == NULL) {
+                inlinable_comprehensions = PyList_New(0);
+                if (inlinable_comprehensions == NULL) {
+                    goto error;
+                }
+            }
+            // for eager comprehensions we want tp track set of free locals separately
+            f = PySet_New(NULL);
+            if (f == NULL) {
+                goto error;
+            }
+        }
+
+        if (!analyze_child_block(entry, newbound, newfree, newglobal, f, implicit_globals_in_block)) {
             goto error;
+        }
+        PyObject *tmp = PyNumber_InPlaceOr(local_names, f);
+        if (tmp == NULL) {
+            goto error;
+        }
+        Py_DECREF(tmp);
+
+        if (inline_comp) {
+            int ok = record_comprehension(inlinable_comprehensions, i, c, f);
+            Py_DECREF(f);
+            if (!ok) {
+                goto error;
+            }
+        }
+    }
+    // include implicitly global names from children into local_names
+    // to make sure new names from comprehension won't shadow them
+    temp = PyNumber_InPlaceOr(local_names, implicit_globals_in_block);
+    if (temp == NULL) {
+        goto error;
+    }
+    Py_DECREF(temp);
+
+    if (implicit_globals != NULL) {
+        // merge collected implicit globals into set for the outer scope
+        temp = PyNumber_InPlaceOr(implicit_globals, implicit_globals_in_block);
+        if (temp == NULL) {
+            goto error;
+        }
+        Py_DECREF(temp);
+        Py_CLEAR(implicit_globals_in_block);
+
+        PyObject *k;
+        pos = 0;
+        while (PyDict_Next(ste->ste_symbols, &pos, &k, &v)) {
+            // collect implicitly global names in current block
+            PyObject *scope =  PyDict_GetItemWithError(scopes, k);
+            if (scope == NULL) {
+                assert(PyErr_Occurred());
+                goto error;
+            }
+            long val = PyLong_AS_LONG(scope);
+            if (val == GLOBAL_IMPLICIT) {
+                if (PySet_Add(implicit_globals, k) < 0) {
+                    goto error;
+                }
+            }
+        }
+    }
+
+    // collect inlinable comprehensions
+    if (inlinable_comprehensions) {
+        for (i = PyList_GET_SIZE(inlinable_comprehensions) - 1; i >=0 ; --i) {
+            PyObject *item = PyList_GET_ITEM(inlinable_comprehensions, i);
+            long index = PyLong_AS_LONG(PyTuple_GET_ITEM(item, 0));
+            PySTEntryObject* entry = (PySTEntryObject*)PyTuple_GET_ITEM(item, 1);
+            PyObject *comp_all_free = PyTuple_GET_ITEM(item, 2);
+
+            int exists = local_names_include_any_ste_defs(entry, local_names);
+            if (exists < 0) {
+                goto error;
+            }
+            if (!exists) {
+                // comprehenson can be inlined
+                // - merge local symbols into enclosing scope
+                if (merge_comprehension_symbols(ste, entry, scopes, comp_all_free) < 0) {
+                    goto error;
+                }
+                // - splice children of comprehension at index
+                if (PyList_SetSlice(ste->ste_children, index, index + 1, entry->ste_children) < 0) {
+                    goto error;
+                }
+                // mark comprehension as inlined for compiler
+                entry->ste_inlined_comprehension = 1;
+            }
+            PyObject *tmp = PyNumber_InPlaceOr(allfree, comp_all_free);
+            if (!tmp) {
+                goto error;
+            }
+            Py_DECREF(tmp);
+        }
+    }
+
+    for (i = 0; i < PyList_GET_SIZE(ste->ste_children); ++i) {
+        PySTEntryObject* entry = (PySTEntryObject*)PyList_GET_ITEM(ste->ste_children, i);
         /* Check if any children have free variables */
         if (entry->ste_free || entry->ste_child_free)
             ste->ste_child_free = 1;
@@ -882,12 +1160,15 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
     Py_DECREF(temp);
     success = 1;
  error:
+    Py_XDECREF(local_names);
     Py_XDECREF(scopes);
     Py_XDECREF(local);
     Py_XDECREF(newbound);
     Py_XDECREF(newglobal);
     Py_XDECREF(newfree);
     Py_XDECREF(allfree);
+    Py_XDECREF(inlinable_comprehensions);
+    Py_XDECREF(implicit_globals_in_block);
     if (!success)
         assert(PyErr_Occurred());
     return success;
@@ -895,7 +1176,7 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
 
 static int
 analyze_child_block(PySTEntryObject *entry, PyObject *bound, PyObject *free,
-                    PyObject *global, PyObject* child_free)
+                    PyObject *global, PyObject* child_free, PyObject* implicit_globals)
 {
     PyObject *temp_bound = NULL, *temp_global = NULL, *temp_free = NULL;
     PyObject *temp;
@@ -917,7 +1198,7 @@ analyze_child_block(PySTEntryObject *entry, PyObject *bound, PyObject *free,
     if (!temp_global)
         goto error;
 
-    if (!analyze_block(entry, temp_bound, temp_free, temp_global))
+    if (!analyze_block(entry, temp_bound, temp_free, temp_global, implicit_globals))
         goto error;
     temp = PyNumber_InPlaceOr(child_free, temp_free);
     if (!temp)
@@ -948,7 +1229,7 @@ symtable_analyze(struct symtable *st)
         Py_DECREF(free);
         return 0;
     }
-    r = analyze_block(st->st_top, NULL, free, global);
+    r = analyze_block(st->st_top, NULL, free, global, NULL);
     Py_DECREF(free);
     Py_DECREF(global);
     return r;
@@ -1120,7 +1401,7 @@ static int
 symtable_add_def(struct symtable *st, PyObject *name, int flag,
                  int lineno, int col_offset, int end_lineno, int end_col_offset)
 {
-    return symtable_add_def_helper(st, name, flag, st->st_cur, 
+    return symtable_add_def_helper(st, name, flag, st->st_cur,
                         lineno, col_offset, end_lineno, end_col_offset);
 }
 
@@ -2120,7 +2401,7 @@ symtable_raise_if_annotation_block(struct symtable *st, const char *name, expr_t
 static int
 symtable_raise_if_comprehension_block(struct symtable *st, expr_ty e) {
     _Py_comprehension_ty type = st->st_cur->ste_comprehension;
-    PyErr_SetString(PyExc_SyntaxError, 
+    PyErr_SetString(PyExc_SyntaxError,
             (type == ListComprehension) ? "'yield' inside list comprehension" :
             (type == SetComprehension) ? "'yield' inside set comprehension" :
             (type == DictComprehension) ? "'yield' inside dict comprehension" :

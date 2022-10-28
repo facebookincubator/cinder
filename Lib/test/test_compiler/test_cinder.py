@@ -291,6 +291,11 @@ Free variables:
 
 
 class ComprehensionInlinerTests(DisTests):
+    compiler = staticmethod(py_compile)
+
+    def compile(self, code_str):
+        return self.compiler(dedent(code_str), "<string>", "exec")
+
     def test_sync_comp_top(self):
         # ensure module level comprehensions are not inlined
         src = """
@@ -307,7 +312,7 @@ class ComprehensionInlinerTests(DisTests):
              14 LOAD_CONST               2 (None)
              16 RETURN_VALUE
 """
-        co = py_compile(dedent(src), "<string>", "exec")
+        co = self.compile(src)
         self.do_disassembly_test(co, expected)
 
     def test_inline_sync_comp_nested_diff_scopes_1(self):
@@ -325,27 +330,26 @@ class ComprehensionInlinerTests(DisTests):
              10 LOAD_DEREF               0 (x)
              12 LIST_APPEND              2
              14 JUMP_ABSOLUTE            3 (to 6)
-        >>   16 DELETE_DEREF             0 (x)
-             18 POP_TOP
+        >>   16 POP_TOP
 
-  4          20 BUILD_LIST               0
-             22 LOAD_GLOBAL              0 (lst)
-             24 GET_ITER
-        >>   26 FOR_ITER                 8 (to 44)
-             28 STORE_DEREF              0 (x)
-             30 LOAD_CLOSURE             0 (x)
-             32 BUILD_TUPLE              1
-             34 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 4>)
-             36 LOAD_CONST               2 ('f.<locals>.<lambda>')
-             38 MAKE_FUNCTION            8 (closure)
-             40 LIST_APPEND              2
-             42 JUMP_ABSOLUTE           13 (to 26)
-        >>   44 POP_TOP
-             46 LOAD_CONST               0 (None)
-             48 RETURN_VALUE
+  4          18 BUILD_LIST               0
+             20 LOAD_GLOBAL              0 (lst)
+             22 GET_ITER
+        >>   24 FOR_ITER                 8 (to 42)
+             26 STORE_DEREF              0 (x)
+             28 LOAD_CLOSURE             0 (x)
+             30 BUILD_TUPLE              1
+             32 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 4>)
+             34 LOAD_CONST               2 ('f.<locals>.<lambda>')
+             36 MAKE_FUNCTION            8 (closure)
+             38 LIST_APPEND              2
+             40 JUMP_ABSOLUTE           12 (to 24)
+        >>   42 POP_TOP
+             44 LOAD_CONST               0 (None)
+             46 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_inline_sync_comp_nested_diff_scopes_2(self):
@@ -377,13 +381,12 @@ class ComprehensionInlinerTests(DisTests):
              36 LOAD_DEREF               0 (x)
              38 LIST_APPEND              2
              40 JUMP_ABSOLUTE           16 (to 32)
-        >>   42 DELETE_DEREF             0 (x)
-             44 POP_TOP
-             46 LOAD_CONST               0 (None)
-             48 RETURN_VALUE
+        >>   42 POP_TOP
+             44 LOAD_CONST               0 (None)
+             46 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_inline_sync_comp_nested_comprehensions(self):
@@ -414,7 +417,7 @@ class ComprehensionInlinerTests(DisTests):
              38 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_inline_sync_comp_named_expr_1(self):
@@ -441,7 +444,7 @@ class ComprehensionInlinerTests(DisTests):
              30 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_inline_async_comp_free_var1(self):
@@ -490,7 +493,7 @@ async def f(lst):
              68 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_comprehension_inlining_name_conflict_with_implicit_global(self):
@@ -520,7 +523,7 @@ def f(lst):
 """
 
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_use_param_1(self):
@@ -554,7 +557,7 @@ def f(self, name, data, files=(), dirs=()):
              44 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
 
     def test_inline_comp_global1(self):
@@ -586,5 +589,9 @@ def f(self, name, data, files=(), dirs=()):
              34 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["f"], expected)
+
+
+class ComprehensionInlinerBuiltinCompilerTests(ComprehensionInlinerTests):
+    compiler = staticmethod(compile)

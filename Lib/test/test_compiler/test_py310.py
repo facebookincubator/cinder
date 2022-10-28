@@ -58,20 +58,3 @@ class Python310Tests(CompilerTest):
                 return x
         """
         self._check(codestr)
-
-    def test_no_nested_async_comprehension(self):
-        codestr = """
-            async def foo(a):
-                return {k: [y for y in k if await bar(y)] for k in a}
-        """
-
-        # The base code generator matches 3.10 upstream and thus has this
-        # restriction, but the restriction has been lifted in 3.11
-        # (see https://github.com/python/cpython/pull/6766), so we also lift
-        # it in CinderCodeGenerator.
-        self._check_error(
-            codestr,
-            "asynchronous comprehension outside of an asynchronous function",
-            generator=BaseCodeGenerator,
-        )
-        self.compile(codestr, generator=CinderCodeGenerator)
