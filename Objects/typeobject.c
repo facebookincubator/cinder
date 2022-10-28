@@ -4633,8 +4633,6 @@ type_getattr(PyTypeObject *type, const char *name)
     return NULL;
 }
 
-extern void
-_PyDictKeys_DecRef(PyDictKeysObject *keys);
 
 static void
 type_dealloc(PyTypeObject *type)

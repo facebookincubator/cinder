@@ -3,6 +3,7 @@
 #endif
 
 typedef struct _dictkeysobject PyDictKeysObject;
+typedef struct _dictkeyentry PyDictKeyEntry;
 
 /* The ma_values pointer is NULL for a combined table
  * or points to an array of PyObject* for a split table
@@ -61,6 +62,14 @@ PyObject *_PyDict_FromKeys(PyObject *, PyObject *, PyObject *);
 Py_ssize_t
 _PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
 /* facebook end t39538061 */
+
+void
+_PyDictKeys_DecRef(PyDictKeysObject *keys);
+PyDictKeysObject *
+_PyDict_MakeKeysShared(PyObject *dict);
+
+PyDictKeyEntry *
+_PyDictKeys_GetEntries(PyDictKeysObject *keys);
 
 /* Like PyDict_Merge, but override can be 0, 1 or 2.  If override is 0,
    the first occurrence of a key wins, if override is 1, the last occurrence

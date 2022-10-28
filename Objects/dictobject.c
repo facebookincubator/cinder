@@ -1549,7 +1549,7 @@ If a table is split (its keys and hashes are shared, its values are not),
 then the values are temporarily copied into the table, it is resized as
 a combined table, then the me_value slots in the old table are NULLed out.
 After resizing a table is always combined,
-but can be resplit by make_keys_shared().
+but can be resplit by _PyDict_MakeKeysShared().
 */
 static int
 dictresize(PyDictObject *mp, Py_ssize_t newsize)
@@ -1652,8 +1652,8 @@ dictresize(PyDictObject *mp, Py_ssize_t newsize)
 
 /* Returns NULL if unable to split table.
  * A NULL return does not necessarily indicate an error */
-static PyDictKeysObject *
-make_keys_shared(PyObject *op)
+PyDictKeysObject *
+_PyDict_MakeKeysShared(PyObject *op)
 {
     Py_ssize_t i;
     Py_ssize_t size;
@@ -5795,7 +5795,7 @@ _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr,
                  *     a = C()
                  */
                 if (cached->dk_refcnt == 1) {
-                    CACHED_KEYS(tp) = make_keys_shared(dict);
+                    CACHED_KEYS(tp) = _PyDict_MakeKeysShared(dict);
                 }
                 else {
                     CACHED_KEYS(tp) = NULL;
@@ -6150,6 +6150,12 @@ Ci_PyDict_ForceCombined(PyObject *dict) {
         return 0;
     }
     return dictresize(dictobj, calculate_keysize(dictobj->ma_keys->dk_size));
+}
+
+PyDictKeyEntry*
+_PyDictKeys_GetEntries(PyDictKeysObject *keys)
+{
+    return DK_ENTRIES(keys);
 }
 
 /***********************************************************************

@@ -12,6 +12,7 @@
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "pycore_symtable.h"      // PySTEntry_Type
 #include "pycore_unionobject.h"   // _PyUnion_Type
+#include "dict-common.h"
 #include "frameobject.h"
 #include "interpreteridobject.h"
 
