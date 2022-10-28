@@ -2324,7 +2324,7 @@ DEFINE_SIMPLE_INSTR(
 
 // NB: This needs to be in the order that the values appear in the
 // BinaryOpKind enum
-static const binaryfunc kLongBinaryOpSlotMethods[] = {
+const std::array<binaryfunc, kNumBinaryOpKinds> kLongBinaryOpSlotMethods = {
     PyLong_Type.tp_as_number->nb_add,
     PyLong_Type.tp_as_number->nb_and,
 
@@ -2364,8 +2364,7 @@ class INSTR_CLASS(
 
   binaryfunc slotMethod() const {
     auto op_kind = static_cast<unsigned long>(op());
-    JIT_CHECK(
-        op_kind < ARRAYSIZE(kLongBinaryOpSlotMethods), "unsupported binop");
+    JIT_CHECK(op_kind < kLongBinaryOpSlotMethods.size(), "unsupported binop");
     binaryfunc helper = kLongBinaryOpSlotMethods[op_kind];
     JIT_DCHECK(helper != nullptr, "unsupported slot method");
     return helper;
