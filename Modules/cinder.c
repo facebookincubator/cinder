@@ -408,6 +408,18 @@ set_profile_interp_period(PyObject *self, PyObject *arg) {
 
 static PyObject*
 get_and_clear_type_profiles(PyObject *self, PyObject *obj) {
+    PyObject* full_data = _PyJIT_GetAndClearTypeProfiles();
+    if (full_data == NULL) {
+        return NULL;
+    }
+    PyObject* profiles = PyDict_GetItemString(full_data, "profile");
+    Py_XINCREF(profiles);
+    Py_DECREF(full_data);
+    return profiles;
+}
+
+static PyObject*
+get_and_clear_type_profiles_with_metadata(PyObject *self, PyObject *obj) {
     return _PyJIT_GetAndClearTypeProfiles();
 }
 
@@ -663,6 +675,10 @@ static struct PyMethodDef cinder_module_methods[] = {
      get_and_clear_type_profiles,
      METH_NOARGS,
      "Get and clear accumulated interpreter type profiles."},
+    {"get_and_clear_type_profiles_with_metadata",
+     get_and_clear_type_profiles_with_metadata,
+     METH_NOARGS,
+     "Get and clear accumulated interpreter type profiles, including type-specific metadata."},
     {"clear_type_profiles",
      clear_type_profiles,
      METH_NOARGS,

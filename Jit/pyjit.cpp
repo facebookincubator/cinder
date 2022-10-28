@@ -168,7 +168,11 @@ static std::string g_write_profile_file;
   X(normal)                 \
   X(normvector)             \
   X(opname)                 \
+  X(profile)                \
   X(reason)                 \
+  X(split_dict_keys)        \
+  X(type_metadata)          \
+  X(type_name)              \
   X(types)
 
 #define DECLARE_STR(s) static PyObject* s_str_##s{nullptr};
@@ -243,6 +247,7 @@ static int use_jit = 0;
 static int jit_help = 0;
 static std::string write_profile_file;
 static int jit_profile_interp = 0;
+static int jit_profile_interp_period = 1;
 static std::string jl_fn;
 
 static void warnJITOff(const char* flag) {
@@ -461,6 +466,14 @@ void initFlagProcessor() {
         "PYTHONJITPROFILEINTERP",
         jit_profile_interp,
         "interpreter profiling");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-profile-interp-period",
+            "PYTHONJITPROFILEINTERPPERIOD",
+            jit_profile_interp_period,
+            "interpreter profiling period")
+        .withFlagParamName("period");
 
     xarg_flag_processor.addOption(
         "jit-disable",
@@ -1531,6 +1544,7 @@ int _PyJIT_Initialize() {
     }
     _PyJIT_SetProfileNewInterpThreads(true);
     Ci_ThreadState_SetProfileInterpAll(1);
+    Ci_RuntimeState_SetProfileInterpPeriod(jit_profile_interp_period);
     if (!write_profile_file.empty()) {
       g_write_profile_file = write_profile_file;
     }
@@ -2273,21 +2287,55 @@ void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
   }
 }
 
+Ref<> make_type_metadata(ProfileEnv& env) {
+  auto all_meta = Ref<>::steal(check(PyList_New(0)));
+
+  for (auto const& pair : env.type_name_cache) {
+    BorrowedRef<PyTypeObject> ty = pair.first;
+    if (ty == nullptr) {
+      continue;
+    }
+    int num_keys = numCachedKeys(ty);
+    if (num_keys == 0) {
+      continue;
+    }
+    auto key_list = Ref<>::steal(check(PyList_New(0)));
+    enumerateCachedKeys(
+        ty, [&](BorrowedRef<> key) { check(PyList_Append(key_list, key)); });
+
+    auto normals = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItem(normals, s_str_type_name, get_type_name(env, ty)));
+    auto normvectors = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItem(normvectors, s_str_split_dict_keys, key_list));
+
+    auto item = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItem(item, s_str_normal, normals));
+    check(PyDict_SetItem(item, s_str_normvector, normvectors));
+    check(PyList_Append(all_meta, item));
+  }
+
+  return all_meta;
+}
+
 } // namespace
 
 PyObject* _PyJIT_GetAndClearTypeProfiles() {
   auto& profiles = jit::Runtime::get()->typeProfiles();
   ProfileEnv env;
+  Ref<> result;
 
   try {
     init_env(env);
     build_profile(env, profiles);
+    result = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItem(result, s_str_profile, env.stats_list));
+    check(PyDict_SetItem(result, s_str_type_metadata, make_type_metadata(env)));
   } catch (const CAPIError&) {
     return nullptr;
   }
 
   profiles.clear();
-  return env.stats_list.release();
+  return result.release();
 }
 
 void _PyJIT_ClearTypeProfiles() {
