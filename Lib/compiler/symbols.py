@@ -4,6 +4,7 @@
 from __future__ import print_function
 
 import ast
+import os
 import sys
 
 from .consts import (
@@ -725,9 +726,13 @@ class CinderFunctionScope(FunctionScope):
     def __init__(self, name, module, klass=None, lineno=0):
         super().__init__(name=name, module=module, klass=klass, lineno=lineno)
         self._inlinable_comprehensions = []
+        self._inline_comprehensions = not os.environ.get(
+            "PYTHONNOINLINECOMPREHENSIONS", None
+        )
 
     def add_comprehension(self, comp):
-        self._inlinable_comprehensions.append(comp)
+        if self._inline_comprehensions:
+            self._inlinable_comprehensions.append(comp)
 
     def inline_nested_comprehensions(self):
         if not self._inlinable_comprehensions:

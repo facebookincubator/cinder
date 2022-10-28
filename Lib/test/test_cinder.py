@@ -4,6 +4,8 @@ import asyncio.tasks
 import cinder
 import gc
 import inspect
+import os
+import subprocess
 import sys
 import unittest
 import weakref
@@ -18,6 +20,9 @@ from cinder import (
 )
 
 from functools import wraps
+from itertools import product
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 
 from types import CodeType, FunctionType, GeneratorType, ModuleType
@@ -2540,6 +2545,37 @@ class GCImmortalizeTests(unittest.TestCase):
             """
         rc, out, err = assert_python_ok("-c", code)
         self.assertEqual(out.strip(), b"False")
+
+
+class DisableComprehensionInliningTest(unittest.TestCase):
+    def test_disable_inlining(self):
+        for disable_inlining, pycompiler in product([True, False], repeat=2):
+            with self.subTest(disable_inlining=disable_inlining, pycompiler=pycompiler):
+                with TemporaryDirectory() as root_str:
+                    root = Path(root_str)
+                    modname = "discomp"
+                    (root / f"{modname}.py").write_text(
+                        dedent(
+                            """
+                            def f():
+                                return [x for x in y]
+                            """
+                        )
+                    )
+                    cmd = [sys.executable]
+                    env = os.environ.copy()
+                    if pycompiler:
+                        cmd.extend(["-X", "usepycompiler"])
+                    if disable_inlining:
+                        env["PYTHONNOINLINECOMPREHENSIONS"] = "1"
+                    cmd.extend(
+                        ["-c", f"from {modname} import f; import dis; dis.dis(f)"]
+                    )
+                    output = subprocess.check_output(cmd, env=env, cwd=root_str)
+                    assert_method = (
+                        self.assertIn if disable_inlining else self.assertNotIn
+                    )
+                    assert_method(b"<listcomp", output)
 
 
 if __name__ == "__main__":
