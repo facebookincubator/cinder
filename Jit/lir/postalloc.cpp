@@ -115,13 +115,9 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
   auto block = instr->basicblock();
 
-  constexpr int num_arg_regs = sizeof(ARGUMENT_REGS) / sizeof(ARGUMENT_REGS[0]);
-  constexpr int num_fp_arg_regs =
-      sizeof(FP_ARGUMENT_REGS) / sizeof(FP_ARGUMENT_REGS[0]);
-
   auto num_inputs = instr->getNumInputs();
-  int arg_reg = 0;
-  int fp_arg_reg = 0;
+  size_t arg_reg = 0;
+  size_t fp_arg_reg = 0;
   int stack_arg_size = 0;
 
   for (size_t i = 1; i < num_inputs; i++) {
@@ -129,7 +125,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
     bool operand_imm = operand->isImm();
 
     if (operand->isFp()) {
-      if (fp_arg_reg < num_fp_arg_regs) {
+      if (fp_arg_reg < FP_ARGUMENT_REGS.size()) {
         if (operand_imm) {
           block->allocateInstrBefore(
               instr_iter,
@@ -154,7 +150,7 @@ int PostRegAllocRewrite::rewriteRegularFunction(instr_iter_t instr_iter) {
       continue;
     }
 
-    if (arg_reg < num_arg_regs) {
+    if (arg_reg < ARGUMENT_REGS.size()) {
       auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove);
       move->output()->setPhyRegister(ARGUMENT_REGS[arg_reg++]);
       move->appendInputOperand(instr->releaseInputOperand(i));

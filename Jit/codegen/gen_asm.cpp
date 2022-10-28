@@ -193,7 +193,7 @@ extern "C" void ___debug_helper(const char* name) {
 #endif
 
 PhyLocation get_arg_location_phy_location(int arg) {
-  if (static_cast<size_t>(arg) < ARGUMENT_REG_COUNT) {
+  if (static_cast<size_t>(arg) < ARGUMENT_REGS.size()) {
     return ARGUMENT_REGS[arg];
   }
 
@@ -240,7 +240,7 @@ void* NativeGenerator::GetEntryPoint() {
        i < static_cast<size_t>(GetFunction()->numArgs());
        i++) {
     auto add_gp = [&]() {
-      if (gp_index < ARGUMENT_REG_COUNT) {
+      if (gp_index < ARGUMENT_REGS.size()) {
         env_.arg_locations.push_back(ARGUMENT_REGS[gp_index++]);
       } else {
         env_.arg_locations.push_back(PhyLocation::REG_INVALID);
@@ -250,7 +250,7 @@ void* NativeGenerator::GetEntryPoint() {
     if (check_index < checks.size() &&
         checks[check_index].locals_idx == static_cast<int>(i)) {
       if (checks[check_index].jit_type <= TCDouble) {
-        if (fp_index < FP_ARGUMENT_REG_COUNT) {
+        if (fp_index < FP_ARGUMENT_REGS.size()) {
           env_.arg_locations.push_back(FP_ARGUMENT_REGS[fp_index++]);
         } else {
           // The register will come in on the stack, and the backend
@@ -845,7 +845,7 @@ void NativeGenerator::generatePrologue(
     // deal with loading them from here...
     as_->lea(
         kArgsPastSixReg,
-        x86::ptr(kArgsReg, ARGUMENT_REG_COUNT * sizeof(void*)));
+        x86::ptr(kArgsReg, ARGUMENT_REGS.size() * sizeof(void*)));
   }
 
   // Finally allocate the saved space required for the actual function
@@ -1217,7 +1217,7 @@ void NativeGenerator::generateStaticEntryPoint(
       if (check_index < checks.size() &&
           checks[check_index].locals_idx == (int)i) {
         if (checks[check_index++].jit_type <= TCDouble &&
-            fp_index < FP_ARGUMENT_REG_COUNT) {
+            fp_index < FP_ARGUMENT_REGS.size()) {
           switch (FP_ARGUMENT_REGS[fp_index++]) {
             case PhyLocation::XMM0:
               save_regs.emplace_back(x86::xmm0, x86::xmm0);
@@ -1243,12 +1243,14 @@ void NativeGenerator::generateStaticEntryPoint(
             case PhyLocation::XMM7:
               save_regs.emplace_back(x86::xmm7, x86::xmm7);
               break;
+            default:
+              break;
           }
           continue;
         }
       }
 
-      if (arg_index < ARGUMENT_REG_COUNT) {
+      if (arg_index < ARGUMENT_REGS.size()) {
         switch (ARGUMENT_REGS[arg_index++]) {
           case PhyLocation::RDI:
             save_regs.emplace_back(x86::rdi, x86::rdi);
@@ -1268,6 +1270,8 @@ void NativeGenerator::generateStaticEntryPoint(
           case PhyLocation::R9:
             save_regs.emplace_back(x86::r9, x86::r9);
             break;
+          default:
+            break;
         }
       }
     }
@@ -1275,7 +1279,7 @@ void NativeGenerator::generateStaticEntryPoint(
 
   loadOrGenerateLinkFrame(x86::r11, save_regs);
 
-  if (total_args > ARGUMENT_REG_COUNT) {
+  if (total_args > ARGUMENT_REGS.size()) {
     as_->lea(x86::r10, x86::ptr(x86::rbp, 16));
   }
   as_->jmp(native_entry_point);

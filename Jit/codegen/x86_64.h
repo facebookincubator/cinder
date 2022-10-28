@@ -4,13 +4,13 @@
 #include "Jit/log.h"
 #include "Jit/util.h"
 
+#include <array>
 #include <iosfwd>
 #include <set>
 #include <string>
 #include <unordered_map>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 // A physical location (register or stack slot). If this represents a stack
 // slot (is_memory() is true) then `loc` is relative to RBP.
@@ -231,17 +231,16 @@ static constexpr PhyRegisterSet CALLER_SAVE_REGS =
 static constexpr PhyRegisterSet CALLEE_SAVE_REGS =
     INIT_REGISTERS - CALLER_SAVE_REGS;
 
-static constexpr PhyLocation ARGUMENT_REGS[] = {
+constexpr auto ARGUMENT_REGS = std::to_array({
     PhyLocation::RDI,
     PhyLocation::RSI,
     PhyLocation::RDX,
     PhyLocation::RCX,
     PhyLocation::R8,
-    PhyLocation::R9};
+    PhyLocation::R9,
+});
 
-static constexpr size_t ARGUMENT_REG_COUNT = ARRAYSIZE(ARGUMENT_REGS);
-
-static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
+constexpr auto FP_ARGUMENT_REGS = std::to_array({
     PhyLocation::XMM0,
     PhyLocation::XMM1,
     PhyLocation::XMM2,
@@ -249,12 +248,10 @@ static constexpr PhyLocation FP_ARGUMENT_REGS[] = {
     PhyLocation::XMM4,
     PhyLocation::XMM5,
     PhyLocation::XMM6,
-    PhyLocation::XMM7};
+    PhyLocation::XMM7,
+});
 
-static constexpr size_t FP_ARGUMENT_REG_COUNT = ARRAYSIZE(FP_ARGUMENT_REGS);
-
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen
 
 namespace std {
 template <>
