@@ -795,6 +795,46 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_asyncio_ensure_future__doc__,
+"ensure_future($module, /, coro_or_future, loop=None)\n"
+"--\n"
+"\n"
+"Converts coro_or_future argument to a future");
+
+#define _ASYNCIO_ENSURE_FUTURE_METHODDEF    \
+    {"ensure_future", (PyCFunction)(void(*)(void))_asyncio_ensure_future, METH_FASTCALL|METH_KEYWORDS, _asyncio_ensure_future__doc__},
+
+static PyObject *
+_asyncio_ensure_future_impl(PyObject *module, PyObject *coro_or_future,
+                            PyObject *loop);
+
+static PyObject *
+_asyncio_ensure_future(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"coro_or_future", "loop", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "ensure_future", 0};
+    PyObject *argsbuf[2];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
+    PyObject *coro_or_future;
+    PyObject *loop = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 2, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    coro_or_future = args[0];
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    loop = args[1];
+skip_optional_pos:
+    return_value = _asyncio_ensure_future_impl(module, coro_or_future, loop);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio__GatheringFuture__make_cancelled_error__doc__,
 "_make_cancelled_error($self, /)\n"
 "--\n"
@@ -1414,4 +1454,4 @@ _asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=0c2e477286f8723a input=a9049054013a1b77]*/
+/*[clinic end generated code: output=0a8581d9bbeb2f60 input=a9049054013a1b77]*/

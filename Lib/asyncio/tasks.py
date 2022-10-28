@@ -979,7 +979,8 @@ try:
                           all_tasks,
                           AsyncLazyValue as _ASYNC_LAZY_VALUE_TYPE,
                           gather,
-                          _is_coro_suspended)
+                          _is_coro_suspended,
+                          ensure_future)
 except ImportError:
     pass
 else:
