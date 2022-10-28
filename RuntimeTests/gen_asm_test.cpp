@@ -1361,8 +1361,8 @@ TEST_F(ASMGeneratorTest, GetLength) {
   PyList_SET_ITEM(arg.get(), 0, PyLong_FromLong(4));
   PyList_SET_ITEM(arg.get(), 1, PyLong_FromLong(5));
   PyList_SET_ITEM(arg.get(), 2, PyLong_FromLong(6));
-  PyObject* args[] = {arg.get()};
-  auto result = Ref<>::steal(compiled->Invoke(func, args, ARRAYSIZE(args)));
+  auto args = std::to_array({arg.get()});
+  auto result = Ref<>::steal(compiled->Invoke(func, args.data(), args.size()));
   EXPECT_TRUE(isIntEquals(result, 3));
 }
 

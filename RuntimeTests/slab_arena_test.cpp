@@ -13,11 +13,11 @@ using namespace jit;
 
 // Simple struct that only fits 3 to a page.
 struct BigArray {
-  char data[kPageSize / 4 + 1];
+  std::array<char, kPageSize / 4 + 1> data;
 };
 
 void checkData(BigArray* arr, char c) {
-  for (size_t i = 0; i < ARRAYSIZE(arr->data); i++) {
+  for (size_t i = 0; i < arr->data.size(); i++) {
     ASSERT_EQ(arr->data[i], c) << "i == " << i;
   }
 }
@@ -30,13 +30,13 @@ TEST(SlabArenaTest, Allocate) {
   SlabArena<BigArray, 1> arena;
 
   BigArray* a = arena.allocate();
-  std::memset(a->data, 0xa, sizeof(a->data));
+  a->data.fill(0xa);
   BigArray* b = arena.allocate();
-  std::memset(b->data, 0xb, sizeof(b->data));
+  b->data.fill(0xb);
   BigArray* c = arena.allocate();
-  std::memset(c->data, 0xc, sizeof(c->data));
+  c->data.fill(0xc);
   BigArray* d = arena.allocate();
-  std::memset(d->data, 0xd, sizeof(d->data));
+  d->data.fill(0xd);
 
   EXPECT_NE(a, b);
   EXPECT_NE(a, c);
