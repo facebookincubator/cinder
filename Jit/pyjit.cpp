@@ -1702,6 +1702,13 @@ int _PyJIT_Finalize() {
     delete g_jit_list;
     g_jit_list = nullptr;
 
+    // Clear some global maps that reference Python data.
+    jit_code_data.clear();
+    jit_reg_units.clear();
+    JIT_CHECK(
+        jit_preloaders.empty(),
+        "JIT cannot be finalized while multithreaded compilation is active");
+
     jit_config.init_state = JIT_FINALIZED;
 
     JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
