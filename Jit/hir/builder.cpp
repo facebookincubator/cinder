@@ -3731,10 +3731,10 @@ void HIRBuilder::emitSetupFinally(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   BCOffset handler_off =
-      bc_instr.NextInstrOffset() + bc_instr.oparg() * sizeof(_Py_CODEUNIT);
+      bc_instr.NextInstrOffset() + BCIndex{bc_instr.oparg()}.asOffset();
   int stack_level = tc.frame.stack.size();
   tc.frame.block_stack.push(
-      ExecutionBlock{SETUP_FINALLY, handler_off.value(), stack_level});
+      ExecutionBlock{SETUP_FINALLY, handler_off, stack_level});
 }
 
 void HIRBuilder::emitAsyncForHeaderYieldFrom(

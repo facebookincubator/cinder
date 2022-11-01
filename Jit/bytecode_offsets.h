@@ -134,6 +134,8 @@ class BCOffset : public BCOffsetBase<BCOffset> {
   using BCOffsetBase::BCOffsetBase;
 
   BCOffset(BCIndex idx);
+
+  BCIndex asIndex() const;
 };
 
 class BCIndex : public BCOffsetBase<BCIndex> {
@@ -141,6 +143,8 @@ class BCIndex : public BCOffsetBase<BCIndex> {
   using BCOffsetBase::BCOffsetBase;
 
   BCIndex(BCOffset offset);
+
+  BCOffset asOffset() const;
 };
 
 inline BCOffset::BCOffset(BCIndex idx)
@@ -148,6 +152,18 @@ inline BCOffset::BCOffset(BCIndex idx)
 
 inline BCIndex::BCIndex(BCOffset offset)
     : BCIndex{offset.value() / int{sizeof(_Py_CODEUNIT)}} {}
+
+inline BCIndex BCOffset::asIndex() const {
+  return BCIndex{*this};
+}
+
+inline BCOffset BCIndex::asOffset() const {
+  return BCOffset{*this};
+}
+
+inline BCOffset operator+(const BCOffset& a, const BCOffset& b) {
+  return BCOffset{a.value() + b.value()};
+}
 
 // Convenience operators for array access and printing.
 inline _Py_CODEUNIT* operator+(_Py_CODEUNIT* code, BCIndex index) {

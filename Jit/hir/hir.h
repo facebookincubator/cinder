@@ -62,8 +62,7 @@ struct ExecutionBlock {
   int opcode;
 
   // Offset in the bytecode of the handler for this block
-  // TODO(T128071834): This should be a BCOffset.
-  int handler_off;
+  BCOffset handler_off;
 
   // Level to pop the operand stack when the block is exited
   int stack_level;
@@ -83,7 +82,7 @@ struct ExecutionBlock {
 
   bool isAsyncForHeaderBlock(const BytecodeInstructionBlock& instrs) const {
     return opcode == SETUP_FINALLY &&
-        instrs.at(BCOffset{handler_off}).opcode() == END_ASYNC_FOR;
+        instrs.at(handler_off).opcode() == END_ASYNC_FOR;
   }
 };
 
@@ -641,10 +640,7 @@ class Instr {
   void setBytecodeOffset(BCOffset off) {
     bytecode_offset_ = off;
   }
-  // TODO(T128071834): Delete this overload.
-  void setBytecodeOffset(int off) {
-    setBytecodeOffset(BCOffset{off});
-  }
+
   BCOffset bytecodeOffset() const {
     return bytecode_offset_;
   }

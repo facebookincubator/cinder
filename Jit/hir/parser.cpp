@@ -691,7 +691,7 @@ FrameState HIRParser::parseFrameState() {
         expect("Opcode");
         block.opcode = GetNextInteger();
         expect("HandlerOff");
-        block.handler_off = GetNextInteger();
+        block.handler_off = BCOffset{GetNextInteger()};
         expect("StackLevel");
         block.stack_level = GetNextInteger();
         fs.block_stack.push(block);

@@ -146,7 +146,7 @@ static void reifyBlockStack(
   for (std::size_t i = 0; i < bs_size; i++) {
     const auto& block = block_stack.at(i);
     frame->f_blockstack[i].b_type = block.opcode;
-    frame->f_blockstack[i].b_handler = block.handler_off / sizeof(_Py_CODEUNIT);
+    frame->f_blockstack[i].b_handler = block.handler_off.asIndex().value();
     frame->f_blockstack[i].b_level = block.stack_level;
   }
 }
