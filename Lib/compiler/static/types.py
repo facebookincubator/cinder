@@ -4997,6 +4997,8 @@ class OverloadDecorator(Class):
     def resolve_decorate_function(
         self, fn: Function | DecoratedMethod, decorator: expr
     ) -> Optional[Function | DecoratedMethod]:
+        if isinstance(fn, DecoratedMethod):
+            fn = fn.real_function
         if fn.klass is not self.type_env.function:
             return None
         return TransientDecoratedMethod(fn, decorator)
