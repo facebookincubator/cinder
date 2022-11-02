@@ -1957,6 +1957,22 @@ void _PyJIT_ProfileCurrentInstr(
       profile_stack(oparg);
       break;
     };
+    case CALL_FUNCTION_EX: {
+      // There's always an iterable of args but if the lowest bit is set then
+      // there is also a mapping of kwargs. Also profile the callee.
+      if (oparg & 0x01) {
+        profile_stack(2, 1, 0);
+      } else {
+        profile_stack(1, 0);
+      }
+      break;
+    }
+    case CALL_FUNCTION_KW: {
+      // There is a names tuple on top of the args pushed onto the stack that
+      // the oparg does not take into account.
+      profile_stack(oparg + 1);
+      break;
+    }
     case CALL_METHOD: {
       profile_stack(oparg, oparg + 1);
       break;

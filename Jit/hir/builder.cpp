@@ -725,11 +725,14 @@ void HIRBuilder::emitProfiledTypes(
     }
   }
 
-  // Except for function calls, all instructions profile all of their inputs,
-  // with deeper stack elements first.
+  // Except for CALL_FUNCTION and CALL_FUNCTION_KW (CALL_FUNCTION_EX is
+  // not variadic), all instructions profile all of their inputs, with deeper
+  // stack elements first.
   ssize_t stack_idx = first_profile.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
+  } else if (bc_instr.opcode() == CALL_FUNCTION_KW) {
+    stack_idx = bc_instr.oparg() + 1;
   }
   if (types.size() == 1) {
     for (auto type : first_profile) {
@@ -753,8 +756,8 @@ void HIRBuilder::emitProfiledTypes(
       all_types.emplace_back(types);
     }
     std::vector<Register*> args;
-    while (stack_idx >= 0) {
-      args.emplace_back(tc.frame.stack.top(stack_idx--));
+    for (size_t i = 0; i < first_profile.size(); i++) {
+      args.emplace_back(tc.frame.stack.top(stack_idx - i));
     }
     tc.emit<HintType>(args.size(), all_types, args);
   }

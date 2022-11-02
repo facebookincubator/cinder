@@ -85,3 +85,128 @@ fun jittestmodule:test {
   }
 }
 ---
+CallFunctionEx
+---
+def callee():
+  pass
+
+def test(iterable):
+  return callee(*iterable)
+
+test(())
+test([])
+---
+fun jittestmodule:test {
+  bb 0 {
+    v3:Object = LoadArg<0; "iterable">
+    v4:OptObject = LoadGlobalCached<0; "callee">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: callee'
+    }
+    HintType<2, <Func, TupleExact>, <Func, ListExact>> v5 v3
+    v7:Object = CallEx v5 v3 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v3
+      }
+    }
+    Return v7
+  }
+}
+---
+CallFunctionExWithKwargs
+---
+def callee():
+  pass
+
+def test(iterable, mapping):
+  return callee(*iterable, **mapping)
+
+class C(dict):
+  pass
+
+test((), {})
+test([], C({}))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:Object = LoadArg<0; "iterable">
+    v5:Object = LoadArg<1; "mapping">
+    v6:OptObject = LoadGlobalCached<0; "callee">
+    v7:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v6 {
+      Descr 'LOAD_GLOBAL: callee'
+    }
+    HintType<3, <Func, TupleExact, DictExact>, <Func, ListExact, DictUser[C:Exact]>> v7 v4 v5
+    v10:Object = CallExKw v7 v4 v5 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<2> v4 v5
+      }
+    }
+    Return v10
+  }
+}
+---
+CallFunction
+---
+def callee(a, b):
+  pass
+
+class C:
+  def __init__(self, a, b):
+    pass
+
+def test(f, a, b):
+  return f(a, b)
+
+test(callee, 123, "123")
+test(C, "456", (4,5,6))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:Object = LoadArg<0; "f">
+    v5:Object = LoadArg<1; "a">
+    v6:Object = LoadArg<2; "b">
+    HintType<1, <Func>, <TypeExact>> v4
+    v10:Object = VectorCall<2> v4 v5 v6 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<3> v4 v5 v6
+      }
+    }
+    Return v10
+  }
+}
+---
+CallFunctionKw
+---
+def callee(a, b):
+  pass
+
+def test(f):
+  return f(a=1, b=2)
+
+class C:
+  def __init__(self, a, b):
+    pass
+
+test(callee)
+test(C)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Object = LoadArg<0; "f">
+    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v9:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    HintType<1, <Func>, <TypeExact>> v5
+    v10:Object = VectorCallKW<3> v5 v7 v8 v9 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v5
+      }
+    }
+    Return v10
+  }
+}
+---
