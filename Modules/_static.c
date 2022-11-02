@@ -161,6 +161,20 @@ static PyObject* _static_create(PyObject *spec, PyModuleDef *def) {
         return NULL;
     }
 
+    PyObject *loader = PyObject_GetAttrString(spec, "loader");
+    if (loader == NULL) {
+        Py_DECREF(mod_dict);
+        return NULL;
+    }
+
+    if (PyDict_SetItemString(mod_dict, "__spec__", spec) ||
+        PyDict_SetItemString(mod_dict, "__loader__", loader)) {
+        Py_DECREF(mod_dict);
+        Py_DECREF(loader);
+        return NULL;
+    }
+    Py_DECREF(loader);
+
     PyTuple_SET_ITEM(args, 0, mod_dict);
 
 

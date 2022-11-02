@@ -41,6 +41,7 @@ from .return_cast_insertion import ReturnCastInsertionTests
 from .runtime import StaticRuntimeTests
 from .sequence import SequenceTests
 from .slots_with_default import SlotsWithDefaultTests
+from .staticmod import StaticModuleTests
 from .subclass import SubclassTests
 from .super import SuperTests
 from .top_level import TopLevelTests
