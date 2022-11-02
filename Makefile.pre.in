@@ -440,14 +440,6 @@ PYTHON_OBJS=	\
 		$(LIBOBJS) \
 		$(MACHDEP_OBJS) \
 
-# TODO(T125621044): Keep a list of Cinder-specific files that haven't been
-# re-integrated into the 3.10 build yet.
-CINDER_PYTHON_OBJS= \
-		Python/arraymodule.o \
-		Python/immutable_global.o \
-		Python/pyreadonly.o \
-		Python/shadowcode.o \
-
 ##########################################################################
 # Jit
 JIT_OBJS=       \
@@ -1484,7 +1476,6 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/funccredobject.h \
 		$(srcdir)/Include/funcobject.h \
 		$(srcdir)/Include/genobject.h \
-		$(srcdir)/Include/immutable_global.h \
 		$(srcdir)/Include/import.h \
 		$(srcdir)/Include/interpreteridobject.h \
 		$(srcdir)/Include/intrcheck.h \
