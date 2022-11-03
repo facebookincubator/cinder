@@ -187,8 +187,6 @@ class Preloader {
     if (func_) {
       JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");
     }
-
-    preload();
   };
 
   Ref<PyFunctionObject> func_;
