@@ -36,6 +36,11 @@ PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
 PyAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
 
 /*
+ * Offset of the code object within a jit::RuntimeFrameState
+ */
+PyAPI_DATA(int64_t) __strobe_RuntimeFrameState_py_code;
+
+/*
  * This defines the global public API for the JIT that is consumed by the
  * runtime.
  *

@@ -43,6 +43,7 @@
 using namespace jit;
 
 int64_t __strobe_CodeRuntime_py_code = CodeRuntime::kPyCodeOffset;
+int64_t __strobe_RuntimeFrameState_py_code = RuntimeFrameState::codeOffset();
 
 struct JitConfig {
   InitStateJitConfig init_state{JIT_NOT_INITIALIZED};

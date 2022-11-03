@@ -77,3 +77,18 @@ def test(a, b):
           reinterpret_cast<byte*>(code_rt) + __strobe_CodeRuntime_py_code),
       reinterpret_cast<byte*>(code));
 }
+
+TEST_F(RuntimeTest, ReadingFromRuntimeFrameStateReadsCode) {
+  const char* src = R"(
+def test(a, b):
+  return a + b
+)";
+  Ref<PyFunctionObject> func(compileAndGet(src, "test"));
+  ASSERT_NE(func, nullptr);
+  PyCodeObject* code = func->func_code;
+  RuntimeFrameState rtfs(code, func->func_globals);
+  EXPECT_EQ(
+      *reinterpret_cast<PyCodeObject**>(
+          reinterpret_cast<byte*>(&rtfs) + __strobe_RuntimeFrameState_py_code),
+      reinterpret_cast<byte*>(code));
+}
