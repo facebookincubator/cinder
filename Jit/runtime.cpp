@@ -137,11 +137,6 @@ _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
   return cache->second.arg_info.get();
 }
 
-void Runtime::forgetLoadGlobalCache(GlobalCache cache) {
-  auto it = global_caches_.find(cache.key());
-  global_caches_.erase(it);
-}
-
 std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {
   // Serialize as the deopt data is shared across compile threads.
   ThreadedCompileSerialize guard;

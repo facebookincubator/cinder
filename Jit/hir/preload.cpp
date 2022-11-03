@@ -301,7 +301,7 @@ GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
   JIT_DCHECK(
       canCacheGlobals(),
       "trying to get a globals cache with unwatchable builtins and/or globals");
-  return jit::Runtime::get()->findGlobalCache(globals_, name);
+  return jit::Runtime::get()->findGlobalCache(builtins_, globals_, name);
 }
 
 bool Preloader::canCacheGlobals() const {

@@ -739,7 +739,6 @@ void GlobalCache::update(
 
 void GlobalCache::disable() const {
   *valuePtr() = nullptr;
-  jit::Runtime::get()->forgetLoadGlobalCache(*this);
 }
 
 void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type) {

@@ -1032,10 +1032,9 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
     }
 
     PyObject **cache = _PyJIT_GetGlobalCache(globals, name);
-    if (cache == NULL) {
+    if (cache == NULL || *cache == NULL) {
         return;
     }
-    assert(*cache != NULL);
 
     _PyShadowCode *shadow = state->shadow;
     for (Py_ssize_t i = 0; i < shadow->globals_size; i++) {
