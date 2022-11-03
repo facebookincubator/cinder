@@ -169,6 +169,7 @@ class Preloader {
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
   GlobalCache getGlobalCache(BorrowedRef<> name) const;
+  bool canCacheGlobals() const;
   bool preload();
 
   explicit Preloader(
