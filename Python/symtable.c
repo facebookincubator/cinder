@@ -1024,20 +1024,15 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
         entry = (PySTEntryObject*)c;
 
         PyObject *f = allfree;
-        int inline_comp =
+
+        int maybe_inline_comp =
             ste->ste_table->st_inline_comprehensions &&
             ste->ste_type == FunctionBlock &&
             entry->ste_comprehension &&
             !entry->ste_generator;
 
-        if (inline_comp) {
-            if (inlinable_comprehensions == NULL) {
-                inlinable_comprehensions = PyList_New(0);
-                if (inlinable_comprehensions == NULL) {
-                    goto error;
-                }
-            }
-            // for eager comprehensions we want tp track set of free locals separately
+        // in case comprehension will be inlined, track its set of free locals separately
+        if (maybe_inline_comp) {
             f = PySet_New(NULL);
             if (f == NULL) {
                 goto error;
@@ -1047,6 +1042,27 @@ analyze_block(PySTEntryObject *ste, PyObject *bound, PyObject *free,
         if (!analyze_child_block(entry, newbound, newfree, newglobal, f, implicit_globals_in_block)) {
             goto error;
         }
+
+        // if comprehension might have cells, it's not safe to inline, because
+        // we don't know if another comprehension might write to that name
+        int inline_comp = maybe_inline_comp && !entry->ste_child_free;
+
+        if (inline_comp) {
+            if (inlinable_comprehensions == NULL) {
+                inlinable_comprehensions = PyList_New(0);
+                if (inlinable_comprehensions == NULL) {
+                    goto error;
+                }
+            }
+        } else if (maybe_inline_comp) {
+            // merge the free locals if we aren't inlining after all
+            if (_PySet_Update(allfree, f) < 0) {
+                goto error;
+            }
+            Py_CLEAR(f);
+            f = allfree;
+        }
+
         PyObject *tmp = PyNumber_InPlaceOr(local_names, f);
         if (tmp == NULL) {
             goto error;

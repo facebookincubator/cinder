@@ -726,6 +726,15 @@ class CinderFunctionScope(FunctionScope):
             local_names.remove(".0")
 
         for comp in self._inlinable_comprehensions:
+            # unsafe to inline a comprehension with cells
+            if comp.cells:
+                continue
+            # this check is only necessary to match symtable.c, where it's hard
+            # to distinguish "has cells" from "otherwise has child scopes with
+            # free vars"
+            if any(c.get_free_vars() for c in comp.children):
+                continue
+
             # do not inline comprehensions if new names would
             # conflict with existing local names
             # exclude non-locals as they are defined in outer scope
@@ -754,7 +763,8 @@ class CinderFunctionScope(FunctionScope):
 
             # move names uses in comprehension to current scope
             for u in comp.uses.keys():
-                self.add_use(u)
+                if u != ".0":
+                    self.add_use(u)
 
             # splice children of comprehension into current scope
             # replacing existing entry for 'comp'

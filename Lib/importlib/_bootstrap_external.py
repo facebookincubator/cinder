@@ -307,6 +307,7 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.8b4  3417 Inlining list/set/dict comprehensions in functions
 #     Python 3.8b4  3418 (add ENUM shadow codes, migrate RETURN_PRIMITIVE back to opargs)
 #     Python 3.8b4  3420 (add CAST_CACHED_EXACT and CAST_CACHED_OPTIONAL_EXACT  shadow codes)
+#     Python 3.8b4  3421 don't inline comprehensions with cells
 #
 # MAGIC must change whenever the bytecode emitted by the compiler may no
 # longer be understood by older implementations of the eval loop (usually
@@ -315,7 +316,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3420).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3421).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'
