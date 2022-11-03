@@ -47,3 +47,5 @@ int64_t __strobe__PyShadowFrame_PtrKindMask = _PyShadowFrame_PtrKindMask;
 int64_t __strobe__PyShadowFrame_PtrMask = _PyShadowFrame_PtrMask;
 int64_t __strobe__PyShadowFrame_data = offsetof(_PyShadowFrame, data);
 int64_t __strobe__PyShadowFrame_prev = offsetof(_PyShadowFrame, prev);
+int64_t __strobe_RuntimeFrameState_py_code =
+    jit::RuntimeFrameState::codeOffset();

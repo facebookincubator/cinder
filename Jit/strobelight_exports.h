@@ -43,6 +43,7 @@ PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrKindMask;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrMask;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_data;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_prev;
+PyAPI_DATA(int64_t) __strobe_RuntimeFrameState_py_code;
 
 #ifdef __cplusplus
 }
