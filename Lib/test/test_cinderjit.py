@@ -4520,6 +4520,7 @@ def func():
 class PerfMapTests(unittest.TestCase):
     HELPER_FILE = os.path.join(os.path.dirname(__file__), "perf_fork_helper.py")
 
+    @unittest.skipUnlessCinderJITEnabled("Runs a subprocess with the JIT enabled")
     def test_forked_pid_map(self):
         proc = subprocess.run(
             [sys.executable, "-X", "jit", "-X", "jit-perfmap", self.HELPER_FILE],
@@ -4552,6 +4553,7 @@ class PerfMapTests(unittest.TestCase):
 class PreloadTests(unittest.TestCase):
     SCRIPT_FILE = "cinder_preload_helper_main.py"
 
+    @unittest.skipUnlessCinderJITEnabled("Runs a subprocess with the JIT enabled")
     def test_func_destroyed_during_preload(self):
         proc = subprocess.run(
             [
