@@ -534,27 +534,42 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
     while (it != block.end()) {
       Instr& instr = *it;
       ++it;
-      if (instr.GetOutput() == nullptr) {
+      if (instr.GetOutput() == nullptr || !instr.GetOutput()->isA(TBottom)) {
         continue;
       }
-      if (instr.GetOutput()->isA(TBottom)) {
-        // Any instruction dominated by a definition of a Bottom value is
-        // unreachable, so we delete any such instructions and replace them
-        // with a special marker instruction (Unreachable)
-        modified = true;
-        auto unreachable = Unreachable::create();
-        block.insert(unreachable, it);
-        if (Instr* old_term = block.GetTerminator()) {
-          for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
-            old_term->successor(i)->removePhiPredecessor(&block);
-          }
+      // 1) Any instruction dominated by a definition of a Bottom value is
+      // unreachable, so we delete any such instructions and replace them
+      // with a special marker instruction (Unreachable)
+      // 2) Any instruction post dominated by Unreachable must deopt if it can
+      // deopt, else it is unreachable itself.
+
+      modified = true;
+      // Find the last instruction between [block.begin, current instruction]
+      // that can deopt. Place the Unreachable marker right after that
+      // instruction. If we can't find any instruction that can deopt, the
+      // Unreachable marker is placed at the beginning of the block.
+      do {
+        auto prev_it = std::prev(it);
+        Instr& prev_instr = *prev_it;
+        if (prev_instr.asDeoptBase() != nullptr) {
+          break;
         }
-        while (it != block.end()) {
-          Instr& instr = *it;
-          ++it;
-          instr.unlink();
-          delete &instr;
+        it = prev_it;
+      } while (it != block.begin());
+
+      block.insert(Unreachable::create(), it);
+      // Clean up dangling phi references
+      if (Instr* old_term = block.GetTerminator()) {
+        for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
+          old_term->successor(i)->removePhiPredecessor(&block);
         }
+      }
+      // Remove all instructions after the Unreachable
+      while (it != block.end()) {
+        Instr& instr = *it;
+        ++it;
+        instr.unlink();
+        delete &instr;
       }
     }
   }
