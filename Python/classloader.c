@@ -3640,7 +3640,7 @@ classloader_init_field(PyObject *path, int *field_type)
             default:
                 Py_DECREF(cur);
                 PyErr_Format(
-                    PyExc_ValueError, "unknown static type: %U", path);
+                    PyExc_ValueError, "unknown static type: %S", path);
                 return -1;
             }
         }
