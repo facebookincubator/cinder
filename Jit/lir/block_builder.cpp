@@ -640,6 +640,10 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          bldr.createBasicInstr(Instruction::kSelect, true, 3, tokens);
        }},
+      {"Unreachable",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>&) {
+         bldr.createInstr(Instruction::kUnreachable);
+       }},
   };
 
   const std::string& instr_str = tokens[0];

@@ -58,6 +58,14 @@ PatternNode::func_t findByPattern(
     const PatternNode* patterns,
     const std::string& s) {
   auto cur = patterns;
+  if (s.empty()) {
+    // handle the special case of matching '*' with an empty string
+    auto iter = cur->next.find('*');
+    if (iter != cur->next.end()) {
+      cur = iter->second.get();
+      return cur->func;
+    }
+  }
   for (auto& c : s) {
     auto iter = cur->next.find(c);
     if (iter != cur->next.end()) {
@@ -264,6 +272,15 @@ void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
       reinterpret_cast<DeoptPatcher*>(instr->getInput(0)->getConstant());
   env->pending_deopt_patchers.emplace_back(
       patcher, patchpoint_label, deopt_label);
+}
+
+// TODO(T136894358): Replace this with ASM(ud2)
+void TranslateUnreachable(Environ* env, const Instruction* instr) {
+  asmjit::x86::Builder* as = env->as;
+  JIT_CHECK(
+      instr->opcode() == Instruction::kUnreachable,
+      "bad instruction for TranslateUnreachable");
+  as->ud2();
 }
 
 void TranslateCompare(Environ* env, const Instruction* instr) {
@@ -922,6 +939,10 @@ END_RULES
 BEGIN_RULES(Instruction::kMovSXD)
   GEN("Rr", ASM(movsxd, OP(0), OP(1)))
   GEN("Rm", ASM(movsxd, OP(0), STK(1)))
+END_RULES
+
+BEGIN_RULES(Instruction::kUnreachable)
+  GEN(ANY, CALL(TranslateUnreachable));
 END_RULES
 
 #define DEF_BINARY_OP_RULES(name, instr) \

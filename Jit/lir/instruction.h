@@ -32,6 +32,7 @@ enum class FlagEffects {
   /* value to virtual register for register allocator. */                    \
   X(Bind)                                                                    \
   X(Nop)                                                                     \
+  X(Unreachable, false, FlagEffects::kNone, kDefault, 0, {}, 1)              \
   X(Call, false, FlagEffects::kInvalidate, kAlways64, 1, {}, 1)              \
   X(VectorCall, true, FlagEffects::kInvalidate, kAlways64, 1, {1}, 1)        \
   X(Guard, true, FlagEffects::kInvalidate, kDefault, 1, {0, 0, 1, 1}, 1)     \
