@@ -298,6 +298,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kYieldFromHandleStopAsyncIteration:
     case Opcode::kUnicodeConcat:
     case Opcode::kUnicodeRepeat:
+    case Opcode::kUnreachable:
     case Opcode::kYieldValue: {
       return "";
     }

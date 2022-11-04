@@ -596,6 +596,8 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     instruction = snapshot;
   } else if (opcode == "Deopt") {
     instruction = newInstr<Deopt>();
+  } else if (opcode == "Unreachable") {
+    instruction = Unreachable::create();
   } else if (opcode == "MakeDict") {
     expect("<");
     auto capacity = GetNextInteger();

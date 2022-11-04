@@ -486,3 +486,63 @@ fun foo {
       reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check));
   EXPECT_NE(ss.str().find(lir_expected.c_str()), std::string::npos);
 }
+
+TEST_F(LIRGeneratorTest, UnreachableFollowsBottomType) {
+  const char* hir_source = R"(fun test {
+  bb 0 {
+    v7 = LoadConst<Nullptr>
+    v8 = CheckVar<"a"> v7 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v7
+      }
+    }
+    Unreachable
+  }
+}
+)";
+
+  std::unique_ptr<hir::Function> irfunc = hir::HIRParser{}.ParseHIR(hir_source);
+  ASSERT_NE(irfunc, nullptr);
+
+  Compiler::runPasses(*irfunc, PassConfig::kDefault);
+
+  jit::codegen::Environ env;
+  jit::Runtime rt;
+
+  env.rt = &rt;
+
+  LIRGenerator lir_gen(irfunc.get(), &env);
+
+  auto lir_func = lir_gen.TranslateFunction();
+
+  std::stringstream ss;
+
+  lir_func->sortBasicBlocks();
+  ss << *lir_func << std::endl;
+  auto lir_expected = fmt::format(R"(Function:
+BB %0 - succs: %3
+       %1:Object = Bind R10:Object
+       %2:Object = Bind R11:Object
+
+BB %3 - preds: %0
+
+# v9:Nullptr = LoadConst<Nullptr>
+       %4:Object = Move 0(0x0):Object
+
+# v10:Bottom = CheckVar<"a"> v9 {{
+#   LiveValues<1> unc:v9
+#   FrameState {{
+#     NextInstrOffset 2
+#     Locals<1> v9
+#   }}
+# }}
+                   Guard 4(0x4):64bit, 0(0x0):Object, %4:Object, 0(0x0):Object, %4:Object
+
+# Unreachable
+                   Unreachable
+
+
+)");
+  ASSERT_EQ(ss.str(), lir_expected);
+}

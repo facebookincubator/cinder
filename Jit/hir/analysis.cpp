@@ -178,6 +178,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kSetCellItem:
     case Opcode::kSetFunctionAttr:
     case Opcode::kStoreField:
+    case Opcode::kUnreachable:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
     case Opcode::kRaiseAwaitableError:

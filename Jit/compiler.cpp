@@ -115,7 +115,10 @@ void Compiler::runPasses(
   }
   runPass<jit::hir::BuiltinLoadMethodElimination>(irfunc, callback);
   runPass<jit::hir::Simplify>(irfunc, callback);
+  runPass<jit::hir::CleanCFG>(irfunc, callback);
   runPass<jit::hir::DeadCodeElimination>(irfunc, callback);
+  runPass<jit::hir::CleanCFG>(irfunc, callback);
+  // RefcountInsertion must come last
   runPass<jit::hir::RefcountInsertion>(irfunc, callback);
   JIT_LOGIF(
       g_dump_final_hir, "Optimized HIR for %s:\n%s", irfunc.fullname, irfunc);

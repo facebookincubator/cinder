@@ -48,3 +48,24 @@ fun test {
   }
 }
 ---
+ReplaceBottomWithUnreachable
+---
+def test():
+  if a():
+    pass
+  def a():
+    pass
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:Bottom = CheckVar<"a"> v7 {
+      FrameState {
+        NextInstrOffset 2
+        Locals<1> v7
+      }
+    }
+    Unreachable
+  }
+}
+---

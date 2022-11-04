@@ -1644,6 +1644,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         AppendGuard(bbb, "AlwaysFail", static_cast<const DeoptBase&>(i));
         break;
       }
+      case Opcode::kUnreachable: {
+        bbb.AppendCode("Unreachable");
+        break;
+      }
       case Opcode::kDeoptPatchpoint: {
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
         std::size_t deopt_id = bbb.makeDeoptMetadata();

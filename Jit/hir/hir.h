@@ -342,6 +342,7 @@ struct FrameState {
   V(UnicodeConcat)                     \
   V(UnicodeRepeat)                     \
   V(UnpackExToTuple)                   \
+  V(Unreachable)                       \
   V(UseType)                           \
   V(VectorCall)                        \
   V(VectorCallStatic)                  \
@@ -3603,6 +3604,11 @@ class INSTR_CLASS(Snapshot, (), Operands<0>) {
  private:
   std::unique_ptr<FrameState> frame_state_{nullptr};
 };
+
+// Used to indicate a control flow path that is statically known to be
+// unreachable. Executing an Unreachable at runtime can only happen due
+// to bugs in the compiler.
+DEFINE_SIMPLE_INSTR(Unreachable, (), Operands<0>);
 
 // Always deopt.
 DEFINE_SIMPLE_INSTR(Deopt, (), Operands<0>, DeoptBase);

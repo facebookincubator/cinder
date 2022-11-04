@@ -526,6 +526,45 @@ static bool absorbDstBlock(BasicBlock* block) {
   return true;
 }
 
+bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
+  bool modified = false;
+
+  for (BasicBlock& block : cfg->blocks) {
+    auto it = block.begin();
+    while (it != block.end()) {
+      Instr& instr = *it;
+      ++it;
+      if (instr.GetOutput() == nullptr) {
+        continue;
+      }
+      if (instr.GetOutput()->isA(TBottom)) {
+        // Any instruction dominated by a definition of a Bottom value is
+        // unreachable, so we delete any such instructions and replace them
+        // with a special marker instruction (Unreachable)
+        modified = true;
+        auto unreachable = Unreachable::create();
+        block.insert(unreachable, it);
+        if (Instr* old_term = block.GetTerminator()) {
+          for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
+            old_term->successor(i)->removePhiPredecessor(&block);
+          }
+        }
+        while (it != block.end()) {
+          Instr& instr = *it;
+          ++it;
+          instr.unlink();
+          delete &instr;
+        }
+      }
+    }
+  }
+  if (modified) {
+    RemoveUnreachableBlocks(cfg);
+    reflowTypes(*cfg->func);
+  }
+  return modified;
+}
+
 bool CleanCFG::RemoveUnreachableBlocks(CFG* cfg) {
   std::unordered_set<BasicBlock*> visited;
   std::vector<BasicBlock*> stack;
@@ -644,7 +683,7 @@ bool CleanCFG::RemoveTrampolineBlocks(CFG* cfg) {
 }
 
 void CleanCFG::Run(Function& irfunc) {
-  bool changed = false;
+  bool changed = RemoveUnreachableInstructions(&irfunc.cfg);
   do {
     // Remove any trivial Phis; absorbDstBlock cannot handle them.
     PhiElimination{}.Run(irfunc);

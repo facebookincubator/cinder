@@ -105,6 +105,7 @@ bool Instr::IsTerminator() const {
     case Opcode::kRaiseAwaitableError:
     case Opcode::kRaiseStatic:
     case Opcode::kReturn:
+    case Opcode::kUnreachable:
       return true;
     default:
       return false;
@@ -255,6 +256,7 @@ bool Instr::isReplayable() const {
     case Opcode::kUnaryOp:
     case Opcode::kUnicodeRepeat:
     case Opcode::kUnpackExToTuple:
+    case Opcode::kUnreachable:
     case Opcode::kVectorCall:
     case Opcode::kVectorCallStatic:
     case Opcode::kVectorCallKW:
@@ -562,6 +564,7 @@ static void postorder_traverse(
     case Opcode::kRaise:
     case Opcode::kRaiseAwaitableError:
     case Opcode::kRaiseStatic:
+    case Opcode::kUnreachable:
     case Opcode::kReturn: {
       // No successor blocks
       break;

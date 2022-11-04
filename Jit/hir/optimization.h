@@ -154,6 +154,11 @@ class CleanCFG : public Pass {
   // changed the graph and false otherwise.
   static bool RemoveUnreachableBlocks(CFG* cfg);
 
+  // Remove instructions that aren't reachable from the entry. Avoid using this
+  // alone; use CleanCFG instead. Returns true if it changed the graph and false
+  // otherwise.
+  static bool RemoveUnreachableInstructions(CFG* cfg);
+
   // Remove any blocks that consist of a single jump to another block. Avoid
   // using this alone; use CleanCFG instead.
   static bool RemoveTrampolineBlocks(CFG* cfg);
