@@ -29,7 +29,10 @@ def parse_arguments():
 TEST_RUN_RE = re.compile(r"^\[ RUN +\] ([^.]+)\.(.+)$")
 ACTUAL_TEXT_RE = re.compile(r'^    Which is: "(.+)\\n"$')
 EXPECTED_VAR_RE = re.compile(r"^  ([^ ]+)$")
-SUITE_NAME_RE = re.compile(r"(HIR|[A-Z][a-z0-9]+)")
+
+# special-case common abbrieviations like HIR and CFG when converting
+# camel-cased suite name to its snake-cased file name
+SUITE_NAME_RE = re.compile(r"(HIR|CFG|[A-Z][a-z0-9]+)")
 FINISHED_LINE = "[----------] Global test environment tear-down"
 
 
@@ -117,6 +120,7 @@ def map_suite_to_file_basename(suite_name):
     return "_".join(map(str.lower, SUITE_NAME_RE.findall(suite_name)))
 
 
+assert map_suite_to_file_basename("CleanCFGTest") == "clean_cfg_test"
 assert map_suite_to_file_basename("HIRBuilderTest") == "hir_builder_test"
 assert (
     map_suite_to_file_basename("ProfileDataStaticHIRTest")
