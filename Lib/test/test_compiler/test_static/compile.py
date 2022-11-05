@@ -5956,6 +5956,21 @@ class StaticCompilationTests(StaticTestBase):
             with self.in_module(codestr) as mod:
                 self.assertEqual(mod.g(), 41)
 
+    def test_jump_threading_optimization(self):
+        codestr = """
+        def f(a, b, c, d) -> bool:
+           if (a or b) and (c or d):
+               return True
+           return False
+        """
+        with self.in_module(codestr) as mod:
+            for v in range(16):
+                a = bool(v & 0x8)
+                b = bool(v & 0x4)
+                c = bool(v & 0x2)
+                d = bool(v & 0x1)
+                self.assertEqual(mod.f(a, b, c, d), (a | b) & (c | d))
+
 
 if __name__ == "__main__":
     unittest.main()

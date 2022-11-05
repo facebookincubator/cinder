@@ -1002,10 +1002,12 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
             for node in test.values[:-1]:
                 self.get_type(node).emit_jumpif(node, skip_jump, is_or, self)
+                self.nextBlock()
 
             self.get_type(test.values[-1]).emit_jumpif(
                 test.values[-1], next, is_if_true, self
             )
+            self.nextBlock()
 
             if skip_jump is not next:
                 self.nextBlock(skip_jump)
