@@ -274,15 +274,6 @@ void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
       patcher, patchpoint_label, deopt_label);
 }
 
-// TODO(T136894358): Replace this with ASM(ud2)
-void TranslateUnreachable(Environ* env, const Instruction* instr) {
-  asmjit::x86::Builder* as = env->as;
-  JIT_CHECK(
-      instr->opcode() == Instruction::kUnreachable,
-      "bad instruction for TranslateUnreachable");
-  as->ud2();
-}
-
 void TranslateCompare(Environ* env, const Instruction* instr) {
   auto as = env->as;
   const OperandBase* inp0 = instr->getInput(0);
@@ -752,6 +743,7 @@ struct AsmAction;
 template <typename FuncType, FuncType func, typename... OpndTypes>
 struct AsmAction<FuncType, func, OperandList<OpndTypes...>> {
   static void eval(Environ* env, const Instruction* instr) {
+    static_cast<void>(instr);
     (env->as->*func)(OpndTypes::GetAsmOperand(env, instr)...);
   }
 };
@@ -942,7 +934,7 @@ BEGIN_RULES(Instruction::kMovSXD)
 END_RULES
 
 BEGIN_RULES(Instruction::kUnreachable)
-  GEN(ANY, CALL(TranslateUnreachable));
+  GEN(ANY, ASM(ud2))
 END_RULES
 
 #define DEF_BINARY_OP_RULES(name, instr) \
