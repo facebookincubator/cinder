@@ -33,15 +33,18 @@ def is_indicator_dec(node: AST) -> bool:
 
 
 def is_strict_slots(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == ENABLE_SLOTS_DECORATOR
+    return isinstance(node, Name) and node.id in (
+        ENABLE_SLOTS_DECORATOR,
+        "enable_slots",
+    )
 
 
 def is_loose_slots(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == LOOSE_SLOTS_DECORATOR
+    return isinstance(node, Name) and node.id in (LOOSE_SLOTS_DECORATOR, "loose_slots")
 
 
 def is_mutable(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == MUTABLE_DECORATOR
+    return isinstance(node, Name) and node.id in (MUTABLE_DECORATOR, "mutable")
 
 
 def get_extra_slots(node: AST) -> Optional[List[str]]:

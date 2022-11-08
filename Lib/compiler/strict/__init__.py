@@ -43,7 +43,7 @@ GLOBALS_HELPER_ALIAS = "<globals-helper>"
 
 
 def is_mutable(node: AST) -> bool:
-    return isinstance(node, Name) and node.id == MUTABLE_DECORATOR
+    return isinstance(node, Name) and node.id in (MUTABLE_DECORATOR, "mutable")
 
 
 class FindClassDef(NodeVisitor):

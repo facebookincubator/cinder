@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import unittest
 from typing import Any
 
@@ -702,6 +704,21 @@ class StrictCheckedCompilationTests(StrictTestWithCheckerBase):
         with self.with_freeze_type_setting(True), self.in_checked_module(
             codestr
         ) as mod:
+            C = mod.C
+            self.assertEqual(C.x, 1)
+            C.x = 2
+            self.assertEqual(C.x, 2)
+
+    def test_strictmod_mutable_noanalyze(self):
+        codestr = """
+        import __strict__
+        from __strict__ import mutable, allow_side_effects
+
+        @mutable
+        class C:
+            x = 1
+        """
+        with self.with_freeze_type_setting(True), self.in_module(codestr) as mod:
             C = mod.C
             self.assertEqual(C.x, 1)
             C.x = 2
