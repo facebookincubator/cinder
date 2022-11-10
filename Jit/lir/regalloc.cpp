@@ -247,7 +247,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
 
     // bb_start_id and bb_end_id do not point to any instructions.
     // each instrution is associated to two ids, where the first id
-    // if for using its inputs, and the second id is for defining
+    // is for using its inputs, and the second id is for defining
     // its output.
 
     // Basic block M
@@ -330,9 +330,8 @@ void LinearScanAllocator::calculateLiveIntervals() {
 
         auto pair = vreg_interval_.emplace(def, def);
 
-        int range_end = operand->instr()->inputsLiveAcross()
-            ? instr_id + kIdsPerInstr
-            : instr_id + 1;
+        bool live_across = operand->instr()->inputsLiveAcross();
+        int range_end = live_across ? instr_id + kIdsPerInstr : instr_id + 1;
         pair.first->second.addRange({bb_start_id, range_end});
 
         // if the def is not live before, record the last use
@@ -344,6 +343,12 @@ void LinearScanAllocator::calculateLiveIntervals() {
         live.insert(def);
         if (reguse) {
           vreg_phy_uses_[def].emplace(instr_id);
+          if (live_across) {
+            // Codegen for this instruction is expecting to be able to read its
+            // input registers after defining its output, so the inputs must
+            // also be in registers at the "define output" id.
+            vreg_phy_uses_[def].emplace(instr_id + 1);
+          }
         }
       };
 

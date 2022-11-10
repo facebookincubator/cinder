@@ -331,11 +331,23 @@ void* NativeGenerator::GetEntryPoint() {
     env_.initial_yield_spill_size_ = lsalloc.initialYieldSpillSize();
   }
 
+  JIT_LOGIF(
+      g_dump_lir,
+      "LIR for %s after register allocation:\n%s",
+      GetFunction()->fullname,
+      *lir_func);
+
   PostRegAllocRewrite post_rewrite(lir_func.get(), &env_);
   COMPILE_TIMER(
       GetFunction()->compilation_phase_timer,
       "Post Reg Alloc Rewrite",
       post_rewrite.run())
+
+  JIT_LOGIF(
+      g_dump_lir,
+      "LIR for %s after postalloc rewrites:\n%s",
+      GetFunction()->fullname,
+      *lir_func);
 
   if (!verifyPostRegAllocInvariants(lir_func.get(), std::cerr)) {
     JIT_CHECK(
@@ -346,12 +358,6 @@ void* NativeGenerator::GetEntryPoint() {
   }
 
   lir_func_ = std::move(lir_func);
-
-  JIT_LOGIF(
-      g_dump_lir,
-      "LIR for %s after register allocation:\n%s",
-      GetFunction()->fullname,
-      *lir_func_);
 
   try {
     COMPILE_TIMER(
