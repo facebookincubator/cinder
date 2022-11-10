@@ -647,16 +647,30 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
     instr_iter_t instr_iter) {
   auto instr = instr_iter->get();
 
-  if (!instr->isAdd() && !instr->isSub() && !instr->isXor() &&
-      !instr->isAnd() && !instr->isOr() && !instr->isMul() &&
-      !instr->isFadd() && !instr->isFsub() && !instr->isFmul()) {
+  // For a binary operation:
+  //
+  //   OutReg = BinOp Reg0, Reg1
+  //
+  // find if OutReg == Reg0 or OutReg == Reg1, so we can rewrite to the
+  // two-operand form and save a move in autogen.cpp.
+  //
+  // Performing this rewrite also makes it safe to not set inputs_live_across
+  // on binary ops that write their output before reading all of their inputs:
+  // if the output is the same register as one of the inputs, it will be
+  // rewritten into the two-operand form here.
+  //
+  // Subtraction is anticommutative, so we could in theory support it here by
+  // negating the output in the (OutReg == Reg1) case. But the Move we're
+  // trying to avoid is probably going to be cheaper than the negation anyway,
+  // so skip that case. And since we're skipping that case, we have to set
+  // inputs_live_across for Sub and Fsub, meaning they can be left out of this
+  // rewrite entirely.
+
+  if (!instr->isAdd() && !instr->isXor() && !instr->isAnd() && !instr->isOr() &&
+      !instr->isMul() && !instr->isFadd() && !instr->isFmul()) {
     return kUnchanged;
   }
 
-  // for a binary operation:
-  //   Reg2 = BinOp Reg1, Reg0
-  // find if Reg2 = Reg1 or Reg2 = Reg0 for commutable operations, so that we
-  // can save a move.
   if (instr->output()->type() != OperandBase::kReg) {
     return kUnchanged;
   }
@@ -665,14 +679,13 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
   auto in0_reg = instr->getInput(0)->getPhyRegister();
 
   if (out_reg == in0_reg) {
-    // remove the output. the code generator will use the first input
-    // as the output (and also the first input).
+    // Remove the output. The code generator will use the first input as the
+    // output (and also the first input).
     instr->output()->setNone();
     return kChanged;
   }
 
   auto in1 = instr->getInput(1);
-
   auto in1_reg = in1->type() == OperandBase::kReg ? in1->getPhyRegister()
                                                   : PhyLocation::REG_INVALID;
   if (out_reg == in1_reg) {
@@ -680,13 +693,6 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
 
     auto opnd0 = instr->removeInputOperand(0);
     instr->appendInputOperand(std::move(opnd0));
-
-    if (instr->isSub() || instr->isFsub()) {
-      ++instr_iter;
-      auto block = instr->basicblock();
-      block->allocateInstrBefore(
-          instr_iter, Instruction::kNegate, PhyReg(out_reg));
-    }
     return kChanged;
   }
 

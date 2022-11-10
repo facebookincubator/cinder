@@ -942,6 +942,9 @@ END_RULES
     GEN("ri", ASM(instr, OP(0), OP(1))) \
     GEN("rr", ASM(instr, OP(0), OP(1))) \
     GEN("rm", ASM(instr, OP(0), STK(1))) \
+    /* rewriteBinaryOpInstrs() makes it safe to write the output before reading
+     * all inputs without inputs_live_across being set for most binary ops; see
+     * postalloc.cpp for details. */ \
     GEN("Rri", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), OP(2))) \
     GEN("Rrr", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), OP(2))) \
     GEN("Rrm", ASM(mov, OP(0), OP(1)), ASM(instr, OP(0), STK(2))) \
@@ -971,6 +974,9 @@ END_RULES
 #undef DEF_BINARY_OP_RULES
 
 BEGIN_RULES(Instruction::kFadd)
+  /* rewriteBinaryOpInstrs() makes it safe to write the output before reading
+   * all inputs without inputs_live_across being set for Fadd; see
+   * postalloc.cpp for details. */
   GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(addsd, OP(0), OP(2)))
   GEN("xx", ASM(addsd, OP(0), OP(1)))
 END_RULES
@@ -981,12 +987,15 @@ BEGIN_RULES(Instruction::kFsub)
 END_RULES
 
 BEGIN_RULES(Instruction::kFmul)
+  /* rewriteBinaryOpInstrs() makes it safe to write the output before reading
+   * all inputs without inputs_live_across being set for Fmul; see
+   * postalloc.cpp for details. */
   GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(mulsd, OP(0), OP(2)))
   GEN("xx", ASM(mulsd, OP(0), OP(1)))
 END_RULES
 
 BEGIN_RULES(Instruction::kFdiv)
-  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(divsd  , OP(0), OP(2)))
+  GEN("Xxx", ASM(movsd, OP(0), OP(1)), ASM(divsd, OP(0), OP(2)))
   GEN("xx", ASM(divsd, OP(0), OP(1)))
 END_RULES
 

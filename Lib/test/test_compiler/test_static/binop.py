@@ -466,6 +466,57 @@ class BinopTests(StaticTestBase):
                     f = mod.testfunc
                     self.assertEqual(f(False), res, f"{type} {x} {op} {y} {res}")
 
+    def test_double_sub_with_reg_pressure(self):
+        """
+        Test the behavior of double subtraction under register pressure:
+        we had one bug where a rewrite rule inserted an invalid instruction,
+        and another where the register allocator didn't keep all inputs to the
+        Fsub instruction alive long enough.
+        """
+
+        codestr = f"""
+        from __static__ import box, double
+
+        def testfunc(f0: double, f1: double) -> double:
+            f2 = f0 + f1
+            f3 = f1 + f2
+            f4 = f2 + f3
+            f5 = f3 + f4
+            f6 = f4 + f5
+            f7 = f5 + f6
+            f8 = f6 + f7
+            f9 = f7 + f8
+            f10 = f8 + f9
+            f11 = f9 + f10
+            f12 = f10 + f11
+            f13 = f11 + f12
+            f14 = f12 + f13
+            f15 = f13 + f14
+            f16 = f1 - f0
+            return (
+                f1
+                + f2
+                + f3
+                + f4
+                + f5
+                + f6
+                + f7
+                + f8
+                + f9
+                + f10
+                + f11
+                + f12
+                + f13
+                + f14
+                + f15
+                + f16
+            )
+        """
+
+        with self.in_module(codestr) as mod:
+            f = mod.testfunc
+            self.assertEqual(f(1.0, 2.0), 4179.0)
+
     def test_double_binop_with_literal(self):
         codestr = f"""
             from __static__ import double, unbox
