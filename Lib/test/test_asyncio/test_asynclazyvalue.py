@@ -221,6 +221,20 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stacks[1][1], h1_coro)
         self.assertIs(await_stacks[1][2], gatherer_coro)
 
+    def test_coro_target_is_bound_method(self):
+
+        class X:
+            def __init__(self):
+                self.a = 1
+
+            async def m(self, b, c, d):
+                return self.a, b, c, d
+
+        with self.assertRaises(StopIteration) as ctx:
+            AsyncLazyValue(X().m, 2, 3, 4).__await__().send(None)
+
+        self.assertEqual(ctx.exception.value, (1, 2, 3, 4))
+
 
 class AsyncLazyValueTest(unittest.TestCase):
     def setUp(self) -> None:

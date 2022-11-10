@@ -5531,41 +5531,6 @@ AsyncLazyValueCompute_dealloc(AsyncLazyValueComputeObj *self)
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyObject *
-do_awaited_call(PyObject *func,
-                PyObject **args,
-                Py_ssize_t nargs,
-                PyObject *kwargs)
-{
-    if (PyMethod_Check(func)) {
-        PyObject *self = PyMethod_GET_SELF(func);
-        PyObject *meth_func = PyMethod_GET_FUNCTION(func);
-        PyObject *newargs_stack[_PY_FASTCALL_SMALL_STACK];
-        PyObject **newargs;
-        if (nargs <= (Py_ssize_t)Py_ARRAY_LENGTH(newargs_stack) - 1) {
-            newargs = newargs_stack;
-        }
-        else {
-            newargs = PyMem_Malloc((nargs+1) * sizeof(PyObject *));
-            if (newargs == NULL) {
-                _PyErr_NoMemory(_PyThreadState_GET());
-                return NULL;
-            }
-        }
-        /* use borrowed references */
-        newargs[0] = self;
-        memcpy(newargs + 1, args, nargs * sizeof(PyObject *));
-        PyObject *result = _PyObject_FastCallDictTstate(
-            _PyThreadState_GET(), meth_func, newargs, nargs | Ci_Py_AWAITED_CALL_MARKER, kwargs);
-        if (newargs != newargs_stack) {
-            PyMem_Free(newargs);
-        }
-        return result;
-    }
-    return PyObject_VectorcallDict(
-        func, args, nargs | Ci_Py_AWAITED_CALL_MARKER, kwargs);
-}
-
 static void
 forward_and_clear_pending_awaiter(AsyncLazyValueComputeObj *self)
 {
@@ -5593,9 +5558,9 @@ AsyncLazyValueCompute_create_and_set_subcoro(AsyncLazyValueComputeObj *self,
 {
     Py_ssize_t nargs = PyTuple_GET_SIZE(self->alvc_target->alv_args);
     PyObject **args = &PyTuple_GET_ITEM(self->alvc_target->alv_args, 0);
-    PyObject *result = do_awaited_call(
-        args[0], args + 1, nargs - 1, self->alvc_target->alv_kwargs);
-
+    PyObject *kwargs = self->alvc_target->alv_kwargs;
+    PyObject *result = PyObject_VectorcallDict(
+        args[0], args + 1, (nargs - 1) | Ci_Py_AWAITED_CALL_MARKER, kwargs);
     if (result == NULL) {
         return NULL;
     }
