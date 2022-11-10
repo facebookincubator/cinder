@@ -18,15 +18,69 @@ namespace lir {
 
 class BasicBlock;
 
+/*
+ * FlagEffects describes the effect an LIR instruction has on the machine's
+ * status flags.
+ */
 enum class FlagEffects {
+  /* The instruction does not modify flags. */
   kNone,
+
+  /* The instruction sets flags to a meaningful value (e.g., a comparison
+   * instruction). */
   kSet,
+
+  /* The instruction clobbers flags (e.g., a call instruction). */
   kInvalidate,
 };
 
+/* OperandSizeType describes how an LIR instruction's operand sizes are
+ * determined. */
+enum OperandSizeType {
+  /* Every operand uses the size determined by its DataType. */
+  kDefault,
+
+  /* Every operand is 64 bits. */
+  kAlways64,
+
+  /* Every operand is the same size as the output, or the first input (when
+   * there is no output). */
+  kOut,
+};
+
+/*
+ * FOREACH_INSTR_TYPE defines all LIR instructions and their attributes. Every
+ * argument after the name is optional, and each call to X expects:
+ * X(name, inputs_live_across, flag_effects, opnd_size_type, out_phy_use,
+ *   in_phy_uses, is_essential)
+ *
+ * - inputs_live_across: bool, default false. When false, the instruction's
+ *   operands will only be considered live until the beginning of the
+ *   instruction, meaning the output may be assigned to the same register as
+ *   one of the inputs (if no other instruction keeps them alive longer). When
+ *   true, the operands will be considered live until the end of the
+ *   instruction.
+ *
+ * - flag_effects: FlagEffects, default kNone. Specifies the instruction's
+ *   effects on the processor's status flags. See FlagEffects for details.
+ *
+ * - opnd_size_type: OperandSizeType, default kDefault. Specifies the size of
+ *   operands. See OperandSizeType for details.
+ *
+ * - out_phy_use: bool, default true. When true, the output must be allocated
+ *   to a physical register. When false, it may be allocated to a stack slot.
+ *
+ * - in_phy_uses: vector<bool>, default {false, ...}. Any true slots indicate
+ *   inputs that must be allocated to physical registers (as opposed to stack
+ *   slots).
+ *
+ * - is_essential: bool, default false. When true, indicates that the
+ *   instruction has side-effects and should never be removed by dead code
+ *   elimination. Any instruction with no output must be marked as essential
+ *   (if it doesn't define an output and has no side-effects, what does it
+ *   do?).
+ */
 #define FOREACH_INSTR_TYPE(X)                                                \
-  /* name, <inputs live across> <flag effects>, <opnd_size_type>, <out use   \
-   * reg>, <in use reg>, <is essential> */                                   \
   /* Bind is not used to generate any machine code. Its sole      */         \
   /* purpose is to associate a physical register with a predefined */        \
   /* value to virtual register for register allocator. */                    \
@@ -587,15 +641,6 @@ enum InstrGuardKind {
   kZero,
 };
 
-// an instruction property type specifying how its operand sizes
-// are determined.
-enum OperandSizeType {
-  kDefault, // every operand uses its own size
-  kAlways64, // every operand uses 64-bit size
-  kOut // every operand uses output size or first input operand (when there is
-       // no output)
-};
-
 // This class defines instruction properties for different types of
 // instructions.
 class InstrProperty {
@@ -620,9 +665,6 @@ class InstrProperty {
 
 // clang-format off
 // This table contains definitions of all the instruction property field.
-// `is_essential` indicates that a given instruction can have memory effects not
-// captured by its operands. We maintain the invariant that all instructions
-// without operands have `may_store` set.
 BEGIN_INSTR_PROPERTY_FIELD
   FIELD_NO_DEFAULT(std::string, name)
   FIELD_DEFAULT(bool, inputs_live_across, false)
