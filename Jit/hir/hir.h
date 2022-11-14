@@ -4267,6 +4267,8 @@ class Function {
     compilation_phase_timer = std::move(cpt);
   }
 
+  bool canDeopt() const;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Function);
 };
