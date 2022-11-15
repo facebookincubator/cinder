@@ -40,10 +40,14 @@ except:
         return func
 
 
+def firstlineno(func):
+    return func.__code__.co_firstlineno
+
+
 class GetFrameLineNumberTests(unittest.TestCase):
-    def assert_code_and_lineno(self, frame, func, lineno):
+    def assert_code_and_lineno(self, frame, func, line_offset):
         self.assertEqual(frame.f_code, func.__code__)
-        self.assertEqual(frame.f_lineno, lineno)
+        self.assertEqual(frame.f_lineno, firstlineno(func) + line_offset)
 
     def test_line_numbers(self):
         """Verify that line numbers are correct"""
@@ -52,7 +56,7 @@ class GetFrameLineNumberTests(unittest.TestCase):
         def g():
             return sys._getframe()
 
-        self.assert_code_and_lineno(g(), g, 53)
+        self.assert_code_and_lineno(g(), g, 2)
 
     def test_line_numbers_for_running_generators(self):
         """Verify that line numbers are correct for running generator functions"""
@@ -64,12 +68,11 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield sys._getframe()
             yield z
 
-        initial_lineno = 62
         gen = g(1, 2)
         frame = next(gen)
-        self.assert_code_and_lineno(frame, g, initial_lineno)
+        self.assert_code_and_lineno(frame, g, 2)
         frame = next(gen)
-        self.assert_code_and_lineno(frame, g, initial_lineno + 2)
+        self.assert_code_and_lineno(frame, g, 4)
         self.assertEqual(next(gen), 3)
 
     def test_line_numbers_for_suspended_generators(self):
@@ -83,14 +86,13 @@ class GetFrameLineNumberTests(unittest.TestCase):
             yield z
 
         gen = g(0)
-        initial_lineno = 78
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno)
+        self.assert_code_and_lineno(gen.gi_frame, g, 0)
         v = next(gen)
         self.assertEqual(v, 1)
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 3)
+        self.assert_code_and_lineno(gen.gi_frame, g, 3)
         v = next(gen)
         self.assertEqual(v, 2)
-        self.assert_code_and_lineno(gen.gi_frame, g, initial_lineno + 5)
+        self.assert_code_and_lineno(gen.gi_frame, g, 5)
 
     def test_line_numbers_during_gen_throw(self):
         """Verify that line numbers are correct for suspended generator functions when
@@ -124,9 +126,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
         gen1.send(None)
         with self.assertRaises(TestException):
             gen1.throw(TestException())
-        initial_lineno = 102
-        self.assert_code_and_lineno(gen1_frame, f1, initial_lineno)
-        self.assert_code_and_lineno(gen2_frame, f2, initial_lineno + 4)
+        self.assert_code_and_lineno(gen1_frame, f1, 2)
+        self.assert_code_and_lineno(gen2_frame, f2, 2)
 
     def test_line_numbers_from_finalizers(self):
         """Make sure we can get accurate line numbers from finalizers"""
@@ -147,8 +148,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
 
         res = double(5)
         self.assertEqual(res, 10)
-        self.assertEqual(stack[-1].lineno, 138)
-        self.assertEqual(stack[-2].lineno, 144)
+        self.assertEqual(stack[-1].lineno, firstlineno(StackGetter.__del__) + 2)
+        self.assertEqual(stack[-2].lineno, firstlineno(double) + 4)
 
 
 @unittest.failUnlessJITCompiled
@@ -206,11 +207,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_siblings), 2)
         stacks = get_stack_siblings()
         # Call to get_stack
-        self.assertEqual(stacks[0][-1].lineno, 157)
-        self.assertEqual(stacks[0][-2].lineno, 178)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(get_stack_siblings) + 2)
         # Call to get_stack2
-        self.assertEqual(stacks[1][-1].lineno, 172)
-        self.assertEqual(stacks[1][-2].lineno, 178)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack2) + 3)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(get_stack_siblings) + 2)
 
     @jit_suppress
     @unittest.skipIf(
@@ -223,10 +224,10 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         # Call to get_stack_multi should be inlined
         self.assertEqual(cinderjit.get_num_inlined_functions(call_get_stack_multi), 1)
         stacks = call_get_stack_multi()
-        self.assertEqual(stacks[0][-1].lineno, 184)
-        self.assertEqual(stacks[0][-2].lineno, 193)
-        self.assertEqual(stacks[1][-1].lineno, 186)
-        self.assertEqual(stacks[1][-2].lineno, 193)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack_multi) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(call_get_stack_multi) + 3)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack_multi) + 5)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(call_get_stack_multi) + 3)
 
     @jit_suppress
     @unittest.skipIf(
@@ -241,11 +242,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_twice), 2)
         stacks = get_stack_twice()
         # First call to double
-        self.assertEqual(stacks[0][-1].lineno, 157)
-        self.assertEqual(stacks[0][-2].lineno, 164)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(get_stack_twice) + 3)
         # Second call to double
-        self.assertEqual(stacks[1][-1].lineno, 157)
-        self.assertEqual(stacks[1][-2].lineno, 165)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(get_stack_twice) + 4)
 
 
 # Decorator to return a new version of the function with an alternate globals
