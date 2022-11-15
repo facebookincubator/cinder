@@ -24,30 +24,13 @@ namespace jit {
 template <typename T>
 class BCOffsetBase {
  public:
-  BCOffsetBase() = default;
+  constexpr BCOffsetBase() = default;
 
-  explicit BCOffsetBase(int value) : value_{value} {}
-
-  explicit BCOffsetBase(size_t value) : value_{static_cast<int>(value)} {
-    JIT_DCHECK(
-        value <= std::numeric_limits<int>::max(),
-        "overflow converting from %d",
-        value);
-  }
-
-  explicit BCOffsetBase(Py_ssize_t value) : value_{static_cast<int>(value)} {
-    JIT_DCHECK(
-        value <= std::numeric_limits<int>::max(),
-        "overflow converting from %d",
-        value);
-    JIT_DCHECK(
-        value >= std::numeric_limits<int>::min(),
-        "underflow converting from %d",
-        value);
-  }
+  template <class TInt>
+  explicit BCOffsetBase(TInt value) : value_{check(value)} {}
 
   // Explicit accessor for the underlying value.
-  int value() const {
+  constexpr int value() const {
     return value_;
   }
 
@@ -116,6 +99,22 @@ class BCOffsetBase {
   }
 
  private:
+  template <class TInt>
+  int check(TInt v) {
+    static_assert(std::is_integral_v<TInt>, "BCOffsetBase is an integer");
+    JIT_DCHECK(
+        v <= std::numeric_limits<int>::max(), "Overflow converting from %d", v);
+    // Checking that an unsigned value is greater or equal than a negative value
+    // would produce a compiler warning.
+    if constexpr (std::is_signed_v<TInt>) {
+      JIT_DCHECK(
+          v >= std::numeric_limits<int>::min(),
+          "Underflow converting from %d",
+          v);
+    }
+    return static_cast<int>(v);
+  }
+
   T& asT() {
     return static_cast<T&>(*this);
   }
@@ -124,7 +123,7 @@ class BCOffsetBase {
     return static_cast<const T&>(*this);
   }
 
-  int value_;
+  int value_{0};
 };
 
 class BCIndex;
