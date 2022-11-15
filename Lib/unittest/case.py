@@ -211,21 +211,35 @@ def skipUnlessCinderJITEnabled(reason):
         return skip(reason)
     return _id
 
-def failUnlessJITCompiled(func):
-    """
-    Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
-    """
-    force_compile(func)
-    if not CINDERJIT_ENABLED or is_jit_compiled(func):
-        return func
-    def decorator(*args, **kwargs):
-        raise AssertionError(f"Function '{func.__qualname__}' is not JIT-compiled")
-    return decorator
-
 def skipUnlessReadonly(reason="Readonly support is not enabled."):
     if not readonly_enabled():
         return skip
     return _id
+
+def failUnlessJITCompiled(func):
+    """
+    Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
+    """
+    try:
+        # force_compile raises a RuntimeError if compilation fails. If it does,
+        # defer raising an exception to when the decorated function runs.
+        force_compile(func)
+    except RuntimeError as re:
+        if re.args == ('PYJIT_RESULT_NOT_ON_JITLIST',):
+            # We generally only run tests with a jitlist under
+            # Tools/scripts/jitlist_bisect.py. In that case, we want to allow
+            # the decorated function to run under the interpreter to determine
+            # if it's the function the JIT is handling incorrectly.
+            return func
+
+        # re is cleared at the end of the except block but we need the value
+        # when wrapper() is eventually called.
+        exc = re
+        def wrapper(*args):
+            raise RuntimeError(f"JIT compilation of {func.__qualname__} failed with {exc}")
+        return wrapper
+
+    return func
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

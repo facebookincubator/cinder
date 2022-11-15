@@ -32,12 +32,15 @@ from contextlib import contextmanager
 
 try:
     import cinderjit
-    from cinderjit import jit_suppress
+    from cinderjit import is_jit_compiled, jit_suppress
 except:
     cinderjit = None
 
     def jit_suppress(func):
         return func
+
+    def is_jit_compiled(func):
+        return False
 
 
 def firstlineno(func):
