@@ -39,8 +39,8 @@ from .refine_fields import RefineFieldsTests
 from .return_cast_insertion import ReturnCastInsertionTests
 from .runtime import StaticRuntimeTests
 from .sequence import SequenceTests
-
 from .slots_with_default import SlotsWithDefaultTests
+from .staticarray import StaticArrayTests
 from .staticmod import StaticModuleTests
 from .subclass import SubclassTests
 from .super import SuperTests

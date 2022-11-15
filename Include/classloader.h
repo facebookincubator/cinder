@@ -692,6 +692,17 @@ PyObject* _PyClassloader_InvokeNativeFunction(
     int64_t nargs
 );
 
+PyAPI_DATA(PyTypeObject) PyStaticArray_Type;
+
+typedef struct {
+    PyObject_VAR_HEAD
+    /* ob_item contains space for 'ob_size' elements. */
+    int64_t ob_item[1];
+} PyStaticArrayObject;
+
+
+
+
 #endif
 
 #ifdef __cplusplus

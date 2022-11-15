@@ -194,6 +194,13 @@ static PyObject* _static_create(PyObject *spec, PyModuleDef *def) {
         Py_DECREF(name);
         return NULL;
     }
+
+    if (PyDict_SetItemString(mod_dict, "staticarray", (PyObject*)&PyStaticArray_Type)) {
+        Py_DECREF(res);
+        Py_DECREF(name);
+        return NULL;
+    }
+
     return res;
 }
 
