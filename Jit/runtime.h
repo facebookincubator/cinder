@@ -286,6 +286,11 @@ class Runtime {
   // is typed to.  Typed object references are explicitly excluded.
   _PyTypedArgsInfo* findFunctionPrimitiveArgInfo(PyFunctionObject* function);
 
+  // Forget given cache. Note that for now, this only removes bookkeeping for
+  // the cache; the cache itself is not freed and may still be reachable from
+  // compiled code.
+  void forgetLoadGlobalCache(GlobalCache cache);
+
   // Add metadata used during deopt. Returns a handle that can be used to
   // fetch the metadata from generated code.
   std::size_t addDeoptMetadata(DeoptMetadata&& deopt_meta);
