@@ -82,6 +82,17 @@ struct SymbolResult {
 
 // Return 0 to continue iteration and non-zero to stop.
 static int findSymbolIn(struct dl_phdr_info* info, size_t, void* data) {
+  // Continue until the first dynamic library is found. Looks like a bunch of
+  // platforms put the main executable as the first entry, which has an empty
+  // name. Skip it.
+  if (info->dlpi_name == nullptr || info->dlpi_name[0] == 0) {
+    return 0;
+  }
+  // Ignore linux-vdso.so.1 since it does not have an actual file attached.
+  std::string_view name{info->dlpi_name};
+  if (name.find("linux-vdso") != name.npos) {
+    return 0;
+  }
   if (info->dlpi_addr == 0) {
     JIT_LOG("Invalid ELF object '%s'", info->dlpi_name);
     return 0;
