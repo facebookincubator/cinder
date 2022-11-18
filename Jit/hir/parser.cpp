@@ -577,6 +577,10 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<CheckVar>(dst, operand, name);
+  } else if (strcmp(opcode, "CheckSequenceBounds") == 0) {
+    auto sequence = ParseRegister();
+    auto idx = ParseRegister();
+    NEW_INSTR(CheckSequenceBounds, dst, sequence, idx);
   } else if (strcmp(opcode, "Snapshot") == 0) {
     auto snapshot = Snapshot::create();
     if (strcmp(peekNextToken(), "{") == 0) {

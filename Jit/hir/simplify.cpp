@@ -149,6 +149,34 @@ Register* simplifyCheck(const CheckBase* instr) {
   return nullptr;
 }
 
+Register* simplifyCheckSequenceBounds(
+    Env& env,
+    const CheckSequenceBounds* instr) {
+  Register* sequence = instr->GetOperand(0);
+  Register* idx = instr->GetOperand(1);
+  if (sequence->isA(TTupleExact) && sequence->instr()->IsMakeListTuple() &&
+      idx->isA(TCInt) && idx->type().hasIntSpec()) {
+    size_t length =
+        static_cast<const MakeListTuple*>(sequence->instr())->nvalues();
+    intptr_t idx_value = idx->type().intSpec();
+    bool adjusted = false;
+    if (idx_value < 0) {
+      idx_value += length;
+      adjusted = true;
+    }
+    if (static_cast<size_t>(idx_value) < length) {
+      env.emit<UseType>(sequence, sequence->type());
+      env.emit<UseType>(idx, idx->type());
+      if (adjusted) {
+        return env.emit<LoadConst>(Type::fromCInt(idx_value, TCInt64));
+      } else {
+        return idx;
+      }
+    }
+  }
+  return nullptr;
+}
+
 Register* simplifyGuardType(Env& env, const GuardType* instr) {
   Register* input = instr->GetOperand(0);
   Type type = instr->target();
@@ -599,6 +627,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kCheckExc:
     case Opcode::kCheckField:
       return simplifyCheck(static_cast<const CheckBase*>(instr));
+    case Opcode::kCheckSequenceBounds:
+      return simplifyCheckSequenceBounds(
+          env, static_cast<const CheckSequenceBounds*>(instr));
     case Opcode::kGuardType:
       return simplifyGuardType(env, static_cast<const GuardType*>(instr));
     case Opcode::kRefineType:
