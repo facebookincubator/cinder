@@ -1059,6 +1059,35 @@ fun test {
   }
 }
 ---
+IsTruthyWithArrayExactRewritesToLoadField
+---
+# HIR
+fun test {
+  bb 0 {
+    v1 = LoadArg<0>
+    v2 = RefineType<Array> v1
+    v3 = IsTruthy v2
+    v4 = PrimitiveBox<CInt32> v3
+    Return v4
+  }
+}
+---
+fun test {
+  bb 0 {
+    v1:Object = LoadArg<0>
+    v2:Array = RefineType<Array> v1
+    UseType<Array> v2
+    v5:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v2
+    v6:CInt32 = IntConvert<CInt32> v5
+    v4:LongExact = PrimitiveBox<CInt32> v6 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v4
+  }
+}
+---
 IsTruthyWithDictExactRewritesToLoadField
 ---
 # HIR

@@ -1085,12 +1085,12 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   // loading and invoking methods off an instance (e.g. {}.fromkeys(...)) is
   // resolved and called differently than from the type (e.g.
   // dict.fromkeys(...)). The code below handles the instance case only.
-  if (!(receiver_type <= TBool || receiver_type <= TBytesExact ||
-        receiver_type <= TCode || receiver_type <= TDictExact ||
-        receiver_type <= TFloatExact || receiver_type <= TListExact ||
-        receiver_type <= TLongExact || receiver_type <= TNoneType ||
-        receiver_type <= TSetExact || receiver_type <= TTupleExact ||
-        receiver_type <= TUnicodeExact)) {
+  if (!(receiver_type <= TArray || receiver_type <= TBool ||
+        receiver_type <= TBytesExact || receiver_type <= TCode ||
+        receiver_type <= TDictExact || receiver_type <= TFloatExact ||
+        receiver_type <= TListExact || receiver_type <= TLongExact ||
+        receiver_type <= TNoneType || receiver_type <= TSetExact ||
+        receiver_type <= TTupleExact || receiver_type <= TUnicodeExact)) {
     return false;
   }
   PyTypeObject* type = receiver_type.runtimePyType();

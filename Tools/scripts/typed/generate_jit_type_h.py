@@ -42,6 +42,7 @@ class TypeFlag(Enum):
 
 # Basic types that can't be subtyped by users.
 BASIC_FINAL_TYPES: List[str] = [
+    "Array",
     "Bool",
     "Cell",
     "Code",

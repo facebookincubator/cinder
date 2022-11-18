@@ -18,7 +18,6 @@ except ImportError:
     cinderjit = None
 
 
-@skipIf(cinderjit is not None, "not supported under JIT yet")
 class ArrayTests(StaticTestBase):
     def test_array_import(self):
         codestr = """

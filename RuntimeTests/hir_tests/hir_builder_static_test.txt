@@ -1444,3 +1444,84 @@ fun jittestmodule:test {
   }
 }
 ---
+ArrayLookupEmitsLoadLoadArrayItem
+---
+from __static__ import int64, Array, box
+
+def test(a: Array[int64]) -> int64:
+    return a[2]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "a", Array>
+    v0 = CheckVar<"a"> v0 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v0
+      }
+    }
+    v1 = LoadConst<MortalLongExact[2]>
+    v1 = RefineType<LongExact> v1
+    v2 = PrimitiveUnbox<CInt64> v1
+    v3 = IsNegativeAndErrOccurred v2 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v0
+        Stack<1> v0
+      }
+    }
+    v4 = CheckSequenceBounds v0 v2 {
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v0
+      }
+    }
+    v7 = LoadConst<CInt64[24]>
+    v5 = LoadFieldAddress v0 v7
+    v6 = LoadArrayItem v5 v4 v0
+    Return<CInt64> v6
+  }
+}
+---
+ArrayAssignEmitsStoreArrayItem
+---
+from __static__ import int64, Array, box
+
+def test(a: Array[int64]) -> None:
+    a[2] = 3
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "a", Array>
+    v1 = LoadConst<CInt64[3]>
+    v0 = CheckVar<"a"> v0 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v0
+        Stack<1> v1
+      }
+    }
+    v2 = LoadConst<MortalLongExact[2]>
+    v2 = RefineType<LongExact> v2
+    v3 = PrimitiveUnbox<CInt64> v2
+    v4 = IsNegativeAndErrOccurred v3 {
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v0
+        Stack<2> v1 v0
+      }
+    }
+    v5 = CheckSequenceBounds v0 v3 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<1> v0
+      }
+    }
+    v7 = LoadConst<CInt64[24]>
+    v6 = LoadFieldAddress v0 v7
+    StoreArrayItem v6 v5 v1 v0
+    v8 = LoadConst<NoneType>
+    Return v8
+  }
+}
+---

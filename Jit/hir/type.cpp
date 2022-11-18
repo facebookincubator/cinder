@@ -26,6 +26,7 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
   static auto const map = [] {
     const std::unordered_map<Type, PyTypeObject*> map{
         {TObject, &PyBaseObject_Type},
+        {TArray, &PyStaticArray_Type},
         {TBool, &PyBool_Type},
         {TBytes, &PyBytes_Type},
         {TCell, &PyCell_Type},

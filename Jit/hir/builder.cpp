@@ -2738,6 +2738,8 @@ static inline Type element_type_from_seq_type(int seq_type) {
     case SEQ_CHECKED_LIST:
     case SEQ_TUPLE:
       return TObject;
+    case SEQ_ARRAY_INT64:
+      return TCInt64;
     default:
       JIT_CHECK(false, "invalid sequence type: (%d)", seq_type);
       // NOTREACHED
@@ -2874,6 +2876,10 @@ void HIRBuilder::emitFastLen(
     name = "ob_size";
   } else if (oparg == FAST_LEN_TUPLE) {
     type = TTupleExact;
+    offset = offsetof(PyVarObject, ob_size);
+    name = "ob_size";
+  } else if (oparg == FAST_LEN_ARRAY) {
+    type = TArray;
     offset = offsetof(PyVarObject, ob_size);
     name = "ob_size";
   } else if (oparg == FAST_LEN_DICT) {
@@ -3162,14 +3168,19 @@ void HIRBuilder::emitSequenceGet(
   }
   auto ob_item = temps_.AllocateStack();
   auto result = temps_.AllocateStack();
-  int offset;
   if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT ||
       oparg == SEQ_CHECKED_LIST) {
-    offset = offsetof(PyListObject, ob_item);
+    int offset = offsetof(PyListObject, ob_item);
+    tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
+  } else if (oparg == SEQ_ARRAY_INT64) {
+    Register* offset_reg = temps_.AllocateStack();
+    tc.emit<LoadConst>(
+        offset_reg,
+        Type::fromCInt(offsetof(PyStaticArrayObject, ob_item), TCInt64));
+    tc.emit<LoadFieldAddress>(ob_item, sequence, offset_reg);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_GET: %d", oparg);
   }
-  tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
 
   auto type = element_type_from_seq_type(oparg);
   tc.emit<LoadArrayItem>(
@@ -3263,13 +3274,18 @@ void HIRBuilder::emitSequenceSet(
   }
   tc.emit<CheckSequenceBounds>(adjusted_idx, sequence, idx, tc.frame);
   auto ob_item = temps_.AllocateStack();
-  int offset;
-  if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
-    offset = offsetof(PyListObject, ob_item);
+  if (oparg == SEQ_ARRAY_INT64) {
+    Register* offset_reg = temps_.AllocateStack();
+    tc.emit<LoadConst>(
+        offset_reg,
+        Type::fromCInt(offsetof(PyStaticArrayObject, ob_item), TCInt64));
+    tc.emit<LoadFieldAddress>(ob_item, sequence, offset_reg);
+  } else if (oparg == SEQ_LIST || oparg == SEQ_LIST_INEXACT) {
+    int offset = offsetof(PyListObject, ob_item);
+    tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
   } else {
     JIT_CHECK(false, "Unsupported oparg for SEQUENCE_SET: %d", oparg);
   }
-  tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
   tc.emit<StoreArrayItem>(
       ob_item,
       adjusted_idx,

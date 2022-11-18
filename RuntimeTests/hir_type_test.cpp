@@ -477,7 +477,7 @@ TEST_F(HIRTypeTest, SimpleSubtraction) {
   EXPECT_EQ(TLong - TBool - TLongUser, TLongExact);
   EXPECT_EQ(
       TUser - TBytes - TDict - TSet - TFloat - TList - TTuple - TUnicode -
-          TType - TBaseException - TLong,
+          TType - TBaseException - TLong - TArray,
       TObjectUser);
   EXPECT_EQ(TUnicode - TUnicodeExact, TUnicodeUser);
   EXPECT_EQ(TLong - TBool, TLongExact | TLongUser);

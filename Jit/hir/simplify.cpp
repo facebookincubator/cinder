@@ -197,7 +197,7 @@ Register* simplifyCast(const Cast* instr) {
 
 Register* emitGetLengthInt64(Env& env, Register* obj) {
   Type ty = obj->type();
-  if (ty <= TListExact || ty <= TTupleExact) {
+  if (ty <= TListExact || ty <= TTupleExact || ty <= TArray) {
     env.emit<UseType>(obj, ty.unspecialized());
     return env.emit<LoadField>(
         obj, "ob_size", offsetof(PyVarObject, ob_size), TCInt64);
