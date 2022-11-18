@@ -1916,9 +1916,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
     def visitFor(self, node: For) -> None:
         self.visit(node.iter)
-        target_type = self.get_type(node.iter).get_iter_type(node.iter, self)
+        container_type = self.get_type(node.iter)
+        target_type = container_type.get_iter_type(node.iter, self)
         with self.in_target():
-            self.visit(node.target)
+            container_type.bind_forloop_target(node.target, self)
         self.assign_value(node.target, target_type)
         branch = self.scopes[-1].branch()
         with self.in_loop(node):

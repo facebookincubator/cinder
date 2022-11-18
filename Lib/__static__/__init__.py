@@ -51,6 +51,7 @@ try:
         set_type_final,
         set_type_static,
         set_type_static_final,
+        staticarray,
     )
 
 except ImportError:
@@ -84,6 +85,22 @@ except ImportError:
 
     def set_type_static_final(_t):
         return _t
+
+    class staticarray:
+        def __init__(self, size: int) -> None:
+            self._data = [0 for _ in range(size)]
+
+        def __getitem__(self, idx: int) -> None:
+            return self._data[idx]
+
+        def __setitem__(self, idx: int) -> None:
+            self._data[idx] = idx
+
+        def __len__(self) -> int:
+            return len(self._data)
+
+        def __class_getitem__(cls, key) -> Type[staticarray]:
+            return staticarray
 
 
 try:
@@ -460,3 +477,6 @@ def native(so_path):
         return func
 
     return _inner_native
+
+
+Array = staticarray

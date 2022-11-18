@@ -5707,6 +5707,7 @@ main_loop:
                   (oparg == FAST_LEN_DICT && PyDict_CheckExact(collection)) ||
                   (oparg == FAST_LEN_SET && PyAnySet_CheckExact(collection)) ||
                   (oparg == FAST_LEN_TUPLE && PyTuple_CheckExact(collection)) ||
+                  (oparg == FAST_LEN_ARRAY && PyStaticArray_CheckExact(collection)) ||
                   (oparg == FAST_LEN_STR && PyUnicode_CheckExact(collection))) {
                 inexact = 0;
               }
@@ -5946,8 +5947,16 @@ main_loop:
             if (item == NULL) {
               goto error;
             }
+          } else if (oparg == SEQ_ARRAY_INT64) {
+            item = _Ci_StaticArray_Get(sequence, val);
+            Py_DECREF(sequence);
+            if (item == NULL) {
+              Py_DECREF(idx);
+              goto error;
+            }
           } else {
-            PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d", oparg);
+            PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_GET: %d",
+                         oparg);
             Py_DECREF(idx);
             goto error;
           }
@@ -6003,6 +6012,14 @@ main_loop:
                     if (err != 0) {
                         goto error;
                     }
+                }
+            } else if (oparg == SEQ_ARRAY_INT64) {
+                err = _Ci_StaticArray_Set(sequence, idx, v);
+
+                Py_DECREF(sequence);
+                if (err != 0) {
+                    Py_DECREF(v);
+                    goto error;
                 }
             } else {
                 PyErr_Format(PyExc_SystemError, "bad oparg for SEQUENCE_SET: %d", oparg);

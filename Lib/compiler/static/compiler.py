@@ -352,6 +352,7 @@ class Compiler:
             "<__static__>",
             self,
             {
+                "Array": self.type_env.array,
                 "CheckedDict": self.type_env.checked_dict.exact_type(),
                 "CheckedList": self.type_env.checked_list.exact_type(),
                 "Enum": self.type_env.enum,

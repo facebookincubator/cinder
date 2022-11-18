@@ -278,7 +278,11 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define FAST_LEN_DICT 1
 #define FAST_LEN_SET 2
 #define FAST_LEN_TUPLE 3
+#define FAST_LEN_ARRAY 4
 #define FAST_LEN_STR 5
+
+
+#define TYPED_ARRAY 0x80
 
 // At the time of defining these, we needed to remain backwards compatible,
 // so SEQ_LIST had to be zero. Therefore, we let the array types occupy the
@@ -292,6 +296,10 @@ int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *me
 #define SEQ_REPEAT_INEXACT_NUM (1 << 5)
 #define SEQ_REPEAT_REVERSED (1 << 6)
 #define SEQ_REPEAT_PRIMITIVE_NUM (1 << 7)
+
+// For arrays, the constant contains the element type in the higher
+// nibble
+#define SEQ_ARRAY_INT64 ((TYPED_INT64 << 4) | TYPED_ARRAY)
 #define SEQ_REPEAT_FLAGS (     \
     SEQ_REPEAT_INEXACT_SEQ   | \
     SEQ_REPEAT_INEXACT_NUM   | \
@@ -693,6 +701,7 @@ PyObject* _PyClassloader_InvokeNativeFunction(
 );
 
 PyAPI_DATA(PyTypeObject) PyStaticArray_Type;
+#define PyStaticArray_CheckExact(op) Py_IS_TYPE(op, &PyStaticArray_Type)
 
 typedef struct {
     PyObject_VAR_HEAD
@@ -701,6 +710,8 @@ typedef struct {
 } PyStaticArrayObject;
 
 
+int _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value);
+PyObject* _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index);
 
 
 #endif

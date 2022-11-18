@@ -67,11 +67,13 @@ _static_exec(PyObject *m)
     SET_TYPE_CODE(TYPED_DOUBLE)
     SET_TYPE_CODE(TYPED_BOOL)
     SET_TYPE_CODE(TYPED_CHAR)
+    SET_TYPE_CODE(TYPED_ARRAY)
 
 
     SET_TYPE_CODE(SEQ_LIST)
     SET_TYPE_CODE(SEQ_TUPLE)
     SET_TYPE_CODE(SEQ_LIST_INEXACT)
+    SET_TYPE_CODE(SEQ_ARRAY_INT64)
     SET_TYPE_CODE(SEQ_SUBSCR_UNCHECKED)
 
     SET_TYPE_CODE(SEQ_REPEAT_INEXACT_SEQ)
@@ -131,6 +133,7 @@ _static_exec(PyObject *m)
     SET_TYPE_CODE(FAST_LEN_DICT)
     SET_TYPE_CODE(FAST_LEN_SET)
     SET_TYPE_CODE(FAST_LEN_TUPLE)
+    SET_TYPE_CODE(FAST_LEN_ARRAY);
     SET_TYPE_CODE(FAST_LEN_STR)
 
     /* Not actually a type code, but still an int */
@@ -190,6 +193,12 @@ static PyObject* _static_create(PyObject *spec, PyModuleDef *def) {
     ((PyModuleObject*)res)->md_dict = base_dict;
     if (PyDict_SetItemString(mod_dict, "__name__", name) ||
        PyModule_AddObject(res, "__name__", name)) {
+        Py_DECREF(res);
+        Py_DECREF(name);
+        return NULL;
+    }
+
+    if (PyType_Ready(&PyStaticArray_Type) < 0) {
         Py_DECREF(res);
         Py_DECREF(name);
         return NULL;

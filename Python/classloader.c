@@ -4934,6 +4934,10 @@ staticarray_length(PyStaticArrayObject *a)
     return Py_SIZE(a);
 }
 
+static int staticarray_traverse(PyObject *self, visitproc visit, void *arg) {
+    return 0;
+}
+
 static PyObject *
 staticarray_concat(PyStaticArrayObject *first, PyObject *other)
 {
@@ -5027,6 +5031,32 @@ staticarray_setitem(PyStaticArrayObject *array, Py_ssize_t index, PyObject* valu
     return 0;
 }
 
+PyObject *
+staticarray___class_getitem__(PyObject *origin, PyObject *args)
+{
+    Py_INCREF(origin);
+    return origin;
+}
+
+PyObject *staticarray_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    if (!_PyArg_NoKeywords("staticarray", kwds)) {
+        return NULL;
+    }
+
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    if (!_PyArg_CheckPositional("staticarray", nargs, 1, 1)) {
+        return NULL;
+    }
+
+    PyObject* length = PyTuple_GET_ITEM(args, 0);
+    Py_ssize_t size = PyLong_AsSize_t(length);
+    if (size == -1 && PyErr_Occurred()) {
+        return NULL;
+    }
+    PyStaticArrayObject *new = (PyStaticArrayObject *)type->tp_alloc(type, size);
+    staticarray_zeroinitialize(new, size);
+    return (PyObject*)new;
+}
 
 static PySequenceMethods staticarray_as_sequence = {
     .sq_length = (lenfunc)staticarray_length,
@@ -5036,9 +5066,15 @@ static PySequenceMethods staticarray_as_sequence = {
     .sq_ass_item = (ssizeobjargproc)staticarray_setitem,
 };
 
+static PyMethodDef staticarray_methods[] = {
+    {"__class_getitem__", (PyCFunction)staticarray___class_getitem__, METH_O|METH_CLASS, PyDoc_STR("")},
+    {NULL,              NULL}   /* sentinel */
+};
+
 PyTypeObject PyStaticArray_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "staticarray",
+    .tp_alloc = PyType_GenericAlloc,
     .tp_basicsize = sizeof(PyStaticArrayObject) - sizeof(PyObject *),
     .tp_itemsize = sizeof(ArrayItemType),
     .tp_dealloc = (destructor)staticarray_dealloc,
@@ -5047,5 +5083,20 @@ PyTypeObject PyStaticArray_Type = {
     .tp_free = PyObject_GC_Del,
     .tp_vectorcall = staticarray_vectorcall,
     .tp_repr = staticarray_repr,
+    .tp_methods = staticarray_methods,
+    .tp_new = staticarray_new,
     .tp_as_sequence = &staticarray_as_sequence,
+    .tp_traverse = staticarray_traverse,
 };
+
+/** StaticArray internal C-API **/
+
+int _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value) {
+    PyStaticArrayObject *sa = (PyStaticArrayObject *)array;
+    return staticarray_setitem(sa, index, value);
+}
+
+PyObject* _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index) {
+    PyStaticArrayObject *sa = (PyStaticArrayObject *)array;
+    return staticarray_getitem(sa, index);
+}
