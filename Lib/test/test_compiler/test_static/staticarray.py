@@ -40,6 +40,11 @@ class StaticArrayTests(StaticTestBase):
         with self.assertRaises(OverflowError):
             my_array[1] = 10**1000
 
+        with self.assertRaisesRegex(
+            TypeError, "'object' object cannot be interpreted as an integer"
+        ):
+            my_array[0] = object()
+
     def test_get(self):
         my_array = _static.staticarray(3)
 
