@@ -427,6 +427,28 @@ Register* simplifyLoadArrayItem(Env& env, const LoadArrayItem* instr) {
   return nullptr;
 }
 
+Register* simplifyLoadVarObjectSize(Env& env, const LoadVarObjectSize* instr) {
+  Register* obj_reg = instr->GetOperand(0);
+  Type type = obj_reg->type();
+  // We can only do this for tuples because lists and arrays, the other
+  // sequence types, are mutable. A more general LoadElimination pass could
+  // accomplish that, though.
+  if (obj_reg->instr()->IsMakeTuple()) {
+    env.emit<UseType>(obj_reg, type);
+    size_t size = static_cast<const MakeTuple*>(obj_reg->instr())->nvalues();
+    Type output_type = instr->GetOutput()->type();
+    return env.emit<LoadConst>(Type::fromCInt(size, output_type));
+  }
+  if (type.hasValueSpec(TTupleExact) || type.hasValueSpec(TBytesExact)) {
+    PyVarObject* obj = reinterpret_cast<PyVarObject*>(type.asObject());
+    Py_ssize_t size = obj->ob_size;
+    env.emit<UseType>(obj_reg, type);
+    Type output_type = instr->GetOutput()->type();
+    return env.emit<LoadConst>(Type::fromCInt(size, output_type));
+  }
+  return nullptr;
+}
+
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   Register* lhs = instr->left();
   Register* rhs = instr->right();
@@ -691,6 +713,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kLoadArrayItem:
       return simplifyLoadArrayItem(
           env, static_cast<const LoadArrayItem*>(instr));
+    case Opcode::kLoadVarObjectSize:
+      return simplifyLoadVarObjectSize(
+          env, static_cast<const LoadVarObjectSize*>(instr));
 
     case Opcode::kBinaryOp:
       return simplifyBinaryOp(env, static_cast<const BinaryOp*>(instr));
