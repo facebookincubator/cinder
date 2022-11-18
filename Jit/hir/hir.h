@@ -3212,6 +3212,10 @@ class INSTR_CLASS(
     return GetOperand(1);
   }
 
+  Register* seq() const {
+    return GetOperand(2);
+  }
+
   ssize_t offset() const {
     return offset_;
   }
