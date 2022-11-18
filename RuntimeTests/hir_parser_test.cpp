@@ -361,6 +361,18 @@ TEST_F(HIRParserTest, FormatValue) {
   EXPECT_EQ(HIRPrinter{}.ToString(*func), hir_source);
 }
 
+TEST_F(HIRParserTest, ParsesReturnType) {
+  const char* hir_source = R"(fun test {
+  bb 0 {
+    v0 = LoadConst<CInt32[0]>
+    Return<CInt32> v0
+  }
+}
+)";
+  auto func = HIRParser{}.ParseHIR(hir_source);
+  EXPECT_EQ(HIRPrinter{}.ToString(*func), hir_source);
+}
+
 TEST_F(HIRParserTest, PartialRoundtripWithNames) {
   const char* py_src = R"(
 def my_func(a, b, c):

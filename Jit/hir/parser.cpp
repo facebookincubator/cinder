@@ -439,7 +439,7 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
       expect(">");
     }
     auto var = ParseRegister();
-    NEW_INSTR(Return, var);
+    NEW_INSTR(Return, var, type);
   } else if (strcmp(opcode, "YieldValue") == 0) {
     Register* value = ParseRegister();
     instruction = newInstr<YieldValue>(dst, value);
