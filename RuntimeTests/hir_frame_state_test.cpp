@@ -749,21 +749,19 @@ def test(x, y):
         Stack<1> v0
       }
     }
-    v2 = MakeListTuple<list, 2> {
+    v2 = MakeList<2> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
         Stack<2> v0 v1
       }
     }
-    InitListTuple<list, 2> v2 v0 v1
-    v3 = Assign v2
     Snapshot {
       NextInstrOffset 6
       Locals<2> v0 v1
-      Stack<1> v3
+      Stack<1> v2
     }
-    Return v3
+    Return v2
   }
 }
 )";
@@ -798,21 +796,19 @@ def test(x, y):
         Stack<1> v0
       }
     }
-    v2 = MakeListTuple<tuple, 2> {
+    v2 = MakeTuple<2> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
         Stack<2> v0 v1
       }
     }
-    InitListTuple<tuple, 2> v2 v0 v1
-    v3 = Assign v2
     Snapshot {
       NextInstrOffset 6
       Locals<2> v0 v1
-      Stack<1> v3
+      Stack<1> v2
     }
-    Return v3
+    Return v2
   }
 }
 )";
@@ -841,37 +837,35 @@ def test(x):
         Locals<2> v0 v1
       }
     }
-    v2 = MakeListTuple<tuple, 1> {
+    v2 = MakeTuple<1> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
         Stack<1> v0
       }
     }
-    InitListTuple<tuple, 1> v2 v0
-    v3 = Assign v2
     Snapshot {
       NextInstrOffset 4
       Locals<2> v0 v1
-      Stack<1> v3
+      Stack<1> v2
     }
-    v4 = LoadConst<MortalCode["foo"]>
-    v5 = LoadConst<MortalUnicodeExact["test.<locals>.foo"]>
-    v6 = MakeFunction v5 v4 {
+    v3 = LoadConst<MortalCode["foo"]>
+    v4 = LoadConst<MortalUnicodeExact["test.<locals>.foo"]>
+    v5 = MakeFunction v4 v3 {
       FrameState {
         NextInstrOffset 10
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    SetFunctionAttr<func_defaults> v3 v6
-    InitFunction v6
+    SetFunctionAttr<func_defaults> v2 v5
+    InitFunction v5
     Snapshot {
       NextInstrOffset 10
       Locals<2> v0 v1
-      Stack<1> v6
+      Stack<1> v5
     }
-    v1 = Assign v6
+    v1 = Assign v5
     v1 = CheckVar<"foo"> v1 {
       FrameState {
         NextInstrOffset 14

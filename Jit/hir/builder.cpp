@@ -3287,26 +3287,26 @@ void HIRBuilder::emitFunctionCredential(
 void HIRBuilder::emitMakeListTuple(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
-  bool is_tuple = (bc_instr.opcode() == BUILD_TUPLE);
   auto num_elems = static_cast<size_t>(bc_instr.oparg());
   auto dst = temps_.AllocateStack();
-  tc.emit<MakeListTuple>(is_tuple, dst, num_elems, tc.frame);
-  auto init_lt = tc.emit<InitListTuple>(num_elems + 1, is_tuple);
-  init_lt->SetOperand(0, dst);
+  Instr* instr;
+  if (bc_instr.opcode() == BUILD_TUPLE) {
+    instr = tc.emit<MakeTuple>(num_elems, dst, tc.frame);
+  } else {
+    instr = tc.emit<MakeList>(num_elems, dst, tc.frame);
+  }
   for (size_t i = num_elems; i > 0; i--) {
     auto opnd = tc.frame.stack.pop();
-    init_lt->SetOperand(i, opnd);
+    instr->SetOperand(i - 1, opnd);
   }
-  auto new_dst = temps_.AllocateStack();
-  tc.emit<Assign>(new_dst, dst);
-  tc.frame.stack.push(new_dst);
+  tc.frame.stack.push(dst);
 }
 
 void HIRBuilder::emitMakeListTupleUnpack(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   Register* list = temps_.AllocateStack();
-  tc.emit<MakeListTuple>(false, list, 0, tc.frame);
+  tc.emit<MakeList>(0, list, tc.frame);
 
   bool with_call = bc_instr.opcode() == BUILD_TUPLE_UNPACK_WITH_CALL;
   int oparg = bc_instr.oparg();
@@ -3344,13 +3344,11 @@ void HIRBuilder::emitBuildCheckedList(
       "expected CheckedList type");
 
   Register* list = temps_.AllocateStack();
-  tc.emit<MakeCheckedList>(list, list_size, type, tc.frame);
+  auto instr = tc.emit<MakeCheckedList>(list_size, list, type, tc.frame);
   // Fill list
-  auto init_checked_list = tc.emit<InitListTuple>(list_size + 1, false);
-  init_checked_list->SetOperand(0, list);
   for (size_t i = list_size; i > 0; i--) {
     auto operand = tc.frame.stack.pop();
-    init_checked_list->SetOperand(i, operand);
+    instr->SetOperand(i - 1, operand);
   }
   tc.frame.stack.push(list);
 }

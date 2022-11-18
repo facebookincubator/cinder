@@ -1953,36 +1953,42 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
 
-      case Opcode::kMakeListTuple: {
-        auto instr = static_cast<const MakeListTuple*>(&i);
-
+      case Opcode::kMakeList: {
+        auto instr = static_cast<const MakeList*>(&i);
         bbb.AppendCall(
             instr->dst(),
-            instr->is_tuple() ? PyTuple_New : PyList_New,
+            PyList_New,
             static_cast<Py_ssize_t>(instr->nvalues()));
+        if (instr->nvalues() > 0) {
+          std::string base = GetSafeTempName();
+          bbb.AppendCode(
+              "Load {}, {}, {}",
+              base,
+              instr->dst(),
+              offsetof(PyListObject, ob_item));
+          for (size_t i = 0; i < instr->nvalues(); i++) {
+            bbb.AppendCode(
+                "Store {}, {}, {}",
+                instr->GetOperand(i),
+                base,
+                i * kPointerSize);
+          }
+        }
         break;
       }
-      case Opcode::kInitListTuple: {
-        auto instr = static_cast<const InitListTuple*>(&i);
-        auto is_tuple = instr->is_tuple();
-
-        std::string base = instr->GetOperand(0)->name();
-
-        std::string tmp_id = GetSafeTempName();
-        if (!is_tuple && instr->NumOperands() > 1) {
-          bbb.AppendCode(
-              "Load {}, {}, {}", tmp_id, base, offsetof(PyListObject, ob_item));
-          base = std::move(tmp_id);
-        }
-
-        const size_t ob_item_offset =
-            is_tuple ? offsetof(PyTupleObject, ob_item) : 0;
-        for (size_t i = 1; i < instr->NumOperands(); i++) {
+      case Opcode::kMakeTuple: {
+        auto instr = static_cast<const MakeTuple*>(&i);
+        bbb.AppendCall(
+            instr->dst(),
+            PyTuple_New,
+            static_cast<Py_ssize_t>(instr->nvalues()));
+        const size_t ob_item_offset = offsetof(PyTupleObject, ob_item);
+        for (size_t i = 0; i < instr->NumOperands(); i++) {
           bbb.AppendCode(
               "Store {}, {}, {}",
               instr->GetOperand(i),
-              base,
-              ob_item_offset + ((i - 1) * kPointerSize));
+              instr->dst(),
+              ob_item_offset + i * kPointerSize);
         }
         break;
       }
@@ -2076,12 +2082,27 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kMakeCheckedList: {
         auto instr = static_cast<const MakeCheckedList*>(&i);
-        auto capacity = instr->GetCapacity();
+        auto capacity = instr->nvalues();
         bbb.AppendCall(
             instr->GetOutput(),
             _PyCheckedList_New,
             instr->type().typeSpec(),
             static_cast<Py_ssize_t>(capacity));
+        if (instr->nvalues() > 0) {
+          std::string base = GetSafeTempName();
+          bbb.AppendCode(
+              "Load {}, {}, {}",
+              base,
+              instr->dst(),
+              offsetof(PyListObject, ob_item));
+          for (size_t i = 0; i < instr->nvalues(); i++) {
+            bbb.AppendCode(
+                "Store {}, {}, {}",
+                instr->GetOperand(i),
+                base,
+                i * kPointerSize);
+          }
+        }
         break;
       }
       case Opcode::kMakeCheckedDict: {

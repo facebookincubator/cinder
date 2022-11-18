@@ -332,7 +332,6 @@ struct FrameState {
   V(InPlaceOp)                         \
   V(Incref)                            \
   V(InitFunction)                      \
-  V(InitListTuple)                     \
   V(InitialYield)                      \
   V(IntBinaryOp)                       \
   V(PrimitiveBox)                      \
@@ -374,7 +373,8 @@ struct FrameState {
   V(MakeCell)                          \
   V(MakeDict)                          \
   V(MakeFunction)                      \
-  V(MakeListTuple)                     \
+  V(MakeList)                          \
+  V(MakeTuple)                         \
   V(MakeSet)                           \
   V(MakeTupleFromList)                 \
   V(MergeDictUnpack)                   \
@@ -3105,54 +3105,56 @@ class INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
   Type type_;
 };
 
-// Allocate a tuple or list object with number of values
-class INSTR_CLASS(MakeListTuple, (), HasOutput, Operands<0>, DeoptBase) {
+// Allocate and fill a list object with the given operands
+class INSTR_CLASS(MakeList, (TObject), HasOutput, Operands<>, DeoptBase) {
  public:
-  MakeListTuple(
-      bool is_tuple,
+  MakeList(Register* dst, const FrameState& frame) : InstrT(dst, frame) {}
+
+  MakeList(
       Register* dst,
-      size_t nvalues,
+      const std::vector<Register*>& args,
       const FrameState& frame)
-      : InstrT(dst, frame), tuple_(is_tuple), nvalues_(nvalues) {}
+      : InstrT(dst, frame) {
+    JIT_CHECK(
+        NumOperands() == args.size(),
+        "cannot add %d args to instr with %d operands",
+        args.size(),
+        NumOperands());
+    size_t i = 0;
+    for (Register* arg : args) {
+      SetOperand(i++, arg);
+    }
+  }
 
   size_t nvalues() const {
-    return nvalues_;
+    return NumOperands();
   }
-
-  bool is_tuple() const {
-    return tuple_;
-  }
-
- private:
-  bool tuple_;
-  size_t nvalues_;
 };
 
-// Initialize a tuple or a list with the arguments
-class INSTR_CLASS(InitListTuple, (), Operands<>) {
+// Allocate and fill a tuple object with the given operands
+class INSTR_CLASS(MakeTuple, (TObject), HasOutput, Operands<>, DeoptBase) {
  public:
-  InitListTuple(bool is_tuple) : InstrT(), tuple_(is_tuple) {}
+  MakeTuple(Register* dst, const FrameState& frame) : InstrT(dst, frame) {}
 
-  bool is_tuple() const {
-    return tuple_;
-  }
-
-  size_t num_args() const {
-    return NumOperands() - 1;
-  }
-
-  OperandType GetOperandTypeImpl(std::size_t i) const {
-    if (i == 0) {
-      if (tuple_) {
-        return TTuple;
-      }
-      return Constraint::kListOrChkList;
+  MakeTuple(
+      Register* dst,
+      const std::vector<Register*>& args,
+      const FrameState& frame)
+      : InstrT(dst, frame) {
+    JIT_CHECK(
+        NumOperands() == args.size(),
+        "cannot add %d args to instr with %d operands",
+        args.size(),
+        NumOperands());
+    size_t i = 0;
+    for (Register* arg : args) {
+      SetOperand(i++, arg);
     }
-    return TOptObject;
   }
 
- private:
-  bool tuple_;
+  size_t nvalues() const {
+    return NumOperands();
+  }
 };
 
 // Initialize a tuple from a list
@@ -3331,19 +3333,19 @@ class INSTR_CLASS(MakeCheckedDict, (), HasOutput, Operands<0>, DeoptBase) {
   Type type_;
 };
 
-// Allocate an empty checked list with the given capacity, or the default
-// capacity if 0 is given.
-class INSTR_CLASS(MakeCheckedList, (), HasOutput, Operands<0>, DeoptBase) {
+// Allocate and fill a CheckedList object with the given operands
+class INSTR_CLASS(
+    MakeCheckedList,
+    (TObject),
+    HasOutput,
+    Operands<>,
+    DeoptBase) {
  public:
-  MakeCheckedList(
-      Register* dst,
-      size_t capacity,
-      Type list_type,
-      const FrameState& frame)
-      : InstrT(dst, frame), capacity_(capacity), type_(list_type) {}
+  MakeCheckedList(Register* dst, Type list_type, const FrameState& frame)
+      : InstrT(dst, frame), type_(list_type) {}
 
-  size_t GetCapacity() const {
-    return capacity_;
+  size_t nvalues() const {
+    return NumOperands();
   }
 
   Type type() const {
@@ -3351,7 +3353,6 @@ class INSTR_CLASS(MakeCheckedList, (), HasOutput, Operands<0>, DeoptBase) {
   }
 
  private:
-  size_t capacity_;
   Type type_;
 };
 

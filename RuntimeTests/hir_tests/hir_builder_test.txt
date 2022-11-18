@@ -1622,16 +1622,14 @@ fun jittestmodule:test {
         Stack<2> v0 v0
       }
     }
-    v1 = MakeListTuple<tuple, 3> {
+    v1 = MakeTuple<3> v0 v0 v0 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
         Stack<3> v0 v0 v0
       }
     }
-    InitListTuple<tuple, 3> v1 v0 v0 v0
-    v2 = Assign v1
-    Return v2
+    Return v1
   }
 }
 ---
@@ -1663,16 +1661,14 @@ fun jittestmodule:test {
         Stack<2> v0 v0
       }
     }
-    v1 = MakeListTuple<list, 3> {
+    v1 = MakeList<3> v0 v0 v0 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
         Stack<3> v0 v0 v0
       }
     }
-    InitListTuple<list, 3> v1 v0 v0 v0
-    v2 = Assign v1
-    Return v2
+    Return v1
   }
 }
 ---
@@ -2850,40 +2846,36 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
-    v2 = MakeListTuple<list, 0> {
+    v2 = MakeList<0> {
       FrameState {
         NextInstrOffset 2
         Locals<2> v0 v1
       }
     }
-    InitListTuple<list, 0> v2
-    v3 = Assign v2
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    v4 = GetIter v0 {
+    v3 = GetIter v0 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    v2 = Assign v3
-    v3 = Assign v4
     Branch<4>
   }
 
   bb 4 (preds 0, 2) {
-    v7 = LoadEvalBreaker
-    CondBranch<5, 1> v7
+    v6 = LoadEvalBreaker
+    CondBranch<5, 1> v6
   }
 
   bb 5 (preds 4) {
-    v8 = RunPeriodicTasks {
+    v7 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
@@ -2894,14 +2886,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
-    v5 = InvokeIterNext v3 {
+    v4 = InvokeIterNext v3 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v0 v1
         Stack<2> v2 v3
       }
     }
-    v4 = Assign v5
     CondBranchIterNotDone<2, 3> v4
   }
 
@@ -2914,7 +2905,7 @@ fun jittestmodule:test {
         Stack<2> v2 v3
       }
     }
-    v6 = ListAppend v2 v1 {
+    v5 = ListAppend v2 v1 {
       FrameState {
         NextInstrOffset 14
         Locals<2> v0 v1
@@ -2946,27 +2937,25 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    v2 = MakeListTuple<tuple, 1> {
+    v2 = MakeTuple<1> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
         Stack<1> v0
       }
     }
-    InitListTuple<tuple, 1> v2 v0
-    v3 = Assign v2
-    v4 = LoadConst<MortalCode["nested"]>
-    v5 = LoadConst<MortalUnicodeExact["test.<locals>.nested"]>
-    v6 = MakeFunction v5 v4 {
+    v3 = LoadConst<MortalCode["nested"]>
+    v4 = LoadConst<MortalUnicodeExact["test.<locals>.nested"]>
+    v5 = MakeFunction v4 v3 {
       FrameState {
         NextInstrOffset 10
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    SetFunctionAttr<func_defaults> v3 v6
-    InitFunction v6
-    v1 = Assign v6
+    SetFunctionAttr<func_defaults> v2 v5
+    InitFunction v5
+    v1 = Assign v5
     v1 = CheckVar<"nested"> v1 {
       FrameState {
         NextInstrOffset 14
@@ -2997,7 +2986,7 @@ fun jittestmodule:test {
     v3 = LoadConst<MortalLongExact[1]>
     v4 = StealCellItem v1
     SetCellItem v1 v3 v4
-    v5 = MakeListTuple<tuple, 1> {
+    v5 = MakeTuple<1> v1 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
@@ -3005,21 +2994,19 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    InitListTuple<tuple, 1> v5 v1
-    v6 = Assign v5
-    v7 = LoadConst<MortalCode["g"]>
-    v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
-    v9 = MakeFunction v8 v7 {
+    v6 = LoadConst<MortalCode["g"]>
+    v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
+    v8 = MakeFunction v7 v6 {
       FrameState {
         NextInstrOffset 14
         Locals<1> v0
         Cells<1> v1
-        Stack<1> v6
+        Stack<1> v5
       }
     }
-    SetFunctionAttr<func_closure> v6 v9
-    InitFunction v9
-    v0 = Assign v9
+    SetFunctionAttr<func_closure> v5 v8
+    InitFunction v8
+    v0 = Assign v8
     v0 = CheckVar<"g"> v0 {
       FrameState {
         NextInstrOffset 18
@@ -3048,7 +3035,7 @@ fun jittestmodule:test {
         Cells<1> v2
       }
     }
-    v4 = MakeListTuple<tuple, 1> {
+    v4 = MakeTuple<1> v2 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v3 v1
@@ -3056,21 +3043,19 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
-    InitListTuple<tuple, 1> v4 v2
-    v5 = Assign v4
-    v6 = LoadConst<MortalCode["g"]>
-    v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
-    v8 = MakeFunction v7 v6 {
+    v5 = LoadConst<MortalCode["g"]>
+    v6 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
+    v7 = MakeFunction v6 v5 {
       FrameState {
         NextInstrOffset 10
         Locals<2> v3 v1
         Cells<1> v2
-        Stack<1> v5
+        Stack<1> v4
       }
     }
-    SetFunctionAttr<func_closure> v5 v8
-    InitFunction v8
-    v1 = Assign v8
+    SetFunctionAttr<func_closure> v4 v7
+    InitFunction v7
+    v1 = Assign v7
     v1 = CheckVar<"g"> v1 {
       FrameState {
         NextInstrOffset 14
@@ -3100,7 +3085,7 @@ fun jittestmodule:test {
         Cells<1> v3
       }
     }
-    v5 = MakeListTuple<tuple, 1> {
+    v5 = MakeTuple<1> v3 {
       FrameState {
         NextInstrOffset 4
         Locals<3> v4 v1 v2
@@ -3108,21 +3093,19 @@ fun jittestmodule:test {
         Stack<1> v3
       }
     }
-    InitListTuple<tuple, 1> v5 v3
-    v6 = Assign v5
-    v7 = LoadConst<MortalCode["g"]>
-    v8 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
-    v9 = MakeFunction v8 v7 {
+    v6 = LoadConst<MortalCode["g"]>
+    v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
+    v8 = MakeFunction v7 v6 {
       FrameState {
         NextInstrOffset 10
         Locals<3> v4 v1 v2
         Cells<1> v3
-        Stack<1> v6
+        Stack<1> v5
       }
     }
-    SetFunctionAttr<func_closure> v6 v9
-    InitFunction v9
-    v1 = Assign v9
+    SetFunctionAttr<func_closure> v5 v8
+    InitFunction v8
+    v1 = Assign v8
     v1 = CheckVar<"g"> v1 {
       FrameState {
         NextInstrOffset 14
@@ -3130,31 +3113,31 @@ fun jittestmodule:test {
         Cells<1> v3
       }
     }
-    v10 = VectorCall<0> v1 {
+    v9 = VectorCall<0> v1 {
       FrameState {
         NextInstrOffset 16
         Locals<3> v4 v1 v2
         Cells<1> v3
       }
     }
-    v11 = GetIter v10 {
+    v10 = GetIter v9 {
       FrameState {
         NextInstrOffset 18
         Locals<3> v4 v1 v2
         Cells<1> v3
       }
     }
-    v5 = Assign v11
+    v5 = Assign v10
     Branch<4>
   }
 
   bb 4 (preds 0, 2) {
-    v14 = LoadEvalBreaker
-    CondBranch<5, 1> v14
+    v13 = LoadEvalBreaker
+    CondBranch<5, 1> v13
   }
 
   bb 5 (preds 4) {
-    v15 = RunPeriodicTasks {
+    v14 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 18
         Locals<3> v4 v1 v2
@@ -3166,7 +3149,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
-    v12 = InvokeIterNext v5 {
+    v11 = InvokeIterNext v5 {
       FrameState {
         NextInstrOffset 20
         Locals<3> v4 v1 v2
@@ -3174,7 +3157,7 @@ fun jittestmodule:test {
         Stack<1> v5
       }
     }
-    v6 = Assign v12
+    v6 = Assign v11
     CondBranchIterNotDone<2, 3> v6
   }
 
@@ -3184,8 +3167,8 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 1) {
-    v13 = LoadConst<NoneType>
-    Return v13
+    v12 = LoadConst<NoneType>
+    Return v12
   }
 }
 ---
@@ -3476,12 +3459,12 @@ fun jittestmodule:test {
   }
 
   bb 6 (preds 3, 5) {
-    v12 = LoadEvalBreaker
-    CondBranch<7, 0> v12
+    v11 = LoadEvalBreaker
+    CondBranch<7, 0> v11
   }
 
   bb 7 (preds 6) {
-    v13 = RunPeriodicTasks {
+    v12 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 0
         Locals<2> v0 v1
@@ -3491,40 +3474,37 @@ fun jittestmodule:test {
   }
 
   bb 0 (preds 6, 7) {
-    v2 = MakeListTuple<list, 0> {
+    v2 = MakeList<0> {
       FrameState {
         NextInstrOffset 2
         Locals<2> v0 v1
       }
     }
-    InitListTuple<list, 0> v2
-    v3 = Assign v2
-    v4 = LoadGlobal<0; "warnopts"> {
+    v3 = LoadGlobal<0; "warnopts"> {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    v5 = GetIter v4 {
+    v4 = GetIter v3 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
-        Stack<1> v3
+        Stack<1> v2
       }
     }
-    v2 = Assign v3
-    v3 = Assign v5
+    v3 = Assign v4
     Branch<8>
   }
 
   bb 8 (preds 0, 2) {
-    v14 = LoadEvalBreaker
-    CondBranch<9, 1> v14
+    v13 = LoadEvalBreaker
+    CondBranch<9, 1> v13
   }
 
   bb 9 (preds 8) {
-    v15 = RunPeriodicTasks {
+    v14 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
@@ -3535,35 +3515,35 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 8, 9) {
-    v6 = InvokeIterNext v3 {
+    v5 = InvokeIterNext v3 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v0 v1
         Stack<2> v2 v3
       }
     }
-    v4 = Assign v6
+    v4 = Assign v5
     CondBranchIterNotDone<2, 3> v4
   }
 
   bb 2 (preds 1) {
     v0 = Assign v4
-    v7 = LoadConst<MortalUnicodeExact["-W%s"]>
+    v6 = LoadConst<MortalUnicodeExact["-W%s"]>
     v0 = CheckVar<"o"> v0 {
       FrameState {
         NextInstrOffset 14
         Locals<2> v0 v1
-        Stack<3> v2 v3 v7
+        Stack<3> v2 v3 v6
       }
     }
-    v8 = BinaryOp<Modulo> v7 v0 {
+    v7 = BinaryOp<Modulo> v6 v0 {
       FrameState {
         NextInstrOffset 16
         Locals<2> v0 v1
         Stack<2> v2 v3
       }
     }
-    v9 = ListAppend v2 v8 {
+    v8 = ListAppend v2 v7 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v0 v1
@@ -3582,18 +3562,18 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    v10 = IsTruthy v1 {
+    v9 = IsTruthy v1 {
       FrameState {
         NextInstrOffset 28
         Locals<2> v0 v1
       }
     }
-    CondBranch<4, 6> v10
+    CondBranch<4, 6> v9
   }
 
   bb 4 (preds 3) {
-    v11 = LoadConst<NoneType>
-    Return v11
+    v10 = LoadConst<NoneType>
+    Return v10
   }
 }
 ---

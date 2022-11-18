@@ -920,27 +920,25 @@ fun jittestmodule:test {
     v3 = LoadConst<MortalLongExact[1]>
     v4 = LoadConst<MortalLongExact[3]>
     v5 = LoadConst<MortalLongExact[5]>
-    v6 = MakeListTuple<list, 3> {
+    v6 = MakeList<3> v3 v4 v5 {
       FrameState {
         NextInstrOffset 16
         Stack<4> v2 v3 v4 v5
       }
     }
-    InitListTuple<list, 3> v6 v3 v4 v5
-    v7 = Assign v6
-    v8 = LoadConst<MortalFunc[function:0xdeadbeef]>
-    v9 = VectorCallStatic<2> v8 v2 v7 {
+    v7 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v8 = VectorCallStatic<2> v7 v2 v6 {
       FrameState {
         NextInstrOffset 20
       }
     }
-    v10 = LoadField<ob_size@16, CInt64, borrowed> v9
-    v11 = PrimitiveBox<CInt64> v10 {
+    v9 = LoadField<ob_size@16, CInt64, borrowed> v8
+    v10 = PrimitiveBox<CInt64> v9 {
       FrameState {
         NextInstrOffset 24
       }
     }
-    Return v11
+    Return v10
   }
 }
 ---
@@ -955,21 +953,19 @@ fun jittestmodule:test {
     v0 = LoadConst<MortalLongExact[1]>
     v1 = LoadConst<MortalLongExact[3]>
     v2 = LoadConst<MortalLongExact[5]>
-    v3 = MakeListTuple<list, 3> {
+    v3 = MakeList<3> v0 v1 v2 {
       FrameState {
         NextInstrOffset 10
         Stack<3> v0 v1 v2
       }
     }
-    InitListTuple<list, 3> v3 v0 v1 v2
-    v4 = Assign v3
-    v5 = LoadField<ob_size@16, CInt64, borrowed> v4
-    v6 = PrimitiveBox<CInt64> v5 {
+    v4 = LoadField<ob_size@16, CInt64, borrowed> v3
+    v5 = PrimitiveBox<CInt64> v4 {
       FrameState {
         NextInstrOffset 14
       }
     }
-    Return v6
+    Return v5
   }
 }
 ---
@@ -1342,49 +1338,47 @@ fun jittestmodule:test {
     v4 = LoadConst<MortalLongExact[1]>
     v5 = LoadConst<MortalLongExact[3]>
     v6 = LoadConst<MortalLongExact[-5]>
-    v7 = MakeListTuple<list, 3> {
+    v7 = MakeList<3> v4 v5 v6 {
       FrameState {
         NextInstrOffset 16
         Locals<1> v0
         Stack<4> v3 v4 v5 v6
       }
     }
-    InitListTuple<list, 3> v7 v4 v5 v6
-    v8 = Assign v7
-    v9 = LoadConst<MortalFunc[function:0xdeadbeef]>
-    v10 = VectorCallStatic<2> v9 v3 v8 {
+    v8 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v9 = VectorCallStatic<2> v8 v3 v7 {
       FrameState {
         NextInstrOffset 20
         Locals<1> v0
       }
     }
-    v0 = Assign v10
-    v11 = LoadConst<CInt8[7]>
+    v0 = Assign v9
+    v10 = LoadConst<CInt8[7]>
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 26
         Locals<1> v0
-        Stack<1> v11
+        Stack<1> v10
       }
     }
-    v12 = LoadConst<MortalLongExact[1]>
-    v12 = RefineType<LongExact> v12
-    v13 = PrimitiveUnbox<CInt64> v12
-    v14 = IsNegativeAndErrOccurred v13 {
+    v11 = LoadConst<MortalLongExact[1]>
+    v11 = RefineType<LongExact> v11
+    v12 = PrimitiveUnbox<CInt64> v11
+    v13 = IsNegativeAndErrOccurred v12 {
       FrameState {
         NextInstrOffset 32
         Locals<1> v0
-        Stack<2> v11 v0
+        Stack<2> v10 v0
       }
     }
-    v15 = CheckSequenceBounds v0 v13 {
+    v14 = CheckSequenceBounds v0 v12 {
       FrameState {
         NextInstrOffset 34
         Locals<1> v0
       }
     }
-    v16 = LoadField<ob_item@24, CPtr, borrowed> v0
-    StoreArrayItem v16 v15 v11 v0
+    v15 = LoadField<ob_item@24, CPtr, borrowed> v0
+    StoreArrayItem v15 v14 v10 v0
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 36
@@ -1488,17 +1482,15 @@ fun jittestmodule:test {
     v3 = LoadConst<MortalLongExact[1]>
     v4 = LoadConst<MortalLongExact[3]>
     v5 = LoadConst<MortalLongExact[-5]>
-    v6 = MakeListTuple<list, 3> {
+    v6 = MakeList<3> v3 v4 v5 {
       FrameState {
         NextInstrOffset 14
         Locals<2> v0 v1
         Stack<5> v2 v2 v3 v4 v5
       }
     }
-    InitListTuple<list, 3> v6 v3 v4 v5
-    v7 = Assign v6
-    v8 = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
-    v9 = VectorCallStatic<2> v8 v2 v7 {
+    v7 = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
+    v8 = VectorCallStatic<2> v7 v2 v6 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v0 v1
@@ -1506,23 +1498,23 @@ fun jittestmodule:test {
       }
     }
     v0 = Assign v2
-    v10 = LoadConst<CInt64[2]>
-    v1 = Assign v10
+    v9 = LoadConst<CInt64[2]>
+    v1 = Assign v9
     v0 = CheckVar<"l"> v0 {
       FrameState {
         NextInstrOffset 28
         Locals<2> v0 v1
       }
     }
-    v11 = CheckSequenceBounds v0 v1 {
+    v10 = CheckSequenceBounds v0 v1 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v0 v1
       }
     }
-    v12 = LoadField<ob_item@24, CPtr, borrowed> v0
-    v13 = LoadArrayItem v12 v11 v0
-    Return v13
+    v11 = LoadField<ob_item@24, CPtr, borrowed> v0
+    v12 = LoadArrayItem v11 v10 v0
+    Return v12
   }
 }
 ---
@@ -1548,7 +1540,7 @@ fun jittestmodule:test {
     v5 = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: int'
     }
-    v6 = MakeListTuple<tuple, 2> {
+    v6 = MakeTuple<2> v4 v5 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v3 v1
@@ -1556,48 +1548,44 @@ fun jittestmodule:test {
         Stack<2> v4 v5
       }
     }
-    InitListTuple<tuple, 2> v6 v4 v5
-    v7 = Assign v6
-    v8 = MakeListTuple<tuple, 1> {
+    v7 = MakeTuple<1> v2 {
       FrameState {
         NextInstrOffset 12
         Locals<2> v3 v1
         Cells<1> v2
-        Stack<2> v7 v2
+        Stack<2> v6 v2
       }
     }
-    InitListTuple<tuple, 1> v8 v2
-    v9 = Assign v8
-    v10 = LoadConst<MortalCode["inner"]>
-    v11 = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
-    v12 = MakeFunction v11 v10 {
+    v8 = LoadConst<MortalCode["inner"]>
+    v9 = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
+    v10 = MakeFunction v9 v8 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v3 v1
         Cells<1> v2
-        Stack<2> v7 v9
+        Stack<2> v6 v7
       }
     }
-    SetFunctionAttr<func_closure> v9 v12
-    SetFunctionAttr<func_annotations> v7 v12
-    InitFunction v12
-    v1 = Assign v12
-    v13 = LoadCellItem v2
-    v13 = CheckVar<"a"> v13 {
+    SetFunctionAttr<func_closure> v7 v10
+    SetFunctionAttr<func_annotations> v6 v10
+    InitFunction v10
+    v1 = Assign v10
+    v11 = LoadCellItem v2
+    v11 = CheckVar<"a"> v11 {
       FrameState {
         NextInstrOffset 22
         Locals<2> v3 v1
         Cells<1> v2
       }
     }
-    v14 = Cast<int> v13 {
+    v12 = Cast<int> v11 {
       FrameState {
         NextInstrOffset 24
         Locals<2> v3 v1
         Cells<1> v2
       }
     }
-    Return v14
+    Return v12
   }
 }
 ---

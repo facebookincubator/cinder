@@ -158,34 +158,26 @@ Instr* HIRParser::parseInstr(const char* opcode, Register* dst, int bb_index) {
     Register* fromlist = ParseRegister();
     Register* level = ParseRegister();
     instruction = newInstr<ImportName>(dst, name_idx, fromlist, level);
-  } else if (strcmp(opcode, "InitListTuple") == 0) {
+  } else if (strcmp(opcode, "MakeList") == 0) {
     expect("<");
-    auto kind = parseListOrTuple();
-    expect(",");
-    int num_args = GetNextInteger();
+    int nvalues = GetNextInteger();
     expect(">");
-
-    auto target = ParseRegister();
-    std::vector<Register*> args(num_args);
+    std::vector<Register*> args(nvalues);
     std::generate(
         args.begin(),
         args.end(),
         std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
-
-    NEW_INSTR(InitListTuple, num_args + 1, kind == ListOrTuple::Tuple);
-    instr->SetOperand(0, target);
-    for (int i = 0; i < num_args; i++) {
-      instr->SetOperand(i + 1, args[i]);
-    }
-  } else if (strcmp(opcode, "MakeListTuple") == 0) {
+    instruction = newInstr<MakeList>(nvalues, dst, args);
+  } else if (strcmp(opcode, "MakeTuple") == 0) {
     expect("<");
-    auto kind = parseListOrTuple();
-    expect(",");
     int nvalues = GetNextInteger();
     expect(">");
-
-    instruction =
-        newInstr<MakeListTuple>(kind == ListOrTuple::Tuple, dst, nvalues);
+    std::vector<Register*> args(nvalues);
+    std::generate(
+        args.begin(),
+        args.end(),
+        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+    instruction = newInstr<MakeTuple>(nvalues, dst, args);
   } else if (strcmp(opcode, "MakeSet") == 0) {
     NEW_INSTR(MakeSet, dst);
   } else if (strcmp(opcode, "SetSetItem") == 0) {

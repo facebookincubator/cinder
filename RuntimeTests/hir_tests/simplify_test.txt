@@ -231,31 +231,30 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v8:Nullptr = LoadConst<Nullptr>
-    v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v10:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    v11:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
-    v12:MortalListExact = MakeListTuple<list, 3> {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v9:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v10:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v11:MortalListExact = MakeList<3> v8 v9 v10 {
       FrameState {
         NextInstrOffset 8
-        Locals<1> v8
-        Stack<3> v9 v10 v11
+        Locals<1> v7
+        Stack<3> v8 v9 v10
       }
     }
-    InitListTuple<list, 3> v12 v9 v10 v11
-    v16:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    UseType<ListExact> v12
-    UseType<LongExact> v16
-    v22:CInt64[1] = LoadConst<CInt64[1]>
-    v19:CInt64 = CheckSequenceBounds v12 v22 {
+    v14:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    UseType<ListExact> v11
+    UseType<LongExact> v14
+    v20:CInt64[1] = LoadConst<CInt64[1]>
+    v17:CInt64 = CheckSequenceBounds v11 v20 {
       FrameState {
         NextInstrOffset 16
-        Locals<1> v12
+        Locals<1> v11
       }
     }
-    v20:CPtr = LoadField<ob_item@24, CPtr, borrowed> v12
-    v21:Object = LoadArrayItem v20 v19 v12
-    Return v21
+    v18:CPtr = LoadField<ob_item@24, CPtr, borrowed> v11
+    v19:Object = LoadArrayItem v18 v17 v11
+    Return v19
   }
 }
 ---
@@ -1678,7 +1677,8 @@ CheckSequenceBoundsWithKnownInBoundsIndexEliminated
 # HIR
 fun test {
   bb 0 {
-    v0 = MakeListTuple<tuple, 1>
+    v3 = LoadArg<0>
+    v0 = MakeTuple<1> v3
     v1 = LoadConst<CInt64[0]>
     v2 = CheckSequenceBounds v0 v1
     Return<CInt64> v2
@@ -1687,7 +1687,8 @@ fun test {
 ---
 fun test {
   bb 0 {
-    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+    v3:Object = LoadArg<0>
+    v0:MortalTupleExact = MakeTuple<1> v3 {
       FrameState {
         NextInstrOffset 0
       }
@@ -1704,7 +1705,8 @@ CheckSequenceBoundsWithKnownInBoundsNegativeIndexEliminated
 # HIR
 fun test {
   bb 0 {
-    v0 = MakeListTuple<tuple, 1>
+    v3 = LoadArg<0>
+    v0 = MakeTuple<1> v3
     v1 = LoadConst<CInt64[-1]>
     v2 = CheckSequenceBounds v0 v1
     Return<CInt64> v2
@@ -1713,7 +1715,8 @@ fun test {
 ---
 fun test {
   bb 0 {
-    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+    v3:Object = LoadArg<0>
+    v0:MortalTupleExact = MakeTuple<1> v3 {
       FrameState {
         NextInstrOffset 0
       }
@@ -1721,8 +1724,8 @@ fun test {
     v1:CInt64[-1] = LoadConst<CInt64[-1]>
     UseType<MortalTupleExact> v0
     UseType<CInt64[-1]> v1
-    v3:CInt64[0] = LoadConst<CInt64[0]>
-    Return<CInt64> v3
+    v4:CInt64[0] = LoadConst<CInt64[0]>
+    Return<CInt64> v4
   }
 }
 ---
@@ -1731,7 +1734,8 @@ CheckSequenceBoundsWithKnownOutOfBoundsIndexNotEliminated
 # HIR
 fun test {
   bb 0 {
-    v0 = MakeListTuple<tuple, 1>
+    v3 = LoadArg<0>
+    v0 = MakeTuple<1> v3
     v1 = LoadConst<CInt64[1]>
     v2 = CheckSequenceBounds v0 v1
     Return<CInt64> v2
@@ -1740,7 +1744,8 @@ fun test {
 ---
 fun test {
   bb 0 {
-    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+    v3:Object = LoadArg<0>
+    v0:MortalTupleExact = MakeTuple<1> v3 {
       FrameState {
         NextInstrOffset 0
       }
