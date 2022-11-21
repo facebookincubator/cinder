@@ -35,28 +35,23 @@ class BCOffsetBase {
   }
 
   // Comparison operators.
-  auto operator<=>(T other) const {
-    return value() <=> other.value();
+
+  constexpr auto operator<=>(const T& other) const {
+    return operator<=>(other.value());
   }
 
-  auto operator<=>(Py_ssize_t other) const {
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr auto operator<=>(const TInt& other) const {
     return value() <=> other;
   }
 
-  bool operator==(T other) const {
+  constexpr bool operator==(const T& other) const {
     return operator==(other.value());
   }
 
-  bool operator==(Py_ssize_t other) const {
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr bool operator==(const TInt& other) const {
     return value() == other;
-  }
-
-  bool operator>(T other) const {
-    return operator>(other.value());
-  }
-
-  bool operator>(Py_ssize_t other) const {
-    return value() > other;
   }
 
   // Arithmetic operators.
