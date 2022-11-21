@@ -19,7 +19,6 @@ class PostGenerationRewrite : public Rewrite {
     registerOneRewriteFunction(rewriteBinaryOpConstantPosition, 1);
     registerOneRewriteFunction(rewriteBinaryOpLargeConstant, 1);
     registerOneRewriteFunction(rewriteGuardLargeConstant, 1);
-    registerOneRewriteFunction(rewriteCondBranch, 1);
     registerOneRewriteFunction(rewriteLoadArg, 1);
     registerOneRewriteFunction(rewriteMoveToMemoryLargeConstant, 1);
   }
@@ -42,10 +41,6 @@ class PostGenerationRewrite : public Rewrite {
   // Rewrite storing a large immediate to a memory location
   static RewriteResult rewriteMoveToMemoryLargeConstant(
       instr_iter_t instr_iter);
-
-  // Rewrite CondBranch instruction so that in some cases, we don't have
-  // to allocate a register for it.
-  static RewriteResult rewriteCondBranch(instr_iter_t instr_iter);
 
   // Rewrite LoadArg to Bind and allocate a physical register for its input.
   static RewriteResult rewriteLoadArg(instr_iter_t instr_iter, Environ* env);

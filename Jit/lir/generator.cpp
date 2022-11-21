@@ -1022,7 +1022,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               is_not_negative,
               src_name,
               TCInt32,
-              static_cast<uint32_t>(-1));
+              -1);
         }
         bbb.AppendCode("Move {}, {:#x}", instr->dst(), 0);
         auto done = GetSafeLabelName();

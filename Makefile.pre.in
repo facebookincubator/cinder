@@ -2600,7 +2600,6 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/lir_dce_test.o \
 	${RUNTIME_TESTS_DIR}/lir_inliner_test.o \
 	${RUNTIME_TESTS_DIR}/lir_postalloc_test.o \
-	${RUNTIME_TESTS_DIR}/lir_rewrite_test.o \
 	${RUNTIME_TESTS_DIR}/lir_verify_test.o \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
 	${RUNTIME_TESTS_DIR}/live_type_map_test.o \

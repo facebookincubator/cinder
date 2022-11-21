@@ -202,56 +202,6 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteGuardLargeConstant(
   return kChanged;
 }
 
-Rewrite::RewriteResult PostGenerationRewrite::rewriteCondBranch(
-    instr_iter_t instr_iter) {
-  // find the pattern like
-  // %3 = Compare<cc> %1, %2
-  // CondBranch %3, ...
-  // In this case, we don't need to generate a separate register for %3.
-  // We can prevent this happening by removing the output of the first
-  // instruction and the input of the second.
-  // If the output of the compare is used later, we can't remove it.
-
-  auto instr = instr_iter->get();
-  if (!instr->isCondBranch()) {
-    return kUnchanged;
-  }
-
-  auto cond = instr->getInput(0);
-  if (!cond->isLinked() || cond->type() == OperandBase::kNone) {
-    return kUnchanged;
-  }
-
-  Instruction* flag_affecting_instr = findRecentFlagAffectingInstr(instr_iter);
-
-  if (flag_affecting_instr == nullptr) {
-    return kUnchanged;
-  }
-
-  if (!flag_affecting_instr->isCompare()) {
-    return kUnchanged;
-  }
-
-  // for a compare instruction, if the output is not the condition operand
-  // of the cond instruction, we can't optimize it
-  if (flag_affecting_instr !=
-      static_cast<LinkedOperand*>(cond)->getLinkedInstr()) {
-    return kUnchanged;
-  }
-
-  // if the output of the compare has more than one use, we can't remove it
-  Operand* output = flag_affecting_instr->output();
-  if (output->numUses() > 1) {
-    return kUnchanged;
-  }
-
-  // Setting the output to None is effectively removing the output of
-  // flag_affecting_instr and all the input operands that linked to it.
-  // As a result, no register will be allocated for this operand.
-  output->setNone();
-  return kChanged;
-}
-
 Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadArg(
     instr_iter_t instr_iter,
     Environ* env) {

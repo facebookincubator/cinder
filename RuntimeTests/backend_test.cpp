@@ -1022,8 +1022,8 @@ BB %0 - succs: %7
 
 BB %7 - preds: %0 - succs: %9 %8
       %14:Object = Move [%1:Object + 0x8]:Object
-                   Equal %14:Object, %2:Object
-                   CondBranch <!!!None!!!>:Object
+      %15:Object = Equal %14:Object, %2:Object
+                   CondBranch %15:Object
 
 BB %8 - preds: %7 - succs: %9 %10
       %17:Object = Call {0}({0:#x}):Object, %14:Object, %2:Object

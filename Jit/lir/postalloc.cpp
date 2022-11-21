@@ -498,122 +498,41 @@ void PostRegAllocRewrite::doRewriteCondBranch(
   auto block = instr->basicblock();
 
   // insert test Reg, Reg instruction
-  auto insert_test = [&]() {
-    auto size = input->dataType();
-    block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kTest,
-        PhyReg(input->getPhyRegister(), size),
-        PhyReg(input->getPhyRegister(), size));
-  };
+  auto size = input->dataType();
+  block->allocateInstrBefore(
+      instr_iter,
+      Instruction::kTest,
+      PhyReg(input->getPhyRegister(), size),
+      PhyReg(input->getPhyRegister(), size));
 
   // convert the current CondBranch instruction to a BranchCC instruction
-  auto convert_to_branchcc = [&](Instruction::Opcode opcode) {
-    auto true_block = block->getTrueSuccessor();
-    auto false_block = block->getFalseSuccessor();
+  auto true_block = block->getTrueSuccessor();
+  auto false_block = block->getFalseSuccessor();
 
-    BasicBlock* target_block = nullptr;
-    BasicBlock* fallthrough_block = nullptr;
+  BasicBlock* target_block = nullptr;
+  BasicBlock* fallthrough_block = nullptr;
 
-    if (true_block == next_block) {
-      opcode = Instruction::negateBranchCC(opcode);
-      target_block = false_block;
-      fallthrough_block = true_block;
-    } else {
-      target_block = true_block;
-      fallthrough_block = false_block;
-    }
-
-    instr->setOpcode(opcode);
-    instr->setNumInputs(0);
-
-    instr->allocateLabelInput(target_block);
-
-    if (fallthrough_block != next_block ||
-        block->section() != next_block->section()) {
-      auto fallthrough_branch =
-          block->allocateInstr(Instruction::kBranch, instr->origin());
-      fallthrough_branch->allocateLabelInput(fallthrough_block);
-    }
-  };
-
-  auto flag_affecting_instr = findRecentFlagAffectingInstr(instr_iter);
-  if (flag_affecting_instr == nullptr) {
-    insert_test();
-    convert_to_branchcc(Instruction::kBranchNZ);
-    return;
-  }
-
-  if (flag_affecting_instr->isCompare()) {
-    // for compare opcodes
-    auto cmp_opcode = flag_affecting_instr->opcode();
-    auto branchcc_opcode = Instruction::compareToBranchCC(cmp_opcode);
-
-    auto cmp0 = flag_affecting_instr->getInput(0);
-    auto cmp1 = flag_affecting_instr->getInput(1);
-
-    // if the comparison output is otherwise unused, we can simplify the compare
-    if (flag_affecting_instr->output()->type() == OperandBase::kNone) {
-      if (cmp1->type() == OperandBase::kImm && cmp1->getConstant() == 0) {
-        // compare with 0 case - generate test Reg, Reg
-        auto loc = cmp0->getPhyRegister();
-        flag_affecting_instr->setOpcode(Instruction::kTest);
-        flag_affecting_instr->setNumInputs(0);
-        flag_affecting_instr->allocatePhyRegisterInput(loc);
-        flag_affecting_instr->allocatePhyRegisterInput(loc);
-      } else {
-        flag_affecting_instr->setOpcode(Instruction::kCmp);
-      }
-    }
-
-    convert_to_branchcc(branchcc_opcode);
-    return;
-  }
-
-  // for opcodes like Add, Sub, ...
-  Instruction* def_instr = nullptr;
-  // search between the conditional branch and flag_affecting_instr for the
-  // instruction defining the condition operand.
-  // The instruction can be in a different basic block, but we don't consider
-  // this case. If this happens, we always add a "test cond, cond" instruction
-  // conservatively.
-  for (auto iter = std::prev(instr_iter); iter->get() != flag_affecting_instr;
-       --iter) {
-    auto i = iter->get();
-
-    // TODO (tiansi): it is sufficient to only check output here, because all
-    // the instructions that inplace write to the first operand also affect
-    // flags. Need to add an inplace version for all the inplace write
-    // instructions (e.g., InpAdd for Add) so that this check gets more explicit
-    // and rigorous.
-    if (i->output()->type() == OperandBase::kReg &&
-        i->output()->getPhyRegister() == instr->getInput(0)->getPhyRegister()) {
-      def_instr = i;
-      break;
-    }
-  }
-
-  if (def_instr != nullptr) {
-    insert_test();
-    convert_to_branchcc(Instruction::kBranchNZ);
-    return;
-  }
-
-  PhyLocation loc = PhyLocation::REG_INVALID;
-  if (flag_affecting_instr->output()->type() == OperandBase::kNone) {
-    auto in0 = flag_affecting_instr->getInput(0);
-    if (in0->type() == OperandBase::kReg) {
-      loc = flag_affecting_instr->getInput(0)->getPhyRegister();
-    }
+  auto opcode = Instruction::kBranchNZ;
+  if (true_block == next_block) {
+    opcode = Instruction::negateBranchCC(opcode);
+    target_block = false_block;
+    fallthrough_block = true_block;
   } else {
-    // output must be a phy register for now.
-    loc = flag_affecting_instr->output()->getPhyRegister();
+    target_block = true_block;
+    fallthrough_block = false_block;
   }
 
-  if (loc != instr->getInput(0)->getPhyRegister()) {
-    insert_test();
+  instr->setOpcode(opcode);
+  instr->setNumInputs(0);
+
+  instr->allocateLabelInput(target_block);
+
+  if (fallthrough_block != next_block ||
+      block->section() != next_block->section()) {
+    auto fallthrough_branch =
+        block->allocateInstr(Instruction::kBranch, instr->origin());
+    fallthrough_branch->allocateLabelInput(fallthrough_block);
   }
-  convert_to_branchcc(Instruction::kBranchNZ);
 }
 
 void PostRegAllocRewrite::doRewriteBranchCC(

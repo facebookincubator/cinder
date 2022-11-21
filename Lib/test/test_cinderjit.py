@@ -1506,7 +1506,7 @@ class ExceptionInConditional(unittest.TestCase):
             self.doit(DummyContainer())
 
 
-class JITCompileCrasherRegressionTests(unittest.TestCase):
+class JITCompileCrasherRegressionTests(StaticTestBase):
     @unittest.failUnlessJITCompiled
     def _fstring(self, flag, it1, it2):
         for a in it1:
@@ -1551,6 +1551,25 @@ class JITCompileCrasherRegressionTests(unittest.TestCase):
     def test_load_method_on_maybe_defined_value(self):
         with self.assertRaises(NameError):
             self.load_method_on_maybe_defined_value()
+
+    @run_in_subprocess
+    def test_condbranch_codegen(self):
+        codestr = f"""
+            from __static__ import cbool
+            from typing import Optional
+
+
+            class Foo:
+                def __init__(self, x: bool) -> None:
+                    y = cbool(x)
+                    self.start_offset_us: float = 0.0
+                    self.y: cbool = y
+        """
+        with self.in_module(codestr) as mod:
+            gc.immortalize_heap()
+            foo = mod.Foo(True)
+            if cinderjit:
+                self.assertTrue(cinderjit.is_jit_compiled(mod.Foo.__init__))
 
 
 class DelObserver:
