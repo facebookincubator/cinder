@@ -7,9 +7,10 @@ import re
 import cinder
 import dis
 import faulthandler
+import gc
+import multiprocessing
 import os
 import subprocess
-import gc
 from importlib import is_lazy_imports_enabled
 import sys
 import tempfile
@@ -1037,6 +1038,28 @@ class StoreAttrCacheTests(unittest.TestCase):
         self.assertEqual(obj1.foo, 300)
 
 
+# This is pretty long because ASAN + JIT + subprocess + the Python compiler can
+# be pretty slow in CI.
+SUBPROCESS_TIMEOUT_SEC = 5
+
+
+def run_in_subprocess(func):
+    queue = multiprocessing.Queue()
+
+    def wrapper(queue, *args):
+        result = func(*args)
+        queue.put(result, timeout=SUBPROCESS_TIMEOUT_SEC)
+
+    def wrapped(*args):
+        p = multiprocessing.Process(target=wrapper, args=(queue, *args))
+        p.start()
+        value = queue.get(timeout=SUBPROCESS_TIMEOUT_SEC)
+        p.join(timeout=SUBPROCESS_TIMEOUT_SEC)
+        return value
+
+    return wrapped
+
+
 class LoadGlobalCacheTests(unittest.TestCase):
     def setUp(self):
         global license, a_global
@@ -1234,6 +1257,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipUnless(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports enabled")
+    @run_in_subprocess
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1274,6 +1298,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipUnless(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports enabled")
+    @run_in_subprocess
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
