@@ -303,6 +303,12 @@ void* NativeGenerator::GetEntryPoint() {
       "LIR transformations",
       post_gen.run())
 
+  JIT_LOGIF(
+      g_dump_lir,
+      "LIR for %s after postgen rewrites:\n%s",
+      GetFunction()->fullname,
+      *lir_func);
+
   COMPILE_TIMER(
       GetFunction()->compilation_phase_timer,
       "DeadCodeElimination",
