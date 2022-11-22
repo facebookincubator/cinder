@@ -385,7 +385,7 @@ def test(a, b, c=100):
   ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
 
   auto compiled = GenerateCode(pyfunc);
-  pyfunc->vectorcall = compiled->entry_point();
+  pyfunc->vectorcall = compiled->vectorcallEntry();
   ASSERT_NE(compiled, nullptr);
 
   auto one = Ref<>::steal(PyLong_FromLong(1));
@@ -423,7 +423,7 @@ def test(a, b):
   auto kwnames = Ref<>::steal(Py_BuildValue("(s)", "b"));
   ASSERT_NE(kwnames, nullptr);
 
-  vectorcallfunc cfunc = compiled->entry_point();
+  vectorcallfunc cfunc = compiled->vectorcallEntry();
   pyfunc->vectorcall = cfunc;
   auto pfunc = reinterpret_cast<PyObject*>(pyfunc.get());
   PyObject* args[] = {arg0, arg1};

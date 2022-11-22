@@ -201,10 +201,10 @@ PhyLocation get_arg_location_phy_location(int arg) {
   return 0;
 }
 
-void* NativeGenerator::GetEntryPoint() {
-  if (entry_ != nullptr) {
+void* NativeGenerator::getVectorcallEntry() {
+  if (vectorcall_entry_ != nullptr) {
     // already compiled
-    return entry_;
+    return vectorcall_entry_;
   }
 
   JIT_CHECK(as_ == nullptr, "x86::Builder should not have been initialized.");
@@ -392,7 +392,18 @@ void* NativeGenerator::GetEntryPoint() {
   JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = static_cast<int>(code.codeSize());
   env_.code_rt->set_frame_size(env_.frame_size);
-  return entry_;
+  return vectorcall_entry_;
+}
+
+void* NativeGenerator::getStaticEntry() {
+  if (!hasStaticEntry()) {
+    return nullptr;
+  }
+  // Force compile, if needed.
+  getVectorcallEntry();
+  return reinterpret_cast<void*>(
+      reinterpret_cast<uintptr_t>(vectorcall_entry_) +
+      JITRT_STATIC_ENTRY_OFFSET);
 }
 
 int NativeGenerator::GetCompiledFunctionSize() const {
@@ -1063,7 +1074,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
       Label trampoline = as_->newLabel();
       as_->bind(trampoline);
       as_->mov(x86::r10, reinterpret_cast<uint64_t>(x.first));
-      as_->jmp(reinterpret_cast<uint64_t>(jit_trampoline_));
+      as_->jmp(reinterpret_cast<uint64_t>(failed_deferred_compile_trampoline_));
       x.second.trampoline = trampoline;
     }
     env_.addAnnotation("JitHelpers", jit_helpers);
@@ -1305,6 +1316,12 @@ void NativeGenerator::generateStaticEntryPoint(
   env_.addAnnotation("StaticEntryPoint", static_entry_point_cursor);
 }
 
+bool NativeGenerator::hasStaticEntry() const {
+  PyCodeObject* code = GetFunction()->code;
+  return (code->co_flags & CO_STATICALLY_COMPILED) &&
+      !GetFunction()->uses_runtime_func;
+}
+
 void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // The body must be generated before the prologue to determine how much spill
   // space to allocate.
@@ -1317,13 +1334,9 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
 
   Label correct_arg_count = as_->newLabel();
   Label native_entry_point = as_->newLabel();
-
-  PyCodeObject* code = GetFunction()->code;
-
   Label static_jmp_location = as_->newLabel();
 
-  bool has_static_entry = (code->co_flags & CO_STATICALLY_COMPILED) &&
-      !GetFunction()->uses_runtime_func;
+  bool has_static_entry = hasStaticEntry();
   if (has_static_entry) {
     // Setup an entry point for direct static to static
     // calls using the native calling convention
@@ -1343,8 +1356,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
 
   // Setup the normal entry point that expects that implements the
   // vectorcall convention
-  auto entry_label = as_->newLabel();
-  as_->bind(entry_label);
+  Label vectorcall_entry_label = as_->newLabel();
+  as_->bind(vectorcall_entry_label);
   generatePrologue(correct_arg_count, native_entry_point);
 
   generateEpilogue(epilogue_cursor);
@@ -1377,35 +1390,36 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   generateDeoptExits(codeholder);
 
   ASM_CHECK_THROW(as_->finalize());
-  ASM_CHECK_THROW(CodeAllocator::get()->addCode(&entry_, &codeholder));
+  void* code_top;
+  ASM_CHECK_THROW(CodeAllocator::get()->addCode(&code_top, &codeholder));
 
-  // ------------- orig_entry
+  // ------------- code_top
   // ^
   // | JITRT_STATIC_ENTRY_OFFSET (2 bytes, optional)
   // | JITRT_CALL_REENTRY_OFFSET (6 bytes)
   // v
-  // ------------- entry_
-  void* orig_entry = entry_;
+  // ------------- vectorcall_entry_
   if (has_static_entry) {
     JIT_CHECK(
         codeholder.labelOffsetFromBase(static_jmp_location) ==
-            codeholder.labelOffsetFromBase(entry_label) +
+            codeholder.labelOffsetFromBase(vectorcall_entry_label) +
                 JITRT_STATIC_ENTRY_OFFSET,
         "bad static-entry offset %d ",
-        codeholder.labelOffsetFromBase(entry_label) -
+        codeholder.labelOffsetFromBase(vectorcall_entry_label) -
             codeholder.labelOffsetFromBase(static_jmp_location));
   }
   JIT_CHECK(
       codeholder.labelOffset(correct_args_entry) ==
-          codeholder.labelOffset(entry_label) + JITRT_CALL_REENTRY_OFFSET,
+          codeholder.labelOffset(vectorcall_entry_label) +
+              JITRT_CALL_REENTRY_OFFSET,
       "bad re-entry offset");
 
   linkDeoptPatchers(codeholder);
   env_.code_rt->debug_info()->resolvePending(
       env_.pending_debug_locs, *GetFunction(), codeholder);
 
-  entry_ =
-      static_cast<char*>(entry_) + codeholder.labelOffsetFromBase(entry_label);
+  vectorcall_entry_ = static_cast<char*>(code_top) +
+      codeholder.labelOffsetFromBase(vectorcall_entry_label);
 
   for (auto& entry : env_.unresolved_gen_entry_labels) {
     entry.first->setResumeTarget(
@@ -1421,14 +1435,14 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   compiled_size_ = codeholder.codeSize();
 
   if (g_dump_hir_passes_json != nullptr) {
-    env_.annotations.disassembleJSON(*json, orig_entry, codeholder);
+    env_.annotations.disassembleJSON(*json, code_top, codeholder);
   }
 
   JIT_LOGIF(
       g_dump_asm,
       "Disassembly for %s\n%s",
       GetFunction()->fullname,
-      env_.annotations.disassemble(orig_entry, codeholder));
+      env_.annotations.disassemble(code_top, codeholder));
 
   for (auto& x : env_.function_indirections) {
     Label trampoline = x.second.trampoline;
@@ -1449,7 +1463,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // For perf, we want only the size of the code, so we get that directly from
   // the text sections.
   std::vector<std::pair<void*, std::size_t>> code_sections;
-  populateCodeSections(code_sections, codeholder, orig_entry);
+  populateCodeSections(code_sections, codeholder, code_top);
   perf::registerFunction(code_sections, func->fullname, prefix);
 }
 
@@ -1806,7 +1820,7 @@ void* generateDeoptTrampoline(bool generator_mode) {
   return result;
 }
 
-void* generateJitTrampoline() {
+void* generateFailedDeferredCompileTrampoline() {
   CodeHolder code;
   code.init(CodeAllocator::get()->asmJitCodeInfo());
   x86::Builder a(&code);
@@ -1816,11 +1830,8 @@ void* generateJitTrampoline() {
 
   a.push(x86::rbp);
   a.mov(x86::rbp, x86::rsp);
-  // save space for compiled out arg, and keep stack 16-byte aligned
-  a.sub(x86::rsp, sizeof(void*) * 2);
 
   // save incoming arg registers
-  const int saved_reg_count = 6;
   a.push(x86::r9);
   a.push(x86::r8);
   a.push(x86::rcx);
@@ -1833,30 +1844,11 @@ void* generateJitTrampoline() {
   // r10 contains the function object from our stub
   a.mov(x86::rdi, x86::r10);
   a.mov(x86::rsi, x86::rsp);
-  a.lea(
-      x86::rdx,
-      x86::ptr(
-          x86::rsp, sizeof(void*) * saved_reg_count)); // compiled indicator
-
-  a.call(reinterpret_cast<uint64_t>(JITRT_CompileFunction));
-  a.cmp(x86::byte_ptr(x86::rsp, sizeof(void*) * saved_reg_count), 0);
-  auto compile_failed = a.newLabel();
-  a.je(compile_failed);
-
-  // restore registers, and jump to JITed code
-  a.pop(x86::rdi);
-  a.pop(x86::rsi);
-  a.pop(x86::rdx);
-  a.pop(x86::rcx);
-  a.pop(x86::r8);
-  a.pop(x86::r9);
-  a.leave();
-  a.jmp(x86::rax);
-
-  auto name = "JitTrampoline";
-  a.bind(compile_failed);
+  a.call(reinterpret_cast<uint64_t>(JITRT_FailedDeferredCompileShim));
   a.leave();
   a.ret();
+
+  const char* name = "failedDeferredCompileTrampoline";
   ASM_CHECK(a.finalize(), name);
   void* result{nullptr};
   ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);

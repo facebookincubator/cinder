@@ -376,6 +376,45 @@ _asyncio_Task__make_cancelled_error(TaskObj *self, PyObject *Py_UNUSED(ignored))
     return _asyncio_Task__make_cancelled_error_impl(self);
 }
 
+PyDoc_STRVAR(_asyncio_Task_all_tasks__doc__,
+"all_tasks($type, /, loop=None)\n"
+"--\n"
+"\n"
+"Return a set of all tasks for an event loop.\n"
+"\n"
+"By default all tasks for the current event loop are returned.");
+
+#define _ASYNCIO_TASK_ALL_TASKS_METHODDEF    \
+    {"all_tasks", (PyCFunction)(void(*)(void))_asyncio_Task_all_tasks, METH_FASTCALL|METH_KEYWORDS|METH_CLASS, _asyncio_Task_all_tasks__doc__},
+
+static PyObject *
+_asyncio_Task_all_tasks_impl(PyTypeObject *type, PyObject *loop);
+
+static PyObject *
+_asyncio_Task_all_tasks(PyTypeObject *type, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"loop", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "all_tasks", 0};
+    PyObject *argsbuf[1];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
+    PyObject *loop = Py_None;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    loop = args[0];
+skip_optional_pos:
+    return_value = _asyncio_Task_all_tasks_impl(type, loop);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio_Task__repr_info__doc__,
 "_repr_info($self, /)\n"
 "--\n"
@@ -1454,4 +1493,4 @@ _asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=0a8581d9bbeb2f60 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=a835246b8d7ae208 input=a9049054013a1b77]*/

@@ -1556,19 +1556,11 @@ PyObject* JITRT_BuildString(
   return _PyUnicode_JoinArray(empty, args, nargs);
 }
 
-JITRT_StaticCallReturn
-JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
-  void* no_error = (void*)1;
-  if (_PyJIT_IsCompiled((PyObject*)func) ||
-      _PyJIT_CompileFunction(func) == PYJIT_RESULT_OK) {
-    *compiled = 1;
-    void** indirect = jit::Runtime::get()->findFunctionEntryCache(func);
-    *indirect = (void*)JITRT_GET_STATIC_ENTRY(func->vectorcall);
-    return JITRT_StaticCallReturn{
-        (void*)JITRT_GET_STATIC_ENTRY(func->vectorcall), no_error};
-  }
+JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
+    PyFunctionObject* func,
+    PyObject** args) {
+  void* no_error = reinterpret_cast<void*>(1);
 
-  *compiled = 0;
   PyCodeObject* code = (PyCodeObject*)func->func_code;
   int total_args = code->co_argcount;
   if (code->co_flags & CO_VARARGS) {
@@ -1585,8 +1577,6 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
   // arg3
   // arg4
   // arg5
-  // &compiled
-  // dummy
   // previous rbp
   // return address to JITed code
   // memory argument 0
@@ -1603,7 +1593,7 @@ JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled) {
       final_args[i] = args[i];
     }
     for (int i = 6; i < total_args; i++) {
-      final_args[i] = args[i + 4];
+      final_args[i] = args[i + 2];
     }
     dest_args = final_args;
   }

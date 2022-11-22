@@ -19,13 +19,15 @@ namespace jit {
 class CompiledFunction {
  public:
   CompiledFunction(
-      vectorcallfunc entry,
+      vectorcallfunc vectorcall_entry,
+      void* static_entry,
       CodeRuntime* code_runtime,
       int func_size,
       int stack_size,
       int spill_stack_size,
       int num_inlined_functions)
-      : entry_point_(entry),
+      : vectorcall_entry_(vectorcall_entry),
+        static_entry_(static_entry),
         code_runtime_(code_runtime),
         code_size_(func_size),
         stack_size_(stack_size),
@@ -34,12 +36,16 @@ class CompiledFunction {
 
   virtual ~CompiledFunction() {}
 
-  vectorcallfunc entry_point() const {
-    return entry_point_;
+  vectorcallfunc vectorcallEntry() const {
+    return vectorcall_entry_;
   }
 
-  PyObject* Invoke(PyObject* func, PyObject** args, Py_ssize_t nargs) {
-    return entry_point_(func, args, nargs, NULL);
+  void* staticEntry() const {
+    return static_entry_;
+  }
+
+  PyObject* Invoke(PyObject* func, PyObject** args, Py_ssize_t nargs) const {
+    return vectorcall_entry_(func, args, nargs, NULL);
   }
 
   virtual void PrintHIR() const;
@@ -65,12 +71,13 @@ class CompiledFunction {
  private:
   DISALLOW_COPY_AND_ASSIGN(CompiledFunction);
 
-  vectorcallfunc entry_point_;
-  CodeRuntime* code_runtime_{nullptr};
-  int code_size_;
-  int stack_size_;
-  int spill_stack_size_;
-  int num_inlined_functions_;
+  vectorcallfunc const vectorcall_entry_;
+  void* const static_entry_;
+  CodeRuntime* const code_runtime_;
+  const int code_size_;
+  const int stack_size_;
+  const int spill_stack_size_;
+  const int num_inlined_functions_;
 };
 
 // same as CompiledFunction class but keeps HIR and LIR classes for debug
@@ -79,6 +86,7 @@ class CompiledFunctionDebug : public CompiledFunction {
  public:
   CompiledFunctionDebug(
       vectorcallfunc entry,
+      void* static_entry,
       CodeRuntime* code_runtime,
       int func_size,
       int stack_size,
@@ -88,6 +96,7 @@ class CompiledFunctionDebug : public CompiledFunction {
       std::unique_ptr<codegen::NativeGenerator> ngen)
       : CompiledFunction(
             entry,
+            static_entry,
             code_runtime,
             func_size,
             stack_size,

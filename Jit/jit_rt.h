@@ -497,8 +497,17 @@ PyObject* JITRT_UnpackExToTuple(
     int before,
     int after);
 
-JITRT_StaticCallReturn
-JITRT_CompileFunction(PyFunctionObject* func, PyObject** args, bool* compiled);
+/* When compiling a fully-typed JIT static -> static call we sometimes
+ * optimistically assume the target will be JIT compiled too. If the target
+ * fails to compile we point the call to this function which converts the static
+ * arguments into a form suitable for a regular Python vector call. Much of the
+ * work in this function would have to be done anyway if we were initially
+ * making a JIT static -> non-JIT static function anyway, so there is not too
+ * much overhead.
+ */
+JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
+    PyFunctionObject* func,
+    PyObject** args);
 
 JITRT_StaticCallReturn JITRT_CallStaticallyWithPrimitiveSignature(
     PyFunctionObject* func,

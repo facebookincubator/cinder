@@ -15,7 +15,7 @@ class DeoptPatcherTest : public RuntimeTest {
  public:
   std::unique_ptr<jit::CompiledFunction> generateCode(
       jit::codegen::NativeGenerator& ngen) {
-    auto entry = ngen.GetEntryPoint();
+    auto entry = ngen.getVectorcallEntry();
     if (entry == nullptr) {
       return nullptr;
     }
@@ -24,6 +24,7 @@ class DeoptPatcherTest : public RuntimeTest {
     int spill_stack_size = ngen.GetCompiledFunctionSpillStackSize();
     return std::make_unique<jit::CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
+        ngen.getStaticEntry(),
         ngen.codeRuntime(),
         func_size,
         stack_size,

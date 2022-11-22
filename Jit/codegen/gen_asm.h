@@ -29,7 +29,7 @@ namespace codegen {
 // Generate the final stage trampoline that is responsible for finishing
 // execution in the interpreter and then returning the result to the caller.
 void* generateDeoptTrampoline(bool generator_mode);
-void* generateJitTrampoline();
+void* generateFailedDeferredCompileTrampoline();
 
 class NativeGenerator {
  public:
@@ -37,7 +37,8 @@ class NativeGenerator {
       : func_(func),
         deopt_trampoline_(generateDeoptTrampoline(false)),
         deopt_trampoline_generators_(generateDeoptTrampoline(true)),
-        jit_trampoline_(generateJitTrampoline()),
+        failed_deferred_compile_trampoline_(
+            generateFailedDeferredCompileTrampoline()),
         frame_header_size_(calcFrameHeaderSize(func)),
         max_inline_depth_(calcMaxInlineDepth(func)) {
     env_.has_inlined_functions = max_inline_depth_ > 0;
@@ -47,11 +48,11 @@ class NativeGenerator {
       const hir::Function* func,
       void* deopt_trampoline,
       void* deopt_trampoline_generators,
-      void* jit_trampoline)
+      void* failed_deferred_compile_trampoline)
       : func_(func),
         deopt_trampoline_(deopt_trampoline),
         deopt_trampoline_generators_(deopt_trampoline_generators),
-        jit_trampoline_(jit_trampoline),
+        failed_deferred_compile_trampoline_(failed_deferred_compile_trampoline),
         frame_header_size_(calcFrameHeaderSize(func)),
         max_inline_depth_(calcMaxInlineDepth(func)) {
     env_.has_inlined_functions = max_inline_depth_ > 0;
@@ -69,7 +70,8 @@ class NativeGenerator {
   }
 
   std::string GetFunctionName() const;
-  void* GetEntryPoint();
+  void* getVectorcallEntry();
+  void* getStaticEntry();
   int GetCompiledFunctionSize() const;
   int GetCompiledFunctionStackSize() const;
   int GetCompiledFunctionSpillStackSize() const;
@@ -90,18 +92,19 @@ class NativeGenerator {
 #endif
  private:
   const hir::Function* func_;
-  void* entry_{nullptr};
+  void* vectorcall_entry_{nullptr};
   asmjit::x86::Builder* as_{nullptr};
   CodeHolderMetadata metadata_{CodeSection::kHot};
   void* deopt_trampoline_{nullptr};
   void* deopt_trampoline_generators_{nullptr};
-  void* jit_trampoline_{nullptr};
+  void* const failed_deferred_compile_trampoline_;
 
   int compiled_size_{-1};
   int spill_stack_size_{-1};
   int frame_header_size_;
   int max_inline_depth_;
 
+  bool hasStaticEntry() const;
   int calcFrameHeaderSize(const hir::Function* func);
   int calcMaxInlineDepth(const hir::Function* func);
   void generateCode(asmjit::CodeHolder& code);
@@ -148,12 +151,16 @@ class NativeGeneratorFactory {
   NativeGeneratorFactory() {
     deopt_trampoline_ = generateDeoptTrampoline(false);
     deopt_trampoline_generators_ = generateDeoptTrampoline(true);
-    jit_trampoline_ = generateJitTrampoline();
+    failed_deferred_compile_trampoline_ =
+        generateFailedDeferredCompileTrampoline();
   }
 
   std::unique_ptr<NativeGenerator> operator()(const hir::Function* func) const {
     return std::make_unique<NativeGenerator>(
-        func, deopt_trampoline_, deopt_trampoline_generators_, jit_trampoline_);
+        func,
+        deopt_trampoline_,
+        deopt_trampoline_generators_,
+        failed_deferred_compile_trampoline_);
   }
 
   DISALLOW_COPY_AND_ASSIGN(NativeGeneratorFactory);
@@ -161,7 +168,7 @@ class NativeGeneratorFactory {
  private:
   void* deopt_trampoline_;
   void* deopt_trampoline_generators_;
-  void* jit_trampoline_;
+  void* failed_deferred_compile_trampoline_;
 };
 
 // Returns whether or not we can load/store reg from/to addr with a single
