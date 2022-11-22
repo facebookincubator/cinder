@@ -5729,6 +5729,17 @@ case "$CXX" in
       ;;
 esac
 
+# Cinder: Check for --with-valgrind-module
+AC_MSG_CHECKING(for --with-valgrind-module)
+AC_ARG_WITH(valgrind-module,
+            AS_HELP_STRING([--with-valgrind-module], [build with _valgrind module]),
+[
+if test "$withval" != no
+then AC_MSG_RESULT(yes); Ci_VALGRIND='true'
+else AC_MSG_RESULT(no); Ci_VALGRIND='false'
+fi],
+[AC_MSG_RESULT(no)])
+
 # generate output files
 AC_CONFIG_FILES(Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh)
 AC_CONFIG_FILES([Modules/ld_so_aix], [chmod +x Modules/ld_so_aix])
@@ -5738,6 +5749,9 @@ echo "creating Modules/Setup.local" >&AS_MESSAGE_FD
 if test ! -f Modules/Setup.local
 then
 	echo "# Edit this file for local setup changes" >Modules/Setup.local
+  if test "$Ci_VALGRIND" = "true"; then
+    echo "_valgrind $srcdir/ThirdParty/valgrind-module/_valgrind.c" >>Modules/Setup.local
+  fi
 fi
 
 echo "creating Makefile" >&AS_MESSAGE_FD
