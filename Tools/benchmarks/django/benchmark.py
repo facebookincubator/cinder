@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import shlex
 import socket
 import subprocess
 import sys
@@ -14,6 +15,8 @@ import time
 from contextlib import nullcontext
 
 
+# Do not change these without changing the bundled django_minimal run.py
+# TODO(emacs): Pass this through to run.py via a CLI argument
 host = "127.0.0.1"
 port = 8000
 
@@ -87,7 +90,7 @@ def kill_server():
 def start_server(args, instr_atstart, callgrind_out_dir):
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = "0"
-    cmd = [args.interpreter, "run.py"]
+    cmd = [args.interpreter, *args.interpreter_args, "run.py"]
     assert not (args.callgrind and args.bolt_record)
     if args.callgrind:
         valgrind_cmd = [
@@ -122,6 +125,7 @@ def start_server(args, instr_atstart, callgrind_out_dir):
     else:
         log_fp = subprocess.DEVNULL
     global server_process
+    logging.info(f"Running {shlex.join(cmd)}")
     server_process = subprocess.Popen(
         cmd, cwd=args.django_dir, env=env, stdout=log_fp, stderr=log_fp
     )
@@ -130,6 +134,7 @@ def start_server(args, instr_atstart, callgrind_out_dir):
     logging.info("Waiting for open port...")
     for _ in range(timeout):
         time.sleep(1)
+        logging.info("Trying again...")
         if server_process.poll() is not None:
             logging.error("Error: Server unexpectedly quit")
             sys.exit(1)
@@ -163,6 +168,7 @@ def main():
     parser.add_argument("--django-dir", default=None)
     parser.add_argument("--no-server", default=False, action="store_true")
     parser.add_argument("--interpreter", "-i", default=None)
+    parser.add_argument("--interpreter-args", default=(), type=shlex.split)
     parser.add_argument("--callgrind", default=False, action="store_true")
     parser.add_argument("--callgrind-out-dir")
     parser.add_argument("--measure-startup", default=False, action="store_true")
@@ -193,10 +199,12 @@ def main():
     result_requests = {
         "benchmark": f"django_minimal_requests",
         "interpreter": args.interpreter,
+        "interpreter_args": args.interpreter_args,
     }
     result_startup = {
         "benchmark": f"django_minimal_startup",
         "interpreter": args.interpreter,
+        "interpreter_args": args.interpreter_args,
     }
 
     context = (
