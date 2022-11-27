@@ -2008,7 +2008,11 @@ class StrictLoaderTest(StrictTestBase):
             self.sbx.strict_import("b")
         e = cm.exception
         self.assertTrue(e.filename.endswith("b.py"))
-        self.assertTrue(e.msg.startswith("StrictModuleUnhandledException(NameError)"))
+        self.assertTrue(
+            e.msg.startswith(
+                "StrictModuleUnhandledException(NameError: name does_not_exist is not defined)"
+            )
+        )
 
     def test_cross_module_raise(self) -> None:
         self.sbx.write_file(
