@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Jit/codegen/code_section.h"
 
 #include "Jit/log.h"

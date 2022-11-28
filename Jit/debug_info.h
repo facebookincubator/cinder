@@ -1,4 +1,5 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #pragma once
 
 #include "Python.h"

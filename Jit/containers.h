@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 /*
  * Type-aliases for map and set containers. This acts as a shim to allow
  * swapping between STL, phmap, and one day other container implementations.

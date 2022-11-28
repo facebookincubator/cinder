@@ -142,7 +142,8 @@ OTHER_UNIONS: List[UnionSpec] = [
 ]
 
 
-HEADER1 = """// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+HEADER1 = """// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #pragma once
 
 // This file is @"""

@@ -1,4 +1,5 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Jit/debug_info.h"
 
 #include "Jit/hir/hir.h"

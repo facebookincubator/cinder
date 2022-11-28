@@ -1,4 +1,5 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #ifndef incl_JIT_HIR_TYPE_INL_H
 #error "hir_type_inl.h should only be included by hir_type.h"
 #endif

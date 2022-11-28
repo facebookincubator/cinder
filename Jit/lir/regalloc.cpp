@@ -1,4 +1,5 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Jit/lir/regalloc.h"
 
 #include "Jit/codegen/copy_graph.h"

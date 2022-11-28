@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Jit/code_allocator.h"
 
 #include "Jit/pyjit.h"

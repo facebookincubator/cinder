@@ -1,3 +1,5 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Jit/symbolizer.h"
 
 #include "Jit/log.h"
