@@ -347,13 +347,29 @@ bool Preloader::preload() {
         if (canCacheGlobals()) {
           int name_idx = bc_instr.oparg();
           BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
-          // We can't keep hold of a reference to this cache, it could get
-          // invalidated and freed; we just do this here for the side effect to
-          // make sure the cached value has been loaded and any side effects of
-          // loading it have been exercised.
           JIT_CHECK(name != nullptr, "name cannot be null");
-          getGlobalCache(name);
-          global_names_.emplace(name_idx, name);
+          // Make sure the cached value has been loaded and any side effects of
+          // loading it (e.g. lazy imports) have been exercised before we create
+          // the GlobalCache; otherwise GlobalCache initialization can
+          // self-destroy due to side effects of PyDict_GetItem and cause a
+          // use-after-free.
+          PyObject* global_value = PyDict_GetItem(globals_, name);
+          if (!global_value) {
+            // It's extremely unlikely that builtins dict could ever contain a
+            // lazy import that needs warming up, but since it is technically
+            // possible, we may as well go ahead and warm that up too if the key
+            // isn't in globals.
+            PyDict_GetItem(builtins_, name);
+          }
+          // The above dict fetches may have had side effects that mean globals
+          // are no longer cacheable, so recheck that.
+          if (canCacheGlobals()) {
+            // We also initialize the GlobalCache here so we don't have to
+            // thread-serialize initializing it later (it calls PyDict_GetItem,
+            // which can cause data races in multithreaded compile.)
+            getGlobalCache(name);
+            global_names_.emplace(name_idx, name);
+          }
         }
         break;
       }
