@@ -3,10 +3,8 @@
 
 #include "Jit/lir/function.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 void eliminateDeadCode(Function* func);
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

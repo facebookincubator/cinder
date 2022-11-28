@@ -9,8 +9,7 @@
 #include <sstream>
 #include <string>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 // Helper class for pretty printing IR
 //
@@ -96,5 +95,4 @@ void DebugPrint(const CFG& cfg);
 void DebugPrint(const BasicBlock& block);
 void DebugPrint(const Instr& instr);
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

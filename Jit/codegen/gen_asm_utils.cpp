@@ -4,8 +4,7 @@
 
 #include "Jit/codegen/environ.h"
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 namespace {
 void recordDebugEntry(Environ& env, const jit::lir::Instruction* instr) {
@@ -31,5 +30,4 @@ void emitCall(Environ& env, uint64_t func, const jit::lir::Instruction* instr) {
   recordDebugEntry(env, instr);
 }
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

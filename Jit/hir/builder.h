@@ -19,11 +19,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace jit {
-
-class BytecodeInstruction;
-
-namespace hir {
+namespace jit::hir {
 
 class BasicBlock;
 class Environment;
@@ -508,5 +504,4 @@ class HIRBuilder {
   TempAllocator temps_{nullptr};
 };
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

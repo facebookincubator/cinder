@@ -3,11 +3,9 @@
 
 #include "Jit/jit_rt.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 const std::initializer_list<std::pair<const uint64_t, const char*>>
     kCHelperMappingAuto = {};
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

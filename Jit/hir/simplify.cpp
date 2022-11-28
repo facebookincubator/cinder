@@ -10,8 +10,7 @@
 
 #include <fmt/ostream.h>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 // This file contains the Simplify pass, which is a collection of
 // strength-reduction optimizations. An optimization should be added as a case
@@ -828,5 +827,4 @@ void Simplify::Run(Function& irfunc) {
   } while (changed);
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

@@ -8,8 +8,7 @@
 #include <limits>
 #include <stack>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 BasicBlockSorter::BasicBlockSorter(const std::vector<BasicBlock*>& blocks)
     : entry_(blocks.empty() ? nullptr : blocks[0]),
@@ -214,5 +213,4 @@ void BasicBlockSorter::sortRPO() {
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

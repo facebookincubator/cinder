@@ -13,8 +13,7 @@
 #include <string>
 #include <utility>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 std::unordered_set<std::string>& GetStringLiterals() {
   static std::unordered_set<std::string> string_literals_;
@@ -558,5 +557,4 @@ void Parser::fixUnknownIds() {
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

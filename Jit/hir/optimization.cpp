@@ -24,8 +24,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 class AllPasses : public Pass {
  public:
@@ -1187,5 +1186,4 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
   }
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

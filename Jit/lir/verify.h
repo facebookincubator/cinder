@@ -3,8 +3,7 @@
 
 #include "Jit/lir/function.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // Verifies the following properties of a LIR function:
 //
@@ -16,5 +15,4 @@ namespace lir {
 // register allocation.
 bool verifyPostRegAllocInvariants(Function* func, std::ostream& err);
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

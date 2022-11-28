@@ -8,8 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // this struct represents a group of basic blocks that
 // are strongly conncted to each other.
@@ -58,5 +57,4 @@ class BasicBlockSorter {
   void sortRPO();
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

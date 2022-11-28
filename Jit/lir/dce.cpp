@@ -7,8 +7,7 @@
 #include "Jit/lir/operand.h"
 #include "Jit/util.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // For the purposes of dead code elimination, we consider writes to physical
 // registers as affecting memory.
@@ -94,5 +93,4 @@ void eliminateDeadCode(Function* function) {
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

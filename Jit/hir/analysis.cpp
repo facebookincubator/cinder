@@ -11,8 +11,7 @@
 
 #include <memory>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 const RegisterSet kEmptyRegSet;
 
@@ -765,5 +764,4 @@ const Instr* RegisterTypeHints::dominatingTypeHint(
   return hint_types[block->id];
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-namespace jit {
-namespace util {
+namespace jit::util {
+
 class BitVector {
  public:
   BitVector() : num_bits_(0) {
@@ -116,5 +116,4 @@ class BitVector {
 
 std::ostream& operator<<(std::ostream& os, const BitVector& bv);
 
-} // namespace util
-} // namespace jit
+} // namespace jit::util

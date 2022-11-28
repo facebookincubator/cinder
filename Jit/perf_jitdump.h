@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace jit {
-namespace perf {
+namespace jit::perf {
 
 extern const std::string kDefaultSymbolPrefix;
 extern const std::string kFuncSymbolPrefix;
@@ -33,5 +32,4 @@ void registerFunction(
 // Perform any cleanup needed in a child process after fork().
 void afterForkChild();
 
-} // namespace perf
-} // namespace jit
+} // namespace jit::perf

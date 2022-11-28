@@ -18,8 +18,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 #define NEW_INSTR(type, ...)              \
   auto instr = type::create(__VA_ARGS__); \
@@ -902,5 +901,4 @@ RegState HIRParser::GetNextRegState() {
   return rs;
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

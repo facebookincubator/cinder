@@ -10,8 +10,7 @@
 #include <iostream>
 #include <unordered_map>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 class Printer {
  public:
@@ -70,5 +69,4 @@ inline std::ostream& operator<<(
   return out;
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

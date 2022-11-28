@@ -11,8 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 // CopyGraph is used to generate a sequence of copies and/or exchanges to
 // shuffle data between registers (non-negative ints) and memory locations
@@ -139,5 +138,4 @@ class CopyGraphWithType : public CopyGraph {
   std::unordered_map<int, std::remove_cv_t<FromType>> from_types_;
 };
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

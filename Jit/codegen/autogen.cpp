@@ -17,9 +17,7 @@ using namespace asmjit;
 using namespace jit::lir;
 using namespace jit::codegen;
 
-namespace jit {
-namespace codegen {
-namespace autogen {
+namespace jit::codegen::autogen {
 
 #define ANY "*"
 
@@ -1172,6 +1170,4 @@ END_RULES
 END_RULE_TABLE
 // clang-format on
 
-} // namespace autogen
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen::autogen

@@ -44,8 +44,7 @@ using namespace jit::hir;
 using namespace jit::lir;
 using namespace jit::util;
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 namespace {
 
@@ -1922,5 +1921,4 @@ int NativeGenerator::calcMaxInlineDepth(const hir::Function* func) {
   return result;
 }
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

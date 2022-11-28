@@ -7,8 +7,7 @@
 
 #include <stack>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // Helper for copyOperand.
 static void copyIndirect(
@@ -228,5 +227,4 @@ void Function::print() const {
   std::cerr << *this;
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

@@ -21,8 +21,7 @@
 // Tools/scripts/typed/generate_jit_type_h.py and lives in
 // Jit/hir/type_generated.h.
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 class Environment;
 
@@ -303,8 +302,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& ty) {
 HIR_TYPES(TY)
 #undef TY
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir
 
 template <>
 struct std::hash<jit::hir::Type> {

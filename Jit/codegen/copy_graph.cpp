@@ -1,8 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "Jit/codegen/copy_graph.h"
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 constexpr int CopyGraph::kTempLoc;
 
@@ -137,5 +136,4 @@ void CopyGraph::processLeafNodes(std::vector<Op>& ops) {
   }
 }
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

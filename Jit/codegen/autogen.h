@@ -8,9 +8,7 @@
 #include <memory>
 #include <unordered_map>
 
-namespace jit {
-namespace codegen {
-namespace autogen {
+namespace jit::codegen::autogen {
 
 // this struct defines a trie tree node to support instruction
 // operand type matching.
@@ -82,6 +80,4 @@ class AutoTranslator {
   DISALLOW_COPY_AND_ASSIGN(AutoTranslator);
 };
 
-} // namespace autogen
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen::autogen

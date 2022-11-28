@@ -5,8 +5,7 @@
 #include "Jit/lir/printer.h"
 #include "Jit/util.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 bool verifyPostRegAllocInvariants(Function* func, std::ostream& err) {
   auto& blocks = func->basicblocks();
@@ -51,5 +50,4 @@ bool verifyPostRegAllocInvariants(Function* func, std::ostream& err) {
   return true;
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

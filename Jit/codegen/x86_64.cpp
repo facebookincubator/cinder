@@ -6,8 +6,8 @@
 #include <algorithm>
 #include <utility>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
+
 constexpr int PhyLocation::NUM_GP_REGS;
 constexpr int PhyLocation::NUM_XMM_REGS;
 constexpr int PhyLocation::NUM_REGS;
@@ -35,5 +35,4 @@ PhyLocation PhyLocation::parse(const std::string& name) {
   return std::distance(REG_NAMES, iter);
 }
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

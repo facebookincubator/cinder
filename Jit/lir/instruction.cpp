@@ -4,8 +4,8 @@
 
 #include <iomanip>
 #include <utility>
-namespace jit {
-namespace lir {
+
+namespace jit::lir {
 
 Instruction::Instruction(
     BasicBlock* basic_block,
@@ -102,5 +102,4 @@ BEGIN_INSTR_PROPERTY
 END_INSTR_PROPERTY
 // clang-format on
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

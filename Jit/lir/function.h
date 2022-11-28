@@ -8,8 +8,7 @@
 #include <memory>
 #include <vector>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 class Function {
  public:
@@ -100,5 +99,4 @@ class Function {
   friend class Parser;
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

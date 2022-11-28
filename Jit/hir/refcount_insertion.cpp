@@ -20,8 +20,7 @@
 // This file implements our reference count insertion pass. If this is your
 // first time here, I recommend reading refcount_insertion.md first.
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 namespace {
 
@@ -1298,5 +1297,4 @@ void RefcountInsertion::Run(Function& func) {
   optimizeLongDecrefRuns(func);
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

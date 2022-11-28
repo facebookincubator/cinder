@@ -8,8 +8,7 @@
 
 #include <iosfwd>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 class BasicBlock;
 class Function;
@@ -270,5 +269,4 @@ class RegisterTypeHints {
   DominatorAnalysis doms_;
 };
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

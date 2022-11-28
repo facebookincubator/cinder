@@ -12,8 +12,7 @@
 
 #include <asmjit/asmjit.h>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 struct Environ {
   Environ(){};
@@ -122,5 +121,4 @@ struct Environ {
   bool has_inlined_functions{false};
 };
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

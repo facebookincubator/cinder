@@ -9,12 +9,11 @@
 #include <memory>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 class Instr;
-}
+} // namespace jit::hir
 
-namespace lir {
+namespace jit::lir {
 
 class Function;
 
@@ -214,5 +213,4 @@ class BasicBlock {
   jit::codegen::CodeSection section_;
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

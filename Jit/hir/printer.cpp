@@ -16,8 +16,7 @@
 #include <sstream>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 void HIRPrinter::Indent() {
   indent_level_ += 1;
@@ -1111,5 +1110,4 @@ void DebugPrint(const Instr& instr) {
   HIRPrinter(true).Print(std::cout, instr);
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

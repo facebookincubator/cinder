@@ -12,8 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 static_assert(sizeof(Type) == 16, "Type should fit in two registers");
 static_assert(sizeof(intptr_t) == sizeof(int64_t), "Expected 64-bit pointers");
@@ -708,5 +707,4 @@ unsigned int Type::sizeInBytes() const {
   JIT_CHECK(false, "unexpected type %s", *this);
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

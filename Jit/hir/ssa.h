@@ -11,8 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 // Check that func's CFG is well-formed and that its Register uses and defs are
 // vald SSA, returning true iff no errors were found. Details of any errors
@@ -89,5 +88,4 @@ class SSAify : public Pass {
   Register* null_reg_{nullptr};
 };
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

@@ -58,8 +58,7 @@ struct fmt::formatter<jit::hir::Register*> {
 template <>
 struct fmt::formatter<PyObject*> : fmt::formatter<void*> {};
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 class BasicBlockBuilder {
  public:
@@ -367,5 +366,4 @@ class BasicBlockBuilder {
   static std::vector<std::string> Tokenize(std::string_view s);
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

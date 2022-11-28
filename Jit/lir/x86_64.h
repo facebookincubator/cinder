@@ -3,8 +3,8 @@
 
 #include "Jit/codegen/x86_64.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
+
 using PhyLocation = jit::codegen::PhyLocation;
-}
-} // namespace jit
+
+} // namespace jit::lir

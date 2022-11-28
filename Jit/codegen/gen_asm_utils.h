@@ -8,8 +8,7 @@
 
 #include <asmjit/asmjit.h>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 struct Environ;
 
@@ -28,5 +27,4 @@ void emitCall(
     const jit::lir::Instruction* instr);
 void emitCall(Environ& env, uint64_t func, const jit::lir::Instruction* instr);
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

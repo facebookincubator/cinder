@@ -12,8 +12,7 @@
 
 #include <utility>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 Type prim_type_to_type(int prim_type) {
   switch (prim_type) {
@@ -436,5 +435,4 @@ bool Preloader::preload() {
   return true;
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

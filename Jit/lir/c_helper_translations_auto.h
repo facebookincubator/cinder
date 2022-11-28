@@ -5,8 +5,7 @@
 #include <initializer_list>
 #include <utility>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // kCHelperMappingAuto maps C helper function memory addresses to
 // their LIR string.
@@ -14,5 +13,4 @@ namespace lir {
 extern const std::initializer_list<std::pair<const uint64_t, const char*>>
     kCHelperMappingAuto;
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

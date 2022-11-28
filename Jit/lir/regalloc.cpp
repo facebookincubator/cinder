@@ -21,8 +21,7 @@ static constexpr bool g_debug_regalloc = false;
 
 #define TRACE(...) JIT_LOGIF(g_debug_regalloc, __VA_ARGS__)
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 void LiveInterval::addRange(LiveRange range) {
   constexpr int kInitRangeSize = 8;
@@ -1543,5 +1542,4 @@ void LinearScanAllocator::printAllVregIntervals() const {
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

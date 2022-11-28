@@ -6,8 +6,7 @@
 
 #include <iosfwd>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 class Instr;
 
@@ -35,5 +34,4 @@ struct MemoryEffects {
 
 MemoryEffects memoryEffects(const Instr& inst);
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

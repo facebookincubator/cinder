@@ -15,8 +15,7 @@
 // bbbuilder.cpp with some interfaces changes so that it works with the new
 // LIR.
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 static inline std::string GetId(const std::string& s) {
   size_t colon;
@@ -822,5 +821,5 @@ void BasicBlockBuilder::SetBlockSection(
   }
   block->setSection(section);
 }
-} // namespace lir
-} // namespace jit
+
+} // namespace jit::lir

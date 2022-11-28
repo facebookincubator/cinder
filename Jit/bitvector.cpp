@@ -4,8 +4,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace jit {
-namespace util {
+namespace jit::util {
 
 BitVector::~BitVector() {
   if (!IsShortVector()) {
@@ -335,5 +334,4 @@ std::ostream& operator<<(std::ostream& os, const BitVector& bv) {
   return os;
 }
 
-} // namespace util
-} // namespace jit
+} // namespace jit::util

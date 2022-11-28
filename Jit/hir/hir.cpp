@@ -12,8 +12,7 @@
 #include <algorithm>
 #include <unordered_map>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 const std::vector<void*> CallCFunc::kFuncPtrMap{
 #define FUNC_PTR(name, ...) (void*)name,
@@ -899,5 +898,4 @@ std::ostream& operator<<(std::ostream& os, const Register& reg) {
   return os << reg.name();
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

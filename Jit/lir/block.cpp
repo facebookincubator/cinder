@@ -8,8 +8,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 BasicBlock::BasicBlock(Function* func)
     : id_(func->allocateId()),
@@ -108,5 +107,4 @@ void BasicBlock::setSuccessor(size_t index, BasicBlock* bb) {
   bb->predecessors_.push_back(this);
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

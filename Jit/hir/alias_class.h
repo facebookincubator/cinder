@@ -6,8 +6,7 @@
 #include <cstdint>
 #include <iosfwd>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 // AliasClass is a lattice of memory locations describing where instructions
 // can read from or write to. It is similar to hir::Type, but much simpler.
@@ -105,8 +104,7 @@ HIR_ACLS(ACLS)
 
 std::ostream& operator<<(std::ostream& os, const AliasClass& acls);
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir
 
 template <>
 struct std::hash<jit::hir::AliasClass> {

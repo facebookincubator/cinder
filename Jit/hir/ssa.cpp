@@ -18,8 +18,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 namespace {
 struct CheckEnv {
@@ -955,5 +954,4 @@ std::unordered_map<BasicBlock*, SSABasicBlock*> SSAify::initSSABasicBlocks(
   return ssa_basic_blocks;
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

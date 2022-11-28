@@ -11,8 +11,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 class BasicBlock;
 class Environment;
@@ -213,5 +212,4 @@ class PassRegistry {
   std::unordered_map<std::string, PassFactory> factories_;
 };
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

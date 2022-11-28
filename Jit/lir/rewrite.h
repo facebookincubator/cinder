@@ -11,8 +11,7 @@
 #include <utility>
 #include <vector>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // this class implements a framework for backend rewrites
 class Rewrite {
@@ -157,5 +156,4 @@ class Rewrite {
       instruction_rewrites_;
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

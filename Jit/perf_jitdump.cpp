@@ -30,8 +30,7 @@
 #include <x86intrin.h>
 #endif
 
-namespace jit {
-namespace perf {
+namespace jit::perf {
 
 const std::string kDefaultSymbolPrefix{"__CINDER_INFRA_JIT"};
 const std::string kFuncSymbolPrefix{"__CINDER_JIT"};
@@ -400,5 +399,4 @@ void afterForkChild() {
   copyJitdumpFile();
 }
 
-} // namespace perf
-} // namespace jit
+} // namespace jit::perf

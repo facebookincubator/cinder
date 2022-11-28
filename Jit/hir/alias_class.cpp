@@ -6,8 +6,7 @@
 #include <ostream>
 #include <unordered_map>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 namespace {
 auto makeAclsNames() {
@@ -43,5 +42,4 @@ std::ostream& operator<<(std::ostream& os, const AliasClass& acls) {
   return os << acls.toString();
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

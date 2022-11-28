@@ -3,8 +3,7 @@
 
 #include "Python.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 const std::unordered_map<std::string, uint64_t> kSymbolMapping = {
     {"PyType_IsSubtype", reinterpret_cast<uint64_t>(PyType_IsSubtype)},
@@ -19,5 +18,4 @@ const std::unordered_map<std::string, uint64_t> kSymbolMapping = {
     {"PyLong_AsSsize_t", reinterpret_cast<uint64_t>(PyLong_AsSsize_t)},
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

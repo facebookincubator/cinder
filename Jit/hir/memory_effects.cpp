@@ -3,8 +3,7 @@
 
 #include "Jit/hir/hir.h"
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 namespace {
 // Instructions that don't produce a borrowed reference or steal any of their
@@ -293,5 +292,4 @@ MemoryEffects memoryEffects(const Instr& inst) {
   JIT_CHECK(false, "Bad opcode %d", static_cast<int>(inst.opcode()));
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

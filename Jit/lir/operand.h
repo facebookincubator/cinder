@@ -18,8 +18,7 @@
 //   - LinkedOperand: this type of operand can only be input of an
 //     instruction, which links to an output operand in a different
 //     instruction, representing a def-use relationship.
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 class BasicBlock;
 class Instruction;
@@ -563,5 +562,4 @@ DECLARE_TYPE_ARG(OutDbl, double, true);
 DECLARE_TYPE_ARG(OutInd, MemoryIndirect, true);
 DECLARE_TYPE_ARG(OutVReg, void*, true);
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

@@ -14,8 +14,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 Type prim_type_to_type(int prim_type);
 
@@ -213,5 +212,4 @@ class Preloader {
   Ref<_PyTypedArgsInfo> prim_args_info_;
 };
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

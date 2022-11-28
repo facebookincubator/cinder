@@ -7,8 +7,7 @@
 
 #include <cstring>
 
-namespace jit {
-namespace hir {
+namespace jit::hir {
 
 inline std::size_t Type::hash() const {
   static_assert(sizeof(std::size_t) == sizeof(int_), "Unexpected size_t size");
@@ -153,5 +152,4 @@ inline Type& Type::operator-=(Type other) {
   return *this = *this - other;
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

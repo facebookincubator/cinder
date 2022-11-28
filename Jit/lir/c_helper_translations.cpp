@@ -8,8 +8,7 @@
 
 #include <initializer_list>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 static const std::initializer_list<std::pair<const uint64_t, std::string>>
     kCHelpersManual = {
@@ -51,5 +50,4 @@ const std::unordered_map<uint64_t, std::string> kCHelperMapping = [] {
   return map;
 }();
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

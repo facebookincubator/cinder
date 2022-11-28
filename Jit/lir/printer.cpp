@@ -10,8 +10,7 @@
 
 #include <iomanip>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 void Printer::print(std::ostream& out, const Function& func) {
   out << "Function:" << std::endl;
@@ -288,5 +287,4 @@ std::string JSONPrinter::print(const OperandBase& operand) {
   return ss.str();
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

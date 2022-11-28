@@ -10,8 +10,7 @@
 #include <memory>
 #include <string>
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 class BasicBlockBuilder;
 
@@ -94,5 +93,4 @@ class LIRGenerator {
   Function* lir_func_{nullptr};
 };
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

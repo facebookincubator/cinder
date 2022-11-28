@@ -32,10 +32,7 @@
 #include <utility>
 #include <vector>
 
-namespace jit {
-namespace hir {
-
-using jit::BytecodeInstruction;
+namespace jit::hir {
 
 // Allocate a temp register that may be used for the stack. It should not be a
 // register that will be treated specially in the FrameState (e.g. tracked as
@@ -4322,5 +4319,4 @@ BorrowedRef<> HIRBuilder::constArg(const BytecodeInstruction& bc_instr) {
   return PyTuple_GET_ITEM(code_->co_consts, bc_instr.oparg());
 }
 
-} // namespace hir
-} // namespace jit
+} // namespace jit::hir

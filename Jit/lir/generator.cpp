@@ -41,8 +41,7 @@ int eval_frame_handle_pending(PyThreadState*);
 
 using namespace jit::hir;
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
 
 // These functions call their counterparts and convert its output from int (32
 // bits) to uint64_t (64 bits). This is solely because the code generator cannot
@@ -2866,5 +2865,4 @@ void LIRGenerator::FixOperands() {
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

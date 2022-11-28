@@ -22,9 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace jit {
-
-namespace codegen {
+namespace jit::codegen {
 
 // Generate the final stage trampoline that is responsible for finishing
 // execution in the interpreter and then returning the result to the caller.
@@ -175,5 +173,4 @@ class NativeGeneratorFactory {
 // instruction.
 bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr);
 
-} // namespace codegen
-} // namespace jit
+} // namespace jit::codegen

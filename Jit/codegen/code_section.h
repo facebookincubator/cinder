@@ -7,8 +7,7 @@
 
 #include <cstring>
 
-namespace jit {
-namespace codegen {
+namespace jit::codegen {
 
 enum class CodeSection {
   kHot,
@@ -85,6 +84,4 @@ void populateCodeSections(
     asmjit::CodeHolder& code,
     void* entry);
 
-} // namespace codegen
-
-} // namespace jit
+} // namespace jit::codegen

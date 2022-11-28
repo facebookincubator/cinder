@@ -5,8 +5,8 @@
 #include "Jit/lir/instruction.h"
 #include "Jit/lir/x86_64.h"
 
-namespace jit {
-namespace lir {
+namespace jit::lir {
+
 void Operand::addUse(LinkedOperand* use) {
   auto prev_linked = use->getLinkedOperand();
   if (prev_linked != nullptr) {
@@ -68,5 +68,4 @@ void MemoryIndirect::setBaseIndex(
   }
 }
 
-} // namespace lir
-} // namespace jit
+} // namespace jit::lir

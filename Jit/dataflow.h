@@ -10,8 +10,7 @@
 #include <utility>
 #include <vector>
 
-namespace jit {
-namespace optimizer {
+namespace jit::optimizer {
 
 /* This file implements a framework for data-flow analysis based on bit vector
  * operations. DataFlowAnalyzer is a template class, where the template argument
@@ -237,5 +236,4 @@ void DataFlowAnalyzer<T>::RunAnalysis(bool forward) {
   }
 }
 
-} // namespace optimizer
-} // namespace jit
+} // namespace jit::optimizer
