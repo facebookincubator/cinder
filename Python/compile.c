@@ -1197,6 +1197,10 @@ stack_effect(int opcode, int oparg, int jump)
             return (oparg & FVS_MASK) == FVS_HAVE_SPEC ? -1 : 0;
         case LOAD_METHOD:
             return 1;
+        case LOAD_METHOD_SUPER:
+            return -1;
+        case LOAD_ATTR_SUPER:
+            return -2;
         case LOAD_ASSERTION_ERROR:
             return 1;
         case LIST_TO_TUPLE:
@@ -4242,20 +4246,158 @@ check_index(struct compiler *c, expr_ty e, expr_ty s)
     }
 }
 
+static int
+is_super_call(struct compiler *c, expr_ty e)
+{
+    _Py_IDENTIFIER(__class__);
+    _Py_IDENTIFIER(super);
+
+    if (e->kind != Call_kind ||
+        e->v.Call.func->kind != Name_kind ||
+        !_PyUnicode_EqualToASCIIString(e->v.Call.func->v.Name.id, "super") ||
+        asdl_seq_LEN(e->v.Call.keywords) != 0) {
+        return 0;
+    }
+
+    PyObject *super_name = _PyUnicode_FromId(&PyId_super);
+    if (super_name == NULL) {
+        return 0;
+    }
+    // try to find "super" symbol being defined in file
+    int scope = _PyST_GetScope(c->u->u_ste, super_name);
+    // any scoping besides GLOBAL_IMPLICIT is not accepted
+    if (scope != GLOBAL_IMPLICIT)  {
+        return 0;
+    }
+    // ensure it is not defined in top level scope
+    scope = _PyST_GetScope(c->c_st->st_top, super_name);
+    if (scope != 0 && scope != GLOBAL_IMPLICIT && scope != LOCAL) {
+        return 0;
+    }
+
+    if (asdl_seq_LEN(e->v.Call.args) == 2) {
+        // super(type, self)
+        return 1;
+    }
+    if (asdl_seq_LEN(e->v.Call.args) == 0) {
+        // super() case
+        // enclosing function should have at least one argument
+        if (c->u->u_argcount == 0 && c->u->u_posonlyargcount == 0) {
+            return 0;
+        }
+        // freevars should include __class__
+        PyObject *name = _PyUnicode_FromId(&PyId___class__);
+        if (name == NULL) {
+            return 0;
+        }
+        return get_ref_type(c, name) == FREE;
+    }
+    return 0;
+}
+
+static int
+load_class_and_self_for_super(struct compiler *c)
+{
+    _Py_IDENTIFIER(__class__);
+    PyObject *name = _PyUnicode_FromId(&PyId___class__);
+    if (name == NULL) {
+        return 0;
+    }
+    // load __class__ freevar
+    int reftype = get_ref_type(c, name);
+    assert (get_ref_type(c, name) == FREE);
+    int arg = compiler_lookup_arg(c->u->u_freevars, name);
+    if (arg == -1) {
+        fprintf(stderr,
+            "lookup %s in %s %d %d\n"
+            "freevars of %s: %s\n",
+            PyUnicode_AsUTF8(PyObject_Repr(name)),
+            PyUnicode_AsUTF8(c->u->u_name),
+            reftype, arg,
+            PyUnicode_AsUTF8(c->u->u_name),
+            PyUnicode_AsUTF8(PyObject_Repr(c->u->u_freevars)));
+        Py_FatalError("load_class_and_self_for_super()");
+    }
+    ADDOP_I(c, LOAD_DEREF, arg);
+
+    // load first argument
+    // 1. find name of the first argument
+    Py_ssize_t i = 0;
+    PyObject *key, *value;
+    if (!PyDict_Next(c->u->u_varnames, &i, &key, &value)) {
+        return 0;
+    }
+    // 2. check if name is in cellvars
+    PyObject *cell_idx = PyDict_GetItem(c->u->u_cellvars, key);
+    if (cell_idx != NULL) {
+        assert(PyLong_Check(cell_idx));
+        // argument is also cell use LOAD_DEREF
+        ADDOP_I(c, LOAD_DEREF, _PyLong_AsInt(cell_idx));
+    }
+    else {
+        assert(PyLong_Check(value));
+        // normal argument - use LOAD_FAST
+        ADDOP_I(c, LOAD_FAST, _PyLong_AsInt(value));
+    }
+
+    return 1;
+}
+
+static Py_ssize_t
+make_args_for_super_opcode(struct compiler *c, PyObject *name, int super_nargs)
+{
+    PyObject *pair = PyTuple_New(2);
+    if (pair == NULL) {
+        return -1;
+    }
+    PyObject *mangled = _Py_Mangle(c->u->u_private, name);
+    if (mangled == NULL) {
+        Py_DECREF(pair);
+        return -1;
+    }
+    int name_idx = compiler_add_o(c->u->u_names, mangled);
+    Py_DECREF(mangled);
+    if (name_idx == -1) {
+        Py_DECREF(pair);
+        return -1;
+    }
+    PyObject *name_id_obj = PyLong_FromLong(name_idx);
+    if (name_id_obj == NULL) {
+        Py_DECREF(pair);
+        return -1;
+    }
+    PyTuple_SET_ITEM(pair, 0, name_id_obj); // steals ref
+
+    PyObject *call_no_args = super_nargs == 0 ? Py_True : Py_False;
+    Py_INCREF(call_no_args);
+    PyTuple_SET_ITEM(pair, 1, call_no_args);
+
+    Py_ssize_t idx = compiler_add_const(c, pair);
+    Py_DECREF(pair);
+    return idx;
+}
+
 // Return 1 if the method call was optimized, -1 if not, and 0 on error.
 static int
 maybe_optimize_method_call(struct compiler *c, expr_ty e)
 {
+    _Py_IDENTIFIER(super);
+
     Py_ssize_t argsl, i;
     expr_ty meth = e->v.Call.func;
     asdl_expr_seq *args = e->v.Call.args;
 
     /* Check that the call node is an attribute access, and that
        the call doesn't have keyword parameters. */
-    if (meth->kind != Attribute_kind || meth->v.Attribute.ctx != Load ||
-            asdl_seq_LEN(e->v.Call.keywords)) {
+    if (meth->kind != Attribute_kind || meth->v.Attribute.ctx != Load) {
         return -1;
     }
+
+    int super_call = is_super_call(c, meth->v.Attribute.value);
+    if (asdl_seq_LEN(e->v.Call.keywords)) {
+        return -1;
+    }
+
     /* Check that there aren't too many arguments */
     argsl = asdl_seq_LEN(args);
     if (argsl >= STACK_USE_GUIDELINE) {
@@ -4270,6 +4412,35 @@ maybe_optimize_method_call(struct compiler *c, expr_ty e)
     }
 
     /* Alright, we can optimize the code. */
+
+    // do special handling for super().calls
+    if (super_call) {
+        // emit LOAD_GLOBAL for 'super'
+        PyObject *super_name = _PyUnicode_FromId(&PyId_super);
+        if (super_name == NULL) {
+            return 0;
+        }
+        ADDOP_O(c, LOAD_GLOBAL, super_name, names);
+        int nargs = asdl_seq_LEN(meth->v.Attribute.value->v.Call.args);
+        if (nargs == 0) {
+            if (!load_class_and_self_for_super(c)) {
+                return 0;
+            }
+        }
+        else {
+            // load args to super call
+            VISIT_SEQ(c, expr, meth->v.Attribute.value->v.Call.args);
+        }
+        size_t idx = make_args_for_super_opcode(c, meth->v.Attribute.attr, nargs);
+        if (idx < 0) {
+            return 0;
+        }
+        ADDOP_I(c, LOAD_METHOD_SUPER, idx);
+        VISIT_SEQ(c, expr, e->v.Call.args);
+        ADDOP_I(c, CALL_METHOD, asdl_seq_LEN(e->v.Call.args));
+        return 1;
+    }
+
     VISIT(c, expr, meth->v.Attribute.value);
     int old_lineno = c->u->u_lineno;
     c->u->u_lineno = meth->end_lineno;
@@ -5261,6 +5432,8 @@ compiler_with(struct compiler *c, stmt_ty s, int pos)
 static int
 compiler_visit_expr1(struct compiler *c, expr_ty e)
 {
+    _Py_IDENTIFIER(super);
+
     switch (e->kind) {
     case NamedExpr_kind:
         VISIT(c, expr, e->v.NamedExpr.value);
@@ -5347,7 +5520,33 @@ compiler_visit_expr1(struct compiler *c, expr_ty e)
         return compiler_formatted_value(c, e);
     /* The following exprs can be assignment targets. */
     case Attribute_kind:
-        VISIT(c, expr, e->v.Attribute.value);
+        if (e->v.Attribute.ctx == Load && is_super_call(c, e->v.Attribute.value)) {
+            PyObject *super_name = _PyUnicode_FromId(&PyId_super);
+            if (super_name == NULL) {
+                return 0;
+            }
+            ADDOP_O(c, LOAD_GLOBAL, super_name, names);
+            int nargs = asdl_seq_LEN(e->v.Attribute.value->v.Call.args);
+            if (nargs == 0) {
+                if (!load_class_and_self_for_super(c)) {
+                    return 0;
+                }
+            }
+            else {
+                // load args to super call
+                VISIT_SEQ(c, expr, e->v.Attribute.value->v.Call.args);
+            }
+            size_t idx = make_args_for_super_opcode(c,
+                e->v.Attribute.attr,
+                asdl_seq_LEN(e->v.Attribute.value->v.Call.args));
+            if (idx < 0) {
+                return 0;
+            }
+            ADDOP_I(c, LOAD_ATTR_SUPER, idx);
+            return 1;
+        } else {
+            VISIT(c, expr, e->v.Attribute.value);
+        }
         switch (e->v.Attribute.ctx) {
         case Load:
         {
@@ -7909,7 +8108,10 @@ trim_unused_consts(struct compiler *c, struct assembler *a, PyObject *consts)
     int max_const_index = 0;
     for (basicblock *b = a->a_entry; b != NULL; b = b->b_next) {
         for (int i = 0; i < b->b_iused; i++) {
-            if (b->b_instr[i].i_opcode == LOAD_CONST &&
+            int opcode = b->b_instr[i].i_opcode;
+            if ((opcode == LOAD_CONST ||
+                 opcode == LOAD_METHOD_SUPER ||
+                 opcode == LOAD_ATTR_SUPER) &&
                     b->b_instr[i].i_oparg > max_const_index) {
                 max_const_index = b->b_instr[i].i_oparg;
             }

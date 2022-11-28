@@ -1,14 +1,7 @@
 import __future__
 
-import ast
-import dis
-import math
-import sys
-from compiler.consts import CO_NEWLOCALS, CO_NOFREE, CO_OPTIMIZED
-from compiler.optimizer import AstOptimizer
-from compiler.pyassem import PyFlowGraph
-from compiler.pycodegen import BaseCodeGenerator, CodeGenerator
-from compiler.unparse import to_expr
+from compiler.consts import CO_NOFREE
+from compiler.pycodegen import CodeGenerator
 
 from .common import CompilerTest
 
@@ -97,7 +90,6 @@ class Python37Tests(CompilerTest):
         for annotation in annotations:
             code = self.compile(
                 f"from __future__ import annotations\ndef f() -> {annotation}:\n    pass",
-                generator=BaseCodeGenerator,
             )
             self.assertInBytecode(code, "LOAD_CONST", ("return", annotation))
         self.assertEqual(

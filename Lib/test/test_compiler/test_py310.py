@@ -1,10 +1,6 @@
 import io
 from compiler.dis_stable import Disassembler
-from compiler.pycodegen import (
-    BaseCodeGenerator,
-    CinderCodeGenerator,
-    PythonCodeGenerator,
-)
+from compiler.pycodegen import PythonCodeGenerator
 from textwrap import dedent
 
 from .common import CompilerTest

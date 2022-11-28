@@ -3018,7 +3018,7 @@ class Entry:
         self.unwinding_datum = unwinding_datum
 
 
-class CinderBaseCodeGenerator(CodeGenerator):
+class CinderCodeGenerator(CodeGenerator):
     """
     Code generator equivalent to `Python/compile.c` in Cinder.
 
@@ -3094,10 +3094,6 @@ class CinderBaseCodeGenerator(CodeGenerator):
             self.emit("GET_AWAITABLE")
             self.emit("LOAD_CONST", None)
             self.emit("YIELD_FROM")
-
-
-class CinderCodeGenerator(CinderBaseCodeGenerator):
-    """Contains some optimizations not (yet) present in Python/compile.c."""
 
     def set_qual_name(self, qualname):
         self._qual_name = qualname
@@ -3187,12 +3183,6 @@ def get_default_generator():
     return CodeGenerator
 
 
-def get_base_generator():
-    if "cinder" in sys.version:
-        return CinderBaseCodeGenerator
-    return CodeGenerator
-
-
 def get_docstring(
     node: ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> str | None:
@@ -3229,7 +3219,6 @@ class OpFinder:
 
 
 PythonCodeGenerator = get_default_generator()
-BaseCodeGenerator = get_base_generator()
 
 
 if __name__ == "__main__":

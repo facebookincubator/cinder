@@ -2,10 +2,17 @@ import dis
 from compiler.pycodegen import compile as py_compile
 from textwrap import dedent
 
-from ..test_dis import DisTests
+from .. import test_dis
 
 
-class CinderDisTests(DisTests):
+class DualCompilerDisTests(test_dis.DisTests):
+    compiler = staticmethod(compile)
+
+    def compile(self, code_str):
+        return self.compiler(dedent(code_str), "<string>", "exec")
+
+
+class LoadSuperTests(DualCompilerDisTests):
     def test_super_zero_args(self):
         src = """
         class C:
@@ -23,7 +30,7 @@ class CinderDisTests(DisTests):
 """
 
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
     def test_super_zero_args_load_attr(self):
@@ -44,7 +51,7 @@ class CinderDisTests(DisTests):
              18 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
     def test_super_two_args(self):
@@ -63,7 +70,7 @@ class CinderDisTests(DisTests):
              14 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
     def test_super_zero_method_args(self):
@@ -81,7 +88,7 @@ class CinderDisTests(DisTests):
              12 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
     def test_super_two_args_attr(self):
@@ -102,7 +109,7 @@ class CinderDisTests(DisTests):
              18 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
     def test_super_attr_load(self):
@@ -118,7 +125,7 @@ class CinderDisTests(DisTests):
               8 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
         expected_dis_info = """\
 Name:              f
@@ -155,7 +162,7 @@ Free variables:
              10 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
         expected_dis_info = """\
 Name:              f
@@ -197,7 +204,7 @@ Free variables:
              18 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
         expected_dis_info = """\
 Name:              f
@@ -240,7 +247,7 @@ Free variables:
              16 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
         expected_dis_info = """\
 Name:              f
@@ -286,16 +293,15 @@ Free variables:
              16 RETURN_VALUE
 """
         g = {}
-        exec(py_compile(dedent(src), "<string>", "exec"), g)
+        exec(self.compile(src), g)
         self.do_disassembly_test(g["C"].f, expected)
 
 
-class ComprehensionInlinerTests(DisTests):
+class LoadSuperPyCompilerTests(LoadSuperTests):
     compiler = staticmethod(py_compile)
 
-    def compile(self, code_str):
-        return self.compiler(dedent(code_str), "<string>", "exec")
 
+class ComprehensionInlinerTests(DualCompilerDisTests):
     def test_sync_comp_top(self):
         # ensure module level comprehensions are not inlined
         src = """
@@ -593,5 +599,5 @@ def f(self, name, data, files=(), dirs=()):
         self.do_disassembly_test(g["f"], expected)
 
 
-class ComprehensionInlinerBuiltinCompilerTests(ComprehensionInlinerTests):
-    compiler = staticmethod(compile)
+class ComprehensionInlinerPyCompilerTests(ComprehensionInlinerTests):
+    compiler = staticmethod(py_compile)

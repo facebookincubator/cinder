@@ -1,7 +1,7 @@
 import ast
 import dis
 from compiler.dis_stable import Disassembler
-from compiler.pycodegen import BaseCodeGenerator, compile as py_compile
+from compiler.pycodegen import compile as py_compile
 from io import StringIO
 from os import path
 from tokenize import detect_encoding
@@ -56,7 +56,7 @@ def add_test(modname, fname):
             origdump = StringIO()
             Disassembler().dump_code(orig, origdump)
 
-            codeobj = py_compile(node, modname, "exec", compiler=BaseCodeGenerator)
+            codeobj = py_compile(node, modname, "exec")
             newdump = StringIO()
             Disassembler().dump_code(codeobj, newdump)
 

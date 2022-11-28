@@ -9,6 +9,11 @@ from unittest import TestCase
 
 from .common import CompilerTest
 
+try:
+    import cinderjit
+except ImportError:
+    cinderjit = None
+
 
 class ErrorTests(CompilerTest):
     def test_bare_starred(self):
@@ -162,6 +167,7 @@ class ErrorTests(CompilerTest):
         ):
             self.compile(", ".join(("x",) * 256) + ", *x, = range(256)")
 
+    @unittest.skipUnless(cinderjit is None, "JIT doesn't support recursion checks")
     def test_recursion_error_when_expression_too_deep(self):
         fail_depth = sys.getrecursionlimit() * 3
 
