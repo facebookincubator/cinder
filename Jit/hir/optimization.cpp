@@ -7,6 +7,7 @@
 #include "internal/pycore_interp.h"
 
 #include "Jit/compiler.h"
+#include "Jit/containers.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/builder.h"
 #include "Jit/hir/hir.h"
@@ -1158,7 +1159,7 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
   bool changed = true;
   while (changed) {
     changed = false;
-    std::vector<MethodInvoke> invokes;
+    UnorderedMap<LoadMethod*, MethodInvoke> invokes;
     for (auto& block : irfunc.cfg.blocks) {
       for (auto& instr : block) {
         if (!instr.IsCallMethod()) {
@@ -1177,10 +1178,17 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
             cm->self()->instr()->IsGetLoadMethodInstance(),
             "GetLoadMethodInstance/CallMethod should be paired");
         auto glmi = static_cast<GetLoadMethodInstance*>(cm->self()->instr());
-        invokes.push_back(MethodInvoke{lm, glmi, cm});
+        auto result = invokes.insert({lm, MethodInvoke{lm, glmi, cm}});
+        if (!result.second) {
+          // This pass currently only handles 1:1 LoadMethod/CallMethod
+          // combinations. If there are multiple CallMethod for a given
+          // LoadMethod, bail out.
+          // TODO(T138839090): support multiple CallMethod
+          invokes.erase(result.first);
+        }
       }
     }
-    for (MethodInvoke& invoke : invokes) {
+    for (auto [lm, invoke] : invokes) {
       changed |= tryEliminateLoadMethod(irfunc, invoke);
     }
     reflowTypes(irfunc);

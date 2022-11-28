@@ -4628,5 +4628,20 @@ hello from b_func!
 """
         self.assertEqual(proc.stdout, expected_stdout)
 
+
+class LoadMethodEliminationTests(unittest.TestCase):
+    def lme_test_func(self, flag=False):
+        return "{}{}".format(
+            1,
+            '' if not flag else ' flag',
+        )
+
+    def test_multiple_call_method_same_load_method(self):
+        self.assertEqual(self.lme_test_func(), "1")
+        self.assertEqual(self.lme_test_func(True), "1 flag")
+        if cinderjit:
+            self.assertTrue(is_jit_compiled(LoadMethodEliminationTests.lme_test_func))
+
+
 if __name__ == "__main__":
     unittest.main()
