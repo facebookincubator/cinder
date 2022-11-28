@@ -288,12 +288,19 @@ Type Preloader::checkArgType(long local_idx) const {
 }
 
 GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
+  JIT_DCHECK(
+      canCacheGlobals(),
+      "trying to get a globals cache with unwatchable builtins and/or globals");
   return jit::Runtime::get()->findGlobalCache(builtins_, globals_, name);
+}
+
+bool Preloader::canCacheGlobals() const {
+  return _PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {
   BorrowedRef<> name = map_get(global_names_, name_idx, nullptr);
-  if (name != nullptr) {
+  if (name != nullptr && canCacheGlobals()) {
     GlobalCache cache = getGlobalCache(name);
     return *(cache.valuePtr());
   }
@@ -337,7 +344,7 @@ bool Preloader::preload() {
   for (auto bc_instr : bc_instrs) {
     switch (bc_instr.opcode()) {
       case LOAD_GLOBAL: {
-        if (_PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_)) {
+        if (canCacheGlobals()) {
           int name_idx = bc_instr.oparg();
           BorrowedRef<> name = PyTuple_GET_ITEM(code_->co_names, name_idx);
           // We can't keep hold of a reference to this cache, it could get
