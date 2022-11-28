@@ -332,27 +332,22 @@ class ComprehensionInlinerTests(DualCompilerDisTests):
               2 LOAD_GLOBAL              0 (lst)
               4 GET_ITER
         >>    6 FOR_ITER                 4 (to 16)
-              8 STORE_DEREF              0 (x)
-             10 LOAD_DEREF               0 (x)
+              8 STORE_FAST               0 (x)
+             10 LOAD_FAST                0 (x)
              12 LIST_APPEND              2
              14 JUMP_ABSOLUTE            3 (to 6)
-        >>   16 POP_TOP
+        >>   16 DELETE_FAST              0 (x)
+             18 POP_TOP
 
-  4          18 BUILD_LIST               0
-             20 LOAD_GLOBAL              0 (lst)
-             22 GET_ITER
-        >>   24 FOR_ITER                 8 (to 42)
-             26 STORE_DEREF              0 (x)
-             28 LOAD_CLOSURE             0 (x)
-             30 BUILD_TUPLE              1
-             32 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 4>)
-             34 LOAD_CONST               2 ('f.<locals>.<lambda>')
-             36 MAKE_FUNCTION            8 (closure)
-             38 LIST_APPEND              2
-             40 JUMP_ABSOLUTE           12 (to 24)
-        >>   42 POP_TOP
-             44 LOAD_CONST               0 (None)
-             46 RETURN_VALUE
+  4          20 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "<string>", line 4>)
+             22 LOAD_CONST               2 ('f.<locals>.<listcomp>')
+             24 MAKE_FUNCTION            0
+             26 LOAD_GLOBAL              0 (lst)
+             28 GET_ITER
+             30 CALL_FUNCTION            1
+             32 POP_TOP
+             34 LOAD_CONST               0 (None)
+             36 RETURN_VALUE
 """
         g = {}
         exec(self.compile(src), g)
@@ -365,31 +360,66 @@ class ComprehensionInlinerTests(DualCompilerDisTests):
             [x for x in lst]
         """
         expected = """\
-  3           0 BUILD_LIST               0
-              2 LOAD_GLOBAL              0 (lst)
-              4 GET_ITER
-        >>    6 FOR_ITER                 8 (to 24)
-              8 STORE_DEREF              0 (x)
-             10 LOAD_CLOSURE             0 (x)
-             12 BUILD_TUPLE              1
-             14 LOAD_CONST               1 (<code object <lambda> at 0x..., file "<string>", line 3>)
-             16 LOAD_CONST               2 ('f.<locals>.<lambda>')
-             18 MAKE_FUNCTION            8 (closure)
-             20 LIST_APPEND              2
-             22 JUMP_ABSOLUTE            3 (to 6)
-        >>   24 POP_TOP
+  3           0 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "<string>", line 3>)
+              2 LOAD_CONST               2 ('f.<locals>.<listcomp>')
+              4 MAKE_FUNCTION            0
+              6 LOAD_GLOBAL              0 (lst)
+              8 GET_ITER
+             10 CALL_FUNCTION            1
+             12 POP_TOP
 
-  4          26 BUILD_LIST               0
-             28 LOAD_GLOBAL              0 (lst)
-             30 GET_ITER
-        >>   32 FOR_ITER                 4 (to 42)
-             34 STORE_DEREF              0 (x)
-             36 LOAD_DEREF               0 (x)
-             38 LIST_APPEND              2
-             40 JUMP_ABSOLUTE           16 (to 32)
-        >>   42 POP_TOP
-             44 LOAD_CONST               0 (None)
-             46 RETURN_VALUE
+  4          14 BUILD_LIST               0
+             16 LOAD_GLOBAL              0 (lst)
+             18 GET_ITER
+        >>   20 FOR_ITER                 4 (to 30)
+             22 STORE_FAST               0 (x)
+             24 LOAD_FAST                0 (x)
+             26 LIST_APPEND              2
+             28 JUMP_ABSOLUTE           10 (to 20)
+        >>   30 DELETE_FAST              0 (x)
+             32 POP_TOP
+             34 LOAD_CONST               0 (None)
+             36 RETURN_VALUE
+"""
+        g = {}
+        exec(self.compile(src), g)
+        self.do_disassembly_test(g["f"], expected)
+
+    def test_do_not_inline_comp_with_cells(self):
+        src = """
+        def f(lst):
+            ret = [lambda: x for x in lst]
+            inc = [x + 1 for x in lst]
+            [x for x in inc]
+            return ret
+        """
+        g = {}
+        exec(self.compile(src), g)
+
+        # If we inlined the first comprehension (with the lambda), then the
+        # third comprehension would stomp on the value of `x` and cause the
+        # value here to be 3 instead of 4
+        self.assertEqual(g["f"]([1, 2, 3])[0](), 3)
+
+    def test_inline_sync_comp_nested_uses_globals(self):
+        # This is a case that we technically could safely inline, but it's hard
+        # to distinguish from the "cell" cases in the previous two tests, so
+        # given that all these cases are rare, we don't inline any of them.
+        src = """
+        g = 1
+        def f():
+            [lambda: g for x in lst]
+        """
+        expected = """\
+  4           0 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "<string>", line 4>)
+              2 LOAD_CONST               2 ('f.<locals>.<listcomp>')
+              4 MAKE_FUNCTION            0
+              6 LOAD_GLOBAL              0 (lst)
+              8 GET_ITER
+             10 CALL_FUNCTION            1
+             12 POP_TOP
+             14 LOAD_CONST               0 (None)
+             16 RETURN_VALUE
 """
         g = {}
         exec(self.compile(src), g)
