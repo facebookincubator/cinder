@@ -1,4 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 from compiler.strict.runtime import (
     freeze_type,
     loose_slots,

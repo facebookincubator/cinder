@@ -1,5 +1,6 @@
-# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 # pyre-unsafe
+
 """A flow graph representation for Python bytecode"""
 from __future__ import annotations
 

@@ -721,7 +721,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, _y")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 79 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 80 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_keyword_name
 ---
@@ -729,7 +729,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, def")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 73 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 74 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_non_identifier_name
 ---
@@ -737,7 +737,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, ?")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 70 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 71 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_duplicate_name
 ---
@@ -745,7 +745,7 @@ from collections import namedtuple
 P = namedtuple("P", "x x")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 82 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 83 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_fields
 ---
@@ -1281,7 +1281,7 @@ class C:
     b: int
 ---
 ---
-4 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 329 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
+4 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 330 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
 ---
 test_dataclass_field_pos_arg
 ---
@@ -1300,7 +1300,7 @@ C.__annotations__[2] = 3
 c = dataclass(C)
 ---
 ---
-5 4 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 298 30 StrictModuleUserException TypeError 172 14 StrictModuleUserException TypeError
+5 4 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 299 30 StrictModuleUserException TypeError 173 14 StrictModuleUserException TypeError
 ---
 test_dataclass_corrupted_fields
 ---
@@ -1314,7 +1314,7 @@ class D(C):
     b: int
 ---
 ---
-6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 274 21 StrictModuleUserException AttributeError
+6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 275 21 StrictModuleUserException AttributeError
 ---
 test_dataclass_corrupted_fields_1
 ---
@@ -1328,7 +1328,7 @@ class D(C):
     b: int
 ---
 ---
-6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 275 23 StrictModuleUserException AttributeError
+6 1 StrictModuleUnhandledException(AttributeError) 1185 11 StrictModuleUserException AttributeError 1176 15 StrictModuleUserException AttributeError 276 23 StrictModuleUserException AttributeError
 ---
 test_dataclass_init_var_post_init
 ---
@@ -1732,7 +1732,7 @@ from typing import NamedTuple
 Employee = NamedTuple('Employee', [('name', str), ('id', int)], name=str, id=int)
 ---
 ---
-2 11 StrictModuleUnhandledException(TypeError) 328 8 StrictModuleUserException TypeError
+2 11 StrictModuleUnhandledException(TypeError) 329 8 StrictModuleUserException TypeError
 ---
 test_typing_namedtuple_meta_no_get
 ---
@@ -1860,7 +1860,7 @@ class C:
     a: int
 ---
 ---
-7 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 298 30 StrictModuleUserException TypeError 200 12 StrictModuleUserException TypeError
+7 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 299 30 StrictModuleUserException TypeError 201 12 StrictModuleUserException TypeError
 ---
 test_dataclass_classvar_fields
 ---
@@ -8940,7 +8940,7 @@ X = namedtuple("P", "x y")
 X.__new__(object)
 ---
 ---
-3 0 StrictModuleUnhandledException(TypeError) 112 15 StrictModuleUserException TypeError
+3 0 StrictModuleUnhandledException(TypeError) 113 15 StrictModuleUserException TypeError
 ---
 test_namedtuple_index
 ---
@@ -9033,7 +9033,7 @@ P = namedtuple("P", 1)
 p = P(1)
 ---
 ---
-2 4 StrictModuleUnhandledException(TypeError) 53 23 StrictModuleUserException TypeError
+2 4 StrictModuleUnhandledException(TypeError) 54 23 StrictModuleUserException TypeError
 ---
 test_namedtuple_asdict
 ---
@@ -9157,7 +9157,7 @@ class C:
     b: int
 ---
 ---
-2 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 329 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
+2 1 StrictModuleUnhandledException(TypeError) 1185 11 StrictModuleUserException TypeError 1176 15 StrictModuleUserException TypeError 330 27 StrictModuleUserException TypeError 546 16 StrictModuleUserException TypeError
 ---
 test_dataclass_field
 ---

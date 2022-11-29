@@ -1,5 +1,6 @@
-# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 # pyre-unsafe
+
 import ast
 from ast import AST, copy_location
 from typing import Any, Sequence, TypeVar, Union

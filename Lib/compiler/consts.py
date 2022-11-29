@@ -1,4 +1,5 @@
-# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 # operation flags
 OP_ASSIGN = "OP_ASSIGN"
 OP_DELETE = "OP_DELETE"

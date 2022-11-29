@@ -1,4 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 """Tests for __static__ module.
 
 These are tests for the plain-Python fallback implementations in __static__;

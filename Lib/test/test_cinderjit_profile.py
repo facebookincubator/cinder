@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 # NOTE: This test is run normally as part of the regular test suite, and it is
 # also run again separately, using profile data recorded for consumption by the
@@ -13,4 +13,3 @@ class BinaryOpTests(unittest.TestCase):
         def do_pow(a, b):
             return a **b
         self.assertEqual(do_pow(2, 8), 256)
-

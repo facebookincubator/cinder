@@ -1,4 +1,5 @@
-# Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 from __future__ import annotations
 
 from .optimizer import safe_lshift, safe_mod, safe_multiply, safe_power

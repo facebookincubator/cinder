@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 # facebook begin t39538061
+
 import builtins
 import gc
 import sys

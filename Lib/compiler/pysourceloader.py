@@ -1,5 +1,6 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 # pyre-unsafe
+
 import _imp
 import importlib
 import sys
