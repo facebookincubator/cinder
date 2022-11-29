@@ -1148,23 +1148,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCondBranch:
       case Opcode::kCondBranchIterNotDone: {
-        auto instr = static_cast<const CondBranchBase*>(&i);
+        Instruction* cond = bbb.getDefInstr(i.GetOperand(0)->name());
 
-        auto cond = instr->GetOperand(0);
-        auto tmp = cond->name();
-
-        if (instr->opcode() == Opcode::kCondBranchIterNotDone) {
-          tmp = GetSafeTempName();
+        if (opcode == Opcode::kCondBranchIterNotDone) {
           auto iter_done_addr =
               reinterpret_cast<uint64_t>(&jit::g_iterDoneSentinel);
-          bbb.AppendCode("Sub {}, {}, {}", tmp, cond, iter_done_addr);
+          cond = bbb.appendInstr(
+              Instruction::kSub, OutVReg{}, cond, Imm{iter_done_addr});
         }
 
-        bbb.AppendCode(
-            "CondBranch {}, {}, {}",
-            tmp,
-            instr->true_bb()->id,
-            instr->false_bb()->id);
+        bbb.appendInstr(Instruction::kCondBranch, cond);
         break;
       }
       case Opcode::kCondBranchCheckType: {
