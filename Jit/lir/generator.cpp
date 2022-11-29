@@ -932,18 +932,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // Boxing a boolean is a matter of selecting between Py_True and
         // Py_False.
         Register* dest = i.GetOutput();
-        // TODO(T134705663) Use src's name rather than the Register* because
-        // Select can't handle an immediate condition.
-        std::string src = i.GetOperand(0)->name();
-        std::string temp_true = GetSafeTempName();
-        bbb.AppendCode(
-            "Move {}, {:#x}", temp_true, reinterpret_cast<uint64_t>(Py_True));
-        bbb.AppendCode(
-            "Select {}, {}, {}, {:#x}",
-            dest,
-            src,
-            temp_true,
-            reinterpret_cast<uint64_t>(Py_False));
+        Register* src = i.GetOperand(0);
+        auto true_addr = reinterpret_cast<uint64_t>(Py_True);
+        auto false_addr = reinterpret_cast<uint64_t>(Py_False);
+        Instruction* temp_true =
+            bbb.appendInstr(Instruction::kMove, OutVReg{}, Imm{true_addr});
+        bbb.appendInstr(
+            dest, Instruction::kSelect, src, temp_true, Imm{false_addr});
         break;
       }
       case Opcode::kPrimitiveBox: {
