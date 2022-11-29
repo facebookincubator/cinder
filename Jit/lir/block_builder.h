@@ -74,13 +74,41 @@ class BasicBlockBuilder {
   // the same id if called multiple times for the same instruction.
   std::size_t makeDeoptMetadata();
 
+  // Allocate a new block, not yet attached anywhere in the current CFG.
+  //
+  // If the block name already exists, then this returns the existing block.
+  BasicBlock* allocateBlock(std::string_view label);
+
+  // Append a block to the CFG.
+  void appendBlock(BasicBlock* block);
+
+  // Allocate and append a new instruction to the instruction stream.
+  template <class... Args>
+  Instruction* appendInstr(Instruction::Opcode opcode, Args&&... args) {
+    auto instr = cur_bb_->allocateInstr(opcode, cur_hir_instr_);
+    return instr->addOperands(convertArg(std::forward<Args>(args))...);
+  }
+
+  // Allocate and append a new instruction to the instruction stream.
+  //
+  // The instruction is expecting to produce a VReg and match it to an HIR
+  // register.
+  template <class... Args>
+  Instruction*
+  appendInstr(hir::Register* dest, Instruction::Opcode opcode, Args&&... args) {
+    auto instr = appendInstr(opcode, OutVReg{}, std::forward<Args>(args)...);
+    auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
+    JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest->name());
+    return instr;
+  }
+
   void AppendCode(std::string_view s) {
     AppendTokenizedCodeLine(Tokenize(s));
   }
   void AppendCode(const fmt::memory_buffer& buf) {
     AppendCode(std::string_view(buf.data(), buf.size()));
   }
-  void AppendLabel(const std::string& s);
+  void AppendLabel(std::string_view s);
 
   template <typename... T>
   void AppendCode(fmt::format_string<T...> s, T&&... args) {
@@ -167,6 +195,19 @@ class BasicBlockBuilder {
   jit::codegen::Environ* env_;
   Function* func_;
   std::unordered_map<std::string, BasicBlock*> label_to_bb_;
+
+  auto convertArg(hir::Register* src) {
+    return VReg{getDefInstr(src->name())};
+  }
+
+  auto convertArg(Instruction* instr) {
+    return VReg{instr};
+  }
+
+  template <class Arg>
+  auto convertArg(Arg&& arg) {
+    return std::forward<Arg>(arg);
+  }
 
   BasicBlock* GetBasicBlockByLabel(const std::string& label);
 

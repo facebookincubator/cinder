@@ -75,13 +75,24 @@ std::size_t BasicBlockBuilder::makeDeoptMetadata() {
   return cur_deopt_metadata_.value();
 }
 
-void BasicBlockBuilder::AppendLabel(const std::string& s) {
-  auto next_bb = GetBasicBlockByLabel(s);
-  if (cur_bb_->successors().size() < 2) {
-    cur_bb_->addSuccessor(next_bb);
+BasicBlock* BasicBlockBuilder::allocateBlock(std::string_view label) {
+  auto [it, inserted] = label_to_bb_.emplace(std::string{label}, nullptr);
+  if (inserted) {
+    it->second = func_->allocateBasicBlock();
   }
-  cur_bb_ = next_bb;
+  return it->second;
+}
+
+void BasicBlockBuilder::appendBlock(BasicBlock* block) {
+  if (cur_bb_->successors().size() < 2) {
+    cur_bb_->addSuccessor(block);
+  }
+  cur_bb_ = block;
   bbs_.push_back(cur_bb_);
+}
+
+void BasicBlockBuilder::AppendLabel(std::string_view s) {
+  appendBlock(allocateBlock(s));
 }
 
 // x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
