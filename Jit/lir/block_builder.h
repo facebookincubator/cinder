@@ -96,7 +96,8 @@ class BasicBlockBuilder {
   template <class... Args>
   Instruction*
   appendInstr(hir::Register* dest, Instruction::Opcode opcode, Args&&... args) {
-    auto instr = appendInstr(opcode, OutVReg{}, std::forward<Args>(args)...);
+    auto dest_lir = OutVReg{hirTypeToDataType(dest->type())};
+    auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
     JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest->name());
     return instr;
@@ -197,11 +198,11 @@ class BasicBlockBuilder {
   std::unordered_map<std::string, BasicBlock*> label_to_bb_;
 
   auto convertArg(hir::Register* src) {
-    return VReg{getDefInstr(src->name())};
+    return VReg{getDefInstr(src->name()), hirTypeToDataType(src->type())};
   }
 
   auto convertArg(Instruction* instr) {
-    return VReg{instr};
+    return VReg{instr, instr->output()->dataType()};
   }
 
   template <class Arg>
