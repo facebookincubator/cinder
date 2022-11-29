@@ -136,7 +136,13 @@ std::string StrictModuleUnhandledException::testStringHelper() const {
 }
 
 std::string StrictModuleUnhandledException::displayStringHelper() const {
-  return fmt::format("StrictModuleUnhandledException({})", exceptionName_);
+  if (exceptionArgs_.empty()) {
+    return fmt::format("StrictModuleUnhandledException({})", exceptionName_);
+  }
+  return fmt::format(
+      "StrictModuleUnhandledException({}: {})",
+      exceptionName_,
+      fmt::join(exceptionArgs_, ", "));
 }
 
 // UnknownValueBinaryOpException
