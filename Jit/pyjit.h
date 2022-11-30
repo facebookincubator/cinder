@@ -28,11 +28,6 @@ PyAPI_FUNC(size_t) _PyJIT_GetJitConfigBatch_compile_workers(void);
 PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
 
 /*
- * Offset of the code object within a jit::CodeRuntime
- */
-PyAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
-
-/*
  * This defines the global public API for the JIT that is consumed by the
  * runtime.
  *
