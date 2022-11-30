@@ -5945,6 +5945,7 @@ main_loop:
                 item = Ci_CheckedList_GetItem(sequence, val);
                 Py_DECREF(sequence);
                 if (item == NULL) {
+                    Py_DECREF(idx);
                     goto error;
                 }
             } else if (oparg == SEQ_ARRAY_INT64) {

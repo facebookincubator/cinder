@@ -477,6 +477,20 @@ class CheckedListTests(StaticTestBase):
             self.assertEqual(repr(l), "[1, 2]")
             self.assertEqual(type(l), CheckedList[int])
 
+    def test_checked_list_getitem_error(self):
+        codestr = """
+            from __static__ import CheckedList, int64
+
+            def testfunc():
+                a: CheckedList[int] = [int(x + 1) for x in [1, 2, 3, 4]]
+                return a[int64(25)]
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.testfunc
+            self.assertInBytecode(f, "SEQUENCE_GET", SEQ_CHECKED_LIST)
+            with self.assertRaises(IndexError):
+                self.assertEqual(f(), 3)
+
     def test_checked_list_literal_opt_in_with_explicit_list_annotation_type_error(self):
         codestr = """
             from __static__.compiler_flags import checked_lists
