@@ -65,6 +65,7 @@ from .types import (
     Function,
     FunctionContainer,
     GenericClass,
+    KnownBoolean,
     Slot,
     TType,
     TypeDescr,
@@ -240,13 +241,13 @@ class Static38CodeGenerator(StrictCodeGenerator):
         return self.cur_mod.types[node]
 
     def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
-        return cast(TType, self.cur_mod.node_data[key, data_type])
+        return self.cur_mod.get_node_data(key, data_type)
 
     def get_opt_node_data(self, key: AST, data_type: Type[TType]) -> TType | None:
-        return cast(Optional[TType], self.cur_mod.node_data.get((key, data_type)))
+        return self.cur_mod.get_opt_node_data(key, data_type)
 
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
-        self.cur_mod.node_data[key, data_type] = value
+        self.cur_mod.set_node_data(key, data_type, value)
 
     @classmethod
     def make_code_gen(
@@ -989,6 +990,36 @@ class Static38CodeGenerator(StrictCodeGenerator):
             )
             self._default_cache[klass] = meth
         return meth(self, node, *args)
+
+    def get_bool_const(self, node: AST) -> bool | None:
+        if isinstance(node, ast.Constant):
+            return bool(node.value)
+
+        kb = self.get_opt_node_data(node, KnownBoolean)
+        if kb is not None:
+            return True if kb == KnownBoolean.TRUE else False
+
+    def visitIf(self, node: ast.If) -> None:
+        test_type = self.get_type(node.test)
+
+        test_const = self.get_bool_const(node.test)
+
+        end = self.newBlock("if_end")
+        orelse = None
+        if node.orelse:
+            orelse = self.newBlock("if_else")
+
+        self.compileJumpIf(node.test, orelse or end, False)
+        if test_const is not False:
+            self.visitStatements(node.body)
+
+        if node.orelse:
+            self.emit_noline("JUMP_FORWARD", end)
+            self.nextBlock(orelse)
+            if test_const is not True:
+                self.visitStatements(node.orelse)
+
+        self.nextBlock(end)
 
     def compileJumpIf(self, test: AST, next: Block, is_if_true: bool) -> None:
         if isinstance(test, ast.UnaryOp):

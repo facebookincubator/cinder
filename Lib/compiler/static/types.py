@@ -6,6 +6,8 @@ from __static__ import chkdict, chklist
 
 import ast
 import dataclasses
+
+import sys
 from ast import (
     AnnAssign,
     Assign,
@@ -27,7 +29,7 @@ from ast import (
     Str,
 )
 from copy import copy
-from enum import Enum
+from enum import Enum, IntEnum
 from functools import cached_property
 from types import (
     BuiltinFunctionType,
@@ -724,7 +726,13 @@ CMPOP_SIGILS: Mapping[Type[cmpop], str] = {
     ast.GtE: ">=",
     ast.Is: "is",
     ast.IsNot: "is",
+    ast.In: "in",
 }
+
+
+class KnownBoolean(IntEnum):
+    FALSE = 0
+    TRUE = 1
 
 
 class TypeRef:
