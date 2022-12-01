@@ -6,7 +6,18 @@ import ast
 import operator
 import sys
 from ast import Bytes, cmpop, Constant, copy_location, Ellipsis, NameConstant, Num, Str
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional
+from typing import (
+    Any,
+    Callable,
+    cast,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from .visitor import ASTRewriter
 
@@ -45,6 +56,15 @@ BIN_OPS: Mapping[type[ast.operator], Callable[[object, object], object]] = {
     ast.BitOr: operator.or_,
     ast.BitXor: operator.xor,
     ast.BitAnd: operator.and_,
+}
+
+COMPARE_OPS: Mapping[Type[ast.cmpop], Callable[[object, object], object]] = {
+    ast.Gt: lambda a, b: a > b,
+    ast.GtE: lambda a, b: a >= b,
+    ast.Lt: lambda a, b: a < b,
+    ast.LtE: lambda a, b: a <= b,
+    ast.Eq: lambda a, b: a == b,
+    ast.NotEq: lambda a, b: a != b,
 }
 
 
@@ -255,6 +275,47 @@ class AstOptimizer(ASTRewriter):
         return self.update_node(
             node, target=target, iter=iter, body=body, orelse=orelse
         )
+
+    def _sys_version_check_helper(
+        self, node: ast.expr
+    ) -> Tuple[int | None, Callable[[object, object], object] | None]:
+        """
+        A helper function, the result of this is used to strip the AST of code
+        that'd never be run based on the version check.
+
+        TODO(T133442846): Remove this once static python no longer has to deal with
+        3.10 migration code.
+        """
+        if isinstance(node, ast.Compare):
+            left = node.left
+            is_left_sys_hexversion = False
+            if isinstance(left, ast.Attribute):
+                container = left.value
+                if (
+                    isinstance(container, ast.Name)
+                    and container.id == "sys"
+                    and isinstance(left.ctx, ast.Load)
+                    and left.attr == "hexversion"
+                ):
+                    is_left_sys_hexversion = True
+            if is_left_sys_hexversion and len(node.comparators) == 1:
+                right = node.comparators[0]
+                op = COMPARE_OPS[type(node.ops[0])]
+                if isinstance(right, ast.Constant):
+                    return cast(int, right.value), op
+        return None, None
+
+    # TODO(T133442846) remove this
+    def visitIf(self, node: ast.If) -> ast.If:
+        wanted_version, op = self._sys_version_check_helper(node.test)
+        if wanted_version is not None:
+            assert op is not None
+            actual_version = sys.hexversion
+            if op(actual_version, wanted_version):
+                return self.update_node(node, orelse=[])
+            else:
+                return self.update_node(node, body=[])
+        return self.generic_visit(node)
 
     def visitCompare(self, node: ast.Compare) -> ast.expr:
         left = self.visit(node.left)
