@@ -43,7 +43,12 @@ static _PyJIT_Result finalizeCompiledFunc(
     return PYJIT_RESULT_OK;
   }
 
-  func->vectorcall = compiled.entry_point();
+  func->vectorcall = compiled.vectorcallEntry();
+  jit::Runtime* rt = jit::Runtime::get();
+  if (rt->hasFunctionEntryCache(func)) {
+    void** indirect = rt->findFunctionEntryCache(func);
+    *indirect = compiled.staticEntry();
+  }
   return PYJIT_RESULT_OK;
 }
 

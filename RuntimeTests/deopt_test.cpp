@@ -353,7 +353,7 @@ class DeoptStressTest : public RuntimeTest {
     auto pyfunc = reinterpret_cast<PyFunctionObject*>(funcobj.get());
     while (!guards.empty()) {
       NativeGenerator gen(irfunc.get());
-      auto jitfunc = reinterpret_cast<vectorcallfunc>(gen.GetEntryPoint());
+      auto jitfunc = reinterpret_cast<vectorcallfunc>(gen.getVectorcallEntry());
       ASSERT_NE(jitfunc, nullptr);
       ngen_rt->setGuardFailureCallback(delete_one_deopt);
       auto res =
@@ -421,7 +421,7 @@ class DeoptStressTest : public RuntimeTest {
     auto old_disas_funcs = jit::g_dump_asm;
     jit::g_dump_asm = 1;
     NativeGenerator gen(&irfunc);
-    gen.GetEntryPoint();
+    gen.getVectorcallEntry();
     jit::g_dump_asm = old_disas_funcs;
     std::cerr << std::endl;
     std::cerr << "Python traceback: ";

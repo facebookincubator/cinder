@@ -128,6 +128,10 @@ void** Runtime::findFunctionEntryCache(PyFunctionObject* function) {
   return result.first->second.ptr;
 }
 
+bool Runtime::hasFunctionEntryCache(PyFunctionObject* function) const {
+  return function_entry_caches_.find(function) != function_entry_caches_.end();
+}
+
 _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
     PyFunctionObject* function) {
   auto cache = function_entry_caches_.find(function);

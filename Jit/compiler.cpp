@@ -32,9 +32,9 @@ void CompiledFunction::PrintHIR() const {
 
 void CompiledFunctionDebug::Disassemble() const {
   disassemble(
-      reinterpret_cast<const char*>(entry_point()),
+      reinterpret_cast<const char*>(vectorcallEntry()),
       GetCodeSize(),
-      reinterpret_cast<vma_t>(entry_point()));
+      reinterpret_cast<vma_t>(vectorcallEntry()));
 }
 
 void CompiledFunctionDebug::PrintHIR() const {
@@ -234,7 +234,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   COMPILE_TIMER(
       irfunc->compilation_phase_timer,
       "Native code Generation",
-      entry = ngen->GetEntryPoint())
+      entry = ngen->getVectorcallEntry())
   if (entry == nullptr) {
     JIT_DLOG("Generating native code for %s failed", fullname);
     return nullptr;
@@ -266,6 +266,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     irfunc->setCompilationPhaseTimer(nullptr);
     return std::make_unique<CompiledFunctionDebug>(
         reinterpret_cast<vectorcallfunc>(entry),
+        ngen->getStaticEntry(),
         ngen->codeRuntime(),
         func_size,
         stack_size,
@@ -276,6 +277,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   } else {
     return std::make_unique<CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
+        ngen->getStaticEntry(),
         ngen->codeRuntime(),
         func_size,
         stack_size,

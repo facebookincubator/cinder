@@ -172,7 +172,7 @@ int register_pycode_debug_symbol(
 
   int code_size = compiled_func->GetCodeSize();
   int stack_size = compiled_func->GetStackSize();
-  auto code = reinterpret_cast<void*>(compiled_func->entry_point());
+  auto code = reinterpret_cast<void*>(compiled_func->vectorcallEntry());
   if (code_size < 1) {
     JIT_DLOG(
         "Not registering symbol at %p because it has an invalid size %d",
