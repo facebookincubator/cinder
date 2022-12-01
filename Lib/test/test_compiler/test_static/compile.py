@@ -249,6 +249,25 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.assertReturns(codestr, "Optional[int]")
 
+    def test_typing_overload_recognized_decorator(self) -> None:
+        codestr = """
+            from typing import Optional, overload
+
+            class C:
+                @overload
+                @classmethod
+                def foo(self, x: int) -> int:
+                    ...
+
+                @classmethod
+                def foo(self, x: Optional[int]) -> Optional[int]:
+                    return x
+
+            def f(x: int) -> Optional[int]:
+                return C().foo(x)
+        """
+        self.assertReturns(codestr, "Optional[int]")
+
     def test_typing_overload_toplevel(self) -> None:
         """Typing overloads are ignored, don't cause member name conflict."""
         codestr = """
