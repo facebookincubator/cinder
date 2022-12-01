@@ -567,25 +567,28 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     switch (opcode) {
       case Opcode::kLoadArg: {
         auto instr = static_cast<const LoadArg*>(&i);
-        if (instr->arg_idx() >= env_->arg_locations.size() ||
-            env_->arg_locations[instr->arg_idx()] == PhyLocation::REG_INVALID) {
-          size_t reg_count = env_->arg_locations.size();
-          for (auto loc : env_->arg_locations) {
-            if (loc == PhyLocation::REG_INVALID) {
-              reg_count--;
-            }
-          }
-          bbb.AppendCode(
-              "Load {}, __asm_extra_args, {}",
-              instr->dst(),
-              (instr->arg_idx() - reg_count) * kPointerSize);
-        } else {
-          bbb.AppendCode("LoadArg {} {}", instr->dst(), instr->arg_idx());
+        if (instr->arg_idx() < env_->arg_locations.size() &&
+            env_->arg_locations[instr->arg_idx()] != PhyLocation::REG_INVALID) {
+          bbb.appendInstr(
+              instr->dst(), Instruction::kLoadArg, Imm{instr->arg_idx()});
+          break;
         }
+        size_t reg_count = env_->arg_locations.size();
+        for (auto loc : env_->arg_locations) {
+          if (loc == PhyLocation::REG_INVALID) {
+            reg_count--;
+          }
+        }
+        Instruction* extra_args = bbb.getDefInstr("__asm_extra_args");
+        int32_t offset = (instr->arg_idx() - reg_count) * kPointerSize;
+        bbb.appendInstr(
+            instr->dst(), Instruction::kMove, Ind{extra_args, offset});
         break;
       }
       case Opcode::kLoadCurrentFunc: {
-        bbb.AppendCode("Move {}, __asm_func", i.GetOutput());
+        hir::Register* dest = i.GetOutput();
+        Instruction* func = bbb.getDefInstr("__asm_func");
+        bbb.appendInstr(dest, Instruction::kMove, func);
         break;
       }
       case Opcode::kMakeCell: {
@@ -595,11 +598,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kStealCellItem:
       case Opcode::kLoadCellItem: {
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            i.GetOutput(),
-            i.GetOperand(0),
-            offsetof(PyCellObject, ob_ref));
+        hir::Register* dest = i.GetOutput();
+        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0)->name());
+        constexpr int32_t kOffset = offsetof(PyCellObject, ob_ref);
+        bbb.appendInstr(dest, Instruction::kMove, Ind{src_base, kOffset});
         break;
       }
       case Opcode::kSetCellItem: {
@@ -614,34 +616,33 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadConst: {
         auto instr = static_cast<const LoadConst*>(&i);
         Type ty = instr->type();
+
         if (ty <= TCDouble) {
-          auto tmp_name = GetSafeTempName();
-          double_t spec_value = ty.doubleSpec();
-          auto v = bit_cast<uint64_t>(spec_value);
-          // This loads the bits of the double into memory
-          bbb.AppendCode("Move {}:{}, {:#x}", tmp_name, TCUInt64, v);
-          // This moves the value into a floating point register
-          bbb.AppendCode(
-              "Move {}:{}, {}",
-              instr->dst()->name(),
-              ty.unspecialized(),
-              tmp_name);
-        } else {
-          intptr_t spec_value = ty.hasIntSpec()
-              ? ty.intSpec()
-              : reinterpret_cast<intptr_t>(ty.asObject());
-          bbb.AppendCode(
-              "Move {}:{}, {:#x}",
-              instr->dst()->name(),
-              ty.unspecialized(),
-              spec_value);
+          // Loads the bits of the double constant into an integer register.
+          auto spec_value = bit_cast<uint64_t>(ty.doubleSpec());
+          Instruction* double_bits = bbb.appendInstr(
+              Instruction::kMove,
+              OutVReg{OperandBase::k64bit},
+              Imm{spec_value});
+          // Moves the value into a floating point register.
+          bbb.appendInstr(instr->dst(), Instruction::kMove, double_bits);
+          break;
         }
+
+        intptr_t spec_value = ty.hasIntSpec()
+            ? ty.intSpec()
+            : reinterpret_cast<intptr_t>(ty.asObject());
+        bbb.appendInstr(
+            instr->dst(),
+            Instruction::kMove,
+            Imm{static_cast<uint64_t>(spec_value)});
         break;
       }
       case Opcode::kLoadVarObjectSize: {
-        const size_t kSizeOffset = offsetof(PyVarObject, ob_size);
-        bbb.AppendCode(
-            "Load {}, {}, {}", i.GetOutput(), i.GetOperand(0), kSizeOffset);
+        hir::Register* dest = i.GetOutput();
+        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0)->name());
+        constexpr int32_t kOffset = offsetof(PyVarObject, ob_size);
+        bbb.appendInstr(dest, Instruction::kMove, Ind{src_base, kOffset});
         break;
       }
       case Opcode::kLoadFunctionIndirect: {
@@ -935,8 +936,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         Register* src = i.GetOperand(0);
         auto true_addr = reinterpret_cast<uint64_t>(Py_True);
         auto false_addr = reinterpret_cast<uint64_t>(Py_False);
-        Instruction* temp_true =
-            bbb.appendInstr(Instruction::kMove, OutVReg{}, Imm{true_addr});
+        Instruction* temp_true = bbb.appendInstr(
+            Instruction::kMove, OutVReg{OperandBase::k64bit}, Imm{true_addr});
         bbb.appendInstr(
             dest, Instruction::kSelect, src, temp_true, Imm{false_addr});
         break;
@@ -1154,7 +1155,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           auto iter_done_addr =
               reinterpret_cast<uint64_t>(&jit::g_iterDoneSentinel);
           cond = bbb.appendInstr(
-              Instruction::kSub, OutVReg{}, cond, Imm{iter_done_addr});
+              Instruction::kSub,
+              OutVReg{OperandBase::k64bit},
+              cond,
+              Imm{iter_done_addr});
         }
 
         bbb.appendInstr(Instruction::kCondBranch, cond);
@@ -1935,21 +1939,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
       case Opcode::kLoadField: {
         auto instr = static_cast<const LoadField*>(&i);
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            instr->GetOutput(),
-            instr->receiver(),
-            instr->offset());
+        hir::Register* dest = instr->dst();
+        Instruction* receiver = bbb.getDefInstr(instr->receiver()->name());
+        auto offset = static_cast<int32_t>(instr->offset());
+        bbb.appendInstr(dest, Instruction::kMove, Ind{receiver, offset});
         break;
       }
 
       case Opcode::kLoadFieldAddress: {
         auto instr = static_cast<const LoadFieldAddress*>(&i);
-        bbb.AppendCode(
-            "Lea {}, {}, {}",
-            instr->GetOutput(),
-            instr->object(),
-            instr->offset());
+        hir::Register* dest = instr->dst();
+        Instruction* object = bbb.getDefInstr(instr->object()->name());
+        Instruction* offset = bbb.getDefInstr(instr->offset()->name());
+        bbb.appendInstr(dest, Instruction::kLea, Ind{object, offset});
         break;
       }
 
@@ -2050,11 +2052,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadTupleItem: {
         auto instr = static_cast<const LoadTupleItem*>(&i);
-
-        const size_t item_offset =
-            offsetof(PyTupleObject, ob_item) + instr->idx() * kPointerSize;
-        bbb.AppendCode(
-            "Load {} {} {}", instr->GetOutput(), instr->tuple(), item_offset);
+        hir::Register* dest = instr->dst();
+        Instruction* tuple = bbb.getDefInstr(instr->tuple()->name());
+        auto item_offset = static_cast<int32_t>(
+            offsetof(PyTupleObject, ob_item) + instr->idx() * kPointerSize);
+        bbb.appendInstr(dest, Instruction::kMove, Ind{tuple, item_offset});
         break;
       }
       case Opcode::kCheckSequenceBounds: {
@@ -2075,23 +2077,17 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadArrayItem: {
         auto instr = static_cast<const LoadArrayItem*>(&i);
+        hir::Register* dest = instr->dst();
         if (instr->idx()->type().hasIntSpec()) {
           // Fast path: index known at compile-time.
-          const size_t item_offset =
+          Instruction* ob_item = bbb.getDefInstr(instr->ob_item()->name());
+          auto item_offset = static_cast<int32_t>(
               instr->idx()->type().intSpec() * instr->type().sizeInBytes() +
-              instr->offset();
-          bbb.AppendCode(
-              "Load {} {} {}",
-              instr->GetOutput(),
-              instr->ob_item(),
-              item_offset);
+              instr->offset());
+          bbb.appendInstr(dest, Instruction::kMove, Ind{ob_item, item_offset});
           break;
         }
-        bbb.AppendLoad(
-            instr->GetOutput(),
-            instr->ob_item(),
-            instr->idx(),
-            instr->offset());
+        bbb.AppendLoad(dest, instr->ob_item(), instr->idx(), instr->offset());
         break;
       }
       case Opcode::kStoreArrayItem: {
@@ -2433,20 +2429,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             sizeof(reinterpret_cast<PyInterpreterState*>(0)
                        ->ceval.eval_breaker._value) == 4,
             "Eval breaker is not a 4 byte value");
-        JIT_CHECK(
-            i.GetOutput()->type() == TCInt32,
-            "eval breaker output should be int");
+        hir::Register* dest = i.GetOutput();
+        JIT_CHECK(dest->type() == TCInt32, "eval breaker output should be int");
         // tstate->interp->ceval.eval_breaker
-        auto interp = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, __asm_tstate, {}",
-            interp,
-            offsetof(PyThreadState, interp));
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            i.GetOutput(),
-            interp,
-            offsetof(PyInterpreterState, ceval.eval_breaker));
+        Instruction* tstate = bbb.getDefInstr("__asm_tstate");
+        Instruction* interp = bbb.appendInstr(
+            Instruction::kMove,
+            OutVReg{OperandBase::k64bit},
+            Ind{tstate, offsetof(PyThreadState, interp)});
+        bbb.appendInstr(
+            dest,
+            Instruction::kMove,
+            Ind{interp, offsetof(PyInterpreterState, ceval.eval_breaker)});
         break;
       }
       case Opcode::kRunPeriodicTasks: {
