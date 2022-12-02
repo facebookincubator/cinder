@@ -24,6 +24,7 @@ from typing import (
     overload,
     Set,
     Tuple,
+    Type,
     TYPE_CHECKING,
     Union,
 )
@@ -42,9 +43,11 @@ from .types import (
     Function,
     FunctionGroup,
     InitVar,
+    KnownBoolean,
     MethodType,
     NativeDecorator,
     ReadonlyType,
+    TType,
     TypeDescr,
     UnionType,
     UnknownDecoratedMethod,
@@ -433,3 +436,21 @@ class ModuleTable:
         for target in targets:
             if isinstance(target, ast.Name):
                 self.implicit_decl_names.add(target.id)
+
+    def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
+        return cast(TType, self.node_data[key, data_type])
+
+    def get_opt_node_data(self, key: AST, data_type: Type[TType]) -> TType | None:
+        return cast(Optional[TType], self.node_data.get((key, data_type)))
+
+    def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
+        self.node_data[key, data_type] = value
+
+    def mark_known_boolean_test(self, node: ast.expr, *, value: bool) -> None:
+        """
+        For boolean tests that can be determined during decl-visit, we note the AST nodes
+        and the boolean value. This helps us avoid visiting dead code in later passes.
+        """
+        self.set_node_data(
+            node, KnownBoolean, KnownBoolean.TRUE if value else KnownBoolean.FALSE
+        )

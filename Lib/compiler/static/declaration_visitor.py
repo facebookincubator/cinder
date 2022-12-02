@@ -1,6 +1,9 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 from __future__ import annotations
 
+import ast
+
+import sys
 from ast import (
     AnnAssign,
     Assign,
@@ -34,6 +37,7 @@ from .types import (
     TypeRef,
     UnknownDecoratedMethod,
 )
+from .util import sys_hexversion_check
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
@@ -257,9 +261,19 @@ class DeclarationVisitor(GenericVisitor[None]):
         if isinstance(test, Name) and test.id == "TYPE_CHECKING":
             self.visit(node.body)
         else:
-            self.enter_scope(NestedScope())
-            self.visit(node.body)
-            self.exit_scope()
+            result = sys_hexversion_check(node)
+            # We should check the version if provided
+            if result is not None:
+                self.module.mark_known_boolean_test(test, value=bool(result))
+                if result:
+                    self.visit(node.body)
+                else:
+                    self.visit(node.orelse)
+                return
+            else:
+                self.enter_scope(NestedScope())
+                self.visit(node.body)
+                self.exit_scope()
 
         if node.orelse:
             self.enter_scope(NestedScope())

@@ -88,6 +88,7 @@ from .types import (
     GenericClass,
     InitVar,
     IsInstanceEffect,
+    KnownBoolean,
     MethodType,
     ModuleInstance,
     Object,
@@ -648,13 +649,13 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return self.module.types[node]
 
     def get_node_data(self, key: AST, data_type: Type[TType]) -> TType:
-        return cast(TType, self.module.node_data[key, data_type])
+        return self.module.get_node_data(key, data_type)
 
     def get_opt_node_data(self, key: AST, data_type: Type[TType]) -> TType | None:
-        return cast(Optional[TType], self.module.node_data.get((key, data_type)))
+        return self.module.get_opt_node_data(key, data_type)
 
     def set_node_data(self, key: AST, data_type: Type[TType], value: TType) -> None:
-        self.module.node_data[key, data_type] = value
+        self.module.set_node_data(key, data_type, value)
 
     def check_primitive_scope(self, name: str) -> None:
         cur_scope = self.symbols.scopes[self.scope]
@@ -1748,17 +1749,32 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
         return ret
 
+    def get_bool_const(self, node: ast.expr) -> bool | None:
+        kb = self.get_opt_node_data(node, KnownBoolean)
+        if kb is not None:
+            return True if kb == KnownBoolean.TRUE else False
+
     def visitIf(self, node: If) -> None:
         self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
 
         effect = self.visit(node.test) or NO_EFFECT
+
+        test_const = self.get_bool_const(node.test)
+        # Visit body/orelse blocks depending on whether the condition
+        # is determined to be a constant bool
+        visit_body = test_const is not False
+        visit_orelse = test_const is not True
+
         self.clear_refinements_for_nonbool_test(node.test)
         branch = self.binding_scope.branch()
         effect.apply(self.type_state)
 
-        terminates = self.visit_check_terminal(node.body)
+        if visit_body:
+            terminates = self.visit_check_terminal(node.body)
+        else:
+            terminates = TerminalKind.NonTerminal
 
-        if node.orelse:
+        if visit_orelse and node.orelse:
             if_end = branch.copy()
             branch.restore()
 
