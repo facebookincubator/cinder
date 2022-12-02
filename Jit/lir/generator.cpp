@@ -599,7 +599,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kStealCellItem:
       case Opcode::kLoadCellItem: {
         hir::Register* dest = i.GetOutput();
-        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0)->name());
+        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0));
         constexpr int32_t kOffset = offsetof(PyCellObject, ob_ref);
         bbb.appendInstr(dest, Instruction::kMove, Ind{src_base, kOffset});
         break;
@@ -640,7 +640,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadVarObjectSize: {
         hir::Register* dest = i.GetOutput();
-        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0)->name());
+        Instruction* src_base = bbb.getDefInstr(i.GetOperand(0));
         constexpr int32_t kOffset = offsetof(PyVarObject, ob_size);
         bbb.appendInstr(dest, Instruction::kMove, Ind{src_base, kOffset});
         break;
@@ -1149,7 +1149,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCondBranch:
       case Opcode::kCondBranchIterNotDone: {
-        Instruction* cond = bbb.getDefInstr(i.GetOperand(0)->name());
+        Instruction* cond = bbb.getDefInstr(i.GetOperand(0));
 
         if (opcode == Opcode::kCondBranchIterNotDone) {
           auto iter_done_addr =
@@ -1940,7 +1940,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadField: {
         auto instr = static_cast<const LoadField*>(&i);
         hir::Register* dest = instr->dst();
-        Instruction* receiver = bbb.getDefInstr(instr->receiver()->name());
+        Instruction* receiver = bbb.getDefInstr(instr->receiver());
         auto offset = static_cast<int32_t>(instr->offset());
         bbb.appendInstr(dest, Instruction::kMove, Ind{receiver, offset});
         break;
@@ -1949,8 +1949,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadFieldAddress: {
         auto instr = static_cast<const LoadFieldAddress*>(&i);
         hir::Register* dest = instr->dst();
-        Instruction* object = bbb.getDefInstr(instr->object()->name());
-        Instruction* offset = bbb.getDefInstr(instr->offset()->name());
+        Instruction* object = bbb.getDefInstr(instr->object());
+        Instruction* offset = bbb.getDefInstr(instr->offset());
         bbb.appendInstr(dest, Instruction::kLea, Ind{object, offset});
         break;
       }
@@ -2053,7 +2053,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadTupleItem: {
         auto instr = static_cast<const LoadTupleItem*>(&i);
         hir::Register* dest = instr->dst();
-        Instruction* tuple = bbb.getDefInstr(instr->tuple()->name());
+        Instruction* tuple = bbb.getDefInstr(instr->tuple());
         auto item_offset = static_cast<int32_t>(
             offsetof(PyTupleObject, ob_item) + instr->idx() * kPointerSize);
         bbb.appendInstr(dest, Instruction::kMove, Ind{tuple, item_offset});
@@ -2080,7 +2080,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         hir::Register* dest = instr->dst();
         if (instr->idx()->type().hasIntSpec()) {
           // Fast path: index known at compile-time.
-          Instruction* ob_item = bbb.getDefInstr(instr->ob_item()->name());
+          Instruction* ob_item = bbb.getDefInstr(instr->ob_item());
           auto item_offset = static_cast<int32_t>(
               instr->idx()->type().intSpec() * instr->type().sizeInBytes() +
               instr->offset());

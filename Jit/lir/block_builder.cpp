@@ -710,6 +710,10 @@ Instruction* BasicBlockBuilder::getDefInstr(const std::string& name) {
   return def_instr;
 }
 
+Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
+  return getDefInstr(reg->name());
+}
+
 void BasicBlockBuilder::CreateInstrInput(
     Instruction* instr,
     const std::string& name) {

@@ -152,6 +152,7 @@ class BasicBlockBuilder {
   Instruction* createInstr(Instruction::Opcode opcode);
 
   Instruction* getDefInstr(const std::string& name);
+  Instruction* getDefInstr(const hir::Register* reg);
 
   void CreateInstrInput(Instruction* instr, const std::string& name);
   void CreateInstrOutput(
