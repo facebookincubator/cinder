@@ -446,7 +446,10 @@ def main():
         invalidation_mode = None
 
     success = True
-    loader_override = PySourceFileLoader if args.use_py_loader else None
+    loader_override = None
+    if args.use_py_loader:
+        loader_override = PySourceFileLoader
+        sys.setrecursionlimit(sys.getrecursionlimit() * 100)
     strict_compile = args.strict_compile
     try:
         if compile_dests:
