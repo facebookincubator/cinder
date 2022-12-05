@@ -1818,7 +1818,8 @@ PyImport_DeferredImportModuleLevelObject(
         /* Crazy side-effects! */
         PyObject *type, *value, *traceback;
         PyErr_Fetch(&type, &value, &traceback);
-        if (!PySet_Contains(interp->lazy_loaded, abs_name) && PyImport_GetModule(abs_name) == NULL) {
+        PyObject *mod = PyImport_GetModule(abs_name);
+        if (!PySet_Contains(interp->lazy_loaded, abs_name) && mod == NULL) {
             Py_ssize_t dot = PyUnicode_FindChar(abs_name, '.', 0, PyUnicode_GET_LENGTH(abs_name), -1);
             if (dot >= 0) {
                 PyObject *parent = PyUnicode_Substring(abs_name, 0, dot);
@@ -1856,10 +1857,12 @@ PyImport_DeferredImportModuleLevelObject(
                             Py_DECREF(child);
                         }
                     }
+                    Py_DECREF(existing);
                 }
                 Py_DECREF(parent);
             }
         }
+        Py_XDECREF(mod);
         PyErr_Restore(type, value, traceback);
     }
 
@@ -2586,7 +2589,7 @@ static PyMethodDef imp_methods[] = {
     _IMP_RELEASE_LOCK_METHODDEF
     _IMP_GET_FROZEN_OBJECT_METHODDEF
     _IMP_IS_FROZEN_PACKAGE_METHODDEF
-    _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF    
+    _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
     _IMP_CREATE_BUILTIN_METHODDEF
     _IMP_INIT_FROZEN_METHODDEF
     _IMP_IS_BUILTIN_METHODDEF
