@@ -1229,22 +1229,16 @@ Include/pydtrace_probes_ceval.h: $(srcdir)/Include/pydtrace_ceval.d
 	$(DTRACE) $(DFLAGS) -o $@ -h -s $<
 	: sed in-place edit with POSIX-only tools
 	sed -i 's/PYTHON_/PyDTrace_/' $@
-	sed -i 's,sys/sdt.h,Include/folly/tracing/StaticTracepoint.h,' $@
-	sed -i -E 's,DTRACE_PROBE([0-9]+),FOLLY_SDT,' $@
 Include/pydtrace_probes_gcmodule.h: $(srcdir)/Include/pydtrace_gcmodule.d
 	$(MKDIR_P) Include
 	$(DTRACE) $(DFLAGS) -o $@ -h -s $<
 	: sed in-place edit with POSIX-only tools
 	sed -i 's/PYTHON_/PyDTrace_/' $@
-	sed -i 's,sys/sdt.h,Include/folly/tracing/StaticTracepoint.h,' $@
-	sed -i -E 's,DTRACE_PROBE([0-9]+),FOLLY_SDT,' $@
 Include/pydtrace_probes_import.h: $(srcdir)/Include/pydtrace_import.d
 	$(MKDIR_P) Include
 	$(DTRACE) $(DFLAGS) -o $@ -h -s $<
 	: sed in-place edit with POSIX-only tools
 	sed -i 's/PYTHON_/PyDTrace_/' $@
-	sed -i 's,sys/sdt.h,Include/folly/tracing/StaticTracepoint.h,' $@
-	sed -i -E 's,DTRACE_PROBE([0-9]+),FOLLY_SDT,' $@
 
 Python/ceval_probes.o: $(srcdir)/Include/pydtrace_ceval.d Python/ceval.o
 	$(DTRACE) $(DFLAGS) -o $@ -G -s $< Python/ceval.o
