@@ -1651,7 +1651,8 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
         /* Crazy side-effects! */
         PyObject *type, *value, *traceback;
         PyErr_Fetch(&type, &value, &traceback);
-        if (!PySet_Contains(interp->lazy_loaded, abs_name) && PyImport_GetModule(abs_name) == NULL) {
+        PyObject *mod = PyImport_GetModule(abs_name);
+        if (!PySet_Contains(interp->lazy_loaded, abs_name) && mod == NULL) {
             Py_ssize_t dot = PyUnicode_FindChar(abs_name, '.', 0, PyUnicode_GET_LENGTH(abs_name), -1);
             if (dot >= 0) {
                 PyObject *parent = PyUnicode_Substring(abs_name, 0, dot);
@@ -1688,10 +1689,12 @@ PyImport_LazyImportModuleLevelObject(PyObject *name, PyObject *globals,
                             Py_DECREF(child);
                         }
                     }
+                    Py_DECREF(existing);
                 }
                 Py_DECREF(parent);
             }
         }
+        Py_XDECREF(mod);
         PyErr_Restore(type, value, traceback);
     }
 
