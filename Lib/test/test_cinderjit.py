@@ -1572,6 +1572,101 @@ class JITCompileCrasherRegressionTests(StaticTestBase):
             if cinderjit:
                 self.assertTrue(cinderjit.is_jit_compiled(mod.Foo.__init__))
 
+    def test_restore_materialized_parent_pyframe_in_gen_throw(self):
+        # This reproduces a bug that causes the top frame in the shadow stack
+        # to be out of sync with the top frame on the Python stack.
+        #
+        # When a generator that is thrown into is yielding from another generator
+        # it does the following (see `_gen_throw` in genobject.c):
+        #
+        # 1. Save the top of the Python and shadow stacks to local variables.
+        # 2. Set the top of Python and shadow stacks to the respective frames
+        #    belonging to the generator.
+        # 3. Throw the exception into the value from which it is yielding.
+        # 4. Restore the top of the Python and shadow stacks to the values
+        #    that were saved locally in (1).
+        #
+        # When running in shadow frame mode the Python frame for the shadow
+        # frame at the top of the stack in (1) may be materialized in (3).
+        # When the frame is materialized, the local copy that is used in (4)
+        # will be incorrect and needs to be updated to match the materialized
+        # frame.
+        #
+        # When run under shadow-frame mode when the CancelledError is thrown
+        # into c, the following happens:
+        #
+        # 1. Execution enters `awaitable_throw` in classloader.c.
+        # 2. `awaitable_throw` ends up calling `_gen_throw` for `c`.
+        # 3. At this point, the top of the shadow stack is the shadow
+        #    frame for `a` (not `b`, since `b` awaits a non-coroutine it
+        #    does not do the save/restore dance for TOS). The top
+        #    of the Python stack is NULL, since `a` has not had its
+        #    frame materialized. These are saved as locals in `_gen_throw`.
+        # 4. `c` throws into `d`, which materializes the Python frame
+        #    for `a`.
+        # 5. Execution returns to `_gen_throw` for `c`, which goes about
+        #    restoring the top of the shadow stack and python stack. The top of
+        #    the shadow stack hasn't changed, however, the top of Python stack
+        #    has. We need to be careful to update the top of the Python stack
+        #    to the materialized Python frame. Otherwise we'd restore it
+        #    to the saved value, NULL, and the shadow stack and Python stack
+        #    would be out of sync.
+        # 6. `awaitable_throw` ends up invoking `ctxmgrwrp_exit`, which calls
+        #    `PyEval_GetFrame`. `PyEval_GetFrame` materializes the Python
+        #    frames for the shadow stack and returns `tstate->frame`.
+        #    If the TOS gets out of sync in 5, we'll either fail consistency
+        #    checks in debug mode, or return NULL from `PyEval_GetFrame`.
+        #
+        # Note that this particular repro requires using ContextDecorator
+        # in non-static code.
+        from __static__ import ContextDecorator
+
+
+        async def a(child_fut, main_fut, box):
+            return await b(child_fut, main_fut, box)
+
+
+        async def b(child_fut, main_fut, box):
+            return await c(child_fut, main_fut, box)
+
+
+        @ContextDecorator()
+        async def c(child_fut, main_fut, box):
+            return await d(child_fut, main_fut, box)
+
+
+        async def d(child_fut, main_fut, box):
+            main_fut.set_result(True)
+            try:
+                await child_fut
+            except:
+                # force the frame to be materialized
+                box[0].cr_frame
+                raise
+
+
+        async def main():
+            child_fut = asyncio.Future()
+            main_fut = asyncio.Future()
+            box = [None]
+            coro = a(child_fut, main_fut, box)
+            box[0] = coro
+            t = asyncio.create_task(coro)
+            # wait for d to have started
+            await main_fut
+
+            t.cancel()
+            await t
+
+        with self.assertRaises(asyncio.CancelledError):
+            asyncio.run(main())
+
+        if cinderjit:
+            self.assertTrue(cinderjit.is_jit_compiled(a))
+            self.assertTrue(cinderjit.is_jit_compiled(b))
+            self.assertTrue(cinderjit.is_jit_compiled(c.__wrapped__))
+            self.assertTrue(cinderjit.is_jit_compiled(d))
+
 
 class DelObserver:
     def __init__(self, id, cb):
