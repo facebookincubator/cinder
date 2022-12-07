@@ -1232,10 +1232,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadTypeAttrCacheItem: {
         auto instr = static_cast<const LoadTypeAttrCacheItem*>(&i);
-        auto cache = load_type_attr_caches_.at(instr->cache_id());
-        auto addr =
-            reinterpret_cast<uint64_t>(&(cache->items[instr->item_idx()]));
-        bbb.AppendCode("Load {}, {:#x}", instr->GetOutput(), addr);
+        LoadTypeAttrCache* cache = load_type_attr_caches_.at(instr->cache_id());
+        PyObject** addr = &cache->items[instr->item_idx()];
+        bbb.appendInstr(instr->dst(), Instruction::kMove, MemImm{addr});
         break;
       }
       case Opcode::kFillTypeAttrCache: {
@@ -1709,10 +1708,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyObject* name =
             PyTuple_GET_ITEM(instr->code()->co_names, instr->name_idx());
         auto cache = env_->rt->findGlobalCache(builtins, globals, name);
-        bbb.AppendCode(
-            "Load {}, {:#x}",
-            instr->GetOutput(),
-            reinterpret_cast<uint64_t>(cache.valuePtr()));
+        bbb.appendInstr(
+            instr->dst(), Instruction::kMove, MemImm{cache.valuePtr()});
         break;
       }
       case Opcode::kLoadGlobal: {
