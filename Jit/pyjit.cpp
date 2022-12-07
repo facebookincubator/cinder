@@ -1601,6 +1601,10 @@ int _PyJIT_IsEnabled() {
   return (jit_config.init_state == JIT_INITIALIZED) && jit_config.is_enabled;
 }
 
+int _PyJIT_IsInitialized() {
+  return (jit_config.init_state == JIT_INITIALIZED);
+}
+
 void _PyJIT_AfterFork_Child() {
   perf::afterForkChild();
 }
@@ -2344,7 +2348,7 @@ void _PyJIT_ClearTypeProfiles() {
 }
 
 PyFrameObject* _PyJIT_GetFrame(PyThreadState* tstate) {
-  if (_PyJIT_IsEnabled()) {
+  if (_PyJIT_IsInitialized()) {
     return jit::materializeShadowCallStack(tstate);
   }
   return tstate->frame;

@@ -64,6 +64,14 @@ PyAPI_FUNC(void) _PyJIT_Disable(void);
 PyAPI_FUNC(int) _PyJIT_IsEnabled(void);
 
 /*
+ * Returns 1 if the JIT was ever successfully initialized, 0 otherwise.
+ *
+ * This could be 1 when _PyJIT_IsEnabled() is 0, if the JIT has since been
+ * disabled.
+ */
+PyAPI_FUNC(int) _PyJIT_IsInitialized(void);
+
+/*
  * After-fork callback for child processes. Performs any cleanup necessary for
  * per-process state, including handling of Linux perf pid maps.
  */

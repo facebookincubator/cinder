@@ -15,6 +15,7 @@ import subprocess
 from importlib import is_lazy_imports_enabled
 import sys
 import tempfile
+import textwrap
 import threading
 import traceback
 import unittest
@@ -189,6 +190,48 @@ class GetFrameLineNumberTests(unittest.TestCase):
         line_base = firstlineno(double)
         self.assertEqual(stack[-1].lineno, firstlineno(StackGetter.__del__) + 2)
         self.assertEqual(stack[-2].lineno, firstlineno(double) + 4)
+
+    @unittest.skipUnlessCinderJITEnabled("Runs a subprocess with the JIT enabled")
+    def test_line_numbers_after_jit_disabled(self):
+        code = textwrap.dedent("""
+            import cinderjit
+            import sys
+
+            def f():
+                frame = sys._getframe(0)
+                print(f"{frame.f_code.co_name}:{frame.f_lineno}")
+                return 1
+
+            f()
+            assert cinderjit.is_jit_compiled(f)
+            cinderjit.disable()
+            f()
+        """)
+        jitlist = "__main__:*\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            dirpath = Path(tmp)
+            codepath = dirpath / "mod.py"
+            jitlistpath = dirpath / "jitlist.txt"
+            codepath.write_text(code)
+            jitlistpath.write_text(jitlist)
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "jit",
+                    "-X",
+                    "jit-list-file=jitlist.txt",
+                    "-X",
+                    "jit-enable-jit-list-wildcards",
+                    "mod.py",
+                ],
+                cwd=tmp,
+                stdout=subprocess.PIPE,
+                encoding=sys.stdout.encoding,
+            )
+        self.assertEqual(proc.returncode, 0, proc)
+        expected_stdout = "f:6\nf:6\n"
+        self.assertEqual(proc.stdout, expected_stdout)
 
 
 @unittest.failUnlessJITCompiled
