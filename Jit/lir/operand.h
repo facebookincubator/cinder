@@ -534,7 +534,7 @@ struct OperandArg<MemoryIndirect, Output> {
 };
 
 template <>
-struct OperandArg<void*, true> {
+struct OperandArg<void, true> {
   OperandArg(const OperandBase::DataType& dt = OperandBase::kObject)
       : data_type(dt) {}
 
@@ -547,6 +547,7 @@ struct OperandArg<void*, true> {
 DECLARE_TYPE_ARG(PhyReg, PhyLocation, false)
 DECLARE_TYPE_ARG(Imm, uint64_t, false)
 DECLARE_TYPE_ARG(FPImm, double, false)
+DECLARE_TYPE_ARG(MemImm, void*, false)
 DECLARE_TYPE_ARG(Stk, PhyLocation, false)
 DECLARE_TYPE_ARG(PhyRegStack, PhyLocation, false)
 DECLARE_TYPE_ARG(Lbl, BasicBlock*, false)
@@ -556,11 +557,12 @@ DECLARE_TYPE_ARG(Ind, MemoryIndirect, false)
 DECLARE_TYPE_ARG(OutPhyReg, PhyLocation, true)
 DECLARE_TYPE_ARG(OutImm, uint64_t, true)
 DECLARE_TYPE_ARG(OutFPImm, double, true)
+DECLARE_TYPE_ARG(OutMemImm, void*, true)
 DECLARE_TYPE_ARG(OutStk, PhyLocation, true)
 DECLARE_TYPE_ARG(OutPhyRegStack, PhyLocation, true)
 DECLARE_TYPE_ARG(OutLbl, BasicBlock*, true)
 DECLARE_TYPE_ARG(OutDbl, double, true);
 DECLARE_TYPE_ARG(OutInd, MemoryIndirect, true);
-DECLARE_TYPE_ARG(OutVReg, void*, true);
+DECLARE_TYPE_ARG(OutVReg, void, true);
 
 } // namespace jit::lir
