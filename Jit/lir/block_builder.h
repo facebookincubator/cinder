@@ -143,12 +143,6 @@ class BasicBlockBuilder {
     AppendCallInternal(nullptr, func, std::forward<AppendArgs>(args)...);
   }
 
-  void AppendLoad(
-      hir::Register* dst,
-      hir::Register* base,
-      hir::Register* index,
-      int offset);
-
   Instruction* createInstr(Instruction::Opcode opcode);
 
   Instruction* getDefInstr(const std::string& name);

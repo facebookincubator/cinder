@@ -95,35 +95,6 @@ void BasicBlockBuilder::AppendLabel(std::string_view s) {
   appendBlock(allocateBlock(s));
 }
 
-// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
-// a limited set of inputs.
-static int multiplierFromSize(int num_bytes) {
-  switch (num_bytes) {
-    case 1:
-      return 0;
-    case 2:
-      return 1;
-    case 4:
-      return 2;
-    case 8:
-      return 3;
-    default:
-      break;
-  }
-  JIT_CHECK(false, "unexpected num_bytes %d", num_bytes);
-}
-
-void BasicBlockBuilder::AppendLoad(
-    hir::Register* dst,
-    hir::Register* base,
-    hir::Register* index,
-    int offset) {
-  Instruction* instr = createInstr(Instruction::Opcode::kMove);
-  CreateInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
-  int multiplier = multiplierFromSize(dst->type().sizeInBytes());
-  CreateInstrIndirect(instr, base->name(), index->name(), multiplier, offset);
-}
-
 std::vector<std::string> BasicBlockBuilder::Tokenize(std::string_view s) {
   std::vector<std::string> tokens;
 
@@ -602,13 +573,6 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          bldr.createBasicInstr(
              Instruction::kDeoptPatchpoint, false, -1, tokens);
-       }},
-      {"Load2ndCallResult",
-       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
-         auto instr = bldr.createInstr(Instruction::kMove);
-
-         instr->allocatePhyRegisterInput(PhyLocation::RDX);
-         bldr.CreateInstrOutputFromStr(instr, tokens[1]);
        }},
       {"Phi",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {

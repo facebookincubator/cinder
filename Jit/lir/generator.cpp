@@ -557,6 +557,24 @@ static ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
   return shadowFrameOffsetBefore(instr) - ssize_t{kJITShadowFrameSize};
 }
 
+// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
+// a limited set of inputs.
+static uint8_t multiplierFromSize(int num_bytes) {
+  switch (num_bytes) {
+    case 1:
+      return 0;
+    case 2:
+      return 1;
+    case 4:
+      return 2;
+    case 8:
+      return 3;
+    default:
+      break;
+  }
+  JIT_CHECK(false, "unexpected num_bytes %d", num_bytes);
+}
+
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
   BasicBlockBuilder bbb(env_, lir_func_);
@@ -1050,11 +1068,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               "Equal {} {} {:#x}", instr->dst(), instr->value(), true_addr);
         } else if (ty <= TCDouble) {
           // For doubles, we can directly load the offset into the destination.
-          bbb.AppendCode(
-              "Load {}, {}, {}",
-              instr->dst(),
-              instr->value(),
-              offsetof(PyFloatObject, ob_fval));
+          Instruction* value = bbb.getDefInstr(instr->value());
+          int32_t offset = offsetof(PyFloatObject, ob_fval);
+          bbb.appendInstr(instr->dst(), Instruction::kMove, Ind{value, offset});
         } else if (ty <= TCUInt64) {
           bbb.AppendCall(instr->dst(), JITRT_UnboxU64, instr->value());
         } else if (ty <= TCUInt32) {
@@ -1275,7 +1291,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kGetLoadMethodInstance: {
-        bbb.AppendCode("Load2ndCallResult {}", i.GetOutput());
+        hir::Register* dest = i.GetOutput();
+        // TODO(T139682668): Generalize this and rewrite to RDX before regalloc.
+        bbb.appendInstr(dest, Instruction::kMove, PhyReg{PhyLocation::RDX});
         break;
       }
       case Opcode::kLoadMethodSuper: {
@@ -2026,24 +2044,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kInitListTuple: {
         auto instr = static_cast<const InitListTuple*>(&i);
         auto is_tuple = instr->is_tuple();
-
-        std::string base = instr->GetOperand(0)->name();
-
-        std::string tmp_id = GetSafeTempName();
+        Instruction* base = bbb.getDefInstr(instr->GetOperand(0));
         if (!is_tuple && instr->NumOperands() > 1) {
-          bbb.AppendCode(
-              "Load {}, {}, {}", tmp_id, base, offsetof(PyListObject, ob_item));
-          base = std::move(tmp_id);
+          int32_t offset = offsetof(PyListObject, ob_item);
+          base =
+              bbb.appendInstr(Instruction::kMove, OutVReg{}, Ind{base, offset});
         }
-
         const size_t ob_item_offset =
             is_tuple ? offsetof(PyTupleObject, ob_item) : 0;
         for (size_t i = 1; i < instr->NumOperands(); i++) {
-          bbb.AppendCode(
-              "Store {}, {}, {}",
-              instr->GetOperand(i),
-              base,
-              ob_item_offset + ((i - 1) * kPointerSize));
+          int32_t offset = ob_item_offset + ((i - 1) * kPointerSize);
+          bbb.appendInstr(
+              Instruction::kMove, OutInd{base, offset}, instr->GetOperand(i));
         }
         break;
       }
@@ -2075,16 +2087,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadArrayItem: {
         auto instr = static_cast<const LoadArrayItem*>(&i);
         hir::Register* dest = instr->dst();
+        Instruction* ob_item = bbb.getDefInstr(instr->ob_item());
+        Instruction* idx = bbb.getDefInstr(instr->idx());
+        // TODO(T139547908): x86-64 semantics bleeding into LIR generator.
+        uint8_t multiplier = multiplierFromSize(instr->type().sizeInBytes());
+        int32_t offset = instr->offset();
+        // Might know the index at compile-time.
+        auto ind = Ind{ob_item, idx, multiplier, offset};
         if (instr->idx()->type().hasIntSpec()) {
-          // Fast path: index known at compile-time.
-          Instruction* ob_item = bbb.getDefInstr(instr->ob_item());
-          auto item_offset = static_cast<int32_t>(
+          auto scaled_offset = static_cast<int32_t>(
               instr->idx()->type().intSpec() * instr->type().sizeInBytes() +
-              instr->offset());
-          bbb.appendInstr(dest, Instruction::kMove, Ind{ob_item, item_offset});
-          break;
+              offset);
+          ind = Ind{ob_item, scaled_offset};
         }
-        bbb.AppendLoad(dest, instr->ob_item(), instr->idx(), instr->offset());
+        bbb.appendInstr(dest, Instruction::kMove, ind);
         break;
       }
       case Opcode::kStoreArrayItem: {
@@ -2674,20 +2690,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kWaitHandleLoadWaiter: {
         const auto& instr = static_cast<const WaitHandleLoadWaiter&>(i);
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            instr.GetOutput()->name(),
-            instr.reg(),
-            offsetof(Ci_PyWaitHandleObject, wh_waiter));
+        Instruction* base = bbb.getDefInstr(instr.reg());
+        int32_t offset = offsetof(Ci_PyWaitHandleObject, wh_waiter);
+        bbb.appendInstr(instr.dst(), Instruction::kMove, Ind{base, offset});
         break;
       }
       case Opcode::kWaitHandleLoadCoroOrResult: {
         const auto& instr = static_cast<const WaitHandleLoadCoroOrResult&>(i);
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            instr.GetOutput()->name(),
-            instr.reg(),
-            offsetof(Ci_PyWaitHandleObject, wh_coro_or_result));
+        Instruction* base = bbb.getDefInstr(instr.reg());
+        int32_t offset = offsetof(Ci_PyWaitHandleObject, wh_coro_or_result);
+        bbb.appendInstr(instr.dst(), Instruction::kMove, Ind{base, offset});
         break;
       }
       case Opcode::kWaitHandleRelease: {
