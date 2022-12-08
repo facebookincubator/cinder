@@ -1052,7 +1052,6 @@ class BlockFinder:
         self.started = False
         self.passline = False
         self.indecorator = False
-        self.decoratorparenlevel = 0
         self.last = 1
         self.body_col0 = None
 
@@ -1067,14 +1066,6 @@ class BlockFinder:
                     self.islambda = True
                 self.started = True
             self.passline = True    # skip to the end of the line
-        elif token == "(":
-            if self.indecorator:
-                self.decoratorparenlevel += 1
-        elif token == ")":
-            if self.indecorator:
-                self.decoratorparenlevel -= 1
-                if not self.decoratorparenlevel:
-                    self.indecorator = False
         elif type == tokenize.NEWLINE:
             self.passline = False   # stop skipping when a NEWLINE is seen
             self.last = srowcol[0]
@@ -1082,7 +1073,7 @@ class BlockFinder:
                 raise EndOfBlock
             # hitting a NEWLINE when in a decorator without args
             # ends the decorator
-            if self.indecorator and not self.decoratorparenlevel:
+            if self.indecorator:
                 self.indecorator = False
         elif self.passline:
             pass
