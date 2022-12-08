@@ -102,6 +102,11 @@ struct Environ {
   // maps an output name to its defining instruction
   UnorderedMap<std::string, jit::lir::Instruction*> output_map;
 
+  // Instruction definitions that are pinned to physical registers.
+  jit::lir::Instruction* asm_tstate{nullptr};
+  jit::lir::Instruction* asm_extra_args{nullptr};
+  jit::lir::Instruction* asm_func{nullptr};
+
   // maps the original name to the propagated name.
   // TODO(tiansi, bsimmers): this is a temporary hack. Need to do the real
   // copy propagation after LIR cleanup is done. Related to

@@ -91,12 +91,14 @@ BasicBlock* LIRGenerator::GenerateEntryBlock() {
     instr->output()->setVirtualRegister();
     instr->allocatePhyRegisterInput(phy_reg);
     env_->output_map.emplace(name, instr);
+    return instr;
   };
 
-  bindVReg("__asm_extra_args", jit::codegen::PhyLocation::R10);
-  bindVReg("__asm_tstate", jit::codegen::PhyLocation::R11);
+  env_->asm_extra_args =
+      bindVReg("__asm_extra_args", jit::codegen::PhyLocation::R10);
+  env_->asm_tstate = bindVReg("__asm_tstate", jit::codegen::PhyLocation::R11);
   if (func_->uses_runtime_func) {
-    bindVReg("__asm_func", jit::codegen::PhyLocation::RAX);
+    env_->asm_func = bindVReg("__asm_func", jit::codegen::PhyLocation::RAX);
   }
 
   return block;
@@ -106,7 +108,7 @@ BasicBlock* LIRGenerator::GenerateExitBlock() {
   auto block = lir_func_->allocateBasicBlock();
   auto instr = block->allocateInstr(Instruction::kMove, nullptr);
   instr->output()->setPhyRegister(jit::codegen::PhyLocation::RDI);
-  instr->allocateLinkedInput(map_get(env_->output_map, "__asm_tstate"));
+  instr->allocateLinkedInput(env_->asm_tstate);
   return block;
 }
 
@@ -597,7 +599,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reg_count--;
           }
         }
-        Instruction* extra_args = bbb.getDefInstr("__asm_extra_args");
+        Instruction* extra_args = env_->asm_extra_args;
         int32_t offset = (instr->arg_idx() - reg_count) * kPointerSize;
         bbb.appendInstr(
             instr->dst(), Instruction::kMove, Ind{extra_args, offset});
@@ -605,7 +607,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadCurrentFunc: {
         hir::Register* dest = i.GetOutput();
-        Instruction* func = bbb.getDefInstr("__asm_func");
+        Instruction* func = env_->asm_func;
         bbb.appendInstr(dest, Instruction::kMove, func);
         break;
       }
@@ -2445,7 +2447,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         hir::Register* dest = i.GetOutput();
         JIT_CHECK(dest->type() == TCInt32, "eval breaker output should be int");
         // tstate->interp->ceval.eval_breaker
-        Instruction* tstate = bbb.getDefInstr("__asm_tstate");
+        Instruction* tstate = env_->asm_tstate;
         Instruction* interp = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{OperandBase::k64bit},
