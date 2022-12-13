@@ -136,24 +136,11 @@ fun test {
 fun test {
   bb 0 {
     v0:Object = LoadArg<0>
-    CondBranch<1, 3> v0
-  }
-
-  bb 3 (preds 0) {
     v3:Bool = UnaryOp<Not> v0 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    CondBranch<1, 4> v3
-  }
-
-  bb 1 (preds 0, 3) {
-    v1:Object = Phi<0, 3> v0 v3
-    Unreachable
-  }
-
-  bb 4 (preds 3) {
     Return v3
   }
 }
@@ -180,6 +167,164 @@ fun test {
 ---
 fun test {
   bb 0 {
+    Unreachable
+  }
+}
+---
+CleanUpCondBranchToAnUnreachableEdge
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; CInt32>
+    CondBranch<1, 2> v0
+  }
+
+  bb 1 (preds 0) {
+    v1:NoneType = LoadConst<NoneType>
+    Return v1
+  }
+
+  bb 2 (preds 0) {
+    v2:Bottom = LoadConst<Bottom>
+    Return v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:NoneType = LoadConst<NoneType>
+    Return v1
+  }
+}
+---
+CleanUpCondBranchToTwoUnreachableEdges
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; CInt32>
+    v1 = GuardType<Tuple> v0
+    CondBranch<1, 2> v0
+  }
+
+  bb 1 (preds 0) {
+    v2:Bottom = LoadConst<Bottom>
+    Return v2
+  }
+
+  bb 2 (preds 0) {
+    v3:Bottom = LoadConst<Bottom>
+    Return v3
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Tuple = GuardType<Tuple> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Unreachable
+  }
+}
+---
+CleanUpExistingUnreachable
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; CInt32>
+    v1 = GuardType<Tuple> v0
+    CondBranch<1, 2> v0
+  }
+
+  bb 1 (preds 0) {
+    v2:Bottom = LoadConst<Bottom>
+    v3 = LoadConst<NoneType>
+    v4:Object = BinaryOp<Add> v0 v3
+    v5:NoneType = LoadConst<NoneType>
+    Unreachable
+  }
+
+  bb 2 (preds 0) {
+    v6:NoneType = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Tuple = GuardType<Tuple> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v6:NoneType = LoadConst<NoneType>
+    Return v6
+  }
+}
+---
+CleanUpLoopWithUnreachable
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; CInt32>
+    v1 = GuardType<Tuple> v0
+    Branch<1>
+  }
+
+  bb 1 (preds 0, 4) {
+    v2 = LoadConst<NoneType>
+    v3:Object = BinaryOp<Add> v0 v2
+    Branch<2>
+  }
+
+  bb 2 (preds 1) {
+    v4:Object = BinaryOp<Add> v0 v3
+    v5:Bottom = LoadConst<Bottom>
+    Branch<3>
+  }
+  bb 3 (preds 2) {
+    v6:NoneType = LoadConst<NoneType>
+    Branch<4>
+  }
+
+  bb 4 (preds 3) {
+    v7:NoneType = LoadConst<NoneType>
+    CondBranch<1, 5> v7
+  }
+
+  bb 5 (preds 4) {
+    v8:NoneType = LoadConst<NoneType>
+    Return v8
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v1:Tuple = GuardType<Tuple> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v2:NoneType = LoadConst<NoneType>
+    v3:Object = BinaryOp<Add> v0 v2 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v4:Object = BinaryOp<Add> v0 v3 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
     Unreachable
   }
 }

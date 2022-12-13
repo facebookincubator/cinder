@@ -585,13 +585,22 @@ std::vector<BasicBlock*> CFG::GetRPOTraversal() const {
 }
 
 std::vector<BasicBlock*> CFG::GetRPOTraversal(BasicBlock* start) {
+  auto traversal = GetPostOrderTraversal(start);
+  std::reverse(traversal.begin(), traversal.end());
+  return traversal;
+}
+
+std::vector<BasicBlock*> CFG::GetPostOrderTraversal() const {
+  return GetPostOrderTraversal(entry_block);
+}
+
+std::vector<BasicBlock*> CFG::GetPostOrderTraversal(BasicBlock* start) {
   std::vector<BasicBlock*> traversal;
   if (start == nullptr) {
     return traversal;
   }
   std::unordered_set<BasicBlock*> visited;
   postorder_traverse(start, &traversal, &visited);
-  std::reverse(traversal.begin(), traversal.end());
   return traversal;
 }
 

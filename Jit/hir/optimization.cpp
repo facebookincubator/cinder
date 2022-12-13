@@ -529,13 +529,15 @@ static bool absorbDstBlock(BasicBlock* block) {
 
 bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
   bool modified = false;
+  std::vector<BasicBlock*> blocks = cfg->GetPostOrderTraversal();
 
-  for (BasicBlock& block : cfg->blocks) {
-    auto it = block.begin();
-    while (it != block.end()) {
+  for (BasicBlock* block : blocks) {
+    auto it = block->begin();
+    while (it != block->end()) {
       Instr& instr = *it;
       ++it;
-      if (instr.GetOutput() == nullptr || !instr.GetOutput()->isA(TBottom)) {
+      if ((instr.GetOutput() == nullptr || !instr.GetOutput()->isA(TBottom)) &&
+          !instr.IsUnreachable()) {
         continue;
       }
       // 1) Any instruction dominated by a definition of a Bottom value is
@@ -556,21 +558,53 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           break;
         }
         it = prev_it;
-      } while (it != block.begin());
+      } while (it != block->begin());
 
-      block.insert(Unreachable::create(), it);
+      block->insert(Unreachable::create(), it);
       // Clean up dangling phi references
-      if (Instr* old_term = block.GetTerminator()) {
+      if (Instr* old_term = block->GetTerminator()) {
         for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
-          old_term->successor(i)->removePhiPredecessor(&block);
+          old_term->successor(i)->removePhiPredecessor(block);
         }
       }
       // Remove all instructions after the Unreachable
-      while (it != block.end()) {
+      while (it != block->end()) {
         Instr& instr = *it;
         ++it;
         instr.unlink();
         delete &instr;
+      }
+    }
+    if (block->begin()->IsUnreachable()) {
+      std::vector<Instr*> interesting_branches;
+      // If one edge of a conditional branch leads to an Unreachable, it can be
+      // replaced with a Branch to the other target. If a Branch leads to an
+      // Unreachable, it is replaced with an Unreachable.
+      for (const Edge* edge : block->in_edges()) {
+        BasicBlock* predecessor = edge->from();
+        interesting_branches.emplace_back(predecessor->GetTerminator());
+      }
+      for (Instr* branch : interesting_branches) {
+        if (branch->IsBranch()) {
+          branch->ReplaceWith(*Unreachable::create());
+        } else if (auto cond_branch = dynamic_cast<CondBranchBase*>(branch)) {
+          BasicBlock* target;
+          if (cond_branch->false_bb() == block) {
+            target = cond_branch->true_bb();
+          } else {
+            JIT_CHECK(
+                cond_branch->true_bb() == block,
+                "true branch must be unreachable");
+            target = cond_branch->false_bb();
+          }
+          // TODO(T138210636): When replacing CondBranchCheckType with Branch
+          // due to an unreachable target, leave an appropriate AssertType in
+          // its place
+          cond_branch->ReplaceWith(*Branch::create(target));
+        } else {
+          JIT_CHECK(false, "Unexpected branch instruction %s", *branch);
+        }
+        delete branch;
       }
     }
   }
@@ -699,8 +733,10 @@ bool CleanCFG::RemoveTrampolineBlocks(CFG* cfg) {
 }
 
 void CleanCFG::Run(Function& irfunc) {
-  bool changed = RemoveUnreachableInstructions(&irfunc.cfg);
+  bool changed = false;
+
   do {
+    RemoveUnreachableInstructions(&irfunc.cfg);
     // Remove any trivial Phis; absorbDstBlock cannot handle them.
     PhiElimination{}.Run(irfunc);
     std::vector<BasicBlock*> blocks = irfunc.cfg.GetRPOTraversal();
