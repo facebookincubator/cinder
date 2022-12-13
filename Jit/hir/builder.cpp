@@ -734,7 +734,9 @@ void HIRBuilder::emitProfiledTypes(
   ssize_t stack_idx = first_profile.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
-  } else if (bc_instr.opcode() == CALL_METHOD) {
+  } else if (
+      bc_instr.opcode() == CALL_METHOD ||
+      bc_instr.opcode() == CALL_FUNCTION_KW) {
     stack_idx = bc_instr.oparg() + 1;
   } else if (bc_instr.opcode() == WITH_EXCEPT_START) {
     stack_idx = 6;
@@ -761,8 +763,8 @@ void HIRBuilder::emitProfiledTypes(
       all_types.emplace_back(types);
     }
     std::vector<Register*> args;
-    while (stack_idx >= 0) {
-      args.emplace_back(tc.frame.stack.top(stack_idx--));
+    for (size_t i = 0; i < first_profile.size(); i++) {
+      args.emplace_back(tc.frame.stack.top(stack_idx - i));
     }
     tc.emit<HintType>(args.size(), all_types, args);
   }
