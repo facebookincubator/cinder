@@ -530,6 +530,8 @@ static bool absorbDstBlock(BasicBlock* block) {
 bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
   bool modified = false;
   std::vector<BasicBlock*> blocks = cfg->GetPostOrderTraversal();
+  DominatorAnalysis dom(*cfg->func);
+  RegUses reg_uses = collectDirectRegUses(*cfg->func);
 
   for (BasicBlock* block : blocks) {
     auto it = block->begin();
@@ -597,9 +599,31 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
                 "true branch must be unreachable");
             target = cond_branch->false_bb();
           }
-          // TODO(T138210636): When replacing CondBranchCheckType with Branch
-          // due to an unreachable target, leave an appropriate AssertType in
-          // its place
+
+          if (branch->IsCondBranchCheckType()) {
+            auto check_type_branch = static_cast<CondBranchCheckType*>(branch);
+            Register* refined_value = cfg->func->env.AllocateRegister();
+            Type check_type = check_type_branch->type();
+            if (target == cond_branch->false_bb()) {
+              check_type = TTop - check_type_branch->type();
+            }
+
+            Register* operand = check_type_branch->GetOperand(0);
+            RefineType::create(refined_value, check_type, operand)
+                ->InsertBefore(*cond_branch);
+            auto uses = reg_uses.find(operand);
+            if (uses == reg_uses.end()) {
+              break;
+            }
+            std::unordered_set<Instr*>& instrs_using_reg = uses->second;
+            const std::unordered_set<const BasicBlock*>& dom_set =
+                dom.getBlocksDominatedBy(target);
+            for (Instr* instr : instrs_using_reg) {
+              if (dom_set.count(instr->block())) {
+                instr->ReplaceUsesOf(operand, refined_value);
+              }
+            }
+          }
           cond_branch->ReplaceWith(*Branch::create(target));
         } else {
           JIT_CHECK(false, "Unexpected branch instruction %s", *branch);

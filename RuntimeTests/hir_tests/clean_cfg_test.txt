@@ -204,7 +204,7 @@ CleanUpCondBranchToTwoUnreachableEdges
 # HIR
 fun test {
   bb 0 {
-    v0 = LoadArg<0; CInt32>
+    v0 = LoadArg<0>
     v1 = GuardType<Tuple> v0
     CondBranch<1, 2> v0
   }
@@ -237,7 +237,7 @@ CleanUpExistingUnreachable
 # HIR
 fun test {
   bb 0 {
-    v0 = LoadArg<0; CInt32>
+    v0 = LoadArg<0>
     v1 = GuardType<Tuple> v0
     CondBranch<1, 2> v0
   }
@@ -274,7 +274,7 @@ CleanUpLoopWithUnreachable
 # HIR
 fun test {
   bb 0 {
-    v0 = LoadArg<0; CInt32>
+    v0 = LoadArg<0>
     v1 = GuardType<Tuple> v0
     Branch<1>
   }
@@ -326,6 +326,99 @@ fun test {
       }
     }
     Unreachable
+  }
+}
+---
+CleanUpTruthyBranchOfCondBranchCheckType
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    CondBranchCheckType<1, 2, Tuple> v0
+  }
+
+  bb 1 (preds 0) {
+    v1:Object = BinaryOp<Add> v0 v0
+    CondBranch<3, 4> v1
+  }
+
+  bb 2 (preds 0) {
+    v2:Bottom = LoadConst<Bottom>
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v4 = Phi<1, 2> v1 v2
+    Return v4
+  }
+
+  bb 4 (preds 1) {
+    v5:Object = BinaryOp<Add> v1 v1
+    CondBranch<1, 3> v5
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v6:Tuple = RefineType<Tuple> v0
+    Branch<1>
+  }
+
+  bb 1 (preds 0, 4) {
+    v1:Object = BinaryOp<Add> v6 v6 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    CondBranch<3, 4> v1
+  }
+
+  bb 4 (preds 1) {
+    v5:Object = BinaryOp<Add> v1 v1 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    CondBranch<1, 3> v5
+  }
+
+  bb 3 (preds 1, 4) {
+    Return v1
+  }
+}
+---
+CleanUpFalseBranchOfCondBranchCheckType
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0>
+    CondBranchCheckType<2, 1, Tuple> v0
+  }
+
+  bb 1 (preds 0) {
+    v1:Object = BinaryOp<Add> v0 v0
+    Return v1
+  }
+
+  bb 2 (preds 0) {
+    v2:Bottom = LoadConst<Bottom>
+    Return v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:Object = LoadArg<0>
+    v3:{Array|BaseException|Bytes|Cell|Code|Dict|Float|Frame|Func|Gen|List|Long|NoneType|ObjectExact|ObjectUser|Set|Slice|Type|Unicode|WaitHandle} = RefineType<{Array|BaseException|Bytes|CBool|CDouble|CInt|CPtr|Cell|Code|Dict|Float|Frame|Func|Gen|List|Long|NoneType|Nullptr|ObjectExact|ObjectUser|Set|Slice|Type|Unicode|WaitHandle}> v0
+    v1:Object = BinaryOp<Add> v3 v3 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return v1
   }
 }
 ---
