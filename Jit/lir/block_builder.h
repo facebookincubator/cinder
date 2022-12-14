@@ -26,6 +26,8 @@
 // bbbuilder.h with some interfaces changes so that it works with the new
 // LIR.
 
+// This custom formatter is here because of how Generator and BasicBlockBuilder
+// stringify LIR before actually generating it.
 template <>
 struct fmt::formatter<jit::hir::Register*> {
   template <typename ParseContext>

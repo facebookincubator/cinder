@@ -904,8 +904,4 @@ FrameState* get_frame_state(Instr& instr) {
       get_frame_state(const_cast<const Instr&>(instr)));
 }
 
-std::ostream& operator<<(std::ostream& os, const Register& reg) {
-  return os << reg.name();
-}
-
 } // namespace jit::hir

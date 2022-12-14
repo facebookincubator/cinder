@@ -17,6 +17,10 @@ const std::string& Register::name() const {
   return name_;
 }
 
+std::ostream& operator<<(std::ostream& os, const Register& reg) {
+  return os << reg.name();
+}
+
 std::ostream& operator<<(std::ostream& os, RefKind kind) {
   switch (kind) {
     case RefKind::kUncounted:

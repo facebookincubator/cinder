@@ -59,8 +59,6 @@ class Register {
   mutable std::string name_;
 };
 
-std::ostream& operator<<(std::ostream& os, const Register& reg);
-
 // The refcount semantics of a value held in a Register.
 enum class RefKind : char {
   // A PyObject* that is either null or points to an immortal object, and
@@ -71,7 +69,6 @@ enum class RefKind : char {
   // A PyObject* that owns a reference.
   kOwned,
 };
-std::ostream& operator<<(std::ostream& os, RefKind kind);
 
 // The kind of value held in a Register.
 enum class ValueKind : char {
@@ -86,7 +83,6 @@ enum class ValueKind : char {
   // A C Double
   kDouble,
 };
-std::ostream& operator<<(std::ostream& os, ValueKind kind);
 
 struct RegState {
   RegState() = default;
@@ -102,5 +98,9 @@ struct RegState {
   RefKind ref_kind{RefKind::kUncounted};
   ValueKind value_kind{ValueKind::kObject};
 };
+
+std::ostream& operator<<(std::ostream& os, const Register& reg);
+std::ostream& operator<<(std::ostream& os, RefKind kind);
+std::ostream& operator<<(std::ostream& os, ValueKind kind);
 
 } // namespace jit::hir
