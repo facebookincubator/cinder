@@ -4012,6 +4012,8 @@ void HIRBuilder::emitGetAwaitable(
     tc.emit<RaiseAwaitableError>(type, prev_prev_op, prev_op, tc.frame);
 
     tc.block = ok_block;
+    // TODO(T105038867): Remove once we have RefineTypeInsertion
+    tc.emit<RefineType>(iter, TObject, iter);
   } else {
     tc.emit<CheckExc>(iter, iter, tc.frame);
   }

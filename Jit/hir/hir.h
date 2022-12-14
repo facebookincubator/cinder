@@ -2603,11 +2603,7 @@ DEFINE_SIMPLE_INSTR(
 
 // Branch to `true_bb` if the operand matches the supplied type specification,
 // or `false_bb` otherwise.
-class INSTR_CLASS(
-    CondBranchCheckType,
-    (TOptObject),
-    Operands<1>,
-    CondBranchBase) {
+class INSTR_CLASS(CondBranchCheckType, (TObject), Operands<1>, CondBranchBase) {
  public:
   CondBranchCheckType(
       Register* target,
