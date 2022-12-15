@@ -6130,16 +6130,6 @@ case "$CXX" in
       ;;
 esac
 
-dnl TODO(T125839145): Remove this
-echo "" >&AS_MESSAGE_FD
-echo "" >&AS_MESSAGE_FD
-echo "Using -Wno-unused-function for C++ code during Cinder 3.10 port" >&AS_MESSAGE_FD
-echo "" >&AS_MESSAGE_FD
-echo "" >&AS_MESSAGE_FD
-BASECXXFLAGS="${BASECXXFLAGS} -Wno-unused-function"
-CXXFLAGS_NODIST="${CXXFLAGS_NODIST} -Wno-unused-function"
-
-
 # generate output files
 AC_CONFIG_FILES(Makefile.pre Misc/python.pc Misc/python-embed.pc Misc/python-config.sh)
 AC_CONFIG_FILES([Modules/ld_so_aix], [chmod +x Modules/ld_so_aix])

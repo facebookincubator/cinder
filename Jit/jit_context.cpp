@@ -69,20 +69,6 @@ jit::CompiledFunction* lookupCompiledCode(
   return it == ctx->compiled_codes.end() ? nullptr : it->second.get();
 }
 
-bool freevarsContainsClass(BorrowedRef<PyCodeObject> code) {
-  BorrowedRef<PyTupleObject> freevars{code->co_freevars};
-  if (freevars == nullptr) {
-    return false;
-  }
-  for (Py_ssize_t i = 0; i < PyTuple_Size(freevars); i++) {
-    if (PyUnicode_CompareWithASCIIString(
-            PyTuple_GET_ITEM(freevars, i), "__class__") == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
 jit::CompiledFunction* lookupCompiledFunction(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
