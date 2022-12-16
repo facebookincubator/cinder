@@ -56,7 +56,7 @@ from test.libregrtest.setup import setup_tests
 
 from typing import Dict, Iterable, IO, List, Optional
 
-MAX_WORKERS = 16
+MAX_WORKERS = 64
 
 WORKER_PATH = os.path.abspath(__file__)
 
