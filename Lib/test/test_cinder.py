@@ -422,34 +422,6 @@ class CinderTest(unittest.TestCase):
         finally:
             cinder.cinder_set_warn_handler(None)
 
-    @unittest.cinderPortingBrokenTest()
-    def test_raise_immutability_warning(self):
-        warns = None
-
-        def log_warnings(warnings: List[Tuple[int, str, object]]):
-            nonlocal warns
-            warns = warnings
-
-        cinder.set_immutable_warn_handler(None)
-
-        self.assertEqual(cinder.get_immutable_warn_handler(), None)
-        cinder.raise_immutable_warning(0, "test", "test1")
-        self.assertEqual(warns, None)
-
-        cinder.set_immutable_warn_handler(log_warnings)
-        cinder.raise_immutable_warning(0, "test", "test2")
-        self.assertEqual(cinder.get_immutable_warn_handler(), log_warnings)
-        self.assertEqual(warns, None)
-        cinder.flush_immutable_warnings()
-        self.assertListEqual(
-            warns,
-            [
-                (0, "test", "test1"),
-                (0, "test", "test2"),
-            ],
-        )
-        cinder.set_immutable_warn_handler(None)
-
     def test_cached_property(self):
         class C:
             def __init__(self):
@@ -1983,7 +1955,6 @@ class TestInterpProfiling(unittest.TestCase):
         self.assertEqual(item["normvector"]["types"], ["float", "int"])
 
 
-@unittest.cinderPortingBrokenTest()
 class TestWaitForAwaiter(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
@@ -2040,7 +2011,6 @@ class Rendez:
         self.barrier = asyncio.Future()
 
 
-@unittest.cinderPortingBrokenTest()
 class TestClearAwaiter(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()

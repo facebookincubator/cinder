@@ -654,7 +654,7 @@ TESTS_TO_SKIP = {
     "test_inspect",
     "test_rlcompleter",
     "test_signal",
-    # These probably won't work ever work under the JIT
+    # These probably won't ever work under the JIT
     "test_cprofile",
     "test_pdb",
     "test_profile",

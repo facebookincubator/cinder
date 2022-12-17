@@ -820,7 +820,6 @@ def test(x, y):
   EXPECT_HIR_EQ(irfunc, expected);
 }
 
-#ifdef CINDER_ENABLE_BROKEN_TESTS
 TEST_F(FrameStateCreationTest, MakeFunction) {
   const char* src = R"(
 def test(x):
@@ -886,7 +885,6 @@ def test(x):
 )";
   EXPECT_HIR_EQ(irfunc, expected);
 }
-#endif
 
 TEST_F(FrameStateCreationTest, GetDominatingFrameState) {
   CFG cfg;

@@ -5706,16 +5706,6 @@ test_fatal_error(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-cinder_enable_broken_tests(PyObject *self, PyObject *Py_UNUSED(ignored))
-{
-#ifdef CINDER_ENABLE_BROKEN_TESTS
-    Py_RETURN_TRUE;
-#else
-    Py_RETURN_FALSE;
-#endif
-}
-
-static PyObject *
 test_dict_can_watch(PyObject *self, PyObject *Py_UNUSED(ignored)) {
     PyObject *dict = NULL, *five = NULL;
 
@@ -6320,7 +6310,6 @@ static PyMethodDef TestMethods[] = {
     {"make_get_debug_descriptor", EventLoop_make_get_debug_descriptor, METH_O},
     {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
     {"get_context_indirect", get_context, METH_VARARGS},
-    {"cinder_enable_broken_tests", cinder_enable_broken_tests, METH_NOARGS},
     {"test_dict_can_watch", test_dict_can_watch, METH_NOARGS},
     {"initialize_context_helpers", _initialize_context_helpers, METH_NOARGS},
     {"modify_context", _modify_context, METH_O},

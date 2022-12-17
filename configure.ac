@@ -1599,17 +1599,6 @@ UNIVERSAL_ARCH_FLAGS=
 AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 
 
-AC_MSG_CHECKING(for --with-broken-cinder-tests)
-AC_ARG_WITH(broken-cinder-tests,
-            AS_HELP_STRING([--with-broken-cinder-tests], [Enable Cinder tests known to not work]),
-[
-BASECXXFLAGS="${BASECXXFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
-BASECFLAGS="${BASECFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
-AC_MSG_RESULT(yes)
-],
-[AC_MSG_RESULT(no)])
-
-
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)

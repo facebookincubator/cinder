@@ -161,82 +161,6 @@ PyDoc_STRVAR(cinder_get_warn_handler_doc, "get_warn_handler()\n\
 \n\
 Gets the callback that receives Cinder specific warnings.");
 
-#ifdef CINDER_PORTING_DONE
-static PyObject *
-cinder_set_immutable_warn_handler(PyObject *self, PyObject *o)
-{
-    Py_XDECREF(_PyErr_ImmutableWarnHandler);
-    if (o == Py_None) {
-        _PyErr_ImmutableWarnHandler = NULL;
-    } else {
-        _PyErr_ImmutableWarnHandler = o;
-        Py_INCREF(_PyErr_ImmutableWarnHandler);
-    }
-    Py_RETURN_NONE;
-}
-
-
-PyDoc_STRVAR(cinder_set_immutable_warn_handler_doc,
-"set_immutable_warn_handler(cb)\n\
-\n\
-Sets a callback that receives immutability specific warnings in Cinder.\
-\
-Callback should be a callable that accepts:\
-\
-(err_code, message, *args)"
-);
-
-static PyObject *
-cinder_get_immutable_warn_handler(PyObject *self, PyObject *args)
-{
-    if (_PyErr_ImmutableWarnHandler != NULL) {
-        Py_INCREF(_PyErr_ImmutableWarnHandler);
-        return _PyErr_ImmutableWarnHandler;
-    }
-    Py_RETURN_NONE;
-}
-
-
-PyDoc_STRVAR(cinder_get_immutable_warn_handler_doc, "get_immutable_warn_handler()\n\
-\n\
-Gets the callback that receives immutability specific warnings in Cinder.");
-
-
-static PyObject *
-cinder_raise_immutable_warning(PyObject *self, PyObject *args)
-{
-    int code;
-    PyObject* msg = NULL;
-    PyObject* value = NULL;
-    if (!PyArg_ParseTuple(args, "iU|O", &code, &msg, &value)) {
-        return NULL;
-    }
-    if (_PyErr_RaiseImmutableWarning(code, msg, value) < 0) {
-        return NULL;
-    }
-
-    Py_RETURN_NONE;
-}
-
-PyDoc_STRVAR(cinder_raise_immutable_warning_doc, "raise_immutable_warn(code, msg, [arg])\n\
-\n\
-Manually raise a immutability warning.");
-
-static PyObject *
-cinder_flush_immutable_warnings(PyObject *self, PyObject *args)
-{
-    if (_PyErr_FlushImmutabilityWarningsBuffer() != 0) {
-        return NULL;
-    }
-    Py_RETURN_NONE;
-}
-
-PyDoc_STRVAR(cinder_flush_immutable_warnings_doc, "flush_immutable_warnings()\n\
-\n\
-Manually flush the a immutability warning buffer.");
-
-PyAPI_FUNC(void) _PyJIT_ClearDictCaches(void);
-#endif
 
 static PyObject *
 clear_caches(PyObject *self, PyObject *obj)
@@ -560,19 +484,6 @@ watch_sys_modules(PyObject *self, PyObject *obj)
     Py_RETURN_NONE;
 }
 
-#ifdef CINDER_PORTING_DONE
-
-static PyObject *
-readonly_enabled(PyObject *self, PyObject *args) {
-#ifdef PYREADONLY_ENABLED
-    Py_RETURN_TRUE;
-#else
-    Py_RETURN_FALSE;
-#endif
-}
-
-#endif
-
 static PyObject *
 cinder_debug_break(PyObject *self, PyObject *obj) {
 #ifdef __x86_64__
@@ -617,24 +528,6 @@ static struct PyMethodDef cinder_module_methods[] = {
      cinder_get_warn_handler,
      METH_NOARGS,
      cinder_get_warn_handler_doc},
-#ifdef CINDER_PORTING_DONE
-    {"set_immutable_warn_handler",
-     cinder_set_immutable_warn_handler,
-     METH_O,
-     cinder_set_immutable_warn_handler_doc},
-    {"get_immutable_warn_handler",
-     cinder_get_immutable_warn_handler,
-     METH_NOARGS,
-     cinder_get_immutable_warn_handler_doc},
-    {"raise_immutable_warning",
-     cinder_raise_immutable_warning,
-     METH_VARARGS,
-     cinder_raise_immutable_warning_doc},
-    {"flush_immutable_warnings",
-     cinder_flush_immutable_warnings,
-     METH_NOARGS,
-     cinder_flush_immutable_warnings_doc},
-#endif
     {"clear_caches",
      clear_caches,
      METH_NOARGS,
@@ -709,12 +602,6 @@ static struct PyMethodDef cinder_module_methods[] = {
         watch_sys_modules,
         METH_NOARGS,
         "Watch the sys.modules dict to allow invalidating Static Python's internal caches."},
-#ifdef CINDER_PORTING_DONE
-    {"readonly_enabled",
-        readonly_enabled,
-        METH_NOARGS,
-        "Return True if readonly support is enabled."},
-#endif
     {NULL, NULL} /* sentinel */
 };
 

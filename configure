@@ -838,7 +838,6 @@ with_trace_refs
 with_assertions
 enable_optimizations
 with_lto
-with_broken_cinder_tests
 with_address_sanitizer
 enable_address_sanitizer_logging
 with_memory_sanitizer
@@ -1554,8 +1553,6 @@ Optional Packages:
   --with-assertions       build with C assertions enabled (default is no)
   --with-lto              enable Link-Time-Optimization in any build (default
                           is no)
-  --with-broken-cinder-tests
-                          Enable Cinder tests known to not work
   --with-address-sanitizer
                           enable AddressSanitizer memory error detector,
                           'asan' (default is no)
@@ -7004,24 +7001,6 @@ OPTCXX="$(echo ${OPT} | tr -d '\n' | sed -e s/-Wstrict-prototypes//)"
 
 # The -arch flags for universal builds on macOS
 UNIVERSAL_ARCH_FLAGS=
-
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-broken-cinder-tests" >&5
-$as_echo_n "checking for --with-broken-cinder-tests... " >&6; }
-
-# Check whether --with-broken-cinder-tests was given.
-if test "${with_broken_cinder_tests+set}" = set; then :
-  withval=$with_broken_cinder_tests;
-BASECXXFLAGS="${BASECXXFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
-BASECFLAGS="${BASECFLAGS} -DCINDER_ENABLE_BROKEN_TESTS"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
 
 
 

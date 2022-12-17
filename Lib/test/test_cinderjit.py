@@ -27,8 +27,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
-from unittest.case import PortFeature
-
 
 from compiler.static import StaticCodeGenerator
 
@@ -3585,7 +3583,6 @@ class SuperAccessTest(unittest.TestCase):
 class RegressionTests(StaticTestBase):
     # Detects an issue in the backend where the Store instruction generated 32-
     # bit memory writes for 64-bit constants.
-    @unittest.waitingForFeaturePort(PortFeature.STATIC_PYTHON)
     def test_store_of_64bit_immediates(self):
         codestr = f"""
             from __static__ import int64, box
@@ -3622,7 +3619,6 @@ class CinderJitModuleTests(StaticTestBase):
 
         self.assertEqual(x.__code__.co_flags & CO_SUPPRESS_JIT, CO_SUPPRESS_JIT)
 
-    @unittest.waitingForFeaturePort({PortFeature.STATIC_PYTHON})
     def test_jit_suppress_static(self):
         codestr = f"""
             import cinderjit
@@ -3647,7 +3643,6 @@ class CinderJitModuleTests(StaticTestBase):
         not cinderjit or not cinderjit.is_hir_inliner_enabled(),
         "meaningless without HIR inliner enabled",
     )
-    @unittest.waitingForFeaturePort({PortFeature.STATIC_PYTHON})
     def test_num_inlined_functions(self):
         codestr = f"""
             import cinderjit
