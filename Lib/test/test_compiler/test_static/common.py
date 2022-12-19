@@ -18,7 +18,6 @@ from compiler.errors import (
     PerfWarning,
     TypedSyntaxError,
 )
-from compiler.readonly.type_binder import ReadonlyTypeBinder
 from compiler.static import Static38CodeGenerator, StaticCodeGenerator
 from compiler.static.compiler import Compiler
 from compiler.static.module_table import ModuleTable
@@ -309,10 +308,7 @@ class StaticTestBase(CompilerTest):
             graph = StaticCodeGenerator.flow_graph(
                 "<module>", "<module>.py", s.scopes[tree]
             )
-            binder = ReadonlyTypeBinder(tree, "<module>.py", s)
-            code_gen = StaticCodeGenerator(
-                None, tree, s, graph, compiler, "<module>", binder=binder
-            )
+            code_gen = StaticCodeGenerator(None, tree, s, graph, compiler, "<module>")
             code_gen.visit(tree)
         return TestErrors(self, code, errors.errors, errors.warnings)
 
@@ -583,10 +579,7 @@ class StaticTestBase(CompilerTest):
         # Make sure we can compile the code, just verifying all nodes are
         # visited.
         graph = StaticCodeGenerator.flow_graph("foo", "foo.py", s.scopes[tree])
-        binder = ReadonlyTypeBinder(tree, "foo.py", s)
-        code_gen = StaticCodeGenerator(
-            None, tree, s, graph, compiler, "foo", binder, optimize
-        )
+        code_gen = StaticCodeGenerator(None, tree, s, graph, compiler, "foo", optimize)
         code_gen.visit(tree)
 
         return tree, compiler

@@ -5,7 +5,6 @@
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
-#include "pyreadonly.h"
 
 #include "Jit/pyjit.h"
 

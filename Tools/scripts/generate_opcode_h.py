@@ -21,7 +21,6 @@ footer = """
 enum {
 #define OP(op, value) op = value,
 PY_OPCODES(OP)
-READONLY_OPERATIONS(OP)
 #undef OP
 };
 
@@ -80,12 +79,6 @@ def main(opcode_py, outfile='Include/opcode.h'):
                 write_line(name, opmap[name])
             if name == 'POP_EXCEPT': # Special entry for HAVE_ARGUMENT
                 write_line('HAVE_ARGUMENT', opcode['HAVE_ARGUMENT'])
-
-        readonlyop = opcode['readonlyop']
-        fobj.write("\n\n/* Defines sub functions for opcode READONLY_OPERATION. */\n")
-        fobj.write("#define READONLY_OPERATIONS(X)")
-        for name in readonlyop:
-            fobj.write(f" \\\n  X(READONLY_{name}, {readonlyop[name]})")
 
         fobj.write("\n\n#ifdef NEED_OPCODE_JUMP_TABLES\n")
         write_int_array_from_ops("_PyOpcode_RelativeJump", opcode['hasjrel'], fobj)

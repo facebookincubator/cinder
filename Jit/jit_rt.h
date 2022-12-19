@@ -225,34 +225,6 @@ void JITRT_Dealloc(PyObject* obj);
 PyObject* JITRT_UnaryNot(PyObject* value);
 
 /*
- * Wraps a readonly unary op with the correct checks.
- */
-PyObject*
-JITRT_ReadonlyUnaryOp(PyObject* a, unaryfunc operation_ptr, int readonly_mask);
-/*
- * Wraps a readonly binary op with the correct checks.
- */
-PyObject* JITRT_ReadonlyBinaryOp(
-    PyObject* a,
-    PyObject* b,
-    binaryfunc operation_ptr,
-    int readonly_mask);
-/*
- * Wraps a readonly ternary op with the correct checks.
- */
-PyObject* JITRT_ReadonlyTernaryOp(
-    PyObject* a,
-    PyObject* b,
-    PyObject* c,
-    ternaryfunc operation_ptr,
-    int readonly_mask);
-
-/**
- * Wraps PyObject_GetIter with readonly checks
- */
-PyObject* JITRT_GetIter(PyObject* iterable, int readonly_mask);
-
-/*
  * Invokes a function stored within the method table for the object.
  * The method table lives off tp_cache in the type object
  */

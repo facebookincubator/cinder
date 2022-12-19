@@ -47,7 +47,6 @@ from .types import (
     KnownBoolean,
     MethodType,
     NativeDecorator,
-    ReadonlyType,
     TType,
     TypeDescr,
     UnionType,
@@ -106,12 +105,6 @@ class AnnotationVisitor(ReferenceVisitor):
             klass = self.visit(node)
             if not isinstance(klass, Class):
                 return None
-
-            if self.subscr_nesting:
-                if isinstance(klass, ReadonlyType):
-                    raise TypedSyntaxError(
-                        "Readonly annotation must be the outermost annotation",
-                    )
 
             if self.subscr_nesting or not is_declaration:
                 if isinstance(klass, FinalClass):

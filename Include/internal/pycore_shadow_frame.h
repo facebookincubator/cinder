@@ -40,12 +40,6 @@ static const unsigned int _PyShadowFrame_OwnerOff =
 static const uintptr_t _PyShadowFrame_OwnerMask =
     TAG_MASK(_PyShadowFrame_NumOwnerBits, _PyShadowFrame_OwnerOff);
 
-static const unsigned int _PyShadowFrame_NumReadonlyBits = 1;
-static const unsigned int _PyShadowFrame_ReadonlyOff =
-    _PyShadowFrame_OwnerOff + _PyShadowFrame_NumOwnerBits;
-static const uintptr_t _PyShadowFrame_ReadonlyMask =
-    TAG_MASK(_PyShadowFrame_NumReadonlyBits, _PyShadowFrame_ReadonlyOff);
-
 #undef TAG_MASK
 
 static inline _PyShadowFrame_PtrKind
@@ -64,18 +58,6 @@ static inline _PyShadowFrame_Owner
 _PyShadowFrame_GetOwner(_PyShadowFrame *shadow_frame) {
   uintptr_t data = shadow_frame->data & _PyShadowFrame_OwnerMask;
   return (_PyShadowFrame_Owner)(data >> _PyShadowFrame_OwnerOff);
-}
-
-static inline void _PyShadowFrame_SetReadonly(_PyShadowFrame *shadow_frame,
-                                              _PyShadowFrame_Readonly readonly) {
-  uintptr_t data = shadow_frame->data & ~_PyShadowFrame_ReadonlyMask;
-  shadow_frame->data = data | (readonly << _PyShadowFrame_ReadonlyOff);
-}
-
-static inline _PyShadowFrame_Readonly
-_PyShadowFrame_GetReadonly(_PyShadowFrame *shadow_frame) {
-  uintptr_t data = shadow_frame->data & _PyShadowFrame_ReadonlyMask;
-  return (_PyShadowFrame_Readonly)(data >> _PyShadowFrame_ReadonlyOff);
 }
 
 static inline void *_PyShadowFrame_GetPtr(_PyShadowFrame *shadow_frame) {

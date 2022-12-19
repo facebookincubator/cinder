@@ -46,11 +46,10 @@ typedef struct _PyShadowFrame {
    * This data field holds a pointer in the upper bits and meta-data in the
    * lower bits. The format is as follows:
    *
-   *   [ pointer ][ readonly ][ owner ][ pointer_kind ]
-   *     60 bits    1 bit       1 bit    2 bits
+   *   [ pointer ][ owner ][ pointer_kind ]
+   *     61 bits    1 bit    2 bits
    *
    * - pointer      - void*
-   * - readonly     - _PyShadowFrame_Readonly
    * - owner        - _PyShadowFrame_Owner
    * - pointer_kind - _PyShadowFrame_PtrKind
    *
@@ -75,14 +74,8 @@ typedef struct JITShadowFrame {
    * This allows the JIT to retrieve the runtime pointer for a shadow frame,
    * even if the PyFrameObject has been materialized. It's lazily initialized
    * to avoid bloating the prologue.
-   *
-   * The readonly mask is only valid when the shadow frame is not a PyFrameObject*
-   * and has PYSF_IN_READONLY set. Otherwise this value is uninitialized.
    */
-  union {
-    uint8_t readonly_mask;
-    uintptr_t orig_data;
-  };
+  uintptr_t orig_data;
 } JITShadowFrame;
 
 typedef enum {
@@ -134,14 +127,5 @@ typedef enum {
   PYSF_JIT = 0,
   PYSF_INTERP = 1,
 } _PyShadowFrame_Owner;
-
-/*
- * Used to determine if the current frame is in a readonly
- * operation and has a valid mask initialized.
- */
-typedef enum {
-  PYSF_NO_READONLY = 0,
-  PYSF_IN_READONLY = 1,
-} _PyShadowFrame_Readonly;
 
 #endif /* !Py_SHADOW_FRAME_STRUCT_H */

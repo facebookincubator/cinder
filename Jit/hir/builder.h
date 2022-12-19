@@ -156,17 +156,9 @@ class HIRBuilder {
   void emitBinaryOp(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitReadonlyBinaryOp(
-      TranslationContext& tc,
-      int readonly_op,
-      uint8_t readonly_flags);
   void emitUnaryOp(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitReadonlyUnaryOp(
-      TranslationContext& tc,
-      int readonly_op,
-      uint8_t readonly_flags);
   void emitAnyCall(
       CFG& cfg,
       TranslationContext& tc,
@@ -189,9 +181,8 @@ class HIRBuilder {
       const jit::BytecodeInstruction& bc_instr,
       bool is_awaited);
   void emitIsOp(TranslationContext& tc, int oparg);
-  void emitContainsOp(TranslationContext& tc, int oparg, uint8_t readonly_mask);
-  void
-  emitCompareOp(TranslationContext& tc, int compare_op, uint8_t readonly_mask);
+  void emitContainsOp(TranslationContext& tc, int oparg);
+  void emitCompareOp(TranslationContext& tc, int compare_op);
   void emitCopyDictWithoutKeys(TranslationContext& tc);
   void emitGetLen(TranslationContext& tc);
   void emitJumpIf(
@@ -284,7 +275,7 @@ class HIRBuilder {
   bool emitInvokeNative(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
-  void emitGetIter(TranslationContext& tc, uint8_t readonly_mask);
+  void emitGetIter(TranslationContext& tc);
   void emitGetYieldFromIter(CFG& cfg, TranslationContext& tc);
   void emitListAppend(
       TranslationContext& tc,
@@ -295,8 +286,7 @@ class HIRBuilder {
   void emitListToTuple(TranslationContext& tc);
   void emitForIter(
       TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr,
-      uint8_t readonly_mask);
+      const jit::BytecodeInstruction& bc_instr);
   bool emitInvokeMethod(
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr,
@@ -435,11 +425,6 @@ class HIRBuilder {
       TranslationContext& tc,
       const jit::BytecodeInstruction& bc_instr);
   void emitMatchKeys(CFG& cfg, TranslationContext& tc);
-
-  void emitReadonlyOperation(
-      CFG& cfg,
-      TranslationContext& tc,
-      const jit::BytecodeInstruction& bc_instr);
 
   void emitDictUpdate(TranslationContext& tc);
   void emitDictMerge(

@@ -250,6 +250,7 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kEndInlinedFunction:
     case Opcode::kGetAIter:
     case Opcode::kGetANext:
+    case Opcode::kGetIter:
     case Opcode::kGetLength:
     case Opcode::kGetTuple:
     case Opcode::kGuard:
@@ -302,14 +303,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kYieldValue: {
       return "";
     }
-    case Opcode::kGetIter: {
-      const auto& get_iter = static_cast<const GetIter&>(instr);
-      if (get_iter.readonly_flags() != 0) {
-        return fmt::format("{}", get_iter.readonly_flags());
-      } else {
-        return "";
-      }
-    }
     case Opcode::kBeginInlinedFunction:
       return static_cast<const BeginInlinedFunction&>(instr).fullname();
     case Opcode::kLoadArrayItem: {
@@ -330,21 +323,11 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kBinaryOp: {
       const auto& bin_op = static_cast<const BinaryOp&>(instr);
-      if (bin_op.readonly_flags() != 0) {
-        return fmt::format(
-            "{}, {}", GetBinaryOpName(bin_op.op()), bin_op.readonly_flags());
-      } else {
-        return std::string{GetBinaryOpName(bin_op.op())};
-      }
+      return std::string{GetBinaryOpName(bin_op.op())};
     }
     case Opcode::kUnaryOp: {
       const auto& unary_op = static_cast<const UnaryOp&>(instr);
-      if (unary_op.readonly_flags() != 0) {
-        return fmt::format(
-            "{}, {}", GetUnaryOpName(unary_op.op()), unary_op.readonly_flags());
-      } else {
-        return std::string{GetUnaryOpName(unary_op.op())};
-      }
+      return std::string{GetUnaryOpName(unary_op.op())};
     }
     case Opcode::kBranch: {
       const auto& branch = static_cast<const Branch&>(instr);
@@ -443,12 +426,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kCompare: {
       const auto& cmp = static_cast<const Compare&>(instr);
-      if (cmp.readonly_flags() != 0) {
-        return fmt::format(
-            "{}, {}", GetCompareOpName(cmp.op()), cmp.readonly_flags());
-      } else {
-        return std::string{GetCompareOpName(cmp.op())};
-      }
+      return std::string{GetCompareOpName(cmp.op())};
     }
     case Opcode::kLongCompare: {
       const auto& cmp = static_cast<const LongCompare&>(instr);
@@ -891,7 +869,6 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case BUILD_CHECKED_MAP:
     case CAST:
     case CHECK_ARGS:
-    case FUNC_CREDENTIAL:
     case INVOKE_FUNCTION:
     case INVOKE_METHOD:
     case LOAD_ATTR_SUPER:
@@ -902,7 +879,6 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case LOAD_METHOD_SUPER:
     case LOAD_TYPE:
     case PRIMITIVE_LOAD_CONST:
-    case READONLY_OPERATION:
     case REFINE_TYPE:
     case STORE_FIELD:
     case STORE_LOCAL:

@@ -1112,9 +1112,9 @@ hit the ``NULL`` entry::
    ...
    _frozen_importlib 31764
    _frozen_importlib_external 41499
-   __hello__ 161
-   __phello__ -161
-   __phello__.spam 161
+   __hello__ 142
+   __phello__ -142
+   __phello__.spam 142
    >>>
 
 The fact that standard Python has a frozen module and a frozen package

@@ -38,12 +38,6 @@ except ImportError:
         return False
     CINDERJIT_ENABLED = False
 
-try:
-    from cinder import readonly_enabled
-except ImportError:
-    def readonly_enabled():
-        return False
-
 
 class SkipTest(Exception):
     """

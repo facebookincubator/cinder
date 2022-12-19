@@ -6,7 +6,7 @@ operate on bytecodes (e.g. peephole optimizers).
 
 __all__ = ["cmp_op", "hasconst", "hasname", "hasjrel", "hasjabs",
            "haslocal", "hascompare", "hasfree", "opname", "opmap",
-           "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs", "readonlyop"]
+           "HAVE_ARGUMENT", "EXTENDED_ARG", "hasnargs"]
 
 # It's a chicken-and-egg I'm afraid:
 # We're imported before _opcode's made.
@@ -32,7 +32,6 @@ hascompare = []
 hasfree = []
 hasnargs = [] # unused
 shadowop = set()
-readonlyop = {}
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
@@ -56,9 +55,6 @@ def jabs_op(name, op):
 def shadow_op(name, op):
     def_op(name, op)
     shadowop.add(op)
-
-def readonly_op(name, id):
-    readonlyop[name] = id
 
 
 # Instruction opcodes for compiled code
@@ -197,38 +193,6 @@ def_op('STORE_DEREF', 137)
 hasfree.append(137)
 def_op('DELETE_DEREF', 138)
 hasfree.append(138)
-
-def_op('FUNC_CREDENTIAL', 139)  # allocate function credential object
-hasconst.append(139)
-
-def_op("READONLY_OPERATION", 140)
-hasconst.append(140)
-readonly_op("MAKE_FUNCTION", 0)
-readonly_op("CHECK_FUNCTION", 1)
-readonly_op("BINARY_ADD", 2)
-readonly_op("BINARY_SUBTRACT", 3)
-readonly_op("BINARY_MULTIPLY", 4)
-readonly_op("BINARY_MATRIX_MULTIPLY", 5)
-readonly_op("BINARY_TRUE_DIVIDE", 6)
-readonly_op("BINARY_FLOOR_DIVIDE", 7)
-readonly_op("BINARY_MODULO", 8)
-readonly_op("BINARY_POWER", 9)
-readonly_op("BINARY_LSHIFT", 10)
-readonly_op("BINARY_RSHIFT", 11)
-readonly_op("BINARY_OR", 12)
-readonly_op("BINARY_XOR", 13)
-readonly_op("BINARY_AND", 14)
-readonly_op("UNARY_INVERT", 15)
-readonly_op("UNARY_NEGATIVE", 16)
-readonly_op("UNARY_POSITIVE", 17)
-readonly_op("UNARY_NOT", 18)
-readonly_op("COMPARE_OP", 19)
-readonly_op("CHECK_LOAD_ATTR", 20)
-readonly_op("CHECK_STORE_ATTR", 21)
-readonly_op("GET_ITER", 22)
-readonly_op("FOR_ITER", 23)
-readonly_op("POP_JUMP_IF_TRUE", 24)
-readonly_op("POP_JUMP_IF_FALSE", 25)
 
 def_op('CALL_FUNCTION_KW', 141)  # #args + #kwargs
 def_op('CALL_FUNCTION_EX', 142)  # Flags

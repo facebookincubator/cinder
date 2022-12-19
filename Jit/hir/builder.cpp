@@ -8,7 +8,6 @@
 #include "object.h"
 #include "opcode.h"
 #include "preload.h"
-#include "pyreadonly.h"
 #include "structmember.h"
 #include "type.h"
 
@@ -59,15 +58,6 @@ Register* TempAllocator::AllocateNonStack() {
 }
 
 // Opcodes that we know how to translate into HIR
-#ifdef CINDER_PORTING_DONE
-// This contains the set of unsupported opcodes. Move opcodes from this set
-// into the one in the `#else` block below to enable them in the JIT.
-const std::unordered_set<int> kUnsupportedOpcodes = {
-    // Readonly
-    FUNC_CREDENTIAL,
-    READONLY_OPERATION,
-};
-#else
 const std::unordered_set<int> kSupportedOpcodes = {
     BEFORE_ASYNC_WITH,
     BINARY_ADD,
@@ -219,30 +209,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     YIELD_FROM,
     YIELD_VALUE,
 };
-#endif
-
-#ifdef CINDER_PORTING_DONE
-// Readonly features needed
-const std::unordered_set<int> kSupportedReadonlyOperations = {
-    READONLY_MAKE_FUNCTION,      READONLY_CHECK_FUNCTION,
-    READONLY_CHECK_LOAD_ATTR,    READONLY_BINARY_SUBTRACT,
-    READONLY_BINARY_MULTIPLY,    READONLY_BINARY_MATRIX_MULTIPLY,
-    READONLY_BINARY_TRUE_DIVIDE, READONLY_BINARY_FLOOR_DIVIDE,
-    READONLY_BINARY_MODULO,      READONLY_BINARY_POWER,
-    READONLY_BINARY_ADD,         READONLY_BINARY_LSHIFT,
-    READONLY_BINARY_RSHIFT,      READONLY_BINARY_OR,
-    READONLY_BINARY_XOR,         READONLY_BINARY_AND,
-    READONLY_UNARY_INVERT,       READONLY_UNARY_NEGATIVE,
-    READONLY_UNARY_POSITIVE,     READONLY_UNARY_NOT,
-    READONLY_GET_ITER,           READONLY_FOR_ITER,
-    READONLY_COMPARE_OP,
-};
-
-#define NAMES(op, value) {value, #op},
-const UnorderedMap<int, const char*> kReadonlyOperationNames = {
-    READONLY_OPERATIONS(NAMES)};
-#undef NAMES
-#endif
 
 static bool can_translate(PyCodeObject* code) {
   static const std::unordered_set<std::string> kBannedNames{
@@ -266,26 +232,6 @@ static bool can_translate(PyCodeObject* code) {
     } else if (opcode == LOAD_GLOBAL && banned_name_ids.count(oparg)) {
       JIT_DLOG("'%s' unsupported", name_at(oparg));
       return false;
-    } else if (opcode == READONLY_OPERATION) {
-#ifdef CINDER_PORTING_DONE
-      int oparg = bci.oparg();
-      PyObject* op_tuple = PyTuple_GET_ITEM(code->co_consts, oparg);
-
-      PyObject* opobj = PyTuple_GET_ITEM(op_tuple, 0);
-      assert(opobj != nullptr);
-      int op = PyLong_AsLong(opobj);
-
-      if (!kSupportedReadonlyOperations.count(op)) {
-        JIT_DLOG(
-            "Readonly operation '%s' unsupported.",
-            kReadonlyOperationNames.at(op));
-        return false;
-      }
-#else
-      PORT_ASSERT(
-          "Need to re-review kSupportedReadonlyOperations + "
-          "kReadonlyOperationNames");
-#endif
     }
   }
   return true;
@@ -504,14 +450,6 @@ static bool should_snapshot(
     case YIELD_FROM: {
       return !is_in_async_for_header_block;
     }
-    case READONLY_OPERATION: {
-      switch (bci.ReadonlyOpcode()) {
-        case READONLY_FOR_ITER:
-          return false;
-        default:
-          return true;
-      };
-    }
     case JUMP_IF_NOT_EXC_MATCH:
     case RERAISE:
     case WITH_EXCEPT_START: {
@@ -578,8 +516,7 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
     block_map.bc_blocks.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(block),
-        std::forward_as_tuple(
-            bc_block.bytecode(), start_idx, end_idx, bc_block.code()));
+        std::forward_as_tuple(bc_block.bytecode(), start_idx, end_idx));
   }
 
   return block_map;
@@ -956,19 +893,16 @@ void HIRBuilder::translate(
           emitAnyCall(irfunc.cfg, tc, bc_it, bc_instrs);
           break;
         }
-        case FUNC_CREDENTIAL:
-          emitFunctionCredential(tc, bc_instr);
-          break;
         case IS_OP: {
           emitIsOp(tc, bc_instr.oparg());
           break;
         }
         case CONTAINS_OP: {
-          emitContainsOp(tc, bc_instr.oparg(), 0);
+          emitContainsOp(tc, bc_instr.oparg());
           break;
         }
         case COMPARE_OP: {
-          emitCompareOp(tc, bc_instr.oparg(), 0);
+          emitCompareOp(tc, bc_instr.oparg());
           break;
         }
         case COPY_DICT_WITHOUT_KEYS: {
@@ -1065,10 +999,6 @@ void HIRBuilder::translate(
         }
         case FAST_LEN: {
           emitFastLen(irfunc.cfg, tc, bc_instr);
-          break;
-        }
-        case READONLY_OPERATION: {
-          emitReadonlyOperation(irfunc.cfg, tc, bc_instr);
           break;
         }
         case REFINE_TYPE: {
@@ -1199,7 +1129,7 @@ void HIRBuilder::translate(
           break;
         }
         case GET_ITER: {
-          emitGetIter(tc, 0);
+          emitGetIter(tc);
           break;
         }
         case GET_YIELD_FROM_ITER: {
@@ -1270,7 +1200,7 @@ void HIRBuilder::translate(
           break;
         }
         case FOR_ITER: {
-          emitForIter(tc, bc_instr, 0);
+          emitForIter(tc, bc_instr);
           break;
         }
         case LOAD_FIELD: {
@@ -1474,24 +1404,6 @@ void HIRBuilder::translate(
         new_frame.stack.pop();
         queue.emplace_back(condbr->true_bb(), tc.frame);
         queue.emplace_back(condbr->false_bb(), new_frame);
-        break;
-      }
-      case READONLY_OPERATION: {
-        switch (last_bc_instr.ReadonlyOpcode()) {
-          case READONLY_FOR_ITER: {
-            auto condbr = static_cast<CondBranchIterNotDone*>(last_instr);
-            auto new_frame = tc.frame;
-            // Sentinel value signaling iteration is complete and the iterator
-            // itself
-            new_frame.stack.discard(2);
-            queue.emplace_back(condbr->true_bb(), tc.frame);
-            queue.emplace_back(condbr->false_bb(), new_frame);
-            break;
-          }
-          default: {
-            break;
-          }
-        }
         break;
       }
       default: {
@@ -1760,74 +1672,7 @@ void HIRBuilder::emitBinaryOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   BinaryOpKind op_kind = get_bin_op_kind(bc_instr);
-  tc.emit<BinaryOp>(result, op_kind, 0, left, right, tc.frame);
-  stack.push(result);
-}
-
-static inline BinaryOpKind get_readonly_bin_op_kind(int readonly_op) {
-#ifdef CINDER_PORTING_DONE
-  switch (readonly_op) {
-    case READONLY_BINARY_ADD: {
-      return BinaryOpKind::kAdd;
-    }
-    case READONLY_BINARY_AND: {
-      return BinaryOpKind::kAnd;
-    }
-    case READONLY_BINARY_FLOOR_DIVIDE: {
-      return BinaryOpKind::kFloorDivide;
-    }
-    case READONLY_BINARY_LSHIFT: {
-      return BinaryOpKind::kLShift;
-    }
-    case READONLY_BINARY_MATRIX_MULTIPLY: {
-      return BinaryOpKind::kMatrixMultiply;
-    }
-    case READONLY_BINARY_MODULO: {
-      return BinaryOpKind::kModulo;
-    }
-    case READONLY_BINARY_MULTIPLY: {
-      return BinaryOpKind::kMultiply;
-    }
-    case READONLY_BINARY_OR: {
-      return BinaryOpKind::kOr;
-    }
-    case READONLY_BINARY_POWER: {
-      return BinaryOpKind::kPower;
-    }
-    case READONLY_BINARY_RSHIFT: {
-      return BinaryOpKind::kRShift;
-    }
-    case READONLY_BINARY_SUBTRACT: {
-      return BinaryOpKind::kSubtract;
-    }
-    case READONLY_BINARY_TRUE_DIVIDE: {
-      return BinaryOpKind::kTrueDivide;
-    }
-    case READONLY_BINARY_XOR: {
-      return BinaryOpKind::kXor;
-    }
-    default: {
-      JIT_CHECK(false, "unhandled readonly binary op %d", readonly_op);
-      // NOTREACHED
-      break;
-    }
-  }
-#else
-  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
-  (void)readonly_op;
-#endif
-}
-
-void HIRBuilder::emitReadonlyBinaryOp(
-    TranslationContext& tc,
-    int readonly_op,
-    uint8_t readonly_flags) {
-  auto& stack = tc.frame.stack;
-  Register* right = stack.pop();
-  Register* left = stack.pop();
-  Register* result = temps_.AllocateStack();
-  BinaryOpKind op_kind = get_readonly_bin_op_kind(readonly_op);
-  tc.emit<BinaryOp>(result, op_kind, readonly_flags, left, right, tc.frame);
+  tc.emit<BinaryOp>(result, op_kind, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -1921,44 +1766,7 @@ void HIRBuilder::emitUnaryOp(
   Register* operand = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   UnaryOpKind op_kind = get_unary_op_kind(bc_instr);
-  tc.emit<UnaryOp>(result, op_kind, 0, operand, tc.frame);
-  tc.frame.stack.push(result);
-}
-
-static inline UnaryOpKind get_readonly_unary_op_kind(int readonly_op) {
-#ifdef CINDER_PORTING_DONE
-  switch (readonly_op) {
-    case READONLY_UNARY_NOT:
-      return UnaryOpKind::kNot;
-
-    case READONLY_UNARY_NEGATIVE:
-      return UnaryOpKind::kPositive;
-
-    case READONLY_UNARY_POSITIVE:
-      return UnaryOpKind::kNegate;
-
-    case READONLY_UNARY_INVERT:
-      return UnaryOpKind::kInvert;
-
-    default:
-      JIT_CHECK(false, "unhandled readonly unary op %d", readonly_op);
-      // NOTREACHED
-      break;
-  }
-#else
-  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
-  (void)readonly_op;
-#endif
-}
-
-void HIRBuilder::emitReadonlyUnaryOp(
-    TranslationContext& tc,
-    int readonly_op,
-    uint8_t readonly_flags) {
-  Register* operand = tc.frame.stack.pop();
-  Register* result = temps_.AllocateStack();
-  UnaryOpKind op_kind = get_readonly_unary_op_kind(readonly_op);
-  tc.emit<UnaryOp>(result, op_kind, readonly_flags, operand, tc.frame);
+  tc.emit<UnaryOp>(result, op_kind, operand, tc.frame);
   tc.frame.stack.push(result);
 }
 
@@ -2056,7 +1864,7 @@ void HIRBuilder::emitLoadIterableArg(
   tc.emit<LoadConst>(tmp, Type::fromCInt(bc_instr.oparg(), TCInt64));
   tc.emit<PrimitiveBox>(tup_idx, tmp, TCInt64, tc.frame);
   tc.emit<BinaryOp>(
-      element, BinaryOpKind::kSubscript, 0, tuple, tup_idx, tc.frame);
+      element, BinaryOpKind::kSubscript, tuple, tup_idx, tc.frame);
   tc.frame.stack.push(element);
   tc.frame.stack.push(tuple);
 }
@@ -2287,27 +2095,21 @@ void HIRBuilder::emitIsOp(TranslationContext& tc, int oparg) {
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   CompareOp op = oparg == 0 ? CompareOp::kIs : CompareOp::kIsNot;
-  tc.emit<Compare>(result, op, /*readonly_mask=*/0, left, right, tc.frame);
+  tc.emit<Compare>(result, op, left, right, tc.frame);
   stack.push(result);
 }
 
-void HIRBuilder::emitContainsOp(
-    TranslationContext& tc,
-    int oparg,
-    uint8_t readonly_mask) {
+void HIRBuilder::emitContainsOp(TranslationContext& tc, int oparg) {
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   CompareOp op = oparg == 0 ? CompareOp::kIn : CompareOp::kNotIn;
-  tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
+  tc.emit<Compare>(result, op, left, right, tc.frame);
   stack.push(result);
 }
 
-void HIRBuilder::emitCompareOp(
-    TranslationContext& tc,
-    int compare_op,
-    uint8_t readonly_mask) {
+void HIRBuilder::emitCompareOp(TranslationContext& tc, int compare_op) {
   JIT_CHECK(compare_op >= Py_LT, "invalid op %d", compare_op);
   JIT_CHECK(compare_op <= Py_GE, "invalid op %d", compare_op);
   auto& stack = tc.frame.stack;
@@ -2315,7 +2117,7 @@ void HIRBuilder::emitCompareOp(
   Register* left = stack.pop();
   Register* result = temps_.AllocateStack();
   CompareOp op = static_cast<CompareOp>(compare_op);
-  tc.emit<Compare>(result, op, readonly_mask, left, right, tc.frame);
+  tc.emit<Compare>(result, op, left, right, tc.frame);
   stack.push(result);
 }
 
@@ -2918,222 +2720,6 @@ void HIRBuilder::emitFastLen(
   tc.frame.stack.push(result);
 }
 
-void HIRBuilder::emitReadonlyOperation(
-    CFG& cfg,
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-#ifdef CINDER_PORTING_DONE
-  int oparg = bc_instr.oparg();
-  PyObject* op_tuple = PyTuple_GET_ITEM(code_->co_consts, oparg);
-  JIT_CHECK(op_tuple != nullptr, "op_tuple is nullptr");
-
-  PyObject* opobj = PyTuple_GET_ITEM(op_tuple, 0);
-  JIT_CHECK(opobj != nullptr, "opobj is nullptr");
-
-  int op = PyLong_AsLong(opobj);
-  constexpr size_t kFunctionMaskOffset =
-      offsetof(PyFunctionObject, readonly_mask);
-  switch (op) {
-    case READONLY_MAKE_FUNCTION: {
-      Register* func = tc.frame.stack.top();
-
-      Register* mask_obj = temps_.AllocateStack();
-      tc.emit<LoadConst>(
-          mask_obj, Type::fromObject(PyTuple_GET_ITEM(op_tuple, 1)));
-
-      Register* mask = temps_.AllocateStack();
-      tc.emit<PrimitiveUnbox>(mask, mask_obj, TCUInt64);
-      Register* previous = temps_.AllocateStack();
-      tc.emit<LoadConst>(previous, TNullptr);
-
-      tc.emit<StoreField>(
-          func, "readonly_mask", kFunctionMaskOffset, mask, TCUInt64, previous);
-
-      break;
-    }
-    case READONLY_CHECK_FUNCTION: {
-      constexpr size_t kArgTupleNArgsIndex = 1;
-      constexpr size_t kArgTupleMaskIndex = 2;
-      constexpr size_t kArgTupleMethodFlagIndex = 3;
-
-      PyObject* nargs_obj = PyTuple_GET_ITEM(op_tuple, kArgTupleNArgsIndex);
-      PyObject* call_mask_obj = PyTuple_GET_ITEM(op_tuple, kArgTupleMaskIndex);
-      PyObject* method_flag_obj =
-          PyTuple_GET_ITEM(op_tuple, kArgTupleMethodFlagIndex);
-
-      JIT_CHECK(nargs_obj != nullptr, "nargs_obj is nullptr");
-      JIT_CHECK(call_mask_obj != nullptr, "call mask is nullptr");
-      JIT_CHECK(method_flag_obj != nullptr, "method flag is nullptr");
-
-      uint64_t objs_above_func = PyLong_AsUnsignedLongLong(nargs_obj);
-      uint64_t call_mask = PyLong_AsUnsignedLong(call_mask_obj);
-      uint64_t method_flag = PyLong_AsUnsignedLongLong(method_flag_obj);
-
-      Register* initial_func = tc.frame.stack.peek(objs_above_func + 1);
-      JIT_CHECK(
-          initial_func != nullptr,
-          "func is null on stack[-%d]",
-          objs_above_func + 1);
-      Register* func = temps_.AllocateStack();
-      Register* call_mask_reg = temps_.AllocateNonStack();
-
-      BasicBlock* done_block = cfg.AllocateBlock();
-      BasicBlock* func_block = cfg.AllocateBlock();
-      BasicBlock* default_func_block = cfg.AllocateBlock();
-
-      // check whether the mask for non-methods will change
-      uint64_t arg_call_mask = CLEAR_NONARG_READONLY_MASK(call_mask);
-      uint64_t nonarg_call_mask = GET_NONARG_READONLY_MASK(call_mask);
-      uint64_t non_method_call_mask = nonarg_call_mask | (arg_call_mask >> 1);
-      bool call_mask_change = non_method_call_mask != call_mask;
-
-      // generates logic that loads the mask and dispatch to func_block
-      auto load_func_and_check = [&](Register* f, uint64_t mask) {
-        // TODO(Shiyu): if call_mask_reg ends up being the same in both
-        // non-method and default cases, LIR generation fails with the Phi node
-        // missing a def. Therefore the `if(call_mask_change)` checks are
-        // necessary
-        if (call_mask_change) {
-          tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(mask, TCUInt64));
-        }
-        tc.emit<Assign>(func, f);
-        tc.emit<CondBranchCheckType>(func, TFunc, func_block, done_block);
-      };
-
-      if (method_flag != 0) {
-        JIT_CHECK(method_flag == 1, "wrong flag %d", method_flag);
-        // LOAD_METHOD case. Need to confirm whether LOAD_METHOD
-        // put a method on stack or not
-        BasicBlock* no_method_block = cfg.AllocateBlock();
-        // in the case of LOAD_METHOD not finding a method, initial_func is None
-        tc.emit<CondBranchCheckType>(
-            initial_func, TNoneType, no_method_block, default_func_block);
-
-        tc.block = no_method_block;
-
-        // if func is None, the real callable is at stack[-objs_above_func]
-        Register* non_method_func = tc.frame.stack.peek(objs_above_func);
-        JIT_CHECK(
-            non_method_func != nullptr,
-            "non method func is null on stack[-%d]",
-            objs_above_func);
-        load_func_and_check(non_method_func, non_method_call_mask);
-      } else {
-        tc.emit<Branch>(default_func_block);
-      }
-
-      tc.block = default_func_block;
-      load_func_and_check(initial_func, call_mask);
-
-      tc.block = func_block;
-
-      tc.emit<RefineType>(func, TFunc, func);
-      Register* func_mask_reg = temps_.AllocateStack();
-      tc.emit<LoadField>(
-          func_mask_reg, func, "readonly_mask", kFunctionMaskOffset, TCUInt64);
-
-      // if method and non-method masks are the same, previous blocks will skip
-      // loading the mask. Therefore load the mask here
-      if (!call_mask_change) {
-        tc.emit<LoadConst>(call_mask_reg, Type::fromCUInt(call_mask, TCUInt64));
-      }
-      Register* args[] = {func, func_mask_reg, call_mask_reg};
-      constexpr int kNumArgs = sizeof(args) / sizeof(Register*);
-      auto static_call = tc.emit<CallStaticRetVoid>(
-          kNumArgs, reinterpret_cast<void*>(PyFunction_ReportReadonlyErr));
-      for (int i = 0; i < kNumArgs; i++) {
-        static_call->SetOperand(i, args[i]);
-      }
-      tc.emit<Branch>(done_block);
-
-      tc.block = done_block;
-      break;
-    }
-    case READONLY_CHECK_LOAD_ATTR: {
-      PyObject* check_return = PyTuple_GET_ITEM(op_tuple, 1);
-      PyObject* check_read = PyTuple_GET_ITEM(op_tuple, 2);
-
-      assert(check_return && check_read);
-      assert(check_return == Py_True || check_read == Py_True);
-      Register* obj = tc.frame.stack.top();
-
-      Register* check_return_reg = temps_.AllocateStack();
-      tc.emit<LoadConst>(
-          check_return_reg, Type::fromCInt(check_return == Py_True, TCInt32));
-      Register* check_read_reg = temps_.AllocateStack();
-      tc.emit<LoadConst>(
-          check_read_reg, Type::fromCInt(check_read == Py_True, TCInt32));
-
-      Register* args[] = {obj, check_return_reg, check_read_reg};
-      constexpr size_t kNumArgs = sizeof(args) / sizeof(Register*);
-      auto static_call = tc.emit<CallStaticRetVoid>(
-          kNumArgs, reinterpret_cast<void*>(PyReadonly_Check_LoadAttr));
-
-      for (size_t i = 0; i < kNumArgs; i++) {
-        static_call->SetOperand(i, args[i]);
-      }
-      break;
-    }
-    case READONLY_BINARY_ADD:
-    case READONLY_BINARY_SUBTRACT:
-    case READONLY_BINARY_MULTIPLY:
-    case READONLY_BINARY_MATRIX_MULTIPLY:
-    case READONLY_BINARY_TRUE_DIVIDE:
-    case READONLY_BINARY_FLOOR_DIVIDE:
-    case READONLY_BINARY_MODULO:
-    case READONLY_BINARY_POWER:
-    case READONLY_BINARY_LSHIFT:
-    case READONLY_BINARY_RSHIFT:
-    case READONLY_BINARY_OR:
-    case READONLY_BINARY_XOR:
-    case READONLY_BINARY_AND: {
-      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(mask != nullptr, "mask is nullptr");
-      emitReadonlyBinaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
-      break;
-    }
-    case READONLY_UNARY_INVERT:
-    case READONLY_UNARY_NEGATIVE:
-    case READONLY_UNARY_POSITIVE:
-    case READONLY_UNARY_NOT: {
-      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(mask != nullptr, "mask is nullptr");
-      emitReadonlyUnaryOp(tc, op, PyLong_AsUnsignedLongLong(mask));
-      break;
-    }
-
-    case READONLY_COMPARE_OP: {
-      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(mask != nullptr, "mask is nullptr");
-      PyObject* compareOp = PyTuple_GET_ITEM(op_tuple, 2);
-      JIT_CHECK(compareOp != nullptr, "compare op is nullptr");
-      emitCompareOp(
-          tc,
-          PyLong_AsUnsignedLongLong(compareOp),
-          PyLong_AsUnsignedLongLong(mask));
-      break;
-    }
-    case READONLY_GET_ITER: {
-      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(mask != nullptr, "mask is nullptr");
-      emitGetIter(tc, PyLong_AsUnsignedLongLong(mask));
-      break;
-    }
-    case READONLY_FOR_ITER: {
-      PyObject* mask = PyTuple_GET_ITEM(op_tuple, 1);
-      JIT_CHECK(mask != nullptr, "mask is nullptr");
-      emitForIter(tc, bc_instr, PyLong_AsUnsignedLongLong(mask));
-      break;
-    }
-  }
-#else
-  PORT_ASSERT("Need to handle not yet existing read-only opcodes");
-  (void)cfg;
-  (void)tc;
-  (void)bc_instr;
-#endif
-}
-
 void HIRBuilder::emitRefineType(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
@@ -3350,23 +2936,6 @@ void HIRBuilder::emitMakeFunction(
 
   tc.emit<InitFunction>(func);
   tc.frame.stack.push(func);
-}
-
-void HIRBuilder::emitFunctionCredential(
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-  int oparg = bc_instr.oparg();
-  JIT_CHECK(
-      oparg < PyTuple_Size(code_->co_consts),
-      "FUNC_CREDENTIAL index out of bounds");
-  Register* fc_tuple = temps_.AllocateStack();
-  tc.emit<LoadConst>(
-      fc_tuple, Type::fromObject(PyTuple_GET_ITEM(code_->co_consts, oparg)));
-  Register* fc = temps_.AllocateStack();
-  tc.emitChecked<CallCFunc>(
-      1, fc, CallCFunc::Func::kfunc_cred_new, std::vector<Register*>{fc_tuple});
-
-  tc.frame.stack.push(fc);
 }
 
 void HIRBuilder::emitMakeListTuple(
@@ -3600,20 +3169,19 @@ void HIRBuilder::emitStoreSubscr(TranslationContext& tc) {
   tc.emit<StoreSubscr>(result, container, sub, value, tc.frame);
 }
 
-void HIRBuilder::emitGetIter(TranslationContext& tc, uint8_t readonly_mask) {
+void HIRBuilder::emitGetIter(TranslationContext& tc) {
   Register* iterable = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<GetIter>(result, iterable, readonly_mask, tc.frame);
+  tc.emit<GetIter>(result, iterable, tc.frame);
   tc.frame.stack.push(result);
 }
 
 void HIRBuilder::emitForIter(
     TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr,
-    uint8_t readonly_mask) {
+    const jit::BytecodeInstruction& bc_instr) {
   Register* iterator = tc.frame.stack.top();
   Register* next_val = temps_.AllocateStack();
-  tc.emit<InvokeIterNext>(next_val, iterator, readonly_mask, tc.frame);
+  tc.emit<InvokeIterNext>(next_val, iterator, tc.frame);
   tc.frame.stack.push(next_val);
   BasicBlock* footer = getBlockAtOff(bc_instr.GetJumpTarget());
   BasicBlock* body = getBlockAtOff(bc_instr.NextInstrOffset());
@@ -3648,7 +3216,7 @@ void HIRBuilder::emitGetYieldFromIter(CFG& cfg, TranslationContext& tc) {
   tc.emit<CondBranchCheckType>(iter_in, TGen, nop_block, slow_path);
 
   tc.block = slow_path;
-  tc.emit<GetIter>(iter_out, iter_in, 0, tc.frame);
+  tc.emit<GetIter>(iter_out, iter_in, tc.frame);
   tc.emit<Branch>(done_block);
 
   tc.block = nop_block;

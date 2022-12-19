@@ -1,7 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
-#include "pyreadonly.h"
 #include "type.h"
 
 #include "Jit/hir/optimization.h"
@@ -388,13 +387,6 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   Register* lhs = instr->left();
   Register* rhs = instr->right();
   if (instr->op() == BinaryOpKind::kSubscript) {
-    // All types being specialized on here require a readonly return if
-    // any param is readonly, so fail to specialize if that's not the case.
-    if (instr->readonly_flags() != 0 &&
-        !PyReadonly_IsTransitiveReadonlyOperationValid(
-            instr->readonly_flags(), 2)) {
-      return nullptr;
-    }
     if (lhs->isA(TDictExact)) {
       return env.emit<DictSubscr>(lhs, rhs, *instr->frameState());
     }
@@ -442,8 +434,8 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
     }
   }
   if (lhs->isA(TLongExact) && rhs->isA(TLongExact)) {
-    // All binary ops on TLong's return mutable and accept readonly, so can
-    // be freely simplified with no explicit checks.
+    // All binary ops on TLong's return mutable so can be freely simplified with
+    // no explicit check.
     if (instr->op() == BinaryOpKind::kMatrixMultiply ||
         instr->op() == BinaryOpKind::kSubscript) {
       // These will generate an error at runtime.

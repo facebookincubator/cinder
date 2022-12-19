@@ -188,8 +188,6 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "REFINE_TYPE",
         "LOAD_METHOD_SUPER",
         "LOAD_ATTR_SUPER",
-        "FUNC_CREDENTIAL",
-        "READONLY_OPERATION",
     }
 
     INSTRS_WITH_OPARG_IN_VARNAMES = {
@@ -297,8 +295,6 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "SETUP_ASYNC_WITH",
         "SETUP_FINALLY",
         "SETUP_WITH",
-        # Exclude readonly operations.
-        "READONLY_OPERATION",
     }
     assert (
         len(INSTRS_WITH_OPARG_AFFECTING_STACK) > 1

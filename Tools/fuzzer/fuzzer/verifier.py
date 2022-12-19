@@ -271,8 +271,6 @@ class Verifier:
         opcodes.opcode.REFINE_TYPE,
         opcodes.opcode.LOAD_METHOD_SUPER,
         opcodes.opcode.LOAD_ATTR_SUPER,
-        opcodes.opcode.FUNC_CREDENTIAL,
-        opcodes.opcode.READONLY_OPERATION,
     }
 
     INSTRS_WITH_OPARG_IN_VARNAMES = {
@@ -336,7 +334,6 @@ class Verifier:
         opcodes.opcode.STORE_LOCAL,
         opcodes.opcode.LOAD_METHOD_SUPER,
         opcodes.opcode.LOAD_ATTR_SUPER,
-        opcodes.opcode.READONLY_OPERATION,
         opcodes.opcode.TP_ALLOC,
         opcodes.opcode.CHECK_ARGS,
         opcodes.opcode.PRIMITIVE_BOX,
@@ -345,6 +342,5 @@ class Verifier:
         opcodes.opcode.LOAD_FIELD,
         opcodes.opcode.STORE_FIELD,
         opcodes.opcode.CAST,
-        opcodes.opcode.FUNC_CREDENTIAL,
         opcodes.opcode.REFINE_TYPE,
     }

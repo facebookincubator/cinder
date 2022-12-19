@@ -12,7 +12,6 @@ from .. import consts
 from ..errors import ErrorSink
 from ..optimizer import AstOptimizer
 from ..pycodegen import find_futures
-from ..readonly.type_binder import ReadonlyTypeBinder
 from ..strict import _static_module_ported
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
@@ -30,7 +29,6 @@ from .types import (
     NumClass,
     Object,
     ProdAssertFunction,
-    ReadonlyFunction,
     reflect_builtin_function,
     RevealTypeFunction,
     SortedFunction,
@@ -144,7 +142,6 @@ class Compiler:
             "PendingDeprecationWarning": self.type_env.pending_deprecation_warning,
             "PermissionError": self.type_env.permission_error,
             "ProcessLookupError": self.type_env.process_lookup_error,
-            "Readonly": self.type_env.readonly_type,
             "RecursionError": self.type_env.recursion_error,
             "ReferenceError": self.type_env.reference_error,
             "ResourceWarning": self.type_env.resource_warning,
@@ -196,7 +193,6 @@ class Compiler:
             "property": self.type_env.property.exact_type(),
             "quit": self.type_env.DYNAMIC,
             "range": self.type_env.range,
-            "readonly": ReadonlyFunction(self.type_env),
             "reveal_type": RevealTypeFunction(self.type_env),
             "set": self.type_env.set.exact_type(),
             "setattr": self.type_env.DYNAMIC,
@@ -209,9 +205,6 @@ class Compiler:
             "type": self.type_env.type.exact_type(),
             "<mutable>": IdentityDecorator(
                 TypeName("__strict__", "<mutable>"), self.type_env
-            ),
-            "readonly_func": IdentityDecorator(
-                TypeName("builtins", "readonly_func"), self.type_env
             ),
             "filter": self.type_env.DYNAMIC,
             "map": self.type_env.DYNAMIC,
@@ -540,10 +533,6 @@ class Compiler:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]
-        # Analyze using readonly type binder
-        readonly_type_binder = ReadonlyTypeBinder(tree, filename, s)
-        if readonly_type_binder.error_sink.has_errors:
-            raise readonly_type_binder.error_sink.errors[0]
 
         # Compile the code w/ the static compiler
         graph = self.code_generator.flow_graph(name, filename, s.scopes[tree])
@@ -559,7 +548,6 @@ class Compiler:
             graph,
             self,
             name,
-            binder=readonly_type_binder,
             flags=0,
             optimization_lvl=optimize,
             enable_patching=enable_patching,

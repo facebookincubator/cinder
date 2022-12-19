@@ -21,22 +21,14 @@ extern const std::unordered_set<int> kBlockTerminatorOpcodes;
 // A structured, immutable representation of a CPython bytecode
 class BytecodeInstruction {
  public:
-  BytecodeInstruction(_Py_CODEUNIT* instrs, BCIndex idx, PyCodeObject* code)
-      : offset_(idx) {
+  BytecodeInstruction(_Py_CODEUNIT* instrs, BCIndex idx) : offset_(idx) {
     _Py_CODEUNIT word = instrs[idx.value()];
     opcode_ = _Py_OPCODE(word);
     oparg_ = _Py_OPARG(word);
-    const_ = OpArgTuple(code);
   }
 
-  BytecodeInstruction(
-      int opcode,
-      int oparg,
-      BCOffset offset,
-      PyCodeObject* code)
-      : offset_(offset), opcode_(opcode), oparg_(oparg) {
-    const_ = OpArgTuple(code);
-  }
+  BytecodeInstruction(int opcode, int oparg, BCOffset offset)
+      : offset_(offset), opcode_(opcode), oparg_(oparg) {}
 
   BCOffset offset() const {
     return offset_;
@@ -55,7 +47,7 @@ class BytecodeInstruction {
   }
 
   bool IsBranch() const {
-    return kBranchOpcodes.count(opcode()) || IsReadonlyBranch();
+    return kBranchOpcodes.count(opcode());
   }
 
   bool IsCondBranch() const {
@@ -67,16 +59,6 @@ class BytecodeInstruction {
       case JUMP_IF_TRUE_OR_POP:
       case JUMP_IF_ZERO_OR_POP: {
         return true;
-      }
-      case READONLY_OPERATION: {
-        switch (ReadonlyOpcode()) {
-          case READONLY_FOR_ITER: {
-            return true;
-          }
-          default: {
-            return false;
-          }
-        }
       }
       default: {
         return false;
@@ -107,9 +89,6 @@ class BytecodeInstruction {
     if (kRelBranchOpcodes.count(opcode())) {
       return NextInstrIndex() + oparg();
     }
-    if (IsReadonlyOp()) {
-      return ReadonlyJumpTarget();
-    }
     return BCIndex{oparg()};
   }
 
@@ -125,86 +104,10 @@ class BytecodeInstruction {
     oparg_ = (changes << 8) | oparg_;
   }
 
-  BorrowedRef<PyTupleObject> OpArgTuple(PyCodeObject* code) {
-    if (code == nullptr) {
-      return nullptr;
-    }
-    switch (opcode()) {
-      case READONLY_OPERATION: {
-#ifdef CINDER_PORTING_DONE
-        PyObject* consts = code->co_consts;
-        PyObject* op_tuple = PyTuple_GET_ITEM(consts, oparg());
-        return BorrowedRef<PyTupleObject>(op_tuple);
-#else
-        PORT_ASSERT("Privacy features not yet ported");
-#endif
-      }
-      default:
-        return nullptr;
-    }
-  }
-
-  bool IsReadonlyOp() const {
-    return opcode() == READONLY_OPERATION;
-  }
-
-  int ReadonlyOpcode() const {
-    if (!IsReadonlyOp()) {
-      return -1;
-    }
-    JIT_CHECK(const_ != nullptr, "const tuple is nullptr");
-    PyObject* opobj = PyTuple_GET_ITEM(const_, 0);
-    JIT_CHECK(opobj != nullptr, "readonly opcode is nullptr");
-    JIT_CHECK(PyLong_Check(opobj), "readonly opcode is not long");
-    int ret = PyLong_AsLong(opobj);
-    return ret;
-  }
-
-  bool IsReadonlyBranch() const {
-#ifdef CINDER_PORTING_DONE
-    int readonly_opcode = ReadonlyOpcode();
-
-    switch (readonly_opcode) {
-      case READONLY_FOR_ITER: {
-        return true;
-      }
-      default: {
-        return false;
-      }
-    }
-#else
-    if (IsReadonlyOp()) {
-      PORT_ASSERT("Privacy features not yet ported");
-    }
-    return false;
-#endif
-  }
-
-  BCOffset ReadonlyJumpTarget() const {
-#ifdef CINDER_PORTING_DONE
-    JIT_CHECK(IsReadonlyOp(), "opcode %d is not readonly opcode", opcode_);
-    switch (ReadonlyOpcode()) {
-      case READONLY_FOR_ITER: {
-        PyObject* jump_dist_obj = PyTuple_GET_ITEM(const_, 2);
-        JIT_CHECK(jump_dist_obj != nullptr, "jmp dist is nullptr");
-        int jump_dist = PyLong_AsLong(jump_dist_obj);
-        return NextInstrOffset() + jump_dist;
-      }
-      default: {
-        JIT_CHECK(false, "opcode %d is not readonly opcode", opcode_);
-        return 0;
-      }
-    }
-#else
-    PORT_ASSERT("Privacy features not yet ported");
-#endif
-  }
-
  private:
   BCOffset offset_;
   int opcode_;
   int oparg_;
-  BorrowedRef<PyTupleObject> const_;
 };
 
 // A half open block of bytecode [start, end) viewed as a sequence of
@@ -219,15 +122,10 @@ class BytecodeInstructionBlock {
   explicit BytecodeInstructionBlock(PyCodeObject* code)
       : instrs_(code->co_rawcode),
         start_idx_(0),
-        end_idx_(code->co_codelen / sizeof(_Py_CODEUNIT)),
-        code_(code) {}
+        end_idx_(code->co_codelen / sizeof(_Py_CODEUNIT)) {}
 
-  BytecodeInstructionBlock(
-      _Py_CODEUNIT* instrs,
-      BCIndex start,
-      BCIndex end,
-      PyCodeObject* code)
-      : instrs_(instrs), start_idx_(start), end_idx_(end), code_(code) {}
+  BytecodeInstructionBlock(_Py_CODEUNIT* instrs, BCIndex start, BCIndex end)
+      : instrs_(instrs), start_idx_(start), end_idx_(end) {}
 
   class Iterator {
    public:
@@ -237,22 +135,13 @@ class BytecodeInstructionBlock {
     using pointer = const value_type*;
     using reference = const value_type&;
 
-    Iterator(
-        _Py_CODEUNIT* instr,
-        BCIndex idx,
-        BCIndex end_idx,
-        BorrowedRef<PyCodeObject> code)
-        : instr_(instr),
-          idx_(idx),
-          end_idx_(end_idx),
-          bci_(0, 0, BCOffset{0}, 0),
-          code_(code) {
+    Iterator(_Py_CODEUNIT* instr, BCIndex idx, BCIndex end_idx)
+        : instr_(instr), idx_(idx), end_idx_(end_idx), bci_(0, 0, BCOffset{0}) {
       if (!atEnd()) {
         // Iterator end() methods are supposed to be past the logical end
         // of the underlying data structure and should not be accessed
         // directly. Dereferencing instr would be a heap buffer overflow.
-        bci_ = BytecodeInstruction(
-            _Py_OPCODE(*instr), _Py_OPARG(*instr), idx, code_);
+        bci_ = BytecodeInstruction(_Py_OPCODE(*instr), _Py_OPARG(*instr), idx);
         consumeExtendedArgs();
       }
     }
@@ -309,7 +198,7 @@ class BytecodeInstructionBlock {
       if (!atEnd()) {
         int opcode = _Py_OPCODE(*instr_);
         int oparg = (accum << 8) | _Py_OPARG(*instr_);
-        bci_ = BytecodeInstruction(opcode, oparg, idx_, code_);
+        bci_ = BytecodeInstruction(opcode, oparg, idx_);
       }
     }
 
@@ -317,15 +206,14 @@ class BytecodeInstructionBlock {
     BCIndex idx_;
     BCIndex end_idx_;
     BytecodeInstruction bci_;
-    BorrowedRef<PyCodeObject> code_;
   };
 
   Iterator begin() const {
-    return Iterator(instrs_ + start_idx_, start_idx_, end_idx_, code_);
+    return Iterator(instrs_ + start_idx_, start_idx_, end_idx_);
   }
 
   Iterator end() const {
-    return Iterator(instrs_ + end_idx_, end_idx_, end_idx_, code_);
+    return Iterator(instrs_ + end_idx_, end_idx_, end_idx_);
   }
 
   BCOffset startOffset() const {
@@ -344,26 +232,21 @@ class BytecodeInstructionBlock {
     JIT_CHECK(
         start_idx_ == 0,
         "Instructions can only be looked up by index when start_idx_ == 0");
-    return BytecodeInstruction(instrs_, idx, code_);
+    return BytecodeInstruction(instrs_, idx);
   }
 
   BytecodeInstruction lastInstr() const {
-    return BytecodeInstruction(instrs_, end_idx_ - 1, code_);
+    return BytecodeInstruction(instrs_, end_idx_ - 1);
   }
 
   _Py_CODEUNIT* bytecode() const {
     return instrs_;
   }
 
-  BorrowedRef<PyCodeObject> code() const {
-    return code_;
-  }
-
  private:
   _Py_CODEUNIT* instrs_;
   BCIndex start_idx_;
   BCIndex end_idx_;
-  BorrowedRef<PyCodeObject> code_;
 };
 
 } // namespace jit

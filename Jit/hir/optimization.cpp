@@ -88,12 +88,6 @@ Instr* DynamicComparisonElimination::ReplaceCompare(
         compare->GetOperand(1));
   }
 
-  if (compare->readonly_flags() != 0) {
-    // Readonly checks are currently only implemented for the basic Compare
-    // opcode.
-    return nullptr;
-  }
-
   return CompareBool::create(
       truthy->GetOutput(),
       compare->op(),

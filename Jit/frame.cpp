@@ -190,15 +190,6 @@ Ref<PyFrameObject> createPyFrame(
   _PyObject_GC_TRACK(py_frame);
   // _PyFrame_New_NoTrack links the frame into the thread stack.
   Py_CLEAR(py_frame->f_back);
-  if (_PyShadowFrame_GetReadonly(shadow_frame) == PYSF_IN_READONLY) {
-#ifdef CINDER_PORTING_DONE
-    // Save the readonly mask if currently in an operation.
-    py_frame->f_readonly_operation_mask =
-        reinterpret_cast<JITShadowFrame*>(shadow_frame)->readonly_mask;
-#else
-    PORT_ASSERT("Need readonly feature");
-#endif
-  }
   return py_frame;
 }
 

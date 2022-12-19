@@ -1364,40 +1364,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "unsupported binop");
         auto op_kind = static_cast<int>(bin_op->op());
 
-        if (bin_op->readonly_flags() != 0) {
-          if (bin_op->op() != BinaryOpKind::kPower) {
-            bbb.AppendCall(
-                bin_op->dst(),
-                JITRT_ReadonlyBinaryOp,
-                bin_op->left(),
-                bin_op->right(),
-                helpers[op_kind],
-                static_cast<int>(bin_op->readonly_flags()));
-          } else {
-            bbb.AppendCall(
-                bin_op->dst(),
-                JITRT_ReadonlyTernaryOp,
-                bin_op->left(),
-                bin_op->right(),
-                Py_None,
-                PyNumber_Power,
-                static_cast<int>(bin_op->readonly_flags()));
-          }
+        if (bin_op->op() != BinaryOpKind::kPower) {
+          bbb.AppendCall(
+              bin_op->dst(), helpers[op_kind], bin_op->left(), bin_op->right());
         } else {
-          if (bin_op->op() != BinaryOpKind::kPower) {
-            bbb.AppendCall(
-                bin_op->dst(),
-                helpers[op_kind],
-                bin_op->left(),
-                bin_op->right());
-          } else {
-            bbb.AppendCall(
-                bin_op->dst(),
-                PyNumber_Power,
-                bin_op->left(),
-                bin_op->right(),
-                Py_None);
-          }
+          bbb.AppendCall(
+              bin_op->dst(),
+              PyNumber_Power,
+              bin_op->left(),
+              bin_op->right(),
+              Py_None);
         }
         break;
       }
@@ -1432,17 +1408,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "unsupported unaryop");
 
         auto op_kind = static_cast<int>(unary_op->op());
-        if (unary_op->readonly_flags() != 0) {
-          bbb.AppendCall(
-              unary_op->dst(),
-              JITRT_ReadonlyUnaryOp,
-              unary_op->operand(),
-              helpers[op_kind],
-              static_cast<int>(unary_op->readonly_flags()));
-        } else {
-          bbb.AppendCall(
-              unary_op->dst(), helpers[op_kind], unary_op->operand());
-        }
+        bbb.AppendCall(unary_op->dst(), helpers[op_kind], unary_op->operand());
         break;
       }
       case Opcode::kIsInstance: {
@@ -2322,17 +2288,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kGetIter: {
         auto instr = static_cast<const GetIter*>(&i);
-        if (instr->readonly_flags() != 0) {
-          bbb.AppendCall(
-              instr->GetOutput(),
-              JITRT_GetIter,
-              instr->GetOperand(0),
-              static_cast<int>(instr->readonly_flags()));
-        } else {
-          bbb.AppendCall(
-              instr->GetOutput(), PyObject_GetIter, instr->GetOperand(0));
-        }
-
+        bbb.AppendCall(
+            instr->GetOutput(), PyObject_GetIter, instr->GetOperand(0));
         break;
       }
       case Opcode::kGetLength: {
@@ -2423,17 +2380,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kInvokeIterNext: {
         auto instr = static_cast<const InvokeIterNext*>(&i);
-        bool is_readonly = instr->readonly_flags() != 0;
-        if (is_readonly) {
-          bbb.AppendCall(
-              instr->GetOutput(),
-              jit::invokeIterNextReadonly,
-              instr->GetOperand(0),
-              static_cast<int>(instr->readonly_flags()));
-        } else {
-          bbb.AppendCall(
-              instr->GetOutput(), jit::invokeIterNext, instr->GetOperand(0));
-        }
+        bbb.AppendCall(
+            instr->GetOutput(), jit::invokeIterNext, instr->GetOperand(0));
         break;
       }
       case Opcode::kLoadEvalBreaker: {

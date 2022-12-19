@@ -34,7 +34,6 @@ class Opcode:
         self.opmap: dict[str, int] = {}
         self.opname: list[str] = ["<%r>" % (op,) for op in range(256)]
         self.stack_effects: dict[str, object] = {}
-        self.readonlyop: dict[str, int] = {}
 
     def stack_effect(self, opcode: int, oparg, jump: int) -> int:  # pyre-ignore[2]
         oparg_int = 0
@@ -104,9 +103,6 @@ class Opcode:
         self.stack_effects.pop(opname)
         delattr(self, opname)
 
-    def readonly_op(self, name: str, op: int) -> None:
-        self.readonlyop[name] = op
-
     def copy(self) -> "Opcode":
         result = Opcode()
         result.hasconst = self.hasconst.copy()
@@ -120,7 +116,6 @@ class Opcode:
         result.opmap = self.opmap.copy()
         result.opname = self.opname.copy()
         result.stack_effects = self.stack_effects.copy()
-        result.readonlyop = self.readonlyop.copy()
         for name, op in self.opmap.items():
             setattr(result, name, op)
         return result

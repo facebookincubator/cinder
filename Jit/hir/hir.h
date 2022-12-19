@@ -4,7 +4,6 @@
 
 #include "Python.h"
 #include "code.h"
-#include "funccredobject.h"
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
@@ -1100,13 +1099,10 @@ class INSTR_CLASS(
   BinaryOp(
       Register* dst,
       BinaryOpKind op,
-      uint8_t readonly_flags,
       Register* left,
       Register* right,
       const FrameState& frame)
-      : InstrT(dst, left, right, frame),
-        op_(op),
-        readonly_flags_(readonly_flags) {}
+      : InstrT(dst, left, right, frame), op_(op) {}
 
   BinaryOpKind op() const {
     return op_;
@@ -1120,13 +1116,8 @@ class INSTR_CLASS(
     return GetOperand(1);
   }
 
-  uint8_t readonly_flags() const {
-    return readonly_flags_;
-  }
-
  private:
   BinaryOpKind op_;
-  uint8_t readonly_flags_;
 };
 
 #define FOREACH_UNARY_OP_KIND(V) \
@@ -1154,10 +1145,9 @@ class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
   UnaryOp(
       Register* dst,
       UnaryOpKind op,
-      uint8_t readonly_flags,
       Register* operand,
       const FrameState& frame)
-      : InstrT(dst, operand, frame), op_(op), readonly_flags_(readonly_flags) {}
+      : InstrT(dst, operand, frame), op_(op) {}
 
   UnaryOpKind op() const {
     return op_;
@@ -1167,13 +1157,8 @@ class INSTR_CLASS(UnaryOp, (TObject), HasOutput, Operands<1>, DeoptBase) {
     return GetOperand(0);
   }
 
-  uint8_t readonly_flags() const {
-    return readonly_flags_;
-  }
-
  private:
   UnaryOpKind op_;
-  uint8_t readonly_flags_;
 };
 
 #define FOREACH_INPLACE_OP_KIND(V) \
@@ -1500,8 +1485,7 @@ class INSTR_CLASS(CallCFunc, (TOptObject | TCUInt64), HasOutput, Operands<>) {
 #define CallCFunc_FUNCS(X)      \
   X(_PyAsyncGenValueWrapperNew) \
   X(_PyCoro_GetAwaitableIter)   \
-  X(_PyGen_yf)                  \
-  X(func_cred_new)
+  X(_PyGen_yf)
 
   enum class Func {
 #define ENUM_FUNC(name, ...) k##name,
@@ -2217,13 +2201,10 @@ class INSTR_CLASS(
   Compare(
       Register* dst,
       CompareOp op,
-      uint8_t readonly_flags,
       Register* left,
       Register* right,
       const FrameState& frame)
-      : InstrT(dst, left, right, frame),
-        op_(op),
-        readonly_flags_(readonly_flags) {}
+      : InstrT(dst, left, right, frame), op_(op) {}
 
   CompareOp op() const {
     return op_;
@@ -2237,13 +2218,8 @@ class INSTR_CLASS(
     return GetOperand(1);
   }
 
-  uint8_t readonly_flags() const {
-    return readonly_flags_;
-  }
-
  private:
   CompareOp op_;
-  uint8_t readonly_flags_;
 };
 
 // Perform the comparison indicated by op
@@ -3496,23 +3472,12 @@ class INSTR_CLASS(
 // Return a new iterator for the object, or return it if it's an iterator
 class INSTR_CLASS(GetIter, (TObject), HasOutput, Operands<1>, DeoptBase) {
  public:
-  GetIter(
-      Register* dst,
-      Register* iterable,
-      uint8_t readonly_flags,
-      const FrameState& frame)
-      : InstrT(dst, iterable, frame), readonly_flags_(readonly_flags) {}
-
-  uint8_t readonly_flags() const {
-    return readonly_flags_;
-  }
+  GetIter(Register* dst, Register* iterable, const FrameState& frame)
+      : InstrT(dst, iterable, frame) {}
 
   Register* iterable() const {
     return GetOperand(0);
   }
-
- private:
-  uint8_t readonly_flags_;
 };
 
 DEFINE_SIMPLE_INSTR(GetAIter, (TObject), HasOutput, Operands<1>, DeoptBase);
@@ -3535,23 +3500,12 @@ class INSTR_CLASS(
     Operands<1>,
     DeoptBase) {
  public:
-  InvokeIterNext(
-      Register* dst,
-      Register* iter,
-      uint8_t readonly_flags,
-      const FrameState& frame)
-      : InstrT(dst, iter, frame), readonly_flags_(readonly_flags) {}
-
-  uint8_t readonly_flags() const {
-    return readonly_flags_;
-  }
+  InvokeIterNext(Register* dst, Register* iter, const FrameState& frame)
+      : InstrT(dst, iter, frame) {}
 
   Register* iterator() const {
     return GetOperand(0);
   }
-
- private:
-  uint8_t readonly_flags_;
 };
 
 // Returns a non-zero value if we need to release the GIL or run pending calls

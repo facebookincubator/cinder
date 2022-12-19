@@ -328,15 +328,10 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "BinaryOp") {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
-    uint8_t readonly_flags = 0;
-    if (peekNextToken() == ",") {
-      expect(",");
-      readonly_flags = GetNextInteger();
-    }
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<BinaryOp>(dst, op, readonly_flags, left, right);
+    instruction = newInstr<BinaryOp>(dst, op, left, right);
   } else if (opcode == "LongBinaryOp") {
     expect("<");
     BinaryOpKind op = ParseBinaryOpName(GetNextToken());
@@ -354,15 +349,10 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "Compare") {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
-    uint8_t readonly_flags = 0;
-    if (peekNextToken() == ",") {
-      expect(",");
-      readonly_flags = GetNextInteger();
-    }
     expect(">");
     auto left = ParseRegister();
     auto right = ParseRegister();
-    instruction = newInstr<Compare>(dst, op, readonly_flags, left, right);
+    instruction = newInstr<Compare>(dst, op, left, right);
   } else if (opcode == "LongCompare") {
     expect("<");
     CompareOp op = ParseCompareOpName(GetNextToken());
@@ -429,14 +419,9 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "UnaryOp") {
     expect("<");
     UnaryOpKind op = ParseUnaryOpName(GetNextToken());
-    uint8_t readonly_flags = 0;
-    if (peekNextToken() == ",") {
-      expect(",");
-      readonly_flags = GetNextInteger();
-    }
     expect(">");
     auto operand = ParseRegister();
-    instruction = newInstr<UnaryOp>(dst, op, readonly_flags, operand);
+    instruction = newInstr<UnaryOp>(dst, op, operand);
   } else if (opcode == "RaiseAwaitableError") {
     expect("<");
     int prev_opcode = GetNextInteger();
@@ -460,14 +445,8 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "InitialYield") {
     instruction = newInstr<InitialYield>(dst);
   } else if (opcode == "GetIter") {
-    uint8_t readonly_flags = 0;
-    if (peekNextToken() == "<") {
-      GetNextToken();
-      readonly_flags = GetNextInteger();
-      expect(">");
-    }
     auto iterable = ParseRegister();
-    instruction = newInstr<GetIter>(dst, iterable, readonly_flags);
+    instruction = newInstr<GetIter>(dst, iterable);
   } else if (opcode == "GetLoadMethodInstance") {
     expect("<");
     int num_args = GetNextInteger();

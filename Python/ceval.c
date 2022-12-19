@@ -4994,14 +4994,6 @@ main_loop:
             goto dispatch_opcode;
         }
 
-        case TARGET(FUNC_CREDENTIAL): {
-            PORT_ASSERT("Unsupported: FUNC_CREDENTIAL");
-        }
-
-        case TARGET(READONLY_OPERATION): {
-            PORT_ASSERT("Unsupported: READONLY_OPERATION");
-        }
-
 #define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
             while (nargs--) {                                     \
                 Py_DECREF(POP());                                 \

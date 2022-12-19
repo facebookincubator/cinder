@@ -362,6 +362,7 @@ _code_type = type(_write_atomic.__code__)
 #     Cinder 3.10   3447 (comprehension inliner in Python/compile.c)
 #     Cinder 3.10   3448 (don't inline comprehensions with cells)
 #     Cinder 3.10   3449 (load-super optimizations in Python/compile.c)
+#     Cinder 3.10   3450 (Remove Cinder-specific "read-only" features)
 
 
 #
@@ -372,7 +373,7 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3449).to_bytes(2, 'little') + b'\r\n'
+MAGIC_NUMBER = (3450).to_bytes(2, 'little') + b'\r\n'
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
 _PYCACHE = '__pycache__'

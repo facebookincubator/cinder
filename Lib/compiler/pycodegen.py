@@ -1765,9 +1765,6 @@ class CodeGenerator(ASTVisitor):
         if not big:
             self.emit("BUILD_MAP", nkwargs)
 
-    def insertReadonlyCheck(self, node, nargs, call_method):
-        pass
-
     def _fastcall_helper(self, argcnt, node, args, kwargs):
         # No * or ** args, faster calling sequence.
         for arg in args:
@@ -1843,7 +1840,6 @@ class CodeGenerator(ASTVisitor):
             for arg in node.args:
                 self.visit(arg)
             nargs = len(node.args)
-            self.insertReadonlyCheck(node, nargs + 1, True)
             self.emit("CALL_METHOD", nargs)
 
     def checkReturn(self, node):

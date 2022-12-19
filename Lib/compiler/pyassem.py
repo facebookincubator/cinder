@@ -682,7 +682,7 @@ class PyFlowGraph(FlowGraph):
     def flattenGraph(self):
         """Arrange the blocks in order and resolve jumps"""
         assert self.stage == FINAL, self.stage
-        # This is an awf/ul hack that could hurt performance, but
+        # This is an awful hack that could hurt performance, but
         # on the bright side it should work until we come up
         # with a better solution.
         #
@@ -724,31 +724,14 @@ class PyFlowGraph(FlowGraph):
 
                     assert offset >= 0, "Offset value: %d" % offset
                     inst.ioparg = offset
-                elif inst.opname == "READONLY_OPERATION" and inst.target:
-                    oparg = inst.oparg
-                    orig_ioparg = inst.ioparg
-                    # special case for readonly operations with branch
-                    # offset for the target block becomes part of the const
-                    target = inst.target
-                    if target is None:
-                        continue
-                    offset = target.offset - pc
-                    offset *= 2
-                    # readonly_op, mask, offset
-                    new_oparg = (*oparg, offset)
-                    ioparg = self._convert_LOAD_CONST(new_oparg)
-                    inst.ioparg = ioparg
-                    inst.target = None
-                    if instrsize(orig_ioparg) != instrsize(ioparg):
-                        extended_arg_recompile = True
 
         self.stage = FLAT
 
     def sort_cellvars(self):
         self.closure = self.cellvars + self.freevars
 
-    # TODO(T128853358): pull out all converters for static/readonly opcodes into
-    # StaticPyFlowGraph and ReadonlyPyFlowGraph subclasses
+    # TODO(T128853358): pull out all converters for static opcodes into
+    # StaticPyFlowGraph
 
     def _convert_LOAD_CONST(self, arg: object) -> int:
         getCode = getattr(arg, "getCode", None)
@@ -841,8 +824,6 @@ class PyFlowGraph(FlowGraph):
         "LOAD_METHOD_SUPER": _convert_LOAD_SUPER,
         "LOAD_ATTR_SUPER": _convert_LOAD_SUPER,
         "LOAD_TYPE": _convert_LOAD_CONST,
-        "FUNC_CREDENTIAL": _convert_LOAD_CONST,
-        "READONLY_OPERATION": _convert_LOAD_CONST,
     }
 
     # Converters which add an entry to co_consts

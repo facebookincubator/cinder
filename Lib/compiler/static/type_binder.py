@@ -737,8 +737,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         if wrapper is FinalClass:
             is_final = True
 
-        is_readonly = comp_type.is_readonly
-
         declared_type = comp_type.instance
         is_dynamic_final = is_final and declared_type is self.type_env.DYNAMIC
         if isinstance(target, Name):
@@ -767,10 +765,6 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 # We could be narrowing the type after the assignment, so we update it here
                 # even though we assigned it above (but we never narrow primtives)
                 new_type = self.get_type(value)
-                # When the annotation contains Readonly, do not narrow it to be non-readonly,
-                # but keep narrowing the inner parts
-                if is_readonly:
-                    new_type = new_type.klass.readonly_type().instance
                 local_type = self.maybe_set_local_type(target.id, new_type)
                 self.set_type(target, local_type)
 

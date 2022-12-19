@@ -13,7 +13,4 @@ extern PyObject g_iterDoneSentinel;
 // Invoke __next__ on iterator
 PyObject* invokeIterNext(PyObject* iterator);
 
-// Invoke __next__ on iterator with readonly checks
-PyObject* invokeIterNextReadonly(PyObject* iterator, int readonly_mask);
-
 } // namespace jit

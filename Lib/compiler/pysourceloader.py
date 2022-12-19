@@ -15,7 +15,6 @@ from importlib.machinery import (
 )
 
 from . import compile as python_compile
-from .readonly import ReadonlyCodeGenerator
 
 
 # pyre-fixme[13]: path inherited but not initialized
@@ -27,23 +26,6 @@ class PySourceFileLoader(SourceFileLoader):
         """
         return importlib._bootstrap._call_with_frames_removed(
             python_compile, data, path, "exec", optimize=_optimize
-        )
-
-
-# pyre-fixme[13]: path inherited but not initialized
-class ReadonlySourceFileLoader(SourceFileLoader):
-    def source_to_code(self, data, path, *, _optimize=-1):
-        """Similar to SourceFileLoader.source_to_code
-        but use the python based bytecode generator from
-        Lib/compiler/readonly/codegen.py
-        """
-        return importlib._bootstrap._call_with_frames_removed(
-            python_compile,
-            data,
-            path,
-            "exec",
-            optimize=_optimize,
-            compiler=ReadonlyCodeGenerator,
         )
 
 
@@ -61,10 +43,6 @@ def _install_source_loader_helper(source_loader_type):
 
 def _install_py_loader():
     _install_source_loader_helper(PySourceFileLoader)
-
-
-def _install_readonly_loader():
-    _install_source_loader_helper(ReadonlySourceFileLoader)
 
 
 def _install_strict_loader():
