@@ -2,8 +2,6 @@
 
 #include "Jit/util.h"
 
-#include "cinder/port-assert.h"
-
 #include "Jit/log.h"
 #include "Jit/ref.h"
 

@@ -3,7 +3,6 @@
 #include "Jit/runtime_support.h"
 
 #include "Python.h"
-#include "cinder/port-assert.h"
 #include "internal/pycore_pyerrors.h"
 
 #include "Jit/log.h"

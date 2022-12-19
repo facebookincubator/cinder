@@ -1432,7 +1432,6 @@ STRICTM_HEADERS = \
 		$(STRICTM_PUBLIC_HEADERS)
 
 CINDER_HEADERS= \
-		$(srcdir)/Cinder/Include/cinder/port-assert.h \
 		$(srcdir)/Cinder/Include/cinder/exports.h
 
 I386_DASM_HEADERS = \

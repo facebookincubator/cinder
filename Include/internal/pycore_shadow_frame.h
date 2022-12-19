@@ -8,8 +8,6 @@
 
 #include <stdint.h>
 
-#include "cinder/port-assert.h"
-
 #ifndef Py_LIMITED_API
 
 #ifdef __cplusplus

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Python.h"
-#include "cinder/port-assert.h"
 #include "opcode.h"
 
 #include "Jit/bytecode_offsets.h"

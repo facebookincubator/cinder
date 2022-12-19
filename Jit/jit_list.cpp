@@ -2,8 +2,6 @@
 
 #include "Jit/jit_list.h"
 
-#include "cinder/port-assert.h"
-
 #include "Jit/util.h"
 
 #include <cstring>
