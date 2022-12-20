@@ -2549,5 +2549,20 @@ class DisableComprehensionInliningTest(unittest.TestCase):
                     assert_method(b"<listcomp", output)
 
 
+class GeneralRegressionTests(unittest.TestCase):
+    # This tests a fix for an issue reported in T130047792
+    @async_test
+    async def test_skip_duplicated_coro_on_earlier_failure(self):
+        async def failingCoro():
+            raise RuntimeError
+
+        async def benignCoro():
+            pass
+
+        c = benignCoro()
+        with self.assertRaises(RuntimeError):
+            await asyncio.gather(failingCoro(), c, c)
+
+
 if __name__ == "__main__":
     unittest.main()
