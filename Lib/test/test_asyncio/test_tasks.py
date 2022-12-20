@@ -3914,6 +3914,32 @@ class ContextAwareTaskCFutureContextAwareGatherTests(ContextAwareGatherTests, te
         #  set initial value for the context
         modify_context(None)
 
+    def test_add_done_callback_preserve_context(self):
+        def gen():
+            yield
+
+        loop = self.new_test_loop()
+        loop.set_task_factory(self.new_task)
+        f = loop.create_future()
+        async def start():
+            _modify_current_context(42)
+            t = loop.create_task(coro())
+            t.add_done_callback(do_after)
+            await f
+
+        async def coro():
+            _modify_current_context(142)
+
+        ctx = None
+        def do_after(t):
+            nonlocal ctx
+            ctx = get_context()
+            f.set_result(True)
+
+        loop.run_until_complete(start())
+        loop.close()
+        self.assertEqual(ctx, 42)
+
 class StartImmediateTests(ContextAwareGatherBase):
     def test_start_immediate_eager_ok(self):
         async def coro():

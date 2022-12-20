@@ -733,6 +733,47 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_asyncio_ContextAwareTask_add_done_callback__doc__,
+"add_done_callback($self, fn, /, *, context=<unrepresentable>)\n"
+"--\n"
+"\n"
+"Add a callback to be run when the future becomes done.");
+
+#define _ASYNCIO_CONTEXTAWARETASK_ADD_DONE_CALLBACK_METHODDEF    \
+    {"add_done_callback", (PyCFunction)(void(*)(void))_asyncio_ContextAwareTask_add_done_callback, METH_FASTCALL|METH_KEYWORDS, _asyncio_ContextAwareTask_add_done_callback__doc__},
+
+static PyObject *
+_asyncio_ContextAwareTask_add_done_callback_impl(ContextAwareTaskObj *self,
+                                                 PyObject *fn,
+                                                 PyObject *context);
+
+static PyObject *
+_asyncio_ContextAwareTask_add_done_callback(ContextAwareTaskObj *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    static const char * const _keywords[] = {"", "context", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "add_done_callback", 0};
+    PyObject *argsbuf[2];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
+    PyObject *fn;
+    PyObject *context = NULL;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    fn = args[0];
+    if (!noptargs) {
+        goto skip_optional_kwonly;
+    }
+    context = args[1];
+skip_optional_kwonly:
+    return_value = _asyncio_ContextAwareTask_add_done_callback_impl(self, fn, context);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio_ContextAwareTask__step__doc__,
 "_step($self, /, exc=None)\n"
 "--\n"
@@ -1493,4 +1534,4 @@ _asyncio__AwaitingFuture_set_exception(_AwaitingFutureObj *self, PyObject *const
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=a835246b8d7ae208 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=56abd79114e8e9b4 input=a9049054013a1b77]*/

@@ -786,9 +786,9 @@ FutureLike_set_task_context(PyObject *task, PyObject *context)
 typedef PyObject* (*get_loop_f)(PyObject* obj);
 typedef fut_blocking_state (*get_is_blocking_f)(PyObject* obj);
 typedef int (*set_is_blocking_f)(PyObject* obj, int val);
-typedef PyObject* (*add_done_callback_f)(PyObject* obj, PyObject* cb, PyObject* ctx);
-typedef PyObject* (*result_f)(PyObject*);
-typedef int (*cancel_f)(PyObject*, PyObject*);
+typedef PyObject* (*on_completed_f)(PyObject* obj, PyObject* cb, PyObject* ctx);
+typedef PyObject* (*result_f)(PyObject *);
+typedef int (*cancel_f)(PyObject *, PyObject *);
 typedef PyObject* (*step_thunk_f)(PyObject *fut, PyObject *exn, PyObject *real_step);
 typedef PyObject *(*get_source_traceback)(PyObject *fut);
 typedef int (*cancelled_f)(PyObject *);
@@ -806,7 +806,7 @@ typedef struct {
     get_loop_f get_loop;
     get_is_blocking_f get_is_blocking;
     set_is_blocking_f set_is_blocking;
-    add_done_callback_f add_done_callback;
+    on_completed_f on_completed;
     result_f result;
     cancel_f cancel;
     step_thunk_f step_thunk;
@@ -1018,10 +1018,17 @@ populate_method_table(PyMethodTableRef *tableref, PyTypeObject *type) {
         tableref->get_loop = (get_loop_f)FutureLike_get_loop;
     }
     if (is_impl_method(add_done_callback, (PyCFunction)_asyncio_Future_add_done_callback)) {
-        tableref->add_done_callback = (add_done_callback_f)_asyncio_Future_add_done_callback_impl;
+        tableref->on_completed = (on_completed_f)_asyncio_Future_add_done_callback_impl;
+    }
+    else if (is_impl_method(add_done_callback, (PyCFunction)_asyncio_ContextAwareTask_add_done_callback)) {
+        // for purposes of this module we can use Future.add_done_callback for context aware tasks
+        // it is used either:
+        // - for gather that does not need context information
+        // - for wakeup which will do step and will restore the current context from task context anyways
+        tableref->on_completed = (on_completed_f)_asyncio_Future_add_done_callback_impl;
     }
     else {
-        tableref->add_done_callback = (add_done_callback_f)FutureLike_add_done_callback;
+        tableref->on_completed = (on_completed_f)FutureLike_add_done_callback;
     }
     if (is_impl_method(result, (PyCFunction)_asyncio_Future_result)) {
         tableref->result = (result_f)_asyncio_Future_result_impl;
@@ -4464,7 +4471,7 @@ task_set_fut_waiter_impl(TaskObj *task, PyObject *result)
         }
 
         /* result.add_done_callback(task._wakeup) */
-        res = result_tableref->add_done_callback(
+        res = result_tableref->on_completed(
             result, wrapper, (PyObject *)task->task_context);
         Py_DECREF(wrapper);
         if (res == NULL) {
@@ -4923,6 +4930,123 @@ ContextAwareTaskObj_clear(ContextAwareTaskObj *self)
     TaskObj_clear((TaskObj *)self);
 }
 
+typedef struct {
+    PyObject_HEAD
+    PyObject *cb_f;
+    PyObject *cb_ctx;
+    vectorcallfunc cb_vectorcall;
+} ContextAwareTaskCallbackObj;
+
+static int
+ContextAwareTaskCallbackObj_traverse(ContextAwareTaskCallbackObj *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->cb_f);
+    Py_VISIT(self->cb_ctx);
+    return 0;
+}
+
+static int
+ContextAwareTaskCallbackObj_clear(ContextAwareTaskCallbackObj *self)
+{
+    Py_CLEAR(self->cb_f);
+    Py_CLEAR(self->cb_ctx);
+    return 0;
+}
+
+static PyObject *
+ContextAwareTaskCallbackObj_repr(ContextAwareTaskCallbackObj *self)
+{
+    return PyObject_Repr(self->cb_f);
+}
+
+static PyObject *
+ContextAwareTaskCallbackObj_vectorcall(ContextAwareTaskCallbackObj *self,
+                                       PyObject *const*args,
+                                       size_t nargs,
+                                       PyObject *kwnames)
+{
+    PyObject *prev_ctx = get_current_context();
+    if (prev_ctx == NULL) {
+        return NULL;
+    }
+    int ok = reset_context(Py_None, self->cb_ctx, NULL);
+    if (ok < 0) {
+        Py_DECREF(prev_ctx);
+        return NULL;
+    }
+    PyObject *res = _PyObject_Vectorcall(self->cb_f, args, nargs, kwnames);
+    ok = call_reset_context(PyThreadState_GET(), Py_None, prev_ctx, NULL, res == NULL);
+    Py_DECREF(prev_ctx);
+    if (ok < 0) {
+        Py_XDECREF(res);
+        return NULL;
+    }
+    return res;
+}
+
+static void
+ContextAwareTaskCallbackObj_dealloc(ContextAwareTaskCallbackObj *o)
+{
+    PyObject_GC_UnTrack(o);
+    (void)ContextAwareTaskCallbackObj_clear(o);
+    Py_TYPE(o)->tp_free(o);
+}
+
+static PyTypeObject _ContextAwareTaskCallback_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "ContextAwareTaskCallbackObj",
+    .tp_basicsize = sizeof(ContextAwareTaskCallbackObj),
+    .tp_itemsize = 0,
+    .tp_dealloc = (destructor)ContextAwareTaskCallbackObj_dealloc,
+    .tp_call = PyVectorcall_Call,
+    .tp_vectorcall_offset = offsetof(ContextAwareTaskCallbackObj, cb_vectorcall),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | _Py_TPFLAGS_HAVE_VECTORCALL,
+    .tp_traverse = (traverseproc)ContextAwareTaskCallbackObj_traverse,
+    .tp_clear = (inquiry)ContextAwareTaskCallbackObj_clear,
+    .tp_repr = (reprfunc)ContextAwareTaskCallbackObj_repr,
+};
+
+static PyObject *
+ContextAwareTaskObj_get_ctx(ContextAwareTaskObj *self,
+                            void *Py_UNUSED(ignored));
+
+/*[clinic input]
+_asyncio.ContextAwareTask.add_done_callback
+
+    fn: object
+    /
+    *
+    context: object = NULL
+
+Add a callback to be run when the future becomes done.
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio_ContextAwareTask_add_done_callback_impl(ContextAwareTaskObj *self,
+                                                 PyObject *fn,
+                                                 PyObject *context)
+/*[clinic end generated code: output=4e0df9fa1206f23c input=458ed3b5d3ab8a80]*/
+{
+    PyObject *ctx = ContextAwareTaskObj_get_ctx(self, NULL);
+    if (ctx == NULL) {
+        return NULL;
+    }
+    ContextAwareTaskCallbackObj *callback = PyObject_GC_New(
+        ContextAwareTaskCallbackObj, &_ContextAwareTaskCallback_Type);
+    if(callback == NULL) {
+        Py_DECREF(ctx);
+        return NULL;
+    }
+    callback->cb_vectorcall = (vectorcallfunc)ContextAwareTaskCallbackObj_vectorcall;
+    callback->cb_ctx = ctx;
+    callback->cb_f = fn;
+    Py_INCREF(fn);
+
+    PyObject *res = _asyncio_Future_add_done_callback_impl((FutureObj *)self, (PyObject *)callback, context);
+    Py_DECREF(callback);
+    return res;
+}
+
 // clang-format off
 /*[clinic input]
 _asyncio.ContextAwareTask._step
@@ -5082,9 +5206,14 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
 }
 
 // clang-format off
+// this should be kept in sync with TASK_COMMON_METHODS,
+// except for replacing FUTURE_ADD_DONE_CALLBACK with
+// CONTEXTAWARETASK_ADD_DONE_CALLBACK, and adding
+// CONTEXTAWARETASK__STEP and __init_subclass__ at the end.
 static PyMethodDef ContextAwareTaskType_methods[] = {
     _ASYNCIO_FUTURE_RESULT_METHODDEF                \
     _ASYNCIO_FUTURE_EXCEPTION_METHODDEF             \
+    _ASYNCIO_CONTEXTAWARETASK_ADD_DONE_CALLBACK_METHODDEF     \
     _ASYNCIO_FUTURE_REMOVE_DONE_CALLBACK_METHODDEF  \
     _ASYNCIO_FUTURE_CANCELLED_METHODDEF             \
     _ASYNCIO_FUTURE_DONE_METHODDEF                  \
@@ -5094,14 +5223,16 @@ static PyMethodDef ContextAwareTaskType_methods[] = {
     _ASYNCIO_TASK_CANCEL_METHODDEF                  \
     _ASYNCIO_TASK_GET_STACK_METHODDEF               \
     _ASYNCIO_TASK_PRINT_STACK_METHODDEF             \
+    _ASYNCIO_TASK__MAKE_CANCELLED_ERROR_METHODDEF   \
     _ASYNCIO_TASK__REPR_INFO_METHODDEF              \
     _ASYNCIO_TASK_GET_NAME_METHODDEF                \
     _ASYNCIO_TASK_SET_NAME_METHODDEF                \
     _ASYNCIO_TASK_GET_CORO_METHODDEF                \
+    {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS, PyDoc_STR("See PEP 585")}, \
     {"_set_fut_waiter", (PyCFunction)task_set_fut_waiter, METH_O, NULL},
+    {"_set_task_context", (PyCFunction)task_set_task_context, METH_O, NULL},
     _ASYNCIO_CONTEXTAWARETASK__STEP_METHODDEF
     {"__init_subclass__", (PyCFunction)ContextAwareTask___init_subclass, METH_VARARGS | METH_KEYWORDS | METH_CLASS},
-    {"_set_task_context", (PyCFunction)task_set_task_context, METH_O, NULL},
     {NULL, NULL}        /* Sentinel */
 };
 
@@ -7272,7 +7403,7 @@ _gather_multiple(PyObject *const*items,
 
         gfut->gf_pending++;
 
-        PyObject *res = t->add_done_callback(fut, done_callback, NULL);
+        PyObject *res = t->on_completed(fut, done_callback, NULL);
         if (res == NULL) {
             Py_DECREF(fut);
             goto failed;
@@ -8038,7 +8169,7 @@ _asyncio__AwaitingFuture___init___impl(_AwaitingFutureObj *self,
         return -1;
     }
 
-    PyObject *res = tableref->add_done_callback(awaited, self->af_done_callback, NULL);
+    PyObject *res = tableref->on_completed(awaited, self->af_done_callback, NULL);
     if (res == NULL) {
       return -1;
     }
@@ -8542,6 +8673,9 @@ PyInit__asyncio(void)
         return NULL;
     }
     if (PyType_Ready(&_AwaitingFuture_Type) < 0) {
+        return NULL;
+    }
+    if (PyType_Ready(&_ContextAwareTaskCallback_Type) < 0) {
         return NULL;
     }
     methodref_callback = PyCFunction_New(&_MethodTableRefCallback, NULL);

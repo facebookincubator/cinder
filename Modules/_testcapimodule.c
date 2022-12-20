@@ -5880,6 +5880,7 @@ _set_current_context(PyObject *val)
 {
     if (context_holder == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "Context holder is not allocated");
+        return NULL;
     }
     if (PyCell_Set(context_holder, val) < 0) {
         return NULL;
@@ -5897,6 +5898,9 @@ _restore_context(PyObject *task,
         return -1;
     }
     Py_DECREF(o);
+    if (task == NULL || task == Py_None) {
+        return 0;
+    }
     if (set_task_ctx != NULL) {
         assert(task != NULL);
         return set_task_ctx(task, ctx);
