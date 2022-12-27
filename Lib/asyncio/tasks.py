@@ -971,12 +971,14 @@ _py_unregister_task = _unregister_task
 _py_enter_task = _enter_task
 _py_leave_task = _leave_task
 _py_all_tasks = all_tasks
+_py_current_task = current_task
 
 try:
     from _asyncio import (_register_task, _unregister_task,
                           _enter_task, _leave_task,
                           _current_tasks,
                           all_tasks,
+                          current_task,
                           AsyncLazyValue as _ASYNC_LAZY_VALUE_TYPE,
                           gather,
                           _is_coro_suspended,
@@ -989,3 +991,4 @@ else:
     _c_enter_task = _enter_task
     _c_leave_task = _leave_task
     _c_all_tasks = all_tasks
+    _c_current_task = current_task
