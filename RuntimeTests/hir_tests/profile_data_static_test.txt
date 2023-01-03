@@ -59,7 +59,7 @@ fun jittestmodule:test {
 
   bb 4 (preds 0, 5) {
     v11:CInt64[10] = LoadConst<CInt64[10]>
-    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v15:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v16:LongExact = GuardType<LongExact> v6 {
       GuiltyReg v6
     }

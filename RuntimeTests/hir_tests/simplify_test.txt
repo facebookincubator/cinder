@@ -57,7 +57,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v5:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
     v7:OptObject = LoadGlobalCached<0; "box">
     v8:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v7 {
       Descr 'LOAD_GLOBAL: box'
@@ -93,7 +93,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:Nullptr = LoadConst<Nullptr>
-    v3:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v3:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v3
   }
 }
@@ -119,13 +119,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Branch<2>
   }
 
   bb 2 (preds 0, 1) {
-    v11:OptMortalLongExact = Phi<0, 1> v5 v8
-    v12:MortalLongExact = CheckVar<"y"> v11 {
+    v11:OptImmortalLongExact = Phi<0, 1> v5 v8
+    v12:ImmortalLongExact = CheckVar<"y"> v11 {
       FrameState {
         NextInstrOffset 10
         Locals<2> v4 v11
@@ -158,17 +158,17 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v9:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v9:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v11:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v11:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     Branch<3>
   }
 
   bb 3 (preds 1, 2) {
-    v14:MortalLongExact = Phi<1, 2> v9 v11
+    v14:ImmortalLongExact = Phi<1, 2> v9 v11
     Return v14
   }
 }
@@ -196,7 +196,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v13:CInt32 = IsTruthy v6 {
       FrameState {
         NextInstrOffset 12
@@ -207,13 +207,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
-    v14:MortalLongExact[100] = LoadConst<MortalLongExact[100]>
+    v14:ImmortalLongExact[100] = LoadConst<ImmortalLongExact[100]>
     Return v14
   }
 
   bb 3 (preds 0, 1) {
-    v16:OptMortalLongExact = Phi<0, 1> v7 v10
-    v17:MortalLongExact = CheckVar<"y"> v16 {
+    v16:OptImmortalLongExact = Phi<0, 1> v7 v10
+    v17:ImmortalLongExact = CheckVar<"y"> v16 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v6 v16
@@ -232,9 +232,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v7:Nullptr = LoadConst<Nullptr>
-    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v9:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    v10:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v8:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v9:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v10:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v11:MortalListExact = MakeList<3> v8 v9 v10 {
       FrameState {
         NextInstrOffset 8
@@ -242,7 +242,7 @@ fun jittestmodule:test {
         Stack<3> v8 v9 v10
       }
     }
-    v14:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v14:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     UseType<ListExact> v11
     UseType<LongExact> v14
     v20:CInt64[1] = LoadConst<CInt64[1]>
@@ -273,7 +273,7 @@ fun test {
 fun test {
   bb 0 {
     v0:Object = LoadArg<0>
-    v1:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v1:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v2:Object = BinaryOp<Subscript> v0 v1 {
       FrameState {
         NextInstrOffset 0
@@ -361,10 +361,10 @@ fun jittestmodule:test {
   bb 0 {
     v7:Nullptr = LoadConst<Nullptr>
     v8:NoneType = LoadConst<NoneType>
-    v10:MortalBool[True] = LoadConst<MortalBool[True]>
+    v10:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     UseType<NoneType> v8
     v21:CInt32[0] = LoadConst<CInt32[0]>
-    v16:MortalBool[False] = LoadConst<MortalBool[False]>
+    v16:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v16
   }
 }
@@ -383,11 +383,11 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v7:Nullptr = LoadConst<Nullptr>
-    v8:MortalBool[True] = LoadConst<MortalBool[True]>
-    v10:MortalBool[True] = LoadConst<MortalBool[True]>
-    UseType<MortalBool[True]> v8
+    v8:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    v10:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<ImmortalBool[True]> v8
     v21:CInt32[1] = LoadConst<CInt32[1]>
-    v14:MortalBool[True] = LoadConst<MortalBool[True]>
+    v14:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v14
   }
 }
@@ -404,11 +404,11 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
-    v7:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
-    UseType<MortalLongExact[0]> v7
+    v7:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<ImmortalLongExact[0]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
-    v13:MortalBool[False] = LoadConst<MortalBool[False]>
+    v13:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v13
   }
 }
@@ -425,9 +425,9 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
-    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
-    UseType<MortalLongExact[1]> v7
+    v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<ImmortalLongExact[1]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
     Return v9
   }
@@ -446,10 +446,10 @@ fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalUnicodeExact[""] = LoadConst<MortalUnicodeExact[""]>
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     UseType<MortalUnicodeExact[""]> v7
     v18:CInt32[0] = LoadConst<CInt32[0]>
-    v13:MortalBool[False] = LoadConst<MortalBool[False]>
+    v13:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v13
   }
 }
@@ -467,7 +467,7 @@ fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     UseType<MortalUnicodeExact["hello"]> v7
     v18:CInt32[1] = LoadConst<CInt32[1]>
     Return v9
@@ -522,7 +522,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v2:OptObject = LoadGlobalCached<0; "int">
-    v3:MortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2 {
+    v3:ImmortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v2 {
       Descr 'LOAD_GLOBAL: int'
     }
     UseType<Type> v3
@@ -630,8 +630,8 @@ fun test {
     }
     UseType<NoneType> v1
     UseType<NoneType> v8
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
-    UseType<MortalBool[True]> v9
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<ImmortalBool[True]> v9
     v10:CInt32[1] = LoadConst<CInt32[1]>
     Return v1
   }
@@ -648,14 +648,14 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v7:Nullptr = LoadConst<Nullptr>
-    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v11:NoneType = LoadConst<NoneType>
-    UseType<MortalLongExact[2]> v8
+    UseType<ImmortalLongExact[2]> v8
     UseType<NoneType> v11
-    v16:MortalBool[False] = LoadConst<MortalBool[False]>
-    UseType<MortalBool[False]> v16
+    v16:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v16
     v17:CInt32[0] = LoadConst<CInt32[0]>
-    v15:MortalBool[False] = LoadConst<MortalBool[False]>
+    v15:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v15
   }
 }
@@ -672,14 +672,14 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v8:Nullptr = LoadConst<Nullptr>
-    v9:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    v11:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
-    UseType<MortalLongExact[2]> v9
-    UseType<MortalLongExact[4]> v11
-    v19:MortalBool[False] = LoadConst<MortalBool[False]>
-    UseType<MortalBool[False]> v19
+    v9:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v11:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    UseType<ImmortalLongExact[2]> v9
+    UseType<ImmortalLongExact[4]> v11
+    v19:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v19
     v20:CInt32[0] = LoadConst<CInt32[0]>
-    v18:MortalBool[False] = LoadConst<MortalBool[False]>
+    v18:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v18
   }
 }
@@ -704,12 +704,12 @@ fun test {
   }
 
   bb 1 (preds 0) {
-    v6 = LoadConst<MortalBool[True]>
+    v6 = LoadConst<ImmortalBool[True]>
     Return v6
   }
 
   bb 2 (preds 0) {
-    v7 = LoadConst<MortalBool[False]>
+    v7 = LoadConst<ImmortalBool[False]>
     Return v7
   }
 }
@@ -730,19 +730,19 @@ fun test {
     }
     v8:Bool = LongCompare<Equal> v2 v3
     UseType<Bool> v8
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v10:CBool = PrimitiveCompare<Equal> v8 v9
     v11:CInt32 = IntConvert<CInt32> v10
     CondBranch<2, 1> v11
   }
 
   bb 2 (preds 0) {
-    v7:MortalBool[False] = LoadConst<MortalBool[False]>
+    v7:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v7
   }
 
   bb 1 (preds 0) {
-    v6:MortalBool[True] = LoadConst<MortalBool[True]>
+    v6:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v6
   }
 }
@@ -767,12 +767,12 @@ fun test {
   }
 
   bb 1 (preds 0) {
-    v6 = LoadConst<MortalBool[True]>
+    v6 = LoadConst<ImmortalBool[True]>
     Return v6
   }
 
   bb 2 (preds 0) {
-    v7 = LoadConst<MortalBool[False]>
+    v7 = LoadConst<ImmortalBool[False]>
     Return v7
   }
 }
@@ -793,19 +793,19 @@ fun test {
     }
     v8:Bool = UnicodeCompare<Equal> v2 v3
     UseType<Bool> v8
-    v9:MortalBool[True] = LoadConst<MortalBool[True]>
+    v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v10:CBool = PrimitiveCompare<Equal> v8 v9
     v11:CInt32 = IntConvert<CInt32> v10
     CondBranch<2, 1> v11
   }
 
   bb 2 (preds 0) {
-    v7:MortalBool[False] = LoadConst<MortalBool[False]>
+    v7:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v7
   }
 
   bb 1 (preds 0) {
-    v6:MortalBool[True] = LoadConst<MortalBool[True]>
+    v6:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v6
   }
 }
@@ -958,7 +958,7 @@ fun test {
     v1:Object = LoadArg<0>
     v2:Bool = RefineType<Bool> v1
     UseType<Bool> v2
-    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    v5:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v6:CBool = PrimitiveCompare<Equal> v2 v5
     v7:CInt32 = IntConvert<CInt32> v6
     v4:LongExact = PrimitiveBox<CInt32> v7 {
@@ -1020,12 +1020,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v7
   }
 
   bb 2 (preds 0) {
-    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     Return v8
   }
 }
@@ -1193,7 +1193,7 @@ fun test {
     v1:Object = LoadArg<0>
     v2:LongExact = RefineType<LongExact> v1
     UseType<LongExact> v2
-    v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
+    v5:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
     v6:CBool = PrimitiveCompare<NotEqual> v2 v5
     v7:CInt32 = IntConvert<CInt32> v6
     v4:LongExact = PrimitiveBox<CInt32> v7 {
@@ -1214,10 +1214,10 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "x">
     v4:OptObject = LoadGlobalCached<0; "type">
-    v5:MortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v4 {
+    v5:ImmortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: type'
     }
-    UseType<MortalTypeExact[type:obj]> v5
+    UseType<ImmortalTypeExact[type:obj]> v5
     v8:Type = LoadField<ob_type@8, Type, borrowed> v3
     Return v8
   }
@@ -1272,13 +1272,13 @@ fun test {
   bb 0 {
     v1:Object = LoadArg<0>
     v2:Object = LoadArg<1>
-    v3:MortalLongExact[2] = RefineType<MortalLongExact[2]> v1
-    v4:MortalLongExact[3] = RefineType<MortalLongExact[3]> v2
+    v3:ImmortalLongExact[2] = RefineType<ImmortalLongExact[2]> v1
+    v4:ImmortalLongExact[3] = RefineType<ImmortalLongExact[3]> v2
     UseType<LongExact> v3
     UseType<LongExact> v4
-    UseType<MortalLongExact[2]> v3
-    UseType<MortalLongExact[3]> v4
-    v7:MortalLongExact[8] = LoadConst<MortalLongExact[8]>
+    UseType<ImmortalLongExact[2]> v3
+    UseType<ImmortalLongExact[3]> v4
+    v7:ImmortalLongExact[8] = LoadConst<ImmortalLongExact[8]>
     Return v7
   }
 }
@@ -1324,14 +1324,14 @@ fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
     v7:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    v10:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v7
-    UseType<MortalLongExact[1]> v10
+    UseType<ImmortalLongExact[1]> v10
     v14:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    v12:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v12:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
-    UseType<MortalLongExact[2]> v12
-    v15:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    UseType<ImmortalLongExact[2]> v12
+    v15:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     Return v15
   }
 }
@@ -1438,7 +1438,7 @@ fun jittestmodule:test {
   bb 0 {
     v5:Nullptr = LoadConst<Nullptr>
     v6:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
-    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v12:Object = BinaryOp<Add> v6 v8 {
       FrameState {
         NextInstrOffset 14
@@ -1489,7 +1489,7 @@ fun jittestmodule:test {
   bb 0 {
     v5:Nullptr = LoadConst<Nullptr>
     v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
-    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v16:CInt64[2] = LoadConst<CInt64[2]>
     v17:CInt64[0] = LoadConst<CInt64[0]>
     v15:UnicodeExact = UnicodeRepeat v6 v16 {
@@ -1513,7 +1513,7 @@ fun jittestmodule:test {
   bb 0 {
     v5:Nullptr = LoadConst<Nullptr>
     v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
-    v8:MortalBool[True] = LoadConst<MortalBool[True]>
+    v8:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v12:Object = BinaryOp<Multiply> v6 v8 {
       FrameState {
         NextInstrOffset 14
@@ -1776,7 +1776,7 @@ fun jittestmodule:test {
         Stack<3> v7 v8 v9
       }
     }
-    v17:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v17:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     UseType<TupleExact> v14
     UseType<LongExact> v17
     v22:CInt64[1] = LoadConst<CInt64[1]>
@@ -1807,7 +1807,7 @@ fun jittestmodule:test {
         Stack<3> v7 v8 v9
       }
     }
-    v17:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v17:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     UseType<TupleExact> v14
     UseType<LongExact> v17
     v22:CInt64[3] = LoadConst<CInt64[3]>
@@ -1895,15 +1895,15 @@ fun jittestmodule:test {
     v22:CInt64[2] = LoadConst<CInt64[2]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[2]> v22
-    v42:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v42:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v25:CInt64[1] = LoadConst<CInt64[1]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[1]> v25
-    v43:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v43:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v27:CInt64[0] = LoadConst<CInt64[0]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[0]> v27
-    v44:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v44:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v44
   }
 }
@@ -1923,7 +1923,7 @@ fun jittestmodule:test {
   bb 0 {
     v0:CBool[true] = LoadConst<CBool[true]>
     UseType<CBool[true]> v0
-    v2:MortalBool[True] = LoadConst<MortalBool[True]>
+    v2:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v2
   }
 }
@@ -1943,7 +1943,7 @@ fun jittestmodule:test {
   bb 0 {
     v0:CBool[false] = LoadConst<CBool[false]>
     UseType<CBool[false]> v0
-    v2:MortalBool[False] = LoadConst<MortalBool[False]>
+    v2:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v2
   }
 }
@@ -1969,7 +1969,7 @@ fun jittestmodule:test {
     UseType<CInt32[123]> v1
     v4:CBool[true] = LoadConst<CBool[true]>
     UseType<CBool[true]> v4
-    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    v5:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v5
   }
 }
@@ -1995,7 +1995,7 @@ fun jittestmodule:test {
     UseType<CInt32[456]> v1
     v4:CBool[false] = LoadConst<CBool[false]>
     UseType<CBool[false]> v4
-    v5:MortalBool[False] = LoadConst<MortalBool[False]>
+    v5:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v5
   }
 }
@@ -2048,7 +2048,7 @@ fun jittestmodule:test {
     UseType<CInt32[123]> v1
     v4:CBool[false] = LoadConst<CBool[false]>
     UseType<CBool[false]> v4
-    v5:MortalBool[False] = LoadConst<MortalBool[False]>
+    v5:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v5
   }
 }
@@ -2074,7 +2074,7 @@ fun jittestmodule:test {
     UseType<CInt32[456]> v1
     v4:CBool[true] = LoadConst<CBool[true]>
     UseType<CBool[true]> v4
-    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    v5:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v5
   }
 }
@@ -2118,7 +2118,7 @@ fun jittestmodule:test {
     v20:Object = LoadArg<1; "b">
     v21:Object = LoadArg<2; "c">
     v22:Nullptr = LoadConst<Nullptr>
-    v26:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v26:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v27:MortalTupleExact = MakeTuple<4> v19 v20 v21 v26 {
       FrameState {
         NextInstrOffset 10

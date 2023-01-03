@@ -106,7 +106,7 @@ TEST_F(HIRTypeTest, FromBuiltinObjects) {
   EXPECT_TRUE(long_obj < TType);
   EXPECT_TRUE(long_obj.hasObjectSpec());
   EXPECT_EQ(long_obj.objectSpec(), reinterpret_cast<PyObject*>(&PyLong_Type));
-  EXPECT_EQ(long_obj.toString(), "MortalTypeExact[int:obj]");
+  EXPECT_EQ(long_obj.toString(), "ImmortalTypeExact[int:obj]");
 }
 
 TEST_F(HIRTypeTest, FromBuiltinType) {
@@ -137,7 +137,7 @@ TEST_F(HIRTypeTest, FromBuiltinType) {
   auto type = Type::fromType(&PyType_Type);
   auto type_obj = Type::fromObject(reinterpret_cast<PyObject*>(&PyType_Type));
   EXPECT_EQ(type.toString(), "Type");
-  EXPECT_EQ(type_obj.toString(), "MortalTypeExact[type:obj]");
+  EXPECT_EQ(type_obj.toString(), "ImmortalTypeExact[type:obj]");
   EXPECT_TRUE(type_obj < type);
 }
 
@@ -261,8 +261,8 @@ TEST_F(HIRTypeTest, ToString) {
       Type::fromCPtr(reinterpret_cast<void*>(0x12345)).toString(),
       "CPtr[0xdeadbeef]");
 
-  EXPECT_EQ(Type::fromObject(Py_True).toString(), "MortalBool[True]");
-  EXPECT_EQ(Type::fromObject(Py_False).toString(), "MortalBool[False]");
+  EXPECT_EQ(Type::fromObject(Py_True).toString(), "ImmortalBool[True]");
+  EXPECT_EQ(Type::fromObject(Py_False).toString(), "ImmortalBool[False]");
 
   auto llong_max = Ref<>::steal(PyLong_FromLongLong(LLONG_MAX));
   ASSERT_NE(llong_max, nullptr);
@@ -275,7 +275,7 @@ TEST_F(HIRTypeTest, ToString) {
   auto underflow = Ref<>::steal(PyNumber_Multiply(llong_max, negi));
   ASSERT_NE(underflow, nullptr);
 
-  EXPECT_EQ(Type::fromObject(i).toString(), "MortalLongExact[24]");
+  EXPECT_EQ(Type::fromObject(i).toString(), "ImmortalLongExact[24]");
   EXPECT_EQ(Type::fromObject(negi).toString(), "MortalLongExact[-24]");
   EXPECT_EQ(Type::fromObject(overflow).toString(), "MortalLongExact[overflow]");
   EXPECT_EQ(
@@ -381,10 +381,10 @@ TEST_F(HIRTypeTest, Parse) {
 TEST_F(HIRTypeTest, ParsePyObject) {
   Environment env;
   EXPECT_TRUE(isLongTypeWithValue(Type::parse(&env, "Long[1]"), TLong, 1));
-  EXPECT_TRUE(
-      isLongTypeWithValue(Type::parse(&env, "MortalLong[2]"), TMortalLong, 2));
   EXPECT_TRUE(isLongTypeWithValue(
-      Type::parse(&env, "MortalLongExact[3]"), TMortalLongExact, 3));
+      Type::parse(&env, "ImmortalLongExact[2]"), TImmortalLong, 2));
+  EXPECT_TRUE(isLongTypeWithValue(
+      Type::parse(&env, "ImmortalLongExact[3]"), TImmortalLongExact, 3));
   EXPECT_EQ(
       Type::parse(&env, "Long[123123123123123123123123123123123123]"), TBottom);
 }
@@ -481,7 +481,7 @@ TEST_F(HIRTypeTest, SpecializedIntegerTypes) {
   auto long_ty2 = Type::fromObject(py_long2);
   auto long_ty = long_ty1 | long_ty2;
   EXPECT_FALSE(long_ty.hasTypeSpec());
-  EXPECT_EQ(long_ty, TMortalLongExact);
+  EXPECT_EQ(long_ty, TImmortalLongExact);
 }
 
 TEST_F(HIRTypeTest, SpecializedDoubleTypes) {

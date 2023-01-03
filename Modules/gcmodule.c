@@ -346,8 +346,20 @@ validate_list(PyGC_Head *head, uintptr_t expected_mask)
 static void
 update_refs(PyGC_Head *containers)
 {
+    PyGC_Head *next;
     PyGC_Head *gc = GC_NEXT(containers);
-    for (; gc != containers; gc = GC_NEXT(gc)) {
+    struct _gc_runtime_state *state = &_PyRuntime.gc;
+    while (gc != containers) {
+        next = GC_NEXT(gc);
+        /* Move any object that might have become immortal to the
+        * permanent generation as the reference count is not accurately
+        * reflecting the actual number of live references to this object
+        */
+        if (_Py_IsImmortal(FROM_GC(gc))) {
+            gc_list_move(gc, &state->permanent_generation.head);
+            gc = next;
+            continue;
+        }
         gc_reset_refs(gc, Py_REFCNT(FROM_GC(gc)));
         /* Python's cyclic gc should never see an incoming refcount
          * of 0:  if something decref'ed to 0, it should have been
@@ -368,6 +380,7 @@ update_refs(PyGC_Head *containers)
          * check instead of an assert?
          */
         _PyObject_ASSERT(FROM_GC(gc), gc_get_refs(gc) != 0);
+        gc = next;
     }
 }
 
@@ -1804,7 +1817,7 @@ int _PyImmortal_RecursiveHeapWalk = 0;
 static int
 immortalize_object(PyObject *obj, PyObject * /* unused */ args)
 {
-    if (Py_IS_IMMORTAL(obj)) {
+    if (_Py_IsImmortal(obj)) {
         return 0;
     }
 
@@ -1881,7 +1894,7 @@ PyDoc_STRVAR(gc_is_immortal_heap__doc__,
 static PyObject *
 gc_is_immortal(PyObject *module, PyObject *obj)
 {
-    if (Py_IS_IMMORTAL(obj))
+    if (_Py_IsImmortal(obj))
         Py_RETURN_TRUE;
     else
         Py_RETURN_FALSE;

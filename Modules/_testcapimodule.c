@@ -4636,8 +4636,12 @@ check_pyobject_freed_is_freed(PyObject *self, PyObject *Py_UNUSED(args))
         return NULL;
     }
     Py_TYPE(op)->tp_dealloc(op);
-    /* Reset reference count to avoid early crash in ceval or GC */
-    Py_SET_REFCNT(op, 1);
+    // Reset reference count to avoid early crash in ceval or GC. Directly set
+    // the refcount field instead of using Py_SET_REFCNT as this calls out to
+    // another function, and result in a failure under ASAN. Ideally this test
+    // should be altogether disabled for ASAN (as is done in upstream).
+    // TODO(T136133828): Remove this when ASAN is disabled
+    op->ob_refcnt = 1;
     /* object memory is freed! */
     return test_pyobject_is_freed("check_pyobject_freed_is_freed", op);
 }

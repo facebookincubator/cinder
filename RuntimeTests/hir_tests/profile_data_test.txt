@@ -77,8 +77,8 @@ fun jittestmodule:test {
     }
     UseType<Bool> v13
     UseType<NoneType> v12
-    v29:MortalBool[False] = LoadConst<MortalBool[False]>
-    UseType<MortalBool[False]> v29
+    v29:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v29
     v30:CInt32[0] = LoadConst<CInt32[0]>
     v28:NoneType = LoadConst<NoneType>
     Return v28
@@ -196,8 +196,8 @@ test(C)
 fun jittestmodule:test {
   bb 0 {
     v5:Object = LoadArg<0; "f">
-    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v9:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     HintType<1, <Func>, <TypeExact>> v5
     v10:Object = VectorCallKW<3> v5 v7 v8 v9 {

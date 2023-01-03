@@ -496,6 +496,12 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
          bldr.cur_bb_->addSuccessor(succ_bb);
        }},
+      {"BranchE",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         bldr.createInstr(Instruction::kBranchE);
+         auto succ_bb = bldr.GetBasicBlockByLabel(tokens[1]);
+         bldr.cur_bb_->addSuccessor(succ_bb);
+       }},
       {"BitTest",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
          auto instr = bldr.createInstr(Instruction::kBitTest);
@@ -571,6 +577,12 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
            bldr.CreateInstrInputFromStr(instr, tokens[i + 1]);
          }
          bldr.CreateInstrOutputFromStr(instr, tokens[1]);
+       }},
+      {"Test32",
+       [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {
+         auto instr = bldr.createInstr(Instruction::kTest32);
+         bldr.CreateInstrInputFromStr(instr, tokens[1]);
+         bldr.CreateInstrInputFromStr(instr, tokens[2]);
        }},
       {"YieldInitial",
        [](BasicBlockBuilder& bldr, const std::vector<std::string>& tokens) {

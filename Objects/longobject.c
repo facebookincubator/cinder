@@ -51,7 +51,6 @@ get_small_int(sdigit ival)
     PyObject *v;
     assert(-NSMALLNEGINTS <= ival && ival < NSMALLPOSINTS);
     v = (PyObject *)&small_ints[ival + NSMALLNEGINTS];
-    Py_INCREF(v);
 #ifdef COUNT_ALLOCS
     if (ival >= 0)
         _Py_quick_int_allocs++;
@@ -5853,15 +5852,12 @@ _PyLong_Init(void)
             /* The element is already initialized, most likely
              * the Python interpreter was initialized before.
              */
-            Py_ssize_t refcnt;
             PyObject* op = (PyObject*)v;
 
-            refcnt = Py_REFCNT(op) < 0 ? 0 : Py_REFCNT(op);
             _Py_NewReference(op);
             /* _Py_NewReference sets the ref count to 1 but
              * the ref count might be larger. Set the refcnt
              * to the original refcnt + 1 */
-            Py_SET_REFCNT(op, refcnt + 1);
             assert(Py_SIZE(op) == size);
             assert(v->ob_digit[0] == (digit)abs(ival));
         }
@@ -5870,6 +5866,7 @@ _PyLong_Init(void)
         }
         Py_SIZE(v) = size;
         v->ob_digit[0] = (digit)abs(ival);
+        Py_SET_REFCNT(v, kImmortalInitialCount);
     }
 #endif
     _PyLong_Zero = PyLong_FromLong(0);

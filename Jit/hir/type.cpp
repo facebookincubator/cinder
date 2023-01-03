@@ -484,7 +484,7 @@ Type Type::fromObject(PyObject* obj) {
     return TNoneType;
   }
 
-  bits_t lifetime = Py_IS_IMMORTAL(obj) ? kLifetimeImmortal : kLifetimeMortal;
+  bits_t lifetime = _Py_IsImmortal(obj) ? kLifetimeImmortal : kLifetimeMortal;
   return Type{fromTypeExact(Py_TYPE(obj)).bits_, lifetime, obj};
 }
 

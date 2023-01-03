@@ -55,7 +55,8 @@ enum class FlagEffects {
   X(LShift, false, FlagEffects::kSet)                                        \
   X(RShift, false, FlagEffects::kSet)                                        \
   X(RShiftUn, false, FlagEffects::kSet)                                      \
-  X(Test, false, FlagEffects::kSet, kOut, 0, {1, 1})                         \
+  X(Test, false, FlagEffects::kSet, kDefault, 0, {1, 1})                     \
+  X(Test32, false, FlagEffects::kSet, kDefault, 0, {1, 1})                   \
   X(Equal, false, FlagEffects::kSet, kDefault, 1, {1, 1})                    \
   X(NotEqual, false, FlagEffects::kSet, kDefault, 1, {1, 1})                 \
   X(GreaterThanSigned, false, FlagEffects::kSet, kDefault, 1, {1, 1})        \
@@ -94,6 +95,7 @@ enum class FlagEffects {
   X(BranchNO)                                                                \
   X(BranchS)                                                                 \
   X(BranchNS)                                                                \
+  X(BranchE)                                                                 \
   X(BitTest, false, FlagEffects::kSet, kDefault, 1, {1})                     \
   X(Inc, false, FlagEffects::kSet)                                           \
   X(Dec, false, FlagEffects::kSet)                                           \
@@ -434,6 +436,7 @@ class Instruction {
       case kBranchG:
       case kBranchLE:
       case kBranchGE:
+      case kBranchE:
         return true;
       default:
         return false;
