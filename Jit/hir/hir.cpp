@@ -863,6 +863,17 @@ Py_ssize_t Function::numVars() const {
   return code->co_nlocals + num_cellvars + num_freevars;
 }
 
+bool Function::canDeopt() const {
+  for (const BasicBlock& block : cfg.blocks) {
+    for (const Instr& instr : block) {
+      if (instr.asDeoptBase()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 std::ostream& operator<<(std::ostream& os, OperandType op) {
   switch (op.kind) {
     case Constraint::kType:

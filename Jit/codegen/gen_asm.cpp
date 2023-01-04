@@ -88,9 +88,13 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
   static_assert(
       PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
       "Unexpected constants");
-  as_->bt(
-      x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
-      _PyShadowFrame_PtrKindOff);
+  bool might_have_heap_frame =
+      func_->canDeopt() || func_->frameMode == jit::hir::FrameMode::kNormal;
+  if (might_have_heap_frame) {
+    as_->bt(
+        x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
+        _PyShadowFrame_PtrKindOff);
+  }
 
   // Unlink shadow frame. The send implementation handles unlinking these for
   // generators.
@@ -104,25 +108,27 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
 
   // Unlink PyFrame if needed
   asmjit::Label done = as_->newLabel();
-  as_->jnc(done);
-  auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
+  if (might_have_heap_frame) {
+    as_->jnc(done);
+    auto saved_rax_ptr = x86::ptr(x86::rbp, -8);
 
-  jit::hir::Type ret_type = func_->return_type;
-  if (ret_type <= TCDouble) {
-    as_->movsd(saved_rax_ptr, x86::xmm0);
-  } else {
-    as_->mov(saved_rax_ptr, x86::rax);
+    jit::hir::Type ret_type = func_->return_type;
+    if (ret_type <= TCDouble) {
+      as_->movsd(saved_rax_ptr, x86::xmm0);
+    } else {
+      as_->mov(saved_rax_ptr, x86::rax);
+    }
+    if (tstate_r != x86::rdi) {
+      as_->mov(x86::rdi, tstate_r);
+    }
+    as_->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
+    if (ret_type <= TCDouble) {
+      as_->movsd(x86::xmm0, saved_rax_ptr);
+    } else {
+      as_->mov(x86::rax, saved_rax_ptr);
+    }
+    as_->bind(done);
   }
-  if (tstate_r != x86::rdi) {
-    as_->mov(x86::rdi, tstate_r);
-  }
-  as_->call(reinterpret_cast<uint64_t>(JITRT_UnlinkFrame));
-  if (ret_type <= TCDouble) {
-    as_->movsd(x86::xmm0, saved_rax_ptr);
-  } else {
-    as_->mov(x86::rax, saved_rax_ptr);
-  }
-  as_->bind(done);
 }
 
 // Scratch register used by the various deopt trampolines.
