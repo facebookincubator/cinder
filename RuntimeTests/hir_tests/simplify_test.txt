@@ -1783,3 +1783,82 @@ fun test {
   }
 }
 ---
+CheckSequenceBoundsWithKnownInBoundsIndexEliminated
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = MakeListTuple<tuple, 1>
+    v1 = LoadConst<CInt64[0]>
+    v2 = CheckSequenceBounds v0 v1
+    Return<CInt64> v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v1:CInt64[0] = LoadConst<CInt64[0]>
+    UseType<MortalTupleExact> v0
+    UseType<CInt64[0]> v1
+    Return<CInt64> v1
+  }
+}
+---
+CheckSequenceBoundsWithKnownInBoundsNegativeIndexEliminated
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = MakeListTuple<tuple, 1>
+    v1 = LoadConst<CInt64[-1]>
+    v2 = CheckSequenceBounds v0 v1
+    Return<CInt64> v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v1:CInt64[-1] = LoadConst<CInt64[-1]>
+    UseType<MortalTupleExact> v0
+    UseType<CInt64[-1]> v1
+    v3:CInt64[0] = LoadConst<CInt64[0]>
+    Return<CInt64> v3
+  }
+}
+---
+CheckSequenceBoundsWithKnownOutOfBoundsIndexNotEliminated
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = MakeListTuple<tuple, 1>
+    v1 = LoadConst<CInt64[1]>
+    v2 = CheckSequenceBounds v0 v1
+    Return<CInt64> v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:MortalTupleExact = MakeListTuple<tuple, 1> {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v1:CInt64[1] = LoadConst<CInt64[1]>
+    v2:CInt64 = CheckSequenceBounds v0 v1 {
+    }
+    Return<CInt64> v2
+  }
+}
+---

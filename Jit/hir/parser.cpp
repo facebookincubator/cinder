@@ -567,6 +567,10 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     expect(">");
     auto operand = ParseRegister();
     instruction = newInstr<CheckVar>(dst, operand, name);
+  } else if (opcode == "CheckSequenceBounds") {
+    auto sequence = ParseRegister();
+    auto idx = ParseRegister();
+    NEW_INSTR(CheckSequenceBounds, dst, sequence, idx);
   } else if (opcode == "Snapshot") {
     auto snapshot = Snapshot::create();
     if (peekNextToken() == "{") {
