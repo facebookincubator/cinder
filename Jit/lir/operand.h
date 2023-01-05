@@ -499,6 +499,18 @@ struct OperandArg {
 };
 
 template <bool Output>
+struct OperandArg<uint64_t, Output> {
+  explicit OperandArg(
+      uint64_t v,
+      OperandBase::DataType dt = OperandBase::k64bit)
+      : value(v), data_type(dt) {}
+
+  uint64_t value;
+  OperandBase::DataType data_type{OperandBase::k64bit};
+  static constexpr bool is_output = Output;
+};
+
+template <bool Output>
 struct OperandArg<MemoryIndirect, Output> {
   using Reg = std::variant<Instruction*, PhyLocation>;
 

@@ -655,7 +655,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendInstr(
             instr->dst(),
             Instruction::kMove,
-            Imm{static_cast<uint64_t>(spec_value)});
+            // Could be integral or pointer, keep as kObject for now.
+            Imm{static_cast<uint64_t>(spec_value), OperandBase::kObject});
         break;
       }
       case Opcode::kLoadVarObjectSize: {

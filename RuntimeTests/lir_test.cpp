@@ -122,7 +122,7 @@ def f() -> double:
   // without hardcoding a variable name or the program structure.
   ASSERT_NE(
       lir_str.find(
-          ":64bit = Move 4614256447914709615(0x400921cac083126f):Object"),
+          ":64bit = Move 4614256447914709615(0x400921cac083126f):64bit"),
       std::string::npos);
 }
 
@@ -148,7 +148,7 @@ BB %0 - succs: %3
 BB %3 - preds: %0 - succs: %9
 
 # v4:CDouble[3.1415] = LoadConst<CDouble[3.1415]>
-        %4:64bit = Move 4614256447914709615(0x400921cac083126f):Object
+        %4:64bit = Move 4614256447914709615(0x400921cac083126f):64bit
        %5:Double = Move %4:64bit
 
 # v6:FloatExact = PrimitiveBox<CDouble> v4 {{
@@ -186,11 +186,11 @@ BB %0 - succs: %3
 BB %3 - preds: %0 - succs: %12
 
 # v7:CDouble[1.14] = LoadConst<CDouble[1.14]>
-        %4:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):Object
+        %4:64bit = Move 4607812922747849277(0x3ff23d70a3d70a3d):64bit
        %5:Double = Move %4:64bit
 
 # v9:CDouble[2] = LoadConst<CDouble[2]>
-        %6:64bit = Move 4611686018427387904(0x4000000000000000):Object
+        %6:64bit = Move 4611686018427387904(0x4000000000000000):64bit
        %7:Double = Move %6:64bit
 
 # v11:CDouble = DoubleBinaryOp<Add> v7 v9

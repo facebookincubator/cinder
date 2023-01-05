@@ -73,14 +73,14 @@ TEST_F(LIRInlinerTest, ResolveArgumentsTest) {
 
   auto lir_expected = fmt::format(R"(Function:
 BB %0
-       %1:Object = Move 2(0x2):Object
-       %2:Object = Move 4(0x4):Object
-       %3:Object = Call 123(0x7b):Object, 1(0x1):Object, %1:Object, 3(0x3):Object, %2:Object
+       %1:Object = Move 2(0x2):64bit
+       %2:Object = Move 4(0x4):64bit
+       %3:Object = Call 123(0x7b):64bit, 1(0x1):64bit, %1:Object, 3(0x3):64bit, %2:Object
 
 BB %4
        %5:Object = Move 1(0x1):64bit
        %7:Object = Move 3(0x3):64bit
-       %9:Object = Move 8(0x8):Object
+       %9:Object = Move 8(0x8):64bit
       %10:Object = Move %9:Object
       %11:Object = Add %10:Object, %5:Object
       %12:Object = Move [%1:Object + %7:Object]:Object
@@ -126,10 +126,10 @@ BB %0
        %1:Object = Move %9:Object
 
 BB %2 - succs: %4
-       %5:Object = Move 1(0x1):Object
+       %5:Object = Move 1(0x1):64bit
 
 BB %3 - succs: %4
-       %7:Object = Move 2(0x2):Object
+       %7:Object = Move 2(0x2):64bit
 
 BB %4 - preds: %2 %3
        %9:Object = Phi (BB%2, %5:Object), (BB%3, %7:Object)
@@ -166,13 +166,13 @@ TEST_F(LIRInlinerTest, ResolveReturnWithoutPhiTest) {
 
   auto lir_expected = fmt::format(R"(Function:
 BB %0
-       %1:Object = Nop 123(0x7b):Object, 1(0x1):Object, 2(0x2):Object
+       %1:Object = Nop 123(0x7b):64bit, 1(0x1):64bit, 2(0x2):64bit
 
 BB %2 - succs: %4
-       %5:Object = Move 1(0x1):Object
+       %5:Object = Move 1(0x1):64bit
 
 BB %3 - succs: %4
-       %6:Object = Move 2(0x2):Object
+       %6:Object = Move 2(0x2):64bit
 
 BB %4 - preds: %2 %3
 

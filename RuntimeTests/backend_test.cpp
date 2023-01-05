@@ -944,8 +944,8 @@ TEST_F(BackendTest, InlineJITRTCastTest) {
   auto expected_caller = fmt::format(
       R"(Function:
 BB %0 - succs: %7
-       %1:Object = LoadArg 0(0x0):Object
-       %2:Object = LoadArg 1(0x1):Object
+       %1:Object = LoadArg 0(0x0):64bit
+       %2:Object = LoadArg 1(0x1):64bit
 
 BB %7 - preds: %0 - succs: %9 %8
       %14:Object = Move [%1:Object + 0x8]:Object
