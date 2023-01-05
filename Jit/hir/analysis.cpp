@@ -118,8 +118,9 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kMakeDict:
     case Opcode::kMakeCheckedList:
     case Opcode::kMakeFunction:
-    case Opcode::kMakeListTuple:
+    case Opcode::kMakeList:
     case Opcode::kMakeSet:
+    case Opcode::kMakeTuple:
     case Opcode::kMakeTupleFromList:
     case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
@@ -173,7 +174,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kSnapshot:
     case Opcode::kIncref:
     case Opcode::kInitFunction:
-    case Opcode::kInitListTuple:
     case Opcode::kReturn:
     case Opcode::kSetCellItem:
     case Opcode::kSetFunctionAttr:

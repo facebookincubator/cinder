@@ -209,7 +209,6 @@ bool Instr::isReplayable() const {
     case Opcode::kIncref:
     case Opcode::kInitialYield:
     case Opcode::kInitFunction:
-    case Opcode::kInitListTuple:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeStaticFunction:
     case Opcode::kInvokeMethod:
@@ -229,8 +228,9 @@ bool Instr::isReplayable() const {
     case Opcode::kMakeCheckedList:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
-    case Opcode::kMakeListTuple:
+    case Opcode::kMakeList:
     case Opcode::kMakeSet:
+    case Opcode::kMakeTuple:
     case Opcode::kMakeTupleFromList:
     case Opcode::kMatchClass:
     case Opcode::kMatchKeys:

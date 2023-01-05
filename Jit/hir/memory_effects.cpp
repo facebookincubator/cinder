@@ -48,10 +48,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLongCompare:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
-    case Opcode::kMakeCheckedList:
     case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
-    case Opcode::kMakeListTuple:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
     case Opcode::kPrimitiveCompare:
@@ -184,15 +182,14 @@ MemoryEffects memoryEffects(const Instr& inst) {
       // worth tracking.
       return commonEffects(inst, AOther);
 
-    case Opcode::kInitListTuple: {
-      // Steal all inputs except the first, which is the container to
-      // initialize.
+    case Opcode::kMakeCheckedList:
+    case Opcode::kMakeList:
+    case Opcode::kMakeTuple: {
+      // Steal all inputs.
       util::BitVector inputs{inst.NumOperands()};
       inputs.fill(true);
-      inputs.SetBit(0, false);
-      auto may_store = static_cast<const InitListTuple&>(inst).is_tuple()
-          ? ATupleItem
-          : AListItem;
+      auto may_store =
+          inst.opcode() == Opcode::kMakeTuple ? ATupleItem : AListItem;
       return {false, AEmpty, std::move(inputs), may_store};
     }
 

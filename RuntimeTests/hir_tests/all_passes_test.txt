@@ -186,27 +186,26 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v8:Nullptr = LoadConst<Nullptr>
-    v9:MortalListExact = MakeListTuple<list, 0> {
-      LiveValues<1> unc:v8
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalListExact = MakeList<0> {
+      LiveValues<1> unc:v7
       FrameState {
         NextInstrOffset 2
+        Locals<1> v7
+      }
+    }
+    v13:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v16:CInt32 = ListAppend v8 v13 {
+      LiveValues<2> o:v8 b:v13
+      FrameState {
+        NextInstrOffset 12
         Locals<1> v8
       }
     }
-    InitListTuple<list, 0> v9
-    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v18:CInt32 = ListAppend v9 v15 {
-      LiveValues<2> o:v9 b:v15
-      FrameState {
-        NextInstrOffset 12
-        Locals<1> v9
-      }
-    }
-    Decref v9
-    v17:NoneType = LoadConst<NoneType>
-    Incref v17
-    Return v17
+    Decref v8
+    v15:NoneType = LoadConst<NoneType>
+    Incref v15
+    Return v15
   }
 }
 ---

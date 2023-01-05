@@ -88,47 +88,46 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v8:Nullptr = LoadConst<Nullptr>
-    v9:MortalListExact = MakeListTuple<list, 0> {
+    v7:Nullptr = LoadConst<Nullptr>
+    v8:MortalListExact = MakeList<0> {
       FrameState {
         NextInstrOffset 2
-        Locals<1> v8
+        Locals<1> v7
       }
     }
-    InitListTuple<list, 0> v9
-    v11:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    v12:NoneType = ListExtend v9 v11 {
+    v9:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
+    v10:NoneType = ListExtend v8 v9 {
       FrameState {
         NextInstrOffset 6
-        Locals<1> v8
-        Stack<1> v9
+        Locals<1> v7
+        Stack<1> v8
       }
     }
-    v14:OptObject = LoadGlobalCached<0; "foo">
-    v15:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v14 {
+    v12:OptObject = LoadGlobalCached<0; "foo">
+    v13:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v12 {
       Descr 'LOAD_GLOBAL: foo'
     }
-    v17:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    v29:Object = LoadField<func_code@48, Object, borrowed> v15
-    v30:MortalCode["foo"] = GuardIs<0xdeadbeef> v29 {
+    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v27:Object = LoadField<func_code@48, Object, borrowed> v13
+    v28:MortalCode["foo"] = GuardIs<0xdeadbeef> v27 {
     }
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 16
-      Locals<1> v9
+      Locals<1> v8
     }
-    UseType<ListExact> v9
-    UseType<LongExact> v17
-    v35:CInt64[1] = LoadConst<CInt64[1]>
-    v32:CInt64 = CheckSequenceBounds v9 v35 {
+    UseType<ListExact> v8
+    UseType<LongExact> v15
+    v33:CInt64[1] = LoadConst<CInt64[1]>
+    v30:CInt64 = CheckSequenceBounds v8 v33 {
       FrameState {
         NextInstrOffset 6
-        Locals<2> v9 v17
+        Locals<2> v8 v15
       }
     }
-    v33:CPtr = LoadField<ob_item@24, CPtr, borrowed> v9
-    v34:Object = LoadArrayItem v33 v32 v9
+    v31:CPtr = LoadField<ob_item@24, CPtr, borrowed> v8
+    v32:Object = LoadArrayItem v31 v30 v8
     EndInlinedFunction
-    Return v34
+    Return v32
   }
 }
 ---
@@ -297,46 +296,45 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v11:Nullptr = LoadConst<Nullptr>
-    v12:MortalCell = MakeCell v11 {
+    v10:Nullptr = LoadConst<Nullptr>
+    v11:MortalCell = MakeCell v10 {
       FrameState {
         NextInstrOffset 0
-        Locals<1> v11
+        Locals<1> v10
+        Cells<1> v10
+      }
+    }
+    v12:MortalLongExact[5] = LoadConst<MortalLongExact[5]>
+    v13:OptObject = StealCellItem v11
+    SetCellItem v11 v12 v13
+    v14:MortalTupleExact = MakeTuple<1> v11 {
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v10
+        Cells<1> v11
+        Stack<1> v11
+      }
+    }
+    v15:MortalCode["inside"] = LoadConst<MortalCode["inside"]>
+    v16:MortalUnicodeExact["test.<locals>.inside"] = LoadConst<MortalUnicodeExact["test.<locals>.inside"]>
+    v17:MortalFunc = MakeFunction v16 v15 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<1> v10
+        Cells<1> v11
+        Stack<1> v14
+      }
+    }
+    SetFunctionAttr<func_closure> v14 v17
+    InitFunction v17
+    v20:Object = VectorCall<0> v17 {
+      FrameState {
+        NextInstrOffset 20
+        Locals<1> v17
         Cells<1> v11
       }
     }
-    v13:MortalLongExact[5] = LoadConst<MortalLongExact[5]>
-    v14:OptObject = StealCellItem v12
-    SetCellItem v12 v13 v14
-    v15:MortalTupleExact = MakeListTuple<tuple, 1> {
-      FrameState {
-        NextInstrOffset 8
-        Locals<1> v11
-        Cells<1> v12
-        Stack<1> v12
-      }
-    }
-    InitListTuple<tuple, 1> v15 v12
-    v17:MortalCode["inside"] = LoadConst<MortalCode["inside"]>
-    v18:MortalUnicodeExact["test.<locals>.inside"] = LoadConst<MortalUnicodeExact["test.<locals>.inside"]>
-    v19:MortalFunc = MakeFunction v18 v17 {
-      FrameState {
-        NextInstrOffset 14
-        Locals<1> v11
-        Cells<1> v12
-        Stack<1> v15
-      }
-    }
-    SetFunctionAttr<func_closure> v15 v19
-    InitFunction v19
-    v22:Object = VectorCall<0> v19 {
-      FrameState {
-        NextInstrOffset 20
-        Locals<1> v19
-        Cells<1> v12
-      }
-    }
-    Return v22
+    Return v20
   }
 }
 ---

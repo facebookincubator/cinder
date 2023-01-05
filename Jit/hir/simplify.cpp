@@ -155,10 +155,9 @@ Register* simplifyCheckSequenceBounds(
     const CheckSequenceBounds* instr) {
   Register* sequence = instr->GetOperand(0);
   Register* idx = instr->GetOperand(1);
-  if (sequence->isA(TTupleExact) && sequence->instr()->IsMakeListTuple() &&
+  if (sequence->isA(TTupleExact) && sequence->instr()->IsMakeTuple() &&
       idx->isA(TCInt) && idx->type().hasIntSpec()) {
-    size_t length =
-        static_cast<const MakeListTuple*>(sequence->instr())->nvalues();
+    size_t length = static_cast<const MakeTuple*>(sequence->instr())->nvalues();
     intptr_t idx_value = idx->type().intSpec();
     bool adjusted = false;
     if (idx_value < 0) {

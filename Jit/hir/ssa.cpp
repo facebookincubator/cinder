@@ -550,10 +550,9 @@ Type outputType(
     case Opcode::kLoadConst: {
       return static_cast<const LoadConst&>(instr).type();
     }
-    case Opcode::kMakeListTuple: {
-      auto is_tuple = static_cast<const MakeListTuple&>(instr).is_tuple();
-      return is_tuple ? TMortalTupleExact : TMortalListExact;
-    }
+    case Opcode::kMakeList:
+      return TMortalListExact;
+    case Opcode::kMakeTuple:
     case Opcode::kMakeTupleFromList:
     case Opcode::kUnpackExToTuple:
       return TMortalTupleExact;
@@ -680,7 +679,6 @@ Type outputType(
     case Opcode::kHintType:
     case Opcode::kIncref:
     case Opcode::kInitFunction:
-    case Opcode::kInitListTuple:
     case Opcode::kRaise:
     case Opcode::kRaiseAwaitableError:
     case Opcode::kRaiseStatic:

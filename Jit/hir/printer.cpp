@@ -530,15 +530,13 @@ static std::string format_immediates(const Instr& instr) {
       const auto& load = static_cast<const LoadGlobal&>(instr);
       return format_name(load, load.name_idx());
     }
-    case Opcode::kMakeListTuple: {
-      const auto& makelt = static_cast<const MakeListTuple&>(instr);
-      return fmt::format(
-          "{}, {}", makelt.is_tuple() ? "tuple" : "list", makelt.nvalues());
+    case Opcode::kMakeList: {
+      const auto& make = static_cast<const MakeList&>(instr);
+      return fmt::format("{}", make.nvalues());
     }
-    case Opcode::kInitListTuple: {
-      const auto& initlt = static_cast<const InitListTuple&>(instr);
-      return fmt::format(
-          "{}, {}", initlt.is_tuple() ? "tuple" : "list", initlt.num_args());
+    case Opcode::kMakeTuple: {
+      const auto& make = static_cast<const MakeTuple&>(instr);
+      return fmt::format("{}", make.nvalues());
     }
     case Opcode::kGetLoadMethodInstance: {
       return fmt::format("{}", instr.NumOperands());
@@ -553,7 +551,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kMakeCheckedList: {
       const auto& makelist = static_cast<const MakeCheckedList&>(instr);
-      return fmt::format("{} {}", makelist.type(), makelist.GetCapacity());
+      return fmt::format("{} {}", makelist.type(), makelist.nvalues());
     }
     case Opcode::kMakeDict: {
       const auto& makedict = static_cast<const MakeDict&>(instr);

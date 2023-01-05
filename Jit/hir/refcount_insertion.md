@@ -31,8 +31,8 @@ live value. This state has three main parts:
    track the lifetime of. Borrowed values are associated with *borrow
    support*, which is discussed further down.
 3. **Owned:** An owned value is either the result of an opcode that produces a
-   new reference (e.g., `MakeListTuple`) or a borrowed value that was promoted
-   to owned because its borrow support disappeared.
+   new reference (e.g., `MakeList`) or a borrowed value that was promoted to
+   owned because its borrow support disappeared.
 
 ### Borrow support
 
