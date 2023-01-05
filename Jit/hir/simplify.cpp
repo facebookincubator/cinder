@@ -410,6 +410,36 @@ Register* simplifyLoadTupleItem(Env& env, const LoadTupleItem* instr) {
       Type::fromObject(PyTuple_GET_ITEM(src_ty.objectSpec(), instr->idx())));
 }
 
+Register* simplifyLoadArrayItem(Env& env, const LoadArrayItem* instr) {
+  Register* src = instr->seq();
+  if (!instr->idx()->type().hasIntSpec()) {
+    return nullptr;
+  }
+  intptr_t idx_signed = instr->idx()->type().intSpec();
+  JIT_CHECK(idx_signed >= 0, "LoadArrayItem should not have negative index");
+  uintptr_t idx = static_cast<uintptr_t>(idx_signed);
+  // We can only do this for tuples because lists and arrays, the other
+  // sequence types, are mutable. A more general LoadElimination pass could
+  // accomplish that, though.
+  if (src->instr()->IsMakeTuple()) {
+    size_t length = static_cast<const MakeTuple*>(src->instr())->nvalues();
+    if (idx < length) {
+      env.emit<UseType>(src, TTupleExact);
+      env.emit<UseType>(instr->idx(), instr->idx()->type());
+      return src->instr()->GetOperand(idx);
+    }
+  }
+  if (src->type().hasValueSpec(TTupleExact)) {
+    if (idx_signed < PyTuple_GET_SIZE(src->type().objectSpec())) {
+      env.emit<UseType>(src, src->type());
+      env.emit<UseType>(instr->idx(), instr->idx()->type());
+      return env.emit<LoadConst>(
+          Type::fromObject(PyTuple_GET_ITEM(src->type().objectSpec(), idx)));
+    }
+  }
+  return nullptr;
+}
+
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   Register* lhs = instr->left();
   Register* rhs = instr->right();
@@ -734,6 +764,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kLoadTupleItem:
       return simplifyLoadTupleItem(
           env, static_cast<const LoadTupleItem*>(instr));
+    case Opcode::kLoadArrayItem:
+      return simplifyLoadArrayItem(
+          env, static_cast<const LoadArrayItem*>(instr));
 
     case Opcode::kBinaryOp:
       return simplifyBinaryOp(env, static_cast<const BinaryOp*>(instr));
