@@ -201,6 +201,40 @@ void readVersion3(std::istream& stream) {
   }
 }
 
+void readVersion4(std::istream& stream) {
+  constexpr uint32_t kTargetVersion = PY_VERSION_HEX >> 16;
+
+  auto num_py_versions = read<uint8_t>(stream);
+  std::vector<uint16_t> found_versions;
+  for (size_t i = 0; i < num_py_versions; ++i) {
+    auto py_version = read<uint16_t>(stream);
+    auto offset = read<uint32_t>(stream);
+    if (py_version == kTargetVersion) {
+      JIT_LOG(
+          "Loading profile for Python version %#x at offset %d",
+          kTargetVersion,
+          offset);
+      stream.seekg(offset);
+      readVersion3(stream);
+      // Avoid a warning about unread data at the end of the stream.
+      stream.seekg(0, std::ios_base::end);
+      return;
+    }
+    found_versions.emplace_back(py_version);
+  }
+
+  std::string versions_str;
+  std::string_view sep = "";
+  for (uint16_t version : found_versions) {
+    format_to(versions_str, "{}{:#x}", sep, version);
+    sep = ", ";
+  }
+  JIT_LOG(
+      "Couldn't find target version %#x in profile data; found versions [%s]",
+      kTargetVersion,
+      versions_str);
+}
+
 } // namespace
 
 bool readProfileData(const std::string& filename) {
@@ -235,6 +269,8 @@ bool readProfileData(std::istream& stream) {
       readVersion2(stream);
     } else if (version == 3) {
       readVersion3(stream);
+    } else if (version == 4) {
+      readVersion4(stream);
     } else {
       JIT_LOG("Unknown profile data version %d", version);
       return false;
