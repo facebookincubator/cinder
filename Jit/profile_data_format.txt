@@ -7,6 +7,9 @@
 - No alignment padding unless explicitly specified.
 - All int types are little endian.
 - str is uint16 len, followed by len bytes of utf-8 data (no null terminator).
+- Version definitions may reference previous versions. The line '<< version n
+  body >>' means "substitute everything after the magic value and version
+  identifier from version n".
 
 -- Version 1 --
 
@@ -49,21 +52,7 @@ uint32: num_code_keys
 
 uint64: magic value: 0x7265646e6963
 uint32: 3 (version identifier)
-uint32: num_code_keys
-[num_code_keys] {
-  str: code_key
-  uint16: num_locations
-  [num_locations] {
-    uint16: bc_offset
-    uint8: num_profiles
-    [num_profiles] {
-      uint8: num_types
-      [num_types] {
-        str: type
-      }
-    }
-  }
-}
+<< version 2 body >>
 uint32: num_type_key_lists
 [num_type_key_lists] {
   str: type_name
