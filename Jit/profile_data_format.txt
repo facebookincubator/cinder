@@ -10,6 +10,8 @@
 - Version definitions may reference previous versions. The line '<< version n
   body >>' means "substitute everything after the magic value and version
   identifier from version n".
+- python_version is bits 16-31 of sys.hexversion as a uint16 (e.g., 0x0308 for
+  Python 3.8).
 
 -- Version 1 --
 
@@ -29,6 +31,7 @@ uint32: num_code_keys
 }
 
 -- Version 2 --
+- Adds support for multiple type lists at each code location.
 
 uint64: magic value: 0x7265646e6963
 uint32: 2 (version identifier)
@@ -49,6 +52,7 @@ uint32: num_code_keys
 }
 
 -- Version 3 --
+- Adds a list of split dict keys for profile types.
 
 uint64: magic value: 0x7265646e6963
 uint32: 3 (version identifier)
@@ -60,4 +64,19 @@ uint32: num_type_key_lists
   [num_keys] {
     str: key
   }
+}
+
+-- Version 4 --
+- Embeds multiple copies of the version 3 body, to support multiple versions of
+  Python in one profile blob.
+
+uint64: magic value: 0x7265646e6963
+uint32: 4 (version identifier)
+uint8: num_python_versions
+[num_python_versions] {
+  uint16: python_version
+  uint32: version_offset (from beginnning of file)
+}
+[num_python_versions] {
+  << version 3 body >>
 }
