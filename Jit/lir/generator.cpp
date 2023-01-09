@@ -1851,7 +1851,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           std::string tmp_id = GetSafeTempName();
           bbb.AppendCode(
               "Load {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(indir));
-          ss << "Call " << instr->dst()->name() << ", " << tmp_id;
+          ss << "Call " << instr->dst()->name() << ":" << instr->dst()->type()
+             << ", " << tmp_id;
         }
 
         for (size_t i = 0; i < nargs; i++) {
