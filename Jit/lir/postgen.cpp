@@ -149,17 +149,20 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteMoveToMemoryLargeConstant(
     return kUnchanged;
   }
 
-  auto input = instr->getInput(0);
-  if (input->type() != OperandBase::kImm || fitsInt32(input->getConstant())) {
-    return kUnchanged;
-  }
-
   auto out = instr->output();
   if (!out->isInd()) {
     return kUnchanged;
   }
 
-  auto constant = input->getConstant();
+  auto input = instr->getInput(0);
+  if (!input->isImm() && !input->isMem()) {
+    return kUnchanged;
+  }
+
+  auto constant = input->getConstantOrAddress();
+  if (fitsInt32(constant)) {
+    return kUnchanged;
+  }
 
   auto block = instr->basicblock();
   auto move = block->allocateInstrBefore(
@@ -183,11 +186,11 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteGuardLargeConstant(
 
   constexpr size_t kTargetIndex = 3;
   auto target_opnd = instr->getInput(kTargetIndex);
-  if (!target_opnd->isImm()) {
+  if (!target_opnd->isImm() && !target_opnd->isMem()) {
     return kUnchanged;
   }
 
-  auto target_imm = target_opnd->getConstant();
+  auto target_imm = target_opnd->getConstantOrAddress();
   if (fitsInt32(target_imm)) {
     return kUnchanged;
   }
@@ -197,7 +200,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteGuardLargeConstant(
       instr_iter,
       Instruction::kMove,
       OutVReg(),
-      Imm(target_imm, OperandBase::k64bit));
+      Imm(target_imm, target_opnd->dataType()));
   auto instr_in = std::make_unique<LinkedOperand>(instr, move);
   instr->replaceInputOperand(kTargetIndex, std::move(instr_in));
   return kChanged;

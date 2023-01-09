@@ -80,6 +80,10 @@ class OperandBase {
   virtual MemoryIndirect* getMemoryIndirect() const = 0;
   virtual BasicBlock* getBasicBlock() const = 0;
 
+  // Get the value of an integer constant, or the integral cast of a fixed
+  // memory address.
+  virtual uint64_t getConstantOrAddress() const = 0;
+
   // get the def operand of the current operand
   // if the current operand is a def (of type Operand), return itself.
   virtual Operand* getDefine() = 0;
@@ -361,6 +365,13 @@ class Operand : public OperandBase {
     return std::get<BasicBlock*>(value_);
   }
 
+  uint64_t getConstantOrAddress() const override {
+    if (auto v = std::get_if<uint64_t>(&value_)) {
+      return *v;
+    }
+    return reinterpret_cast<uint64_t>(getMemoryAddress());
+  }
+
   const Operand* getDefine() const override {
     return this;
   }
@@ -465,6 +476,9 @@ class LinkedOperand : public OperandBase {
   }
   BasicBlock* getBasicBlock() const override {
     return def_opnd_->getBasicBlock();
+  }
+  uint64_t getConstantOrAddress() const override {
+    return def_opnd_->getConstantOrAddress();
   }
   Operand* getDefine() override {
     return def_opnd_;

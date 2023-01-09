@@ -197,14 +197,15 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   auto emit_cmp = [&](auto reg_arg) {
     constexpr size_t kTargetIndex = 3;
     auto target_opnd = instr->getInput(kTargetIndex);
-    if (target_opnd->isImm()) {
-      auto target = target_opnd->getConstant();
+    if (target_opnd->isImm() || target_opnd->isMem()) {
+      auto target = target_opnd->getConstantOrAddress();
       JIT_DCHECK(
           fitsInt32(target),
-          "The constant operand should fit in a 32-bit register.");
+          "Constant operand should fit in a 32-bit register, got %x.",
+          target);
       as->cmp(reg_arg, target);
     } else {
-      auto target_reg = AutoTranslator::getGp(instr->getInput(kTargetIndex));
+      auto target_reg = AutoTranslator::getGp(target_opnd);
       as->cmp(reg_arg, target_reg);
     }
   };
@@ -277,8 +278,8 @@ void TranslateCompare(Environ* env, const Instruction* instr) {
   auto as = env->as;
   const OperandBase* inp0 = instr->getInput(0);
   const OperandBase* inp1 = instr->getInput(1);
-  if (inp1->type() == OperandBase::kImm) {
-    as->cmp(AutoTranslator::getGp(inp0), inp1->getConstant());
+  if (inp1->isImm() || inp1->isMem()) {
+    as->cmp(AutoTranslator::getGp(inp0), inp1->getConstantOrAddress());
   } else if (!inp1->isXmm()) {
     as->cmp(AutoTranslator::getGp(inp0), AutoTranslator::getGp(inp1));
   } else {
