@@ -537,7 +537,7 @@ BB %3 - preds: %0
 #     Locals<1> v9
 #   }}
 # }}
-                   Guard 4(0x4):64bit, 0(0x0):Object, %4:Object, 0(0x0):Object, %4:Object
+                   Guard 4(0x4):64bit, 0(0x0):64bit, %4:Object, 0(0x0):64bit, %4:Object
 
 # Unreachable
                    Unreachable

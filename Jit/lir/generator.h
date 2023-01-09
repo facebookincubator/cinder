@@ -6,6 +6,7 @@
 #include "Jit/containers.h"
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
+#include "Jit/lir/block_builder.h"
 #include "Jit/lir/lir.h"
 
 #include <memory>
@@ -58,11 +59,48 @@ class LIRGenerator {
   BasicBlock* GenerateEntryBlock();
   BasicBlock* GenerateExitBlock();
 
-  void AppendGuard(
+  void appendGuardAlwaysFail(
       BasicBlockBuilder& bbb,
-      std::string_view kind,
-      const hir::DeoptBase& instr,
-      std::string_view guard_var = std::string_view());
+      const hir::DeoptBase& instr);
+
+  template <class TOperand>
+  void appendGuard(
+      BasicBlockBuilder& bbb,
+      InstrGuardKind kind,
+      const hir::DeoptBase& hir_instr,
+      TOperand&& guard_var) {
+    JIT_CHECK(kind != InstrGuardKind::kAlwaysFail, "Use appendGuardAlwaysFail");
+    auto deopt_id = bbb.makeDeoptMetadata();
+    auto instr = bbb.appendInstr(
+        Instruction::kGuard,
+        Imm{kind},
+        Imm{deopt_id},
+        std::forward<TOperand>(guard_var));
+
+    if (hir_instr.IsGuardIs()) {
+      const auto& guard = static_cast<const hir::GuardIs&>(hir_instr);
+      env_->code_rt->addReference(guard.target());
+      instr->addOperands(MemImm{guard.target()});
+    } else if (hir_instr.IsGuardType()) {
+      const auto& guard = static_cast<const hir::GuardType&>(hir_instr);
+      // TODO(T101999851): Handle non-Exact types
+      JIT_CHECK(
+          guard.target().isExact(), "Only exact type guards are supported");
+      PyTypeObject* guard_type = guard.target().uniquePyType();
+      JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
+      env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
+      instr->addOperands(MemImm{guard_type});
+    } else {
+      instr->addOperands(Imm{0});
+    }
+
+    addLiveRegOperands(bbb, instr, hir_instr);
+  }
+
+  void addLiveRegOperands(
+      BasicBlockBuilder& bbb,
+      Instruction* instr,
+      const hir::DeoptBase& hir_instr);
 
   void MakeIncref(
       BasicBlockBuilder& bbb,

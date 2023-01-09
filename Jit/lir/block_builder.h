@@ -63,6 +63,22 @@ struct fmt::formatter<PyObject*> : fmt::formatter<void*> {};
 
 namespace jit::lir {
 
+inline Operand::DataType hirTypeToDataType(hir::Type tp) {
+  if (tp <= hir::TCDouble) {
+    return Operand::DataType::kDouble;
+  } else if (tp <= (hir::TCInt8 | hir::TCUInt8 | hir::TCBool)) {
+    return Operand::DataType::k8bit;
+  } else if (tp <= (hir::TCInt16 | hir::TCUInt16)) {
+    return Operand::DataType::k16bit;
+  } else if (tp <= (hir::TCInt32 | hir::TCUInt32)) {
+    return Operand::DataType::k32bit;
+  } else if (tp <= (hir::TCInt64 | hir::TCUInt64)) {
+    return Operand::DataType::k64bit;
+  } else {
+    return Operand::DataType::kObject;
+  }
+}
+
 class BasicBlockBuilder {
  public:
   BasicBlockBuilder(jit::codegen::Environ* env, Function* func);
@@ -299,22 +315,6 @@ class BasicBlockBuilder {
     GenericCreateInstrInput(instr, cur_arg);
     AppendCallArguments<ArgsLeft - 1, CurArg + 1, FuncArgTuple>(
         instr, std::forward<AppendArgs>(args)...);
-  }
-
-  Operand::DataType hirTypeToDataType(hir::Type tp) {
-    if (tp <= hir::TCDouble) {
-      return Operand::DataType::kDouble;
-    } else if (tp <= (hir::TCInt8 | hir::TCUInt8 | hir::TCBool)) {
-      return Operand::DataType::k8bit;
-    } else if (tp <= (hir::TCInt16 | hir::TCUInt16)) {
-      return Operand::DataType::k16bit;
-    } else if (tp <= (hir::TCInt32 | hir::TCUInt32)) {
-      return Operand::DataType::k32bit;
-    } else if (tp <= (hir::TCInt64 | hir::TCUInt64)) {
-      return Operand::DataType::k64bit;
-    } else {
-      return Operand::DataType::kObject;
-    }
   }
 
   template <typename T>

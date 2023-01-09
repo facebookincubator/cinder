@@ -107,8 +107,7 @@ BasicBlock* LIRGenerator::GenerateEntryBlock() {
 BasicBlock* LIRGenerator::GenerateExitBlock() {
   auto block = lir_func_->allocateBasicBlock();
   auto instr = block->allocateInstr(Instruction::kMove, nullptr);
-  instr->output()->setPhyRegister(jit::codegen::PhyLocation::RDI);
-  instr->allocateLinkedInput(env_->asm_tstate);
+  instr->addOperands(OutPhyReg{PhyLocation::RDI}, VReg{env_->asm_tstate});
   return block;
 }
 
@@ -208,51 +207,29 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
   return function;
 }
 
-void LIRGenerator::AppendGuard(
+void LIRGenerator::appendGuardAlwaysFail(
     BasicBlockBuilder& bbb,
-    std::string_view kind,
-    const DeoptBase& instr,
-    std::string_view guard_var) {
+    const hir::DeoptBase& hir_instr) {
   auto deopt_id = bbb.makeDeoptMetadata();
+  auto instr = bbb.appendInstr(
+      Instruction::kGuard,
+      Imm{InstrGuardKind::kAlwaysFail},
+      Imm{deopt_id},
+      Imm{0},
+      Imm{0});
+  addLiveRegOperands(bbb, instr, hir_instr);
+}
 
-  fmt::memory_buffer buf;
-  auto buf_ins = std::back_inserter(buf);
-  fmt::format_to(buf_ins, "Guard {}, {}", kind, deopt_id);
-
-  JIT_CHECK(
-      guard_var.empty() == (kind == "AlwaysFail"),
-      "MakeGuard expects a register name to guard iff the kind is not "
-      "AlwaysFail");
-  if (!guard_var.empty()) {
-    buf.append(std::string_view(", "));
-    buf.append(guard_var);
-  } else {
-    buf.append(std::string_view(", 0"));
-  }
-
-  if (instr.IsGuardIs()) {
-    const auto& guard = static_cast<const GuardIs&>(instr);
-    auto guard_ptr = static_cast<void*>(guard.target());
-    env_->code_rt->addReference(guard.target());
-    fmt::format_to(buf_ins, ", {}", guard_ptr);
-  } else if (instr.IsGuardType()) {
-    const auto& guard = static_cast<const GuardType&>(instr);
-    // TODO(T101999851): Handle non-Exact types
-    JIT_CHECK(guard.target().isExact(), "Only exact type guards are supported");
-    PyTypeObject* guard_type = guard.target().uniquePyType();
-    JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
-    env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
-    fmt::format_to(buf_ins, ", {}", reinterpret_cast<void*>(guard_type));
-  } else {
-    buf.append(std::string_view(", 0"));
-  }
-
-  auto& regstates = instr.live_regs();
+void LIRGenerator::addLiveRegOperands(
+    BasicBlockBuilder& bbb,
+    Instruction* instr,
+    const hir::DeoptBase& hir_instr) {
+  auto& regstates = hir_instr.live_regs();
   for (const auto& reg_state : regstates) {
-    fmt::format_to(buf_ins, ", {}", reg_state.reg->name());
+    hir::Register* reg = reg_state.reg;
+    instr->addOperands(
+        VReg{bbb.getDefInstr(reg), hirTypeToDataType(reg->type())});
   }
-
-  bbb.AppendCode(buf);
 }
 
 // Attempt to emit a type-specialized call, returning true if successful.
@@ -360,12 +337,13 @@ static void emitVectorCall(
 void LIRGenerator::emitExceptionCheck(
     const jit::hir::DeoptBase& i,
     jit::lir::BasicBlockBuilder& bbb) {
-  Register* out = i.GetOutput();
+  hir::Register* out = i.GetOutput();
   if (out->isA(TBottom)) {
-    AppendGuard(bbb, "AlwaysFail", i);
+    appendGuardAlwaysFail(bbb, i);
   } else {
-    std::string_view kind = out->isA(TCSigned) ? "NotNegative" : "NotZero";
-    AppendGuard(bbb, kind, i, out->name());
+    auto kind = out->isA(TCSigned) ? InstrGuardKind::kNotNegative
+                                   : InstrGuardKind::kNotZero;
+    appendGuard(bbb, kind, i, bbb.getDefInstr(out));
   }
 }
 
@@ -1214,13 +1192,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const DeleteAttr*>(&i);
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
-        bbb.AppendCode(
-            "Call {}:CInt32, {}, {}, {}, 0",
-            tmp,
-            reinterpret_cast<uint64_t>(PyObject_SetAttr),
+        Instruction* call = bbb.appendInstr(
+            Instruction::kCall,
+            OutVReg{OperandBase::k32bit},
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(PyObject_SetAttr)},
             instr->GetOperand(0),
-            reinterpret_cast<uint64_t>(name));
-        AppendGuard(bbb, "NotNegative", *instr, tmp);
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(name)},
+            Imm{0});
+        appendGuard(bbb, InstrGuardKind::kNotNegative, *instr, call);
         break;
       }
       case Opcode::kLoadAttr: {
@@ -1619,7 +1600,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kDeopt: {
-        AppendGuard(bbb, "AlwaysFail", static_cast<const DeoptBase&>(i));
+        appendGuardAlwaysFail(bbb, static_cast<const DeoptBase&>(i));
         break;
       }
       case Opcode::kUnreachable: {
@@ -1647,17 +1628,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr.GetOperand(0),
             static_cast<int>(instr.with_prev_opcode()),
             static_cast<int>(instr.with_opcode()));
-        AppendGuard(bbb, "AlwaysFail", instr);
+        appendGuardAlwaysFail(bbb, instr);
         break;
       }
       case Opcode::kCheckErrOccurred: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        auto exc_type = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, __asm_tstate, {:#x}",
-            exc_type,
-            offsetof(PyThreadState, curexc_type));
-        AppendGuard(bbb, "Zero", instr, exc_type);
+        constexpr int32_t kOffset = offsetof(PyThreadState, curexc_type);
+        auto load = bbb.appendInstr(
+            Instruction::kMove, OutVReg{}, Ind{env_->asm_tstate, kOffset});
+        appendGuard(bbb, InstrGuardKind::kZero, instr, load);
         break;
       }
       case Opcode::kCheckExc:
@@ -1668,18 +1647,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kGuard:
       case Opcode::kGuardIs: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        std::string_view kind = "NotZero";
+        auto kind = InstrGuardKind::kNotZero;
         if (instr.IsCheckNeg()) {
-          kind = "NotNegative";
+          kind = InstrGuardKind::kNotNegative;
         } else if (instr.IsGuardIs()) {
-          kind = "Is";
+          kind = InstrGuardKind::kIs;
         }
-        AppendGuard(bbb, kind, instr, instr.GetOperand(0)->name());
+        appendGuard(bbb, kind, instr, bbb.getDefInstr(instr.GetOperand(0)));
         break;
       }
       case Opcode::kGuardType: {
         const auto& instr = static_cast<const DeoptBase&>(i);
-        AppendGuard(bbb, "HasType", instr, instr.GetOperand(0)->name());
+        Instruction* value = bbb.getDefInstr(instr.GetOperand(0));
+        appendGuard(bbb, InstrGuardKind::kHasType, instr, value);
         break;
       }
       case Opcode::kRefineType: {
@@ -1881,17 +1861,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(ss.str());
 
         // functions that return primitives will signal error via edx/xmm1
-        std::string_view err_indicator;
+        auto kind = InstrGuardKind::kNotZero;
         Type ret_type = instr->ret_type();
         if (ret_type <= TCDouble) {
-          err_indicator = "reg:xmm1";
+          appendGuard(
+              bbb,
+              kind,
+              *instr,
+              PhyReg{PhyLocation::XMM1, OperandBase::kDouble});
         } else if (ret_type <= TPrimitive) {
-          err_indicator = "reg:edx";
+          appendGuard(
+              bbb, kind, *instr, PhyReg{PhyLocation::RDX, OperandBase::k32bit});
         } else {
-          err_indicator = instr->GetOutput()->name();
+          appendGuard(bbb, kind, *instr, instr->GetOutput());
         }
-        AppendGuard(
-            bbb, "NotZero", static_cast<const DeoptBase&>(i), err_indicator);
         break;
       }
 
@@ -2618,7 +2601,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(&do_raise),
             exc,
             cause);
-        AppendGuard(bbb, "AlwaysFail", instr);
+        appendGuardAlwaysFail(bbb, instr);
         break;
       }
       case Opcode::kRaiseStatic: {
@@ -2633,7 +2616,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             reinterpret_cast<uint64_t>(instr.excType()),
             reinterpret_cast<uint64_t>(instr.fmt()),
             args.str());
-        AppendGuard(bbb, "AlwaysFail", instr);
+        appendGuardAlwaysFail(bbb, instr);
         break;
       }
       case Opcode::kFormatValue: {
@@ -2696,13 +2679,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kDeleteSubscr: {
         auto tmp = GetSafeTempName();
         const auto& instr = static_cast<const DeleteSubscr&>(i);
-        bbb.AppendCode(
-            "Call {}:CInt32, {:#x}, {}, {}",
-            tmp,
-            reinterpret_cast<uint64_t>(PyObject_DelItem),
+        Instruction* call = bbb.appendInstr(
+            Instruction::kCall,
+            OutVReg{OperandBase::k32bit},
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(PyObject_DelItem)},
             instr.GetOperand(0),
             instr.GetOperand(1));
-        AppendGuard(bbb, "NotNegative", instr, tmp);
+        appendGuard(bbb, InstrGuardKind::kNotNegative, instr, call);
         break;
       }
       case Opcode::kUnpackExToTuple: {
