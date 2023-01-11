@@ -942,9 +942,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kPrimitiveBox: {
         auto instr = static_cast<const PrimitiveBox*>(&i);
-        std::string src = instr->value()->name();
+        Instruction* src = bbb.getDefInstr(instr->value());
         Type src_type = instr->value()->type();
-        std::string tmp = GetSafeTempName();
         uint64_t func = 0;
 
         if (src_type == TNullptr) {
@@ -963,22 +962,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (src_type <= TCDouble) {
           func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
         } else if (src_type <= (TCUInt8 | TCUInt16)) {
-          bbb.AppendCode(
-              "ConvertUnsigned {}:CUInt32, {}:{}", tmp, src, src_type);
-          src = tmp;
+          src = bbb.appendInstr(
+              Instruction::kZext, OutVReg{OperandBase::k32bit}, src);
           func = reinterpret_cast<uint64_t>(JITRT_BoxU32);
         } else if (src_type <= (TCInt8 | TCInt16)) {
-          bbb.AppendCode("Convert {}:CInt32, {}:{}", tmp, src, src_type);
-          src = tmp;
-          src_type = TCInt32;
+          src = bbb.appendInstr(
+              Instruction::kSext, OutVReg{OperandBase::k32bit}, src);
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
         }
 
-        JIT_CHECK(
-            func != 0, "unknown box type %s", src_type.toString().c_str());
+        JIT_CHECK(func != 0, "Unknown box type %s", src_type.toString());
 
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}:{}", instr->GetOutput(), func, src, src_type);
+        bbb.appendInstr(
+            instr->GetOutput(),
+            Instruction::kCall,
+            // TODO(T140174965): This should be MemImm.
+            Imm{func},
+            src);
 
         break;
       }
