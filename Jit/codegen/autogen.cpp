@@ -1111,6 +1111,7 @@ END_RULES
 BEGIN_RULES(Instruction::name) \
   GEN("Rrr", CALL(TranslateCompare)) \
   GEN("Rri", CALL(TranslateCompare)) \
+  GEN("Rrm", CALL(TranslateCompare)) \
   if (fpcomp) { \
     GEN("Rxx", CALL(TranslateCompare)) \
   } \

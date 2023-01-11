@@ -87,8 +87,12 @@ void BasicBlockBuilder::appendBlock(BasicBlock* block) {
   if (cur_bb_->successors().size() < 2) {
     cur_bb_->addSuccessor(block);
   }
+  switchBlock(block);
+}
+
+void BasicBlockBuilder::switchBlock(BasicBlock* block) {
+  bbs_.push_back(block);
   cur_bb_ = block;
-  bbs_.push_back(cur_bb_);
 }
 
 void BasicBlockBuilder::AppendLabel(std::string_view s) {

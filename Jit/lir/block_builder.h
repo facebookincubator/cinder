@@ -97,8 +97,13 @@ class BasicBlockBuilder {
   // If the block name already exists, then this returns the existing block.
   BasicBlock* allocateBlock(std::string_view label);
 
-  // Append a block to the CFG.
+  // Append a block to the CFG and switch to it.
   void appendBlock(BasicBlock* block);
+
+  // Terminate the current block and switch over to a new one.
+  //
+  // Any predecessor/successor links are expected to be set up already.
+  void switchBlock(BasicBlock* block);
 
   // Allocate and append a new instruction to the instruction stream.
   template <class... Args>
@@ -118,6 +123,19 @@ class BasicBlockBuilder {
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
     JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest->name());
+    return instr;
+  }
+
+  // Allocate and append a new branching instruction to the instruction stream.
+  template <class Arg>
+  Instruction* appendBranch(
+      Instruction::Opcode opcode,
+      Arg&& arg,
+      BasicBlock* true_bb,
+      BasicBlock* false_bb) {
+    auto instr = appendInstr(opcode, std::forward<Arg>(arg));
+    cur_bb_->addSuccessor(true_bb);
+    cur_bb_->addSuccessor(false_bb);
     return instr;
   }
 

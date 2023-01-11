@@ -984,57 +984,56 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
 
       case Opcode::kIsNegativeAndErrOccurred: {
+        // Emit code to do the following:
+        //   dst = (src == -1 && tstate->curexc_type != nullptr) ? -1 : 0;
+
         auto instr = static_cast<const IsNegativeAndErrOccurred*>(&i);
-        std::string src_name = instr->reg()->name();
         Type src_type = instr->reg()->type();
 
-        // if (src == -1 && tstate->curexc_type != nullptr) { return -1; }
-        // else { return 0; }
-        auto is_not_negative = GetSafeTempName();
+        // We do have to widen to at least 32 bits due to calling convention
+        // always passing a minimum of 32 bits.
+        Instruction* src = bbb.getDefInstr(instr->reg());
+        if (src_type <= (TCBool | TCInt8 | TCUInt8 | TCInt16 | TCUInt16)) {
+          src = bbb.appendInstr(
+              Instruction::kSext, OutVReg{OperandBase::k32bit}, src);
+        }
+
         // Because a failed unbox to unsigned smuggles the bit pattern for a
         // signed -1 in the unsigned value, we can likewise just treat unsigned
         // as signed for purposes of checking for -1 here.
-        if (src_type <= (TCInt64 | TCUInt64)) {
-          bbb.AppendCode(
-              "NotEqual {}, {}:{}, {:#x}",
-              is_not_negative,
-              src_name,
-              TCInt64,
-              static_cast<uint64_t>(-1));
-        } else {
-          // We do have to widen to at least 32 bits due to calling convention
-          // always passing a minimum of 32 bits.
-          if (src_type <= (TCBool | TCInt8 | TCUInt8 | TCInt16 | TCUInt16)) {
-            std::string tmp_name = GetSafeTempName();
-            bbb.AppendCode(
-                "Convert {}:CInt32, {}:{}", tmp_name, src_name, src_type);
-            src_name = tmp_name;
-          }
-          bbb.AppendCode(
-              "NotEqual {}, {}:{}, {:#x}",
-              is_not_negative,
-              src_name,
-              TCInt32,
-              -1);
-        }
-        bbb.AppendCode("Move {}, {:#x}", instr->dst(), 0);
-        auto done = GetSafeLabelName();
-        auto check_err = GetSafeLabelName();
-        bbb.AppendCode("JumpIf {}, {}, {}", is_not_negative, done, check_err);
-        bbb.AppendLabel(check_err);
-        auto curexc_type = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, __asm_tstate, {}",
+        Instruction* is_not_negative = bbb.appendInstr(
+            Instruction::kNotEqual,
+            OutVReg{OperandBase::k8bit},
+            src,
+            Imm{static_cast<uint64_t>(-1)});
+
+        bbb.appendInstr(instr->dst(), Instruction::kMove, Imm{0});
+
+        auto check_err = bbb.allocateBlock(GetSafeLabelName());
+        auto set_err = bbb.allocateBlock(GetSafeLabelName());
+        auto done = bbb.allocateBlock(GetSafeLabelName());
+
+        bbb.appendBranch(
+            Instruction::kCondBranch, is_not_negative, done, check_err);
+        bbb.switchBlock(check_err);
+
+        constexpr int32_t kOffset = offsetof(PyThreadState, curexc_type);
+        auto curexc_type = bbb.appendInstr(
+            Instruction::kMove, OutVReg{}, Ind{env_->asm_tstate, kOffset});
+
+        auto is_no_err_set = bbb.appendInstr(
+            Instruction::kEqual,
+            OutVReg{OperandBase::k8bit},
             curexc_type,
-            offsetof(PyThreadState, curexc_type));
-        auto is_no_err_set = GetSafeTempName();
-        bbb.AppendCode("Equal {}, {}, {:#x}", is_no_err_set, curexc_type, 0);
-        auto set_err = GetSafeLabelName();
-        bbb.AppendCode("JumpIf {}, {}, {}", is_no_err_set, done, set_err);
-        bbb.AppendLabel(set_err);
-        // Set to -1 in the error case
-        bbb.AppendCode("Dec {}", instr->dst());
-        bbb.AppendLabel(done);
+            MemImm{0});
+
+        bbb.appendBranch(
+            Instruction::kCondBranch, is_no_err_set, done, set_err);
+        bbb.switchBlock(set_err);
+
+        // Set to -1 in the error case.
+        bbb.appendInstr(Instruction::kDec, instr->dst());
+        bbb.switchBlock(done);
         break;
       }
 
