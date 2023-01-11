@@ -669,34 +669,33 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kIntBinaryOp: {
         auto instr = static_cast<const IntBinaryOp*>(&i);
-        std::string op;
-        std::string convert;
-        std::string extra_arg = "";
+        auto op = Instruction::kNop;
+        std::optional<Instruction::Opcode> extend;
         uint64_t helper = 0;
         switch (instr->op()) {
           case BinaryOpKind::kAdd:
-            op = "Add";
+            op = Instruction::kAdd;
             break;
           case BinaryOpKind::kAnd:
-            op = "And";
+            op = Instruction::kAnd;
             break;
           case BinaryOpKind::kSubtract:
-            op = "Sub";
+            op = Instruction::kSub;
             break;
           case BinaryOpKind::kXor:
-            op = "Xor";
+            op = Instruction::kXor;
             break;
           case BinaryOpKind::kOr:
-            op = "Or";
+            op = Instruction::kOr;
             break;
           case BinaryOpKind::kMultiply:
-            op = "Mul";
+            op = Instruction::kMul;
             break;
           case BinaryOpKind::kLShift:
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "Convert";
+                extend = Instruction::kSext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftLeft32);
                 break;
@@ -709,7 +708,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "Convert";
+                extend = Instruction::kSext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftRight32);
                 break;
@@ -722,7 +721,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "ConvertUnsigned";
+                extend = Instruction::kZext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftRightUnsigned32);
                 break;
@@ -732,18 +731,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             }
             break;
           case BinaryOpKind::kFloorDivide:
-            op = "Div";
-            extra_arg = "0, ";
+            op = Instruction::kDiv;
             break;
           case BinaryOpKind::kFloorDivideUnsigned:
-            op = "DivUn";
-            extra_arg = "0, ";
+            op = Instruction::kDivUn;
             break;
           case BinaryOpKind::kModulo:
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "Convert";
+                extend = Instruction::kSext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_Mod32);
                 break;
@@ -756,7 +753,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "ConvertUnsigned";
+                extend = Instruction::kZext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ModUnsigned32);
                 break;
@@ -769,7 +766,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "Convert";
+                extend = Instruction::kSext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_Power32);
                 break;
@@ -782,7 +779,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             switch (bytes_from_cint_type(instr->GetOperand(0)->type())) {
               case 1:
               case 2:
-                convert = "ConvertUnsigned";
+                extend = Instruction::kZext;
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_PowerUnsigned32);
                 break;
@@ -795,28 +792,30 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             JIT_CHECK(false, "not implemented");
             break;
         }
+
         if (helper != 0) {
-          std::string left = instr->left()->name();
-          std::string right = instr->right()->name();
-          if (convert != "") {
-            std::string ltmp = GetSafeTempName();
-            std::string rtmp = GetSafeTempName();
-            std::string type = convert == "Convert" ? "CInt32" : "CUInt32";
-            bbb.AppendCode("{} {}:{}, {}", convert, ltmp, type, left);
-            bbb.AppendCode("{} {}:{}, {}", convert, rtmp, type, right);
-            left = ltmp;
-            right = rtmp;
+          Instruction* left = bbb.getDefInstr(instr->left());
+          Instruction* right = bbb.getDefInstr(instr->right());
+          if (extend.has_value()) {
+            auto dt = OperandBase::k32bit;
+            left = bbb.appendInstr(*extend, OutVReg{dt}, left);
+            right = bbb.appendInstr(*extend, OutVReg{dt}, right);
           }
-          bbb.AppendCode(
-              "Call {} {:#x}, {}, {}", instr->dst(), helper, left, right);
-        } else {
-          bbb.AppendCode(
-              "{} {}, {} {}, {}",
-              op,
+          bbb.appendInstr(
               instr->dst(),
-              extra_arg,
-              instr->left(),
-              instr->right());
+              Instruction::kCall,
+              // TODO(T140174965): This should be MemImm.
+              Imm{reinterpret_cast<uint64_t>(helper)},
+              left,
+              right);
+        } else if (
+            instr->op() == BinaryOpKind::kFloorDivide ||
+            instr->op() == BinaryOpKind::kFloorDivideUnsigned) {
+          // Divides take an extra zero argument.
+          bbb.appendInstr(
+              instr->dst(), op, Imm{0}, instr->left(), instr->right());
+        } else {
+          bbb.appendInstr(instr->dst(), op, instr->left(), instr->right());
         }
 
         break;
@@ -968,7 +967,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               "ConvertUnsigned {}:CUInt32, {}:{}", tmp, src, src_type);
           src = tmp;
           func = reinterpret_cast<uint64_t>(JITRT_BoxU32);
-          src_type = TCUInt32;
         } else if (src_type <= (TCInt8 | TCInt16)) {
           bbb.AppendCode("Convert {}:CInt32, {}:{}", tmp, src, src_type);
           src = tmp;
