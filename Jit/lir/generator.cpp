@@ -227,8 +227,7 @@ void LIRGenerator::addLiveRegOperands(
   auto& regstates = hir_instr.live_regs();
   for (const auto& reg_state : regstates) {
     hir::Register* reg = reg_state.reg;
-    instr->addOperands(
-        VReg{bbb.getDefInstr(reg), hirTypeToDataType(reg->type())});
+    instr->addOperands(VReg{bbb.getDefInstr(reg)});
   }
 }
 

@@ -229,11 +229,11 @@ class BasicBlockBuilder {
   std::unordered_map<std::string, BasicBlock*> label_to_bb_;
 
   auto convertArg(hir::Register* src) {
-    return VReg{getDefInstr(src->name()), hirTypeToDataType(src->type())};
+    return VReg{getDefInstr(src)};
   }
 
   auto convertArg(Instruction* instr) {
-    return VReg{instr, instr->output()->dataType()};
+    return VReg{instr};
   }
 
   template <class Arg>

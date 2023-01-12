@@ -524,6 +524,15 @@ struct OperandArg<uint64_t, Output> {
   static constexpr bool is_output = Output;
 };
 
+// Operand is typed through its linked instruction.
+template <>
+struct OperandArg<Instruction*, false> {
+  explicit OperandArg(Instruction* v) : value{v} {}
+
+  Instruction* value{nullptr};
+  static constexpr bool is_output = false;
+};
+
 template <bool Output>
 struct OperandArg<MemoryIndirect, Output> {
   using Reg = std::variant<Instruction*, PhyLocation>;
