@@ -4247,8 +4247,37 @@ struct TypedArgument {
 // runtime?
 bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code);
 
+#define FOREACH_FAILURE_TYPE(V)                                            \
+  V(HasDefaults, "it has defaults")                                        \
+  V(HasKwdefaults, "it has kwdefaults")                                    \
+  V(HasKwOnlyArgs, "it has keyword-only args")                             \
+  V(HasVarargs, "it has varargs")                                          \
+  V(HasVarkwargs, "it has varkwargs")                                      \
+  V(CalledWithMismatchedArgs, "it is called with mismatched arguments")    \
+  V(IsGenerator, "it is a generator")                                      \
+  V(HasCellvars, "it has cellvars")                                        \
+  V(HasFreevars, "it has freevars")                                        \
+  V(NeedsRuntimeAccess, "it needs runtime access to its PyFunctionObject") \
+  V(MultithreadedCompileNeedsPreload,                                      \
+    "multithreaded compile is enabled and the function is not preloaded")  \
+  V(IsVectorCallWithPrimitives,                                            \
+    "it is a vectorcalled static function with pimitive args")             \
+  V(GlobalsNotDict, "globals is not a dict")                               \
+  V(BuiltinsNotDict, "builtins is not a dict")
+
+enum class InlineFailureType {
+#define DECLARE_FAILURE_TYPE(failure, msg) k##failure,
+  FOREACH_FAILURE_TYPE(DECLARE_FAILURE_TYPE)
+#undef DECLARE_FAILURE_TYPE
+};
+
+const char* getInlineFailureMessage(InlineFailureType failure_type);
+const char* getInlineFailureName(InlineFailureType failure_type);
+
 class Function {
  public:
+  using InlineFailureStats =
+      UnorderedMap<InlineFailureType, UnorderedSet<std::string>>;
   Function();
   ~Function();
 
@@ -4271,8 +4300,11 @@ class Function {
   // is the first argument a primitive?
   bool has_primitive_first_arg{false};
 
-  // How many functions have been inlined into this function?
-  int num_inlined_functions{0};
+  struct InlineFunctionStats {
+    int num_inlined_functions{0};
+    // map of {inline_failure_type -> function_names}
+    InlineFailureStats failure_stats;
+  } inline_function_stats;
 
   // vector of {locals_idx, type, optional}
   // in argument order, may have gaps for unchecked args
@@ -4327,5 +4359,4 @@ class Function {
 
 FrameState* get_frame_state(Instr& instr);
 const FrameState* get_frame_state(const Instr& instr);
-
 } // namespace jit::hir

@@ -805,66 +805,104 @@ struct AbstractCall {
   DeoptBase* instr{nullptr};
 };
 
+static void dlogAndCollectFailureStats(
+    Function::InlineFailureStats& inline_failure_stats,
+    InlineFailureType failure_type,
+    const std::string& function) {
+  inline_failure_stats[failure_type].insert(function);
+  JIT_DLOG(
+      "Can't inline {} because {}",
+      function,
+      getInlineFailureMessage(failure_type));
+}
+
+static void dlogAndCollectFailureStats(
+    Function::InlineFailureStats& inline_failure_stats,
+    InlineFailureType failure_type,
+    const std::string& function,
+    const char* tp_name) {
+  inline_failure_stats[failure_type].insert(function);
+  JIT_DLOG(
+      "Can't inline {} because {} but a {:.200s}",
+      function,
+      getInlineFailureMessage(failure_type),
+      tp_name);
+}
+
 // Most of these checks are only temporary and do not in perpetuity prohibit
 // inlining. They are here to simplify bringup of the inliner and can be
 // treated as TODOs.
 static bool canInline(
     AbstractCall* call_instr,
     PyFunctionObject* func,
-    const std::string& fullname) {
+    const std::string& fullname,
+    Function::InlineFailureStats& inline_failure_stats) {
   if (func->func_defaults != nullptr) {
-    JIT_DLOG("Can't inline %s because it has defaults", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasDefaults, fullname);
     return false;
   }
   if (func->func_kwdefaults != nullptr) {
-    JIT_DLOG("Can't inline %s because it has kwdefaults", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasKwdefaults, fullname);
     return false;
   }
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
   if (code->co_kwonlyargcount > 0) {
-    JIT_DLOG("Can't inline %s because it has keyword-only args", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasKwOnlyArgs, fullname);
     return false;
   }
   if (code->co_flags & CO_VARARGS) {
-    JIT_DLOG("Can't inline %s because it has varargs", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasVarargs, fullname);
+
     return false;
   }
   if (code->co_flags & CO_VARKEYWORDS) {
-    JIT_DLOG("Can't inline %s because it has varkwargs", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasVarkwargs, fullname);
+
     return false;
   }
   JIT_DCHECK(code->co_argcount >= 0, "argcount must be positive");
   if (call_instr->nargs != static_cast<size_t>(code->co_argcount)) {
-    JIT_DLOG(
-        "Can't inline %s because it is called with mismatched arguments",
+    dlogAndCollectFailureStats(
+        inline_failure_stats,
+        InlineFailureType::kCalledWithMismatchedArgs,
         fullname);
+
     return false;
   }
   if (code->co_flags & kCoFlagsAnyGenerator) {
-    JIT_DLOG("Can't inline %s because it is a generator", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kIsGenerator, fullname);
+
     return false;
   }
   Py_ssize_t ncellvars = PyTuple_GET_SIZE(code->co_cellvars);
   if (ncellvars > 0) {
-    JIT_DLOG("Can't inline %s because it is has cellvars", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasCellvars, fullname);
+
     return false;
   }
   Py_ssize_t nfreevars = PyTuple_GET_SIZE(code->co_freevars);
   if (nfreevars > 0) {
-    JIT_DLOG("Can't inline %s because it is has freevars", fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kHasFreevars, fullname);
+
     return false;
   }
   if (usesRuntimeFunc(code)) {
-    JIT_DLOG(
-        "Can't inline %s because it needs runtime access to its "
-        "PyFunctionObject",
-        fullname);
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kNeedsRuntimeAccess, fullname);
     return false;
   }
   if (g_threaded_compile_context.compileRunning() && !isPreloaded(func)) {
-    JIT_DLOG(
-        "Can't inline %s because multithreaded compile is enabled and the "
-        "function is not preloaded",
+    dlogAndCollectFailureStats(
+        inline_failure_stats,
+        InlineFailureType::kMultithreadedCompileNeedsPreload,
         fullname);
     return false;
   }
@@ -875,7 +913,8 @@ static bool canInline(
 static bool canInlineWithPreloader(
     AbstractCall* call_instr,
     const std::string& fullname,
-    const Preloader& preloader) {
+    const Preloader& preloader,
+    Function::InlineFailureStats& inline_failure_stats) {
   auto has_primitive_args = [&]() {
     for (int i = 0; i < preloader.numArgs(); i++) {
       if (preloader.checkArgType(i) <= TPrimitive) {
@@ -889,9 +928,9 @@ static bool canInlineWithPreloader(
       (preloader.code()->co_flags & CO_STATICALLY_COMPILED) &&
       (preloader.returnType() <= TPrimitive || has_primitive_args())) {
     // TODO(T122371281) remove this constraint
-    JIT_DLOG(
-        "Can't inline %s as it is a vectorcalled static function with pimitive "
-        "args",
+    dlogAndCollectFailureStats(
+        inline_failure_stats,
+        InlineFailureType::kIsVectorCallWithPrimitives,
         fullname);
     return false;
   }
@@ -904,21 +943,25 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
   PyObject* globals = func->func_globals;
   std::string fullname = funcFullname(func);
+  Function::InlineFailureStats& inline_failure_stats =
+      caller.inline_function_stats.failure_stats;
   if (!PyDict_Check(globals)) {
-    JIT_DLOG(
-        "Refusing to inline %s: globals is a %.200s, not a dict",
+    dlogAndCollectFailureStats(
+        inline_failure_stats,
+        InlineFailureType::kGlobalsNotDict,
         fullname,
         Py_TYPE(globals)->tp_name);
     return;
   }
   if (!PyDict_CheckExact(func->func_builtins)) {
-    JIT_DLOG(
-        "Refusing to inline %s: builtins is a %.200s, not a dict",
+    dlogAndCollectFailureStats(
+        inline_failure_stats,
+        InlineFailureType::kBuiltinsNotDict,
         fullname,
         Py_TYPE(func->func_builtins)->tp_name);
     return;
   }
-  if (!canInline(call_instr, func, fullname)) {
+  if (!canInline(call_instr, func, fullname, inline_failure_stats)) {
     JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
     return;
   }
@@ -930,7 +973,8 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   InlineResult result;
   if (g_threaded_compile_context.compileRunning()) {
     const Preloader& preloader{getPreloader(func)};
-    if (!canInlineWithPreloader(call_instr, fullname, preloader)) {
+    if (!canInlineWithPreloader(
+            call_instr, fullname, preloader, inline_failure_stats)) {
       JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
@@ -945,7 +989,8 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
       JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
-    if (!canInlineWithPreloader(call_instr, fullname, *preloader)) {
+    if (!canInlineWithPreloader(
+            call_instr, fullname, *preloader, inline_failure_stats)) {
       JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
@@ -1016,7 +1061,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   delete return_instr;
 
   delete call_instr->instr;
-  caller.num_inlined_functions++;
+  caller.inline_function_stats.num_inlined_functions++;
 }
 
 void InlineFunctionCalls::Run(Function& irfunc) {

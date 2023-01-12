@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 // Lookup key for _PyJITContext::compiled_codes: a code object and a globals
@@ -201,6 +202,16 @@ int _PyJITContext_GetSpillStackSize(
  * Returns -1 if an error occurred.
  */
 int _PyJITContext_GetNumInlinedFunctions(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+
+/*
+ * Returns the number of functions inlined into a specified JIT-compiled
+ * function.
+ *
+ * Returns -1 if an error occurred.
+ */
+PyObject* _PyJITContext_GetInlinedFunctionsStats(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func);
 

@@ -26,14 +26,14 @@ class CompiledFunction {
       int func_size,
       int stack_size,
       int spill_stack_size,
-      int num_inlined_functions)
+      jit::hir::Function::InlineFunctionStats inline_function_stats_)
       : vectorcall_entry_(vectorcall_entry),
         static_entry_(static_entry),
         code_runtime_(code_runtime),
         code_size_(func_size),
         stack_size_(stack_size),
         spill_stack_size_(spill_stack_size),
-        num_inlined_functions_(num_inlined_functions) {}
+        inline_function_stats_(std::move(inline_function_stats_)) {}
 
   virtual ~CompiledFunction() {}
 
@@ -65,8 +65,9 @@ class CompiledFunction {
   int GetSpillStackSize() const {
     return spill_stack_size_;
   }
-  int GetNumInlinedFunctions() const {
-    return num_inlined_functions_;
+  const jit::hir::Function::InlineFunctionStats& GetInlinedFunctionsStats()
+      const {
+    return inline_function_stats_;
   }
 
  private:
@@ -78,7 +79,7 @@ class CompiledFunction {
   const int code_size_;
   const int stack_size_;
   const int spill_stack_size_;
-  const int num_inlined_functions_;
+  jit::hir::Function::InlineFunctionStats inline_function_stats_;
 };
 
 // same as CompiledFunction class but keeps HIR and LIR classes for debug
@@ -92,7 +93,7 @@ class CompiledFunctionDebug : public CompiledFunction {
       int func_size,
       int stack_size,
       int spill_stack_size,
-      int num_inlined_functions,
+      jit::hir::Function::InlineFunctionStats inline_function_stats_,
       std::unique_ptr<hir::Function> irfunc,
       std::unique_ptr<codegen::NativeGenerator> ngen)
       : CompiledFunction(
@@ -102,7 +103,7 @@ class CompiledFunctionDebug : public CompiledFunction {
             func_size,
             stack_size,
             spill_stack_size,
-            num_inlined_functions),
+            std::move(inline_function_stats_)),
         irfunc_(std::move(irfunc)),
         ngen_(std::move(ngen)) {}
 

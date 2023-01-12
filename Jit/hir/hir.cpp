@@ -874,6 +874,26 @@ bool Function::canDeopt() const {
   return false;
 }
 
+const char* const kFailureTypeMsgs[] = {
+#define FAILURE_TYPE_MSG(failure, msg) msg,
+    FOREACH_FAILURE_TYPE(FAILURE_TYPE_MSG)
+#undef NAME_FAILURE_TYPE
+};
+
+const char* const kFailureTypeNames[] = {
+#define NAME_TYPE(failure, msg) #failure,
+    FOREACH_FAILURE_TYPE(NAME_TYPE)
+#undef NAME_TYPE
+};
+
+const char* getInlineFailureMessage(InlineFailureType failure_type) {
+  return kFailureTypeMsgs[static_cast<size_t>(failure_type)];
+}
+
+const char* getInlineFailureName(InlineFailureType failure_type) {
+  return kFailureTypeNames[static_cast<size_t>(failure_type)];
+}
+
 std::ostream& operator<<(std::ostream& os, OperandType op) {
   switch (op.kind) {
     case Constraint::kType:

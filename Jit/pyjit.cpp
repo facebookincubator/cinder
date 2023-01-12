@@ -968,6 +968,13 @@ static PyObject* get_function_compilation_time(
   return res;
 }
 
+static PyObject* get_inlined_functions_stats(PyObject*, PyObject* func) {
+  if (jit_ctx == NULL) {
+    Py_RETURN_NONE;
+  }
+  return _PyJITContext_GetInlinedFunctionsStats(jit_ctx, func);
+}
+
 static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
   if (jit_ctx == NULL) {
     return PyLong_FromLong(0);
@@ -1375,6 +1382,12 @@ static PyMethodDef jit_methods[] = {
      disable_hir_inliner,
      METH_NOARGS,
      "Disable the HIR inliner."},
+    {"get_inlined_functions_stats",
+     get_inlined_functions_stats,
+     METH_O,
+     "Return a dict containing function inlining stats with the the following "
+     "structure: {'num_inlined_functions' => int, 'failure_stats' => { "
+     "failure_reason => set of function names}} )."},
     {"get_num_inlined_functions",
      get_num_inlined_functions,
      METH_O,

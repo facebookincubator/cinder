@@ -273,6 +273,25 @@ def call_get_stack_multi():
     x = 1 + 1
     return get_stack_multi()
 
+@unittest.failUnlessJITCompiled
+def func_to_be_inlined(x, y):
+    return x + y
+
+@unittest.failUnlessJITCompiled
+def func_with_defaults(x = 1, y = 2):
+    return x + y
+
+@unittest.failUnlessJITCompiled
+def func_with_varargs(x, *args):
+    return x
+
+@unittest.failUnlessJITCompiled
+def func():
+    a = func_to_be_inlined(2, 3)
+    b = func_with_defaults()
+    c = func_with_varargs(1, 2, 3)
+    return a + b + c
+
 
 class InlinedFunctionLineNumberTests(unittest.TestCase):
     @jit_suppress
@@ -316,6 +335,25 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
                 firstlineno(get_stack_multi)+5)
         self.assertEqual(stacks[1][-2].lineno,
                 firstlineno(call_get_stack_multi)+3)
+
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_inline_function_stats(self):
+        self.assertEqual(cinderjit.get_num_inlined_functions(func), 1)
+        stats = cinderjit.get_inlined_functions_stats(func)
+        self.assertEqual(
+            {
+                "num_inlined_functions": 1,
+                'failure_stats': {
+                    'HasDefaults': {'test.test_cinderjit:func_with_defaults'},
+                    'HasVarargs': {'test.test_cinderjit:func_with_varargs'}
+                }
+            },
+            stats
+        )
 
     @jit_suppress
     @unittest.skipIf(

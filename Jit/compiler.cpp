@@ -276,7 +276,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
         func_size,
         stack_size,
         spill_stack_size,
-        irfunc->num_inlined_functions,
+        std::move(irfunc->inline_function_stats),
         std::move(irfunc),
         std::move(ngen));
   } else {
@@ -287,7 +287,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
         func_size,
         stack_size,
         spill_stack_size,
-        irfunc->num_inlined_functions);
+        std::move(irfunc->inline_function_stats));
   }
 }
 
