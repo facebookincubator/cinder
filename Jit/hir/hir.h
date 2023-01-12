@@ -22,6 +22,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -505,6 +506,11 @@ class Instr {
     operandAt(i) = reg;
   }
 
+  // Get all operands for this instruction.
+  std::span<Register* const> GetOperands() const {
+    return {operands(), NumOperands()};
+  }
+
   // Return the i-th operand type
   virtual OperandType GetOperandType(std::size_t /* i */) const = 0;
 
@@ -704,6 +710,10 @@ class Instr {
 
   Register** operands() {
     return static_cast<Register**>(base());
+  }
+
+  Register* const* operands() const {
+    return const_cast<Instr*>(this)->operands();
   }
 
   Register*& operandAt(std::size_t i) {

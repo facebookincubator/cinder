@@ -69,6 +69,30 @@ extern "C" PyObject* __Invoke_PyList_Extend(
   return none_val;
 }
 
+namespace {
+
+void emitVectorCall(
+    BasicBlockBuilder& bbb,
+    const VectorCallBase& hir_instr,
+    size_t flags,
+    bool kwnames) {
+  auto instr = bbb.appendInstr(
+      hir_instr.dst(),
+      Instruction::kVectorCall,
+      // TODO(T140174965): This should be MemImm.
+      Imm{reinterpret_cast<uint64_t>(_PyObject_Vectorcall)},
+      Imm{flags});
+  for (hir::Register* arg : hir_instr.GetOperands()) {
+    instr->addOperands(VReg{bbb.getDefInstr(arg)});
+  }
+  if (!kwnames) {
+    // TODO(T140174965): This should be MemImm.
+    instr->addOperands(Imm{0});
+  }
+}
+
+} // namespace
+
 LIRGenerator::LIRGenerator(
     const jit::hir::Function* func,
     jit::codegen::Environ* env)
@@ -312,25 +336,6 @@ bool LIRGenerator::TranslateSpecializedCall(
   buf.append(std::string_view(", 0"));
   bbb.AppendCode(buf);
   return true;
-}
-
-static void emitVectorCall(
-    BasicBlockBuilder& bbb,
-    const VectorCallBase& instr,
-    size_t flags,
-    bool kwnames) {
-  std::stringstream ss;
-  ss << "Vectorcall " << *instr.dst() << ", "
-     << reinterpret_cast<uint64_t>(_PyObject_Vectorcall) << ", " << flags
-     << ", " << instr.func()->name();
-  auto nargs = instr.numArgs();
-  for (size_t i = 0; i < nargs; i++) {
-    ss << ", " << *instr.arg(i);
-  }
-  if (!kwnames) {
-    ss << ", 0";
-  }
-  bbb.AppendCode(ss.str());
 }
 
 void LIRGenerator::emitExceptionCheck(
@@ -1730,15 +1735,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kCallCFunc: {
-        auto& instr = static_cast<const CallCFunc&>(i);
-
-        std::stringstream ss;
-        ss << "Call " << *instr.dst() << ", " << instr.funcAddr();
-        for (size_t i = 0; i < instr.NumOperands(); i++) {
-          ss << ", " << *instr.GetOperand(i);
+        auto& hir_instr = static_cast<const CallCFunc&>(i);
+        auto instr = bbb.appendInstr(
+            hir_instr.dst(), Instruction::kCall, Imm{hir_instr.funcAddr()});
+        for (hir::Register* arg : hir_instr.GetOperands()) {
+          instr->addOperands(VReg{bbb.getDefInstr(arg)});
         }
-
-        bbb.AppendCode(ss.str());
         break;
       }
       case Opcode::kCallEx: {
@@ -1762,65 +1764,58 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kCallMethod: {
-        auto instr = static_cast<const CallMethod*>(&i);
-
-        std::string s = fmt::format("Vectorcall {}", *instr->dst());
-        size_t flags = instr->isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
-        format_to(
-            s,
-            ", {}, {}, {}, {}",
-            reinterpret_cast<uint64_t>(JITRT_CallMethod),
-            flags,
-            *instr->func(),
-            *instr->self());
-
-        for (size_t i = 0, nargs = instr->NumArgs(); i < nargs; i++) {
-          format_to(s, ", {}", *instr->arg(i));
+        auto& hir_instr = static_cast<const CallMethod&>(i);
+        size_t flags = hir_instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
+        auto instr = bbb.appendInstr(
+            hir_instr.dst(),
+            Instruction::kVectorCall,
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(JITRT_CallMethod)},
+            Imm{flags});
+        for (hir::Register* arg : hir_instr.GetOperands()) {
+          instr->addOperands(VReg{bbb.getDefInstr(arg)});
         }
-
-        bbb.AppendCode(s + ", 0"); /* kwnames */
+        // kwnames
+        // TODO(T140174965): This should be MemImm.
+        instr->addOperands(Imm{0});
         break;
       }
 
       case Opcode::kCallStatic: {
-        auto instr = static_cast<const CallStatic*>(&i);
-        auto nargs = instr->NumOperands();
-
-        std::stringstream ss;
-        ss << "Call " << instr->dst()->name() << ", "
-           << reinterpret_cast<uint64_t>(instr->addr());
-
-        for (size_t i = 0; i < nargs; i++) {
-          Type src_type = instr->GetOperand(i)->type();
+        auto& hir_instr = static_cast<const CallStatic&>(i);
+        std::vector<Instruction*> args;
+        // Generate the argument conversions before the call.
+        for (hir::Register* reg_arg : hir_instr.GetOperands()) {
+          Instruction* arg = bbb.getDefInstr(reg_arg);
+          Type src_type = reg_arg->type();
           if (src_type <= (TCBool | TCUInt8 | TCUInt16)) {
-            std::string tmp = GetSafeTempName();
-            bbb.AppendCode(
-                "ConvertUnsigned {}:CUInt64, {}", tmp, instr->GetOperand(i));
-            ss << ", " << tmp << ":CUInt64";
+            arg = bbb.appendInstr(
+                Instruction::kZext, OutVReg{OperandBase::k64bit}, arg);
           } else if (src_type <= (TCInt8 | TCInt16)) {
-            std::string tmp = GetSafeTempName();
-            bbb.AppendCode("Convert {}:CInt64, {}", tmp, instr->GetOperand(i));
-            ss << ", " << tmp << ":CInt64";
-          } else {
-            ss << ", " << instr->GetOperand(i)->name();
+            arg = bbb.appendInstr(
+                Instruction::kSext, OutVReg{OperandBase::k64bit}, arg);
           }
+          args.push_back(arg);
         }
-
-        bbb.AppendCode(ss.str());
+        auto instr = bbb.appendInstr(
+            hir_instr.dst(),
+            Instruction::kCall,
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(hir_instr.addr())});
+        for (const auto& arg : args) {
+          instr->addOperands(VReg{arg});
+        }
         break;
       }
       case Opcode::kCallStaticRetVoid: {
-        auto instr = static_cast<const CallStaticRetVoid*>(&i);
-        auto nargs = instr->NumOperands();
-
-        std::stringstream ss;
-        ss << "Invoke " << reinterpret_cast<uint64_t>(instr->addr());
-
-        for (size_t i = 0; i < nargs; i++) {
-          ss << ", " << instr->GetOperand(i)->name();
+        auto& hir_instr = static_cast<const CallStaticRetVoid&>(i);
+        auto instr = bbb.appendInstr(
+            Instruction::kCall,
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(hir_instr.addr())});
+        for (hir::Register* arg : hir_instr.GetOperands()) {
+          instr->addOperands(VReg{bbb.getDefInstr(arg)});
         }
-
-        bbb.AppendCode(ss.str());
         break;
       }
       case Opcode::kInvokeStaticFunction: {
@@ -1876,28 +1871,24 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
 
       case Opcode::kInvokeMethod: {
-        auto instr = static_cast<const InvokeMethod*>(&i);
-
-        std::stringstream ss;
-        size_t flags = instr->isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
-        if (instr->isClassmethod()) {
-          ss << "Vectorcall " << *instr->dst() << ", "
-             << reinterpret_cast<uint64_t>(JITRT_InvokeClassMethod) << ", "
-             << flags << ", " << instr->slot();
-        } else {
-          ss << "Vectorcall " << *instr->dst() << ", "
-             << reinterpret_cast<uint64_t>(JITRT_InvokeMethod) << ", " << flags
-             << ", " << instr->slot();
+        auto& hir_instr = static_cast<const InvokeMethod&>(i);
+        size_t flags = hir_instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
+        auto func = hir_instr.isClassmethod()
+            ? reinterpret_cast<uint64_t>(JITRT_InvokeClassMethod)
+            : reinterpret_cast<uint64_t>(JITRT_InvokeMethod);
+        auto instr = bbb.appendInstr(
+            hir_instr.dst(),
+            Instruction::kVectorCall,
+            // TODO(T140174965): This should be MemImm.
+            Imm{func},
+            Imm{flags},
+            Imm{static_cast<uint64_t>(hir_instr.slot())});
+        for (hir::Register* arg : hir_instr.GetOperands()) {
+          instr->addOperands(VReg{bbb.getDefInstr(arg)});
         }
-
-        auto nargs = instr->NumOperands();
-        for (size_t i = 0; i < nargs; i++) {
-          ss << ", " << *instr->GetOperand(i);
-        }
-
-        ss << ", 0"; /* kwnames */
-
-        bbb.AppendCode(ss.str());
+        // kwnames
+        // TODO(T140174965): This should be MemImm.
+        instr->addOperands(Imm{0});
         break;
       }
 
