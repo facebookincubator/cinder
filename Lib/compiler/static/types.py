@@ -586,6 +586,7 @@ class TypeEnvironment:
             TypeName("__static__", "ContextDecorator"),
             bases=[self.exc_context_decorator],
         )
+        self.crange_iterator = CRangeIterator(self.type)
 
         self.str.exact_type().patch_reflected_method_types(self)
 
@@ -6488,6 +6489,111 @@ class UnboxFunction(Object[Class]):
 
     def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
         code_gen.get_type(node).emit_unbox(node.args[0], code_gen)
+
+
+class CRangeIterator(Object[Class]):
+    def bind_forloop_target(self, target: ast.expr, visitor: TypeBinder) -> None:
+        if not isinstance(target, ast.Name):
+            visitor.syntax_error(
+                f"cannot unpack multiple values from {self.name} while iterating",
+                target,
+            )
+        visitor.visit(target)
+
+    def get_iter_type(self, node: ast.expr, visitor: TypeBinder) -> Value:
+        return visitor.type_env.int64.instance
+
+    def _loop_var_name(self, node: ast.For) -> str:
+        target = node.target
+
+        # enforced by bind_forloop_target above
+        assert isinstance(target, ast.Name)
+        return target.id
+
+    def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
+        start = code_gen.newBlock("crange_forloop_start")
+        anchor = code_gen.newBlock("crange_forloop_anchor")
+        after = code_gen.newBlock("crange_forloop_after")
+
+        loop_idx = self._loop_var_name(node)
+        descr = ("__static__", "int64", "#")
+
+        code_gen.set_lineno(node)
+        code_gen.push_loop(FOR_LOOP, start, after)
+
+        # Put the iteration limit and start value on the stack (a primitive)
+        code_gen.visit(node.iter)
+
+        # Store the start value as the loop index
+        code_gen.emit("STORE_LOCAL", (loop_idx, descr))
+
+        code_gen.nextBlock(start)
+        code_gen.emit("DUP_TOP")
+        code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
+        code_gen.emit("PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
+        code_gen.emit("POP_JUMP_IF_ZERO", anchor)
+        code_gen.visit(node.body)
+        code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
+        code_gen.emit("PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
+        code_gen.emit("STORE_LOCAL", (loop_idx, descr))
+        code_gen.emit("JUMP_ABSOLUTE", start)
+        code_gen.nextBlock(anchor)
+        code_gen.emit("POP_TOP")  # Pop limit
+        code_gen.pop_loop()
+
+        if node.orelse:
+            code_gen.visit(node.orelse)
+        code_gen.nextBlock(after)
+
+
+class CRangeFunction(Object[Class]):
+    def bind_call(
+        self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
+    ) -> NarrowingEffect:
+        nargs = len(node.args)
+        if nargs != 1 and nargs != 2:
+            visitor.syntax_error("crange() accepts only 1 or 2 parameters", node)
+        if node.keywords:
+            visitor.syntax_error("crange() takes no keyword arguments", node)
+
+        if (
+            visitor.current_loop is None
+            or cast(ast.For, visitor.current_loop).iter != node
+        ):
+            visitor.syntax_error(
+                "crange() must be used as an iterator in a for loop", node
+            )
+
+        for arg in node.args:
+            visitor.visit(arg)
+            arg_type = visitor.get_type(arg)
+            if isinstance(arg_type, CIntInstance):
+                typ = (
+                    self.klass.type_env.bool
+                    if arg_type.constant == TYPED_BOOL
+                    else self.klass.type_env.int.exact_type()
+                )
+                visitor.set_type(node, typ.instance)
+            else:
+                visitor.syntax_error(
+                    f"can't use crange with arg: {arg_type.name}", node
+                )
+
+        visitor.set_type(node, visitor.type_env.crange_iterator)
+        return NO_EFFECT
+
+    def emit_call(self, node: ast.Call, code_gen: Static38CodeGenerator) -> None:
+        # This performs two stack pushes:
+        #   PUSH(LIMIT)
+        #   PUSH(START_VALUE)
+        if len(node.args) == 2:
+            code_gen.visit(node.args[1])
+            code_gen.visit(node.args[0])
+        else:
+            code_gen.visit(node.args[0])
+            # When start value is unspecified, we start from 0
+            code_gen.emit("PRIMITIVE_LOAD_CONST", (0, TYPED_INT64))
 
 
 class LenFunction(Object[Class]):

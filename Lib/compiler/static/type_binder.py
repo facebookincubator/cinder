@@ -1926,7 +1926,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             branch.merge()
 
     def visitFor(self, node: For) -> None:
-        self.visit(node.iter)
+        with self.in_loop(node):
+            self.visit(node.iter)
         container_type = self.get_type(node.iter)
         target_type = container_type.get_iter_type(node.iter, self)
         with self.in_target():

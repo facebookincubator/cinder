@@ -11,6 +11,7 @@ from typing import (
     _tp_cache,
     Dict,
     final,
+    Iterator,
     Literal,
     Optional,
     Tuple,
@@ -113,6 +114,8 @@ pydict = dict
 PyDict = Dict
 
 clen = len
+
+crange = range
 
 
 @set_type_final
