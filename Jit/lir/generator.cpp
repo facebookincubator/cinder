@@ -91,6 +91,17 @@ void emitVectorCall(
   }
 }
 
+void finishYield(
+    BasicBlockBuilder& bbb,
+    Instruction* instr,
+    const DeoptBase* hir_instr) {
+  for (const RegState& rs : hir_instr->live_regs()) {
+    instr->addOperands(VReg{bbb.getDefInstr(rs.reg)});
+  }
+  instr->addOperands(Imm{hir_instr->live_regs().size()});
+  instr->addOperands(Imm{bbb.makeDeoptMetadata()});
+}
+
 } // namespace
 
 LIRGenerator::LIRGenerator(
@@ -465,20 +476,6 @@ bool isTypeWithReasonablePointerEq(Type t) {
       t <= TTypeExact || t <= TLongExact || t <= TBool || t <= TFunc ||
       t <= TGen || t <= TNoneType || t <= TSlice;
 }
-
-namespace {
-void finishYield(
-    BasicBlockBuilder& bbb,
-    std::stringstream& ss,
-    const DeoptBase* instr) {
-  for (const RegState& rs : instr->live_regs()) {
-    ss << ", " << rs.reg->name();
-  }
-  ss << ", " << instr->live_regs().size();
-  ss << ", " << bbb.makeDeoptMetadata();
-  bbb.AppendCode(ss.str());
-}
-} // namespace
 
 static int bytes_from_cint_type(Type type) {
   if (type <= TCInt8 || type <= TCUInt8) {
@@ -1106,34 +1103,41 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kYieldValue: {
-        auto instr = static_cast<const YieldValue*>(&i);
-        std::stringstream ss;
-        ss << "YieldValue " << instr->dst()->name() << ", __asm_tstate,"
-           << instr->reg()->name();
-        finishYield(bbb, ss, instr);
+        auto hir_instr = static_cast<const YieldValue*>(&i);
+        auto instr = bbb.appendInstr(
+            hir_instr->dst(),
+            Instruction::kYieldValue,
+            env_->asm_tstate,
+            hir_instr->reg());
+        finishYield(bbb, instr, hir_instr);
         break;
       }
       case Opcode::kInitialYield: {
-        auto instr = static_cast<const InitialYield*>(&i);
-        std::stringstream ss;
-        ss << "YieldInitial " << instr->dst()->name() << ", __asm_tstate, ";
-        finishYield(bbb, ss, instr);
+        auto hir_instr = static_cast<const InitialYield*>(&i);
+        auto instr = bbb.appendInstr(
+            hir_instr->dst(), Instruction::kYieldInitial, env_->asm_tstate);
+        finishYield(bbb, instr, hir_instr);
         break;
       }
       case Opcode::kYieldAndYieldFrom:
       case Opcode::kYieldFrom:
       case Opcode::kYieldFromHandleStopAsyncIteration: {
-        std::stringstream ss;
-        if (opcode == Opcode::kYieldAndYieldFrom) {
-          ss << "YieldFromSkipInitialSend ";
-        } else if (opcode == Opcode::kYieldFrom) {
-          ss << "YieldFrom ";
-        } else {
-          ss << "YieldFromHandleStopAsyncIteration ";
-        }
-        ss << i.GetOutput()->name() << ", __asm_tstate, "
-           << i.GetOperand(0)->name() << ", " << i.GetOperand(1)->name();
-        finishYield(bbb, ss, static_cast<const DeoptBase*>(&i));
+        Instruction::Opcode op = [&] {
+          if (opcode == Opcode::kYieldAndYieldFrom) {
+            return Instruction::kYieldFromSkipInitialSend;
+          } else if (opcode == Opcode::kYieldFrom) {
+            return Instruction::kYieldFrom;
+          } else {
+            return Instruction::kYieldFromHandleStopAsyncIteration;
+          }
+        }();
+        auto instr = bbb.appendInstr(
+            i.GetOutput(),
+            op,
+            env_->asm_tstate,
+            i.GetOperand(0),
+            i.GetOperand(1));
+        finishYield(bbb, instr, static_cast<const DeoptBase*>(&i));
         break;
       }
       case Opcode::kAssign: {
