@@ -1971,7 +1971,8 @@ LIBSUBDIRS=	asyncio \
 		$(XMLLIBSUBDIRS) \
 		xmlrpc \
 		zoneinfo \
-		compiler compiler/py38 compiler/static __static__ \
+		compiler compiler/static __static__ \
+		compiler/strict compiler/strict/rewriter __strict__ \
 		compiler/strict/stubs compiler/strict/stubs/asyncio compiler/strict/stubs/collections
 TESTSUBDIRS=	ctypes/test \
 		distutils/tests \
