@@ -2900,6 +2900,20 @@ x = ','.join(['abc', object()])
 ---
 1 4 StrictModuleUnhandledException(TypeError)
 ---
+test_str_format_no_args
+---
+x = 'Hello'.format()
+---
+---
+1 4 StrictModuleUnhandledException(NotImplementedError)
+---
+test_str_format_multiple_args
+---
+x = '{} {key_arg} {}'.format(3, "bla", key_arg="foo")
+---
+---
+1 4 StrictModuleUnhandledException(NotImplementedError)
+---
 test_str_bad_index
 ---
 x = "abc"[-5]

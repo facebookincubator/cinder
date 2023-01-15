@@ -87,6 +87,7 @@ std::shared_ptr<StrictType> TypeErrorType();
 std::shared_ptr<StrictType> AttributeErrorType();
 std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> NameErrorType();
+std::shared_ptr<StrictType> NotImplementedErrorType();
 std::shared_ptr<StrictType> StopIterationType();
 std::shared_ptr<StrictType> KeyErrorType();
 std::shared_ptr<StrictType> RuntimeErrorType();

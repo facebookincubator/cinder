@@ -190,6 +190,17 @@ std::shared_ptr<BaseStrictObject> StrictString::strJoin(
   return caller.makeStr(ss.str());
 }
 
+std::shared_ptr<BaseStrictObject> StrictString::strFormat(
+    std::shared_ptr<BaseStrictObject> self,
+    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::string>&,
+    const CallerContext& caller) {
+  caller.raiseExceptionStr(
+      NotImplementedErrorType(),
+      "format() method of {} object is not supported yet in strict modules",
+      self->getType()->getName());
+}
+
 std::shared_ptr<BaseStrictObject> StrictString::str__str__(
     std::shared_ptr<StrictString> self,
     const CallerContext& caller) {
@@ -333,6 +344,7 @@ void StrictStringType::addMethods() {
       "split", strType, StrictString::listFromPyStrList, 2, 2);
   addPyWrappedMethodDefaultObj(
       "encode", strType, StrictBytes::bytesFromPyObj, 2, 2);
+  addMethodDescr("format", StrictString::strFormat);
 }
 
 // Bytes Object

@@ -73,6 +73,12 @@ class StrictString : public StrictInstance {
       const CallerContext& caller,
       std::shared_ptr<BaseStrictObject> iterable);
 
+  static std::shared_ptr<BaseStrictObject> strFormat(
+      std::shared_ptr<BaseStrictObject> self,
+      const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+      const std::vector<std::string>& namedArgs,
+      const CallerContext& caller);
+
   static std::shared_ptr<BaseStrictObject> str__getitem__(
       std::shared_ptr<StrictString> self,
       const CallerContext& caller,
