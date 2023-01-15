@@ -67,7 +67,7 @@ const int kKiB = 1024;
 const int kMiB = kKiB * kKiB;
 const int kGiB = kKiB * kKiB * kKiB;
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__aarch64__)
 const int kPageSize = 4 * kKiB;
 #else
 #error Please define kPageSize for the current architecture

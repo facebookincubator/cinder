@@ -213,6 +213,8 @@ FileInfo openJitdumpFile() {
   header.total_size = sizeof(header);
 #ifdef __x86_64__
   header.elf_mach = EM_X86_64;
+#elif defined(__aarch64__)
+  header.elf_mach = EM_AARCH64;
 #else
 #error Please provide the ELF e_machine value for your architecture.
 #endif

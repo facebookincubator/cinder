@@ -485,13 +485,15 @@ watch_sys_modules(PyObject *self, PyObject *obj)
 
 static PyObject *
 cinder_debug_break(PyObject *self, PyObject *obj) {
-#ifdef __x86_64__
     if (getenv("CINDER_SILENT_DEBUG_BREAK") == NULL) {
+#if defined(__x86_64__)
         __asm("int3");
-    }
+#elif defined(__aarch64__)
+        __asm("brk #0xCC");
 #else
 #error Please implement cinder_debug_break() for your platform.
 #endif
+    }
     Py_RETURN_NONE;
 }
 
