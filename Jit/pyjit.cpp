@@ -38,6 +38,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
 #include <thread>
 #include <unordered_set>
@@ -154,6 +155,10 @@ static std::unordered_map<PyFunctionObject*, std::chrono::duration<double>>
 // shutdown.
 static std::string g_write_profile_file;
 
+// If non-empty, jit compiled functions' names will be written to this filename
+// at shutdown.
+static std::string g_write_compiled_functions_file;
+
 // Frequently-used strings that we intern at JIT startup and hold references to.
 #define INTERNED_STRINGS(X) \
   X(bc_offset)              \
@@ -261,6 +266,7 @@ void initFlagProcessor() {
   jit_profile_interp = 0;
   jl_fn = "";
   jit_help = 0;
+  std::string write_compiled_functions_file = "";
   if (!xarg_flag_processor.hasOptions()) {
     // flags are inspected in order of definition below
     xarg_flag_processor.addOption(
@@ -376,6 +382,14 @@ void initFlagProcessor() {
             g_dump_asm,
             "log the final compiled code, annotated with HIR instructions")
         .withDebugMessageOverride("Dump asm of JITted functions");
+
+    xarg_flag_processor
+        .addOption(
+            "jit-dump-compiled-functions",
+            "PYTHONJITDUMPCOMPILEDFUNCTIONS",
+            g_write_compiled_functions_file,
+            "dump JIT compiled functions to <filename>")
+        .withFlagParamName("filename");
 
     xarg_flag_processor.addOption(
         "jit-gdb-support",
@@ -1836,6 +1850,17 @@ static void dump_jit_stats() {
   JIT_LOG("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str.get()));
 }
 
+static void dump_jit_compiled_functions(const std::string& filename) {
+  std::ofstream file(filename);
+  if (!file) {
+    JIT_LOG("Failed to open %s when dumping jit compiled functions", filename);
+    return;
+  }
+  for (BorrowedRef<PyFunctionObject> func : jit_ctx->compiled_funcs) {
+    file << funcFullname(func) << std::endl;
+  }
+}
+
 int _PyJIT_Finalize() {
   // Disable the JIT first so nothing we do in here ends up attempting to
   // invoke the JIT while we're finalizing our data structures.
@@ -1854,6 +1879,11 @@ int _PyJIT_Finalize() {
     g_write_profile_file.clear();
   }
   clearProfileData();
+
+  if (!g_write_compiled_functions_file.empty()) {
+    dump_jit_compiled_functions(g_write_compiled_functions_file);
+    g_write_compiled_functions_file.clear();
+  }
 
   // Always release references from Runtime objects: C++ clients may have
   // invoked the JIT directly without initializing a full _PyJITContext.
