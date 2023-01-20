@@ -10,6 +10,9 @@
 
 #include "internal/pycore_shadow_frame.h"   // _PyShadowFrame_GetGen(), _PyShadowFrame_SetGen()
 
+/** facebook: USDT import */
+#include "folly/tracing/StaticTracepoint.h"
+
 /*[clinic input]
 module _asyncio
 [clinic start generated code]*/
@@ -3174,6 +3177,7 @@ FutureIter_am_send(futureiterobject *it,
     it->future = NULL;
     res = _asyncio_Future_result_impl(fut);
     if (res != NULL) {
+        FOLLY_SDT(python, future_iter_resume, PyThreadState_GET()->frame);
         Py_DECREF(fut);
         *result = res;
         return PYGEN_RETURN;
