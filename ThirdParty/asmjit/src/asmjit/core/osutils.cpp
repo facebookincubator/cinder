@@ -1,11 +1,9 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/osutils.h"
 #include "../core/support.h"
 
@@ -19,10 +17,6 @@
 #endif
 
 ASMJIT_BEGIN_NAMESPACE
-
-// ============================================================================
-// [asmjit::OSUtils - GetTickCount]
-// ============================================================================
 
 uint32_t OSUtils::getTickCount() noexcept {
 #if defined(_WIN32)

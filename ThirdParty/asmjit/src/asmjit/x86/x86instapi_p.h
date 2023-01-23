@@ -1,11 +1,10 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_X86_X86INSTAPI_P_H
-#define _ASMJIT_X86_X86INSTAPI_P_H
+#ifndef ASMJIT_X86_X86INSTAPI_P_H_INCLUDED
+#define ASMJIT_X86_X86INSTAPI_P_H_INCLUDED
 
 #include "../core/inst.h"
 #include "../core/operand.h"
@@ -19,17 +18,17 @@ ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 namespace InstInternal {
 
 #ifndef ASMJIT_NO_TEXT
-Error instIdToString(uint32_t archId, uint32_t instId, String& output) noexcept;
-uint32_t stringToInstId(uint32_t archId, const char* s, size_t len) noexcept;
+Error ASMJIT_CDECL instIdToString(Arch arch, InstId instId, String& output) noexcept;
+InstId ASMJIT_CDECL stringToInstId(Arch arch, const char* s, size_t len) noexcept;
 #endif // !ASMJIT_NO_TEXT
 
 #ifndef ASMJIT_NO_VALIDATION
-Error validate(uint32_t archId, const BaseInst& inst, const Operand_* operands, uint32_t opCount) noexcept;
+Error ASMJIT_CDECL validate(Arch arch, const BaseInst& inst, const Operand_* operands, size_t opCount, ValidationFlags validationFlags) noexcept;
 #endif // !ASMJIT_NO_VALIDATION
 
 #ifndef ASMJIT_NO_INTROSPECTION
-Error queryRWInfo(uint32_t archId, const BaseInst& inst, const Operand_* operands, uint32_t opCount, InstRWInfo& out) noexcept;
-Error queryFeatures(uint32_t archId, const BaseInst& inst, const Operand_* operands, uint32_t opCount, BaseFeatures& out) noexcept;
+Error ASMJIT_CDECL queryRWInfo(Arch arch, const BaseInst& inst, const Operand_* operands, size_t opCount, InstRWInfo* out) noexcept;
+Error ASMJIT_CDECL queryFeatures(Arch arch, const BaseInst& inst, const Operand_* operands, size_t opCount, CpuFeatures* out) noexcept;
 #endif // !ASMJIT_NO_INTROSPECTION
 
 } // {InstInternal}
@@ -39,4 +38,4 @@ Error queryFeatures(uint32_t archId, const BaseInst& inst, const Operand_* opera
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // _ASMJIT_X86_X86INSTAPI_P_H
+#endif // ASMJIT_X86_X86INSTAPI_P_H_INCLUDED

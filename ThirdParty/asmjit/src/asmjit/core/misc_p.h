@@ -1,23 +1,24 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_MISC_P_H
-#define _ASMJIT_CORE_MISC_P_H
+#ifndef ASMJIT_CORE_MISC_P_H_INCLUDED
+#define ASMJIT_CORE_MISC_P_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
 //! \cond INTERNAL
-//! \addtogroup asmjit_support
+//! \addtogroup asmjit_utilities
 //! \{
 
-#define ASMJIT_LOOKUP_TABLE_8(T, I) T((I)), T((I+1)), T((I+2)), T((I+3)), T((I+4)), T((I+5)), T((I+6)), T((I+7))
+#define ASMJIT_LOOKUP_TABLE_4(T, I) T((I)), T((I+1)), T((I+2)), T((I+3))
+#define ASMJIT_LOOKUP_TABLE_8(T, I) ASMJIT_LOOKUP_TABLE_4(T, I), ASMJIT_LOOKUP_TABLE_4(T, I + 4)
 #define ASMJIT_LOOKUP_TABLE_16(T, I) ASMJIT_LOOKUP_TABLE_8(T, I), ASMJIT_LOOKUP_TABLE_8(T, I + 8)
 #define ASMJIT_LOOKUP_TABLE_32(T, I) ASMJIT_LOOKUP_TABLE_16(T, I), ASMJIT_LOOKUP_TABLE_16(T, I + 16)
+#define ASMJIT_LOOKUP_TABLE_40(T, I) ASMJIT_LOOKUP_TABLE_16(T, I), ASMJIT_LOOKUP_TABLE_16(T, I + 16), ASMJIT_LOOKUP_TABLE_8(T, I + 32)
 #define ASMJIT_LOOKUP_TABLE_64(T, I) ASMJIT_LOOKUP_TABLE_32(T, I), ASMJIT_LOOKUP_TABLE_32(T, I + 32)
 #define ASMJIT_LOOKUP_TABLE_128(T, I) ASMJIT_LOOKUP_TABLE_64(T, I), ASMJIT_LOOKUP_TABLE_64(T, I + 64)
 #define ASMJIT_LOOKUP_TABLE_256(T, I) ASMJIT_LOOKUP_TABLE_128(T, I), ASMJIT_LOOKUP_TABLE_128(T, I + 128)
@@ -29,4 +30,4 @@ ASMJIT_BEGIN_NAMESPACE
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_MISC_P_H
+#endif // ASMJIT_CORE_MISC_P_H_INCLUDED

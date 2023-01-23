@@ -1,22 +1,17 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_OSUTILS_H
-#define _ASMJIT_CORE_OSUTILS_H
+#ifndef ASMJIT_CORE_OSUTILS_H_INCLUDED
+#define ASMJIT_CORE_OSUTILS_H_INCLUDED
 
 #include "../core/globals.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-//! \addtogroup asmjit_support
+//! \addtogroup asmjit_utilities
 //! \{
-
-// ============================================================================
-// [asmjit::OSUtils]
-// ============================================================================
 
 //! Operating system utilities.
 namespace OSUtils {
@@ -24,73 +19,43 @@ namespace OSUtils {
   ASMJIT_API uint32_t getTickCount() noexcept;
 };
 
-// ============================================================================
-// [asmjit::Lock]
-// ============================================================================
 
 //! \cond INTERNAL
-
 //! Lock.
+//!
+//! Lock is internal, it cannot be used outside of AsmJit, however, its internal
+//! layout is exposed as it's used by some other classes, which are public.
 class Lock {
 public:
   ASMJIT_NONCOPYABLE(Lock)
 
-  #if defined(_WIN32)
-
-  typedef CRITICAL_SECTION Handle;
+#if defined(_WIN32)
+#pragma pack(push, 8)
+  struct ASMJIT_MAY_ALIAS Handle {
+    void* DebugInfo;
+    long LockCount;
+    long RecursionCount;
+    void* OwningThread;
+    void* LockSemaphore;
+    unsigned long* SpinCount;
+  };
   Handle _handle;
-
-  inline Lock() noexcept { InitializeCriticalSection(&_handle); }
-  inline ~Lock() noexcept { DeleteCriticalSection(&_handle); }
-
-  inline void lock() noexcept { EnterCriticalSection(&_handle); }
-  inline void unlock() noexcept { LeaveCriticalSection(&_handle); }
-
-  #elif !defined(__EMSCRIPTEN__)
-
+#pragma pack(pop)
+#elif !defined(__EMSCRIPTEN__)
   typedef pthread_mutex_t Handle;
   Handle _handle;
+#endif
 
-  inline Lock() noexcept { pthread_mutex_init(&_handle, nullptr); }
-  inline ~Lock() noexcept { pthread_mutex_destroy(&_handle); }
+  ASMJIT_FORCE_INLINE Lock() noexcept;
+  ASMJIT_FORCE_INLINE ~Lock() noexcept;
 
-  inline void lock() noexcept { pthread_mutex_lock(&_handle); }
-  inline void unlock() noexcept { pthread_mutex_unlock(&_handle); }
-
-  #else
-
-  // Browser or other unsupported OS.
-  inline Lock() noexcept {}
-  inline ~Lock() noexcept {}
-
-  inline void lock() noexcept {}
-  inline void unlock() noexcept {}
-
-  #endif
+  ASMJIT_FORCE_INLINE void lock() noexcept;
+  ASMJIT_FORCE_INLINE void unlock() noexcept;
 };
-
-//! \endcond
-
-// ============================================================================
-// [asmjit::ScopedLock]
-// ============================================================================
-
-//! \cond INTERNAL
-
-//! Scoped lock.
-struct ScopedLock {
-  ASMJIT_NONCOPYABLE(ScopedLock)
-
-  Lock& _target;
-
-  inline ScopedLock(Lock& target) noexcept : _target(target) { _target.lock(); }
-  inline ~ScopedLock() noexcept { _target.unlock(); }
-};
-
 //! \endcond
 
 //! \}
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_OSUTILS_H
+#endif // ASMJIT_CORE_OSUTILS_H_INCLUDED

@@ -1,8 +1,29 @@
-// [Broken]
-// Lightweight Unit Testing for C++.
+// Broken - Lightweight unit testing for C++
 //
-// [License]
-// Public Domain (Unlicense)
+// This is free and unencumbered software released into the public domain.
+//
+// Anyone is free to copy, modify, publish, use, compile, sell, or
+// distribute this software, either in source code form or as a compiled
+// binary, for any purpose, commercial or non-commercial, and by any
+// means.
+//
+// In jurisdictions that recognize copyright laws, the author or authors
+// of this software dedicate any and all copyright interest in the
+// software to the public domain. We make this dedication for the benefit
+// of the public at large and to the detriment of our heirs and
+// successors. We intend this dedication to be an overt act of
+// relinquishment in perpetuity of all present and future rights to this
+// software under copyright law.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+// OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
+// For more information, please refer to <http://unlicense.org>
 
 #include "./broken.h"
 #include <stdarg.h>
@@ -45,6 +66,14 @@ static bool BrokenAPI_startsWith(const char* a, const char* b) noexcept {
     if (b[i] == '\0') return true;
     if (a[i] != b[i]) return false;
   }
+}
+
+//! Compares names and priority of two unit tests.
+static int BrokenAPI_compareUnits(const BrokenAPI::Unit* a, const BrokenAPI::Unit* b) noexcept {
+  if (a->priority == b->priority)
+    return strcmp(a->name, b->name);
+  else
+    return a->priority > b->priority ? 1 : -1;
 }
 
 // Get whether the strings `a` and `b` are equal, ignoring case and treating
@@ -109,9 +138,17 @@ static void BrokenAPI_runAll() noexcept {
 
   bool hasUnits = unit != NULL;
   size_t count = 0;
+  int currentPriority = 0;
 
   while (unit != NULL) {
     if (BrokenAPI_canRun(unit)) {
+      if (currentPriority != unit->priority) {
+        if (count)
+          INFO("");
+        INFO("[[Priority=%d]]", unit->priority);
+      }
+
+      currentPriority = unit->priority;
       BrokenAPI_runUnit(unit);
       count++;
     }
@@ -134,7 +171,7 @@ static void BrokenAPI_listAll() noexcept {
   if (unit != NULL) {
     INFO("Units:");
     do {
-      INFO("  %s", unit->name);
+      INFO("  %s [priority=%d]", unit->name, unit->priority);
       unit = unit->next;
     } while (unit != NULL);
   }
@@ -155,7 +192,7 @@ void BrokenAPI::add(Unit* unit) noexcept {
   // C++ static initialization doesn't guarantee anything. We sort all units by
   // name so the execution will always happen in deterministic order.
   while (current != NULL) {
-    if (strcmp(current->name, unit->name) >= 0)
+    if (BrokenAPI_compareUnits(current, unit) >= 0)
       break;
 
     pPrev = &current->next;
@@ -172,7 +209,7 @@ void BrokenAPI::setOutputFile(FILE* file) noexcept {
   global._file = file;
 }
 
-int BrokenAPI::run(int argc, const char* argv[], Entry onBeforeRun, Entry onAfterRun) noexcept {
+int BrokenAPI::run(int argc, const char* argv[], Entry onBeforeRun, Entry onAfterRun) {
   BrokenGlobal& global = _brokenGlobal;
 
   global._argc = argc;
@@ -183,7 +220,7 @@ int BrokenAPI::run(int argc, const char* argv[], Entry onBeforeRun, Entry onAfte
     INFO("  --help    - print this usage");
     INFO("  --list    - list all tests");
     INFO("  --run-... - run a test(s), trailing wildcards supported");
-    INFO("  --run-all - run all tests");
+    INFO("  --run-all - run all tests (default)");
     return 0;
   }
 
@@ -248,22 +285,27 @@ static void BrokenAPI_printMessage(const char* prefix, const char* fmt, va_list 
 
 void BrokenAPI::info(const char* fmt, ...) noexcept {
   BrokenGlobal& global = _brokenGlobal;
+
   va_list ap;
   va_start(ap, fmt);
   BrokenAPI_printMessage(global._unitRunning ? "  " : "", fmt, ap);
   va_end(ap);
 }
 
-void BrokenAPI::fail(const char* file, int line, const char* fmt, ...) noexcept {
+void BrokenAPI::fail(const char* file, int line, const char* expression, const char* fmt, ...) noexcept {
   BrokenGlobal& global = _brokenGlobal;
   FILE* dst = global.file();
 
-  va_list ap;
-  va_start(ap, fmt);
-  BrokenAPI_printMessage("  FAILED!", fmt, ap);
-  va_end(ap);
+  fprintf(dst, "  FAILED: %s\n", expression);
 
-  fprintf(dst, "  File: %s (Line: %d)\n", file, line);
+  if (fmt) {
+    va_list ap;
+    va_start(ap, fmt);
+    BrokenAPI_printMessage("  REASON: ", fmt, ap);
+    va_end(ap);
+  }
+
+  fprintf(dst, "  SOURCE: %s (Line: %d)\n", file, line);
   fflush(dst);
 
   exit(1);

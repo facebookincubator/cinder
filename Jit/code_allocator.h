@@ -41,8 +41,8 @@ class CodeAllocator {
 
   static void freeGlobalCodeAllocator();
 
-  const asmjit::CodeInfo& asmJitCodeInfo() {
-    return _runtime->codeInfo();
+  const asmjit::Environment& asmJitEnvironment() {
+    return _runtime->environment();
   }
 
   virtual asmjit::Error addCode(

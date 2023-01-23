@@ -1,48 +1,21 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
-#include "../core/build.h"
-#ifdef ASMJIT_BUILD_X86
+#include "../core/api-build_p.h"
+#if !defined(ASMJIT_NO_X86)
 
 #include "../core/misc_p.h"
 #include "../x86/x86operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 
-// ============================================================================
-// [asmjit::x86::OpData]
-// ============================================================================
-
-const OpData opData = {
-  {
-    // RegInfo[]
-    #define VALUE(X) { RegTraits<X>::kSignature }
-    { ASMJIT_LOOKUP_TABLE_32(VALUE, 0) },
-    #undef VALUE
-
-    // RegCount[]
-    #define VALUE(X) RegTraits<X>::kCount
-    { ASMJIT_LOOKUP_TABLE_32(VALUE, 0) },
-    #undef VALUE
-
-    // RegTypeToTypeId[]
-    #define VALUE(X) RegTraits<X>::kTypeId
-    { ASMJIT_LOOKUP_TABLE_32(VALUE, 0) }
-    #undef VALUE
-  }
-};
-
-// ============================================================================
-// [asmjit::x86::Operand - Unit]
-// ============================================================================
+// x86::Operand - Tests
+// ====================
 
 #if defined(ASMJIT_TEST)
-UNIT(asmjit_x86_operand) {
+UNIT(x86_operand) {
   Label L(1000); // Label with some ID.
 
   INFO("Checking basic properties of built-in X86 registers");
@@ -100,16 +73,16 @@ UNIT(asmjit_x86_operand) {
   EXPECT(eax.isReg() == true);
   EXPECT(eax.id() == 0);
   EXPECT(eax.size() == 4);
-  EXPECT(eax.type() == Reg::kTypeGpd);
-  EXPECT(eax.group() == Reg::kGroupGp);
+  EXPECT(eax.type() == RegType::kX86_Gpd);
+  EXPECT(eax.group() == RegGroup::kGp);
 
   INFO("Checking x86::Xmm register properties");
   EXPECT(Xmm().isReg() == true);
   EXPECT(xmm4.isReg() == true);
   EXPECT(xmm4.id() == 4);
   EXPECT(xmm4.size() == 16);
-  EXPECT(xmm4.type() == Reg::kTypeXmm);
-  EXPECT(xmm4.group() == Reg::kGroupVec);
+  EXPECT(xmm4.type() == RegType::kX86_Xmm);
+  EXPECT(xmm4.group() == RegGroup::kVec);
   EXPECT(xmm4.isVec());
 
   INFO("Checking x86::Ymm register properties");
@@ -117,8 +90,8 @@ UNIT(asmjit_x86_operand) {
   EXPECT(ymm5.isReg() == true);
   EXPECT(ymm5.id() == 5);
   EXPECT(ymm5.size() == 32);
-  EXPECT(ymm5.type() == Reg::kTypeYmm);
-  EXPECT(ymm5.group() == Reg::kGroupVec);
+  EXPECT(ymm5.type() == RegType::kX86_Ymm);
+  EXPECT(ymm5.group() == RegGroup::kVec);
   EXPECT(ymm5.isVec());
 
   INFO("Checking x86::Zmm register properties");
@@ -126,8 +99,8 @@ UNIT(asmjit_x86_operand) {
   EXPECT(zmm6.isReg() == true);
   EXPECT(zmm6.id() == 6);
   EXPECT(zmm6.size() == 64);
-  EXPECT(zmm6.type() == Reg::kTypeZmm);
-  EXPECT(zmm6.group() == Reg::kGroupVec);
+  EXPECT(zmm6.type() == RegType::kX86_Zmm);
+  EXPECT(zmm6.group() == RegGroup::kVec);
   EXPECT(zmm6.isVec());
 
   INFO("Checking x86::Vec register properties");
@@ -140,29 +113,41 @@ UNIT(asmjit_x86_operand) {
   EXPECT(zmm6.cloneAs(xmm14) == xmm6);
   EXPECT(zmm6.cloneAs(ymm15) == ymm6);
 
-  INFO("Checking x86::FpMm register properties");
+  EXPECT(xmm7.xmm() == xmm7);
+  EXPECT(xmm7.ymm() == ymm7);
+  EXPECT(xmm7.zmm() == zmm7);
+
+  EXPECT(ymm7.xmm() == xmm7);
+  EXPECT(ymm7.ymm() == ymm7);
+  EXPECT(ymm7.zmm() == zmm7);
+
+  EXPECT(zmm7.xmm() == xmm7);
+  EXPECT(zmm7.ymm() == ymm7);
+  EXPECT(zmm7.zmm() == zmm7);
+
+  INFO("Checking x86::Mm register properties");
   EXPECT(Mm().isReg() == true);
   EXPECT(mm2.isReg() == true);
   EXPECT(mm2.id() == 2);
   EXPECT(mm2.size() == 8);
-  EXPECT(mm2.type() == Reg::kTypeMm);
-  EXPECT(mm2.group() == Reg::kGroupMm);
+  EXPECT(mm2.type() == RegType::kX86_Mm);
+  EXPECT(mm2.group() == RegGroup::kX86_MM);
 
   INFO("Checking x86::KReg register properties");
   EXPECT(KReg().isReg() == true);
   EXPECT(k3.isReg() == true);
   EXPECT(k3.id() == 3);
   EXPECT(k3.size() == 0);
-  EXPECT(k3.type() == Reg::kTypeKReg);
-  EXPECT(k3.group() == Reg::kGroupKReg);
+  EXPECT(k3.type() == RegType::kX86_KReg);
+  EXPECT(k3.group() == RegGroup::kX86_K);
 
   INFO("Checking x86::St register properties");
   EXPECT(St().isReg() == true);
   EXPECT(st1.isReg() == true);
   EXPECT(st1.id() == 1);
   EXPECT(st1.size() == 10);
-  EXPECT(st1.type() == Reg::kTypeSt);
-  EXPECT(st1.group() == Reg::kGroupSt);
+  EXPECT(st1.type() == RegType::kX86_St);
+  EXPECT(st1.group() == RegGroup::kX86_St);
 
   INFO("Checking if default constructed regs behave as expected");
   EXPECT(Reg().isValid() == false);
@@ -203,13 +188,15 @@ UNIT(asmjit_x86_operand) {
   m.addOffset(1);
   EXPECT(m.offset() == int64_t(0x0123456789ABCDF0u));
 
-  m = ptr(0x0123456789ABCDEFu, rdi, 4);
+  m = ptr(0x0123456789ABCDEFu, rdi, 3);
+  EXPECT(m.hasSegment() == false);
   EXPECT(m.hasBase() == false);
   EXPECT(m.hasBaseReg() == false);
   EXPECT(m.hasIndex() == true);
   EXPECT(m.hasIndexReg() == true);
   EXPECT(m.indexType() == rdi.type());
   EXPECT(m.indexId() == rdi.id());
+  EXPECT(m.shift() == 3);
   EXPECT(m.hasOffset() == true);
   EXPECT(m.isOffset64Bit() == true);
   EXPECT(m.offset() == int64_t(0x0123456789ABCDEFu));
@@ -225,7 +212,7 @@ UNIT(asmjit_x86_operand) {
   EXPECT(m.baseId() == rax.id());
   EXPECT(m.hasIndex() == false);
   EXPECT(m.hasIndexReg() == false);
-  EXPECT(m.indexType() == 0);
+  EXPECT(m.indexType() == RegType::kNone);
   EXPECT(m.indexId() == 0);
   EXPECT(m.hasOffset() == false);
   EXPECT(m.isOffset64Bit() == false);
@@ -241,4 +228,4 @@ UNIT(asmjit_x86_operand) {
 
 ASMJIT_END_SUB_NAMESPACE
 
-#endif // ASMJIT_BUILD_X86
+#endif // !ASMJIT_NO_X86

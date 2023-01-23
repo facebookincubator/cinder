@@ -1,24 +1,21 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/zone.h"
 #include "../core/zonelist.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::ZoneList - Unit]
-// ============================================================================
+// ZoneList - Tests
+// ================
 
 #if defined(ASMJIT_TEST)
 class MyListNode : public ZoneListNode<MyListNode> {};
 
-UNIT(asmjit_zone_list) {
+UNIT(zone_list) {
   Zone zone(4096);
   ZoneList<MyListNode> list;
 

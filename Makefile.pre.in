@@ -614,21 +614,38 @@ OBJECT_OBJS=	\
 
 ##########################################################################
 # asmjit objects
-ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/core/arch.o \
+ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64builder.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64compiler.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64emithelper.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64formatter.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64func.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64instapi.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64instdb.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64operand.o \
+		$(ASMJIT_DIR)/asmjit/arm/a64rapass.o \
+		$(ASMJIT_DIR)/asmjit/arm/armformatter.o \
+		$(ASMJIT_DIR)/asmjit/core/archtraits.o \
         $(ASMJIT_DIR)/asmjit/core/assembler.o \
         $(ASMJIT_DIR)/asmjit/core/builder.o \
-        $(ASMJIT_DIR)/asmjit/core/callconv.o \
         $(ASMJIT_DIR)/asmjit/core/codeholder.o \
+        $(ASMJIT_DIR)/asmjit/core/codewriter.o \
         $(ASMJIT_DIR)/asmjit/core/compiler.o \
         $(ASMJIT_DIR)/asmjit/core/constpool.o \
         $(ASMJIT_DIR)/asmjit/core/cpuinfo.o \
+        $(ASMJIT_DIR)/asmjit/core/emithelper.o \
         $(ASMJIT_DIR)/asmjit/core/emitter.o \
+        $(ASMJIT_DIR)/asmjit/core/emitterutils.o \
+        $(ASMJIT_DIR)/asmjit/core/environment.o \
+        $(ASMJIT_DIR)/asmjit/core/errorhandler.o \
+        $(ASMJIT_DIR)/asmjit/core/formatter.o \
+        $(ASMJIT_DIR)/asmjit/core/funcargscontext.o \
         $(ASMJIT_DIR)/asmjit/core/func.o \
         $(ASMJIT_DIR)/asmjit/core/globals.o \
         $(ASMJIT_DIR)/asmjit/core/inst.o \
         $(ASMJIT_DIR)/asmjit/core/jitallocator.o \
         $(ASMJIT_DIR)/asmjit/core/jitruntime.o \
-        $(ASMJIT_DIR)/asmjit/core/logging.o \
+        $(ASMJIT_DIR)/asmjit/core/logger.o \
         $(ASMJIT_DIR)/asmjit/core/operand.o \
         $(ASMJIT_DIR)/asmjit/core/osutils.o \
         $(ASMJIT_DIR)/asmjit/core/ralocal.o \
@@ -647,13 +664,12 @@ ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/core/arch.o \
         $(ASMJIT_DIR)/asmjit/core/zonevector.o \
         $(ASMJIT_DIR)/asmjit/x86/x86assembler.o \
         $(ASMJIT_DIR)/asmjit/x86/x86builder.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86callconv.o \
         $(ASMJIT_DIR)/asmjit/x86/x86compiler.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86features.o \
+        $(ASMJIT_DIR)/asmjit/x86/x86emithelper.o \
+        $(ASMJIT_DIR)/asmjit/x86/x86formatter.o \
+        $(ASMJIT_DIR)/asmjit/x86/x86func.o \
         $(ASMJIT_DIR)/asmjit/x86/x86instapi.o \
         $(ASMJIT_DIR)/asmjit/x86/x86instdb.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86internal.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86logging.o \
         $(ASMJIT_DIR)/asmjit/x86/x86operand.o \
         $(ASMJIT_DIR)/asmjit/x86/x86rapass.o
 

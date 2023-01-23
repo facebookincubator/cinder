@@ -49,7 +49,7 @@ class BackendTest : public RuntimeTest {
     post_rewrite.run();
 
     asmjit::CodeHolder code;
-    code.init(CodeAllocator::get()->asmJitCodeInfo());
+    code.init(CodeAllocator::get()->asmJitEnvironment());
 
     asmjit::x86::Builder as(&code);
 

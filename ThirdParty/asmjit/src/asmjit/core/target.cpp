@@ -1,22 +1,16 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/target.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::Target - Construction / Destruction]
-// ============================================================================
-
 Target::Target() noexcept
-  : _targetType(kTargetNone),
-    _codeInfo() {}
+  : _environment{},
+    _cpuFeatures{} {}
 Target::~Target() noexcept {}
 
 ASMJIT_END_NAMESPACE

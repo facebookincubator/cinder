@@ -216,7 +216,7 @@ void* NativeGenerator::getVectorcallEntry() {
   JIT_CHECK(as_ == nullptr, "x86::Builder should not have been initialized.");
 
   CodeHolder code;
-  code.init(CodeAllocator::get()->asmJitCodeInfo());
+  code.init(CodeAllocator::get()->asmJitEnvironment());
   ThrowableErrorHandler eh;
   code.setErrorHandler(&eh);
 
@@ -379,7 +379,8 @@ void* NativeGenerator::getVectorcallEntry() {
 
   } catch (const AsmJitException& ex) {
     String s;
-    as_->dump(s);
+    FormatOptions formatOptions;
+    Formatter::formatNodeList(s, formatOptions, as_);
     JIT_CHECK(
         false,
         "Failed to emit code for '%s': '%s' failed with '%s'\n\n"
@@ -922,7 +923,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   as_->lea(x86::r8, x86::ptr(x86::r8, x86::rcx, 3));
   as_->jmp(x86::r8);
   auto jump_table_cursor = as_->cursor();
-  as_->align(AlignMode::kAlignCode, 8);
+  as_->align(AlignMode::kCode, 8);
   as_->bind(table_label);
   std::vector<Label> arg_labels;
   int defaulted_arg_count = 0;
@@ -932,7 +933,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   auto next_arg = as_->newLabel();
   arg_labels.emplace_back(next_arg);
   while (defaulted_arg_count < GetFunction()->numArgs()) {
-    as_->align(AlignMode::kAlignCode, 8);
+    as_->align(AlignMode::kCode, 8);
     as_->jmp(next_arg);
 
     if (check_index >= 0) {
@@ -953,7 +954,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
   env_.addAnnotation(
       fmt::format("Jump to first non-defaulted argument"), jump_table_cursor);
 
-  as_->align(AlignMode::kAlignCode, 8);
+  as_->align(AlignMode::kCode, 8);
   as_->bind(arg_labels[0]);
   for (Py_ssize_t i = checks.size() - 1; i >= 0; i--) {
     auto check_cursor = as_->cursor();
@@ -1639,7 +1640,7 @@ static PyObject* resumeInInterpreter(
 
 void* generateDeoptTrampoline(bool generator_mode) {
   CodeHolder code;
-  code.init(CodeAllocator::get()->asmJitCodeInfo());
+  code.init(CodeAllocator::get()->asmJitEnvironment());
   x86::Builder a(&code);
   Annotations annot;
 
@@ -1828,7 +1829,7 @@ void* generateDeoptTrampoline(bool generator_mode) {
 
 void* generateFailedDeferredCompileTrampoline() {
   CodeHolder code;
-  code.init(CodeAllocator::get()->asmJitCodeInfo());
+  code.init(CodeAllocator::get()->asmJitEnvironment());
   x86::Builder a(&code);
   Annotations annot;
 

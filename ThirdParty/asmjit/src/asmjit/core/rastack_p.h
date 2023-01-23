@@ -1,13 +1,12 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_RASTACK_P_H
-#define _ASMJIT_CORE_RASTACK_P_H
+#ifndef ASMJIT_CORE_RASTACK_P_H_INCLUDED
+#define ASMJIT_CORE_RASTACK_P_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
 #include "../core/radefs_p.h"
@@ -18,39 +17,42 @@ ASMJIT_BEGIN_NAMESPACE
 //! \addtogroup asmjit_ra
 //! \{
 
-// ============================================================================
-// [asmjit::RAStackSlot]
-// ============================================================================
-
 //! Stack slot.
 struct RAStackSlot {
-  enum Flags : uint32_t {
-    // TODO: kFlagRegHome is apparently not used, but isRegHome() is.
-    kFlagRegHome          = 0x00000001u, //!< Stack slot is register home slot.
-    kFlagStackArg         = 0x00000002u  //!< Stack slot position matches argument passed via stack.
+  //! Stack slot flags.
+  //!
+  //! TODO: kFlagStackArg is not used by the current implementation, do we need to keep it?
+  enum Flags : uint16_t {
+    //! Stack slot is register home slot.
+    kFlagRegHome = 0x0001u,
+    //! Stack slot position matches argument passed via stack.
+    kFlagStackArg = 0x0002u
   };
 
   enum ArgIndex : uint32_t {
     kNoArgIndex = 0xFF
   };
 
+  //! \name Members
+  //! \{
+
   //! Base register used to address the stack.
   uint8_t _baseRegId;
   //! Minimum alignment required by the slot.
   uint8_t _alignment;
   //! Reserved for future use.
-  uint8_t _reserved[2];
+  uint16_t _flags;
   //! Size of memory required by the slot.
   uint32_t _size;
-  //! Slot flags.
-  uint32_t _flags;
 
   //! Usage counter (one unit equals one memory access).
   uint32_t _useCount;
-  //! Weight of the slot (calculated by `calculateStackFrame()`).
+  //! Weight of the slot, calculated by \ref RAStackAllocator::calculateStackFrame().
   uint32_t _weight;
-  //! Stack offset (calculated by `calculateStackFrame()`).
+  //! Stack offset, calculated by \ref RAStackAllocator::calculateStackFrame().
   int32_t _offset;
+
+  //! \}
 
   //! \name Accessors
   //! \{
@@ -62,9 +64,11 @@ struct RAStackSlot {
   inline uint32_t alignment() const noexcept { return _alignment; }
 
   inline uint32_t flags() const noexcept { return _flags; }
-  inline void addFlags(uint32_t flags) noexcept { _flags |= flags; }
-  inline bool isRegHome() const noexcept { return (_flags & kFlagRegHome) != 0; }
-  inline bool isStackArg() const noexcept { return (_flags & kFlagStackArg) != 0; }
+  inline bool hasFlag(uint32_t flag) const noexcept { return (_flags & flag) != 0; }
+  inline void addFlags(uint32_t flags) noexcept { _flags = uint16_t(_flags | flags); }
+
+  inline bool isRegHome() const noexcept { return hasFlag(kFlagRegHome); }
+  inline bool isStackArg() const noexcept { return hasFlag(kFlagStackArg); }
 
   inline uint32_t useCount() const noexcept { return _useCount; }
   inline void addUseCount(uint32_t n = 1) noexcept { _useCount += n; }
@@ -79,10 +83,6 @@ struct RAStackSlot {
 };
 
 typedef ZoneVector<RAStackSlot*> RAStackSlots;
-
-// ============================================================================
-// [asmjit::RAStackAllocator]
-// ============================================================================
 
 //! Stack allocator.
 class RAStackAllocator {
@@ -100,6 +100,9 @@ public:
     kSizeCount = 7
   };
 
+  //! \name Members
+  //! \{
+
   //! Allocator used to allocate internal data.
   ZoneAllocator* _allocator;
   //! Count of bytes used by all slots.
@@ -111,7 +114,9 @@ public:
   //! Stack slots vector.
   RAStackSlots _slots;
 
-  //! \name Construction / Destruction
+  //! \}
+
+  //! \name Construction & Destruction
   //! \{
 
   inline RAStackAllocator() noexcept
@@ -163,4 +168,4 @@ public:
 ASMJIT_END_NAMESPACE
 
 #endif // !ASMJIT_NO_COMPILER
-#endif // _ASMJIT_CORE_RASTACK_P_H
+#endif // ASMJIT_CORE_RASTACK_P_H_INCLUDED

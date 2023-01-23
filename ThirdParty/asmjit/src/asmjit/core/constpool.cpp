@@ -1,26 +1,22 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/constpool.h"
 #include "../core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::ConstPool - Construction / Destruction]
-// ============================================================================
+// ConstPool - Construction & Destruction
+// ======================================
 
 ConstPool::ConstPool(Zone* zone) noexcept { reset(zone); }
 ConstPool::~ConstPool() noexcept {}
 
-// ============================================================================
-// [asmjit::ConstPool - Reset]
-// ============================================================================
+// ConstPool - Reset
+// =================
 
 void ConstPool::reset(Zone* zone) noexcept {
   _zone = zone;
@@ -36,13 +32,13 @@ void ConstPool::reset(Zone* zone) noexcept {
   _gapPool = nullptr;
   _size = 0;
   _alignment = 0;
+  _minItemSize = 0;
 }
 
-// ============================================================================
-// [asmjit::ConstPool - Ops]
-// ============================================================================
+// ConstPool - Operations
+// ======================
 
-static ASMJIT_INLINE ConstPool::Gap* ConstPool_allocGap(ConstPool* self) noexcept {
+static inline ConstPool::Gap* ConstPool_allocGap(ConstPool* self) noexcept {
   ConstPool::Gap* gap = self->_gapPool;
   if (!gap)
     return self->_zone->allocT<ConstPool::Gap>();
@@ -51,7 +47,7 @@ static ASMJIT_INLINE ConstPool::Gap* ConstPool_allocGap(ConstPool* self) noexcep
   return gap;
 }
 
-static ASMJIT_INLINE void ConstPool_freeGap(ConstPool* self, ConstPool::Gap* gap) noexcept {
+static inline void ConstPool_freeGap(ConstPool* self, ConstPool::Gap* gap) noexcept {
   gap->_next = self->_gapPool;
   self->_gapPool = gap;
 }
@@ -63,7 +59,11 @@ static void ConstPool_addGap(ConstPool* self, size_t offset, size_t size) noexce
     size_t gapIndex;
     size_t gapSize;
 
-    if (size >= 16 && Support::isAligned<size_t>(offset, 16)) {
+    if (size >= 32 && Support::isAligned<size_t>(offset, 32)) {
+      gapIndex = ConstPool::kIndex32;
+      gapSize = 32;
+    }
+    else if (size >= 16 && Support::isAligned<size_t>(offset, 16)) {
       gapIndex = ConstPool::kIndex16;
       gapSize = 16;
     }
@@ -84,9 +84,8 @@ static void ConstPool_addGap(ConstPool* self, size_t offset, size_t size) noexce
       gapSize = 1;
     }
 
-    // We don't have to check for errors here, if this failed nothing really
-    // happened (just the gap won't be visible) and it will fail again at
-    // place where the same check would generate `kErrorOutOfMemory` error.
+    // We don't have to check for errors here, if this failed nothing really happened (just the gap won't be
+    // visible) and it will fail again at place where the same check would generate `kErrorOutOfMemory` error.
     ConstPool::Gap* gap = ConstPool_allocGap(self);
     if (!gap)
       return;
@@ -105,7 +104,9 @@ static void ConstPool_addGap(ConstPool* self, size_t offset, size_t size) noexce
 Error ConstPool::add(const void* data, size_t size, size_t& dstOffset) noexcept {
   size_t treeIndex;
 
-  if (size == 32)
+  if (size == 64)
+    treeIndex = kIndex64;
+  else if (size == 32)
     treeIndex = kIndex32;
   else if (size == 16)
     treeIndex = kIndex16;
@@ -126,8 +127,7 @@ Error ConstPool::add(const void* data, size_t size, size_t& dstOffset) noexcept 
     return kErrorOk;
   }
 
-  // Before incrementing the current offset try if there is a gap that can
-  // be used for the requested data.
+  // Before incrementing the current offset try if there is a gap that can be used for the requested data.
   size_t offset = ~size_t(0);
   size_t gapIndex = treeIndex;
 
@@ -155,8 +155,7 @@ Error ConstPool::add(const void* data, size_t size, size_t& dstOffset) noexcept 
   }
 
   if (offset == ~size_t(0)) {
-    // Get how many bytes have to be skipped so the address is aligned accordingly
-    // to the 'size'.
+    // Get how many bytes have to be skipped so the address is aligned accordingly to the 'size'.
     size_t diff = Support::alignUpDiff<size_t>(_size, size);
 
     if (diff != 0) {
@@ -170,40 +169,46 @@ Error ConstPool::add(const void* data, size_t size, size_t& dstOffset) noexcept 
 
   // Add the initial node to the right index.
   node = ConstPool::Tree::_newNode(_zone, data, size, offset, false);
-  if (!node) return DebugUtils::errored(kErrorOutOfMemory);
+  if (ASMJIT_UNLIKELY(!node))
+    return DebugUtils::errored(kErrorOutOfMemory);
 
   _tree[treeIndex].insert(node);
   _alignment = Support::max<size_t>(_alignment, size);
 
   dstOffset = offset;
 
-  // Now create a bunch of shared constants that are based on the data pattern.
-  // We stop at size 4, it probably doesn't make sense to split constants down
-  // to 1 byte.
+  // Now create a bunch of shared constants that are based on the data pattern. We stop at size 4,
+  // it probably doesn't make sense to split constants down to 1 byte.
   size_t pCount = 1;
-  while (size > 4) {
-    size >>= 1;
+  size_t smallerSize = size;
+
+  while (smallerSize > 4) {
     pCount <<= 1;
+    smallerSize >>= 1;
 
     ASMJIT_ASSERT(treeIndex != 0);
     treeIndex--;
 
     const uint8_t* pData = static_cast<const uint8_t*>(data);
-    for (size_t i = 0; i < pCount; i++, pData += size) {
+    for (size_t i = 0; i < pCount; i++, pData += smallerSize) {
       node = _tree[treeIndex].get(pData);
       if (node) continue;
 
-      node = ConstPool::Tree::_newNode(_zone, pData, size, offset + (i * size), true);
+      node = ConstPool::Tree::_newNode(_zone, pData, smallerSize, offset + (i * smallerSize), true);
       _tree[treeIndex].insert(node);
     }
   }
 
+  if (_minItemSize == 0)
+    _minItemSize = size;
+  else
+    _minItemSize = Support::min(_minItemSize, size);
+
   return kErrorOk;
 }
 
-// ============================================================================
-// [asmjit::ConstPool - Reset]
-// ============================================================================
+// ConstPool - Reset
+// =================
 
 struct ConstPoolFill {
   inline ConstPoolFill(uint8_t* dst, size_t dataSize) noexcept :
@@ -230,19 +235,18 @@ void ConstPool::fill(void* dst) const noexcept {
   }
 }
 
-// ============================================================================
-// [asmjit::ConstPool - Unit]
-// ============================================================================
+// ConstPool - Tests
+// =================
 
 #if defined(ASMJIT_TEST)
-UNIT(asmjit_core_const_pool) {
+UNIT(const_pool) {
   Zone zone(32384 - Zone::kBlockOverhead);
   ConstPool pool(&zone);
 
   uint32_t i;
   uint32_t kCount = BrokenAPI::hasArg("--quick") ? 1000 : 1000000;
 
-  INFO("Adding %u constants to the pool.", kCount);
+  INFO("Adding %u constants to the pool", kCount);
   {
     size_t prevOffset;
     size_t curOffset;
@@ -262,7 +266,7 @@ UNIT(asmjit_core_const_pool) {
     EXPECT(pool.alignment() == 8);
   }
 
-  INFO("Retrieving %u constants from the pool.", kCount);
+  INFO("Retrieving %u constants from the pool", kCount);
   {
     uint64_t c = 0x0101010101010101u;
 

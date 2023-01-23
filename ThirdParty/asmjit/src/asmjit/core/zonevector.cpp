@@ -1,20 +1,17 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 #include "../core/zone.h"
 #include "../core/zonevector.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::ZoneVectorBase - Helpers]
-// ============================================================================
+// ZoneVectorBase - Helpers
+// ========================
 
 Error ZoneVectorBase::_grow(ZoneAllocator* allocator, uint32_t sizeOfT, uint32_t n) noexcept {
   uint32_t threshold = Globals::kGrowThreshold / sizeOfT;
@@ -96,9 +93,8 @@ Error ZoneVectorBase::_resize(ZoneAllocator* allocator, uint32_t sizeOfT, uint32
   return kErrorOk;
 }
 
-// ============================================================================
-// [asmjit::ZoneBitVector - Ops]
-// ============================================================================
+// ZoneBitVector - Operations
+// ==========================
 
 Error ZoneBitVector::copyFrom(ZoneAllocator* allocator, const ZoneBitVector& other) noexcept {
   BitWord* data = _data;
@@ -110,7 +106,7 @@ Error ZoneBitVector::copyFrom(ZoneAllocator* allocator, const ZoneBitVector& oth
   }
 
   if (newSize > _capacity) {
-    // Realloc needed... Calculate the minimum capacity (in bytes) requied.
+    // Realloc needed... Calculate the minimum capacity (in bytes) required.
     uint32_t minimumCapacityInBits = Support::alignUp<uint32_t>(newSize, kBitWordSizeInBits);
     if (ASMJIT_UNLIKELY(minimumCapacityInBits < newSize))
       return DebugUtils::errored(kErrorOutOfMemory);
@@ -170,7 +166,7 @@ Error ZoneBitVector::_resize(ZoneAllocator* allocator, uint32_t newSize, uint32_
   BitWord* data = _data;
 
   if (newSize > _capacity) {
-    // Realloc needed, calculate the minimum capacity (in bytes) requied.
+    // Realloc needed, calculate the minimum capacity (in bytes) required.
     uint32_t minimumCapacityInBits = Support::alignUp<uint32_t>(idealCapacity, kBitWordSizeInBits);
 
     if (ASMJIT_UNLIKELY(minimumCapacityInBits < newSize))
@@ -264,9 +260,8 @@ Error ZoneBitVector::_append(ZoneAllocator* allocator, bool value) noexcept {
   return _resize(allocator, newSize, idealCapacity, value);
 }
 
-// ============================================================================
-// [asmjit::ZoneVector / ZoneBitVector - Unit]
-// ============================================================================
+// ZoneVector / ZoneBitVector - Tests
+// ==================================
 
 #if defined(ASMJIT_TEST)
 template<typename T>
@@ -295,6 +290,8 @@ static void test_zone_vector(ZoneAllocator* allocator, const char* typeName) {
   EXPECT(vec.empty() == false);
   EXPECT(vec.size() == uint32_t(kMax));
   EXPECT(vec.indexOf(T(kMax - 1)) == uint32_t(kMax - 1));
+
+  EXPECT(vec.rbegin()[0] == kMax - 1);
 
   vec.release(allocator);
 }
@@ -346,7 +343,7 @@ static void test_zone_bitvector(ZoneAllocator* allocator) {
   }
 }
 
-UNIT(asmjit_zone_vector) {
+UNIT(zone_vector) {
   Zone zone(8096 - Zone::kBlockOverhead);
   ZoneAllocator allocator(&zone);
 

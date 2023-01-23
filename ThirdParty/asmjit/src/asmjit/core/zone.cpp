@@ -1,27 +1,23 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 #include "../core/zone.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::Zone - Statics]
-// ============================================================================
+// Zone - Globals
+// ==============
 
-// Zero size block used by `Zone` that doesn't have any memory allocated.
-// Should be allocated in read-only memory and should never be modified.
+// Zero size block used by `Zone` that doesn't have any memory allocated. Should be allocated in read-only memory
+// and should never be modified.
 const Zone::Block Zone::_zeroBlock = { nullptr, nullptr, 0 };
 
-// ============================================================================
-// [asmjit::Zone - Init / Reset]
-// ============================================================================
+// Zone - Init & Reset
+// ===================
 
 void Zone::_init(size_t blockSize, size_t blockAlignment, const Support::Temporary* temporary) noexcept {
   ASMJIT_ASSERT(blockSize >= kMinBlockSize);
@@ -50,28 +46,27 @@ void Zone::_init(size_t blockSize, size_t blockAlignment, const Support::Tempora
   }
 }
 
-void Zone::reset(uint32_t resetPolicy) noexcept {
+void Zone::reset(ResetPolicy resetPolicy) noexcept {
   Block* cur = _block;
 
   // Can't be altered.
   if (cur == &_zeroBlock)
     return;
 
-  if (resetPolicy == Globals::kResetHard) {
+  if (resetPolicy == ResetPolicy::kHard) {
     Block* initial = const_cast<Zone::Block*>(&_zeroBlock);
     _ptr = initial->data();
     _end = initial->data();
     _block = initial;
 
-    // Since cur can be in the middle of the double-linked list, we have to
-    // traverse both directions (`prev` and `next`) separately to visit all.
+    // Since cur can be in the middle of the double-linked list, we have to traverse both directions (`prev` and
+    // `next`) separately to visit all.
     Block* next = cur->next;
     do {
       Block* prev = cur->prev;
 
-      // If this is the first block and this ZoneTmp is temporary then the
-      // first block is statically allocated. We cannot free it and it makes
-      // sense to keep it even when this is hard reset.
+      // If this is the first block and this ZoneTmp is temporary then the first block is statically allocated.
+      // We cannot free it and it makes sense to keep it even when this is hard reset.
       if (prev == nullptr && _isTemporary) {
         cur->prev = nullptr;
         cur->next = nullptr;
@@ -97,9 +92,8 @@ void Zone::reset(uint32_t resetPolicy) noexcept {
   }
 }
 
-// ============================================================================
-// [asmjit::Zone - Alloc]
-// ============================================================================
+// Zone - Alloc
+// ============
 
 void* Zone::_alloc(size_t size, size_t alignment) noexcept {
   Block* curBlock = _block;
@@ -108,10 +102,9 @@ void* Zone::_alloc(size_t size, size_t alignment) noexcept {
   size_t rawBlockAlignment = blockAlignment();
   size_t minimumAlignment = Support::max<size_t>(alignment, rawBlockAlignment);
 
-  // If the `Zone` has been cleared the current block doesn't have to be the
-  // last one. Check if there is a block that can be used instead of allocating
-  // a new one. If there is a `next` block it's completely unused, we don't have
-  // to check for remaining bytes in that case.
+  // If the `Zone` has been cleared the current block doesn't have to be the last one. Check if there is a block
+  // that can be used instead of allocating a new one. If there is a `next` block it's completely unused, we don't
+  // have to check for remaining bytes in that case.
   if (next) {
     uint8_t* ptr = Support::alignUp(next->data(), minimumAlignment);
     uint8_t* end = Support::alignDown(next->data() + next->size, rawBlockAlignment);
@@ -128,21 +121,19 @@ void* Zone::_alloc(size_t size, size_t alignment) noexcept {
   size_t newSize = Support::max(blockSize(), size);
 
   // Prevent arithmetic overflow.
-  if (ASMJIT_UNLIKELY(newSize > std::numeric_limits<size_t>::max() - kBlockSize - blockAlignmentOverhead))
+  if (ASMJIT_UNLIKELY(newSize > SIZE_MAX - kBlockSize - blockAlignmentOverhead))
     return nullptr;
 
-  // Allocate new block - we add alignment overhead to `newSize`, which becomes the
-  // new block size, and we also add `kBlockOverhead` to the allocator as it includes
-  // members of `Zone::Block` structure.
+  // Allocate new block - we add alignment overhead to `newSize`, which becomes the new block size, and we also add
+  // `kBlockOverhead` to the allocator as it includes members of `Zone::Block` structure.
   newSize += blockAlignmentOverhead;
   Block* newBlock = static_cast<Block*>(::malloc(newSize + kBlockSize));
 
   if (ASMJIT_UNLIKELY(!newBlock))
     return nullptr;
 
-  // Align the pointer to `minimumAlignment` and adjust the size of this block
-  // accordingly. It's the same as using `minimumAlignment - Support::alignUpDiff()`,
-  // just written differently.
+  // Align the pointer to `minimumAlignment` and adjust the size of this block accordingly. It's the same as using
+  // `minimumAlignment - Support::alignUpDiff()`, just written differently.
   {
     newBlock->prev = nullptr;
     newBlock->next = nullptr;
@@ -152,9 +143,8 @@ void* Zone::_alloc(size_t size, size_t alignment) noexcept {
       newBlock->prev = curBlock;
       curBlock->next = newBlock;
 
-      // Does only happen if there is a next block, but the requested memory
-      // can't fit into it. In this case a new buffer is allocated and inserted
-      // between the current block and the next one.
+      // Does only happen if there is a next block, but the requested memory can't fit into it. In this case a new
+      // buffer is allocated and inserted between the current block and the next one.
       if (next) {
         newBlock->next = next;
         next->prev = newBlock;
@@ -184,7 +174,7 @@ void* Zone::dup(const void* data, size_t size, bool nullTerminate) noexcept {
   if (ASMJIT_UNLIKELY(!data || !size))
     return nullptr;
 
-  ASMJIT_ASSERT(size != std::numeric_limits<size_t>::max());
+  ASMJIT_ASSERT(size != SIZE_MAX);
   uint8_t* m = allocT<uint8_t>(size + nullTerminate);
   if (ASMJIT_UNLIKELY(!m)) return nullptr;
 
@@ -210,9 +200,8 @@ char* Zone::sformat(const char* fmt, ...) noexcept {
   return static_cast<char*>(dup(buf, size));
 }
 
-// ============================================================================
-// [asmjit::ZoneAllocator - Helpers]
-// ============================================================================
+// ZoneAllocator - Utilities
+// =========================
 
 #if defined(ASMJIT_BUILD_DEBUG)
 static bool ZoneAllocator_hasDynamicBlock(ZoneAllocator* self, ZoneAllocator::DynamicBlock* block) noexcept {
@@ -226,9 +215,8 @@ static bool ZoneAllocator_hasDynamicBlock(ZoneAllocator* self, ZoneAllocator::Dy
 }
 #endif
 
-// ============================================================================
-// [asmjit::ZoneAllocator - Init / Reset]
-// ============================================================================
+// ZoneAllocator - Init & Reset
+// ============================
 
 void ZoneAllocator::reset(Zone* zone) noexcept {
   // Free dynamic blocks.
@@ -244,9 +232,8 @@ void ZoneAllocator::reset(Zone* zone) noexcept {
   _zone = zone;
 }
 
-// ============================================================================
-// [asmjit::ZoneAllocator - Alloc / Release]
-// ============================================================================
+// asmjit::ZoneAllocator - Alloc & Release
+// =======================================
 
 void* ZoneAllocator::_alloc(size_t size, size_t& allocatedSize) noexcept {
   ASMJIT_ASSERT(isInitialized());
@@ -302,7 +289,7 @@ void* ZoneAllocator::_alloc(size_t size, size_t& allocatedSize) noexcept {
     size_t kBlockOverhead = sizeof(DynamicBlock) + sizeof(DynamicBlock*) + kBlockAlignment;
 
     // Handle a possible overflow.
-    if (ASMJIT_UNLIKELY(kBlockOverhead >= std::numeric_limits<size_t>::max() - size))
+    if (ASMJIT_UNLIKELY(kBlockOverhead >= SIZE_MAX - size))
       return nullptr;
 
     void* p = ::malloc(size + kBlockOverhead);
@@ -341,7 +328,7 @@ void* ZoneAllocator::_allocZeroed(size_t size, size_t& allocatedSize) noexcept {
 }
 
 void ZoneAllocator::_releaseDynamic(void* p, size_t size) noexcept {
-  ASMJIT_UNUSED(size);
+  DebugUtils::unused(size);
   ASMJIT_ASSERT(isInitialized());
 
   // Pointer to `DynamicBlock` is stored at [-1].

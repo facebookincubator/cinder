@@ -180,7 +180,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
 
   auto deopt_label = as->newLabel();
   auto kind = instr->getInput(0)->getConstant();
-  auto reg = x86::rax;
+  x86::Gp reg = x86::rax;
   bool is_double = false;
   if (kind != kAlwaysFail) {
     if (instr->getInput(2)->dataType() == jit::lir::OperandBase::kDouble) {
@@ -626,7 +626,8 @@ struct ImmOperandNegate {
   using asmjit_type = const asmjit::Imm&;
 
   static asmjit::Imm GetAsmOperand(Environ* env, const Instruction* instr) {
-    return asmjit::Imm(-T::GetAsmOperand(env, instr).i64());
+    return asmjit::Imm(
+        -T::GetAsmOperand(env, instr).template valueAs<int64_t>());
   }
 };
 
@@ -635,7 +636,8 @@ struct ImmOperandInvert {
   using asmjit_type = const asmjit::Imm&;
 
   static asmjit::Imm GetAsmOperand(Environ* env, const Instruction* instr) {
-    return asmjit::Imm(~T::GetAsmOperand(env, instr).u64());
+    return asmjit::Imm(
+        ~T::GetAsmOperand(env, instr).template valueAs<uint64_t>());
   }
 };
 

@@ -1,13 +1,12 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_JITRUNTIME_H
-#define _ASMJIT_CORE_JITRUNTIME_H
+#ifndef ASMJIT_CORE_JITRUNTIME_H_INCLUDED
+#define ASMJIT_CORE_JITRUNTIME_H_INCLUDED
 
-#include "../core/build.h"
+#include "../core/api-config.h"
 #ifndef ASMJIT_NO_JIT
 
 #include "../core/codeholder.h"
@@ -18,12 +17,8 @@ ASMJIT_BEGIN_NAMESPACE
 
 class CodeHolder;
 
-//! \addtogroup asmjit_jit
+//! \addtogroup asmjit_virtual_memory
 //! \{
-
-// ============================================================================
-// [asmjit::JitRuntime]
-// ============================================================================
 
 //! JIT execution runtime is a special `Target` that is designed to store and
 //! execute the generated code.
@@ -38,11 +33,11 @@ public:
   //! \{
 
   //! Creates a `JitRuntime` instance.
-  explicit ASMJIT_API JitRuntime(const JitAllocator::CreateParams* params = nullptr) noexcept;
+  ASMJIT_API explicit JitRuntime(const JitAllocator::CreateParams* params = nullptr) noexcept;
   //! Destroys the `JitRuntime` instance.
   ASMJIT_API virtual ~JitRuntime() noexcept;
 
-  inline void reset(uint32_t resetPolicy = Globals::kResetSoft) noexcept {
+  inline void reset(ResetPolicy resetPolicy = ResetPolicy::kSoft) noexcept {
     _allocator.reset(resetPolicy);
   }
 
@@ -62,12 +57,10 @@ public:
   // NOTE: To allow passing function pointers to `add()` and `release()` the
   // virtual methods are prefixed with `_` and called from templates instead.
 
-  //! Allocates memory needed for a code stored in the `CodeHolder` and relocates
-  //! the code to the pointer allocated.
+  //! Allocates memory needed for a code stored in the `CodeHolder` and relocates the code to the pointer allocated.
   //!
-  //! The beginning of the memory allocated for the function is returned in `dst`.
-  //! If failed `Error` code is returned and `dst` is explicitly set to `nullptr`
-  //! (this means that you don't have to set it to null before calling `add()`).
+  //! The beginning of the memory allocated for the function is returned in `dst`. If failed `Error` code is returned
+  //! and `dst` is explicitly set to `nullptr`  (this means that you don't have to set it to null before calling `add()`).
   template<typename Func>
   inline Error add(Func* dst, CodeHolder* code) noexcept {
     return _add(Support::ptr_cast_impl<void**, Func*>(dst), code);
@@ -84,19 +77,6 @@ public:
 
   //! Type-unsafe version of `release()`.
   ASMJIT_API virtual Error _release(void* p) noexcept;
-
-  //! Flushes an instruction cache.
-  //!
-  //! This member function is called after the code has been copied to the
-  //! destination buffer. It is only useful for JIT code generation as it
-  //! causes a flush of the processor's cache.
-  //!
-  //! Flushing is basically a NOP under X86, but is needed by architectures
-  //! that do not have a transparent instruction cache like ARM.
-  //!
-  //! This function can also be overridden to improve compatibility with tools
-  //! such as Valgrind, however, it's not an official part of AsmJit.
-  ASMJIT_API virtual void flush(const void* p, size_t size) noexcept;
 
   //! \}
 };

@@ -1,18 +1,15 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::Support - Unit]
-// ============================================================================
+// Support - Tests
+// ===============
 
 #if defined(ASMJIT_TEST)
 template<typename T>
@@ -69,10 +66,14 @@ static void testBitUtils() noexcept {
   for (i = 0; i < 63; i++) EXPECT(Support::blsi(uint64_t(3) << i) == uint64_t(1) << i);
 
   INFO("Support::ctz()");
+  for (i = 0; i < 32; i++) EXPECT(Support::Internal::clzFallback(uint32_t(1) << i) == 31 - i);
+  for (i = 0; i < 64; i++) EXPECT(Support::Internal::clzFallback(uint64_t(1) << i) == 63 - i);
+  for (i = 0; i < 32; i++) EXPECT(Support::Internal::ctzFallback(uint32_t(1) << i) == i);
+  for (i = 0; i < 64; i++) EXPECT(Support::Internal::ctzFallback(uint64_t(1) << i) == i);
+  for (i = 0; i < 32; i++) EXPECT(Support::clz(uint32_t(1) << i) == 31 - i);
+  for (i = 0; i < 64; i++) EXPECT(Support::clz(uint64_t(1) << i) == 63 - i);
   for (i = 0; i < 32; i++) EXPECT(Support::ctz(uint32_t(1) << i) == i);
   for (i = 0; i < 64; i++) EXPECT(Support::ctz(uint64_t(1) << i) == i);
-  for (i = 0; i < 32; i++) EXPECT(Support::constCtz(uint32_t(1) << i) == i);
-  for (i = 0; i < 64; i++) EXPECT(Support::constCtz(uint64_t(1) << i) == i);
 
   INFO("Support::bitMask()");
   EXPECT(Support::bitMask(0, 1, 7) == 0x83u);
@@ -84,12 +85,20 @@ static void testBitUtils() noexcept {
     EXPECT(Support::bitTest((1 << i), i) == true, "Support::bitTest(%X, %u) should return true", (1 << i), i);
   }
 
-  INFO("Support::lsbMask()");
+  INFO("Support::lsbMask<uint32_t>()");
   for (i = 0; i < 32; i++) {
     uint32_t expectedBits = 0;
     for (uint32_t b = 0; b < i; b++)
       expectedBits |= uint32_t(1) << b;
     EXPECT(Support::lsbMask<uint32_t>(i) == expectedBits);
+  }
+
+  INFO("Support::lsbMask<uint64_t>()");
+  for (i = 0; i < 64; i++) {
+    uint64_t expectedBits = 0;
+    for (uint32_t b = 0; b < i; b++)
+      expectedBits |= uint64_t(1) << b;
+    EXPECT(Support::lsbMask<uint64_t>(i) == expectedBits);
   }
 
   INFO("Support::popcnt()");
@@ -110,8 +119,10 @@ static void testBitUtils() noexcept {
 
 static void testIntUtils() noexcept {
   INFO("Support::byteswap()");
+  EXPECT(Support::byteswap16(int32_t(0x0102)) == int32_t(0x0201));
   EXPECT(Support::byteswap32(int32_t(0x01020304)) == int32_t(0x04030201));
   EXPECT(Support::byteswap32(uint32_t(0x01020304)) == uint32_t(0x04030201));
+  EXPECT(Support::byteswap64(uint64_t(0x0102030405060708)) == uint64_t(0x0807060504030201));
 
   INFO("Support::bytepack()");
   union BytePackData {
@@ -470,7 +481,7 @@ static void testSorting() noexcept {
   }
 }
 
-UNIT(asmjit_support) {
+UNIT(support) {
   testAlignment();
   testBitUtils();
   testIntUtils();

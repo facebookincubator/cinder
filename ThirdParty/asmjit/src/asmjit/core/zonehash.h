@@ -1,11 +1,10 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#ifndef _ASMJIT_CORE_ZONEHASH_H
-#define _ASMJIT_CORE_ZONEHASH_H
+#ifndef ASMJIT_CORE_ZONEHASH_H_INCLUDED
+#define ASMJIT_CORE_ZONEHASH_H_INCLUDED
 
 #include "../core/zone.h"
 
@@ -14,14 +13,9 @@ ASMJIT_BEGIN_NAMESPACE
 //! \addtogroup asmjit_zone
 //! \{
 
-// ============================================================================
-// [asmjit::ZoneHashNode]
-// ============================================================================
-
-//! Node used by `ZoneHash<>` template.
+//! Node used by \ref ZoneHash template.
 //!
-//! You must provide function `bool eq(const Key& key)` in order to make
-//! `ZoneHash::get()` working.
+//! You must provide function `bool eq(const Key& key)` in order to make `ZoneHash::get()` working.
 class ZoneHashNode {
 public:
   ASMJIT_NONCOPYABLE(ZoneHashNode)
@@ -39,23 +33,26 @@ public:
   uint32_t _customData;
 };
 
-// ============================================================================
-// [asmjit::ZoneHashBase]
-// ============================================================================
-
+//! Base class used by \ref ZoneHash template
 class ZoneHashBase {
 public:
   ASMJIT_NONCOPYABLE(ZoneHashBase)
 
+  //! Buckets data.
+  ZoneHashNode** _data;
   //! Count of records inserted into the hash table.
   size_t _size;
   //! Count of hash buckets.
   uint32_t _bucketsCount;
-  //! When buckets array should grow.
+  //! When buckets array should grow (only checked after insertion).
   uint32_t _bucketsGrow;
+  //! Reciprocal value of `_bucketsCount`.
+  uint32_t _rcpValue;
+  //! How many bits to shift right when hash is multiplied with `_rcpValue`.
+  uint8_t _rcpShift;
+  //! Prime value index in internal prime array.
+  uint8_t _primeIndex;
 
-  //! Buckets data.
-  ZoneHashNode** _data;
   //! Embedded data, used by empty hash tables.
   ZoneHashNode* _embedded[1];
 
@@ -63,28 +60,30 @@ public:
   //! \{
 
   inline ZoneHashBase() noexcept {
-    _size = 0;
-    _bucketsCount = 1;
-    _bucketsGrow = 1;
-    _data = _embedded;
-    _embedded[0] = nullptr;
+    reset();
   }
 
   inline ZoneHashBase(ZoneHashBase&& other) noexcept {
+    _data = other._data;
     _size = other._size;
     _bucketsCount = other._bucketsCount;
     _bucketsGrow = other._bucketsGrow;
-    _data = other._data;
+    _rcpValue = other._rcpValue;
+    _rcpShift = other._rcpShift;
+    _primeIndex = other._primeIndex;
     _embedded[0] = other._embedded[0];
 
     if (_data == other._embedded) _data = _embedded;
   }
 
   inline void reset() noexcept {
+    _data = _embedded;
     _size = 0;
     _bucketsCount = 1;
     _bucketsGrow = 1;
-    _data = _embedded;
+    _rcpValue = 1;
+    _rcpShift = 0;
+    _primeIndex = 0;
     _embedded[0] = nullptr;
   }
 
@@ -109,10 +108,13 @@ public:
   //! \{
 
   inline void _swap(ZoneHashBase& other) noexcept {
+    std::swap(_data, other._data);
     std::swap(_size, other._size);
     std::swap(_bucketsCount, other._bucketsCount);
     std::swap(_bucketsGrow, other._bucketsGrow);
-    std::swap(_data, other._data);
+    std::swap(_rcpValue, other._rcpValue);
+    std::swap(_rcpShift, other._rcpShift);
+    std::swap(_primeIndex, other._primeIndex);
     std::swap(_embedded[0], other._embedded[0]);
 
     if (_data == other._embedded) _data = _embedded;
@@ -120,6 +122,11 @@ public:
   }
 
   //! \cond INTERNAL
+  inline uint32_t _calcMod(uint32_t hash) const noexcept {
+    uint32_t x = uint32_t((uint64_t(hash) * _rcpValue) >> _rcpShift);
+    return hash - x * _bucketsCount;
+  }
+
   ASMJIT_API void _rehash(ZoneAllocator* allocator, uint32_t newCount) noexcept;
   ASMJIT_API ZoneHashNode* _insert(ZoneAllocator* allocator, ZoneHashNode* node) noexcept;
   ASMJIT_API ZoneHashNode* _remove(ZoneAllocator* allocator, ZoneHashNode* node) noexcept;
@@ -128,16 +135,11 @@ public:
   //! \}
 };
 
-// ============================================================================
-// [asmjit::ZoneHash]
-// ============================================================================
-
 //! Low-level hash table specialized for storing string keys and POD values.
 //!
-//! This hash table allows duplicates to be inserted (the API is so low
-//! level that it's up to you if you allow it or not, as you should first
-//! `get()` the node and then modify it or insert a new node by using `insert()`,
-//! depending on the intention).
+//! This hash table allows duplicates to be inserted (the API is so low level that it's up to you if you allow it or
+//! not, as you should first `get()` the node and then modify it or insert a new node by using `insert()`, depending
+//! on the intention).
 template<typename NodeT>
 class ZoneHash : public ZoneHashBase {
 public:
@@ -163,8 +165,8 @@ public:
 
   template<typename KeyT>
   inline NodeT* get(const KeyT& key) const noexcept {
-    uint32_t hMod = key.hashCode() % _bucketsCount;
-    NodeT* node = static_cast<NodeT*>(_data[hMod]);
+    uint32_t hashMod = _calcMod(key.hashCode());
+    NodeT* node = static_cast<NodeT*>(_data[hashMod]);
 
     while (node && !key.matches(node))
       node = static_cast<NodeT*>(node->_hashNext);
@@ -181,4 +183,4 @@ public:
 
 ASMJIT_END_NAMESPACE
 
-#endif // _ASMJIT_CORE_ZONEHASH_H
+#endif // ASMJIT_CORE_ZONEHASH_H_INCLUDED

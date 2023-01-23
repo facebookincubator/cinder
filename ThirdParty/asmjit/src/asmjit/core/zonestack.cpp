@@ -1,25 +1,22 @@
-// [AsmJit]
-// Machine Code Generation for C++.
+// This file is part of AsmJit project <https://asmjit.com>
 //
-// [License]
-// Zlib - See LICENSE.md file in the package.
+// See asmjit.h or LICENSE.md for license and copyright information
+// SPDX-License-Identifier: Zlib
 
-#define ASMJIT_EXPORTS
-
+#include "../core/api-build_p.h"
 #include "../core/zone.h"
 #include "../core/zonestack.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
-// ============================================================================
-// [asmjit::ZoneStackBase - Init / Reset]
-// ============================================================================
+// ZoneStackBase - Init & Reset
+// ============================
 
 Error ZoneStackBase::_init(ZoneAllocator* allocator, size_t middleIndex) noexcept {
   ZoneAllocator* oldAllocator = _allocator;
 
   if (oldAllocator) {
-    Block* block = _block[Globals::kLinkFirst];
+    Block* block = _block[kBlockIndexFirst];
     while (block) {
       Block* next = block->next();
       oldAllocator->release(block, kBlockSize);
@@ -27,8 +24,8 @@ Error ZoneStackBase::_init(ZoneAllocator* allocator, size_t middleIndex) noexcep
     }
 
     _allocator = nullptr;
-    _block[Globals::kLinkLeft] = nullptr;
-    _block[Globals::kLinkRight] = nullptr;
+    _block[kBlockIndexFirst] = nullptr;
+    _block[kBlockIndexLast] = nullptr;
   }
 
   if (allocator) {
@@ -36,22 +33,21 @@ Error ZoneStackBase::_init(ZoneAllocator* allocator, size_t middleIndex) noexcep
     if (ASMJIT_UNLIKELY(!block))
       return DebugUtils::errored(kErrorOutOfMemory);
 
-    block->_link[Globals::kLinkLeft] = nullptr;
-    block->_link[Globals::kLinkRight] = nullptr;
+    block->_link[kBlockIndexPrev] = nullptr;
+    block->_link[kBlockIndexNext] = nullptr;
     block->_start = (uint8_t*)block + middleIndex;
     block->_end = (uint8_t*)block + middleIndex;
 
     _allocator = allocator;
-    _block[Globals::kLinkLeft] = block;
-    _block[Globals::kLinkRight] = block;
+    _block[kBlockIndexFirst] = block;
+    _block[kBlockIndexLast] = block;
   }
 
   return kErrorOk;
 }
 
-// ============================================================================
-// [asmjit::ZoneStackBase - Ops]
-// ============================================================================
+// ZoneStackBase - Operations
+// ==========================
 
 Error ZoneStackBase::_prepareBlock(uint32_t side, size_t initialIndex) noexcept {
   ASMJIT_ASSERT(isInitialized());
@@ -93,9 +89,8 @@ void ZoneStackBase::_cleanupBlock(uint32_t side, size_t middleIndex) noexcept {
   }
 }
 
-// ============================================================================
-// [asmjit::ZoneStack - Unit]
-// ============================================================================
+// ZoneStack - Tests
+// =================
 
 #if defined(ASMJIT_TEST)
 template<typename T>
@@ -169,7 +164,7 @@ static void test_zone_stack(ZoneAllocator* allocator, const char* typeName) {
   EXPECT(stack.empty());
 }
 
-UNIT(asmjit_zone_stack) {
+UNIT(zone_stack) {
   Zone zone(8096 - Zone::kBlockOverhead);
   ZoneAllocator allocator(&zone);
 
