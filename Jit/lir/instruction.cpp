@@ -63,7 +63,7 @@ bool Instruction::getInputPhyRegUse(size_t i) const {
   // needs to be a physical register. Otherwise we might generate a mem->mem
   // move, which we can't safely handle for all bit widths in codegen (since
   // push/pop aren't available for all bit widths).
-  if (isMove() && output_.type() == OperandBase::kInd) {
+  if (isMove() && output_.isInd()) {
     return true;
   }
 

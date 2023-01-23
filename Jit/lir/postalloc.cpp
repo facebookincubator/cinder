@@ -294,7 +294,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBitExtensionInstrs(
   auto in = instr->getInput(0);
   auto out = instr->output();
   auto out_size = out->dataType();
-  if (in->type() == OperandBase::kImm) {
+  if (in->isImm()) {
     long mask = 0;
     if (out_size == OperandBase::k32bit) {
       mask = 0xffffffffl;
@@ -401,9 +401,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveInstrs(
   auto in = instr->getInput(0);
 
   // if the input and the output are the same
-  if ((out->type() == OperandBase::kReg ||
-       out->type() == OperandBase::kStack) &&
-      in->type() == out->type() &&
+  if ((out->isReg() || out->isStack()) && in->type() == out->type() &&
       in->getPhyRegOrStackSlot() == out->getPhyRegOrStackSlot()) {
     instr->basicblock()->removeInstr(instr_iter);
     return kRemoved;
@@ -411,8 +409,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveInstrs(
 
   Operand* in_opnd = nullptr;
   auto inp = instr->getInput(0);
-  if (inp->isImm() && !inp->isFp() && inp->getConstant() == 0 &&
-      out->type() == OperandBase::kReg &&
+  if (inp->isImm() && !inp->isFp() && inp->getConstant() == 0 && out->isReg() &&
       (in_opnd = dynamic_cast<Operand*>(inp))) {
     instr->setOpcode(Instruction::kXor);
     auto reg = out->getPhyRegister();
@@ -435,9 +432,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteLoadInstrs(
   }
 
   auto out = instr->output();
-  JIT_DCHECK(
-      out->type() == OperandBase::kReg,
-      "Unable to load to a non-register location.");
+  JIT_DCHECK(out->isReg(), "Unable to load to a non-register location.");
   if (out->getPhyRegister() == PhyLocation::RAX) {
     return kUnchanged;
   }
@@ -591,7 +586,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
     return kUnchanged;
   }
 
-  if (instr->output()->type() != OperandBase::kReg) {
+  if (!instr->output()->isReg()) {
     return kUnchanged;
   }
 
@@ -606,8 +601,8 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
   }
 
   auto in1 = instr->getInput(1);
-  auto in1_reg = in1->type() == OperandBase::kReg ? in1->getPhyRegister()
-                                                  : PhyLocation::REG_INVALID;
+  auto in1_reg =
+      in1->isReg() ? in1->getPhyRegister() : PhyLocation::REG_INVALID;
   if (out_reg == in1_reg) {
     instr->output()->setNone();
 
@@ -637,7 +632,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteByteMultiply(
   PhyLocation in_reg = input0->getPhyRegister();
   PhyLocation out_reg = in_reg;
 
-  if (output->type() == OperandBase::kReg) {
+  if (output->isReg()) {
     out_reg = output->getPhyRegister();
   }
 
@@ -688,9 +683,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
   if (output->type() != OperandBase::kNone) {
     out_reg = output->getPhyRegister();
   } else {
-    JIT_CHECK(
-        dividend_lower->type() == OperandBase::kReg,
-        "input should be in register");
+    JIT_CHECK(dividend_lower->isReg(), "input should be in register");
     out_reg = dividend_lower->getPhyRegister();
   }
 
@@ -708,12 +701,12 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
         "8-bit should always start with 3 operands");
     auto move = block->allocateInstrBefore(
         instr_iter,
-        dividend_lower->type() == OperandBase::kImm ? Instruction::kMove
-            : instr->isDiv()                        ? Instruction::kMovSX
-                                                    : Instruction::kMovZX,
+        dividend_lower->isImm() ? Instruction::kMove
+            : instr->isDiv()    ? Instruction::kMovSX
+                                : Instruction::kMovZX,
         OutPhyReg(PhyLocation::RAX, OperandBase::k16bit));
 
-    if (dividend_lower->type() == OperandBase::kImm) {
+    if (dividend_lower->isImm()) {
       dividend_lower->setDataType(OperandBase::k16bit);
     }
 
@@ -733,11 +726,10 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
         block, instr_iter, dividend_lower, PhyLocation::RAX);
 
     if (dividend_upper != nullptr &&
-        (dividend_upper->type() != OperandBase::kReg ||
+        (!dividend_upper->isReg() ||
          dividend_upper->getPhyRegister() != PhyLocation::RDX)) {
       JIT_CHECK(
-          (dividend_upper->type() == OperandBase::kImm &&
-           dividend_upper->getConstant() == 0),
+          (dividend_upper->isImm() && dividend_upper->getConstant() == 0),
           "only immediate 0 is supported");
 
       if (instr->isDiv()) {
@@ -794,29 +786,21 @@ bool PostRegAllocRewrite::insertMoveToRegister(
     instr_iter_t instr_iter,
     Operand* op,
     PhyLocation location) {
-  if (op->type() != OperandBase::kReg || op->getPhyRegister() != location) {
+  if (!op->isReg() || op->getPhyRegister() != location) {
     auto move = block->allocateInstrBefore(
         instr_iter, Instruction::kMove, OutPhyReg(location, op->dataType()));
 
-    switch (op->type()) {
-      case OperandBase::kReg:
-        move->addOperands(PhyReg(op->getPhyRegister(), op->dataType()));
-        break;
-      case OperandBase::kImm:
-        move->addOperands(Imm(op->getConstant()));
-        break;
-      case OperandBase::kStack:
-        move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
-        break;
-      case OperandBase::kMem:
-        JIT_CHECK(false, "unsupported: div from mem");
-        break;
-      case OperandBase::kVreg:
-      case OperandBase::kLabel:
-      case OperandBase::kInd:
-      case OperandBase::kNone:
-        JIT_CHECK(false, "unexpected operand base");
-        break;
+    if (op->isReg()) {
+      move->addOperands(PhyReg(op->getPhyRegister(), op->dataType()));
+    } else if (op->isImm()) {
+      move->addOperands(Imm(op->getConstant()));
+    } else if (op->isStack()) {
+      move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
+    } else if (op->isMem()) {
+      JIT_CHECK(false, "unsupported: div from mem");
+    } else {
+      JIT_CHECK(
+          false, "unexpected operand base: %d", static_cast<int>(op->type()));
     }
 
     op->setPhyRegister(location);
@@ -943,7 +927,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
     auto& instr = *instr_iter;
     // TODO: do not optimize for yield for now. They need to be special cased.
     if (!instr->isAnyYield()) {
-      auto out_reg = instr->output()->type() == OperandBase::kReg
+      auto out_reg = instr->output()->isReg()
           ? instr->output()->getPhyRegister()
           : PhyLocation::REG_INVALID;
       // for moves only we can generate A = Move A, which will get optimized out

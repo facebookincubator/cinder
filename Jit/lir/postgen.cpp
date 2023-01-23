@@ -24,7 +24,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
 
   if (instr->isDiv() || instr->isDivUn()) {
     auto divisor = instr->getInput(2);
-    if (divisor->type() == OperandBase::kImm) {
+    if (divisor->isImm()) {
       // div doesn't support an immediate as the divisor
       auto constant = divisor->getConstant();
       auto constant_size = divisor->dataType();
@@ -52,11 +52,11 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
   auto input0 = instr->getInput(0);
   auto input1 = instr->getInput(1);
 
-  if (input0->type() != OperandBase::kImm) {
+  if (!input0->isImm()) {
     return kUnchanged;
   }
 
-  if (is_commutative && input1->type() != OperandBase::kImm) {
+  if (is_commutative && !input1->isImm()) {
     // if the operation is commutative and the second input is not also an
     // immediate, just swap the operands
     if (instr->isCompare()) {
@@ -101,18 +101,18 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
   }
 
   // if first operand is an immediate, we need to swap the operands
-  if (instr->getInput(0)->type() == OperandBase::kImm) {
+  if (instr->getInput(0)->isImm()) {
     // another rewrite will fix this later
     return kUnchanged;
   }
 
   JIT_CHECK(
-      instr->getInput(0)->type() != OperandBase::kImm,
+      !instr->getInput(0)->isImm(),
       "The first input operand of a binary op instruction should not be "
       "constant");
 
   auto in1 = instr->getInput(1);
-  if (in1->type() != OperandBase::kImm || in1->sizeInBits() < 64) {
+  if (!in1->isImm() || in1->sizeInBits() < 64) {
     return kUnchanged;
   }
 
