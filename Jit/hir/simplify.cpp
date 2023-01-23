@@ -579,15 +579,39 @@ Register* simplifyUnaryOp(Env& env, const UnaryOp* instr) {
   return nullptr;
 }
 
-Register* simplifyPrimitiveCompare(const PrimitiveCompare* instr) {
-  if (instr->op() == PrimitiveCompareOp::kEqual) {
-    Register* lhs = instr->GetOperand(0);
-    Type rhs_type = instr->GetOperand(1)->type();
-    if (lhs->instr()->IsPrimitiveBoxBool() && rhs_type.asObject() == Py_True) {
-      // If we're comparing a boxed bool to Py_True, return the original,
-      // unboxed CBool.
-      return lhs->instr()->GetOperand(0);
+Register* simplifyPrimitiveCompare(Env& env, const PrimitiveCompare* instr) {
+  Register* left = instr->GetOperand(0);
+  Register* right = instr->GetOperand(1);
+  if (instr->op() == PrimitiveCompareOp::kEqual ||
+      instr->op() == PrimitiveCompareOp::kNotEqual) {
+    auto do_cbool = [&](bool value) {
+      env.emit<UseType>(left, left->type());
+      env.emit<UseType>(right, right->type());
+      return env.emit<LoadConst>(Type::fromCBool(
+          instr->op() == PrimitiveCompareOp::kNotEqual ? !value : value));
+    };
+    if (left->type().hasIntSpec() && right->type().hasIntSpec()) {
+      return do_cbool(left->type().intSpec() == right->type().intSpec());
     }
+    if (left->type().hasObjectSpec() && right->type().hasObjectSpec()) {
+      return do_cbool(left->type().objectSpec() == right->type().objectSpec());
+    }
+  }
+  // box(b) == True --> b
+  if (instr->op() == PrimitiveCompareOp::kEqual &&
+      left->instr()->IsPrimitiveBoxBool() &&
+      right->type().asObject() == Py_True) {
+    return left->instr()->GetOperand(0);
+  }
+  return nullptr;
+}
+
+Register* simplifyPrimitiveBoxBool(Env& env, const PrimitiveBoxBool* instr) {
+  Register* input = instr->GetOperand(0);
+  if (input->type().hasIntSpec()) {
+    env.emit<UseType>(input, input->type());
+    auto bool_obj = input->type().intSpec() ? Py_True : Py_False;
+    return env.emit<LoadConst>(Type::fromObject(bool_obj));
   }
   return nullptr;
 }
@@ -802,7 +826,10 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kPrimitiveCompare:
       return simplifyPrimitiveCompare(
-          static_cast<const PrimitiveCompare*>(instr));
+          env, static_cast<const PrimitiveCompare*>(instr));
+    case Opcode::kPrimitiveBoxBool:
+      return simplifyPrimitiveBoxBool(
+          env, static_cast<const PrimitiveBoxBool*>(instr));
     case Opcode::kPrimitiveUnbox:
       return simplifyPrimitiveUnbox(
           env, static_cast<const PrimitiveUnbox*>(instr));

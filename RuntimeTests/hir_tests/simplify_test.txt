@@ -1949,7 +1949,7 @@ fun jittestmodule:test {
   }
 }
 ---
-UnpackSequenceWithCorrectNumberOfValuesKeepsAllocation
+UnpackSequenceWithIncorrectNumberOfValuesKeepsAllocation
 ---
 def test(x, y, z):
   a, c = (x, y, z)
@@ -1974,21 +1974,9 @@ fun jittestmodule:test {
     UseType<MortalTupleExact> v21
     v48:CInt64[3] = LoadConst<CInt64[3]>
     v27:CInt64[2] = LoadConst<CInt64[2]>
-    v28:CBool = PrimitiveCompare<Equal> v48 v27
-    CondBranch<6, 1> v28
-  }
-
-  bb 6 (preds 0) {
-    v29:CInt64[1] = LoadConst<CInt64[1]>
-    UseType<TupleExact> v21
-    UseType<CInt64[1]> v29
-    v32:CInt64[0] = LoadConst<CInt64[0]>
-    UseType<TupleExact> v21
-    UseType<CInt64[0]> v32
-    Return v14
-  }
-
-  bb 1 (preds 0) {
+    UseType<CInt64[3]> v48
+    UseType<CInt64[2]> v27
+    v49:CBool[false] = LoadConst<CBool[false]>
     Deopt {
       Descr 'UNPACK_SEQUENCE'
       GuiltyReg v21
@@ -2012,31 +2000,212 @@ fun jittestmodule:test {
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     v40:CInt64[3] = LoadConst<CInt64[3]>
     v20:CInt64[3] = LoadConst<CInt64[3]>
-    v21:CBool = PrimitiveCompare<Equal> v40 v20
-    CondBranch<6, 1> v21
-  }
-
-  bb 6 (preds 0) {
+    UseType<CInt64[3]> v40
+    UseType<CInt64[3]> v20
+    v41:CBool[true] = LoadConst<CBool[true]>
     v22:CInt64[2] = LoadConst<CInt64[2]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[2]> v22
-    v41:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v42:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v25:CInt64[1] = LoadConst<CInt64[1]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[1]> v25
-    v42:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v43:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     v27:CInt64[0] = LoadConst<CInt64[0]>
     UseType<MortalTupleExact[tuple:0xdeadbeef]> v14
     UseType<CInt64[0]> v27
-    v43:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Return v43
+    v44:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Return v44
   }
-
-  bb 1 (preds 0) {
-    Deopt {
-      Descr 'UNPACK_SEQUENCE'
-      GuiltyReg v14
-    }
+}
+---
+PrimitiveBoxWithTrueEmitsLoadConstTrue
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CBool[true]>
+    v1 = PrimitiveBoxBool v0
+    Return v1
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CBool[true] = LoadConst<CBool[true]>
+    UseType<CBool[true]> v0
+    v2:MortalBool[True] = LoadConst<MortalBool[True]>
+    Return v2
+  }
+}
+---
+PrimitiveBoxWithFalseEmitsLoadConstFalse
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CBool[false]>
+    v1 = PrimitiveBoxBool v0
+    Return v1
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v0
+    v2:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v2
+  }
+}
+---
+PrimitiveCompareEqualWithEqualInputsEmitsLoadConstTrue
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CInt32[123]>
+    v1 = LoadConst<CInt32[123]>
+    v2 = PrimitiveCompare<Equal> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32[123] = LoadConst<CInt32[123]>
+    v1:CInt32[123] = LoadConst<CInt32[123]>
+    UseType<CInt32[123]> v0
+    UseType<CInt32[123]> v1
+    v4:CBool[true] = LoadConst<CBool[true]>
+    UseType<CBool[true]> v4
+    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    Return v5
+  }
+}
+---
+PrimitiveCompareEqualWithInequalInputsEmitsLoadConstFalse
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CInt32[123]>
+    v1 = LoadConst<CInt32[456]>
+    v2 = PrimitiveCompare<Equal> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32[123] = LoadConst<CInt32[123]>
+    v1:CInt32[456] = LoadConst<CInt32[456]>
+    UseType<CInt32[123]> v0
+    UseType<CInt32[456]> v1
+    v4:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v4
+    v5:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v5
+  }
+}
+---
+PrimitiveCompareEqualWithUnknownInputsDoesNotSimplify
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x", CInt32>
+    v1 = LoadConst<CInt32[123]>
+    v2 = PrimitiveCompare<Equal> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32 = LoadArg<0, CInt32>
+    v1:CInt32[123] = LoadConst<CInt32[123]>
+    v2:CBool = PrimitiveCompare<Equal> v0 v1
+    v3:Bool = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+PrimitiveCompareNotEqualWithEqualInputsEmitsLoadConstFalse
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CInt32[123]>
+    v1 = LoadConst<CInt32[123]>
+    v2 = PrimitiveCompare<NotEqual> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32[123] = LoadConst<CInt32[123]>
+    v1:CInt32[123] = LoadConst<CInt32[123]>
+    UseType<CInt32[123]> v0
+    UseType<CInt32[123]> v1
+    v4:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v4
+    v5:MortalBool[False] = LoadConst<MortalBool[False]>
+    Return v5
+  }
+}
+---
+PrimitiveCompareNotEqualWithInequalInputsEmitsLoadConstTrue
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadConst<CInt32[123]>
+    v1 = LoadConst<CInt32[456]>
+    v2 = PrimitiveCompare<NotEqual> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32[123] = LoadConst<CInt32[123]>
+    v1:CInt32[456] = LoadConst<CInt32[456]>
+    UseType<CInt32[123]> v0
+    UseType<CInt32[456]> v1
+    v4:CBool[true] = LoadConst<CBool[true]>
+    UseType<CBool[true]> v4
+    v5:MortalBool[True] = LoadConst<MortalBool[True]>
+    Return v5
+  }
+}
+---
+PrimitiveCompareNotEqualWithUnknownInputsDoesNotSimplify
+---
+# HIR
+fun jittestmodule:test {
+  bb 0 {
+    v0 = LoadArg<0; "x", CInt32>
+    v1 = LoadConst<CInt32[123]>
+    v2 = PrimitiveCompare<NotEqual> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
+  }
+}
+---
+fun jittestmodule:test {
+  bb 0 {
+    v0:CInt32 = LoadArg<0, CInt32>
+    v1:CInt32[123] = LoadConst<CInt32[123]>
+    v2:CBool = PrimitiveCompare<NotEqual> v0 v1
+    v3:Bool = PrimitiveBoxBool v2
+    Return v3
   }
 }
 ---
@@ -2066,11 +2235,9 @@ fun jittestmodule:test {
     UseType<MortalTupleExact> v27
     v64:CInt64[4] = LoadConst<CInt64[4]>
     v33:CInt64[4] = LoadConst<CInt64[4]>
-    v34:CBool = PrimitiveCompare<Equal> v64 v33
-    CondBranch<6, 1> v34
-  }
-
-  bb 6 (preds 0) {
+    UseType<CInt64[4]> v64
+    UseType<CInt64[4]> v33
+    v65:CBool[true] = LoadConst<CBool[true]>
     v35:CInt64[3] = LoadConst<CInt64[3]>
     UseType<TupleExact> v27
     UseType<CInt64[3]> v35
@@ -2084,13 +2251,6 @@ fun jittestmodule:test {
     UseType<TupleExact> v27
     UseType<CInt64[0]> v42
     Return v19
-  }
-
-  bb 1 (preds 0) {
-    Deopt {
-      Descr 'UNPACK_SEQUENCE'
-      GuiltyReg v27
-    }
   }
 }
 ---
