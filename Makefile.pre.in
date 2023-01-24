@@ -1730,8 +1730,8 @@ testcinder: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDEROPTS)
 
 define RUN_TESTCINDERJIT_PROFILE
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-write-profile=test_cinderjit_profile.types $(1) -mtest test_cinderjit_profile
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-read-profile=test_cinderjit_profile.types -X jit $(1) -mtest test_cinderjit_profile
+	CINDER_JIT_PROFILE_TEST_PROFILING=1 $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-write-profile=cinderjit_profile_test.types $(1) -mtest cinderjit_profile_test
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X jit-read-profile=cinderjit_profile_test.types -X jit $(1) -mtest cinderjit_profile_test
 endef
 
 define RUN_TESTCINDERJIT
