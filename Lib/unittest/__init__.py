@@ -50,7 +50,7 @@ __all__ = ['TestResult', 'TestCase', 'IsolatedAsyncioTestCase', 'TestSuite',
            'expectedFailure', 'TextTestResult', 'installHandler',
            'registerResult', 'removeResult', 'removeHandler',
            'addModuleCleanup', 'skipUnderCinderJIT', 'failUnlessJITCompiled',
-           'skipUnlessCinderJITEnabled', 'skipUnderCinderJITNotFullFrame']
+           'skipUnlessCinderJITEnabled']
 
 # Expose obsolete functions for backwards compatibility
 __all__.extend(['getTestCaseNames', 'makeSuite', 'findTestCases'])
@@ -60,8 +60,7 @@ __unittest = True
 from .result import TestResult
 from .case import (addModuleCleanup, TestCase, FunctionTestCase, SkipTest, skip,
                    skipIf, skipUnless, expectedFailure, skipUnderCinderJIT,
-                   failUnlessJITCompiled, skipUnlessCinderJITEnabled,
-                   skipUnderCinderJITNotFullFrame)
+                   failUnlessJITCompiled, skipUnlessCinderJITEnabled)
 from .suite import BaseTestSuite, TestSuite
 from .loader import (TestLoader, defaultTestLoader, makeSuite, getTestCaseNames,
                      findTestCases)

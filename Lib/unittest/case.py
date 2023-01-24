@@ -24,13 +24,9 @@ DIFF_OMITTED = ('\nDiff is %s characters long. '
                  'Set self.maxDiff to None to see it.')
 
 
-CINDERJIT_NOT_FULL_FRAME = False
 try:
     from cinderjit import is_jit_compiled, force_compile
-    from cinderjit import jit_frame_mode
     CINDERJIT_ENABLED = True
-    if jit_frame_mode() > 0:
-        CINDERJIT_NOT_FULL_FRAME = True
 except ImportError:
     def is_jit_compiled(f):
         return False
@@ -168,14 +164,6 @@ def skipUnderCinderJIT(reason):
 
 def skipUnlessCinderJITEnabled(reason):
     if not CINDERJIT_ENABLED:
-        return skip(reason)
-    return _id
-
-def skipUnderCinderJITNotFullFrame(reason):
-    """
-    Skip tests if we're in Shadow Frame mode.
-    """
-    if CINDERJIT_NOT_FULL_FRAME:
         return skip(reason)
     return _id
 

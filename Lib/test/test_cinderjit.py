@@ -3278,16 +3278,13 @@ class UnpackSequenceTests(unittest.TestCase):
         self.assertEqual(self._unpack_arg(("eh", "bee", "see", "dee"), "b"), "bee")
         self.assertEqual(self._unpack_arg((3, 2, 1, 0), "c"), 1)
 
-    @unittest.skipUnderCinderJITNotFullFrame("deopt not supported in no-frame mode")
     def test_unpack_tuple_wrong_size(self):
         with self.assertRaises(ValueError):
             self._unpack_arg((1, 2, 3, 4, 5), "a")
 
-    @unittest.skipUnderCinderJITNotFullFrame("deopt not supported in no-frame mode")
     def test_unpack_list(self):
         self.assertEqual(self._unpack_arg(["one", "two", "three", "four"], "a"), "one")
 
-    @unittest.skipUnderCinderJITNotFullFrame("deopt not supported in no-frame mode")
     def test_unpack_gen(self):
         def gen():
             yield "first"
@@ -3312,7 +3309,6 @@ class UnpackSequenceTests(unittest.TestCase):
     def _unpack_insufficient_values_after(self):
         (a, *b, c, d) = [1, 2]
 
-    @unittest.skipUnderCinderJITNotFullFrame("deopt not supported in no-frame mode")
     def test_unpack_ex(self):
         with self.assertRaises(TypeError):
             self._unpack_not_iterable()
