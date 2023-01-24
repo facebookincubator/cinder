@@ -11,6 +11,13 @@ import unittest
 from collections import Counter
 from contextlib import contextmanager
 
+from test import cinder_support
+
+try:
+    import cinder
+except ModuleNotFoundError:
+    cinder = None
+
 try:
     import cinderjit
 except ModuleNotFoundError:
@@ -111,3 +118,37 @@ class NewThreadTests(ProfileTest):
         t.start()
         t.join()
         self.assertEqual(x, 10)
+
+
+@unittest.skipIf(cinder is None, "tests cinder-specific functionality")
+class GetProfilesTests(ProfileTest):
+    # Run in a subprocess to avoid messing with profile data for the other
+    # tests.
+    @cinder_support.runInSubprocess
+    def test_get_and_clear_type_profiles(self):
+        if not PROFILING:
+            return
+
+        cinder.get_and_clear_type_profiles()
+        result = 0
+        for i in range(10):
+            result += i
+        self.assertEqual(result, 45)
+
+        profiles = cinder.get_and_clear_type_profiles()
+
+        # The main purpose of this test is to make sure
+        # get_and_clear_type_profiles() doesn't crash, but let's also sanity
+        # check that the data looks as expected.
+        for hit in profiles:
+            self.assertIn("normal", hit)
+            normal = hit["normal"]
+            self.assertIn("func_qualname", normal)
+            if (
+                normal["func_qualname"]
+                == "GetProfilesTests.test_get_and_clear_type_profiles"
+                and normal.get("opname") == "INPLACE_ADD"
+            ):
+                break
+        else:
+            self.fail("Didn't find expected profile hit in results")

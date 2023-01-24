@@ -25,6 +25,12 @@ class alignas(Ref<PyTypeObject>) TypeProfiler {
  public:
   static std::unique_ptr<TypeProfiler> create(int rows, int cols);
 
+  // TypeProfilers are dynamically-sized, so make sure we bypass any default
+  // operator delete that tries to take a size hint from sizeof(TypeProfiler).
+  static void operator delete(void* ptr) {
+    ::operator delete(ptr);
+  }
+
   ~TypeProfiler();
 
   template <typename... Args>
