@@ -1371,12 +1371,12 @@ class ClassCallInfo:
 class InitVisitor(GenericVisitor[None]):
     def __init__(
         self,
-        function: Function,
+        module: ModuleTable,
         klass: Class,
         init_func: FunctionDef,
     ) -> None:
-        super().__init__(function.module)
-        self.args_by_name: Dict[str, Parameter] = function.args_by_name
+        super().__init__(module)
+        self.module = module
         self.klass = klass
         self.init_func = init_func
 
@@ -1406,23 +1406,7 @@ class InitVisitor(GenericVisitor[None]):
                 and value.id == self.init_func.args.args[0].arg
             ):
                 attr = target.attr
-                node_value = node.value
-
-                # Infer attribute's type based off of the type of the RHS of
-                # the assignment
-                if (
-                    isinstance(node_value, ast.Name)
-                    and (param := self.args_by_name.get(node_value.id))
-                    and not self.klass.get_member(attr)
-                ):
-                    self.klass.define_slot(
-                        attr,
-                        target,
-                        param.type_ref,
-                        assignment=node,
-                    )
-                else:
-                    self.klass.define_slot(attr, target, assignment=node)
+                self.klass.define_slot(attr, target, assignment=node)
 
 
 class FunctionGroup(Value):
@@ -1971,7 +1955,7 @@ class Class(Object["Class"]):
         ):
             node = func.node
             if isinstance(node, FunctionDef):
-                InitVisitor(func, self, node).visit(node.body)
+                InitVisitor(func.module, self, node).visit(node.body)
 
     @property
     def mro(self) -> Sequence[Class]:
