@@ -634,11 +634,6 @@ new_threadstate(PyInterpreterState *interp, int init)
     tstate->stackcheck_counter = 0;
     tstate->shadow_frame = NULL;
 
-    tstate->profile_interp = 0;
-    if (_PyJIT_GetProfileNewInterpThreads()) {
-      Ci_ThreadState_SetProfileInterp(tstate, 1);
-    }
-
     tstate->tracing = 0;
     tstate->root_cframe.use_tracing = 0;
     tstate->cframe = &tstate->root_cframe;
@@ -688,6 +683,11 @@ new_threadstate(PyInterpreterState *interp, int init)
         tstate->next->prev = tstate;
     interp->tstate_head = tstate;
     HEAD_UNLOCK(runtime);
+
+    tstate->profile_interp = 0;
+    if (_PyJIT_GetProfileNewInterpThreads()) {
+      Ci_ThreadState_SetProfileInterp(tstate, 1);
+    }
 
     return tstate;
 }

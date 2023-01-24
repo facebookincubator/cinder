@@ -6,6 +6,7 @@
 # 'testcinder_jit_profile' make target.
 
 import os
+import threading
 import unittest
 from collections import Counter
 from contextlib import contextmanager
@@ -95,3 +96,18 @@ class BinaryOpTests(ProfileTest):
         if TESTING:
             with self.assertDeopts({}):
                 self.assertEqual(do_pow(2, 8), 256)
+
+
+class NewThreadTests(ProfileTest):
+    def test_create_thread(self):
+        x = 5
+
+        def thread_body():
+            nonlocal x
+            x = 10
+
+        self.assertEqual(x, 5)
+        t = threading.Thread(target=thread_body)
+        t.start()
+        t.join()
+        self.assertEqual(x, 10)
