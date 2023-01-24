@@ -3057,7 +3057,6 @@ class TestValueErrors(unittest.TestCase):
         self.assertIs(z, None)
 
 
-@unittest.skipUnderCinderJIT("settrace unsupported by the JIT")
 class TestTracing(unittest.TestCase):
 
     @staticmethod

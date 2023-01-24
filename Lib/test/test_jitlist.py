@@ -3,6 +3,8 @@
 import os
 import unittest
 
+from test import cinder_support
+
 
 try:
     import cinderjit
@@ -28,7 +30,7 @@ class _JitClass:
 
 
 class JitListTest(unittest.TestCase):
-    @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
+    @cinder_support.skipUnlessJITEnabled("No JIT-list if no JIT")
     def test_comments(self) -> None:
         cinderjit.jit_list_append("")
         initial_jit_list = cinderjit.get_jit_list()
@@ -37,7 +39,7 @@ class JitListTest(unittest.TestCase):
         cinderjit.jit_list_append("# x@y:1")
         self.assertEqual(initial_jit_list, cinderjit.get_jit_list())
 
-    @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
+    @cinder_support.skipUnlessJITEnabled("No JIT-list if no JIT")
     def test_py_function(self) -> None:
         meth = _JitClass.jitMethod
         func = _jit_function_1
@@ -54,7 +56,7 @@ class JitListTest(unittest.TestCase):
         _no_jit_function()
         self.assertFalse(cinderjit.is_jit_compiled(_no_jit_function))
 
-    @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
+    @cinder_support.skipUnlessJITEnabled("No JIT-list if no JIT")
     def test_py_code(self) -> None:
         code_obj = _jit_function_2.__code__
         cinderjit.jit_list_append(
@@ -69,7 +71,7 @@ class JitListTest(unittest.TestCase):
         _no_jit_function()
         self.assertFalse(cinderjit.is_jit_compiled(_no_jit_function))
 
-    @unittest.skipUnlessCinderJITEnabled("No JIT-list if no JIT")
+    @cinder_support.skipUnlessJITEnabled("No JIT-list if no JIT")
     def test_change_func_qualname(self) -> None:
         def inner_func():
             return 24

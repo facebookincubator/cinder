@@ -15,6 +15,7 @@ import types
 import unittest
 import warnings
 
+from test import cinder_support
 from .testresult import get_test_runner
 
 
@@ -1715,7 +1716,7 @@ def check_free_after_iterating(test, iter, cls, args=()):
             except StopIteration:
                 pass
             except ValueError as ve:
-                if (unittest.case.CINDERJIT_ENABLED and
+                if (cinder_support.CINDERJIT_ENABLED and
                     "already executing" in str(ve)):
                     # TL;DR an inconsistency arises here due to decrefs
                     # happening at different times in JIT vs interpreted code.

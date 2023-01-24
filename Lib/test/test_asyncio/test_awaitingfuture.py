@@ -4,7 +4,7 @@ import asyncio
 import cinder
 from _asyncio import _AwaitingFuture
 from functools import wraps
-from test.support.cinder import get_await_stack
+from test.cinder_support import get_await_stack
 from test.test_asyncio import utils as test_utils
 
 

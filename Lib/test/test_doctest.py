@@ -1936,8 +1936,7 @@ Run the debugger on the docstring, and then restore sys.stdin.
 
 """
 
-if (not hasattr(sys, 'gettrace') or not sys.gettrace()) and not unittest.case.CINDERJIT_ENABLED:
-    # Cinder's JIT doesn't support PDB
+if (not hasattr(sys, 'gettrace') or not sys.gettrace()):
     def test_pdb_set_trace():
         """Using pdb.set_trace from a doctest.
 

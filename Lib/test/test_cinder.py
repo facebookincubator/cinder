@@ -31,9 +31,9 @@ from typing import List, Tuple
 
 import _testcindercapi
 
-from test import libregrtest
+from test import cinder_support, libregrtest
+from test.cinder_support import get_await_stack, verify_stack
 
-from test.support.cinder import get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
 
 
@@ -1907,7 +1907,7 @@ class GetEntireCallStackTest(unittest.TestCase):
         verify_stack(self, stack, ["a2", "a3"])
 
 
-@unittest.skipUnderCinderJIT("Profiling only works under interpreter")
+@cinder_support.skipUnderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):
     def tearDown(self):
         cinder.set_profile_interp(False)

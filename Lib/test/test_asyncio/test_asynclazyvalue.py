@@ -8,7 +8,7 @@ from _asyncio import AsyncLazyValue
 from functools import wraps
 from time import time
 
-from test.support.cinder import get_await_stack
+from test.cinder_support import get_await_stack
 
 
 def async_test(f):

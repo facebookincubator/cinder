@@ -8,7 +8,6 @@ import re
 import warnings
 import collections
 import contextlib
-import importlib
 import traceback
 import types
 
@@ -22,17 +21,6 @@ _subtest_msg_sentinel = object()
 
 DIFF_OMITTED = ('\nDiff is %s characters long. '
                  'Set self.maxDiff to None to see it.')
-
-
-try:
-    from cinderjit import is_jit_compiled, force_compile
-    CINDERJIT_ENABLED = True
-except ImportError:
-    def is_jit_compiled(f):
-        return False
-    def force_compile(f):
-        return False
-    CINDERJIT_ENABLED = False
 
 
 class SkipTest(Exception):
@@ -156,44 +144,6 @@ def skipUnless(condition, reason):
     if not condition:
         return skip(reason)
     return _id
-
-def skipUnderCinderJIT(reason):
-    if CINDERJIT_ENABLED:
-        return skip(reason)
-    return _id
-
-def skipUnlessCinderJITEnabled(reason):
-    if not CINDERJIT_ENABLED:
-        return skip(reason)
-    return _id
-
-def failUnlessJITCompiled(func):
-    """
-    Fail a test if the JIT is enabled but the test body wasn't JIT-compiled.
-    """
-    if not CINDERJIT_ENABLED:
-        return func
-
-    try:
-        # force_compile raises a RuntimeError if compilation fails. If it does,
-        # defer raising an exception to when the decorated function runs.
-        force_compile(func)
-    except RuntimeError as re:
-        if re.args == ('PYJIT_RESULT_NOT_ON_JITLIST',):
-            # We generally only run tests with a jitlist under
-            # Tools/scripts/jitlist_bisect.py. In that case, we want to allow
-            # the decorated function to run under the interpreter to determine
-            # if it's the function the JIT is handling incorrectly.
-            return func
-
-        # re is cleared at the end of the except block but we need the value
-        # when wrapper() is eventually called.
-        exc = re
-        def wrapper(*args):
-            raise RuntimeError(f"JIT compilation of {func.__qualname__} failed with {exc}")
-        return wrapper
-
-    return func
 
 def expectedFailure(test_item):
     test_item.__unittest_expecting_failure__ = True

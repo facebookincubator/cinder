@@ -10,7 +10,7 @@ import weakref
 from collections import UserDict
 from test.support.script_helper import assert_python_ok, run_python_until_end
 from unittest import skipIf
-from unittest.case import CINDERJIT_ENABLED
+from test.cinder_support import CINDERJIT_ENABLED
 import cinder
 from cinder import (
     cached_property,

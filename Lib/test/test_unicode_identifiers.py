@@ -13,7 +13,6 @@ class PEP3131Test(unittest.TestCase):
         self.assertEqual(getattr(T, '\u87d2'), 3)
         self.assertEqual(getattr(T, 'x\U000E0100'), 4)
 
-    @unittest.skipUnderCinderJIT("locals() unsupported in the JIT")
     def test_non_bmp_normalized(self):
         𝔘𝔫𝔦𝔠𝔬𝔡𝔢 = 1
         self.assertIn("Unicode", dir())

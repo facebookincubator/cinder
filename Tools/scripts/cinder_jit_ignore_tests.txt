@@ -3,9 +3,12 @@ test.test_exceptions.ExceptionTests.testInfiniteRecursion
 test.test_exceptions.ExceptionTests.test_badisinstance
 test.test_exceptions.ExceptionTests.test_recursion_error_cleanup
 test.test_exceptions.ExceptionTests.test_recursion_in_except_handler
+test.test_isinstance.TestIsInstanceIsSubclass.test_infinite_recursion_in_bases
 test.test_json.test_recursion.TestPyRecursion.test_endless_recursion
 test.test_json.test_recursion.TestPyRecursion.test_highly_nested_objects_decoding
 test.test_json.test_recursion.TestPyRecursion.test_highly_nested_objects_encoding
+test.test_pickle.*.test_bad_getattr
+test.test_pickletools.*.test_bad_getattr
 test.test_sys.SysModuleTest.test_recursionlimit_recovery
 test.test_sys.SysModuleTest.test_setrecursionlimit_recursion_depth
 test.test_traceback.TracebackFormatTests.test_recursive_traceback_cpython_internal
@@ -50,3 +53,15 @@ test.test_io.*.test_reader_writer_close_error_on_close
 
 # The JIT does not eagerly execute coroutines.
 test.test_coroutines.CoroutineAwaiterTest.test_eager_await
+
+# The JIT does not support locals()
+test.test_unicode_identifiers.PEP3131Test.test_non_bmp_normalized
+
+# TODO(T143118641): JIT holds strong reference to globals dict
+test.test_module.ModuleTests.test_clear_dict_in_ref_cycle
+
+# The JIT does not support settrace() or setprofile()
+test.test_doctest.test_pdb_set_trace
+test.test_doctest.test_pdb_set_trace_nested
+test.test_patma.TestTracing.*
+test.test_pstats.StatsTestCase.test_get_stats_profile
