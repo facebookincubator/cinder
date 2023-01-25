@@ -2904,15 +2904,49 @@ test_str_format_no_args
 ---
 x = 'Hello'.format()
 ---
----
-1 4 StrictModuleUnhandledException(NotImplementedError)
----
-test_str_format_multiple_args
----
-x = '{} {key_arg} {}'.format(3, "bla", key_arg="foo")
+x
 ---
 ---
-1 4 StrictModuleUnhandledException(NotImplementedError)
+test_str_format_multiple_args_safe
+---
+class Bar:
+    def __str__(self):
+        return "Bar"
+x = '{} {key_arg} {}'.format(3, 'bla', key_arg=Bar())
+---
+---
+---
+test_str_format_safe_dunder_str_unsafe_dunder_repr
+---
+class Foo:
+    def __str__(self):
+        return "Foo"
+    def __repr__(self):
+        import random
+        return str(random.random())
+x = 'Hi {}'.format(Foo())
+---
+---
+---
+test_str_format_unsafe_dunder_str
+---
+class Foo:
+    def __str__(self):
+        return fake_func()
+x = 'Hi {}'.format(Foo())
+---
+---
+4 4 StrictModuleUnhandledException(NameError) 3 15 StrictModuleUserException NameError
+---
+test_str_format_unsafe_dunder_repr
+---
+class Foo:
+    def __repr__(self):
+        return fake_func()
+x = 'Hi {}'.format(Foo())
+---
+---
+4 4 StrictModuleUnhandledException(NameError) 3 15 StrictModuleUserException NameError
 ---
 test_str_bad_index
 ---

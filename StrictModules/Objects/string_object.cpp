@@ -192,13 +192,44 @@ std::shared_ptr<BaseStrictObject> StrictString::strJoin(
 
 std::shared_ptr<BaseStrictObject> StrictString::strFormat(
     std::shared_ptr<BaseStrictObject> self,
-    const std::vector<std::shared_ptr<BaseStrictObject>>&,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
     const std::vector<std::string>&,
     const CallerContext& caller) {
-  caller.raiseExceptionStr(
-      NotImplementedErrorType(),
-      "format() method of {} object is not supported yet in strict modules",
-      self->getType()->getName());
+  std::shared_ptr<StrictString> selfStrPtr =
+      std::dynamic_pointer_cast<StrictString>(self);
+  if (selfStrPtr == nullptr) {
+    caller.raiseExceptionStr(
+        TypeErrorType(),
+        "descriptor 'format' for 'str' objects doesn't apply to a '{}' object",
+        self->getTypeRef().getName());
+  }
+
+  // TODO: build and return the correct format() result, not a dummy value.
+  // Instead of building the full format() result, we only try to convert all
+  // arguments to strings to verify that this process is safe. If doing so is
+  // unsafe for any of the arguments, exception is raised.
+  for (auto arg : args) {
+    std::string funcName = kDunderStr;
+    auto func = iLoadAttrOnType(arg, kDunderStr, nullptr, caller);
+    if (func == nullptr) {
+      funcName = kDunderRepr;
+      func = iLoadAttrOnType(arg, kDunderRepr, nullptr, caller);
+    }
+    if (func == nullptr) {
+      caller.error<UnsupportedException>("str()", arg->getDisplayName());
+      return makeUnknown(caller, "str({})", arg);
+    }
+    auto result = iCall(std::move(func), kEmptyArgs, kEmptyArgNames, caller);
+    auto resultStr = std::dynamic_pointer_cast<StrictString>(result);
+    if (resultStr == nullptr) {
+      caller.raiseTypeError(
+          "{}.{} must return string, not {}",
+          arg->getTypeRef().getName(),
+          std::move(funcName),
+          result->getTypeRef().getName());
+    }
+  }
+  return caller.makeStr(selfStrPtr->getValue());
 }
 
 std::shared_ptr<BaseStrictObject> StrictString::str__str__(
