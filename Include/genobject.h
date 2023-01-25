@@ -83,6 +83,8 @@ typedef struct _coro {
 PyAPI_DATA(PyTypeObject) PyCoro_Type;
 PyAPI_DATA(PyTypeObject) _PyCoroWrapper_Type;
 
+PyAPI_DATA(int) CiGen_FreeListEnabled;
+
 #define PyCoro_CheckExact(op) Py_IS_TYPE(op, &PyCoro_Type)
 PyAPI_FUNC(PyObject *) _PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
@@ -135,6 +137,8 @@ PyAPI_FUNC(PyObject *) PyAsyncGen_New(PyFrameObject *,
 #define PyAsyncGen_CheckExact(op) Py_IS_TYPE(op, &PyAsyncGen_Type)
 
 PyObject *_PyAsyncGenValueWrapperNew(PyObject *);
+
+PyAPI_FUNC(int) CiGen_ClearFreeList(void);
 
 #endif
 

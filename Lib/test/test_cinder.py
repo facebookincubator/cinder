@@ -851,6 +851,29 @@ class CinderTest(unittest.TestCase):
         ):
             cinder.warn_on_inst_dict(C)
 
+    def test_gen_free_list(self):
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["genfreelist"], False)
+
+        cinder.setknobs({"genfreelist": True})
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["genfreelist"], True)
+
+        def f():
+            yield 42
+
+        a = f()
+        id1 = id(a)
+        del a
+        a = f()
+
+        id2 = id(a)
+        self.assertEqual(id1, id2)
+
+        cinder.setknobs({"genfreelist": False})
+        knobs = cinder.getknobs()
+        self.assertEqual(knobs["genfreelist"], False)
+
     def test_polymorphic_cache(self):
         knobs = cinder.getknobs()
         self.assertEqual(knobs["polymorphiccache"], True)

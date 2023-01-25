@@ -11,6 +11,7 @@
 #include "opcode.h"
 #include "Jit/pyjit.h"
 #include "cinder/exports.h"
+#include "pycore_gc.h"            // _PyGC_UNSET_FINALIZED
 
 static PyObject *gen_close(PyGenObject *, PyObject *);
 static PyObject *async_gen_asend_new(PyAsyncGenObject *, PyObject *);
@@ -21,6 +22,22 @@ static const char *NON_INIT_CORO_MSG = "can't send non-None value to a "
 
 static const char *ASYNC_GEN_IGNORED_EXIT_MSG =
                                  "async generator ignored GeneratorExit";
+
+typedef struct {
+    PyGenObject *free_list;
+    int numfree;
+} gen_free_list;
+
+#define FREE_LIST_GEN 0
+#define FREE_LIST_CORO 1
+#define FREE_LIST_ASYNC_GEN 2
+#define FREE_LIST_MAX 3
+
+gen_free_list freelists[FREE_LIST_MAX];
+
+int CiGen_FreeListEnabled = 0;
+
+#define PyGen_MAXFREELIST 200
 
 static inline int
 exc_state_traverse(_PyErr_StackItem *exc_state, visitproc visit, void *arg)
@@ -165,7 +182,26 @@ gen_dealloc(PyGenObject *gen)
     Py_CLEAR(gen->gi_name);
     Py_CLEAR(gen->gi_qualname);
     _PyErr_ClearExcState(&gen->gi_exc_state);
-    PyObject_GC_Del(gen);
+
+
+    gen_free_list *list = NULL;
+    if (PyCoro_CheckExact(gen)) {
+        list = &freelists[FREE_LIST_CORO];
+    } else if (PyGen_CheckExact(gen)) {
+        list = &freelists[FREE_LIST_GEN];
+    } else if (PyAsyncGen_CheckExact(gen)) {
+        list = &freelists[FREE_LIST_ASYNC_GEN];
+    } else {
+        assert(0);
+    }
+
+    if (CiGen_FreeListEnabled && list->numfree < PyGen_MAXFREELIST) {
+        ++list->numfree;
+        gen->gi_code = (PyObject *)list->free_list;
+        list->free_list = gen;
+    } else {
+        PyObject_GC_Del(gen);
+    }
 }
 
 static PySendResult
@@ -998,12 +1034,11 @@ PyTypeObject PyGen_Type = {
 };
 
 static PyObject *
-gen_new_with_qualname(PyTypeObject *type,
+gen_new_with_qualname(PyGenObject *gen,
                       PyFrameObject *f,
                       PyCodeObject *code,
                       PyObject *name,
                       PyObject *qualname) {
-    PyGenObject *gen = PyObject_GC_New(PyGenObject, type);
     if (gen == NULL) {
         Py_DECREF(f);
         return NULL;
@@ -1047,21 +1082,44 @@ gen_new_with_qualname(PyTypeObject *type,
     return (PyObject *)gen;
 }
 
+static PyGenObject *
+gen_alloc(PyTypeObject *type, int free_list)
+{
+    PyGenObject *gen;
+
+    gen_free_list *list = &freelists[free_list];
+    if (list->free_list == NULL) {
+        return PyObject_GC_New(PyGenObject, type);
+    }
+
+    assert(list->numfree > 0);
+    --list->numfree;
+    gen = list->free_list;
+    list->free_list = (PyGenObject *)gen->gi_code;
+
+    assert(((PyObject *)gen)->ob_type == type);
+
+    _Py_NewReference((PyObject *)gen);
+    _CiGC_UNSET_FINALIZED(gen);
+
+    return gen;
+}
+
 PyObject *
 PyGen_NewWithQualName(PyFrameObject *f, PyObject *name, PyObject *qualname)
 {
-    return gen_new_with_qualname(&PyGen_Type, f, f->f_code, name, qualname);
+    return gen_new_with_qualname(gen_alloc(&PyGen_Type, FREE_LIST_GEN), f, f->f_code, name, qualname);
 }
 
 PyObject *
 PyGen_New(PyFrameObject *f)
 {
-    return gen_new_with_qualname(&PyGen_Type, f, f->f_code, NULL, NULL);
+    return gen_new_with_qualname(gen_alloc(&PyGen_Type, FREE_LIST_GEN), f, f->f_code, NULL, NULL);
 }
 
 PyObject *
 CiGen_New_NoFrame(PyCodeObject *code) {
-    return gen_new_with_qualname(&PyGen_Type, NULL, code, code->co_name, code->co_qualname);
+    return gen_new_with_qualname(gen_alloc(&PyGen_Type, FREE_LIST_GEN), NULL, code, code->co_name, code->co_qualname);
 }
 
 /* Coroutine Object */
@@ -1409,7 +1467,8 @@ static PyObject *
 coro_new(PyThreadState *tstate, PyFrameObject *f,
          PyCodeObject *code, PyObject *name, PyObject *qualname)
 {
-    PyObject *coro = gen_new_with_qualname(&PyCoro_Type, f, code, name, qualname);
+    PyObject *coro = gen_new_with_qualname(
+        gen_alloc(&PyCoro_Type, FREE_LIST_CORO), f, code, name, qualname);
     if (!coro) {
         return NULL;
     }
@@ -1813,7 +1872,7 @@ PyAsyncGen_New(PyFrameObject *f, PyObject *name, PyObject *qualname)
 {
     PyAsyncGenObject *o;
     o = (PyAsyncGenObject *)gen_new_with_qualname(
-        &PyAsyncGen_Type, f, f->f_code, name, qualname);
+        gen_alloc(&PyAsyncGen_Type, FREE_LIST_ASYNC_GEN), f, f->f_code, name, qualname);
     return Ci_async_gen_init(o);
 }
 
@@ -1822,7 +1881,8 @@ CiAsyncGen_New_NoFrame(PyCodeObject *code)
 {
     PyAsyncGenObject *o;
     o = (PyAsyncGenObject *)gen_new_with_qualname(
-        &PyAsyncGen_Type, NULL, code, code->co_name, code->co_qualname);
+        gen_alloc(&PyAsyncGen_Type, FREE_LIST_ASYNC_GEN),
+        NULL, code, code->co_name, code->co_qualname);
     return Ci_async_gen_init(o);
 }
 
@@ -2478,4 +2538,23 @@ async_gen_athrow_new(PyAsyncGenObject *gen, PyObject *args)
     Py_XINCREF(args);
     _PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
+}
+
+int
+CiGen_ClearFreeList(void)
+{
+    int freelist_size = 0;
+
+    for (int i = 0; i < FREE_LIST_MAX; i++) {
+        gen_free_list *free_list = &freelists[i];
+
+        freelist_size += free_list->numfree;
+        while (free_list->free_list != NULL) {
+            PyGenObject *gen = free_list->free_list;
+            free_list->free_list = (PyGenObject *)gen->gi_code;
+            PyObject_GC_Del(gen);
+            --free_list->numfree;
+        }
+    }
+    return freelist_size;
 }

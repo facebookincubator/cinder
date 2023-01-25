@@ -57,11 +57,15 @@ typedef struct {
     (((g)->_gc_prev & _PyGC_PREV_MASK_FINALIZED) != 0)
 #define _PyGCHead_SET_FINALIZED(g) \
     ((g)->_gc_prev |= _PyGC_PREV_MASK_FINALIZED)
+#define _CiGCHead_UNSET_FINALIZED(g) \
+    ((g)->_gc_prev &= ~_PyGC_PREV_MASK_FINALIZED)
 
 #define _PyGC_FINALIZED(o) \
     _PyGCHead_FINALIZED(_Py_AS_GC(o))
 #define _PyGC_SET_FINALIZED(o) \
     _PyGCHead_SET_FINALIZED(_Py_AS_GC(o))
+#define _CiGC_UNSET_FINALIZED(o) \
+    _CiGCHead_UNSET_FINALIZED(_Py_AS_GC(o))
 
 
 /* GC runtime state */

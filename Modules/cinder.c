@@ -25,6 +25,15 @@ cinder_setknobs(PyObject *self, PyObject *o)
         _PyEval_ShadowByteCodeEnabled = enabled != -1 && enabled;
     }
 
+    PyObject *genfreelist = PyDict_GetItemString(o, "genfreelist");
+    if (genfreelist != NULL) {
+        int enabled = PyObject_IsTrue(genfreelist);
+        CiGen_FreeListEnabled = enabled != -1 && enabled;
+        if (!enabled) {
+            CiGen_ClearFreeList();
+        }
+    }
+
     PyObject *polymorphic = PyDict_GetItemString(o, "polymorphiccache");
     if (polymorphic != NULL) {
         int enabled = PyObject_IsTrue(polymorphic);
@@ -54,6 +63,12 @@ cinder_getknobs(PyObject *self, PyObject *args)
                          _PyEval_ShadowByteCodeEnabled ? Py_True : Py_False);
     if (err == -1)
         return NULL;
+
+    err = PyDict_SetItemString(
+        res, "genfreelist", CiGen_FreeListEnabled ? Py_True : Py_False);
+    if (err == -1) {
+        return NULL;
+    }
 
     err = PyDict_SetItemString(res,
                                "polymorphiccache",
