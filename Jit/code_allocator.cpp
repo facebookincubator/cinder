@@ -79,18 +79,19 @@ asmjit::Error CodeAllocatorCinder::addCode(
         NULL,
         alloc_size,
         PROT_EXEC | PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+        MAP_PRIVATE | MAP_ANONYMOUS,
         -1,
         0);
-    if (res == MAP_FAILED) {
-      res = mmap(
-          NULL,
-          alloc_size,
-          PROT_EXEC | PROT_READ | PROT_WRITE,
-          MAP_PRIVATE | MAP_ANONYMOUS,
-          -1,
-          0);
-      JIT_CHECK(res != MAP_FAILED, "Failed to allocate memory for code");
+    JIT_CHECK(
+        res != MAP_FAILED,
+        "Failed to allocate %d bytes of memory for code",
+        alloc_size);
+
+    if (madvise(res, alloc_size, MADV_HUGEPAGE) == -1) {
+      JIT_LOG(
+          "Failed to madvise [%p, %p) with MADV_HUGEPAGE",
+          res,
+          static_cast<char*>(res) + alloc_size);
       s_fragmented_allocs_++;
     } else {
       s_huge_allocs_++;
