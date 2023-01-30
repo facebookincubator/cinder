@@ -3,6 +3,7 @@
 #include "Python.h"
 #include "code.h"
 #include "opcode.h"
+#include "pymem.h"
 #include "structmember.h"         // PyMemberDef
 #include "pycore_code.h"          // _PyOpcache
 #include "pycore_interp.h"        // PyInterpreterState.co_extra_freefuncs
@@ -115,6 +116,49 @@ intern_string_constants(PyObject *tuple, int *modified)
     }
     return 0;
 }
+
+union _code_free_mutable {
+    PyCode_MutableState mutable_state;
+    union _code_free_mutable *next;
+};
+
+static union _code_free_mutable *mutable_free_list;
+static PyCode_MutableState *mutable_arena_start, *mutable_arena_end;
+
+static PyCode_MutableState *
+_PyCode_AllocMutable() {
+    // return PyMem_Calloc(1, sizeof(PyCode_MutableState));
+    if (mutable_free_list != NULL) {
+        PyCode_MutableState *res = &mutable_free_list->mutable_state;
+        mutable_free_list = mutable_free_list->next;
+        memset(res, 0, sizeof(PyCode_MutableState));
+        return res;
+    }
+
+    if (mutable_arena_start == NULL || mutable_arena_start + 1 >= mutable_arena_end) {
+        PyObjectArenaAllocator allocator;
+        PyObject_GetArenaAllocator(&allocator);
+        // Like obmalloc.c we assume a page size of 4k
+#define SYSTEM_PAGE_SIZE        (4 * 1024)
+        mutable_arena_start = allocator.alloc(NULL, SYSTEM_PAGE_SIZE);
+        if (mutable_arena_start == NULL) {
+            return NULL;
+        }
+        mutable_arena_end = (PyCode_MutableState *)(((char *)mutable_arena_start) + SYSTEM_PAGE_SIZE);
+    }
+    PyCode_MutableState *res = mutable_arena_start++;
+    memset(res, 0, sizeof(PyCode_MutableState));
+    return res;
+}
+
+static void
+_PyCode_FreeMutableState(PyCode_MutableState *mutable_state) {
+    // PyMem_Free(mutable_state);
+    union _code_free_mutable *freeing = (union _code_free_mutable *)mutable_state;
+    freeing->next = mutable_free_list;
+    mutable_free_list = freeing;
+}
+
 
 PyCodeObject *
 PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
@@ -242,18 +286,14 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
      * TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
      * CinderVM work.
      */
-    Py_buffer codebuffer = {};
-    if (PyObject_GetBuffer(code, &codebuffer, PyBUF_SIMPLE) != 0) {
+    co->co_mutable = _PyCode_AllocMutable();
+    if (co->co_mutable == NULL) {
       PyObject_DEL(co);
       if (cell2arg)
         PyMem_FREE(cell2arg);
 
-      PyErr_SetString(PyExc_TypeError, "Expected buffer like object");
       return NULL;
     }
-    co->co_rawcode = (_Py_CODEUNIT *)codebuffer.buf;
-    co->co_codelen = codebuffer.len;
-    PyBuffer_Release(&codebuffer);
 
     co->co_argcount = argcount;
     co->co_posonlyargcount = posonlyargcount;
@@ -281,17 +321,8 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
     co->co_firstlineno = firstlineno;
     Py_INCREF(linetable);
     co->co_linetable = linetable;
-    co->co_zombieframe = NULL;
     co->co_weakreflist = NULL;
     co->co_extra = NULL;
-
-    /*
-     * TODO(T126419906): co_cache should be removed as part of the CinderVM
-     * work.
-     */
-    co->co_cache.shadow = NULL;
-    co->co_cache.ncalls = 0;
-    co->co_cache.curcalls = 0;
 
     co->co_qualname = NULL;
     return co;
@@ -642,10 +673,11 @@ code_dealloc(PyCodeObject *co)
     Py_XDECREF(co->co_linetable);
     if (co->co_cell2arg != NULL)
         PyMem_Free(co->co_cell2arg);
-    if (co->co_zombieframe != NULL)
-        PyObject_GC_Del(co->co_zombieframe);
+    if (co->co_mutable->co_zombieframe != NULL)
+        PyObject_GC_Del(co->co_mutable->co_zombieframe);
     if (co->co_weakreflist != NULL)
         PyObject_ClearWeakRefs((PyObject*)co);
+    _PyCode_FreeMutableState(co->co_mutable);
     Py_XDECREF(co->co_qualname);
     PyObject_Free(co);
 }
@@ -663,8 +695,8 @@ code_sizeof(PyCodeObject *co, PyObject *Py_UNUSED(args))
         res += sizeof(_PyCodeObjectExtra) +
                (co_extra->ce_size-1) * sizeof(co_extra->ce_extras[0]);
     }
-    if (co->co_cache.shadow != NULL) {
-        _PyShadowCode *shadow = co->co_cache.shadow;
+    if (co->co_mutable->shadow != NULL) {
+        _PyShadowCode *shadow = co->co_mutable->shadow;
         res += sizeof(_PyShadowCode);
         res += sizeof(PyObject *) * shadow->l1_cache.size;
         res += sizeof(PyObject *) * shadow->cast_cache.size;

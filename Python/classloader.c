@@ -4464,7 +4464,7 @@ PyTypeObject _PyTypedArgsInfo_Type = {
 };
 
 _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives) {
-    _Py_CODEUNIT* rawcode = code->co_rawcode;
+    _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(code->co_code);
     PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
 
     int count;
@@ -4562,7 +4562,7 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyOb
 }
 
 int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code) {
-  _Py_CODEUNIT* rawcode = code->co_rawcode;
+  _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(code->co_code);
   PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
   for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
     PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);

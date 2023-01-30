@@ -286,7 +286,7 @@ def test(x, y):
     PyCodeObject* code =
         reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
     const int jump_index = 20;
-    ASSERT_EQ(((unsigned char*)code->co_rawcode)[24], POP_JUMP_IF_ZERO);
+    ASSERT_EQ(PyBytes_AS_STRING(code->co_code)[24], (char)POP_JUMP_IF_ZERO);
 
     CodeRuntime code_rt{func, FrameMode::kNormal};
 

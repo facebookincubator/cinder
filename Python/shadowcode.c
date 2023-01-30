@@ -628,7 +628,7 @@ int _PyShadow_GetOriginalOparg(_PyShadow_EvalState *state,
     _Py_CODEUNIT *rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(state->code->co_code);
     _Py_CODEUNIT *instr = &rawcode[next_instr - *state->first_instr];
     instr--; /* we point to the next instruction, we want the current one */
-    const int existing_size = opsize(instr, state->code->co_rawcode);
+    const int existing_size = opsize(instr, (_Py_CODEUNIT *)PyBytes_AsString(state->code->co_code));
     _Py_CODEUNIT *start = instr - (existing_size - 1);
     int oparg = _Py_OPARG(*start);
     while (_Py_OPCODE(*start) == EXTENDED_ARG) {
@@ -2556,7 +2556,7 @@ _PyShadow_InitCache(PyCodeObject *co)
     cache_init(&shadow->l1_cache);
     cache_init(&shadow->cast_cache);
 
-    co->co_cache.shadow = shadow;
+    co->co_mutable->shadow = shadow;
     return 0;
 }
 
@@ -2633,12 +2633,12 @@ _PyShadow_ClearCache(PyObject *obj)
     if (PyCode_Check(obj)) {
         /* clear the shadow byte and l1 caches */
         PyCodeObject *co = (PyCodeObject *)obj;
-        assert(co->co_cache.curcalls == 0);
-        if (co->co_cache.shadow == NULL) {
+        assert(co->co_mutable->curcalls == 0);
+        if (co->co_mutable->shadow == NULL) {
             return;
         }
-        _PyShadowCode_Free(co->co_cache.shadow);
-        co->co_cache.shadow = NULL;
+        _PyShadowCode_Free(co->co_mutable->shadow);
+        co->co_mutable->shadow = NULL;
     } else if (PyType_Check(obj) || PyModule_CheckExact(obj)) {
         /* clear the l2 caches */
         PyCodeCacheRef *cache = _PyShadow_FindCache(obj);
@@ -2650,8 +2650,8 @@ _PyShadow_ClearCache(PyObject *obj)
     } else if (PyFunction_Check(obj)) {
         /* clear the caches for the associated function */
         PyCodeObject *code = (PyCodeObject *)PyFunction_GetCode(obj);
-        if (code != NULL && code->co_cache.shadow != NULL &&
-            code->co_cache.curcalls == 0) {
+        if (code != NULL && code->co_mutable->shadow != NULL &&
+            code->co_mutable->curcalls == 0) {
             _PyShadow_ClearCache((PyObject *)code);
         }
     }

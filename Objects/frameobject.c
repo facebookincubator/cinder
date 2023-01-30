@@ -604,8 +604,8 @@ frame_dealloc(PyFrameObject *f)
     Py_CLEAR(f->f_trace);
 
     PyCodeObject *co = f->f_code;
-    if (co->co_zombieframe == NULL) {
-        co->co_zombieframe = f;
+    if (co->co_mutable->co_zombieframe == NULL) {
+        co->co_mutable->co_zombieframe = f;
     }
     else {
         struct _Py_frame_state *state = get_frame_state();
@@ -780,9 +780,9 @@ _Py_IDENTIFIER(__builtins__);
 static inline PyFrameObject*
 frame_alloc(PyCodeObject *code)
 {
-    PyFrameObject *f = code->co_zombieframe;
+    PyFrameObject *f = code->co_mutable->co_zombieframe;
     if (f != NULL) {
-        code->co_zombieframe = NULL;
+        code->co_mutable->co_zombieframe = NULL;
         _Py_NewReference((PyObject *)f);
         assert(f->f_code == code);
         return f;

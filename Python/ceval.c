@@ -1767,7 +1767,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     /* push frame */
     tstate->frame = f;
     co = f->f_code;
-    co->co_cache.curcalls++;
+    co->co_mutable->curcalls++;
 
     // Generator shadow frames are managed by the send implementation.
     if (f->f_gen == NULL) {
@@ -1815,13 +1815,13 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 
     /* facebook begin t39538061 */
     /* Initialize the inline cache after the code object is "hot enough" */
-    if (!tstate->profile_interp && co->co_cache.shadow == NULL &&
+    if (!tstate->profile_interp && co->co_mutable->shadow == NULL &&
         _PyEval_ShadowByteCodeEnabled) {
-        if (++(co->co_cache.ncalls) > PYSHADOW_INIT_THRESHOLD) {
+        if (++(co->co_mutable->ncalls) > PYSHADOW_INIT_THRESHOLD) {
             if (_PyShadow_InitCache(co) == -1) {
                 goto error;
             }
-            INLINE_CACHE_CREATED(co->co_cache);
+            INLINE_CACHE_CREATED(co->co_mutable);
         }
     }
     /* facebook end t39538061 */
@@ -1840,8 +1840,8 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     shadow.first_instr = &first_instr;
     assert(PyDict_CheckExact(f->f_builtins));
     PyObject ***global_cache = NULL;
-    if (co->co_cache.shadow != NULL && PyDict_CheckExact(f->f_globals)) {
-        shadow.shadow = co->co_cache.shadow;
+    if (co->co_mutable->shadow != NULL && PyDict_CheckExact(f->f_globals)) {
+        shadow.shadow = co->co_mutable->shadow;
         global_cache = shadow.shadow->globals;
         first_instr = &shadow.shadow->code[0];
     } else {
@@ -6630,7 +6630,7 @@ exit_eval_frame:
         dtrace_function_return(f);
     _Py_LeaveRecursiveCall(tstate);
     tstate->frame = f->f_back;
-    co->co_cache.curcalls--;
+    co->co_mutable->curcalls--;
 
     return _Py_CheckFunctionResult(tstate, NULL, retval, __func__);
 }
@@ -8171,10 +8171,10 @@ static unsigned int count_calls(PyCodeObject* code) {
   // PYSHADOW_INIT_THRESHOLD. After that, it will stop incrementing. If someone
   // sets -X jit-auto above the PYSHADOW_INIT_THRESHOLD, we still have to keep
   // counting.
-  unsigned int ncalls = code->co_cache.ncalls;
+  unsigned int ncalls = code->co_mutable->ncalls;
   if (ncalls > PYSHADOW_INIT_THRESHOLD) {
     ncalls++;
-    code->co_cache.ncalls = ncalls;
+    code->co_mutable->ncalls = ncalls;
   }
   return ncalls;
 }

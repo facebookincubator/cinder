@@ -674,7 +674,7 @@ def foo(a, b, c):
 foo(3, 4, 5)
 id(foo.__code__)''',
                                           breakpoint='builtin_id',
-                                          cmds_after_breakpoint=['print (PyFrameObject*)(((PyCodeObject*)v)->co_zombieframe)']
+                                          cmds_after_breakpoint=['print (PyFrameObject*)(((PyCodeObject*)v)->co_mutable->co_zombieframe)']
                                           )
         self.assertTrue(re.match(r'.*\s+\$1 =\s+Frame 0x-?[0-9a-f]+, for file <string>, line 3, in foo \(\)\s+.*',
                                  gdb_output,

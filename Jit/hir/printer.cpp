@@ -800,7 +800,8 @@ void HIRPrinter::Print(std::ostream& os, const FrameState& state) {
 
 static int lastLineNumber(PyCodeObject* code) {
   int last_line = -1;
-  for (Py_ssize_t off = 0; off < code->co_codelen;
+  for (Py_ssize_t off = 0;
+       off < (PyBytes_Size(code->co_code) / (Py_ssize_t)sizeof(_Py_CODEUNIT));
        off += sizeof(_Py_CODEUNIT)) {
     last_line = std::max(last_line, PyCode_Addr2Line(code, off));
   }
@@ -958,8 +959,8 @@ nlohmann::json JSONPrinter::PrintBytecode(const Function& func) {
   block["name"] = "bb0";
   nlohmann::json instrs_json = nlohmann::json::array();
   PyCodeObject* code = func.code;
-  _Py_CODEUNIT* instrs = code->co_rawcode;
-  Py_ssize_t num_instrs = code->co_codelen / sizeof(_Py_CODEUNIT);
+  _Py_CODEUNIT* instrs = (_Py_CODEUNIT*)PyBytes_AS_STRING(code->co_code);
+  Py_ssize_t num_instrs = PyBytes_Size(code->co_code) / sizeof(_Py_CODEUNIT);
   for (Py_ssize_t i = 0, off = 0; i < num_instrs;
        i++, off += sizeof(_Py_CODEUNIT)) {
     unsigned char opcode = _Py_OPCODE(instrs[i]);

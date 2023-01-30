@@ -19,8 +19,9 @@ struct _PyShadowCode;
 
 typedef struct {
     unsigned int ncalls, curcalls; /* incremented for each execution */
+    void *co_zombieframe;
     struct _PyShadowCode *shadow;
-} PyCode_Cache;
+} PyCode_MutableState;
 /* facebook end */
 
 /* Bytecode object */
@@ -49,7 +50,7 @@ struct PyCodeObject {
     PyObject *co_name;          /* unicode (name, for reference) */
     PyObject *co_linetable;     /* string (encoding addr<->lineno mapping) See
                                    Objects/lnotab_notes.txt for details. */
-    void *co_zombieframe;       /* for optimization only (see frameobject.c) */
+    PyCode_MutableState *co_mutable;       /* for optimization only (see frameobject.c) */
     PyObject *co_weakreflist;   /* to support weakrefs to code objects */
     /* Scratch space for extra data relating to the code object.
        Type is a void* to keep the format private in codeobject.c to force
@@ -62,10 +63,6 @@ struct PyCodeObject {
     */
 
     PyObject *co_qualname; /* qualified name */
-    _Py_CODEUNIT* co_rawcode;
-    Py_ssize_t co_codelen;
-
-    PyCode_Cache co_cache; /* cache of opcode results */
 };
 
 /* Masks for co_flags above */

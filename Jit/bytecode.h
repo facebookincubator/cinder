@@ -119,9 +119,9 @@ class BytecodeInstructionBlock {
   // TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
   // CinderVM work.
   explicit BytecodeInstructionBlock(PyCodeObject* code)
-      : instrs_(code->co_rawcode),
+      : instrs_((_Py_CODEUNIT*)PyBytes_AS_STRING(code->co_code)),
         start_idx_(0),
-        end_idx_(code->co_codelen / sizeof(_Py_CODEUNIT)) {}
+        end_idx_(PyBytes_Size(code->co_code) / sizeof(_Py_CODEUNIT)) {}
 
   BytecodeInstructionBlock(_Py_CODEUNIT* instrs, BCIndex start, BCIndex end)
       : instrs_(instrs), start_idx_(start), end_idx_(end) {}

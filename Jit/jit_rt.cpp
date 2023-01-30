@@ -539,8 +539,8 @@ static PyFrameObject* allocateFrame(
     PyCodeObject* code,
     PyObject* builtins,
     PyObject* globals) {
-  if (code->co_zombieframe != NULL) {
-    __builtin_prefetch(code->co_zombieframe);
+  if (code->co_mutable->co_zombieframe != NULL) {
+    __builtin_prefetch(code->co_mutable->co_zombieframe);
   }
   PyFrameConstructor frame_ctor = {};
   frame_ctor.fc_globals = globals;
