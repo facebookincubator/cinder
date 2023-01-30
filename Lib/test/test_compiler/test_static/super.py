@@ -1,7 +1,28 @@
+from compiler.pycodegen import CinderCodeGenerator
+
 from .common import StaticTestBase
 
 
 class SuperTests(StaticTestBase):
+    def test_dynamic_base_class(self):
+        nonstatic = """
+            class A:
+                x = 1
+        """
+        with self.in_module(nonstatic, code_gen=CinderCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+                from {nonstatic_mod.__name__} import A
+
+                class B(A):
+                    x = 2
+
+                    def foo(self):
+                        return super().x
+            """
+            with self.in_strict_module(codestr) as mod:
+                self.assertInBytecode(mod.B.foo, "LOAD_ATTR_SUPER")
+                self.assertEqual(mod.B().foo(), 1)
+
     def test_method_in_parent_class(self):
         codestr = """
         class A:
@@ -91,7 +112,7 @@ class SuperTests(StaticTestBase):
                 return 4
 
         class A(AA):
-            pass 
+            pass
 
         class B(A):
             def g(self):
@@ -107,7 +128,7 @@ class SuperTests(StaticTestBase):
     def test_unsupported_attr_in_parent_class(self):
         codestr = """
         class A:
-            f = 4 
+            f = 4
 
         class B(A):
             def g(self):
@@ -123,7 +144,7 @@ class SuperTests(StaticTestBase):
     def test_unsupported_attr_in_parent_class(self):
         codestr = """
         class A:
-            f = 4 
+            f = 4
 
         class B(A):
             def g(self):
@@ -139,7 +160,7 @@ class SuperTests(StaticTestBase):
     def test_unsupported_attr_in_parents_parent_class(self):
         codestr = """
         class AA:
-            f = 4 
+            f = 4
 
         class A(AA):
             pass

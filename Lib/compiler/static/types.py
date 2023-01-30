@@ -7402,6 +7402,14 @@ class SuperInstance(Object[SuperClass]):
         super().bind_attr(node, visitor, type_ctx)
         visitor.set_type(node, visitor.type_env.DYNAMIC)
 
+    def emit_attr(self, node: ast.Attribute, code_gen: Static38CodeGenerator) -> None:
+        if isinstance(node.ctx, ast.Load) and code_gen._is_super_call(node.value):
+            code_gen.emit("LOAD_GLOBAL", "super")
+            load_arg = code_gen._emit_args_for_super(node.value, node.attr)
+            code_gen.emit("LOAD_ATTR_SUPER", load_arg)
+            return
+        super().emit_attr(node, code_gen)
+
 
 class SuperMethodType(MethodType):
     def __init__(

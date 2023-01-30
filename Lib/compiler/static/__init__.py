@@ -531,16 +531,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if data is not None and not data.is_source:
             self.emit("LOAD_FAST", data.name)
             return
-        # TODO: Port CinderCodeGenerator separately
-        # if (
-        #     isinstance(node.ctx, ast.Load)
-        #     and self._is_super_call(node.value)
-        #     and self.get_type(node.value) is self.compiler.type_env.DYNAMIC
-        # ):
-        #     self.emit("LOAD_GLOBAL", "super")
-        #     load_arg = self._emit_args_for_super(node.value, node.attr)
-        #     self.emit("LOAD_ATTR_SUPER", load_arg)
-        # else:
+
         if isinstance(node.ctx, ast.Store) and data is not None and data.is_used:
             self.emit("DUP_TOP")
             self.emit("STORE_FAST", data.name)
