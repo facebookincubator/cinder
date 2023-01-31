@@ -231,11 +231,35 @@ typedef struct {
     FutureObj_HEAD(fut)
 } FutureObj;
 
+static inline uintptr_t
+tag_counter(int c)
+{
+    return ((uintptr_t)c << (uintptr_t)1) | (uintptr_t)1;
+}
+static inline int
+untag_counter(uintptr_t tagged)
+{
+    return tagged >> (uintptr_t)1;
+}
+
+static inline int
+is_string_name(uintptr_t tagged)
+{
+    return tagged != 0 && ((tagged & (uintptr_t)1) == 0);
+}
+
+static PyObject *
+counter_to_task_name(uintptr_t tagged)
+{
+    return PyUnicode_FromFormat("Task-%" PRIu64, untag_counter(tagged));
+}
+
 typedef struct {
     FutureObj_HEAD(task)
     PyObject *task_fut_waiter;
     PyObject *task_coro;
-    PyObject *task_name;
+    // either pointer to task name string or tagged counter value that is used to produce name
+    uintptr_t task_name_or_counter;
     PyObject *task_context;
     int task_must_cancel;
     int task_log_destroy_pending;
@@ -3689,16 +3713,28 @@ _asyncio_Task___init___impl(TaskObj *self, PyObject *coro, PyObject *loop,
     Py_INCREF(coro);
     Py_XSETREF(self->task_coro, coro);
 
+    uintptr_t name_or_counter;
+
     if (name == Py_None) {
-        name = PyUnicode_FromFormat("Task-%" PRIu64, ++task_name_counter);
+        // name is not specified - save counter value
+        name_or_counter = tag_counter(++task_name_counter);
     } else if (!PyUnicode_CheckExact(name)) {
         name = PyObject_Str(name);
+        if (name == NULL) {
+            return -1;
+        }
+        name_or_counter = (uintptr_t)name;
     } else {
+        if (name == NULL) {
+            return -1;
+        }
         Py_INCREF(name);
+        name_or_counter = (uintptr_t)name;
     }
-    Py_XSETREF(self->task_name, name);
-    if (self->task_name == NULL) {
-        return -1;
+    uintptr_t prev = self->task_name_or_counter;
+    self->task_name_or_counter = name_or_counter;
+    if (is_string_name(prev)) {
+        Py_DECREF((PyObject*)prev);
     }
 
     if (_is_coro_suspended(coro) == 0) {
@@ -3715,7 +3751,10 @@ TaskObj_clear(TaskObj *task)
     (void)FutureObj_clear((FutureObj*) task);
     Py_CLEAR(task->task_context);
     Py_CLEAR(task->task_coro);
-    Py_CLEAR(task->task_name);
+    if (is_string_name(task->task_name_or_counter)) {
+        Py_DECREF((PyObject *)task->task_name_or_counter);
+        task->task_name_or_counter = 0;
+    }
     Py_CLEAR(task->task_fut_waiter);
     return 0;
 }
@@ -3725,7 +3764,6 @@ TaskObj_traverse(TaskObj *task, visitproc visit, void *arg)
 {
     Py_VISIT(task->task_context);
     Py_VISIT(task->task_coro);
-    Py_VISIT(task->task_name);
     Py_VISIT(task->task_fut_waiter);
     (void)FutureObj_traverse((FutureObj*) task, visit, arg);
     return 0;
@@ -4053,12 +4091,19 @@ static PyObject *
 _asyncio_Task_get_name_impl(TaskObj *self)
 /*[clinic end generated code: output=0ecf1570c3b37a8f input=a4a6595d12f4f0f8]*/
 {
-    if (self->task_name) {
-        Py_INCREF(self->task_name);
-        return self->task_name;
+    if (self->task_name_or_counter == 0) {
+        Py_RETURN_NONE;
     }
-
-    Py_RETURN_NONE;
+    if (!is_string_name(self->task_name_or_counter)) {
+        PyObject *name = counter_to_task_name(self->task_name_or_counter);
+        if (name == NULL) {
+            return NULL;
+        }
+        self->task_name_or_counter = (uintptr_t)name;
+    }
+    PyObject *name = (PyObject *)self->task_name_or_counter;
+    Py_INCREF(name);
+    return name;
 }
 
 /*[clinic input]
@@ -4081,7 +4126,12 @@ _asyncio_Task_set_name(TaskObj *self, PyObject *value)
         Py_INCREF(value);
     }
 
-    Py_XSETREF(self->task_name, value);
+
+    uintptr_t prev = self->task_name_or_counter;
+    self->task_name_or_counter = (uintptr_t)value;
+    if (is_string_name(prev)) {
+        Py_DECREF((PyObject *)prev);
+    }
     Py_RETURN_NONE;
 }
 
