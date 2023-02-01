@@ -1767,13 +1767,6 @@ testcinder_jit_shadowframe_inliner_profile: @DEF_MAKE_RULE@ platform
 testcinder_refleak: @DEF_MAKE_RULE@ platform
 	$(ASAN_TEST_ENV)$(TESTRUNNER) $(TESTCINDER_REFLEAK_OPTS)
 
-testcinder_extension: @DEF_MAKE_RULE@ platform
-	$(abs_builddir)/$(BUILDPYTHON) -m ensurepip
-	$(abs_builddir)/$(BUILDPYTHON) -m pip install setuptools
-	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) setup.py build
-	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) setup.py install --user
-	cd $(srcdir)/CinderVM && $(abs_builddir)/$(BUILDPYTHON) test/test_main.py
-
 test_fuzzer: @DEF_MAKE_RULE@ platform
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) tests/fuzzer_test.py
 	cd $(srcdir)/Tools/fuzzer && $(abs_builddir)/$(BUILDPYTHON) tests/verifier_test.py
@@ -2710,7 +2703,7 @@ ${ASMJIT}/src/asmjit/x86/%.o: ${ASMJIT}/src/asmjit/x86/%.cpp
 .PHONY: testcinder testcinder_jit testcinder_jit_profile testcinder_jit_shadowframe testcinder_jit_shadowframe_profile
 .PHONY: testcinder_jit_inline testcinder_jit_inliner_profile testcinder_jit_shadowframe_inliner
 .PHONY: testcinder_jit_shadowframe_inliner_profile
-.PHONY: testcinder_refleak testcinder_extension
+.PHONY: testcinder_refleak
 .PHONY: test_fuzzer test_fuzzer_jit test_fuzzer_jit_inliner
 
 # IF YOU PUT ANYTHING HERE IT WILL GO AWAY
