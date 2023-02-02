@@ -40,7 +40,6 @@ from .refine_fields import RefineFieldsTests
 from .return_cast_insertion import ReturnCastInsertionTests
 from .runtime import StaticRuntimeTests
 from .sequence import SequenceTests
-from .slot_inference import SlotInferenceTests
 from .slots_with_default import SlotsWithDefaultTests
 from .staticarray import StaticArrayTests
 from .staticmod import StaticModuleTests
