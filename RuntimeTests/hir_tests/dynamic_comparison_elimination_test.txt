@@ -34,7 +34,7 @@ fun test {
   }
 
   bb 1 (preds 0) {
-    v4:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v4:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v4
   }
 
@@ -76,7 +76,7 @@ fun test {
   }
 
   bb 1 (preds 0) {
-    v4:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v4:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v4
   }
 
@@ -100,7 +100,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: isinstance'
     }
     v11:OptObject = LoadGlobalCached<1; "str">
-    v12:MortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11 {
+    v12:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11 {
       Descr 'LOAD_GLOBAL: str'
     }
     v17:Type = LoadField<ob_type@8, Type, borrowed> v7
@@ -119,7 +119,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0, 3) {
-    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v15:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v15
   }
 

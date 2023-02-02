@@ -635,7 +635,7 @@ TEST_F(HIRBuildTest, LoadAssertionError) {
     Snapshot {
       NextInstrOffset 0
     }
-    v0 = LoadConst<MortalTypeExact[AssertionError:obj]>
+    v0 = LoadConst<ImmortalTypeExact[AssertionError:obj]>
     Return v0
   }
 }
@@ -942,7 +942,7 @@ TEST_F(HIRCloneTest, CanCloneDeoptBase) {
       NextInstrOffset 0
       Locals<1> v0
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v0 = Assign v1
     v2 = LoadGlobal<0; "foo"> {
       FrameState {
@@ -966,9 +966,9 @@ TEST_F(HIRCloneTest, CanCloneDeoptBase) {
   RefcountInsertion().Run(*irfunc);
   const char* expected = R"(fun jittestmodule:test {
   bb 0 {
-    v1:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v1:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v2:Object = LoadGlobal<0> {
-      LiveValues<1> b:v1
+      LiveValues<1> unc:v1
       FrameState {
         NextInstrOffset 6
         Locals<1> v1
@@ -1129,12 +1129,12 @@ TEST_F(HIRBuildTest, MatchMapping) {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalBool[True]>
+    v5 = LoadConst<ImmortalBool[True]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v5 = LoadConst<MortalBool[False]>
+    v5 = LoadConst<ImmortalBool[False]>
     Branch<3>
   }
 
@@ -1178,12 +1178,12 @@ TEST_F(HIRBuildTest, MatchSequence) {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalBool[True]>
+    v5 = LoadConst<ImmortalBool[True]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
-    v5 = LoadConst<MortalBool[False]>
+    v5 = LoadConst<ImmortalBool[False]>
     Branch<3>
   }
 
@@ -1242,13 +1242,13 @@ TEST_F(HIRBuildTest, MatchKeys) {
 
   bb 1 (preds 0) {
     v2 = RefineType<NoneType> v2
-    v5 = LoadConst<MortalBool[False]>
+    v5 = LoadConst<ImmortalBool[False]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
     v2 = RefineType<TupleExact> v2
-    v5 = LoadConst<MortalBool[True]>
+    v5 = LoadConst<ImmortalBool[True]>
     Branch<3>
   }
 

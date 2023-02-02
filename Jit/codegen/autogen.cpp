@@ -641,11 +641,16 @@ struct ImmOperandInvert {
   }
 };
 
-template <int N>
+template <int N, int Size = -1>
 struct RegOperand {
   using asmjit_type = const asmjit::x86::Gp&;
   static asmjit::x86::Gp GetAsmOperand(Environ*, const Instruction* instr) {
-    auto size = LIROperandSizeMapper<N>(instr);
+    static_assert(
+        Size == -1 || Size == 8 || Size == 16 || Size == 32 || Size == 64,
+        "Invalid Size");
+
+    int size = Size == -1 ? LIROperandSizeMapper<N>(instr) : Size;
+
     switch (size) {
       case 8:
         return asmjit::x86::gpb(LIROperandMapper<N>(instr)->getPhyRegister());
@@ -678,6 +683,8 @@ struct XmmOperand {
           (pattern[v] == 'x' || pattern[v] == 'X'), \
           XmmOperand<v>,                            \
           RegOperand<v>>>
+
+#define REG_OP(v, size) RegOperand<v, size>
 
 asmjit::x86::Mem AsmIndirectOperandBuilder(const OperandBase* operand) {
   JIT_DCHECK(operand->isInd(), "operand should be an indirect reference");
@@ -1041,6 +1048,10 @@ BEGIN_RULES(Instruction::kTest)
   GEN("rr", ASM(test, OP(0), OP(1)))
 END_RULES
 
+BEGIN_RULES(Instruction::kTest32)
+  GEN("rr", ASM(test, REG_OP(0, 32), REG_OP(1, 32)))
+END_RULES
+
 BEGIN_RULES(Instruction::kBranch)
   GEN("b", ASM(jmp, LBL(0)))
 END_RULES
@@ -1108,6 +1119,11 @@ END_RULES
 BEGIN_RULES(Instruction::kBranchNS)
   GEN("b", ASM(jns, LBL(0)))
 END_RULES
+
+BEGIN_RULES(Instruction::kBranchE)
+  GEN("b", ASM(je, LBL(0)))
+END_RULES
+
 
 #define DEF_COMPARE_OP_RULES(name, fpcomp) \
 BEGIN_RULES(Instruction::name) \

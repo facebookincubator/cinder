@@ -9,8 +9,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v1:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Incref v1
+    v1:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v1
   }
 }
@@ -35,7 +34,7 @@ fun jittestmodule:test {
       }
     }
     v11:OptObject = LoadGlobalCached<1; "str">
-    v12:MortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11 {
+    v12:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11 {
       Descr 'LOAD_GLOBAL: str'
       LiveValues<3> b:v7 b:v9 b:v11
       FrameState {
@@ -51,7 +50,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 0) {
     v14:CInt32 = IsInstance v7 v12 {
-      LiveValues<2> b:v7 b:v12
+      LiveValues<2> b:v7 unc:v12
       FrameState {
         NextInstrOffset 10
         Locals<1> v7
@@ -61,14 +60,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0, 3) {
-    v15:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
-    Incref v15
+    v15:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v15
   }
 
   bb 2 (preds 3) {
-    v16:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
-    Incref v16
+    v16:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     Return v16
   }
 }
@@ -194,9 +191,9 @@ fun jittestmodule:test {
         Locals<1> v7
       }
     }
-    v13:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v13:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v16:CInt32 = ListAppend v8 v13 {
-      LiveValues<2> o:v8 b:v13
+      LiveValues<2> o:v8 unc:v13
       FrameState {
         NextInstrOffset 12
         Locals<1> v8

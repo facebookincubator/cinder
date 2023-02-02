@@ -58,7 +58,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 3) {
-    v12:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v12:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v13:LongExact = GuardType<LongExact> v6 {
       GuiltyReg v6
     }

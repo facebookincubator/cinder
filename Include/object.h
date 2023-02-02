@@ -85,8 +85,11 @@ typedef struct _typeobject PyTypeObject;
     { _PyObject_EXTRA_INIT              \
     1, type },
 
+#define PyObject_HEAD_IMMORTAL_INIT(type)        \
+    { _PyObject_EXTRA_INIT kImmortalInitialCount, type },
+
 #define PyVarObject_HEAD_INIT(type, size)       \
-    { PyObject_HEAD_INIT(type) size },
+    { PyObject_HEAD_IMMORTAL_INIT(type) size },
 
 /* PyObject_VAR_HEAD defines the initial segment of all variable-size
  * container objects.  These end with a declaration of an array with 1
@@ -494,6 +497,17 @@ you can count such references to the type object.)
 PyAPI_DATA(Py_ssize_t) _Py_RefTotal;
 PyAPI_FUNC(void) _Py_NegativeRefcount(const char *filename, int lineno,
                                       PyObject *op);
+PyAPI_FUNC(Py_ssize_t) _Py_GetRefTotal(void);
+#define _Py_INC_REFTOTAL        _Py_RefTotal++
+#define _Py_DEC_REFTOTAL        _Py_RefTotal--
+
+/* Py_REF_DEBUG also controls the display of refcounts and memory block
+ * allocations at the interactive prompt and at interpreter shutdown
+ */
+PyAPI_FUNC(void) _PyDebug_PrintTotalRefs(void);
+#else
+#define _Py_INC_REFTOTAL
+#define _Py_DEC_REFTOTAL
 #endif /* Py_REF_DEBUG */
 
 #define Py_IMMORTAL_INSTANCES
@@ -504,33 +518,82 @@ PyAPI_FUNC(void) _Py_NegativeRefcount(const char *filename, int lineno,
  * a common python heap across many processes. */
 #ifdef Py_IMMORTAL_INSTANCES
 
-/* The GC bit-shifts refcounts left by two, and after that shift we still
- * need this to be >>0, so leave three high zero bits (the sign bit and
- * room for a shift of two.) */
-static const Py_ssize_t kImmortalBitPos = 8 * sizeof(Py_ssize_t) - 4;
-static const Py_ssize_t kImmortalBit = 1L << kImmortalBitPos;
-static const Py_ssize_t kImmortalInitialCount = kImmortalBit;
+/*
+Immortalization:
 
-#define Py_IS_IMMORTAL(op) ((((PyObject *)op)->ob_refcnt & kImmortalBit) != 0)
+The following indicates the immortalization strategy depending on the amount
+of available bits in the reference count field. All strategies are backwards
+compatible but the specific reference count value or immortalization check
+might change depending on the specializations for the underlying system.
 
-#define Py_SET_IMMORTAL(op) (((PyObject *)op)->ob_refcnt = kImmortalBit)
+Proper deallocation of immortal instances requires distinguishing between
+statically allocated immortal instances vs those promoted by the runtime to be
+immortal. The latter which should be the only instances that require proper
+cleanup during runtime finalization.
+*/
+
+#if SIZEOF_VOID_P > 4
+/*
+In 64+ bit systems, an object will be marked as immortal by setting all of the
+lower 32 bits of the reference count field.
+
+i.e., in a 64 bit system the reference count will be set to:
+    00000000 00000000 00000000 00000000
+    11111111 11111111 11111111 11111111
+
+Reference count increases will use saturated arithmetic, taking advantage of
+having all the lower 32 bits set, which will avoid the reference count to go
+beyond the refcount limit. Immortality checks for reference count decreases will
+be done by checking the bit sign flag in the lower 32 bits.
+*/
+static const Py_ssize_t kImmortalInitialCount = UINT_MAX;
+#else
+/*
+In 32 bit systems, an object will be marked as immortal by setting all of the
+lower 30 bits of the reference count field.
+
+i.e The reference count will be set to:
+    00111111 11111111 11111111 11111111
+
+Using the lower 30 bits makes the value backwards compatible by allowing
+C-Extensions without the updated checks in Py_INCREF and Py_DECREF to safely
+increase and decrease the objects reference count. The object would lose its
+immortality, but the execution would still be correct.
+Reference count increases and decreases will first go through an immortality
+check by comparing the reference count field to the immortality reference count.
+*/
+static const Py_ssize_t kImmortalInitialCount = (UINT_MAX >> 2)
+#endif // SIZEOF_VOID_P > 4
+
+static inline void _Py_SetImmortal(PyObject *ob)
+{
+    if (ob) {
+        ob->ob_refcnt = kImmortalInitialCount;
+    }
+}
+#define Py_SET_IMMORTAL(ob) _Py_SetImmortal(_PyObject_CAST(ob))
+
+static inline __attribute__((always_inline)) int _Py_IsImmortal(PyObject* ob) {
+#if SIZEOF_VOID_P > 4
+    return ((PY_INT32_T)(ob->ob_refcnt)) < 0;
+#else
+    return op->ob_refcnt == kImmortalInitialCount;
+#endif
+}
+
+#define Py_SET_REFCNT(op, refcnt)                 \
+    do {                                          \
+        if(!_Py_IsImmortal(_PyObject_CAST(op)))   \
+            ((PyObject *)op)->ob_refcnt = refcnt; \
+    } while (0)
 
 #else
 
 static const Py_ssize_t kImmortalInitialCount = 1;
 
-#endif
+#define Py_SET_REFCNT(op, refcnt)  (((PyObject *)op)->ob_refcnt = refcnt)
 
-static inline void _Py_SET_REFCNT(PyObject *ob, Py_ssize_t refcnt) {
-#ifdef Py_IMMORTAL_INSTANCES
-    if (Py_IS_IMMORTAL(ob)) {
-        return;
-    }
-#endif
-    ob->ob_refcnt = refcnt;
-}
-
-#define Py_SET_REFCNT(ob, refcnt) _Py_SET_REFCNT(_PyObject_CAST(ob), refcnt)
+#endif // !Py_IMMORTAL_INSTANCES
 
 PyAPI_FUNC(void) _Py_Dealloc(PyObject *);
 
@@ -546,35 +609,60 @@ PyAPI_FUNC(void) Py_DecRef(PyObject *);
 PyAPI_FUNC(void) _Py_IncRef(PyObject *);
 PyAPI_FUNC(void) _Py_DecRef(PyObject *);
 
-static inline void _Py_INCREF(PyObject *op)
+static inline __attribute__((always_inline)) void _Py_INCREF(PyObject *op)
 {
 #ifdef Py_IMMORTAL_INSTANCES
-    if (Py_IS_IMMORTAL(op)) {
+#if SIZEOF_VOID_P > 4
+    uint32_t new_refcnt;
+    uint32_t cur_refcnt = (uint32_t)op->ob_refcnt;
+
+// check immortality and return if so
+#if __has_builtin(__builtin_uadd_overflow)
+    // Saturated Add
+    if (__builtin_uadd_overflow(cur_refcnt, 1, &new_refcnt)) {
         return;
     }
-#endif
-#if defined(Py_REF_DEBUG) && defined(Py_LIMITED_API) && Py_LIMITED_API+0 >= 0x030A0000
-    // Stable ABI for Python 3.10 built in debug mode.
-    _Py_IncRef(op);
 #else
-    // Non-limited C API and limited C API for Python 3.9 and older access
-    // directly PyObject.ob_refcnt.
-#ifdef Py_REF_DEBUG
-    _Py_RefTotal++;
+    // Portable Saturated Add
+    new_refcnt = cur_refcnt + 1;
+    if (new_refcnt < cur_refcnt) {
+        return;
+    }
+#endif // __has_builtin(__builtin_uadd_overflow)
+
+    _Py_INC_REFTOTAL;
+// copy lower 32 bits of new refcnt over to object's refcnt
+#if __has_builtin(__builtin_memcpy_inline)
+    __builtin_memcpy_inline(&op->ob_refcnt, &new_refcnt, sizeof(new_refcnt));
+#elif __has_builtin(__builtin_memcpy)
+    __builtin_memcpy(&op->ob_refcnt, &new_refcnt, sizeof(new_refcnt));
+#else
+    memcpy(&op->ob_refcnt, &new_refcnt, sizeof(new_refcnt));
 #endif
+
+#else // 32-bit system case
+    // Explicitly check immortality against the immortal value
+    if (_Py_IsImmortal(op)) {
+        return;
+    }
+    _Py_INC_REFTOTAL;
     op->ob_refcnt++;
-#endif
+#endif // SIZEOF_VOID_P > 4
+#else
+    _Py_INC_REFTOTAL;
+    op->ob_refcnt++;
+#endif // Py_IMMORTAL_INSTANCES
 }
 #define Py_INCREF(op) _Py_INCREF(_PyObject_CAST(op))
 
-static inline void _Py_DECREF(
+static inline __attribute__((always_inline)) void _Py_DECREF(
 #if defined(Py_REF_DEBUG) && !(defined(Py_LIMITED_API) && Py_LIMITED_API+0 >= 0x030A0000)
     const char *filename, int lineno,
 #endif
     PyObject *op)
 {
 #ifdef Py_IMMORTAL_INSTANCES
-    if (Py_IS_IMMORTAL(op)) {
+    if (_Py_IsImmortal(_PyObject_CAST(op))) {
         return;
     }
 #endif
@@ -584,9 +672,7 @@ static inline void _Py_DECREF(
 #else
     // Non-limited C API and limited C API for Python 3.9 and older access
     // directly PyObject.ob_refcnt.
-#ifdef Py_REF_DEBUG
-    _Py_RefTotal--;
-#endif
+    _Py_DEC_REFTOTAL;
     if (--op->ob_refcnt != 0) {
 #ifdef Py_REF_DEBUG
         if (op->ob_refcnt < 0) {
@@ -708,7 +794,7 @@ PyAPI_FUNC(int) Py_IsNone(PyObject *x);
 #define Py_IsNone(x) Py_Is((x), Py_None)
 
 /* Macro for returning Py_None from a function */
-#define Py_RETURN_NONE return Py_NewRef(Py_None)
+#define Py_RETURN_NONE return Py_None
 
 /*
 Py_NotImplemented is a singleton used to signal that an operation is
@@ -718,7 +804,7 @@ PyAPI_DATA(PyObject) _Py_NotImplementedStruct; /* Don't use this directly */
 #define Py_NotImplemented (&_Py_NotImplementedStruct)
 
 /* Macro for returning Py_NotImplemented from a function */
-#define Py_RETURN_NOTIMPLEMENTED return Py_NewRef(Py_NotImplemented)
+#define Py_RETURN_NOTIMPLEMENTED return Py_NotImplemented
 
 /* Rich comparison opcodes */
 #define Py_LT 0

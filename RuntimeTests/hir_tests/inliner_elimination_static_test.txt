@@ -15,7 +15,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v5:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    v5:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     Return v5
   }
 }
@@ -33,13 +33,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v10:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
-    v14:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    v10:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v14:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     UseType<LongExact> v10
     UseType<LongExact> v14
-    UseType<MortalLongExact[3]> v10
-    UseType<MortalLongExact[4]> v14
-    v17:MortalLongExact[7] = LoadConst<MortalLongExact[7]>
+    UseType<ImmortalLongExact[3]> v10
+    UseType<ImmortalLongExact[4]> v14
+    v17:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
     Return v17
   }
 }
@@ -54,7 +54,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v4:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
+    v4:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v5:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     BeginInlinedFunction<jittestmodule:add> {
       NextInstrOffset 10

@@ -1222,7 +1222,7 @@ get_load_method_type_data(PyObject *descr)
         return _PyShadow_LoadMethodTypeDataUnset;
     }
 
-    if ((obj == NULL) || !Py_IS_IMMORTAL(obj)) {
+    if ((obj == NULL) || !_Py_IsImmortal(obj)) {
         return _PyShadow_LoadMethodTypeDataUnset;
     }
 
@@ -1740,7 +1740,7 @@ _PyShadow_LoadMethodRunCacheEntry(_PyShadow_EvalState *state,
     //      the bytecode is replaced with one of the other specialized
     //      versions (e.g. LOAD_METHOD_{SPLIT,NO,COMBINED}_DICT_METHOD)
     PyObject *descr = ((_PyShadow_InstanceAttrEntry *) entry)->value;
-    if ((descr != NULL) && Py_IS_IMMORTAL(descr)) {
+    if ((descr != NULL) && _Py_IsImmortal(descr)) {
         if (cache_type == &_PyShadow_InstanceCacheNoDictMethod) {
             // No instance dictionary so shadowing cannot occur
             opcode = LOAD_METHOD_UNSHADOWED_METHOD;

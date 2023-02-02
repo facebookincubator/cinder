@@ -155,12 +155,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v2 = LoadConst<MortalBool[True]>
+    v2 = LoadConst<ImmortalBool[True]>
     Return v2
   }
 
   bb 2 (preds 0) {
-    v3 = LoadConst<MortalBool[False]>
+    v3 = LoadConst<ImmortalBool[False]>
     Return v3
   }
 }
@@ -221,7 +221,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v1 = LoadConst<MortalLongExact[100]>
+    v1 = LoadConst<ImmortalLongExact[100]>
     v0 = Assign v1
     v0 = CheckVar<"x"> v0 {
       FrameState {
@@ -259,7 +259,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<MortalLongExact[100]>
+    v3 = LoadConst<ImmortalLongExact[100]>
     v1 = Assign v3
     Branch<2>
   }
@@ -300,7 +300,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<MortalBool[True]>
+    v3 = LoadConst<ImmortalBool[True]>
     v1 = Assign v3
     v1 = CheckVar<"y"> v1 {
       FrameState {
@@ -312,7 +312,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v4 = LoadConst<MortalBool[False]>
+    v4 = LoadConst<ImmortalBool[False]>
     v1 = Assign v4
     v1 = CheckVar<"y"> v1 {
       FrameState {
@@ -575,12 +575,12 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v2 = LoadConst<MortalBool[True]>
+    v2 = LoadConst<ImmortalBool[True]>
     Return v2
   }
 
   bb 1 (preds 0) {
-    v3 = LoadConst<MortalBool[False]>
+    v3 = LoadConst<ImmortalBool[False]>
     Return v3
   }
 }
@@ -650,7 +650,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v8 = LoadConst<MortalBool[True]>
+    v8 = LoadConst<ImmortalBool[True]>
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 20
@@ -891,7 +891,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 4, 5) {
-    v3 = LoadConst<MortalLongExact[1]>
+    v3 = LoadConst<ImmortalLongExact[1]>
     v0 = Assign v3
     Branch<4>
   }
@@ -930,7 +930,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 2, 3) {
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v0 = Assign v1
     Branch<2>
   }
@@ -950,7 +950,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<GreaterThan> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -975,7 +975,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<GreaterThanEqual> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -1000,7 +1000,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<LessThan> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -1025,7 +1025,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<LessThanEqual> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -1050,7 +1050,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<Equal> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -1075,7 +1075,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = Compare<NotEqual> v0 v1 {
       FrameState {
         NextInstrOffset 6
@@ -2293,8 +2293,8 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
-    v2 = LoadConst<MortalLongExact[12]>
-    v3 = LoadConst<MortalLongExact[34]>
+    v2 = LoadConst<ImmortalLongExact[12]>
+    v3 = LoadConst<ImmortalLongExact[34]>
     v4 = MakeDict<2> {
       FrameState {
         NextInstrOffset 10
@@ -2642,7 +2642,7 @@ fun jittestmodule:test {
     v253 = LoadArg<253; "a253">
     v254 = LoadArg<254; "a254">
     v255 = LoadArg<255; "a255">
-    v257 = LoadConst<MortalLongExact[1]>
+    v257 = LoadConst<ImmortalLongExact[1]>
     v10 = Assign v257
     v258 = LoadConst<MortalLongExact[1337]>
     v256 = Assign v258
@@ -2670,8 +2670,8 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
-    v2 = LoadConst<MortalLongExact[5]>
+    v1 = LoadConst<ImmortalLongExact[1]>
+    v2 = LoadConst<ImmortalLongExact[5]>
     v3 = BuildSlice<2> v1 v2 {
       FrameState {
         NextInstrOffset 8
@@ -2703,9 +2703,9 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[100]>
-    v2 = LoadConst<MortalLongExact[20]>
-    v3 = LoadConst<MortalLongExact[-2]>
+    v1 = LoadConst<ImmortalLongExact[100]>
+    v2 = LoadConst<ImmortalLongExact[20]>
+    v3 = LoadConst<ImmortalLongExact[-2]>
     v4 = BuildSlice<3> v1 v2 v3 {
       FrameState {
         NextInstrOffset 10
@@ -3005,7 +3005,7 @@ fun jittestmodule:test {
         Cells<1> v1
       }
     }
-    v3 = LoadConst<MortalLongExact[1]>
+    v3 = LoadConst<ImmortalLongExact[1]>
     v4 = StealCellItem v1
     SetCellItem v1 v3 v4
     v5 = MakeTuple<1> v1 {
@@ -3225,7 +3225,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    v2 = LoadConst<MortalLongExact[10]>
+    v2 = LoadConst<ImmortalLongExact[10]>
     v3 = Compare<LessThan> v0 v2 {
       FrameState {
         NextInstrOffset 6
@@ -3297,7 +3297,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    v9 = LoadConst<MortalLongExact[1]>
+    v9 = LoadConst<ImmortalLongExact[1]>
     v10 = InPlaceOp<Add> v0 v9 {
       FrameState {
         NextInstrOffset 26
@@ -3311,7 +3311,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
-    v11 = LoadConst<MortalLongExact[10]>
+    v11 = LoadConst<ImmortalLongExact[10]>
     v12 = Compare<LessThan> v0 v11 {
       FrameState {
         NextInstrOffset 34
@@ -3438,7 +3438,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v1 = LoadConst<MortalLongExact[0]>
+    v1 = LoadConst<ImmortalLongExact[0]>
     v2 = LoadConst<NoneType>
     v3 = ImportName<0; "test_import"> v2 v1 {
       FrameState {
@@ -3677,7 +3677,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v3 = LoadConst<MortalLongExact[0]>
+    v3 = LoadConst<ImmortalLongExact[0]>
     v4 = Compare<NotEqual> v0 v3 {
       FrameState {
         NextInstrOffset 14
