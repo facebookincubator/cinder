@@ -405,6 +405,7 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
   //    stored directly in the JIT data for the generator.
   //
   UnitState unit_state;
+  unit_state.reserve(unit_frames.size());
   _PyShadowFrame* non_inlined_sf = unit_frames[0];
   CodeRuntime* code_rt = getCodeRuntime(non_inlined_sf);
   uintptr_t ip = getIP(non_inlined_sf, code_rt->frame_size());
