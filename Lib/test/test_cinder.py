@@ -1,5 +1,6 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
+import _asyncio
 import asyncio
 import asyncio.tasks
 import cinder
@@ -2570,6 +2571,86 @@ class DisableComprehensionInliningTest(unittest.TestCase):
                         self.assertIn if disable_inlining else self.assertNotIn
                     )
                     assert_method(b"<listcomp", output)
+
+
+class GatherAndAsyncLazyValueTests(unittest.TestCase):
+    async def run_success_test(self, caption, suspended):
+        caller = None
+
+        async def f(a, b):
+            nonlocal caller
+            caller = sys._getframe(2).f_code.co_name
+            if suspended:
+                await asyncio.sleep(0)
+            return a + b
+
+        alv = _asyncio.AsyncLazyValue(f, 40, 2)
+        res = await asyncio.gather(alv)
+        self.assertEqual(res, [42])
+        self.assertEqual(caller, caption)
+
+    async def run_duplicate_success_test(self, caption, suspended):
+        caller = None
+        call_count = 0
+
+        async def f(a, b):
+
+            nonlocal caller
+            nonlocal call_count
+            caller = sys._getframe(2).f_code.co_name
+            call_count += 1
+            if suspended:
+                await asyncio.sleep(0)
+            return a + b
+
+        alv = _asyncio.AsyncLazyValue(f, 40, 2)
+        res = await asyncio.gather(alv, alv)
+        self.assertEqual(res, [42, 42])
+        self.assertEqual(caller, caption)
+        self.assertEqual(call_count, 1)
+
+    async def run_fail_test(self, caption, suspended):
+        caller = None
+
+        class E(Exception):
+            pass
+
+        async def f(a, b):
+            nonlocal caller
+            caller = sys._getframe(2).f_code.co_name
+            if suspended:
+                await asyncio.sleep(0)
+            raise E()
+
+        alv = _asyncio.AsyncLazyValue(f, 40, 2)
+        with self.assertRaises(E):
+            await asyncio.gather(alv)
+        self.assertEqual(caller, caption)
+        pass
+
+    @async_test
+    async def test_eager_success(self):
+        await self.run_success_test("test_eager_success", False)
+
+    @async_test
+    async def test_eager_fail(self):
+        await self.run_fail_test("test_eager_fail", False)
+
+    @async_test
+    async def test_suspended_success(self):
+        await self.run_success_test("test_suspended_success", True)
+
+    @async_test
+    async def test_suspended_fail(self):
+        await self.run_fail_test("test_suspended_fail", True)
+
+    @async_test
+    async def test_eager_duplicate_success(self):
+        await self.run_duplicate_success_test("test_eager_duplicate_success", False)
+
+    @async_test
+    async def test_suspended_duplicate_success(self):
+        await self.run_duplicate_success_test("test_suspended_duplicate_success", True)
 
 
 class GeneralRegressionTests(unittest.TestCase):

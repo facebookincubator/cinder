@@ -7066,7 +7066,7 @@ _try_use_result_for_existing_coro(PyThreadState *tstate,
         if (index == -1) {
             return USE_RESULT_ERROR;
         }
-        val = PyList_GET_ITEM(data, i);
+        val = PyList_GET_ITEM(data, index);
     } else {
         assert(datamap != NULL);
         _Bitset_set(datamap, i);
@@ -7320,8 +7320,14 @@ _gather_multiple(PyObject *const*items,
             continue;
         }
         PyObject *fut;
-        if (awaited && kind == KIND_COROUTINE) {
+        int is_non_started_alv =
+            kind == KIND_ASYNC_LAZY_VALUE
+            && ((AsyncLazyValueObj *)arg)->alv_state == ALV_NOT_STARTED;
+
+        if (awaited && (kind == KIND_COROUTINE || is_non_started_alv)) {
             // when awaited - try to execute coroutine eagerly
+            // NOTE: non-stated AsyncLazyValue can be similar to coroutine object -
+            // we can try to eagerly executed wrapped coroutine
             if (current_context == NULL) {
                 int context_aware_task;
                 if (get_current_context_and_task(tstate,
@@ -7334,9 +7340,35 @@ _gather_multiple(PyObject *const*items,
                     context_setter = _context_aware_task_set_ctx;
                 }
             }
+            PyObject* coro_to_start;
+            if (is_non_started_alv) {
+                // for non-started AsyncLazyValue instances
+                // obtain AsyncLazyValueCompute that would drive execution
+                // of the wrapped coroutine.
+                // Type of AsyncLazyValueCompute defines am_send slot
+                // so _start_coroutine_helper can handle it just fine
+                coro_to_start = AsyncLazyValue_await((AsyncLazyValueObj*)arg);
+                if (coro_to_start == NULL) {
+                    goto failed;
+                }
+            }
+            else {
+                // just use original coroutine object
+                coro_to_start = arg;
+            }
             int finished = 0;
             PyObject *res =
-                _start_coroutine_helper(tstate, arg, loop, &finished);
+                _start_coroutine_helper(tstate, coro_to_start, loop, &finished);
+
+            if (is_non_started_alv) {
+                // For non-started AsyncLazyValue case we unconditionally
+                // decref coroToStart (of type AsyncLazyValueCompute).
+                // If wrapped coroutine was completed successfully or errored - this object
+                // is no longer necessary and needs to be released.
+                // If wrapped coroutine was suspended - then _start_coroutine_helper would
+                // create/queue a task that would own AsyncLazyValueCompute going forward.
+                Py_DECREF(coro_to_start);
+            }
             if (call_reset_context(tstate,
                                    current_task,
                                    current_context,
