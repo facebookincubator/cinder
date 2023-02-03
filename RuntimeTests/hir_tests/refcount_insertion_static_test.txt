@@ -26,8 +26,6 @@ fun jittestmodule:Test.__init__ {
 ---
 StoreFieldIncRef
 ---
-from __static__ import int32
-
 class Test:
     def __init__(self) -> None:
         self.x = 0
