@@ -34,6 +34,13 @@ void RuntimeTest::runCodeAndCollectProfile(
 void HIRTest::TestBody() {
   using namespace jit::hir;
 
+  std::string test_name = "<unknown>";
+  const testing::TestInfo* info =
+      testing::UnitTest::GetInstance()->current_test_info();
+  if (info != nullptr) {
+    test_name = fmt::format("{}:{}", info->test_suite_name(), info->name());
+  }
+
   if (use_profile_data_) {
     std::string data;
     ASSERT_NO_FATAL_FAILURE(runCodeAndCollectProfile(src_.c_str(), data));
@@ -53,6 +60,10 @@ void HIRTest::TestBody() {
     ASSERT_NO_FATAL_FAILURE(CompileToHIRStatic(src_.c_str(), "test", irfunc));
   } else {
     ASSERT_NO_FATAL_FAILURE(CompileToHIR(src_.c_str(), "test", irfunc));
+  }
+
+  if (jit::g_dump_hir) {
+    JIT_LOG("Initial HIR for %s:\n%s", test_name, *irfunc);
   }
 
   if (!passes_.empty()) {
