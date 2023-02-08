@@ -31,6 +31,7 @@
 #include "pycore_pyerrors.h"
 #include "pycore_pystate.h"     // _PyThreadState_GET()
 #include "pydtrace.h"
+#include "cinder/exports.h"
 
 typedef struct _gc_runtime_state GCState;
 
@@ -2039,6 +2040,9 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
         PyObject_Hash(obj);
     }
 
+    if (PyType_Check(obj)) {
+        Ci_Type_AssignVersionTag((PyTypeObject *)obj);
+    }
     if (!_PyImmortal_RecursiveHeapWalk) {
       return 0;
     }

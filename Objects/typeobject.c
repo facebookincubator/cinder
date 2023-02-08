@@ -529,6 +529,11 @@ assign_version_tag(struct type_cache *cache, PyTypeObject *type)
     return 1;
 }
 
+int
+Ci_Type_AssignVersionTag(PyTypeObject *type) {
+    return assign_version_tag(get_type_cache(), type);
+}
+
 
 static PyMemberDef type_members[] = {
     {"__basicsize__", T_PYSSIZET, offsetof(PyTypeObject,tp_basicsize),READONLY},
