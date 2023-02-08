@@ -21,6 +21,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace jit {
 
@@ -344,6 +345,11 @@ class Runtime {
   // Add metadata used during deopt. Returns a handle that can be used to
   // fetch the metadata from generated code.
   std::size_t addDeoptMetadata(DeoptMetadata&& deopt_meta);
+
+  // Get a reference to the DeoptMetadata with the given id. If this function is
+  // called from a context where a threaded compile may be active, the caller is
+  // responsible for holding the threaded compile lock for the lifetime of the
+  // returned reference.
   DeoptMetadata& getDeoptMetadata(std::size_t id);
 
   // Record that a deopt of the given index happened at runtime, with an

@@ -158,10 +158,14 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
 namespace {
 
 void fillLiveValueLocations(
-    DeoptMetadata& deopt_meta,
+    Runtime* runtime,
+    std::size_t deopt_idx,
     const Instruction* instr,
     size_t begin_input,
     size_t end_input) {
+  ThreadedCompileSerialize guard;
+
+  DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   for (size_t i = begin_input; i < end_input; i++) {
     auto loc = instr->getInput(i)->getPhyRegOrStackSlot();
     deopt_meta.live_values[i - begin_input].location = loc;
@@ -243,10 +247,9 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   }
 
   auto index = instr->getInput(1)->getConstant();
-  auto& deopt_meta = env->rt->getDeoptMetadata(index);
   // skip the first four inputs in Guard, which are
   // kind, deopt_meta id, guard var, and target.
-  fillLiveValueLocations(deopt_meta, instr, 4, instr->getNumInputs());
+  fillLiveValueLocations(env->rt, index, instr, 4, instr->getNumInputs());
   env->deopt_exits.emplace_back(index, deopt_label, instr);
 }
 
@@ -260,9 +263,8 @@ void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
 
   // Fill in deopt metadata
   auto index = instr->getInput(1)->getConstant();
-  auto& deopt_meta = env->rt->getDeoptMetadata(index);
   // skip the first two inputs which are the patcher and deopt metadata id
-  fillLiveValueLocations(deopt_meta, instr, 2, instr->getNumInputs());
+  fillLiveValueLocations(env->rt, index, instr, 2, instr->getNumInputs());
   auto deopt_label = as->newLabel();
   env->deopt_exits.emplace_back(index, deopt_label, instr);
 
@@ -354,7 +356,8 @@ void emitStoreGenYieldPoint(
   size_t live_regs_input = input_n - 1;
   int num_live_regs = yield->getInput(live_regs_input)->getConstant();
   fillLiveValueLocations(
-      Runtime::get()->getDeoptMetadata(deopt_idx),
+      env->rt,
+      deopt_idx,
       yield,
       live_regs_input - num_live_regs,
       live_regs_input);

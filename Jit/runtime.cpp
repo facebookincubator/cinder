@@ -246,8 +246,9 @@ std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {
 }
 
 DeoptMetadata& Runtime::getDeoptMetadata(std::size_t id) {
-  // Serialize as the deopt data is shared across compile threads.
-  ThreadedCompileSerialize guard;
+  JIT_CHECK(
+      g_threaded_compile_context.canAccessSharedData(),
+      "getDeoptMetadata() called in unsafe context");
   return deopt_metadata_[id];
 }
 
