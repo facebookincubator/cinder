@@ -74,7 +74,7 @@ PyAPI_FUNC(PyObject *)
 PyAPI_FUNC(PyObject *)
     Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
 
-PyAPI_FUNC(void) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
+PyAPI_FUNC(int) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
 extern int (*Ci_List_APPEND)(PyListObject *list, PyObject *item);
 
