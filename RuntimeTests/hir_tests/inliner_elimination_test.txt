@@ -22,7 +22,7 @@ fun jittestmodule:test {
     v9:Object = LoadField<func_code@48, Object, borrowed> v3
     v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9 {
     }
-    v7:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v7:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     Return v7
   }
 }
@@ -47,7 +47,7 @@ fun jittestmodule:test {
     v16:Object = LoadField<func_code@48, Object, borrowed> v6
     v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16 {
     }
-    v14:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v14:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v8:OptObject = LoadGlobalCached<1; "bar">
     v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: bar'
@@ -55,12 +55,12 @@ fun jittestmodule:test {
     v22:Object = LoadField<func_code@48, Object, borrowed> v9
     v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22 {
     }
-    v20:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v20:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     UseType<LongExact> v14
     UseType<LongExact> v20
-    UseType<ImmortalLongExact[3]> v14
-    UseType<ImmortalLongExact[4]> v20
-    v25:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
+    UseType<MortalLongExact[3]> v14
+    UseType<MortalLongExact[4]> v20
+    v25:MortalLongExact[7] = LoadConst<MortalLongExact[7]>
     Return v25
   }
 }
@@ -79,7 +79,7 @@ fun jittestmodule:test {
     v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: add'
     }
-    v6:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v6:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     v19:Object = LoadField<func_code@48, Object, borrowed> v5
     v20:MortalCode["add"] = GuardIs<0xdeadbeef> v19 {

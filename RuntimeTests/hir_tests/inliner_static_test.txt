@@ -17,7 +17,7 @@ fun jittestmodule:test {
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 6
     }
-    v5:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v5:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     EndInlinedFunction
     Return v5
   }
@@ -34,16 +34,16 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v4:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
-    v5:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v4:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v5:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 10
     }
     UseType<LongExact> v4
     UseType<LongExact> v5
-    UseType<ImmortalLongExact[1]> v4
-    UseType<ImmortalLongExact[2]> v5
-    v20:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    UseType<MortalLongExact[1]> v4
+    UseType<MortalLongExact[2]> v5
+    v20:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     EndInlinedFunction
     Return v20
   }
@@ -93,7 +93,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: isinstance'
     }
     v15:OptObject = LoadGlobalCached<1; "bool">
-    v16:ImmortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v15 {
+    v16:MortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v15 {
       Descr 'LOAD_GLOBAL: bool'
     }
     v17:Object = VectorCall<2> v13 v3 v16 {

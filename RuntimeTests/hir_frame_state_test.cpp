@@ -639,7 +639,7 @@ def test(x, y):
         Stack<1> v1
       }
     }
-    v2 = LoadConst<ImmortalLongExact[1]>
+    v2 = LoadConst<MortalLongExact[1]>
     v3 = StoreSubscr v0 v2 v1 {
       FrameState {
         NextInstrOffset 8

@@ -14,7 +14,7 @@ fun jittestmodule:A.f {
     v2 = LoadCurrentFunc
     v3 = LoadField<func_closure@72, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
-    v4 = LoadConst<ImmortalLongExact[1]>
+    v4 = LoadConst<MortalLongExact[1]>
     v5 = LoadGlobalCached<0; "super">
     v5 = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: super'
@@ -125,7 +125,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
-    v7 = LoadConst<ImmortalLongExact[1]>
+    v7 = LoadConst<MortalLongExact[1]>
     v8 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v9 = VectorCallKW<2> v6 v7 v8 {
       FrameState {

@@ -46,7 +46,7 @@ fun jittestmodule:test {
   bb 0 {
     v8:Nullptr = LoadConst<Nullptr>
     v9:CInt64[64] = LoadConst<CInt64[64]>
-    v11:ImmortalLongExact[111] = LoadConst<ImmortalLongExact[111]>
+    v11:MortalLongExact[111] = LoadConst<MortalLongExact[111]>
     v18:CInt64[111] = LoadConst<CInt64[111]>
     v19:CInt64[0] = LoadConst<CInt64[0]>
     v15:CBool = PrimitiveCompare<LessThan> v9 v18
@@ -54,12 +54,12 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v16:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    v16:MortalBool[True] = LoadConst<MortalBool[True]>
     Return v16
   }
 
   bb 2 (preds 0) {
-    v17:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    v17:MortalBool[False] = LoadConst<MortalBool[False]>
     Return v17
   }
 }
@@ -98,7 +98,7 @@ def test() -> uint8:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
-    v5:ImmortalLongExact[42] = LoadConst<ImmortalLongExact[42]>
+    v5:MortalLongExact[42] = LoadConst<MortalLongExact[42]>
     v10:CUInt8[42] = LoadConst<CUInt8[42]>
     v11:CInt64[0] = LoadConst<CInt64[0]>
     Return<CUInt8> v10

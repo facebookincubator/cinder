@@ -12,7 +12,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v3:Nullptr = LoadConst<Nullptr>
-    v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v6:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
     Return v6
   }
 }
@@ -29,8 +29,8 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v10:Nullptr = LoadConst<Nullptr>
-    v11:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
-    v13:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
+    v11:MortalLongExact[4] = LoadConst<MortalLongExact[4]>
+    v13:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v15:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v16:Object = GetIter v15 {
       FrameState {

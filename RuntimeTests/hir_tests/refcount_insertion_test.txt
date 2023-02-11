@@ -716,7 +716,8 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
-    v13:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v13:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Incref v13
     Return v13
   }
 }
@@ -729,7 +730,8 @@ def test(val):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v5:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v5:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    Incref v5
     Return v5
   }
 }
@@ -838,7 +840,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v16:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
+    v16:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     Branch<2>
   }
 
@@ -847,9 +849,9 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1, 7) {
-    v19:OptImmortalLongExact = Phi<1, 7> v16 v13
+    v19:OptMortalLongExact = Phi<1, 7> v16 v13
     v21:CInt32 = IsTruthy v12 {
-      LiveValues<2> b:v12 unc:v19
+      LiveValues<2> b:v12 b:v19
       FrameState {
         NextInstrOffset 12
         Locals<2> v12 v19
@@ -859,16 +861,16 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
-    v22:ImmortalLongExact = CheckVar<"total_time"> v19 {
-      LiveValues<2> b:v12 unc:v19
+    v22:MortalLongExact = CheckVar<"total_time"> v19 {
+      LiveValues<2> b:v12 b:v19
       FrameState {
         NextInstrOffset 14
         Locals<2> v12 v19
       }
     }
-    v23:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v23:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
     v36:LongExact = LongBinaryOp<Add> v22 v23 {
-      LiveValues<3> b:v12 unc:v22 unc:v23
+      LiveValues<3> b:v12 b:v22 b:v23
       FrameState {
         NextInstrOffset 18
         Locals<2> v12 v22
@@ -878,6 +880,7 @@ fun jittestmodule:test {
   }
 
   bb 8 (preds 2) {
+    XIncref v19
     Branch<4>
   }
 
@@ -954,7 +957,7 @@ fun jittestmodule:test {
     v17:Object = LoadArg<2; "c">
     v18:Nullptr = LoadConst<Nullptr>
     v19:OptObject = LoadGlobalCached<0; "dict">
-    v20:ImmortalTypeExact[dict:obj] = GuardIs<0xdeadbeef> v19 {
+    v20:MortalTypeExact[dict:obj] = GuardIs<0xdeadbeef> v19 {
       Descr 'LOAD_GLOBAL: dict'
       LiveValues<5> b:v15 b:v16 b:v17 unc:v18 b:v19
       FrameState {
@@ -963,7 +966,7 @@ fun jittestmodule:test {
       }
     }
     v21:Object = VectorCall<0> v20 {
-      LiveValues<5> b:v15 b:v16 b:v17 unc:v18 unc:v20
+      LiveValues<5> b:v15 b:v16 b:v17 unc:v18 b:v20
       FrameState {
         NextInstrOffset 4
         Locals<4> v15 v16 v17 v18

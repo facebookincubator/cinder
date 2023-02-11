@@ -837,9 +837,9 @@ TEST_F(SSAifyTest, MakeSetReturnsSetExact) {
   const char* hir_source = R"(
 fun test {
   bb 0 {
-    v0 = LoadConst<ImmortalLongExact[1]>
-    v1 = LoadConst<ImmortalLongExact[2]>
-    v2 = LoadConst<ImmortalLongExact[3]>
+    v0 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<MortalLongExact[2]>
+    v2 = LoadConst<MortalLongExact[3]>
     v3 = MakeSet
     v4 = SetSetItem v3 v0
     v5 = SetSetItem v3 v1
@@ -850,9 +850,9 @@ fun test {
 )";
   const char* expected = R"(fun test {
   bb 0 {
-    v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
-    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
-    v9:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v7:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:MortalLongExact[2] = LoadConst<MortalLongExact[2]>
+    v9:MortalLongExact[3] = LoadConst<MortalLongExact[3]>
     v10:MortalSetExact = MakeSet {
     }
     v11:CInt32 = SetSetItem v10 v7 {

@@ -35,8 +35,9 @@ test = Test.__init__
 fun jittestmodule:Test.__init__ {
   bb 0 {
     v4:User[Test] = LoadArg<0; "self", User[Test]>
-    v5:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
+    v5:MortalLongExact[0] = LoadConst<MortalLongExact[0]>
     v7:OptObject = LoadField<x@16, OptObject, owned> v4
+    Incref v5
     StoreField<x@16> v4 v5 v7
     XDecref v7
     v8:NoneType = LoadConst<NoneType>
