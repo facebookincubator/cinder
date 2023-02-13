@@ -46,7 +46,7 @@ class PythonAPITestCase(unittest.TestCase):
         pythonapi.PyLong_AsLong.restype = c_long
 
         res = pythonapi.PyLong_AsLong(42)
-        self.assertEqual(grc(res), ref42 + 1)
+        self.assertEqual(grc(res), ref42)
         del res
         self.assertEqual(grc(42), ref42)
 

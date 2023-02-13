@@ -153,7 +153,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[1]>
+    v1 = LoadConst<ImmortalLongExact[1]>
     v2 = InvokeMethod<2> v0 v1 {
       FrameState {
         NextInstrOffset 10
@@ -607,7 +607,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -638,7 +638,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -669,7 +669,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -700,7 +700,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -731,7 +731,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -762,7 +762,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -793,7 +793,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -824,7 +824,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -855,7 +855,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -886,7 +886,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
-    v5 = LoadConst<MortalLongExact[42]>
+    v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
@@ -937,7 +937,7 @@ def test() -> str:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadConst<MortalUnicodeExact["hello"]>
-    v1 = LoadConst<MortalLongExact[123]>
+    v1 = LoadConst<ImmortalLongExact[123]>
     v3 = InvokeStaticFunction<jittestmodule.x, 2, Unicode> v0 v1 {
       FrameState {
         NextInstrOffset 10
@@ -963,7 +963,7 @@ fun jittestmodule:test {
       }
     }
     v1 = LoadConst<MortalUnicodeExact["hello"]>
-    v2 = LoadConst<MortalLongExact[123]>
+    v2 = LoadConst<ImmortalLongExact[123]>
     v4 = InvokeStaticFunction<jittestmodule.x, 2, Object> v1 v2 {
       FrameState {
         NextInstrOffset 12
@@ -1022,8 +1022,8 @@ fun jittestmodule:test {
   bb 0 {
     v1 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v0 = Assign v1
-    v2 = LoadConst<MortalLongExact[1]>
-    v3 = LoadConst<MortalLongExact[3]>
+    v2 = LoadConst<ImmortalLongExact[1]>
+    v3 = LoadConst<ImmortalLongExact[3]>
     v0 = CheckVar<"p"> v0 {
       FrameState {
         NextInstrOffset 12
@@ -1400,7 +1400,7 @@ fun jittestmodule:test {
       }
     }
     v1 = RefineType<List> v1
-    v2 = LoadConst<MortalLongExact[1]>
+    v2 = LoadConst<ImmortalLongExact[1]>
     v3 = ListAppend v1 v2 {
       FrameState {
         NextInstrOffset 12
@@ -1452,7 +1452,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadConst<MortalLongExact[2]>
+    v1 = LoadConst<ImmortalLongExact[2]>
     v1 = RefineType<LongExact> v1
     v2 = PrimitiveUnbox<CInt64> v1
     v3 = IsNegativeAndErrOccurred v2 {
@@ -1493,7 +1493,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v2 = LoadConst<MortalLongExact[2]>
+    v2 = LoadConst<ImmortalLongExact[2]>
     v2 = RefineType<LongExact> v2
     v3 = PrimitiveUnbox<CInt64> v2
     v4 = IsNegativeAndErrOccurred v3 {

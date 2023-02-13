@@ -256,7 +256,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v5:OptObject = LoadGlobalCached<0; "str">
-    v6:MortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v5 {
+    v6:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: str'
     }
     v7:Object = LoadMethod<1; "upper"> v6 {
@@ -310,7 +310,7 @@ fun jittestmodule:test {
     v6:MortalObjectUser[classmethod_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[classmethod_descriptor:0xdeadbeef]>
     v7:MortalBytesExact[''] = Assign v5
     v8:MortalUnicodeExact["FF"] = LoadConst<MortalUnicodeExact["FF"]>
-    v10:MortalTypeExact[bytes:obj] = LoadConst<MortalTypeExact[bytes:obj]>
+    v10:ImmortalTypeExact[bytes:obj] = LoadConst<ImmortalTypeExact[bytes:obj]>
     v9:Object = VectorCallStatic<2> v6 v10 v8 {
       FrameState {
         NextInstrOffset 8
@@ -331,7 +331,7 @@ fun jittestmodule:test {
     UseType<MortalUnicodeExact> v5
     v6:MortalObjectUser[wrapper_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
     v7:MortalUnicodeExact["%s"] = Assign v5
-    v8:MortalLongExact[1] = LoadConst<MortalLongExact[1]>
+    v8:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v9:Object = VectorCallStatic<2> v6 v5 v8 {
       FrameState {
         NextInstrOffset 8
