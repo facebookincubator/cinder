@@ -1560,20 +1560,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             // CompareBool<IsNot> can be rewritten into PrimitiveCompare. We
             // keep it around because optimization passes should not impact
             // correctness.
-            auto compare_result = GetSafeTempName();
-            bbb.AppendCode(
-                "Equal {}, {}, {}",
-                compare_result,
+            Instruction* compare_result = bbb.appendInstr(
+                Instruction::kEqual,
+                OutVReg{OperandBase::k8bit},
                 instr->left(),
                 instr->right());
-            auto one = GetSafeTempName();
-            bbb.AppendCode("Move {}, {:#x}", one, uint32_t{1});
-            bbb.AppendCode(
-                "Select {}, {}, {}, {:#x}",
-                instr->GetOutput(),
-                compare_result,
-                one,
-                static_cast<uint32_t>(0));
+            bbb.appendInstr(
+                instr->GetOutput(), Instruction::kZext, compare_result);
             break;
           }
           bbb.AppendCall(
