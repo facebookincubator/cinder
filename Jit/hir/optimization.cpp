@@ -837,11 +837,6 @@ static bool canInline(
     PyFunctionObject* func,
     const std::string& fullname,
     Function::InlineFailureStats& inline_failure_stats) {
-  if (func->func_defaults != nullptr) {
-    dlogAndCollectFailureStats(
-        inline_failure_stats, InlineFailureType::kHasDefaults, fullname);
-    return false;
-  }
   if (func->func_kwdefaults != nullptr) {
     dlogAndCollectFailureStats(
         inline_failure_stats, InlineFailureType::kHasKwdefaults, fullname);

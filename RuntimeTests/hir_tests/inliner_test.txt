@@ -163,7 +163,7 @@ fun jittestmodule:test {
   }
 }
 ---
-ArgcountMismatch
+CallWithTooManyArgsIsNotInlined
 ---
 def foo():
     return 4
@@ -184,6 +184,29 @@ fun jittestmodule:test {
       }
     }
     Return v6
+  }
+}
+---
+CallWithTooFewArgsIsNotInlined
+---
+def foo(x):
+  return 4
+
+def test():
+  return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v4:Object = VectorCall<0> v3 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    Return v4
   }
 }
 ---
@@ -505,6 +528,120 @@ fun jittestmodule:test {
       }
     }
     Return v23
+  }
+}
+---
+CalleeWithUnusedDefaultsIsInlined
+---
+def foo(left=1, right=2):
+  return left + right
+
+def test():
+  return foo(3, 4)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v6:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v7:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v19:Object = LoadField<func_code@48, Object, borrowed> v5
+    v20:MortalCode["foo"] = GuardIs<0xdeadbeef> v19 {
+    }
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 8
+    }
+    UseType<LongExact> v6
+    UseType<LongExact> v7
+    UseType<ImmortalLongExact[3]> v6
+    UseType<ImmortalLongExact[4]> v7
+    v22:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
+    EndInlinedFunction
+    Return v22
+  }
+}
+---
+CalleeWithDefaultsNoneSuppliedIsInlined
+---
+def foo(a=1, b=2):
+    return a+b
+
+def test():
+    return foo()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:OptObject = LoadGlobalCached<0; "foo">
+    v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v5:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v6:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v7:Tuple = LoadField<func_defaults@56, Tuple, borrowed> v3
+    v8:MortalTupleExact[tuple:0xdeadbeef] = GuardIs<0xdeadbeef> v7 {
+    }
+    v20:Object = LoadField<func_code@48, Object, borrowed> v3
+    v21:MortalCode["foo"] = GuardIs<0xdeadbeef> v20 {
+    }
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 4
+    }
+    UseType<LongExact> v5
+    UseType<LongExact> v6
+    UseType<ImmortalLongExact[1]> v5
+    UseType<ImmortalLongExact[2]> v6
+    v23:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    EndInlinedFunction
+    Return v23
+  }
+}
+---
+CalleeWithMixedDefaultsIsInlined
+---
+def foo(a, b, c=3, d=4):
+    return a+b+c+d
+
+def test():
+    return foo(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v6:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v7:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v9:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v10:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v11:Tuple = LoadField<func_defaults@56, Tuple, borrowed> v5
+    v12:MortalTupleExact[tuple:0xdeadbeef] = GuardIs<0xdeadbeef> v11 {
+    }
+    v34:Object = LoadField<func_code@48, Object, borrowed> v5
+    v35:MortalCode["foo"] = GuardIs<0xdeadbeef> v34 {
+    }
+    BeginInlinedFunction<jittestmodule:foo> {
+      NextInstrOffset 8
+    }
+    UseType<LongExact> v6
+    UseType<LongExact> v7
+    UseType<ImmortalLongExact[1]> v6
+    UseType<ImmortalLongExact[2]> v7
+    v39:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    UseType<LongExact> v39
+    UseType<LongExact> v9
+    UseType<ImmortalLongExact[3]> v39
+    UseType<ImmortalLongExact[3]> v9
+    v40:ImmortalLongExact[6] = LoadConst<ImmortalLongExact[6]>
+    UseType<LongExact> v40
+    UseType<LongExact> v10
+    UseType<ImmortalLongExact[6]> v40
+    UseType<ImmortalLongExact[4]> v10
+    v41:ImmortalLongExact[10] = LoadConst<ImmortalLongExact[10]>
+    EndInlinedFunction
+    Return v41
   }
 }
 ---

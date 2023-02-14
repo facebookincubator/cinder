@@ -93,13 +93,37 @@ struct Env {
   template <typename T, typename... Args>
   Register* emitRaw(Args&&... args) {
     optimized = true;
+    Register* untypedOutput = emitRawUntyped<T>(std::forward<Args>(args)...);
+    if constexpr (T::has_output) {
+      JIT_CHECK(untypedOutput != nullptr, "output cannot be null");
+      Instr* instr = untypedOutput->instr();
+      switch (instr->opcode()) {
+        case Opcode::kVectorCall:
+        case Opcode::kVectorCallKW:
+        case Opcode::kVectorCallStatic:
+          // we don't know the exact output type until its operands are
+          // populated. Keep output untyped
+          break;
+        default:
+          untypedOutput->set_type(outputType(*instr));
+          break;
+      }
+      return untypedOutput;
+    }
+    return nullptr;
+  }
+
+  // Similar to emitRaw<T>(), but does not automatically infer the exact output
+  // type
+  template <typename T, typename... Args>
+  Register* emitRawUntyped(Args&&... args) {
+    optimized = true;
     T* instr = T::create(std::forward<Args>(args)...);
     instr->setBytecodeOffset(bc_off);
     block->insert(instr, cursor);
-
     if constexpr (T::has_output) {
       Register* output = instr->GetOutput();
-      output->set_type(outputType(*instr));
+      output->set_type(TObject);
       return output;
     }
     return nullptr;
@@ -744,6 +768,82 @@ static bool isBuiltin(Register* callable, const char* name) {
   return false;
 }
 
+// This is inspired by _PyEval_EvalCodeWithName in 3.8's Python/ceval.c
+// We have a vector of Register* (resolved_args) that gets populated with
+// already-provided arguments from call instructions alongside the function's
+// default arguments, when such defaults are needed
+static Register* resolveArgs(
+    Env& env,
+    const VectorCall* instr,
+    BorrowedRef<PyFunctionObject> target) {
+  BorrowedRef<PyCodeObject> code{target->func_code};
+  JIT_CHECK(!(code->co_flags & CO_VARARGS), "can't resolve varargs");
+  // number of positional args (including args with default values)
+  size_t co_argcount = static_cast<size_t>(code->co_argcount);
+  if (instr->numArgs() > co_argcount) {
+    // TODO(T143644311): support varargs and check if non-varargs here
+    return nullptr;
+  }
+
+  size_t num_positional = std::min(co_argcount, instr->numArgs());
+  std::vector<Register*> resolved_args(co_argcount, nullptr);
+
+  JIT_CHECK(!(code->co_flags & CO_VARKEYWORDS), "can't resolve varkwargs");
+
+  // grab default positional arguments
+  BorrowedRef<PyTupleObject> defaults{target->func_defaults};
+
+  // TODO(T143644350): support kwargs and kwdefaults
+  size_t num_defaults =
+      defaults == nullptr ? 0 : static_cast<size_t>(PyTuple_GET_SIZE(defaults));
+
+  if (num_positional + num_defaults < co_argcount) {
+    // function was called with too few arguments
+    return nullptr;
+  }
+  // TODO(T143644377): support kwonly args
+  JIT_CHECK(code->co_kwonlyargcount == 0, " can't resolve kwonly args");
+  for (size_t i = 0; i < co_argcount; i++) {
+    if (i < num_positional) {
+      resolved_args[i] = instr->arg(i);
+    } else {
+      size_t num_non_defaults = co_argcount - num_defaults;
+      size_t default_idx = i - num_non_defaults;
+
+      ThreadedCompileSerialize guard;
+      auto def = Ref<>::create(PyTuple_GET_ITEM(defaults, default_idx));
+      JIT_CHECK(def != nullptr, "expected non-null default");
+      auto type = Type::fromObject(env.func.env.addReference(std::move(def)));
+      resolved_args[i] = env.emit<LoadConst>(type);
+    }
+    JIT_CHECK(resolved_args.at(i) != nullptr, "expected non-null arg");
+  }
+
+  Register* defaults_obj = env.emit<LoadField>(
+      instr->GetOperand(0),
+      "func_defaults",
+      offsetof(PyFunctionObject, func_defaults),
+      TTuple);
+  env.emit<GuardIs>(defaults, defaults_obj);
+  // creates an instruction VectorCall(arg_size, dest_reg, frame_state)
+  // and inserts it to the current block. Returns the output of vectorcall
+  Register* result = env.emitRawUntyped<VectorCall>(
+      resolved_args.size() + 1,
+      env.func.env.AllocateRegister(), // output register
+      /*is_awaited=*/false,
+      *instr->frameState());
+
+  // populate the call arguments of the newly created VectorCall
+  Instr* new_instr = result->instr();
+  // the first arg is the function to call
+  new_instr->SetOperand(0, instr->func());
+  for (size_t i = 0; i < resolved_args.size(); i++) {
+    new_instr->SetOperand(i + 1, resolved_args.at(i));
+  }
+  result->set_type(outputType(*result->instr()));
+  return result;
+}
+
 Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
   Register* target = instr->GetOperand(0);
   Type target_type = target->type();
@@ -755,6 +855,22 @@ Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
   if (isBuiltin(target, "len") && instr->numArgs() == 1) {
     env.emit<UseType>(target, target->type());
     return env.emit<GetLength>(instr->arg(0), *instr->frameState());
+  }
+  if (target_type.hasValueSpec(TFunc)) {
+    BorrowedRef<PyFunctionObject> func{target_type.objectSpec()};
+    BorrowedRef<PyCodeObject> code{func->func_code};
+    if (code->co_kwonlyargcount > 0 || (code->co_flags & CO_VARARGS) ||
+        (code->co_flags & CO_VARKEYWORDS)) {
+      // TODO(T143644854): full argument resolution
+      return nullptr;
+    }
+
+    JIT_CHECK(
+        code->co_argcount >= 0,
+        "argcount must be greater than or equal to zero");
+    if (instr->numArgs() != static_cast<size_t>(code->co_argcount)) {
+      return resolveArgs(env, instr, func);
+    }
   }
   return nullptr;
 }

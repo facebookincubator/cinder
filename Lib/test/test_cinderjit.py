@@ -293,6 +293,30 @@ def func():
     c = func_with_varargs(1, 2, 3)
     return a + b + c
 
+@cinder_support.failUnlessJITCompiled
+def func_with_defaults_that_will_change(x = 1, y = 2):
+    return x + y
+
+@cinder_support.failUnlessJITCompiled
+def change_defaults():
+    func_with_defaults_that_will_change.__defaults__ = (4, 5)
+
+@cinder_support.failUnlessJITCompiled
+def func_that_change_defaults():
+    change_defaults()
+    return func_with_defaults_that_will_change()
+
+
+class InlinedFunctionTests(unittest.TestCase):
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_hir_inliner_enabled(),
+        "meaningless without HIR inliner enabled",
+    )
+    def test_deopt_when_func_defaults_change(self):
+        self.assertEqual(cinderjit.get_num_inlined_functions(func_that_change_defaults), 2)
+        self.assertEqual(func_that_change_defaults(), 9)
+
 
 class InlinedFunctionLineNumberTests(unittest.TestCase):
     @jit_suppress
@@ -343,13 +367,12 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         "meaningless without HIR inliner enabled",
     )
     def test_inline_function_stats(self):
-        self.assertEqual(cinderjit.get_num_inlined_functions(func), 1)
+        self.assertEqual(cinderjit.get_num_inlined_functions(func), 2)
         stats = cinderjit.get_inlined_functions_stats(func)
         self.assertEqual(
             {
-                "num_inlined_functions": 1,
+                "num_inlined_functions": 2,
                 'failure_stats': {
-                    'HasDefaults': {'test.test_cinderjit:func_with_defaults'},
                     'HasVarargs': {'test.test_cinderjit:func_with_varargs'}
                 }
             },

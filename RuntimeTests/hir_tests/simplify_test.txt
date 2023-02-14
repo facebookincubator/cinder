@@ -1867,7 +1867,6 @@ fun test {
   }
 }
 ---
-
 LoadArrayItemWithInBoundsIndexIntoMakeListTupleReachesThroughIt
 ---
 def test(x, y, z):
@@ -2251,6 +2250,87 @@ fun jittestmodule:test {
     UseType<TupleExact> v27
     UseType<CInt64[0]> v42
     Return v19
+  }
+}
+---
+VectorCallWithTooManyArgsStaysTheSame
+---
+def foo(x, y=4):
+  return x
+
+def test():
+  return foo(1, 2, 3)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:OptObject = LoadGlobalCached<0; "foo">
+    v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v9:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v10:Object = VectorCall<3> v6 v7 v8 v9 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v10
+  }
+}
+---
+VectorCallWithUnnecessaryDefaultsKeepsArgs
+---
+def foo(x, y=3):
+  return x
+
+def test():
+  return foo(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v6:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v7:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v8:Object = VectorCall<2> v5 v6 v7 {
+      FrameState {
+        NextInstrOffset 8
+      }
+    }
+    Return v8
+  }
+}
+---
+VectorCallHasDefaultsFilledIn
+---
+def foo(a, b, c=3, d=4):
+  return x
+
+def test():
+  return foo(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "foo">
+    v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: foo'
+    }
+    v6:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v7:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v9:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v10:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v11:Tuple = LoadField<func_defaults@56, Tuple, borrowed> v5
+    v12:MortalTupleExact[tuple:0xdeadbeef] = GuardIs<0xdeadbeef> v11 {
+    }
+    v13:Object = VectorCall<4> v5 v6 v7 v9 v10 {
+      FrameState {
+        NextInstrOffset 8
+      }
+    }
+    Return v13
   }
 }
 ---
