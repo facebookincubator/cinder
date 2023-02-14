@@ -1087,15 +1087,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const PrimitiveUnaryOp*>(&i);
         switch (instr->op()) {
           case PrimitiveUnaryOpKind::kNegateInt:
-            bbb.AppendCode("Negate {}, {}", instr->GetOutput(), instr->value());
+            bbb.appendInstr(
+                instr->GetOutput(), Instruction::kNegate, instr->value());
             break;
           case PrimitiveUnaryOpKind::kInvertInt:
-            bbb.AppendCode("Invert {}, {}", instr->GetOutput(), instr->value());
+            bbb.appendInstr(
+                instr->GetOutput(), Instruction::kInvert, instr->value());
             break;
-          case PrimitiveUnaryOpKind::kNotInt:
-            bbb.AppendCode(
-                "Equal {}, {}, 0", instr->GetOutput(), instr->value());
+          case PrimitiveUnaryOpKind::kNotInt: {
+            bbb.appendInstr(
+                instr->GetOutput(),
+                Instruction::kEqual,
+                instr->value(),
+                Imm{0});
             break;
+          }
           default:
             JIT_CHECK(false, "not implemented unary op %d", (int)instr->op());
             break;
