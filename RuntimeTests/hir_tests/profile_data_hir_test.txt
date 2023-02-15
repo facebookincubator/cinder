@@ -47,7 +47,6 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "c">
     v4:Object = LoadArg<1; "i">
-    HintType<2, <ListExact, LongExact>, <DictExact, UnicodeExact>, <TupleExact, LongExact>> v3 v4
     v7:Object = BinaryOp<Subscript> v3 v4 {
       FrameState {
         NextInstrOffset 6
@@ -103,7 +102,6 @@ fun jittestmodule:test {
     v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: callee'
     }
-    HintType<2, <Func, TupleExact>, <Func, ListExact>> v5 v3
     v7:Object = CallEx v5 v3 {
       FrameState {
         NextInstrOffset 6
@@ -143,7 +141,6 @@ fun jittestmodule:test {
         Stack<2> v9 v6
       }
     }
-    HintType<2, <DictExact, DictExact>, <DictExact, DictUser[C:Exact]>> v11 v7
     v13:CInt32 = DictMerge v11 v7 v9 {
       FrameState {
         NextInstrOffset 10
@@ -151,7 +148,6 @@ fun jittestmodule:test {
         Stack<3> v9 v6 v11
       }
     }
-    HintType<3, <Func, TupleExact, DictExact>, <Func, ListExact, DictExact>> v9 v6 v11
     v14:Object = CallExKw v9 v6 v11 {
       FrameState {
         NextInstrOffset 12
@@ -182,7 +178,6 @@ fun jittestmodule:test {
     v4:Object = LoadArg<0; "f">
     v5:Object = LoadArg<1; "a">
     v6:Object = LoadArg<2; "b">
-    HintType<1, <Func>, <TypeExact>> v4
     v10:Object = VectorCall<2> v4 v5 v6 {
       FrameState {
         NextInstrOffset 8
@@ -214,7 +209,6 @@ fun jittestmodule:test {
     v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v9:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
-    HintType<1, <Func>, <TypeExact>> v5
     v10:Object = VectorCallKW<3> v5 v7 v8 v9 {
       FrameState {
         NextInstrOffset 10

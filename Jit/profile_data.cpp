@@ -130,7 +130,7 @@ void writeVersion3(std::ostream& stream, const TypeProfiles& profiles) {
     CodeProfileData code_data;
     for (auto& profile_pair : code_profile.typed_hits) {
       const TypeProfiler& profile = *profile_pair.second;
-      if (profile.empty()) {
+      if (profile.empty() || profile.isPolymorphic()) {
         // The profile isn't interesting. Ignore it.
         continue;
       }
