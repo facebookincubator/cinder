@@ -15,6 +15,7 @@
 #include "dict-common.h"
 #include "frameobject.h"
 #include "interpreteridobject.h"
+#include "cinder/exports.h"
 
 #ifdef Py_LIMITED_API
    // Prevent recursive call _Py_IncRef() <=> Py_INCREF()
@@ -983,6 +984,16 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
 
     if (tp->tp_getattro == PyObject_GenericGetAttr) {
         *result = _PyObject_GenericGetAttrWithDict(v, name, NULL, 1);
+        if (*result != NULL) {
+            return 1;
+        }
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+    if (tp->tp_getattro == PyModule_Type.tp_getattro) {
+        *result = Ci_module_lookupattro(v, name, 1);
         if (*result != NULL) {
             return 1;
         }

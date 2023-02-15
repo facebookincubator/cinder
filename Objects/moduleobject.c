@@ -727,7 +727,11 @@ _PyModuleSpec_IsInitializing(PyObject *spec)
 {
     if (spec != NULL) {
         _Py_IDENTIFIER(_initializing);
-        PyObject *value = _PyObject_GetAttrId(spec, &PyId__initializing);
+        PyObject *value;
+        int ok = _PyObject_LookupAttrId(spec, &PyId__initializing, &value);
+        if (ok == 0) {
+            return 0;
+        }
         if (value != NULL) {
             int initializing = PyObject_IsTrue(value);
             Py_DECREF(value);
@@ -756,19 +760,33 @@ PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name)
 }
 
 static PyObject*
-module_getattro(PyModuleObject *m, PyObject *name)
+Ci_module_lookupattro_impl(PyModuleObject *m, PyObject *name, int suppress)
 {
     PyObject *attr, *mod_name, *getattr;
-    attr = PyObject_GenericGetAttr((PyObject *)m, name);
-    if (attr || !PyErr_ExceptionMatches(PyExc_AttributeError)) {
+    attr = _PyObject_GenericGetAttrWithDict((PyObject *)m, name, NULL, suppress);
+    if (attr) {
         return attr;
     }
-    PyErr_Clear();
+    if (suppress) {
+        if (PyErr_Occurred()) {
+            return NULL;
+        }
+    }
+    else {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            return NULL;
+        }
+        PyErr_Clear();
+    }
     if (m->md_dict) {
         _Py_IDENTIFIER(__getattr__);
         getattr = _PyDict_GetItemIdWithError(m->md_dict, &PyId___getattr__);
         if (getattr) {
-            return PyObject_CallOneArg(getattr, name);
+            PyObject *result = PyObject_CallOneArg(getattr, name);
+            if (!result && suppress && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyErr_Clear();
+            }
+            return result;
         }
         if (PyErr_Occurred()) {
             return NULL;
@@ -781,6 +799,14 @@ module_getattro(PyModuleObject *m, PyObject *name)
                 Py_DECREF(mod_name);
                 return NULL;
             }
+            if (suppress) {
+                // the rest of the code is pulling data
+                // to raise AttributeError which is asked to be suppressed anyways
+                // so we can exit here
+                Py_DECREF(mod_name);
+                return NULL;
+            }
+
             Py_XINCREF(spec);
             if (_PyModuleSpec_IsInitializing(spec)) {
                 PyErr_Format(PyExc_AttributeError,
@@ -802,9 +828,23 @@ module_getattro(PyModuleObject *m, PyObject *name)
             return NULL;
         }
     }
-    PyErr_Format(PyExc_AttributeError,
+    if (!suppress) {
+        PyErr_Format(PyExc_AttributeError,
                 "module has no attribute '%U'", name);
+    }
     return NULL;
+}
+
+static PyObject*
+module_getattro(PyModuleObject *m, PyObject *name)
+{
+    return Ci_module_lookupattro_impl(m, name, 0);
+}
+
+PyObject*
+Ci_module_lookupattro(PyObject *m, PyObject *name, int suppress)
+{
+    return Ci_module_lookupattro_impl((PyModuleObject*)m, name, 1);
 }
 
 static int
