@@ -1205,19 +1205,19 @@ typedef struct PyEventLoopDispatchTable {
     unsigned int version_tag;
 
     PyObject *get_debug_method_object;
-    PyCFunction get_debug_method;
+    _PyCFunctionFastWithKeywords get_debug_method;
     invoke_get_debug_f invoke_get_debug;
 
     PyObject *call_soon_method_object;
-    PyCFunctionWithKeywords call_soon_method;
+    _PyCFunctionFastWithKeywords call_soon_method;
     invoke_call_soon_f invoke_call_soon;
 } PyEventLoopDispatchTable;
 
 static PyObject*
 invoke_get_debug_method(PyEventLoopDispatchTable *table, PyObject *loop)
 {
-    // METH_NOARGS
-    return table->get_debug_method(loop, NULL);
+    // METH_FASTCALL | METH_KEYWORDS
+    return table->get_debug_method(loop, NULL, 0, NULL);
 }
 
 static PyObject*
@@ -1226,127 +1226,11 @@ invoke_get_debug(PyEventLoopDispatchTable *Py_UNUSED(table), PyObject *loop)
     return _PyObject_CallMethodId(loop, &PyId_get_debug, NULL);
 }
 
-// pooled values for argument passing
-static PyObject *call_soon_args1;
-static PyObject *call_soon_args2;
-static PyObject *call_soon_kwargs;
-
 // "context" string
 static PyObject *context_name = NULL;
 // pre-computed hash for the context_name
 static Py_hash_t context_name_hash;
 
-#define GRAB_POOLED_VALUE(lhs, pooled)  \
-    (lhs) = (pooled);                   \
-    (pooled) = NULL;                    \
-
-
-static PyObject*
-prepare_args(PyObject *func, PyObject *arg) {
-    PyObject *args;
-    Py_ssize_t nargs = arg != NULL ? 2 : 1;
-    if (nargs == 1) {
-        GRAB_POOLED_VALUE(args, call_soon_args1);
-    }
-    else {
-        GRAB_POOLED_VALUE(args, call_soon_args2);
-    }
-    assert(args == NULL || Py_REFCNT(args) == 1);
-
-    // if there were no pooled value - create new
-    if (args == NULL) {
-        if ((args = PyTuple_New(nargs)) == NULL) {
-            return NULL;
-        }
-    }
-
-    PyTuple_SET_ITEM(args, 0, func);
-    Py_INCREF(func);
-    if (nargs == 2) {
-        PyTuple_SET_ITEM(args, 1, arg);
-        Py_INCREF(arg);
-    }
-    return args;
-}
-
-static void
-release_args(PyObject *args)
-{
-    if (Py_REFCNT(args) > 1) {
-        // arg was captured during the call - release our end
-        Py_DECREF(args);
-        return;
-    }
-    if (PyTuple_GET_SIZE(args) == 1) {
-        // if pooled value was already set - drop our reference and leave
-        if (call_soon_args1 != NULL) {
-            Py_DECREF(args);
-            return;
-        }
-        // clear internal slot but keep the tuple itself
-        Py_CLEAR(PyTuple_GET_ITEM(args, 0));
-        call_soon_args1 = args;
-    }
-    else {
-        // if pooled value was already set - drop our reference and leave
-        if (call_soon_args2 != NULL) {
-            Py_DECREF(args);
-            return;
-        }
-        // clear internal slots but keep the tuple itself
-        Py_CLEAR(PyTuple_GET_ITEM(args, 0));
-        Py_CLEAR(PyTuple_GET_ITEM(args, 1));
-        call_soon_args2 = args;
-    }
-}
-
-static PyObject*
-prepare_kwargs(PyObject *ctx)
-{
-    assert(ctx != NULL);
-    PyObject *kwargs;
-
-    GRAB_POOLED_VALUE(kwargs, call_soon_kwargs);
-    assert(kwargs == NULL || Py_REFCNT(kwargs) == 1);
-
-    if (kwargs == NULL) {
-        if ((kwargs = _PyDict_NewPresized(1)) == NULL) {
-            return NULL;
-        }
-    }
-    // set kwarg value
-    if (_PyDict_SetItem_KnownHash(kwargs, context_name, ctx, context_name_hash) < 0) {
-        Py_DECREF(kwargs);
-        return NULL;
-    }
-    return kwargs;
-}
-
-static int
-release_kwargs(PyObject *kwargs)
-{
-    if (kwargs == NULL) {
-        return 0;
-    }
-    // if value has leaked during the call or pooled value is already set
-    // drop our reference and leave
-    if (Py_REFCNT(kwargs) > 1 || call_soon_kwargs != NULL) {
-        Py_DECREF(kwargs);
-        return 0;
-    }
-    // set the None to the slot
-    if (_PyDict_SetItem_KnownHash(kwargs, context_name, Py_None, context_name_hash) < 0) {
-        Py_DECREF(kwargs);
-        return -1;
-    }
-    if (PyDict_GET_SIZE(kwargs) != 1) {
-        // dict size is not equal to 1 value which meahs that it was mutated by user
-        Py_DECREF(kwargs);
-        return 0;
-    }
-    call_soon_kwargs = kwargs;
-    return 0;
-}
 
 static PyObject*
 invoke_call_soon_method(
@@ -1357,30 +1241,20 @@ invoke_call_soon_method(
     PyObject *ctx
 )
 {
-    PyObject *args = prepare_args(func, arg);
-    if (args == NULL) {
-        return NULL;
+    PyObject *stack[3];
+    PyObject *kwarg_names = NULL;
+
+    Py_ssize_t nargs = 1;
+    stack[0] = func;
+    if (arg != NULL) {
+        stack[nargs] = arg;
+        nargs++;
     }
-    PyObject *kwargs = NULL;
     if (ctx != NULL) {
-        kwargs = prepare_kwargs(ctx);
-        if (kwargs == NULL) {
-            Py_DECREF(args);
-            return NULL;
-        }
+        stack[nargs] = ctx;
+        kwarg_names = context_kwname;
     }
-    // METH_KEYWORDS | METH_VARARGS
-    PyObject *res = table->call_soon_method(loop, args, kwargs);
-    release_args(args);
-    if (res == NULL) {
-        Py_DECREF(kwargs);
-        return NULL;
-    }
-    if (release_kwargs(kwargs) < 0) {
-        Py_DECREF(res);
-        return NULL;
-    }
-    return res;
+    return table->call_soon_method(loop, stack, nargs, kwarg_names);
 }
 
 static PyObject*
@@ -1522,21 +1396,21 @@ get_dispatch_table(PyTypeObject *type)
         table->version_tag = type->tp_version_tag;
         PyObject *call_soon = lookup_attr(type, &PyId_call_soon, &PyMethodDescr_Type);
         if (call_soon != NULL &&
-            ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_VARARGS | METH_KEYWORDS))
+            ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_FASTCALL | METH_KEYWORDS))
         {
             table->call_soon_method_object = call_soon;
             Py_INCREF(call_soon);
             table->invoke_call_soon = invoke_call_soon_method;
-            table->call_soon_method = (PyCFunctionWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
+            table->call_soon_method = (_PyCFunctionFastWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
         }
         PyObject *get_debug = lookup_attr(type, &PyId_get_debug, &PyMethodDescr_Type);
         if (get_debug != NULL &&
-            ((PyMethodDescrObject*)get_debug)->d_method->ml_flags == METH_NOARGS)
+            ((PyMethodDescrObject*)get_debug)->d_method->ml_flags == (METH_FASTCALL | METH_KEYWORDS))
         {
             table->get_debug_method_object = get_debug;
             Py_INCREF(get_debug);
             table->invoke_get_debug = invoke_get_debug_method;
-            table->get_debug_method = ((PyMethodDescrObject*)get_debug)->d_method->ml_meth;
+            table->get_debug_method = (_PyCFunctionFastWithKeywords)((PyMethodDescrObject*)get_debug)->d_method->ml_meth;
         }
         if (PyDict_SetItem(event_loop_dispatch_tables, (PyObject*)type, (PyObject*)table) < 0) {
             Py_DECREF(table);
@@ -8515,9 +8389,6 @@ module_free(void *m)
 
     Py_CLEAR(context_kwname);
     Py_CLEAR(context_name);
-    Py_CLEAR(call_soon_args1);
-    Py_CLEAR(call_soon_args2);
-    Py_CLEAR(call_soon_kwargs);
     Py_CLEAR(event_loop_dispatch_tables);
     Py_CLEAR(last_used_eventloop_type);
     Py_CLEAR(last_used_eventloop_dispatch_table);
