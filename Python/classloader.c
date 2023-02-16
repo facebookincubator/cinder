@@ -6,6 +6,7 @@
 #include "dictobject.h"
 #include "object.h"
 #include "opcode.h"
+#include "pyerrors.h"
 #include "structmember.h"
 #include "Jit/pyjit.h"
 #include "pycore_object.h"  // PyHeapType_CINDER_EXTRA
@@ -3217,6 +3218,14 @@ classloader_init_slot(PyObject *path)
     PyObject *slot_map = vtable->vt_slotmap;
     PyObject *slot_name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
     PyObject *new_index = PyDict_GetItem(slot_map, slot_name);
+    if (new_index == NULL) {
+        PyErr_Format(
+            PyExc_RuntimeError, "unable to resolve v-table slot '%R' in %s",
+                slot_name, target_type->tp_name);
+        Py_DECREF(target_type);
+        Py_DECREF(cur);
+        return -1;
+    }
     assert(new_index != NULL);
 
     if (PyDict_SetItem(classloader_cache, path, new_index) ||
