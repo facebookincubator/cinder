@@ -17,9 +17,6 @@
 Welcome to Cinder!
 ==================
 
-(NOTE: This branch is an in-progress port of Cinder from 3.8 to 3.10. It is not
-yet functional.)
-
 Cinder is Meta's internal performance-oriented production version of
 CPython 3.10. It contains a number of performance optimizations, including
 bytecode inline caching, eager evaluation of coroutines, a method-at-a-time
