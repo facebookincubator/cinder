@@ -1947,7 +1947,6 @@ void HIRBuilder::fixStaticReturn(
     boxed_ret = boxed_ret.asBoxed();
   }
   if (boxed_ret < TObject) {
-    // TODO(T108048062): This should be a type check rather than a RefineType.
     tc.emit<RefineType>(ret_val, boxed_ret, ret_val);
   }
 
