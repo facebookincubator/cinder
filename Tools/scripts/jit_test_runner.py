@@ -105,6 +105,7 @@ class ReplayInfo:
     def _build_replay_cmd(self) -> str:
         args = [
             sys.executable,
+            *get_cinderjit_xargs(),
             sys.argv[0],
             "replay",
             self.test_log,
