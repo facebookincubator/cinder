@@ -42,6 +42,7 @@ typedef struct {
     PyObject *vt_specials;
     /* Size of the vtable */
     Py_ssize_t vt_size;
+    int vt_typecode;
     _PyType_VTableEntry vt_entries[1];
 } _PyType_VTable;
 
@@ -71,7 +72,6 @@ typedef struct {
 
 typedef struct {
     PyObject *init_func;
-    int type_code;
 } Ci_PyType_CinderExtra;
 
 #define Ci_PyHeapType_CINDER_EXTRA(etype) \

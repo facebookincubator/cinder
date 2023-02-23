@@ -231,7 +231,12 @@ PyObject *set_type_code(PyObject *mod, PyObject *const *args, Py_ssize_t nargs) 
         return NULL;
     }
 
-    Ci_PyHeapType_CINDER_EXTRA(type)->type_code = code;
+    _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(type, 0);
+    if (vtable == NULL) {
+        return NULL;
+    }
+
+    vtable->vt_typecode = code;
     Py_RETURN_NONE;
 }
 

@@ -2812,6 +2812,7 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
     vtable->vt_original = NULL;
     vtable->vt_specials = NULL;
     vtable->vt_slotmap = slotmap;
+    vtable->vt_typecode = TYPED_OBJECT;
     self->tp_cache = (PyObject *)vtable;
 
     _PyClassLoader_ReinitVtable(vtable);
@@ -2830,7 +2831,17 @@ clear_vtables_recurse(PyTypeObject *type)
 {
     PyObject *subclasses = type->tp_subclasses;
     PyObject *ref;
-    Py_CLEAR(type->tp_cache);
+    if (type->tp_cache != NULL) {
+        // If the type has a type code we need to preserve it, but we'll clear everything else
+        int type_code = ((_PyType_VTable *)type->tp_cache)->vt_typecode;
+        Py_CLEAR(type->tp_cache);
+        if (type_code != TYPED_OBJECT) {
+            _PyType_VTable *vtable = _PyClassLoader_EnsureVtable(type, 0);
+            if (vtable != NULL) {
+                vtable ->vt_typecode = type_code;
+            }
+        }
+    }
     if (subclasses != NULL) {
         Py_ssize_t i = 0;
         while (PyDict_Next(subclasses, &i, NULL, &ref)) {
@@ -3060,11 +3071,11 @@ error:
 }
 
 int _PyClassLoader_GetTypeCode(PyTypeObject *type) {
-    if (!(type->tp_flags & Ci_Py_TPFLAG_CPYTHON_ALLOCATED)) {
+    if (type->tp_cache == NULL) {
         return TYPED_OBJECT;
     }
 
-    return Ci_PyHeapType_CINDER_EXTRA(type)->type_code;
+    return ((_PyType_VTable *)type->tp_cache)->vt_typecode;
 }
 
 

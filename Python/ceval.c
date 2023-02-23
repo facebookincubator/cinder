@@ -5279,6 +5279,7 @@ main_loop:
             int index = _PyLong_AsInt(PyTuple_GET_ITEM(local, 0));
             int type =
                 _PyClassLoader_ResolvePrimitiveType(PyTuple_GET_ITEM(local, 1));
+
             if (type < 0) {
                 goto error;
             }
