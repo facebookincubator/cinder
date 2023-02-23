@@ -980,7 +980,12 @@ init_subclass(PyObject *self, PyObject *type)
         PyErr_SetString(PyExc_TypeError, "init_subclass expected type");
         return NULL;
     }
-    if (create_overridden_slot_descriptors_with_default((PyTypeObject *) type) < 0) {
+    // Validate that no Static Python final methods are overridden.
+    PyTypeObject *typ = (PyTypeObject *)type;
+    if (_PyClassLoader_IsFinalMethodOverridden(typ->tp_base, typ->tp_dict)) {
+        return NULL;
+    }
+    if (create_overridden_slot_descriptors_with_default(typ) < 0) {
         return NULL;
     }
     Py_RETURN_NONE;
