@@ -291,7 +291,7 @@ class StaticFieldTests(StaticTestBase):
         """
         code = self.compile(codestr, modname="test_annotated_instance_var")
         # get C from module, and then get __init__ from C
-        code = self.find_code(self.find_code(code))
+        code = self.find_code(self.find_code(code), "__init__")
         self.assertInBytecode(code, "STORE_FIELD")
 
     def test_load_store_attr_value(self):

@@ -466,8 +466,9 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_awaited_invoke_function_unjitable(self):
         codestr = """
+            X = 42
             async def f() -> int:
-                class C: pass
+                global X; X = 42; del X
                 return 1
 
             async def g() -> int:

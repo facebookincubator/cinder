@@ -48,11 +48,6 @@ from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
 
-if _static_module_ported:
-    from _static import __build_cinder_class__
-else:
-    from __static__ import __build_cinder_class__
-
 
 # Force immediate resolution of Compiler in case it's deferred from Lazy Imports
 Compiler = Compiler
@@ -344,12 +339,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         return code
 
     def _ensure_static_python_builtins_enabled(self) -> None:
-        # pyre-ignore[61]: __build_class__ isn't exposed in builtins.pyi.
-        if builtins.__build_class__ is not __build_cinder_class__:
-            # We use builtins.__build_class__ not being patched as a proxy that we need to
-            # install the Static Python machinery.
-            builtins.__build_class__ = __build_cinder_class__
-            watch_sys_modules()
+        watch_sys_modules()
 
     def exec_module(self, module: ModuleType) -> None:
         # This ends up being slightly convoluted, because create_module

@@ -479,8 +479,12 @@ class PyFlowGraph(FlowGraph):
         self.names = IndexedSet()
         # Free variables found by the symbol table scan, including
         # variables used only in nested scopes, are included here.
-        self.freevars = IndexedSet(self.scope.get_free_vars())
-        self.cellvars = IndexedSet(self.scope.get_cell_vars())
+        if scope is not None:
+            self.freevars = IndexedSet(scope.get_free_vars())
+            self.cellvars = IndexedSet(scope.get_cell_vars())
+        else:
+            self.freevars = IndexedSet([])
+            self.cellvars = IndexedSet([])
         # The closure list is used to track the order of cell
         # variables and free variables in the resulting code object.
         # The offsets used by LOAD_CLOSURE/LOAD_DEREF refer to both
@@ -1180,7 +1184,7 @@ class PyFlowGraphCinder(PyFlowGraph):
     opcode = opcode_cinder.opcode
 
     def make_code(self, nlocals, code, consts, firstline, lnotab) -> CodeType:
-        if self.scope.suppress_jit:
+        if self.scope is not None and self.scope.suppress_jit:
             self.setFlag(CO_SUPPRESS_JIT)
         return super().make_code(nlocals, code, consts, firstline, lnotab)
 

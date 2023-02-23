@@ -25,6 +25,7 @@ from ast import (
     UnaryOp,
 )
 from contextlib import contextmanager
+from types import CodeType
 from typing import (
     Any,
     Callable as typingCallable,
@@ -71,6 +72,13 @@ from .types import (
     Value,
 )
 
+try:
+    from cinder import _set_qualname
+except ImportError:
+
+    def _set_qualname(code: CodeType, qualname: str) -> None:
+        pass
+
 
 def exec_static(
     source: str,
@@ -90,6 +98,17 @@ def exec_static(
 
 class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode_static.opcode
+
+
+class InitSubClassGenerator:
+    def __init__(self, flow_graph: PyFlowGraph, qualname: str) -> None:
+        self.flow_graph = flow_graph
+        self.qualname = qualname
+
+    def getCode(self) -> CodeType:
+        code = self.flow_graph.getCode()
+        _set_qualname(code, self.qualname)
+        return code
 
 
 class Static38CodeGenerator(StrictCodeGenerator):
@@ -347,6 +366,27 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.emit("ROT_TWO")
         self.emit("STORE_ATTR", "__final_method_names__")
 
+    def emit_build_class(self, node: ast.ClassDef, class_body: CodeGenerator) -> None:
+        self._makeClosure(class_body, 0)
+        self.emit("LOAD_CONST", node.name)
+
+        if node.keywords:
+            for keyword in node.keywords:
+                self.emit("LOAD_CONST", keyword.arg)
+                self.visit(keyword.value)
+
+            self.emit("BUILD_MAP", len(node.keywords))
+        else:
+            self.emit("LOAD_CONST", None)
+
+        for base in node.bases:
+            self.visit(base)
+
+        self.emit(
+            "INVOKE_FUNCTION",
+            (("_static", "__build_cinder_class__"), 3 + len(node.bases)),
+        )
+
     def post_process_and_store_name(self, node: ClassDef) -> None:
         klass = self._resolve_class(node)
         if klass:
@@ -396,10 +436,56 @@ class Static38CodeGenerator(StrictCodeGenerator):
         return function
 
     def walkClassBody(self, node: ClassDef, gen: CodeGenerator) -> None:
-        super().walkClassBody(node, gen)
         klass = self._resolve_class(node)
+        super().walkClassBody(node, gen)
         if not klass:
             return
+
+        if not klass.has_init_subclass:
+            # we define a custom override of __init_subclass__
+            if "__class__" not in gen.scope.cells:
+                # we need to call super(), which will need to have
+                # __class__ available if it's not already...
+                gen.graph.cellvars.get_index("__class__")
+                gen.scope.cells["__class__"] = 1
+
+            init_graph = self.flow_graph(
+                "__init_subclass__",
+                self.graph.filename,
+                None,
+                0,
+                ("cls",),
+                (),
+                (),
+                optimized=1,
+                docstring=None,
+            )
+            init_graph.freevars.get_index("__class__")
+
+            init_graph.nextBlock()
+
+            init_graph.emit("LOAD_GLOBAL", "super")
+            init_graph.emit("LOAD_DEREF", "__class__")
+            init_graph.emit("LOAD_FAST", "cls")
+            init_graph.emit("LOAD_METHOD_SUPER", ("__init_subclass__", True))
+            init_graph.emit("CALL_METHOD", 0)
+            init_graph.emit("POP_TOP")
+
+            init_graph.emit("LOAD_FAST", "cls")
+            init_graph.emit("INVOKE_FUNCTION", (("_static", "init_subclass"), 1))
+            init_graph.emit("RETURN_VALUE")
+
+            gen.emit("LOAD_CLOSURE", "__class__")
+            gen.emit("BUILD_TUPLE", 1)
+            gen.emit(
+                "LOAD_CONST",
+                InitSubClassGenerator(
+                    init_graph, self.get_qual_prefix(gen) + ".__init_subclass__"
+                ),
+            )
+            gen.emit("LOAD_CONST", self.get_qual_prefix(gen) + ".__init_subclass__")
+            gen.emit("MAKE_FUNCTION", 8)
+            gen.emit("STORE_NAME", "__init_subclass__")
 
         assert isinstance(gen, Static38CodeGenerator)
         klass.emit_extra_members(node, gen)

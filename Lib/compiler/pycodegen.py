@@ -648,17 +648,20 @@ class CodeGenerator(ASTVisitor):
             gen.emit("LOAD_CONST", None)
         gen.emit("RETURN_VALUE")
 
-        self.emit("LOAD_BUILD_CLASS")
-        self._makeClosure(gen, 0)
-        self.emit("LOAD_CONST", node.name)
-
-        self._call_helper(2, None, node.bases, node.keywords)
+        self.emit_build_class(node, gen)
 
         for d in reversed(node.decorator_list):
             self.emit_decorator_call(d, node)
 
         self.register_immutability(node, immutability_flag)
         self.post_process_and_store_name(node)
+
+    def emit_build_class(self, node: ast.ClassDef, class_body: CodeGenerator):
+        self.emit("LOAD_BUILD_CLASS")
+        self._makeClosure(class_body, 0)
+        self.emit("LOAD_CONST", node.name)
+
+        self._call_helper(2, None, node.bases, node.keywords)
 
     def find_immutability_flag(self, node: ClassDef) -> bool:
         return False

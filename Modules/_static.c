@@ -8,6 +8,7 @@
 #include "import.h"
 #include "methodobject.h"
 #include "object.h"
+#include "pyerrors.h"
 #include "pyport.h"
 #include "pycore_tuple.h"
 #include "structmember.h"
@@ -1051,6 +1052,20 @@ error:
     return NULL;
 }
 
+
+static PyObject *
+init_subclass(PyObject *self, PyObject *type)
+{
+    if (!PyType_Check(type)) {
+        PyErr_SetString(PyExc_TypeError, "init_subclass expected type");
+        return NULL;
+    }
+    if (create_overridden_slot_descriptors_with_default((PyTypeObject *) type) < 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyObject *
 _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
                                PyObject *kwnames)
@@ -1059,7 +1074,7 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
     PyObject *cls = NULL, *cell = NULL;
     int isclass = 0;   /* initialize to prevent gcc warning */
 
-    if (nargs < 2) {
+    if (nargs < 3) {
         PyErr_SetString(PyExc_TypeError,
                         "__build_cinder_class__: not enough arguments");
         return NULL;
@@ -1076,33 +1091,41 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
                         "__build_cinder_class__: name is not a string");
         return NULL;
     }
-    orig_bases = _PyTuple_FromArray(args + 2, nargs - 2);
+    mkw = args[2];
+    if (mkw != Py_None) {
+        if (!PyDict_CheckExact(mkw)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "__build_cinder_class__: kwargs is not a dict");
+            return NULL;
+        }
+    } else {
+        mkw = NULL;
+    }
+
+    if (kwnames != NULL && PyTuple_GET_SIZE(kwnames) != 0) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__build_cinder_class__: unexpected keyword arguments");
+        return NULL;
+    }
+
+    orig_bases = _PyTuple_FromArray(args + 3, nargs - 3);
     if (orig_bases == NULL)
         return NULL;
 
-    bases = update_bases(orig_bases, args + 2, nargs - 2);
+    bases = update_bases(orig_bases, args + 3, nargs - 3);
     if (bases == NULL) {
         Py_DECREF(orig_bases);
         return NULL;
     }
 
-    if (kwnames == NULL) {
+    if (mkw == NULL) {
         meta = NULL;
-        mkw = NULL;
-    }
-    else {
-        mkw = _PyStack_AsDict(args + nargs, kwnames);
-        if (mkw == NULL) {
-            Py_DECREF(bases);
-            return NULL;
-        }
-
+    } else {
         meta = _PyDict_GetItemIdWithError(mkw, &PyId_metaclass);
         if (meta != NULL) {
             Py_INCREF(meta);
             if (_PyDict_DelItemId(mkw, &PyId_metaclass) < 0) {
                 Py_DECREF(meta);
-                Py_DECREF(mkw);
                 Py_DECREF(bases);
                 return NULL;
             }
@@ -1110,7 +1133,6 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
             isclass = PyType_Check(meta);
         }
         else if (PyErr_Occurred()) {
-            Py_DECREF(mkw);
             Py_DECREF(bases);
             return NULL;
         }
@@ -1136,7 +1158,6 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
                                                         bases);
         if (winner == NULL) {
             Py_DECREF(meta);
-            Py_XDECREF(mkw);
             Py_DECREF(bases);
             return NULL;
         }
@@ -1161,7 +1182,6 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
     }
     if (ns == NULL) {
         Py_DECREF(meta);
-        Py_XDECREF(mkw);
         Py_DECREF(bases);
         return NULL;
     }
@@ -1211,7 +1231,6 @@ error:
     Py_XDECREF(cell);
     Py_DECREF(ns);
     Py_DECREF(meta);
-    Py_XDECREF(mkw);
     Py_DECREF(bases);
     if (bases != orig_bases) {
         Py_DECREF(orig_bases);
@@ -1279,6 +1298,10 @@ static PyMethodDef static_methods[] = {
     {"__build_cinder_class__",
      (PyCFunction)_static___build_cinder_class__,
      METH_FASTCALL | METH_KEYWORDS,
+     ""},
+    {"init_subclass",
+     (PyCFunction)init_subclass,
+     METH_O,
      ""},
     {"lookup_native_symbol", (PyCFunction)(void(*)(void))lookup_native_symbol, METH_FASTCALL, ""},
     {"_sizeof_dlopen_cache", (PyCFunction)(void(*)(void))sizeof_dlopen_cache, METH_FASTCALL, ""},

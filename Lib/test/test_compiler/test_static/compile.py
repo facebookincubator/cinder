@@ -5416,8 +5416,9 @@ class StaticCompilationTests(StaticTestBase):
     def test_invoke_strict_module_deep_unjitable_many_args(self):
         codestr = """
             def f0(): return 42
+            X = 42
             def f1(a, b, c, d, e, f, g, h):
-                class C: pass
+                global X; X = 42; del X
                 return f0() - a + b - c + d - e + f - g + h - 4
 
             def f2(): return f1(1,2,3,4,5,6,7,8)

@@ -184,10 +184,10 @@ class SuperTests(StaticTestBase):
                 def g(self):
                     return super().f()
 
-            return B().g()
+            return B
         """
         with self.in_strict_module(codestr) as mod:
-            self.assertNotInBytecode(mod.foo, "INVOKE_FUNCTION")
+            self.assertNotInBytecode(mod.foo().g, "INVOKE_FUNCTION")
 
     def test_unsupported_class_nested_in_class(self):
         codestr = """

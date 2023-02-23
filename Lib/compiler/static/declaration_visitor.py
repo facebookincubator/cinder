@@ -31,6 +31,7 @@ from .types import (
     Class,
     DecoratedMethod,
     Function,
+    InitSubclassFunction,
     ModuleInstance,
     ResolvedTypeRef,
     TypeEnvironment,
@@ -166,7 +167,13 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.parent_scope().declare_function(function)
 
     def _make_function(self, node: Union[FunctionDef, AsyncFunctionDef]) -> Function:
-        func = Function(node, self.module, self.type_ref(node))
+        if node.name == "__init_subclass__":
+            func = InitSubclassFunction(node, self.module, self.type_ref(node))
+            parent_scope = self.parent_scope()
+            if isinstance(parent_scope, Class):
+                parent_scope.has_init_subclass = True
+        else:
+            func = Function(node, self.module, self.type_ref(node))
         self.enter_scope(func)
         for item in node.body:
             self.visit(item)

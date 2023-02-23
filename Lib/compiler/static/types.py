@@ -185,6 +185,7 @@ class TypeEnvironment:
         self.type.pytype = type
         self.type._member_nodes = {}
         self.type.dynamic_builtinmethod_dispatch = False
+        self.type.has_init_subclass = False
         self.object: Class = BuiltinObject(
             TypeName("builtins", "object"),
             self,
@@ -1467,6 +1468,7 @@ class Class(Object["Class"]):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
+        has_init_subclass: bool = False,
     ) -> None:
         super().__init__(klass or type_env.type)
         assert isinstance(bases, (type(None), list))
@@ -1486,6 +1488,8 @@ class Class(Object["Class"]):
         self.pytype = pytype
         if self.pytype is not None:
             self.make_type_dict()
+        # True if this class overrides __init_subclass__
+        self.has_init_subclass = has_init_subclass
         # track AST node of each member until finish_bind, for error reporting
         self._member_nodes: Dict[str, AST] = {}
 
@@ -1810,6 +1814,7 @@ class Class(Object["Class"]):
             is_exact=True,
             pytype=self.pytype,
             is_final=self.is_final,
+            has_init_subclass=self.has_init_subclass,
         )
         # We need to point the instance's klass to the new class we just created.
         instance.klass = klass
@@ -2040,6 +2045,7 @@ class BuiltinObject(Class):
         is_exact: bool = False,
         is_final: bool = False,
         pytype: Optional[Type[object]] = None,
+        has_init_subclass: bool = False,
     ) -> None:
         super().__init__(
             type_name,
@@ -2079,6 +2085,7 @@ class GenericClass(Class):
         is_exact: bool = False,
         pytype: Optional[Type[object]] = None,
         is_final: bool = False,
+        has_init_subclass: bool = False,
     ) -> None:
         super().__init__(
             type_name,
@@ -3868,6 +3875,30 @@ class Function(Callable[Class], FunctionContainer):
 
     def __repr__(self) -> str:
         return f"<{self.name} '{self.name}' instance, args={self.args}>"
+
+
+class InitSubclassFunction(Function):
+    def emit_function_body(
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        code_gen: Static38CodeGenerator,
+        first_lineno: int,
+        body: List[ast.stmt],
+    ) -> CodeGenerator:
+
+        gen = code_gen.make_func_codegen(node, node.args, node.name, first_lineno)
+
+        gen.emit("LOAD_FAST", node.args.args[0].arg)
+        gen.emit("INVOKE_FUNCTION", (("_static", "init_subclass"), 1))
+        gen.emit("POP_TOP")
+
+        code_gen.processBody(node, body, gen)
+
+        gen.finishFunction()
+
+        code_gen.build_function(node, gen)
+
+        return gen
 
 
 class UnknownDecoratedMethod(FunctionContainer):
@@ -10037,6 +10068,7 @@ if spamobj is not None:
             is_exact: bool = False,
             pytype: Optional[Type[object]] = None,
             is_final: bool = False,
+            has_init_subclass: bool = False,
         ) -> None:
             super().__init__(
                 type_name,

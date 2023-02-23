@@ -2521,8 +2521,9 @@ class PrimitivesTests(StaticTestBase):
         codestr = """
             from __static__ import int8, box
 
+            X = 42
             def n(val: int8):
-                class C: pass
+                global X; X = 42; del X
                 return box(val)
 
             def x():
@@ -2795,10 +2796,11 @@ class PrimitivesTests(StaticTestBase):
                 op = "*"
                 other = "1"
                 boxed = "int"
-            unjitable_code = "class C: pass" if unjitable else ""
+            unjitable_code = "global X; X = 42; del X" if unjitable else ""
             codestr = f"""
                 from __static__ import {type}, box
 
+                X = 42
                 def f(error: bool) -> {type}:
                     {unjitable_code}
                     if error:

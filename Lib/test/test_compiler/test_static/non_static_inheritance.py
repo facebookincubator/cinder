@@ -401,6 +401,112 @@ class NonStaticInheritanceTests(StaticTestBase):
                 mod.invoke_d_f, "INVOKE_FUNCTION", ((mod.__name__, "C", "f"), 1)
             )
 
+    def test_nonstatic_override_init_subclass(self):
+        nonstatic = """
+            from static import B
+
+            class B2(B):
+                def __init_subclass__(self):
+                    # don't call super
+                    pass
+
+            class D(B2):
+                x = 100
+                def __init__(self):
+                    pass
+
+        """
+        static = """
+
+            class B:
+                x: int = 42
+                def get_x(self):
+                    return self.x
+                def set_x(self, value):
+                    self.x = value
+
+        """
+        with self.in_module(static, name="static") as mod, self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ) as nonstatic_mod:
+            self.assertInBytecode(mod.B.get_x, "INVOKE_METHOD")
+            self.assertInBytecode(mod.B.set_x, "INVOKE_METHOD")
+            d = nonstatic_mod.D()
+            self.assertRaises(TypeError, d.set_x, 100)
+            self.assertEqual(d.get_x(), 100)
+
+    def test_nonstatic_override_init_subclass_inst(self):
+        nonstatic = """
+            from static import B
+
+            class B2(B):
+                def __init_subclass__(self):
+                    # don't call super
+                    pass
+
+            class D(B2):
+                def __init__(self):
+                    self.x = 100
+
+        """
+        static = """
+            class B:
+                x: int = 42
+                def get_x(self):
+                    return self.x
+                def set_x(self, value):
+                    self.x = value
+
+        """
+        with self.in_module(static, name="static") as mod, self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ) as nonstatic_mod:
+            self.assertInBytecode(mod.B.get_x, "INVOKE_METHOD")
+            self.assertInBytecode(mod.B.set_x, "INVOKE_METHOD")
+            d = nonstatic_mod.D()
+            d.set_x(200)
+            self.assertEqual(d.get_x(), 200)
+            self.assertEqual(d.__dict__, {})
+            self.assertEqual(mod.B.x, 42)
+
+    def test_nonstatic_call_base_init(self):
+        nonstatic = """
+            class B:
+                def __init_subclass__(cls):
+                    cls.foo = 42
+
+        """
+        static = """
+            from nonstatic import B
+            class D(B):
+                pass
+
+        """
+        with self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ) as nonstatic_mod, self.in_module(static) as mod:
+            self.assertEqual(mod.D.foo, 42)
+
+    def test_nonstatic_call_base_init_other_super(self):
+        nonstatic = """
+            class B:
+                def __init_subclass__(cls):
+                    cls.foo = 42
+
+        """
+        static = """
+            from nonstatic import B
+            class D(B):
+                def __init__(self):
+                    return super().__init__()
+
+
+        """
+        with self.in_module(
+            nonstatic, name="nonstatic", code_gen=CinderCodeGenerator
+        ) as nonstatic_mod, self.in_module(static) as mod:
+            self.assertEqual(mod.D.foo, 42)
+
 
 if __name__ == "__main__":
 

@@ -224,6 +224,28 @@ class SlotsWithDefaultTests(StaticTestBase):
 
             self.assertEqual(mod.f(D()), (3, 2, 3))
 
+    def test_nonstatic_inheritance_writes_allowed_init_subclass_override(self) -> None:
+        codestr = """
+        class C:
+            x: int = 1
+            def __init_subclass__(cls):
+                cls.foo = 42
+
+        def f(c: C):
+            initial_x = c.x
+            c.x = 2
+            return (initial_x, c.x, c.__class__.x)
+
+        """
+        m = self.compile(codestr)
+        with self.in_module(codestr) as mod:
+
+            class D(mod.C):
+                x: int = 3
+
+            self.assertEqual(mod.f(D()), (3, 2, 3))
+            self.assertEqual(D.foo, 42)
+
     def test_static_property_override(
         self,
     ) -> None:
