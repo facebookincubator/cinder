@@ -1,3 +1,4 @@
+from compiler.pycodegen import PythonCodeGenerator
 from types import MemberDescriptorType
 
 from unittest import skip
@@ -228,6 +229,40 @@ class StaticFieldTests(StaticTestBase):
             C = mod.C
             with self.assertRaisesRegex(TypeError, "expected 'C', got 'NoneType'"):
                 C().f()
+
+    def test_primitive_field_leaked_type(self):
+        codestr = """
+            from __static__ import cbool
+
+            insts = []
+            class B:
+                def __init_subclass__(cls: object):
+                    insts.append(cls())
+
+            class D(B):
+                x: cbool
+        """
+        with self.assertRaisesRegex(RuntimeError, "type has leaked"):
+            with self.in_module(codestr) as mod:
+                pass
+
+    def test_assign_implicit_primitive_field(self):
+        codestr = """
+            from __static__ import cbool
+
+            class B:
+                def __init__(self):
+                    self.x: cbool = False
+
+            class C(B):
+                def __init__(self):
+                    self.x = self.f()
+
+                def f(self) -> cbool:
+                    return True
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.C().x, True)
 
     def test_error_incompat_field_non_dynamic(self):
         self.type_error(
@@ -755,3 +790,42 @@ class StaticFieldTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             a = mod.A()
             self.assertEqual(mod.get_ref(a)(), a)
+
+    def test_multiple_fields_with_nonstatic_base(self):
+        non_static = """
+        class SomeType:
+            pass
+        """
+        with self.in_module(non_static, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+            from __strict__ import mutable
+            from {nonstatic_mod.__name__} import SomeType
+
+            @mutable
+            class C(SomeType):
+                def __init__(self):
+                    self.x: str = 'abc'
+                    self.y: str = 'foo'
+
+            """
+            with self.in_strict_module(codestr) as mod:
+                pass
+
+    def test_single_field_with_nonstatic_base(self):
+        non_static = """
+        class SomeType:
+            pass
+        """
+        with self.in_module(non_static, code_gen=PythonCodeGenerator) as nonstatic_mod:
+            codestr = f"""
+            from __strict__ import mutable
+            from {nonstatic_mod.__name__} import SomeType
+
+            @mutable
+            class C(SomeType):
+                def __init__(self):
+                    self.x: str = 'abc'
+
+            """
+            with self.in_strict_module(codestr) as mod:
+                pass

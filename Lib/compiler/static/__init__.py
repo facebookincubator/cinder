@@ -42,7 +42,7 @@ from ..opcodebase import Opcode
 from ..pyassem import Block, IndexedSet, PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import CodeGenerator, compile, CompNode, FuncOrLambda
 from ..strict import FIXED_MODULES, StrictCodeGenerator
-from ..symbols import ClassScope, Scope, SymbolVisitor
+from ..symbols import ClassScope, ModuleScope, Scope, SymbolVisitor
 from .compiler import Compiler
 from .definite_assignment_checker import DefiniteAssignmentVisitor
 from .effects import NarrowingEffect, TypeState
@@ -367,6 +367,11 @@ class Static38CodeGenerator(StrictCodeGenerator):
         self.emit("STORE_ATTR", "__final_method_names__")
 
     def emit_build_class(self, node: ast.ClassDef, class_body: CodeGenerator) -> None:
+        if not isinstance(self.scope, ModuleScope):
+            # If a class isn't top-level then it's not going to be using static
+            # features (we could relax this in the future for classes nested in classes).
+            return super().emit_build_class(node, class_body)
+
         self._makeClosure(class_body, 0)
         self.emit("LOAD_CONST", node.name)
 
@@ -379,12 +384,17 @@ class Static38CodeGenerator(StrictCodeGenerator):
         else:
             self.emit("LOAD_CONST", None)
 
+        if "__class__" in class_body.graph.cellvars:
+            self.emit("LOAD_CONST", True)
+        else:
+            self.emit("LOAD_CONST", False)
+
         for base in node.bases:
             self.visit(base)
 
         self.emit(
             "INVOKE_FUNCTION",
-            (("_static", "__build_cinder_class__"), 3 + len(node.bases)),
+            (("_static", "__build_cinder_class__"), 4 + len(node.bases)),
         )
 
     def post_process_and_store_name(self, node: ClassDef) -> None:
@@ -490,12 +500,19 @@ class Static38CodeGenerator(StrictCodeGenerator):
         assert isinstance(gen, Static38CodeGenerator)
         klass.emit_extra_members(node, gen)
 
-        class_mems = [
+        class_mems_with_overrides = [
             name
             for name, value in klass.members.items()
             if (isinstance(value, Slot) and not value.is_classvar)
             or isinstance(value, CachedPropertyMethod)
             or isinstance(value, AsyncCachedPropertyMethod)
+        ]
+
+        class_mems = [
+            name
+            for name in class_mems_with_overrides
+            # pyre-ignore[16]: `Value` has no attribute `override`.
+            if not isinstance(mem := klass.members[name], Slot) or not mem.override
         ]
 
         if klass.allow_weakrefs:
@@ -508,15 +525,22 @@ class Static38CodeGenerator(StrictCodeGenerator):
 
         slots_with_default = [
             name
-            for name in class_mems
+            for name in class_mems_with_overrides
             if name in klass.members
             and isinstance(klass.members[name], Slot)
             and cast(
                 Slot[Class], klass.members[name]
             ).is_typed_descriptor_with_default_value()
         ]
-        gen.emit("LOAD_CONST", tuple(slots_with_default))
+
+        for name in slots_with_default:
+            gen.emit("LOAD_CONST", name)
+            gen.emit("LOAD_NAME", name)
+            gen.emit("DELETE_NAME", name)
+
+        gen.emit("BUILD_MAP", len(slots_with_default))
         gen.emit("STORE_NAME", "__slots_with_default__")
+
         count = 0
         for name, value in klass.members.items():
             if not isinstance(value, Slot):

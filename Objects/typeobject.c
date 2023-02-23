@@ -1,6 +1,7 @@
 /* Type object implementation */
 
 #include "Python.h"
+#include "dictobject.h"
 #include "pycore_bytes_methods.h"
 #include "pycore_call.h"
 #include "pycore_compile.h"       // _Py_Mangle()
@@ -2635,22 +2636,6 @@ _PyType_CalculateMetaclass(PyTypeObject *metatype, PyObject *bases)
     return winner;
 }
 
-int
-Ci_parse_slot_type(PyObject *name, Py_ssize_t *size)
-{
-    int primitive = _PyClassLoader_ResolvePrimitiveType(name);
-
-    // In order to support forward references, we can't resolve non-primitive
-    // types and verify they are valid at this point, we just assume any
-    // non-primitive is an object type.
-    if (primitive == -1) {
-        PyErr_Clear();
-        primitive = TYPED_OBJECT;
-    }
-    *size = _PyClassLoader_PrimitiveTypeToSize(primitive);
-    return _PyClassLoader_PrimitiveTypeToStructMemberType(primitive);
-}
-
 // Forward declaration
 static PyObject *
 type_new(PyTypeObject *metatype, PyObject *args, PyObject *kwds);
@@ -2669,10 +2654,6 @@ typedef struct {
     int add_weak;
     int may_add_dict;
     int may_add_weak;
-    PyObject *Ci_slot_types;
-    PyObject *Ci_size_original;
-    PyObject *Ci_slots_with_default;
-    Py_ssize_t Ci_nslots_with_default;
 } type_new_ctx;
 
 
@@ -2744,105 +2725,39 @@ type_new_copy_slots(type_new_ctx *ctx, PyObject *dict)
         {
             continue;
         }
-        int slot_is_static_classvar = 0;
-        Py_ssize_t nslots_with_default = ctx->Ci_nslots_with_default;
-        PyObject *slots_with_default = ctx->Ci_slots_with_default;
-        for (int slot_index = 0; slot_index < nslots_with_default; ++slot_index) {
-            if (PyUnicode_Compare(PyTuple_GET_ITEM(slots_with_default, slot_index), slot) == 0) {
-                slot_is_static_classvar = 1;
-                break;
-            } else if (PyErr_Occurred()) {
-                goto error;
-            }
-        }
 
         slot =_Py_Mangle(ctx->name, slot);
         if (!slot) {
             goto error;
         }
+        PyList_SET_ITEM(new_slots, j, slot);
 
         int r = PyDict_Contains(dict, slot);
         if (r < 0) {
-            Py_DECREF(slot);
             goto error;
         }
         if (r > 0) {
             /* CPython inserts __qualname__ and __classcell__ (when needed)
                into the namespace when creating a class.  They will be deleted
                below so won't act as class variables. */
-            if (!slot_is_static_classvar &&
-                !_PyUnicode_EqualToASCIIId(slot, &PyId___qualname__) &&
+            if (!_PyUnicode_EqualToASCIIId(slot, &PyId___qualname__) &&
                 !_PyUnicode_EqualToASCIIId(slot, &PyId___classcell__))
             {
                 PyErr_Format(PyExc_ValueError,
                              "%R in __slots__ conflicts with class variable",
                              slot);
-                Py_DECREF(slot);
                 goto error;
             }
         }
 
-        Py_ssize_t slotsize = sizeof(Py_ssize_t);
-        PyObject *slot_types = ctx->Ci_slot_types;
-        PyObject *type_descr;
-        int slottype;
-        if (slot_types != NULL) {
-            type_descr = PyDict_GetItem(slot_types, slot);
-            if (type_descr == NULL) {
-                type_descr = PyTuple_New(0);
-                if (type_descr == NULL) {
-                    Py_DECREF(slot);
-                    goto error;
-                }
-            } else {
-                slottype = Ci_parse_slot_type(type_descr, &slotsize);
-                if (slottype == -1) {
-                    Py_DECREF(slot);
-                    Py_DECREF(type_descr);
-                    goto error;
-                }
-                Py_INCREF(type_descr);
-            }
-
-            PyObject *name_and_type_descr = PyTuple_New(2);
-            if (name_and_type_descr == NULL) {
-                Py_DECREF(slot);
-                Py_DECREF(type_descr);
-                goto error;
-            }
-            PyTuple_SET_ITEM(name_and_type_descr, 0, slot);
-            PyTuple_SET_ITEM(name_and_type_descr, 1, type_descr);
-            slot = name_and_type_descr;
-        }
-
-        PyObject *size_original = PyTuple_New(2);
-        if (size_original == NULL) {
-            Py_DECREF(slot);
-            goto error;
-        }
-
-        PyTuple_SET_ITEM(size_original, 0, PyLong_FromLong(slotsize));
-        PyTuple_SET_ITEM(size_original, 1, slot);
-
-        PyList_SET_ITEM(new_slots, j, size_original);
         j++;
     }
     assert(j == new_nslot);
 
     /* slots need to be sorted to have the largest items first so
      * everything is properly aligned */
-    if (PyList_Sort(new_slots) == -1 || PyList_Reverse(new_slots) == -1) {
+    if (PyList_Sort(new_slots) == -1) {
         goto error;
-    }
-    /* convert back to the original values */
-    for (Py_ssize_t i = 0; i < PyList_GET_SIZE(new_slots); i++) {
-        PyObject *val = PyList_GET_ITEM(new_slots, i);
-
-        PyObject *original =
-            PyTuple_GET_ITEM(val, PyTuple_GET_SIZE(val) - 1);
-        Py_INCREF(original);
-        PyList_SET_ITEM(new_slots, i, original);
-        Py_DECREF(val);
     }
 
     PyObject *tuple = PyList_AsTuple(new_slots);
@@ -3206,93 +3121,27 @@ type_new_descriptors(const type_new_ctx *ctx, PyTypeObject *type)
 {
     PyHeapTypeObject *et = (PyHeapTypeObject *)type;
     Py_ssize_t slotoffset = ctx->base->tp_basicsize;
-    PyObject *dict = type->tp_dict;
-    int needs_gc = 0; /* non-primitive fields require GC */
     if (et->ht_slots != NULL) {
         PyMemberDef *mp = PyHeapType_GET_MEMBERS(et);
         Py_ssize_t nslot = PyTuple_GET_SIZE(et->ht_slots);
         for (Py_ssize_t i = 0; i < nslot; i++, mp++) {
-            PyObject *name = PyTuple_GET_ITEM(et->ht_slots, i);
-            int slottype;
-            Py_ssize_t slotsize;
-            if (PyUnicode_Check(name)) {
-                needs_gc = 1;
-                slottype = T_OBJECT_EX;
-                slotsize = sizeof(PyObject *);
-            } else if (Py_SIZE(PyTuple_GET_ITEM(name, 1)) == 0) {
-                needs_gc = 1;
-                slottype = T_OBJECT_EX;
-                slotsize = sizeof(PyObject *);
-                name = PyTuple_GET_ITEM(name, 0);
-            } else {
-                /* TODO: it'd be nice to unify with the calls above */
-                slottype =
-                    Ci_parse_slot_type(PyTuple_GET_ITEM(name, 1), &slotsize);
-                assert(slottype != -1);
-                if (slottype == T_OBJECT_EX) {
-                    /* Add strongly typed reference type descriptor,
-                     * add_members will check and not overwrite this new
-                     * descriptor  */
-                    PyObject *default_value = PyDict_GetItemWithError(dict, PyTuple_GET_ITEM(name, 0));
-                    if (default_value == NULL && PyErr_Occurred()) {
-                        return -1;
-                    }
-                    PyObject *descr;
-                    if (default_value != NULL) {
-                        descr = _PyTypedDescriptorWithDefaultValue_New(PyTuple_GET_ITEM(name, 0),
-                                                                     PyTuple_GET_ITEM(name, 1),
-                                                                     slotoffset,
-                                                                     default_value);
-                    } else {
-                        descr = _PyTypedDescriptor_New(PyTuple_GET_ITEM(name, 0),
-                                                       PyTuple_GET_ITEM(name, 1),
-                                                       slotoffset);
-                    }
-                    if (descr == NULL ||
-                        PyDict_SetItem(
-                            dict, PyTuple_GET_ITEM(name, 0), descr)) {
-                        return -1;
-                    }
-                    Py_DECREF(descr);
+            mp->name = PyUnicode_AsUTF8(
+                PyTuple_GET_ITEM(et->ht_slots, i));
 
-                    if (!needs_gc) {
-                        int optional, exact;
-                        PyTypeObject *resolved_type =
-                            _PyClassLoader_ResolveType(PyTuple_GET_ITEM(name, 1), &optional, &exact);
-
-                        if (resolved_type == NULL) {
-                            /* this can fail if the type isn't loaded yet, in which case
-                             * we need to be pessimistic about whether or not this type
-                             * needs gc */
-                            PyErr_Clear();
-                        }
-
-                        if (resolved_type == NULL ||
-                            resolved_type->tp_flags & (Py_TPFLAGS_HAVE_GC|Py_TPFLAGS_BASETYPE)) {
-                            needs_gc = 1;
-                        }
-                        Py_XDECREF(resolved_type);
-                    }
-                }
-
-                name = PyTuple_GET_ITEM(name, 0);
-            }
-            mp->name = PyUnicode_AsUTF8(name);
             if (mp->name == NULL) {
                 return -1;
             }
-            mp->type = slottype;
+            mp->type = T_OBJECT_EX;
             mp->offset = slotoffset;
 
             /* __dict__ and __weakref__ are already filtered out */
             assert(strcmp(mp->name, "__dict__") != 0);
             assert(strcmp(mp->name, "__weakref__") != 0);
 
-            slotoffset += slotsize;
+            slotoffset += sizeof(PyObject *);
         }
     }
     /* Round slotoffset up so any child class layouts start properly aligned. */
-    slotoffset = _Py_SIZE_ROUND_UP(slotoffset, sizeof(PyObject *));
 
     if (ctx->add_dict) {
         if (ctx->base->tp_itemsize) {
@@ -3302,22 +3151,18 @@ type_new_descriptors(const type_new_ctx *ctx, PyTypeObject *type)
             type->tp_dictoffset = slotoffset;
         }
         slotoffset += sizeof(PyObject *);
-        needs_gc = 1;
     }
 
     if (ctx->add_weak) {
         assert(!ctx->base->tp_itemsize);
         type->tp_weaklistoffset = slotoffset;
         slotoffset += sizeof(PyObject *);
-        needs_gc = 1;
     }
 
     type->tp_basicsize = slotoffset;
     type->tp_itemsize = ctx->base->tp_itemsize;
     type->tp_members = PyHeapType_GET_MEMBERS(et);
-    if (needs_gc) {
-      type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-    }
+    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
     return 0;
 }
 
@@ -3441,13 +3286,6 @@ type_new_get_slots(type_new_ctx *ctx, PyObject *dict)
         return 0;
     }
 
-    _Py_IDENTIFIER(__slots_with_default__);
-    PyObject *slots_with_default = _PyDict_GetItemIdWithError(dict, &PyId___slots_with_default__);
-    if (slots_with_default == NULL && PyErr_Occurred()) {
-        return -1;
-    }
-    ctx->Ci_slots_with_default = slots_with_default;
-    ctx->Ci_nslots_with_default = slots_with_default == NULL ? 0 : PyTuple_GET_SIZE(slots_with_default);
     // Make it into a tuple
     PyObject *new_slots;
     if (PyUnicode_Check(slots)) {
@@ -3463,27 +3301,6 @@ type_new_get_slots(type_new_ctx *ctx, PyObject *dict)
     ctx->slots = new_slots;
     ctx->nslot = PyTuple_GET_SIZE(new_slots);
 
-
-    _Py_IDENTIFIER(__slot_types__);
-    PyObject *slot_types = _PyDict_GetItemIdWithError(dict, &PyId___slot_types__);
-    if (PyErr_Occurred()) {
-        return -1;
-    }
-    if (slot_types != NULL) {
-        if (!PyDict_CheckExact(slot_types)) {
-            PyErr_Format(PyExc_TypeError,
-                         "__slot_types__ should be a dict");
-                return -1;
-        }
-        if (PyDict_GetItemString(slot_types, "__dict__") ||
-            PyDict_GetItemString(slot_types, "__weakref__")) {
-            PyErr_Format(PyExc_TypeError,
-                         "__slots__ type spec cannot be provided for "
-                         "__weakref__ or __dict__");
-            return -1;
-        }
-    }
-    ctx->Ci_slot_types = slot_types;
     return 0;
 }
 

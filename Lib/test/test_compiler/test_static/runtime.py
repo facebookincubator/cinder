@@ -59,59 +59,44 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_typed_slots_bad_slots(self):
         with self.assertRaises(TypeError):
-
-            class C:
-                __slots__ = ("a",)
-                __slot_types__ = None
+            self.build_static_type(("a",), None)
 
     def test_typed_slots_bad_slot_dict(self):
         with self.assertRaises(TypeError):
+            self.build_static_type(("__dict__",), {"__dict__": "object"})
 
-            class C:
-                __slots__ = ("__dict__",)
-                __slot_types__ = {"__dict__": "object"}
-
-    def test_typed_slots_bad_slot_weakerf(self):
+    def test_typed_slots_bad_slot_weakref(self):
         with self.assertRaises(TypeError):
-
-            class C:
-                __slots__ = ("__weakref__",)
-                __slot_types__ = {"__weakref__": "object"}
+            self.build_static_type(("__weakref__",), {"__weakref__": "object"})
 
     def test_typed_slots_object(self):
-        codestr = """
-            class C:
-                __slots__ = ('a', )
-                __slot_types__ = {'a': (__name__, 'C')}
+        global C
+        C = self.build_static_type(("a",), {"a": (__name__, "C")})
+        inst = C()
 
-            inst = C()
-        """
+        self.assertEqual(C.a.__class__.__name__, "typed_descriptor")
+        with self.assertRaises(TypeError):
+            # type is checked
+            inst.a = 42
+        with self.assertRaises(TypeError):
+            inst.a = None
+        with self.assertRaises(AttributeError):
+            # is initially unassigned
+            inst.a
 
-        with self.in_module(codestr, code_gen=PythonCodeGenerator) as mod:
-            inst, C = mod.inst, mod.C
-            self.assertEqual(C.a.__class__.__name__, "typed_descriptor")
-            with self.assertRaises(TypeError):
-                # type is checked
-                inst.a = 42
-            with self.assertRaises(TypeError):
-                inst.a = None
-            with self.assertRaises(AttributeError):
-                # is initially unassigned
-                inst.a
+        # can assign correct type
+        inst.a = inst
 
-            # can assign correct type
-            inst.a = inst
+        # __sizeof__ doesn't include GC header size
+        self.assertEqual(inst.__sizeof__(), self.base_size + self.ptr_size)
+        # size is +2 words for GC header, one word for reference
+        self.assertEqual(sys.getsizeof(inst), self.base_size + (self.ptr_size * 3))
 
-            # __sizeof__ doesn't include GC header size
-            self.assertEqual(inst.__sizeof__(), self.base_size + self.ptr_size)
-            # size is +2 words for GC header, one word for reference
-            self.assertEqual(sys.getsizeof(inst), self.base_size + (self.ptr_size * 3))
+        # subclasses are okay
+        class D(C):
+            pass
 
-            # subclasses are okay
-            class D(C):
-                pass
-
-            inst.a = D()
+        inst.a = D()
 
     def test_builtin_object_setattr(self):
         codestr = """
@@ -352,20 +337,13 @@ class StaticRuntimeTests(StaticTestBase):
         self.assertEqual(o.twoargs(1, 2), 3)
 
     def test_typed_slots_one_missing(self):
-        codestr = """
-            class C:
-                __slots__ = ('a', 'b')
-                __slot_types__ = {'a': (__name__, 'C')}
-
-            inst = C()
-        """
-
-        with self.in_module(codestr, code_gen=PythonCodeGenerator) as mod:
-            inst, C = mod.inst, mod.C
-            self.assertEqual(C.a.__class__.__name__, "typed_descriptor")
-            with self.assertRaises(TypeError):
-                # type is checked
-                inst.a = 42
+        global C
+        C = self.build_static_type(("a", "b"), {"a": (__name__, "C")})
+        inst = C()
+        self.assertEqual(C.a.__class__.__name__, "typed_descriptor")
+        with self.assertRaises(TypeError):
+            # type is checked
+            inst.a = 42
 
     def test_typed_slots_optional_object(self):
         codestr = """

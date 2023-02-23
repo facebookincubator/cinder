@@ -1896,9 +1896,17 @@ class Class(Object["Class"]):
                 if value is not None:
                     self.check_incompatible_override(my_value, value, module)
 
-                if isinstance(value, Slot):
+                if isinstance(value, Slot) and isinstance(my_value, Slot):
                     # use the base class slot
-                    return None
+                    if value.is_final or not value.assigned_on_class:
+                        return None
+
+                    # For class values we are introducing a new slot which
+                    # can be accessed from the derived type.  We end up
+                    # creating a slot with a default value so the value can
+                    # be stored on the instance.
+                    my_value.override = value
+                    my_value.type_ref = value.type_ref
 
         return my_value
 
@@ -6354,6 +6362,7 @@ class Slot(Object[TClassInv]):
         self.slot_name = name
         self.type_ref = type_ref
         self.update(assignment, declared_on_class)
+        self.override: Optional[Slot[Class]] = None
 
     def update(self, assignment: Optional[AST], declared_on_class: bool) -> None:
         if not self.assignment:
@@ -6441,6 +6450,11 @@ class Slot(Object[TClassInv]):
 
     @property
     def type_descr(self) -> TypeDescr:
+        assert (
+            self.override is None
+            or self.override.type_descr == self.decl_type.type_descr
+        )
+
         return self.decl_type.type_descr
 
     def emit_load_from_slot(self, code_gen: Static38CodeGenerator) -> None:

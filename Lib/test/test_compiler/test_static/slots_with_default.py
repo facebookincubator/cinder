@@ -217,6 +217,7 @@ class SlotsWithDefaultTests(StaticTestBase):
             return (initial_x, c.x, c.__class__.x)
 
         """
+
         with self.in_module(codestr) as mod:
 
             class D(mod.C):

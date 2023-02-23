@@ -6,6 +6,8 @@ import re
 import string
 import sys
 import warnings
+import weakref
+
 from array import array
 from compiler.errors import TypedSyntaxError
 from compiler.static import StaticCodeGenerator
@@ -20,7 +22,11 @@ from compiler.static.types import (
     TypedSyntaxError,
     TypeEnvironment,
 )
+from types import FunctionType
+
 from unittest import skip, skipIf
+
+import _static
 
 from _static import TYPED_INT16, TYPED_INT32, TYPED_INT64
 
@@ -196,8 +202,8 @@ class PrimitivesTests(StaticTestBase):
         ]
 
         target_size = (
-            self.base_size + self.ptr_size * 3
-        )  # there are two extra words for the GC header not captured in __sizeof__.
+            self.base_size + self.ptr_size
+        )  # all of our data types round up to a minimum pointer sized object
         for type_spec, default, size, test_vals, warn_vals, err_vals in slot_types:
             with self.subTest(
                 type_spec=type_spec,
@@ -213,10 +219,10 @@ class PrimitivesTests(StaticTestBase):
                 self.assertEqual(8 % size, 0)
                 num_slots = 8 // size
 
-                class C:
-                    __slots__ = tuple(f"a{i}" for i in range(num_slots))
-                    __slot_types__ = {f"a{i}": type_spec for i in range(num_slots)}
-
+                C = self.build_static_type(
+                    tuple(f"a{i}" for i in range(num_slots)),
+                    {f"a{i}": type_spec for i in range(num_slots)},
+                )
                 a = C()
                 self.assertEqual(sys.getsizeof(a), target_size, type_spec)
                 self.assertEqual(a.a0, default)
@@ -3521,6 +3527,57 @@ class PrimitivesTests(StaticTestBase):
                     self.assertEqual(f(c, 1), sum(range(len(varnames) + 1)))
                     for val, var in enumerate(varnames):
                         self.assertEqual(getattr(c, var), val + 1)
+
+    def test_primitive_with_weakref(self):
+        codestr = """
+            from __static__ import cbool
+            from typing import Any
+
+            class C:
+                __weakref__: Any
+                def __init__(self):
+                    self.foo: cbool = False
+                    self.bar: cbool = False
+
+            a = C()
+        """
+        with self.in_module(codestr) as mod:
+            # target_size includes 2 words for GC header, 1 for weak_ref, and 1 for the
+            # two bools which are 1 byte each.
+            target_size = self.base_size + self.ptr_size * 4
+
+            self.assertEqual(sys.getsizeof(mod.a), target_size)
+
+            was_called = False
+
+            def called(x):
+                nonlocal was_called
+
+                was_called = True
+
+            ref = weakref.ref(mod.a, called)
+            self.assertEqual(ref(), mod.a)
+            del mod.a
+            self.assertTrue(was_called)
+
+    def test_primitive_with_dict(self):
+        codestr = """
+            from __static__ import cbool
+            from typing import Any
+
+            class C:
+                __dict__: Any
+                def __init__(self):
+                    self.foo: cbool = False
+                    self.bar: cbool = False
+
+            a = C()
+        """
+        with self.in_module(codestr) as mod:
+            # target_size includes 2 words for GC header, 1 for __dict__, and 1 for the bools
+            target_size = self.base_size + self.ptr_size * 4
+
+            self.assertEqual(sys.getsizeof(mod.a), target_size)
 
     def test_unbox_overflow(self):
         cases = [

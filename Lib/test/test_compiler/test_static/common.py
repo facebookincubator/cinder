@@ -25,10 +25,11 @@ from compiler.strict.compiler import Compiler as StrictCompiler
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from functools import wraps
-from types import CodeType
+from types import CodeType, FunctionType
 from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
 from _static import (
+    __build_cinder_class__,
     TYPED_BOOL,
     TYPED_INT16,
     TYPED_INT32,
@@ -493,6 +494,17 @@ class StaticTestBase(CompilerTest):
     @property
     def ptr_size(self):
         return 8 if sys.maxsize > 2**32 else 4
+
+    def build_static_type(self, slots, slot_types):
+        c = compile(
+            f"""
+__slots__ = {slots!r}
+__slot_types__ = {slot_types!r}
+        """,
+            "exec",
+            "exec",
+        )
+        return __build_cinder_class__(FunctionType(c, globals(), "C"), "C", None, False)
 
     def assert_jitted(self, func):
         if cinderjit is None:

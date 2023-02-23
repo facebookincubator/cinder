@@ -3821,6 +3821,9 @@ PyTypeObject _PyTypedDescriptor_Type = {
 PyObject *
 _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset)
 {
+    if (PyType_Ready(&_PyTypedDescriptor_Type) < 0) {
+        return NULL;
+    }
     _PyTypedDescriptor *res =
         PyObject_GC_New(_PyTypedDescriptor, &_PyTypedDescriptor_Type);
     if (res == NULL) {
@@ -3957,6 +3960,9 @@ _PyTypedDescriptorWithDefaultValue_New(PyObject *name,
                                        Py_ssize_t offset,
                                        PyObject *default_value)
 {
+    if (PyType_Ready(&_PyTypedDescriptorWithDefaultValue_Type) < 0) {
+        return NULL;
+    }
     _PyTypedDescriptorWithDefaultValue *res =
         PyObject_GC_New(_PyTypedDescriptorWithDefaultValue, &_PyTypedDescriptorWithDefaultValue_Type);
     if (res == NULL) {
