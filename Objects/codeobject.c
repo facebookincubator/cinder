@@ -282,10 +282,6 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
         return NULL;
     }
 
-    /*
-     * TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
-     * CinderVM work.
-     */
     co->co_mutable = _PyCode_AllocMutable();
     if (co->co_mutable == NULL) {
       PyObject_DEL(co);

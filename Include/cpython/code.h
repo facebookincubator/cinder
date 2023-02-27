@@ -57,11 +57,6 @@ struct PyCodeObject {
        people to go through the proper APIs. */
     void *co_extra;
 
-   /*
-    * Fields added for Cinder. TODO(T126419906): These should be removed as
-     * part of the CinderVM work.
-    */
-
     PyObject *co_qualname; /* qualified name */
 };
 

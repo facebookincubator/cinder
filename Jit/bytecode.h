@@ -116,8 +116,6 @@ class BytecodeInstruction {
 // they will not appear in the stream of `BytecodeInstruction`s.
 class BytecodeInstructionBlock {
  public:
-  // TODO(T126419906): co_{rawcode,codelen} should be removed as part of the
-  // CinderVM work.
   explicit BytecodeInstructionBlock(PyCodeObject* code)
       : instrs_((_Py_CODEUNIT*)PyBytes_AS_STRING(code->co_code)),
         start_idx_(0),
