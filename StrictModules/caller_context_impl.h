@@ -31,6 +31,33 @@ CallerContext::exception(std::shared_ptr<StrictType> excType, Args... args)
   Py_UNREACHABLE();
 }
 
+[[noreturn]] inline void CallerContext::raiseCurrentPyException() const {
+  PyObject *type, *value, *traceback;
+  PyErr_Fetch(&type, &value, &traceback);
+  PyErr_Clear();
+  auto refType = Ref<>::steal(type);
+  auto refValue = Ref<>::steal(value);
+  auto refTb = Ref<>::steal(traceback);
+  std::string errName, msg;
+  PyObject* msgv = nullptr;
+  if (type) {
+    errName = PyExceptionClass_Name(type);
+  } else {
+    errName = "unknown error";
+  }
+  if (value) {
+    msgv = PyObject_Str(value);
+  }
+  if (msgv) {
+    msg = PyUnicode_AsUTF8(msgv);
+    Py_DECREF(msgv);
+  } else {
+    msg = errName;
+  }
+  auto errType = getExceptionFromString(errName, objects::ExceptionType());
+  raiseExceptionStr(errType, "{}", msg);
+}
+
 template <typename... Args>
 [[noreturn]] void CallerContext::raiseException(
     std::shared_ptr<StrictType> excType,

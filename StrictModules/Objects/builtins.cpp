@@ -149,21 +149,23 @@ std::shared_ptr<BaseStrictObject> lenImpl(
   return makeUnknown(caller, "len({})", arg);
 }
 
-/** -------------------exec() implementation-------------------- */
+/** -------------------exec/eval() implementation-------------------- */
 
-void execArgHelper(
+void execEvalArgHelper(
     const std::vector<std::shared_ptr<BaseStrictObject>>& args,
     const std::vector<std::string>& namedArgs,
+    const std::string& funcName,
     const CallerContext& caller,
     std::string& codeOut,
     std::shared_ptr<StrictDict>& globalsOut,
     std::shared_ptr<StrictDict>& localsOut) {
   if (!namedArgs.empty()) {
-    caller.raiseTypeError("keyword arguments on exec() is not supported");
+    caller.raiseTypeError(
+        "keyword arguments on {}() is not supported", funcName);
   }
   if (args.size() < 1 || args.size() > 3) {
     caller.raiseTypeError(
-        "exec() expects 1 to 3 arguments but got {}", args.size());
+        "{}() expects 1 to 3 arguments but got {}", funcName, args.size());
   }
   auto arg0 = args[0];
   auto arg0Str = std::dynamic_pointer_cast<StrictString>(arg0);
@@ -171,11 +173,13 @@ void execArgHelper(
     codeOut = arg0Str->getValue();
   } else {
     caller.raiseTypeError(
-        "exec() first argument should be str, got {}",
+        "{}() first argument should be str (code object not supported), got {}",
+        funcName,
         arg0->getTypeRef().getName());
   }
   if (args.size() < 2) {
-    caller.raiseTypeError("calling exec() without globals is not supported");
+    caller.raiseTypeError(
+        "calling {}() without globals is not supported", funcName);
   }
   auto arg1 = args[1];
   auto arg1Dict = std::dynamic_pointer_cast<StrictDict>(arg1);
@@ -183,7 +187,8 @@ void execArgHelper(
     globalsOut = arg1Dict;
   } else {
     caller.raiseTypeError(
-        "exec() second argument should be dict, got {}",
+        "{}() second argument should be dict, got {}",
+        funcName,
         arg1->getTypeRef().getName());
   }
   if (args.size() > 2) {
@@ -193,7 +198,8 @@ void execArgHelper(
       localsOut = std::move(arg2Dict);
     } else {
       caller.raiseTypeError(
-          "exec() third argument should be dict, got {}",
+          "{}() third argument should be dict, got {}",
+          funcName,
           arg2->getTypeRef().getName());
     }
   } else {
@@ -201,36 +207,60 @@ void execArgHelper(
   }
 }
 
+std::shared_ptr<BaseStrictObject> execOrEvalImpl(
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    int mode,
+    const CallerContext& caller) {
+  std::string code;
+  std::shared_ptr<StrictDict> globals;
+  std::shared_ptr<StrictDict> locals;
+  std::string funcName = "";
+  std::string modName = "";
+  if (mode == Py_file_input) {
+    funcName = "exec";
+    modName = "<exec>";
+  } else if (mode == Py_eval_input) {
+    funcName = "eval";
+    modName = "<eval>";
+  }
+  execEvalArgHelper(args, namedArgs, funcName, caller, code, globals, locals);
+  std::unique_ptr<compiler::ModuleInfo> modinfo =
+      caller.loader->findModuleFromSource(code, modName, "<string>", mode);
+  if (modinfo == nullptr) {
+    caller.raiseCurrentPyException();
+  }
+  Symtable table(modinfo->getSymtable());
+  Analyzer analyzer(
+      modinfo->getAst(),
+      caller.loader,
+      std::move(table),
+      caller.errorSink,
+      "<string>",
+      modName,
+      "",
+      caller.caller.lock());
+  return analyzer.analyzeExecOrEval(
+      caller.lineno, caller.col, std::move(globals), std::move(locals));
+}
+
 std::shared_ptr<BaseStrictObject> execImpl(
     std::shared_ptr<BaseStrictObject>,
     const std::vector<std::shared_ptr<BaseStrictObject>>& args,
     const std::vector<std::string>& namedArgs,
     const CallerContext& caller) {
-  std::string code;
-  std::shared_ptr<StrictDict> globals;
-  std::shared_ptr<StrictDict> locals;
-  execArgHelper(args, namedArgs, caller, code, globals, locals);
-  if (caller.loader == nullptr) {
-    caller.raiseTypeError("cannot call exec() from inside exec()");
-  }
-  std::unique_ptr<compiler::ModuleInfo> modinfo =
-      caller.loader->findModuleFromSource(code, "<exec>", "<exec>");
-  Symtable table(modinfo->getSymtable());
-  Analyzer analyzer(
-      modinfo->getAst(),
-      nullptr,
-      std::move(table),
-      caller.errorSink,
-      "<exec>",
-      "<exec>",
-      "",
-      caller.caller.lock());
-  analyzer.analyzeExec(
-      caller.lineno, caller.col, std::move(globals), std::move(locals));
-  return NoneObject();
+  return execOrEvalImpl(args, namedArgs, Py_file_input, caller);
 }
 
-// --------------------end of exec() implementation------------------
+std::shared_ptr<BaseStrictObject> evalImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller) {
+  return execOrEvalImpl(args, namedArgs, Py_eval_input, caller);
+}
+
+// --------------------end of exec/eval() implementation------------------
 
 std::shared_ptr<BaseStrictObject> iterImpl(
     std::shared_ptr<BaseStrictObject>,

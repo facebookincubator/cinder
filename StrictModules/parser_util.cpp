@@ -88,8 +88,11 @@ error:
   return {};
 }
 
-std::optional<AstAndSymbols>
-readFromSource(const char* source, const char* filenameStr, PyArena* arena) {
+std::optional<AstAndSymbols> readFromSource(
+    const char* source,
+    const char* filenameStr,
+    int mode,
+    PyArena* arena) {
   PyFutureFeatures* pyFutures = nullptr;
   PySymtable* symbols = nullptr;
   mod_ty mod = nullptr;
@@ -101,8 +104,7 @@ readFromSource(const char* source, const char* filenameStr, PyArena* arena) {
     goto error;
   }
 
-  mod = _PyParser_ASTFromString(
-      source, filename, Py_file_input, &localflags, arena);
+  mod = _PyParser_ASTFromString(source, filename, mode, &localflags, arena);
 
   if (mod == nullptr)
     goto error;

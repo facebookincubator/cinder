@@ -94,9 +94,9 @@ class Analyzer : public ASTVisitor<AnalysisResult, void, void, Analyzer> {
       SymtableEntry entry,
       std::unique_ptr<objects::DictType> callArgs,
       AnalysisResult firstArg);
-  void analyzeExec(
-      int execLino,
-      int execCol,
+  AnalysisResult analyzeExecOrEval(
+      int callerLino,
+      int callerCol,
       std::shared_ptr<objects::StrictDict> globals,
       std::shared_ptr<objects::StrictDict> locals);
   // module level

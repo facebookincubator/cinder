@@ -34,6 +34,12 @@ std::shared_ptr<BaseStrictObject> execImpl(
     const std::vector<std::string>& namedArgs,
     const CallerContext& caller);
 
+std::shared_ptr<BaseStrictObject> evalImpl(
+    std::shared_ptr<BaseStrictObject>,
+    const std::vector<std::shared_ptr<BaseStrictObject>>& args,
+    const std::vector<std::string>& namedArgs,
+    const CallerContext& caller);
+
 std::shared_ptr<BaseStrictObject> iterImpl(
     std::shared_ptr<BaseStrictObject>,
     const CallerContext& caller,

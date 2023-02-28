@@ -721,7 +721,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, _y")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 80 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 382 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_keyword_name
 ---
@@ -729,7 +729,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, def")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 74 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 376 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_error_non_identifier_name
 ---
@@ -737,7 +737,7 @@ from collections import namedtuple
 P = namedtuple("P", "x, ?")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 71 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 373 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_duplicate_name
 ---
@@ -745,7 +745,7 @@ from collections import namedtuple
 P = namedtuple("P", "x x")
 ---
 ---
-2 4 StrictModuleUnhandledException(ValueError) 83 12 StrictModuleUserException ValueError
+2 4 StrictModuleUnhandledException(ValueError) 385 12 StrictModuleUserException ValueError
 ---
 test_namedtuple_fields
 ---
@@ -4992,14 +4992,6 @@ x2 = d2['x']
 x1 x2
 ---
 ---
-test_exec_import
----
-code = 'import x'
-exec(code, {})
----
----
-2 0 ImportDisallowedException exec()
----
 test_exec_func
 ---
 code = """
@@ -5066,18 +5058,48 @@ y = c.plus(11)
 x y
 ---
 ---
-test_exec_nested
+test_exec_syntax_error
 ---
-code = """
-x = 1
-exec("x = 2", {})
-"""
-d = {}
-exec(code, d)
-x = d['x']
+code = "= x"
+exec(code, {})
 ---
 ---
-3 0 StrictModuleUnhandledException(TypeError)
+2 0 StrictModuleUnhandledException(SyntaxError)
+---
+test_eval_one_scope
+---
+code = 'x'
+d = {'x': 2}
+y = eval(code, d)
+---
+y
+---
+---
+test_eval_two_scopes
+---
+code = "x"
+d1 = {'x': 0}
+d2 = {'x': 3}
+y = eval(code, d1, d2)
+---
+y
+---
+---
+test_eval_import
+---
+code = 'import x'
+eval(code, {})
+---
+---
+2 0 StrictModuleUnhandledException(SyntaxError)
+---
+test_eval_assignment
+---
+code = "x = 1"
+eval(code, {})
+---
+---
+2 0 StrictModuleUnhandledException(SyntaxError)
 ---
 test_object_repr
 ---
@@ -8988,7 +9010,7 @@ X = namedtuple("P", "x y")
 X.__new__(object)
 ---
 ---
-3 0 StrictModuleUnhandledException(TypeError) 113 15 StrictModuleUserException TypeError
+3 0 StrictModuleUnhandledException(TypeError)
 ---
 test_namedtuple_index
 ---
@@ -9081,7 +9103,7 @@ P = namedtuple("P", 1)
 p = P(1)
 ---
 ---
-2 4 StrictModuleUnhandledException(TypeError) 54 23 StrictModuleUserException TypeError
+2 4 StrictModuleUnhandledException(TypeError) 356 23 StrictModuleUserException TypeError
 ---
 test_namedtuple_asdict
 ---

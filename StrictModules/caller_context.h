@@ -94,6 +94,8 @@ class CallerContext {
   [[noreturn]] void raiseExceptionFromObj(
       std::shared_ptr<BaseStrictObject> excObj) const;
 
+  [[noreturn]] void raiseCurrentPyException() const;
+
   template <typename... Args>
   [[noreturn]] void raiseException(
       std::shared_ptr<StrictType> excType,

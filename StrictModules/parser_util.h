@@ -36,7 +36,10 @@ std::optional<AstAndSymbols> readFromFile(
     PyArena* arena,
     const std::vector<std::string>& checkSubStrings);
 
-std::optional<AstAndSymbols>
-readFromSource(const char* source, const char* filenameStr, PyArena* arena);
+std::optional<AstAndSymbols> readFromSource(
+    const char* source,
+    const char* filenameStr,
+    int mode,
+    PyArena* arena);
 
 } // namespace strictmod

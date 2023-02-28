@@ -454,6 +454,15 @@ std::shared_ptr<StrictType> DivisionByZeroType() {
   return t;
 }
 
+std::shared_ptr<StrictType> SyntaxErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "SyntaxError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> DeprecationWarningType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "DeprecationWarning",
@@ -556,6 +565,12 @@ std::shared_ptr<BaseStrictObject> StrictLen() {
 std::shared_ptr<BaseStrictObject> StrictExec() {
   static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
       kBuiltinsModule, execImpl, nullptr, "exec"));
+  return o;
+}
+
+std::shared_ptr<BaseStrictObject> StrictEval() {
+  static std::shared_ptr<BaseStrictObject> o(new StrictBuiltinFunctionOrMethod(
+      kBuiltinsModule, evalImpl, nullptr, "eval"));
   return o;
 }
 
@@ -814,6 +829,7 @@ bool initializeBuiltinsModuleDict() {
         {"KeyError", KeyErrorType()},
         {"RuntimeError", RuntimeErrorType()},
         {"ZeroDivisionError", DivisionByZeroType()},
+        {"SyntaxError", SyntaxErrorType()},
         {"DeprecationWarning", DeprecationWarningType()},
         {"IOError", IOErrorType()},
         {"AssertionError", AssertionErrorType()},
@@ -828,6 +844,7 @@ bool initializeBuiltinsModuleDict() {
         {"isinstance", StrictIsinstance()},
         {"len", StrictLen()},
         {"exec", StrictExec()},
+        {"eval", StrictEval()},
         {"iter", StrictIter()},
         {"next", StrictNext()},
         {"reversed", StrictReversed()},
@@ -879,6 +896,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"KeyError", KeyErrorType()},
       {"RuntimeError", RuntimeErrorType()},
       {"ZeroDivisionError", DivisionByZeroType()},
+      {"SyntaxError", SyntaxErrorType()},
   });
   auto it = dict.find(excName);
   if (it == dict.end()) {

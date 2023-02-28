@@ -92,6 +92,7 @@ std::shared_ptr<StrictType> StopIterationType();
 std::shared_ptr<StrictType> KeyErrorType();
 std::shared_ptr<StrictType> RuntimeErrorType();
 std::shared_ptr<StrictType> DivisionByZeroType();
+std::shared_ptr<StrictType> SyntaxErrorType();
 
 std::shared_ptr<StrictType> LazyObjectType();
 

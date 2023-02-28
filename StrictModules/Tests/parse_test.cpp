@@ -37,7 +37,7 @@ TEST_F(ParserTest, CanParseSource) {
   PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
-      strictmod::readFromSource(s, "<string>", arena);
+      strictmod::readFromSource(s, "<string>", Py_file_input, arena);
   ASSERT_NE(result, std::nullopt);
   EXPECT_NE(result.value().ast, nullptr);
   EXPECT_NE(result.value().symbols, nullptr);
@@ -52,7 +52,7 @@ TEST_F(ParserTest, CanParseFuture) {
   PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
-      strictmod::readFromSource(s, "<string>", arena);
+      strictmod::readFromSource(s, "<string>", Py_file_input, arena);
   ASSERT_NE(result, std::nullopt);
   EXPECT_NE(result.value().ast, nullptr);
   EXPECT_NE(result.value().symbols, nullptr);

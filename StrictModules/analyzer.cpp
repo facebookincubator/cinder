@@ -15,7 +15,6 @@ using namespace objects;
 // AnalysisContextManager
 class LoopContinueException {};
 class LoopBreakException {};
-class ImportLoaderUnavailableException {};
 
 AnalysisContextManager::AnalysisContextManager(
     CallerContext& ctx,
@@ -260,9 +259,6 @@ void Analyzer::visitImport(const stmt_ty stmt) {
    * the only purpose of loading the full submodule here is to match
    * the runtime in failing the import if it doesn't exist.
    */
-  if (loader_ == nullptr) {
-    throw ImportLoaderUnavailableException();
-  }
   auto importNames = stmt->v.Import.names;
   int n = asdl_seq_LEN(importNames);
   for (int i = 0; i < n; ++i) {
@@ -302,9 +298,6 @@ void Analyzer::visitImport(const stmt_ty stmt) {
 }
 
 void Analyzer::visitImportFrom(const stmt_ty stmt) {
-  if (loader_ == nullptr) {
-    throw ImportLoaderUnavailableException();
-  }
   auto importFrom = stmt->v.ImportFrom;
   bool hasFromName = importFrom.module != nullptr;
   std::string fromName = hasFromName ? PyUnicode_AsUTF8(importFrom.module) : "";
@@ -1963,36 +1956,35 @@ std::unique_ptr<Analyzer::ScopeT> Analyzer::scopeFactory(
   return std::make_unique<ScopeT>(entry, std::move(map), AnalysisScopeData());
 }
 
-void Analyzer::analyzeExec(
-    int execLino,
-    int execCol,
+AnalysisResult Analyzer::analyzeExecOrEval(
+    int callerLineno,
+    int callerCol,
     std::shared_ptr<StrictDict> globals,
     std::shared_ptr<StrictDict> locals) {
   // fix the inner caller context's lineno and col
-  context_.lineno = execLino;
-  context_.col = execCol;
+  context_.lineno = callerLineno;
+  context_.col = callerCol;
 
   SymtableEntry entry = stack_.getSymtable().entryFromAst(root_);
   auto scope =
       Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());
   scope->setScopeData(AnalysisScopeData(context_, nullptr, std::move(globals)));
 
-  if (locals == globals) {
-    auto scopeManager = stack_.enterScope(std::move(scope));
+  auto localScope =
+      Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());
+  localScope->setScopeData(
+      AnalysisScopeData(context_, nullptr, std::move(locals)));
+  auto scopeManagerGlobals = stack_.enterScope(std::move(scope));
+  auto scopeManagerLocals = stack_.enterScope(std::move(localScope));
+  if (root_->kind == Module_kind) {
     visitMod(root_);
+    return NoneObject();
+  } else if (root_->kind == Expression_kind) {
+    return visitExpr(root_->v.Expression.body);
   } else {
-    auto localScope =
-        Analyzer::scopeFactory(std::move(entry), std::make_unique<DictType>());
-    localScope->setScopeData(
-        AnalysisScopeData(context_, nullptr, std::move(locals)));
-    auto scopeManagerGlobals = stack_.enterScope(std::move(scope));
-    auto scopeManagerLocals = stack_.enterScope(std::move(localScope));
-    try {
-      visitMod(root_);
-    } catch (const ImportLoaderUnavailableException&) {
-      context_.error<ImportDisallowedException>("exec()");
-    }
+    raiseUnimplemented();
   }
+  return nullptr;
 }
 
 std::optional<AnalysisResult> Analyzer::getFromScope(const std::string& name) {

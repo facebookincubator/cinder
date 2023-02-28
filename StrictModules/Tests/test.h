@@ -63,12 +63,14 @@ class AnalyzerTest : public PythonTest {
       filename = "<string>";
     }
     PyArena* arena = _PyArena_New();
-    auto result = strictmod::readFromSource(source, filename, arena);
+    auto result =
+        strictmod::readFromSource(source, filename, Py_file_input, arena);
     EXPECT_NE(result, std::nullopt);
     auto errors = std::make_unique<strictmod::ErrorSink>();
+    auto loader = strictmod::compiler::ModuleLoader();
     strictmod::Analyzer analyzer(
         result.value().ast,
-        nullptr,
+        &loader,
         strictmod::Symtable(std::move(result.value().symbols)),
         errors.get(),
         filename,

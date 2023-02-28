@@ -361,7 +361,8 @@ AnalyzedModule* ModuleLoader::loadModuleFromSource(
     const std::string& filename,
     std::vector<std::string> searchLocations) {
   log("Loading module %s from source: %s", name.c_str(), filename.c_str());
-  auto readResult = readFromSource(source, filename.c_str(), arena_);
+  auto readResult =
+      readFromSource(source, filename.c_str(), Py_file_input, arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
     bool allowlisted = isAllowListed(name);
@@ -462,7 +463,8 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
     std::filesystem::path nmPackagePath =
         std::filesystem::path(importPath) / modPathStr;
     if (std::filesystem::is_directory(nmPackagePath)) {
-      readResult = readFromSource("", nmPackagePath.c_str(), arena_);
+      readResult =
+          readFromSource("", nmPackagePath.c_str(), Py_file_input, arena_);
       if (readResult) {
         log("Found %s at %s", modName.c_str(), modPathCstr);
         AstAndSymbols& result = readResult.value();
@@ -491,8 +493,10 @@ std::unique_ptr<ModuleInfo> ModuleLoader::findModule(
 std::unique_ptr<ModuleInfo> ModuleLoader::findModuleFromSource(
     const std::string& source,
     const std::string& modName,
-    const std::string& filename) {
-  auto readResult = readFromSource(source.c_str(), filename.c_str(), arena_);
+    const std::string& filename,
+    int mode) {
+  auto readResult =
+      readFromSource(source.c_str(), filename.c_str(), mode, arena_);
   if (readResult) {
     AstAndSymbols& result = readResult.value();
     assert(result.ast != nullptr);

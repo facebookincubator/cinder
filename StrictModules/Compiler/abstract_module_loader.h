@@ -30,6 +30,8 @@ class ModuleLoader {
   typedef std::function<std::shared_ptr<BaseErrorSink>()> ErrorSinkFactory;
   typedef std::vector<std::pair<std::string, AllowListKind>> AllowListType;
 
+  ModuleLoader() : ModuleLoader({}, {}) {}
+
   ModuleLoader(
       std::vector<std::string> importPath,
       std::vector<std::string> stubImportPath,
@@ -142,7 +144,8 @@ class ModuleLoader {
   std::unique_ptr<ModuleInfo> findModuleFromSource(
       const std::string& source,
       const std::string& modName,
-      const std::string& filename);
+      const std::string& filename,
+      int mode);
 
   AnalyzedModule* loadSingleModule(const std::string& modName);
 
