@@ -33,7 +33,9 @@ from _testcapi import (
     AcquireContextPtr,
     DoStepPtr,
     GetContextRef,
+    SetContextRef,
     get_context_indirect,
+    set_context_indirect,
     initialize_context_helpers,
     get_context,
     modify_context as _modify_current_context,
@@ -3720,6 +3722,15 @@ class TestContextAwareTask(ContextAwareTask):
     _acquire_context = AcquireContextPtr
     _execute_step = DoStepPtr
     _get_context = GetContextRef
+    _set_context = SetContextRef
+
+    def get_current_context(self):
+        return get_context_indirect(self, GetContextRef)
+
+class TestContextAwareTaskNoSetter(ContextAwareTask):
+    _acquire_context = AcquireContextPtr
+    _execute_step = DoStepPtr
+    _get_context = GetContextRef
 
     def get_current_context(self):
         return get_context_indirect(self, GetContextRef)
@@ -3740,14 +3751,40 @@ class ContextAwareTaskTests(BaseTaskTests, test_utils.TestCase):
 
     def test_context_init_and_use(self):
         t = None
-        ctx = None
         async def coro():
-            nonlocal ctx
-            ctx = t.get_current_context()
+            ctx0 = t.get_current_context()
+            self.assertEqual(ctx0, {"context_var": 42})
+            set_context_indirect(t, SetContextRef, {"new_context": 100 })
+            ctx1 = t.get_current_context()
+            self.assertEqual(ctx1, {"new_context": 100})
+
+class ContextAwareTaskNoSetterTests(BaseTaskTests, test_utils.TestCase):
+    Future = getattr(futures, '_CFuture', None)
+    Task = TestContextAwareTaskNoSetter
+
+    def setUp(self):
+        super().setUp()
+        self.set_event_loop(self.loop)
+
+    def tearDown(self):
+        self.loop.close()
+        self.loop = None
+        super().tearDown()
+
+    def test_context_init_and_use(self):
+        t = None
+        async def coro():
+            ctx0 = t.get_current_context()
+            self.assertEqual(ctx0, {"context_var": 42})
+            set_context_indirect(t, SetContextRef, {"new_context": 100 })
+            ctx1 = t.get_current_context()
+            self.assertEqual(ctx1, {"new_context": 100})
+
 
         t = TestContextAwareTask(coro(), loop=self.loop)
         self.loop.run_until_complete(t)
-        self.assertEqual(ctx, {"context_var": 42})
+        ctx = t.get_current_context()
+        self.assertEqual(ctx, {"new_context": 100})
 
 class GatherTests:
     Task = None
@@ -3907,7 +3944,7 @@ class PyTaskPyFutureContextAwareGatherTests(ContextAwareGatherTests, test_utils.
     Future = futures._PyFuture
 
 class GatherTestContextAwareTask(ContextAwareTask):
-    _acquire_context, _execute_step, _get_context = get_context_helpers_for_task()
+    _acquire_context, _execute_step, _get_context, _set_context = get_context_helpers_for_task()
 
     def get_current_context(self):
         return get_context_indirect(self, GatherTestContextAwareTask._get_context)

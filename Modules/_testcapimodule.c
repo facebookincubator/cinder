@@ -5836,6 +5836,28 @@ get_context(PyObject *Py_UNUSED(module), PyObject *args)
     return getter_ptr(self);
 }
 
+typedef int (*ctx_setter)(PyObject *, PyObject*);
+
+static PyObject *
+set_context(PyObject *Py_UNUSED(module), PyObject *args)
+{
+    if (PyTuple_GET_SIZE(args) != 3) {
+        PyErr_SetString(PyExc_TypeError, "Expected 3 arguments");
+        return NULL;
+    }
+    PyObject *self = PyTuple_GET_ITEM(args, 0);
+    PyObject *capsule = PyTuple_GET_ITEM(args, 1);
+    PyObject *context = PyTuple_GET_ITEM(args, 2);
+    ctx_setter setter_ptr = PyCapsule_GetPointer(capsule, NULL);
+    if (setter_ptr == NULL) {
+        return NULL;
+    }
+    if (setter_ptr(self, context) < 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
 static PyObject *context_holder;
 
 static int
@@ -5953,7 +5975,7 @@ _step_task(PyObject *task,
 static PyObject *
 _get_context_helpers_for_task_impl()
 {
-    PyObject *get_current = NULL, *step = NULL, *get_ctx = NULL;
+    PyObject *get_current = NULL, *step = NULL, *get_ctx = NULL, *set_ctx = NULL;
     get_current = PyCapsule_New(_get_current_context, NULL, NULL);
     if (get_current == NULL) {
         goto fail;
@@ -5966,18 +5988,25 @@ _get_context_helpers_for_task_impl()
     if (get_ctx == NULL) {
         goto fail;
     }
-    PyObject *res = PyTuple_New(3);
+    set_ctx = PyCapsule_New(_step_task, NULL, NULL);
+    if (set_ctx == NULL) {
+        goto fail;
+    }
+
+    PyObject *res = PyTuple_New(4);
     if (res == NULL) {
         goto fail;
     }
     PyTuple_SET_ITEM(res, 0, get_current);
     PyTuple_SET_ITEM(res, 1, step);
     PyTuple_SET_ITEM(res, 2, get_ctx);
+    PyTuple_SET_ITEM(res, 3, set_ctx);
     return res;
 fail:
     Py_XDECREF(get_current);
     Py_XDECREF(step);
     Py_XDECREF(get_ctx);
+    Py_XDECREF(set_ctx);
     return NULL;
 }
 
@@ -6318,6 +6347,7 @@ static PyMethodDef TestMethods[] = {
     {"make_get_debug_descriptor", EventLoop_make_get_debug_descriptor, METH_O},
     {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
     {"get_context_indirect", get_context, METH_VARARGS},
+    {"set_context_indirect", set_context, METH_VARARGS},
     {"test_dict_can_watch", test_dict_can_watch, METH_NOARGS},
     {"initialize_context_helpers", _initialize_context_helpers, METH_NOARGS},
     {"modify_context", _modify_context, METH_O},
@@ -7765,6 +7795,11 @@ PyInit__testcapi(void)
         return NULL;
     }
     PyModule_AddObject(m, "GetContextRef", get_context_ref);
+    PyObject *set_context_ref = PyCapsule_New(do_step, NULL, NULL);
+    if (set_context_ref == NULL) {
+        return NULL;
+    }
+    PyModule_AddObject(m, "SetContextRef", set_context_ref);
 
     PyModule_AddObject(m, "CHAR_MAX", PyLong_FromLong(CHAR_MAX));
     PyModule_AddObject(m, "CHAR_MIN", PyLong_FromLong(CHAR_MIN));

@@ -5003,10 +5003,14 @@ _asyncio_ContextAwareTask__step_impl(ContextAwareTaskObj *self,
 }
 
 static PyObject *
-get_capsule_from_attr(PyTypeObject *cls, struct _Py_Identifier *id)
+get_capsule_from_attr(PyTypeObject *cls, struct _Py_Identifier *id, int allow_missing)
 {
     PyObject *value = _PyObject_GetAttrId((PyObject *)cls, id);
     if (value == NULL) {
+        if (allow_missing && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            PyErr_Clear();
+            return NULL;
+        }
         PyErr_Format(PyExc_TypeError,
                      "Expected attribute '%s' on type '%s'",
                      id->string,
@@ -5019,7 +5023,7 @@ get_capsule_from_attr(PyTypeObject *cls, struct _Py_Identifier *id)
 static void *
 get_pointer_from_attr(PyTypeObject *cls, struct _Py_Identifier *id)
 {
-    PyObject *value = get_capsule_from_attr(cls, id);
+    PyObject *value = get_capsule_from_attr(cls, id, 0);
     if (value == NULL) {
         return NULL;
     }
@@ -5056,6 +5060,11 @@ ContextAwareTaskObj_set_ctx(ContextAwareTaskObj *self,
     return 0;
 }
 
+static int set_context_thunk(ContextAwareTaskObj *self, PyObject *val)
+{
+    return ContextAwareTaskObj_set_ctx(self, val, NULL);
+}
+
 static PyObject *
 ContextAwareTask___init_subclass(PyTypeObject *cls,
                                  PyObject *args,
@@ -5064,6 +5073,7 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
     _Py_IDENTIFIER(_acquire_context);
     _Py_IDENTIFIER(_execute_step);
     _Py_IDENTIFIER(_get_context);
+    _Py_IDENTIFIER(_set_context);
 
     // call super method
     _Py_IDENTIFIER(__init_subclass__);
@@ -5099,7 +5109,7 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
     if (execute_step == NULL) {
         return NULL;
     }
-    PyObject *get_context = get_capsule_from_attr(cls, &PyId__get_context);
+    PyObject *get_context = get_capsule_from_attr(cls, &PyId__get_context, 0);
     if (get_context == NULL) {
         return NULL;
     }
@@ -5107,6 +5117,13 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
         PyErr_SetString(
             PyExc_TypeError,
             "Expected PyCapsule as value of '_get_context' attribute");
+        return NULL;
+    }
+    PyObject *set_context = get_capsule_from_attr(cls, &PyId__set_context, 1);
+    if (set_context != NULL && !PyCapsule_IsValid(set_context, NULL)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "Expected PyCapsule as value of '_set_context' attribute");
         return NULL;
     }
     // save hooks
@@ -5128,6 +5145,12 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
     // return getter for context via pycapsule
     if (PyCapsule_SetPointer(get_context, (void *)get_context_thunk) != 0) {
         return NULL;
+    }
+    // return setter for context via pycapsule
+    if (set_context != NULL) {
+        if (PyCapsule_SetPointer(set_context, (void *)set_context_thunk) != 0) {
+            return NULL;
+        }
     }
 
     Py_RETURN_NONE;
