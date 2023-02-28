@@ -1065,7 +1065,7 @@ Ref<> make_deopt_stats() {
     auto description = Ref<>::steal(check(PyUnicode_FromString(meta.descr)));
 
     // Helper to create an event dict with a given count value.
-    auto append_event = [&](size_t count_raw, const char* type) {
+    auto append_event = [&](size_t count_raw, const char* type_name) {
       auto event = Ref<>::steal(check(PyDict_New()));
       auto normals = Ref<>::steal(check(PyDict_New()));
       auto ints = Ref<>::steal(check(PyDict_New()));
@@ -1080,7 +1080,8 @@ Ref<> make_deopt_stats() {
 
       auto count = Ref<>::steal(check(PyLong_FromSize_t(count_raw)));
       check(PyDict_SetItem(ints, s_str_count, count));
-      auto type_str = Ref<>::steal(check(PyUnicode_InternFromString(type)));
+      auto type_str =
+          Ref<>::steal(check(PyUnicode_InternFromString(type_name)));
       check(PyDict_SetItem(normals, s_str_guilty_type, type_str) < 0);
       check(PyList_Append(stats, event));
     };
@@ -1090,7 +1091,8 @@ Ref<> make_deopt_stats() {
     if (!stat.types.empty()) {
       for (size_t i = 0; i < stat.types.size && stat.types.types[i] != nullptr;
            ++i) {
-        append_event(stat.types.counts[i], stat.types.types[i]->tp_name);
+        append_event(
+            stat.types.counts[i], typeFullname(stat.types.types[i]).c_str());
       }
       if (stat.types.other > 0) {
         append_event(stat.types.other, "<other>");
