@@ -65,9 +65,10 @@ Symbolizer::Symbolizer(const char* exe_path) {
 
 std::optional<std::string_view> Symbolizer::cache(
     const void* func,
-    const char* name) {
-  cache_[func] = name;
-  return cache_[func];
+    std::optional<std::string> name) {
+  auto pair = cache_.emplace(func, std::move(name));
+  JIT_CHECK(pair.second, "%p already exists in cache");
+  return pair.first->second;
 }
 
 static bool hasELFMagic(const void* addr) {
@@ -78,8 +79,7 @@ static bool hasELFMagic(const void* addr) {
 
 struct SymbolResult {
   const void* func;
-  std::optional<std::string_view> name;
-  Symbolizer* symbolizer;
+  std::optional<std::string> name;
 };
 
 // Return 0 to continue iteration and non-zero to stop.
@@ -161,10 +161,9 @@ static int findSymbolIn(struct dl_phdr_info* info, size_t, void* data) {
       auto addr = reinterpret_cast<void*>(info->dlpi_addr + sym->st_value);
       auto result = reinterpret_cast<SymbolResult*>(data);
       if (addr == result->func) {
-        // Cache here; the lifetime of the strtab ends at the end of this
-        // function.
-        result->name =
-            result->symbolizer->cache(result->func, &strtab[sym->st_name]);
+        // Convert the result to std::string here; the lifetime of the strtab
+        // ends at the end of this function.
+        result->name = &strtab[sym->st_name];
         return 1;
       }
     }
@@ -194,14 +193,17 @@ std::optional<std::string_view> Symbolizer::symbolize(const void* func) {
       return cache(func, str + sym[i].st_name);
     }
   }
-  // Fall back to reading dynamic symbols. The name is cached inside
-  // findSymbolIn.
-  SymbolResult result = {func, std::nullopt, this};
+  // Fall back to reading dynamic symbols.
+  SymbolResult result = {func, std::nullopt};
   int found = ::dl_iterate_phdr(findSymbolIn, &result);
   JIT_CHECK(
       (found > 0) == result.name.has_value(),
       "result.name should match return value of dl_iterate_phdr");
-  return result.name;
+
+  // We intentionally cache negative lookup results to help performance. This
+  // means we'll miss out on addresses that are mapped to a symbol after our
+  // first attempt at symbolizing them.
+  return cache(func, result.name);
 }
 
 void Symbolizer::deinit() {

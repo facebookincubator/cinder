@@ -38,6 +38,7 @@ extern int g_dump_lir;
 extern int g_dump_lir_no_origin;
 extern int g_dump_c_helper;
 extern int g_dump_asm;
+extern int g_symbolize_funcs;
 extern int g_dump_stats;
 extern FILE* g_log_file;
 

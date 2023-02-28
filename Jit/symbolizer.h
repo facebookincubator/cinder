@@ -36,7 +36,9 @@ class Symbolizer {
   // success. On failure, return std::nullopt.
   std::optional<std::string_view> symbolize(const void* func);
 
-  std::optional<std::string_view> cache(const void* func, const char* name);
+  std::optional<std::string_view> cache(
+      const void* func,
+      std::optional<std::string> name);
 
  private:
   void deinit();
@@ -49,7 +51,7 @@ class Symbolizer {
   // Some of the symbols (for example, to shared objects) do not return owned
   // pointers. We must keep an object in this map for the string_view to point
   // to.
-  std::unordered_map<const void*, std::string> cache_;
+  std::unordered_map<const void*, std::optional<std::string>> cache_;
 };
 
 std::optional<std::string> demangle(const std::string& mangled_name);

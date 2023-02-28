@@ -375,6 +375,12 @@ void initFlagProcessor() {
         "jit-disas-funcs/PYTHONJITDISASFUNCS are deprecated and will soon be "
         "removed. Use jit-dump-asm and PYTHONJITDUMPASM instead");
 
+    xarg_flag_processor.addOption(
+        "jit-no-symbolize",
+        "PYTHONJITNOSYMBOLIZE",
+        [](const std::string&) { g_symbolize_funcs = 0; },
+        "disable symbolization of functions called by JIT code");
+
     xarg_flag_processor
         .addOption(
             "jit-dump-asm",

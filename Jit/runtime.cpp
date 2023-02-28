@@ -307,6 +307,9 @@ void Runtime::releaseReferences() {
 }
 
 std::optional<std::string> symbolize(const void* func) {
+  if (!g_symbolize_funcs) {
+    return std::nullopt;
+  }
   std::optional<std::string_view> mangled_name =
       Runtime::get()->symbolize(func);
   if (!mangled_name.has_value()) {
