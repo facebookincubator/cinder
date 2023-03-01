@@ -1047,7 +1047,6 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
             /* this will always be invoked statically via the v-table */
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)_PyFunction_CallStatic;
-            vtable->vt_entries[slot].vte_entry = entry;
         } else {
             vtable->vt_entries[slot].vte_entry = entry;
         }
