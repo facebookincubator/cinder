@@ -1083,7 +1083,17 @@ get_sortable_slot(PyTypeObject *type, PyObject *name, PyObject *slot_type_descr)
     PyTuple_SET_ITEM(name_and_type_descr, 1, slot_type_descr);
     slot = name_and_type_descr;
 
-    PyTuple_SET_ITEM(size_original, 0, PyLong_FromLong(slot_size));
+    // We negate slot slot size here so that when we sort the
+    // slots the largest members will come first and we naturally
+    // get good alignment.  This also allows a single sort which
+    // preserves the alphabetical order of slots as well as long as
+    // they're the same size.
+    PyObject *slot_size_obj = PyLong_FromLong(-slot_size);
+    if (slot_size_obj == NULL) {
+        Py_DECREF(name_and_type_descr);
+        goto error;
+    }
+    PyTuple_SET_ITEM(size_original, 0, slot_size_obj);
     PyTuple_SET_ITEM(size_original, 1, slot);
     return size_original;
 error:
@@ -1285,10 +1295,11 @@ init_static_type(PyObject *obj, int leaked_type)
             PyList_SET_ITEM(new_slots, i, size_original);
         }
 
-        if (PyList_Sort(new_slots) == -1 || PyList_Reverse(new_slots) == -1) {
+        if (PyList_Sort(new_slots) == -1) {
             Py_DECREF(new_slots);
             return -1;
         }
+
         /* convert back to the original values */
         for (Py_ssize_t i = 0; i < PyList_GET_SIZE(new_slots); i++) {
             PyObject *val = PyList_GET_ITEM(new_slots, i);

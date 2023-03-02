@@ -246,6 +246,24 @@ class StaticFieldTests(StaticTestBase):
             with self.in_module(codestr) as mod:
                 pass
 
+    def test_primitive_field_leaked_type_metaclass(self):
+        codestr = """
+            from __future__ import annotations
+
+            class B:
+                insts: set[B] = set()
+
+                def __init_subclass__(cls):
+                    cls.insts.add(cls)
+
+            class D(B):
+                def __init__(self, foo: str, bar: str):
+                    self.foo = foo
+                    self.bar = bar
+        """
+        with self.in_module(codestr) as mod:
+            pass
+
     def test_assign_implicit_primitive_field(self):
         codestr = """
             from __static__ import cbool

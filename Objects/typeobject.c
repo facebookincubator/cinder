@@ -2696,12 +2696,6 @@ type_new_visit_slots(type_new_ctx *ctx)
 /* Copy slots into a list, mangle names and sort them.
    Sorted names are needed for __class__ assignment.
    Convert them back to tuple at the end.
-
-   We also want
-   the names sorted first by size, and then by name.  So
-   we convert everything into a tuple of (size, name[, type])
-   and then convert the (size, name) ones back to just name
-   after sorting.
 */
 static PyObject*
 type_new_copy_slots(type_new_ctx *ctx, PyObject *dict)
