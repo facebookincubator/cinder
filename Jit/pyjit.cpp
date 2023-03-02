@@ -1839,6 +1839,14 @@ void _PyJIT_TypeDestroyed(PyTypeObject* type) {
   }
 }
 
+void _PyJIT_InstanceTypeAssigned(
+    PyTypeObject* old_ty,
+    PyTypeObject* /*new_ty*/) {
+  if (auto rt = Runtime::getUnchecked()) {
+    rt->notifyTypeModified(old_ty);
+  }
+}
+
 void _PyJIT_FuncModified(PyFunctionObject* func) {
   if (jit_ctx) {
     _PyJITContext_FuncModified(jit_ctx, func);

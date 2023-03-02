@@ -160,6 +160,13 @@ PyAPI_FUNC(void) _PyJIT_FuncDestroyed(PyFunctionObject* func);
 PyAPI_FUNC(void) _PyJIT_CodeDestroyed(PyCodeObject* code);
 
 /*
+ * Informs the JIT that an instance has had an assignment to its __class__
+ * field.
+ */
+PyAPI_FUNC(void)
+    _PyJIT_InstanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty);
+
+/*
  * Clean up any resources allocated by the JIT.
  *
  * This is intended to be called at interpreter shutdown in Py_Finalize.

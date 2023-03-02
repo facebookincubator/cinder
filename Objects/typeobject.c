@@ -5228,6 +5228,7 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
             }
         }
         _PyType_ClearNoShadowingInstances(newto, NULL);
+        _PyJIT_InstanceTypeAssigned(oldto, newto);
 
         return 0;
     }
