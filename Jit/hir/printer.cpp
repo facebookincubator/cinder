@@ -309,6 +309,10 @@ static std::string format_immediates(const Instr& instr) {
       const auto& load = static_cast<const LoadArrayItem&>(instr);
       return load.offset() == 0 ? "" : fmt::format("Offset[{}]", load.offset());
     }
+    case Opcode::kLoadSplitDictItem: {
+      const auto& load = static_cast<const LoadSplitDictItem&>(instr);
+      return fmt::format("{}", load.itemIdx());
+    }
     case Opcode::kReturn: {
       const auto& ret = static_cast<const Return&>(instr);
       return ret.type() != TObject ? ret.type().toString() : "";

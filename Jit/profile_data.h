@@ -52,6 +52,10 @@ const CodeProfileData* getProfileData(PyCodeObject* code);
 // result will be empty if there's no data for bc_off.
 PolymorphicTypes getProfiledTypes(const CodeProfileData& data, BCOffset bc_off);
 
+// Check whether the given type has split dict keys primed from profile data,
+// which implies that they are unlikely to change at runtime.
+bool hasPrimedDictKeys(BorrowedRef<PyTypeObject> type);
+
 // A CodeKey is an opaque value that uniquely identifies a specific code
 // object. It may include information about the name, file path, and contents
 // of the code object.

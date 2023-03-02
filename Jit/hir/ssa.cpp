@@ -431,6 +431,8 @@ Type outputType(
       return static_cast<const InvokeStaticFunction&>(instr).ret_type();
     case Opcode::kLoadArrayItem:
       return static_cast<const LoadArrayItem&>(instr).type();
+    case Opcode::kLoadSplitDictItem:
+      return TOptObject;
     case Opcode::kLoadField:
       return static_cast<const LoadField&>(instr).type();
     case Opcode::kLoadFieldAddress:

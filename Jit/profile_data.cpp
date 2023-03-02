@@ -349,6 +349,10 @@ PolymorphicTypes getProfiledTypes(
   return ret;
 }
 
+bool hasPrimedDictKeys(BorrowedRef<PyTypeObject> type) {
+  return s_live_types.hasPrimedDictKeys(type);
+}
+
 std::string codeKey(PyCodeObject* code) {
   const std::string filename = std::regex_replace(
       unicodeAsString(code->co_filename), profileDataStripPattern, "");
@@ -427,10 +431,11 @@ void registerProfiledType(PyTypeObject* type) {
   PyDictKeysObject* old_keys = ht->ht_cached_keys;
   ht->ht_cached_keys = keys;
   PyType_Modified(type);
-  _PyType_Lookup(type, dunder_dict);
+  Ci_Type_AssignVersionTag(type);
   if (old_keys != nullptr) {
     _PyDictKeys_DecRef(old_keys);
   }
+  s_live_types.setPrimedDictKeys(type);
 }
 
 void unregisterProfiledType(PyTypeObject* type) {

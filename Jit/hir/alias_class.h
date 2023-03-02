@@ -19,6 +19,7 @@ namespace jit::hir {
 #define HIR_BASIC_ACLS(X) \
   X(ArrayItem)            \
   X(CellItem)             \
+  X(DictItem)             \
   X(FuncArgs)             \
   X(FuncAttr)             \
   X(Global)               \

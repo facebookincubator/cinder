@@ -319,3 +319,129 @@ class LoadAttrTests(ProfileTest):
                 }
             ):
                 self.assertEqual(get_attrs(o1, True), "a_1-b_1")
+
+    def test_load_attr_from_split_dict(self):
+        class Point:
+            def __init__(self, x, y, break_dict_order=False):
+                if break_dict_order:
+                    self.w = "oops"
+                self.x = x
+                self.y = y
+
+        class OtherPoint:
+            @property
+            def x(self):
+                return 78
+
+            @property
+            def y(self):
+                return 90
+
+        p = Point(123, 456)
+        op = OtherPoint()
+
+        # Mess with a Point's __dict__ outside of a STORE_ATTR bytecode. Make
+        # sure to do it before compiling get_x() and get_y() to avoid
+        # triggering their DeoptPatchpoints when clearing
+        # Py_TPFLAGS_NO_SHADOWING_INSTANCES.
+        p_dict = Point(11, 22)
+        p_dict.__dict__ = {"a": 1, "b": 2, "y": 3, "x": 4}
+
+        # TODO(T123956956) Ensure Point has a valid version tag before the
+        # relevant functions are compiled.
+        self.assertEqual(p.x, 123)
+
+        def get_x(o):
+            return o.x
+
+        def get_y(o):
+            return o.y
+
+        self.assertEqual(get_x(p), 123)
+        self.assertEqual(get_y(p), 456)
+
+        if TESTING:
+            # Test that normal attribute loads don't deopt.
+            with self.assertDeopts({}):
+                self.assertEqual(get_x(p), 123)
+                self.assertEqual(get_y(p), 456)
+
+            # Test that modifying unrelated parts of the type doesn't cause
+            # deopting.
+            Point.foo = "whatever"
+            with self.assertDeopts({}):
+                self.assertEqual(get_x(p), 123)
+                self.assertEqual(get_y(p), 456)
+
+            # Test that loading the attribute from an instance with a combined
+            # dictionary fails a runtime guard.
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "ht_cached_keys comparison"),
+                    ): 2
+                }
+            ):
+                self.assertEqual(get_x(p_dict), 4)
+                self.assertEqual(get_y(p_dict), 3)
+
+            # Test that changing the cached keys for Point causes code patching.
+            p2 = Point("eks", "why", break_dict_order=True)
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "SplitDictDeoptPatcher"),
+                    ): 2
+                }
+            ):
+                self.assertEqual(get_x(p2), "eks")
+                self.assertEqual(get_y(p2), "why")
+
+            # Call the compiled functions with the wrong type.
+            with self.assertDeopts(
+                {(("reason", "GuardFailure"), ("description", "GuardType")): 2}
+            ):
+                self.assertEqual(get_x(op), 78)
+                self.assertEqual(get_y(op), 90)
+
+    def test_load_attr_from_split_dict_overwrite_type_attr(self):
+        class Point:
+            def __init__(self, x, y):
+                self.x = x
+                self.y = y
+
+        def get_x(o):
+            return o.x
+
+        def get_y(o):
+            return o.y
+
+        p = Point(111, 222)
+
+        self.assertEqual(get_x(p), 111)
+        self.assertEqual(get_y(p), 222)
+
+        if TESTING:
+            # Sanity check that loading the attributes causes no deopts.
+            with self.assertDeopts({}):
+                self.assertEqual(get_x(p), 111)
+                self.assertEqual(get_y(p), 222)
+
+            # Shadow one of the attributes with a data descriptor and make sure
+            # we load the correct value, with the expected deopt.
+            Point.x = property(lambda self: 333)
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "SplitDictDeoptPatcher"),
+                    ): 1
+                }
+            ):
+                self.assertEqual(get_x(p), 333)
+
+            # Make sure get_y() was unaffected.
+            with self.assertDeopts({}):
+                self.assertEqual(get_y(p), 222)

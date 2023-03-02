@@ -30,6 +30,12 @@ struct LiveTypeMap {
   // Insert the given type into the map, keyed by typeFullname(type).
   void insert(BorrowedRef<PyTypeObject> type);
 
+  // Mark that the given type has split dict keys primed from profile data.
+  void setPrimedDictKeys(BorrowedRef<PyTypeObject> type);
+
+  // Check whether the given type has split dict keys primed from profile data.
+  bool hasPrimedDictKeys(BorrowedRef<PyTypeObject> type) const;
+
   // Erase the given type from the map, if it's present.
   void erase(BorrowedRef<PyTypeObject> type);
 
@@ -38,6 +44,8 @@ struct LiveTypeMap {
  private:
   UnorderedMap<std::string, BorrowedRef<PyTypeObject>> name_to_type_;
   UnorderedMap<BorrowedRef<PyTypeObject>, std::string> type_to_name_;
+
+  UnorderedSet<BorrowedRef<PyTypeObject>> primed_dict_keys_;
 };
 
 } // namespace jit

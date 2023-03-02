@@ -299,6 +299,7 @@ struct FrameState {
   V(LoadGlobal)                        \
   V(LoadMethod)                        \
   V(LoadMethodSuper)                   \
+  V(LoadSplitDictItem)                 \
   V(LoadTupleItem)                     \
   V(LoadTypeAttrCacheItem)             \
   V(LoadVarObjectSize)                 \
@@ -3229,6 +3230,22 @@ class INSTR_CLASS(
   Type type_;
 };
 
+// Load an item from dict->ma_values[item_idx]. Users must ensure that the
+// given dict has a split table and that item_idx is the result of
+// _PyDictKeys_GetSplitIndex(dict->ma_keys).
+class INSTR_CLASS(LoadSplitDictItem, (TDict), HasOutput, Operands<1>) {
+ public:
+  LoadSplitDictItem(Register* dst, Register* dict, Py_ssize_t item_idx)
+      : InstrT{dst, dict}, item_idx_{item_idx} {}
+
+  Py_ssize_t itemIdx() const {
+    return item_idx_;
+  }
+
+ private:
+  Py_ssize_t item_idx_{0};
+};
+
 class INSTR_CLASS(
     LoadFieldAddress,
     (TOptObject, TCInt64),
@@ -3599,10 +3616,14 @@ class INSTR_CLASS(DeoptPatchpoint, (), Operands<0>, DeoptBase) {
   DeoptPatcher* patcher_;
 };
 
-// A guard verifies that the value of pred is true. When it's not, control is
+// A guard verifies that the operand is nonzero. When it's not, control is
 // transferred to the interpreter at the point specified by the attached
 // FrameState.
-DEFINE_SIMPLE_INSTR(Guard, (TOptObject), Operands<1>, DeoptBase);
+DEFINE_SIMPLE_INSTR(
+    Guard,
+    (Constraint::kOptObjectOrCIntOrCBool),
+    Operands<1>,
+    DeoptBase);
 
 // A guard that verifies that its src is the same object as the target, or
 // deopts if not.

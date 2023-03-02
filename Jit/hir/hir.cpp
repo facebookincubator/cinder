@@ -145,6 +145,7 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadFieldAddress:
     case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadGlobalCached:
+    case Opcode::kLoadSplitDictItem:
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
     case Opcode::kLoadVarObjectSize:

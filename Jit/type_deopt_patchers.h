@@ -43,4 +43,24 @@ class MemberDescrDeoptPatcher : public TypeDeoptPatcher {
   Py_ssize_t member_offset_;
 };
 
+class SplitDictDeoptPatcher : public TypeDeoptPatcher {
+ public:
+  SplitDictDeoptPatcher(
+      BorrowedRef<PyTypeObject> type,
+      BorrowedRef<PyUnicodeObject> attr_name,
+      PyDictKeysObject* keys);
+
+  void addReferences(CodeRuntime* code_rt) override;
+
+  bool shouldPatch(BorrowedRef<PyTypeObject> new_ty) const override;
+
+ private:
+  BorrowedRef<PyUnicodeObject> attr_name_;
+
+  // We don't need to grab a strong reference to keys_ like
+  // MemberDescrDeoptPatcher does with member_name_ because calls to
+  // PyTypeModified() happen before the old keys object is decrefed.
+  PyDictKeysObject* keys_;
+};
+
 } // namespace jit

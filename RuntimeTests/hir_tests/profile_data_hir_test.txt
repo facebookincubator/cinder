@@ -282,3 +282,53 @@ fun jittestmodule:test {
   }
 }
 ---
+SpecializeSplitDictLoadAttr
+---
+class Person:
+  def __init__(self, name, age):
+    self.name = name
+    self.age = age
+
+def test(p):
+  return p.age
+
+test(Person("bob", 30))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Object = LoadArg<0; "p">
+    v4:ObjectUser[Person:Exact] = GuardType<ObjectUser[Person:Exact]> v2 {
+      GuiltyReg v2
+    }
+    DeoptPatchpoint<0xdeadbeef> {
+      Descr 'SplitDictDeoptPatcher'
+      GuiltyReg v4
+    }
+    UseType<ObjectUser[Person:Exact]> v4
+    v6:OptDict = LoadField<__dict__@16, OptDict, borrowed> v4
+    v7:Dict = CheckField<"age"> v6 {
+      GuiltyReg v4
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v4
+      }
+    }
+    v8:CPtr = LoadField<ma_keys@32, CPtr, borrowed> v7
+    v9:CPtr[0xdeadbeef] = LoadConst<CPtr[0xdeadbeef]>
+    v10:CBool = PrimitiveCompare<Equal> v8 v9
+    Guard v10 {
+      Descr 'ht_cached_keys comparison'
+      GuiltyReg v4
+    }
+    v11:OptObject = LoadSplitDictItem<1> v7
+    v12:Object = CheckField<"age"> v11 {
+      GuiltyReg v4
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v4
+      }
+    }
+    Return v12
+  }
+}
+---

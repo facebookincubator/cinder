@@ -233,6 +233,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
       // we steal a ref to our third operand, the value being stored
       return {
           false, AEmpty, {inst.NumOperands(), 1 << 2}, AArrayItem | AListItem};
+    case Opcode::kLoadSplitDictItem:
+      return borrowFrom(inst, ADictItem);
     case Opcode::kLoadTypeAttrCacheItem:
       return borrowFrom(inst, ATypeAttrCache);
 

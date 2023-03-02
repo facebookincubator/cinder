@@ -7,6 +7,7 @@
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
+#include "Jit/profile_data.h"
 #include "Jit/runtime.h"
 #include "Jit/type_deopt_patchers.h"
 
@@ -677,10 +678,70 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
-// Attempt to handle LoadAttr cases that involve a descriptor. For now, this
-// only handles certain PyMemberDescrs, but it will be extended to include
-// other cases in the future.
-Register* simplifyLoadAttrDescriptor(Env& env, const LoadAttr* load_attr) {
+// Attempt to simplify the given LoadAttr to a split dict load. Assumes various
+// sanity checks have already passed:
+// - The receiver has a known, exact type.
+// - The type has a valid version tag.
+// - The type doesn't have a descriptor at the attribute name.
+Register* simplifyLoadAttrSplitDict(
+    Env& env,
+    const LoadAttr* load_attr,
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<PyUnicodeObject> name) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) ||
+      type->tp_dictoffset < 0) {
+    return nullptr;
+  }
+  BorrowedRef<PyHeapTypeObject> ht(type);
+  if (ht->ht_cached_keys == nullptr || !hasPrimedDictKeys(type)) {
+    return nullptr;
+  }
+  PyDictKeysObject* keys = ht->ht_cached_keys;
+  Py_ssize_t attr_idx = _PyDictKeys_GetSplitIndex(keys, name);
+  if (attr_idx == -1) {
+    return nullptr;
+  }
+
+  Register* receiver = load_attr->GetOperand(0);
+  auto patchpoint = env.emitInstr<DeoptPatchpoint>(
+      Runtime::get()->allocateDeoptPatcher<SplitDictDeoptPatcher>(
+          type, name, keys));
+  patchpoint->setGuiltyReg(receiver);
+  patchpoint->setDescr("SplitDictDeoptPatcher");
+  env.emit<UseType>(receiver, receiver->type());
+
+  Register* obj_dict =
+      env.emit<LoadField>(receiver, "__dict__", type->tp_dictoffset, TOptDict);
+  // We pass the attribute's name to this CheckField (not "__dict__") because
+  // ultimately it means that the attribute we're trying to load is missing,
+  // and the AttributeError to be raised should contain the attribute's name.
+  Register* checked_dict =
+      env.emit<CheckField>(obj_dict, name, *load_attr->frameState());
+  static_cast<CheckField*>(checked_dict->instr())->setGuiltyReg(receiver);
+
+  Register* dict_keys = env.emit<LoadField>(
+      checked_dict, "ma_keys", offsetof(PyDictObject, ma_keys), TCPtr);
+  Register* expected_keys = env.emit<LoadConst>(Type::fromCPtr(keys));
+  Register* equal = env.emit<PrimitiveCompare>(
+      PrimitiveCompareOp::kEqual, dict_keys, expected_keys);
+  auto guard = env.emitInstr<Guard>(equal);
+  guard->setGuiltyReg(receiver);
+  guard->setDescr("ht_cached_keys comparison");
+
+  Register* attr = env.emit<LoadSplitDictItem>(checked_dict, attr_idx);
+  Register* checked_attr =
+      env.emit<CheckField>(attr, name, *load_attr->frameState());
+  static_cast<CheckField*>(checked_attr->instr())->setGuiltyReg(receiver);
+
+  return checked_attr;
+}
+
+// Attempt to handle LoadAttr cases where the load is a common case for object
+// instances (not types). For now, this handle slots and split dicts, but it
+// will be extended to include other cases in the future.
+Register* simplifyLoadAttrInstanceReceiver(
+    Env& env,
+    const LoadAttr* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   Type ty = receiver->type();
   BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
@@ -700,7 +761,7 @@ Register* simplifyLoadAttrDescriptor(Env& env, const LoadAttr* load_attr) {
 
   BorrowedRef<> descr{typeLookupSafe(type, name)};
   if (descr == nullptr) {
-    return nullptr;
+    return simplifyLoadAttrSplitDict(env, load_attr, type, name);
   }
 
   BorrowedRef<PyTypeObject> descr_type{Py_TYPE(descr)};
@@ -780,7 +841,7 @@ Register* simplifyLoadAttrTypeReceiver(Env& env, const LoadAttr* load_attr) {
 }
 
 Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
-  if (Register* reg = simplifyLoadAttrDescriptor(env, load_attr)) {
+  if (Register* reg = simplifyLoadAttrInstanceReceiver(env, load_attr)) {
     return reg;
   }
   if (Register* reg = simplifyLoadAttrTypeReceiver(env, load_attr)) {

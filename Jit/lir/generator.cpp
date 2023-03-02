@@ -2100,6 +2100,25 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendInvoke(func, instr->ob_item(), instr->value(), instr->idx());
         break;
       }
+      case Opcode::kLoadSplitDictItem: {
+        auto instr = static_cast<const LoadSplitDictItem*>(&i);
+        Register* dict = instr->GetOperand(0);
+        // Users of LoadSplitDictItem are required to verify that dict has a
+        // split table, so it's safe to load and acess ma_values with no
+        // additional checks here.
+        std::string ma_values = GetSafeTempName();
+        bbb.AppendCode(
+            "Load {}, {}, {}",
+            ma_values,
+            dict,
+            offsetof(PyDictObject, ma_values));
+        bbb.AppendCode(
+            "Load {}, {}, {}",
+            instr->GetOutput(),
+            ma_values,
+            instr->itemIdx() * sizeof(PyObject*));
+        break;
+      }
       case Opcode::kRepeatList: {
         auto instr = static_cast<const RepeatList*>(&i);
         bbb.AppendCall(

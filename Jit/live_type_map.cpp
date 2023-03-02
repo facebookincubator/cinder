@@ -37,7 +37,19 @@ void LiveTypeMap::insert(BorrowedRef<PyTypeObject> type) {
   type_to_name_[type] = std::move(name);
 }
 
+void LiveTypeMap::setPrimedDictKeys(BorrowedRef<PyTypeObject> type) {
+  JIT_DCHECK(
+      type_to_name_.count(type) != 0,
+      "Attempt to set primed dict keys on type that isn't tracked as live");
+  primed_dict_keys_.insert(type);
+}
+
+bool LiveTypeMap::hasPrimedDictKeys(BorrowedRef<PyTypeObject> type) const {
+  return primed_dict_keys_.count(type) != 0;
+}
+
 void LiveTypeMap::erase(BorrowedRef<PyTypeObject> type) {
+  primed_dict_keys_.erase(type);
   auto it = type_to_name_.find(type);
   if (it == type_to_name_.end()) {
     return;

@@ -18,6 +18,7 @@ constexpr int kJmpSize = 5;
 
 void DeoptPatcher::patch() {
   JIT_CHECK(patchpoint_ != nullptr, "not linked!");
+  JIT_DLOG("Patching DeoptPatchPoint at %p", static_cast<void*>(patchpoint_));
   // 32 bit relative jump - https://www.felixcloutier.com/x86/jmp
   patchpoint_[0] = 0xe9;
   std::memcpy(patchpoint_ + 1, &jmp_disp_, sizeof(jmp_disp_));
