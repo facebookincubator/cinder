@@ -273,6 +273,17 @@ class ScopeExit {
 
 #define SCOPE_EXIT(...) SCOPE_EXIT_INTERNAL1(__COUNTER__, __VA_ARGS__)
 
+// Simulate _PyType_Lookup(), but in a way that should avoid any heap mutations
+// (caches, refcount operations, arbitrary code execution).
+//
+// Since this function is very conservative in the operations it will perform,
+// it may return false negatives; a nullptr return does *not* mean that
+// _PyType_Lookup() will also return nullptr. However, a non-nullptr return
+// value should be the same value _PyType_Lookup() would return.
+BorrowedRef<> typeLookupSafe(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> name);
+
 } // namespace jit
 
 template <typename D, typename S>

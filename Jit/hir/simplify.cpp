@@ -8,7 +8,7 @@
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/runtime.h"
-#include "Jit/type_deopt_patcher.h"
+#include "Jit/type_deopt_patchers.h"
 
 #include <fmt/ostream.h>
 
@@ -82,53 +82,48 @@ struct Env {
   // output, a new Register* will be created and returned.
   template <typename T, typename... Args>
   Register* emit(Args&&... args) {
+    return emitInstr<T>(std::forward<Args>(args)...)->GetOutput();
+  }
+
+  // Similar to emit(), but returns the instruction itself. Useful for
+  // instructions with no output, when you need to manipulate the instruction
+  // after creation.
+  template <typename T, typename... Args>
+  T* emitInstr(Args&&... args) {
     if constexpr (T::has_output) {
-      return emitRaw<T>(
+      return emitRawInstr<T>(
           func.env.AllocateRegister(), std::forward<Args>(args)...);
     } else {
-      return emitRaw<T>(std::forward<Args>(args)...);
+      return emitRawInstr<T>(std::forward<Args>(args)...);
     }
   }
 
-  // Similar to emit<T>(), but does not automatically create an output
+  // Similar to emitInstr<T>(), but does not automatically create an output
   // register.
   template <typename T, typename... Args>
-  Register* emitRaw(Args&&... args) {
-    optimized = true;
-    Register* untypedOutput = emitRawUntyped<T>(std::forward<Args>(args)...);
-    if constexpr (T::has_output) {
-      JIT_CHECK(untypedOutput != nullptr, "output cannot be null");
-      Instr* instr = untypedOutput->instr();
-      switch (instr->opcode()) {
-        case Opcode::kVectorCall:
-        case Opcode::kVectorCallKW:
-        case Opcode::kVectorCallStatic:
-          // we don't know the exact output type until its operands are
-          // populated. Keep output untyped
-          break;
-        default:
-          untypedOutput->set_type(outputType(*instr));
-          break;
-      }
-      return untypedOutput;
-    }
-    return nullptr;
-  }
-
-  // Similar to emitRaw<T>(), but does not automatically infer the exact output
-  // type
-  template <typename T, typename... Args>
-  Register* emitRawUntyped(Args&&... args) {
+  T* emitRawInstr(Args&&... args) {
     optimized = true;
     T* instr = T::create(std::forward<Args>(args)...);
     instr->setBytecodeOffset(bc_off);
     block->insert(instr, cursor);
+
     if constexpr (T::has_output) {
       Register* output = instr->GetOutput();
-      output->set_type(TObject);
-      return output;
+      switch (instr->opcode()) {
+        case Opcode::kVectorCall:
+        case Opcode::kVectorCallKW:
+        case Opcode::kVectorCallStatic:
+          // We don't know the exact output type until its operands are
+          // populated.
+          output->set_type(TObject);
+          break;
+        default:
+          output->set_type(outputType(*instr));
+          break;
+      }
     }
-    return nullptr;
+
+    return instr;
   }
 
   // Create and return a conditional value. Expects three callables:
@@ -682,34 +677,6 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
-// Simulate _PyType_Lookup(), but in a way that should avoid any heap mutations
-// (caches, refcount operations, arbitrary code execution).
-//
-// Since this function is very conservative in the operations it will perform,
-// it may return false negatives; a nullptr return does *not* mean that
-// _PyType_Lookup() will also return nullptr. However, a non-nullptr return
-// value should be the same value _PyType_Lookup() would return.
-static BorrowedRef<> typeLookupSafe(
-    BorrowedRef<PyTypeObject> type,
-    BorrowedRef<> name) {
-  JIT_CHECK(PyUnicode_CheckExact(name), "name must be a str");
-
-  BorrowedRef<PyTupleObject> mro{type->tp_mro};
-  for (size_t i = 0, n = PyTuple_GET_SIZE(mro); i < n; ++i) {
-    BorrowedRef<PyTypeObject> base_ty{PyTuple_GET_ITEM(mro, i)};
-    if (!PyType_HasFeature(base_ty, Py_TPFLAGS_READY) ||
-        _PyDict_HasUnsafeKeys(base_ty->tp_dict)) {
-      // Abort the whole search if any base class dict is poorly-behaved
-      // (before we find the name); it could contain the key we're looking for.
-      return nullptr;
-    }
-    if (BorrowedRef<> value{PyDict_GetItem(base_ty->tp_dict, name)}) {
-      return value;
-    }
-  }
-  return nullptr;
-}
-
 // Attempt to handle LoadAttr cases that involve a descriptor. For now, this
 // only handles certain PyMemberDescrs, but it will be extended to include
 // other cases in the future.
@@ -725,7 +692,7 @@ Register* simplifyLoadAttrDescriptor(Env& env, const LoadAttr* load_attr) {
       type->tp_getattro != PyObject_GenericGetAttr) {
     return nullptr;
   }
-  BorrowedRef<> name{PyTuple_GET_ITEM(
+  BorrowedRef<PyUnicodeObject> name{PyTuple_GET_ITEM(
       load_attr->frameState()->code->co_names, load_attr->name_idx())};
   if (!PyUnicode_CheckExact(name)) {
     return nullptr;
@@ -758,16 +725,18 @@ Register* simplifyLoadAttrDescriptor(Env& env, const LoadAttr* load_attr) {
       // The descriptor could be from a base type, but PyType_Modified() also
       // notifies subtypes of the modified type, so we only have to watch the
       // object's type.
-      env.emit<DeoptPatchpoint>(
-          Runtime::get()->allocateDeoptPatcher<TypeDeoptPatcher>(type));
+      auto patchpoint = env.emitInstr<DeoptPatchpoint>(
+          Runtime::get()->allocateDeoptPatcher<MemberDescrDeoptPatcher>(
+              type, name, def->type, def->offset));
+      patchpoint->setGuiltyReg(receiver);
       env.emit<UseType>(receiver, ty);
       Register* field =
           env.emit<LoadField>(receiver, name_cstr, def->offset, TOptObject);
       if (def->type == T_OBJECT_EX) {
-        Register* checked =
-            env.emit<CheckField>(field, name, *load_attr->frameState());
-        static_cast<CheckField*>(checked->instr())->setGuiltyReg(receiver);
-        return checked;
+        auto check_field =
+            env.emitInstr<CheckField>(field, name, *load_attr->frameState());
+        check_field->setGuiltyReg(receiver);
+        return check_field->GetOutput();
       }
 
       return env.emitCond(
@@ -942,20 +911,20 @@ static Register* resolveArgs(
   env.emit<GuardIs>(defaults, defaults_obj);
   // creates an instruction VectorCall(arg_size, dest_reg, frame_state)
   // and inserts it to the current block. Returns the output of vectorcall
-  Register* result = env.emitRawUntyped<VectorCall>(
+  auto new_instr = env.emitRawInstr<VectorCall>(
       resolved_args.size() + 1,
       env.func.env.AllocateRegister(), // output register
       /*is_awaited=*/false,
       *instr->frameState());
+  Register* result = new_instr->GetOutput();
 
   // populate the call arguments of the newly created VectorCall
-  Instr* new_instr = result->instr();
   // the first arg is the function to call
   new_instr->SetOperand(0, instr->func());
   for (size_t i = 0; i < resolved_args.size(); i++) {
     new_instr->SetOperand(i + 1, resolved_args.at(i));
   }
-  result->set_type(outputType(*result->instr()));
+  result->set_type(outputType(*new_instr));
   return result;
 }
 
@@ -1120,7 +1089,7 @@ void Simplify::Run(Function& irfunc) {
               "New output type %s isn't compatible with old output type %s",
               new_output->type(),
               instr.GetOutput()->type());
-          env.emitRaw<Assign>(instr.GetOutput(), new_output);
+          env.emitRawInstr<Assign>(instr.GetOutput(), new_output);
         }
 
         if (instr.IsCondBranch() || instr.IsCondBranchIterNotDone() ||

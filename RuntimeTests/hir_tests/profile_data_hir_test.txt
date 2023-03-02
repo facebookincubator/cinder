@@ -240,6 +240,7 @@ fun jittestmodule:test {
       GuiltyReg v4
     }
     DeoptPatchpoint<0xdeadbeef> {
+      GuiltyReg v6
     }
     UseType<ObjectUser[Point:Exact]> v6
     v14:OptObject = LoadField<x@16, OptObject, borrowed> v6
@@ -251,6 +252,7 @@ fun jittestmodule:test {
       }
     }
     DeoptPatchpoint<0xdeadbeef> {
+      GuiltyReg v6
     }
     UseType<ObjectUser[Point:Exact]> v6
     v16:OptObject = LoadField<y@24, OptObject, borrowed> v6

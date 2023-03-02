@@ -6,6 +6,8 @@
 
 namespace jit {
 
+class CodeRuntime;
+
 // A DeoptPatcher is used by the runtime to invalidate compiled code when an
 // invariant that the compiled code relies on is invalidated. It is intended
 // to be used in conjuction with the DeoptPatchpoint HIR instruction.
@@ -49,6 +51,8 @@ class DeoptPatcher {
   // NB: The distance between the patchpoint and the deopt exit must fit into
   // a signed 32 bit int.
   void link(uintptr_t patchpoint, uintptr_t deopt_exit);
+
+  virtual void addReferences(CodeRuntime*) {}
 
   // Write the nop that will be overwritten at runtime when patch() is called.
   static void emitPatchpoint(asmjit::x86::Builder& as);

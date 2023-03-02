@@ -1815,7 +1815,7 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
     _PyJITContext_TypeModified(jit_ctx, type);
   }
   if (auto rt = Runtime::getUnchecked()) {
-    rt->notifyTypeModified(type);
+    rt->notifyTypeModified(type, type);
   }
   jit::notifyICsTypeChanged(type);
 }
@@ -1825,7 +1825,7 @@ void _PyJIT_TypeNameModified(PyTypeObject* type) {
   // the type if it happens.
   unregisterProfiledType(type);
   if (auto rt = Runtime::getUnchecked()) {
-    rt->notifyTypeModified(type);
+    rt->notifyTypeModified(type, type);
   }
 }
 
@@ -1835,15 +1835,13 @@ void _PyJIT_TypeDestroyed(PyTypeObject* type) {
   }
   unregisterProfiledType(type);
   if (auto rt = Runtime::getUnchecked()) {
-    rt->notifyTypeDestroyed(type);
+    rt->notifyTypeModified(type, nullptr);
   }
 }
 
-void _PyJIT_InstanceTypeAssigned(
-    PyTypeObject* old_ty,
-    PyTypeObject* /*new_ty*/) {
+void _PyJIT_InstanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty) {
   if (auto rt = Runtime::getUnchecked()) {
-    rt->notifyTypeModified(old_ty);
+    rt->notifyTypeModified(old_ty, new_ty);
   }
 }
 

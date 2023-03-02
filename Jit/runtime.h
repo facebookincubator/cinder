@@ -26,7 +26,7 @@
 namespace jit {
 
 class GenYieldPoint;
-class DeoptPatcher;
+class TypeDeoptPatcher;
 
 // In a regular JIT function spill-data is stored at negative offsets from RBP
 // and RBP points into the system stack. In JIT generators spilled data is still
@@ -437,12 +437,23 @@ class Runtime {
     return symbolizer_.symbolize(func);
   }
 
-  // When type is modified, call patcher->patch().
-  void watchType(BorrowedRef<PyTypeObject> type, DeoptPatcher* patcher);
+  // When type is modified or an instance of type has __class__ assigned to,
+  // call patcher->patch() if patcher->shouldPatch(new_ty) returns true.
+  void watchType(BorrowedRef<PyTypeObject> type, TypeDeoptPatcher* patcher);
 
-  // Callbacks for when types are modified or destroyed.
-  void notifyTypeModified(BorrowedRef<PyTypeObject> type);
-  void notifyTypeDestroyed(BorrowedRef<PyTypeObject> type);
+  // Callback for when a type is modified or destroyed. lookup_type should be
+  // the type that triggered the call (the type that's being
+  // modified/deleted/otherwise messed with), and new_type should be the "new"
+  // type that is taking its place.
+  //
+  // In the case of a modification, this new type will be the same as
+  // lookup_type, and for type destruction it will be nullptr. For __class__
+  // assignment, it will be the new type assigned to the object, in case the
+  // deopt patcher determines that the new type is still suitable for the
+  // specialized code.
+  void notifyTypeModified(
+      BorrowedRef<PyTypeObject> lookup_type,
+      BorrowedRef<PyTypeObject> new_type);
 
  private:
   static Runtime* s_runtime_;
@@ -475,7 +486,7 @@ class Runtime {
   Builtins builtins_;
   Symbolizer symbolizer_;
 
-  std::unordered_map<BorrowedRef<PyTypeObject>, std::vector<DeoptPatcher*>>
+  std::unordered_map<BorrowedRef<PyTypeObject>, std::vector<TypeDeoptPatcher*>>
       type_deopt_patchers_;
 };
 

@@ -4,7 +4,7 @@
 
 #include "internal/pycore_interp.h"
 
-#include "Jit/deopt_patcher.h"
+#include "Jit/type_deopt_patchers.h"
 
 #include <sys/mman.h>
 
@@ -320,25 +320,34 @@ std::optional<std::string> symbolize(const void* func) {
   return jit::demangle(std::string{*mangled_name});
 }
 
-void Runtime::watchType(BorrowedRef<PyTypeObject> type, DeoptPatcher* patcher) {
+void Runtime::watchType(
+    BorrowedRef<PyTypeObject> type,
+    TypeDeoptPatcher* patcher) {
   type_deopt_patchers_[type].emplace_back(patcher);
 }
 
-void Runtime::notifyTypeModified(BorrowedRef<PyTypeObject> type) {
-  auto it = type_deopt_patchers_.find(type);
+void Runtime::notifyTypeModified(
+    BorrowedRef<PyTypeObject> lookup_type,
+    BorrowedRef<PyTypeObject> new_type) {
+  auto it = type_deopt_patchers_.find(lookup_type);
   if (it == type_deopt_patchers_.end()) {
     return;
   }
-  for (DeoptPatcher* patcher : it->second) {
-    patcher->patch();
-  }
-  type_deopt_patchers_.erase(it);
-}
 
-void Runtime::notifyTypeDestroyed(BorrowedRef<PyTypeObject> type) {
-  // We want to do the same thing as when a type is modified: patch any
-  // relevant code and erase references to this type.
-  notifyTypeModified(type);
+  std::vector<TypeDeoptPatcher*> remaining_patchers;
+  for (TypeDeoptPatcher* patcher : it->second) {
+    if (!patcher->shouldPatch(new_type)) {
+      remaining_patchers.emplace_back(patcher);
+    } else {
+      patcher->patch();
+    }
+  }
+
+  if (remaining_patchers.empty()) {
+    type_deopt_patchers_.erase(it);
+  } else {
+    it->second = std::move(remaining_patchers);
+  }
 }
 
 } // namespace jit

@@ -155,16 +155,18 @@ class GetProfilesTests(ProfileTest):
 
 
 class LoadAttrTests(ProfileTest):
-    def make_slot_type(caller_name, name, slots):
+    def make_slot_type(caller_name, name, slots, bases=None):
         def init(self, **kwargs):
             for key, val in kwargs.items():
                 setattr(self, key, val)
 
-        slots = slots + ["__dict__"]
+        if bases is None:
+            bases = (object,)
+            slots = slots + ["__dict__"]
 
         return type(
             name,
-            (object,),
+            bases,
             {
                 "__init__": init,
                 "__slots__": slots,
@@ -247,3 +249,73 @@ class LoadAttrTests(ProfileTest):
                 self.assertEqual(get_attr(o), "another a")
                 self.ModifiedSlotAttr.a = descr_saved
                 self.assertEqual(get_attr(o), 789)
+
+    ModifiedOtherAttr = make_slot_type(
+        "test_modify_other_type_member", "ModifiedOtherAttr", ["foo", "bar"]
+    )
+
+    def test_modify_other_type_member(self):
+        o = self.ModifiedOtherAttr(foo="foo", bar="bar")
+
+        def get_foo(o):
+            return o.foo
+
+        def get_bar(o):
+            return o.bar
+
+        self.assertEqual(get_foo(o), "foo")
+        self.assertEqual(get_bar(o), "bar")
+
+        if TESTING:
+            self.ModifiedOtherAttr.bar = 5
+
+            with self.assertDeopts({}):
+                self.assertEqual(get_foo(o), "foo")
+
+            with self.assertDeopts(
+                {(("reason", "GuardFailure"), ("description", "DeoptPatchpoint")): 1}
+            ):
+                self.assertEqual(get_bar(o), 5)
+
+    class EmptyBase:
+        pass
+
+    FakeSlotType = make_slot_type(
+        "test_fake_slot_type", "FakeSlotType", ["a", "b"], bases=(EmptyBase,)
+    )
+    FakeSlotType.c = FakeSlotType.a
+    OtherFakeSlotType = make_slot_type(
+        "test_fake_slot_type", "OtherFakeSlotType", ["a", "b"], bases=(EmptyBase,)
+    )
+    OtherFakeSlotType.c = OtherFakeSlotType.b
+
+    def test_fake_slot_type(self):
+        """Test __class__ assignment where the new type has a compatible layout but the
+        "slot" we specialized on changed anyway, because it was aliasing a real
+        slot.
+        """
+        o1 = self.FakeSlotType(a="a_1", b="b_1")
+
+        def get_attrs(o, do_assign=False):
+            a = o.a
+            if do_assign:
+                o.__class__ = self.OtherFakeSlotType
+            c = o.c
+            return f"{a}-{c}"
+
+        self.assertEqual(get_attrs(o1), "a_1-a_1")
+
+        if TESTING:
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "DeoptPatchpoint"),
+                        (
+                            "guilty_type",
+                            "test.cinderjit_profile_test:OtherFakeSlotType",
+                        ),
+                    ): 1
+                }
+            ):
+                self.assertEqual(get_attrs(o1, True), "a_1-b_1")

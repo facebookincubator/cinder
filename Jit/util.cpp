@@ -168,4 +168,25 @@ std::string typeFullname(PyTypeObject* type) {
   return type->tp_name;
 }
 
+BorrowedRef<> typeLookupSafe(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> name) {
+  JIT_CHECK(PyUnicode_CheckExact(name), "name must be a str");
+
+  BorrowedRef<PyTupleObject> mro{type->tp_mro};
+  for (size_t i = 0, n = PyTuple_GET_SIZE(mro); i < n; ++i) {
+    BorrowedRef<PyTypeObject> base_ty{PyTuple_GET_ITEM(mro, i)};
+    if (!PyType_HasFeature(base_ty, Py_TPFLAGS_READY) ||
+        _PyDict_HasUnsafeKeys(base_ty->tp_dict)) {
+      // Abort the whole search if any base class dict is poorly-behaved
+      // (before we find the name); it could contain the key we're looking for.
+      return nullptr;
+    }
+    if (BorrowedRef<> value{PyDict_GetItem(base_ty->tp_dict, name)}) {
+      return value;
+    }
+  }
+  return nullptr;
+}
+
 } // namespace jit
