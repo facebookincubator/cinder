@@ -1,12 +1,14 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
+#include "structmember.h"
 #include "type.h"
 
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/runtime.h"
+#include "Jit/type_deopt_patcher.h"
 
 #include <fmt/ostream.h>
 
@@ -680,7 +682,110 @@ Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   return nullptr;
 }
 
-Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
+// Simulate _PyType_Lookup(), but in a way that should avoid any heap mutations
+// (caches, refcount operations, arbitrary code execution).
+//
+// Since this function is very conservative in the operations it will perform,
+// it may return false negatives; a nullptr return does *not* mean that
+// _PyType_Lookup() will also return nullptr. However, a non-nullptr return
+// value should be the same value _PyType_Lookup() would return.
+static BorrowedRef<> typeLookupSafe(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> name) {
+  JIT_CHECK(PyUnicode_CheckExact(name), "name must be a str");
+
+  BorrowedRef<PyTupleObject> mro{type->tp_mro};
+  for (size_t i = 0, n = PyTuple_GET_SIZE(mro); i < n; ++i) {
+    BorrowedRef<PyTypeObject> base_ty{PyTuple_GET_ITEM(mro, i)};
+    if (!PyType_HasFeature(base_ty, Py_TPFLAGS_READY) ||
+        _PyDict_HasUnsafeKeys(base_ty->tp_dict)) {
+      // Abort the whole search if any base class dict is poorly-behaved
+      // (before we find the name); it could contain the key we're looking for.
+      return nullptr;
+    }
+    if (BorrowedRef<> value{PyDict_GetItem(base_ty->tp_dict, name)}) {
+      return value;
+    }
+  }
+  return nullptr;
+}
+
+// Attempt to handle LoadAttr cases that involve a descriptor. For now, this
+// only handles certain PyMemberDescrs, but it will be extended to include
+// other cases in the future.
+Register* simplifyLoadAttrDescriptor(Env& env, const LoadAttr* load_attr) {
+  Register* receiver = load_attr->GetOperand(0);
+  Type ty = receiver->type();
+  BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
+  if (type == nullptr || !ty.isExact()) {
+    return nullptr;
+  }
+  if (!PyType_HasFeature(type, Py_TPFLAGS_READY) ||
+      !PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG) ||
+      type->tp_getattro != PyObject_GenericGetAttr) {
+    return nullptr;
+  }
+  BorrowedRef<> name{PyTuple_GET_ITEM(
+      load_attr->frameState()->code->co_names, load_attr->name_idx())};
+  if (!PyUnicode_CheckExact(name)) {
+    return nullptr;
+  }
+
+  BorrowedRef<> descr{typeLookupSafe(type, name)};
+  if (descr == nullptr) {
+    return nullptr;
+  }
+
+  BorrowedRef<PyTypeObject> descr_type{Py_TYPE(descr)};
+  if (descr_type == &PyMemberDescr_Type) {
+    // PyMemberDescrs are data descriptors, so we don't need to check if the
+    // instance dictionary overrides the descriptor.
+    PyMemberDef* def =
+        reinterpret_cast<PyMemberDescrObject*>(descr.get())->d_member;
+    if (def->flags & READ_RESTRICTED) {
+      // This should be rare and requires raising an audit event; see
+      // Objects/descrobject.c:member_get().
+      return nullptr;
+    }
+
+    if (def->type == T_OBJECT || def->type == T_OBJECT_EX) {
+      const char* name_cstr = PyUnicode_AsUTF8(name);
+      if (name_cstr == nullptr) {
+        PyErr_Clear();
+        name_cstr = "<unknown>";
+      }
+
+      // The descriptor could be from a base type, but PyType_Modified() also
+      // notifies subtypes of the modified type, so we only have to watch the
+      // object's type.
+      env.emit<DeoptPatchpoint>(
+          Runtime::get()->allocateDeoptPatcher<TypeDeoptPatcher>(type));
+      env.emit<UseType>(receiver, ty);
+      Register* field =
+          env.emit<LoadField>(receiver, name_cstr, def->offset, TOptObject);
+      if (def->type == T_OBJECT_EX) {
+        Register* checked =
+            env.emit<CheckField>(field, name, *load_attr->frameState());
+        static_cast<CheckField*>(checked->instr())->setGuiltyReg(receiver);
+        return checked;
+      }
+
+      return env.emitCond(
+          [&](BasicBlock* bb1, BasicBlock* bb2) {
+            env.emit<CondBranch>(field, bb1, bb2);
+          },
+          [&] { // Field is set
+            return env.emit<RefineType>(TObject, field);
+          },
+          [&] { // Field is nullptr
+            return env.emit<LoadConst>(TNoneType);
+          });
+    }
+  }
+  return nullptr;
+}
+
+Register* simplifyLoadAttrTypeReceiver(Env& env, const LoadAttr* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   if (!receiver->isA(TType)) {
     return nullptr;
@@ -703,6 +808,16 @@ Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
         return env.emit<FillTypeAttrCache>(
             receiver, name_idx, cache_id, *load_attr->frameState());
       });
+}
+
+Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
+  if (Register* reg = simplifyLoadAttrDescriptor(env, load_attr)) {
+    return reg;
+  }
+  if (Register* reg = simplifyLoadAttrTypeReceiver(env, load_attr)) {
+    return reg;
+  }
+  return nullptr;
 }
 
 // If we're loading ob_fval from a known float into a double, this can be

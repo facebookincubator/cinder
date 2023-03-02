@@ -1814,6 +1814,9 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
   if (jit_ctx) {
     _PyJITContext_TypeModified(jit_ctx, type);
   }
+  if (auto rt = Runtime::getUnchecked()) {
+    rt->notifyTypeModified(type);
+  }
   jit::notifyICsTypeChanged(type);
 }
 
@@ -1821,6 +1824,9 @@ void _PyJIT_TypeNameModified(PyTypeObject* type) {
   // We assume that this is a very rare case, and simply give up on tracking
   // the type if it happens.
   unregisterProfiledType(type);
+  if (auto rt = Runtime::getUnchecked()) {
+    rt->notifyTypeModified(type);
+  }
 }
 
 void _PyJIT_TypeDestroyed(PyTypeObject* type) {
@@ -1828,6 +1834,9 @@ void _PyJIT_TypeDestroyed(PyTypeObject* type) {
     _PyJITContext_TypeDestroyed(jit_ctx, type);
   }
   unregisterProfiledType(type);
+  if (auto rt = Runtime::getUnchecked()) {
+    rt->notifyTypeDestroyed(type);
+  }
 }
 
 void _PyJIT_FuncModified(PyFunctionObject* func) {

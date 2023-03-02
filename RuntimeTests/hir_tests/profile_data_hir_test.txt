@@ -219,3 +219,64 @@ fun jittestmodule:test {
   }
 }
 ---
+SpecializeLoadAttrFromSlot
+---
+class Point:
+  def __init__(self, x, y):
+    self.x = x
+    self.y = y
+
+  __slots__ = ("x", "y")
+
+def test(p):
+  return p.x + p.y
+
+test(Point(1, 2))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:Object = LoadArg<0; "p">
+    v6:ObjectUser[Point:Exact] = GuardType<ObjectUser[Point:Exact]> v4 {
+      GuiltyReg v4
+    }
+    DeoptPatchpoint<0xdeadbeef> {
+    }
+    UseType<ObjectUser[Point:Exact]> v6
+    v14:OptObject = LoadField<x@16, OptObject, borrowed> v6
+    v15:Object = CheckField<"x"> v14 {
+      GuiltyReg v6
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v6
+      }
+    }
+    DeoptPatchpoint<0xdeadbeef> {
+    }
+    UseType<ObjectUser[Point:Exact]> v6
+    v16:OptObject = LoadField<y@24, OptObject, borrowed> v6
+    v17:Object = CheckField<"y"> v16 {
+      GuiltyReg v6
+      FrameState {
+        NextInstrOffset 8
+        Locals<1> v6
+        Stack<1> v15
+      }
+    }
+    v11:LongExact = GuardType<LongExact> v15 {
+      GuiltyReg v15
+    }
+    v12:LongExact = GuardType<LongExact> v17 {
+      GuiltyReg v17
+    }
+    UseType<LongExact> v11
+    UseType<LongExact> v12
+    v18:LongExact = LongBinaryOp<Add> v11 v12 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v6
+      }
+    }
+    Return v18
+  }
+}
+---

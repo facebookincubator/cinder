@@ -152,3 +152,98 @@ class GetProfilesTests(ProfileTest):
                 break
         else:
             self.fail("Didn't find expected profile hit in results")
+
+
+class LoadAttrTests(ProfileTest):
+    def make_slot_type(caller_name, name, slots):
+        def init(self, **kwargs):
+            for key, val in kwargs.items():
+                setattr(self, key, val)
+
+        slots = slots + ["__dict__"]
+
+        return type(
+            name,
+            (object,),
+            {
+                "__init__": init,
+                "__slots__": slots,
+                "__qualname__": f"LoadAttrTests.{caller_name}.<locals>.{name}",
+            },
+        )
+
+    BasicSlotAttr = make_slot_type("test_load_from_slot", "BasicSlotAttr", ["b", "c"])
+    OtherSlotAttr = make_slot_type(
+        "test_load_attr_from_slot", "OtherSlotAttr", ["a", "b", "c", "d"]
+    )
+
+    def test_load_attr_from_slot(self):
+        def get_a(o):
+            return o.a
+
+        def get_b(o):
+            return o.b
+
+        def get_c(o):
+            return o.c
+
+        def get_d(o):
+            return o.d
+
+        o1 = self.BasicSlotAttr(b="bee", c="see")
+
+        self.assertEqual(get_b(o1), "bee")
+        self.assertEqual(get_c(o1), "see")
+
+        if TESTING:
+            with self.assertDeopts({}):
+                self.assertEqual(get_b(o1), "bee")
+                self.assertEqual(get_c(o1), "see")
+
+            # Make sure get_b() and get_c() still behave correctly when given
+            # a type not seen during profiling, with a different layout.
+            o2 = self.OtherSlotAttr(a="aaa", b="bbb", c="ccc", d="ddd")
+            with self.assertDeopts(
+                {(("reason", "GuardFailure"), ("description", "GuardType")): 2}
+            ):
+                self.assertEqual(get_a(o2), "aaa")
+                self.assertEqual(get_b(o2), "bbb")
+                self.assertEqual(get_c(o2), "ccc")
+                self.assertEqual(get_d(o2), "ddd")
+
+    ModifiedSlotAttr = make_slot_type(
+        "test_modify_type_and_load_attr_from_slot", "ModifiedSlotAttr", ["a", "b"]
+    )
+
+    def test_modify_type_and_load_attr_from_slot(self):
+        o = self.ModifiedSlotAttr(a=123, b=456)
+        o.__dict__ = {"a": "shadowed a"}
+        self.assertEqual(o.a, 123)
+
+        def get_attr(o):
+            return o.a
+
+        self.assertEqual(get_attr(o), 123)
+
+        if TESTING:
+            with self.assertDeopts({}):
+                self.assertEqual(get_attr(o), 123)
+                o.a = 789
+                self.assertEqual(get_attr(o), 789)
+
+            descr_saved = self.ModifiedSlotAttr.a
+            del self.ModifiedSlotAttr.a
+
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "DeoptPatchpoint"),
+                    ): 3,
+                }
+            ):
+                self.assertEqual(get_attr(o), "shadowed a")
+                o.a = "another a"
+                self.assertEqual(get_attr(o), "another a")
+                self.ModifiedSlotAttr.a = descr_saved
+                self.assertEqual(get_attr(o), 789)

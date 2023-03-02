@@ -26,6 +26,7 @@
 namespace jit {
 
 class GenYieldPoint;
+class DeoptPatcher;
 
 // In a regular JIT function spill-data is stored at negative offsets from RBP
 // and RBP points into the system stack. In JIT generators spilled data is still
@@ -306,6 +307,11 @@ class Runtime {
     return s_runtime_;
   }
 
+  // Return the singleton Runtime, if it exists.
+  static Runtime* getUnchecked() {
+    return s_runtime_;
+  }
+
   // Destroy the singleton Runtime, performing any related cleanup as needed.
   static void shutdown();
 
@@ -431,6 +437,13 @@ class Runtime {
     return symbolizer_.symbolize(func);
   }
 
+  // When type is modified, call patcher->patch().
+  void watchType(BorrowedRef<PyTypeObject> type, DeoptPatcher* patcher);
+
+  // Callbacks for when types are modified or destroyed.
+  void notifyTypeModified(BorrowedRef<PyTypeObject> type);
+  void notifyTypeDestroyed(BorrowedRef<PyTypeObject> type);
+
  private:
   static Runtime* s_runtime_;
 
@@ -461,6 +474,9 @@ class Runtime {
   std::vector<std::unique_ptr<DeoptPatcher>> deopt_patchers_;
   Builtins builtins_;
   Symbolizer symbolizer_;
+
+  std::unordered_map<BorrowedRef<PyTypeObject>, std::vector<DeoptPatcher*>>
+      type_deopt_patchers_;
 };
 
 // Symbolize and demangle the given function.

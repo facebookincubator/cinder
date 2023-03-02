@@ -4,6 +4,8 @@
 
 #include "internal/pycore_interp.h"
 
+#include "Jit/deopt_patcher.h"
+
 #include <sys/mman.h>
 
 #include <memory>
@@ -316,6 +318,27 @@ std::optional<std::string> symbolize(const void* func) {
     return std::nullopt;
   }
   return jit::demangle(std::string{*mangled_name});
+}
+
+void Runtime::watchType(BorrowedRef<PyTypeObject> type, DeoptPatcher* patcher) {
+  type_deopt_patchers_[type].emplace_back(patcher);
+}
+
+void Runtime::notifyTypeModified(BorrowedRef<PyTypeObject> type) {
+  auto it = type_deopt_patchers_.find(type);
+  if (it == type_deopt_patchers_.end()) {
+    return;
+  }
+  for (DeoptPatcher* patcher : it->second) {
+    patcher->patch();
+  }
+  type_deopt_patchers_.erase(it);
+}
+
+void Runtime::notifyTypeDestroyed(BorrowedRef<PyTypeObject> type) {
+  // We want to do the same thing as when a type is modified: patch any
+  // relevant code and erase references to this type.
+  notifyTypeModified(type);
 }
 
 } // namespace jit

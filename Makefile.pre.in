@@ -484,6 +484,7 @@ JIT_OBJS=       \
 		Jit/runtime_support.o \
 		Jit/strobelight_exports.o \
 		Jit/symbolizer.o \
+		Jit/type_deopt_patcher.o \
 		Jit/type_profiler.o \
 		Jit/util.o \
 		Jit/codegen/annotations.o \
@@ -1341,6 +1342,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/stack.h \
 		$(srcdir)/Jit/strobelight_exports.h \
 		$(srcdir)/Jit/symbolizer.h \
+		$(srcdir)/Jit/type_deopt_patcher.h \
 		$(srcdir)/Jit/type_profiler.h \
 		$(srcdir)/Jit/util.h \
 		$(srcdir)/Jit/codegen/annotations.h \
