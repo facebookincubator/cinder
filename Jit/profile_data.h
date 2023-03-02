@@ -9,8 +9,12 @@
 #include <cstdint>
 #include <istream>
 #include <ostream>
+#include <regex>
 
 namespace jit {
+
+// Pattern to strip from filenames while computing CodeKeys.
+extern std::regex profileDataStripPattern;
 
 // Return a crc32 checksum of the bytecode for the given code object.
 uint32_t hashBytecode(PyCodeObject* code);

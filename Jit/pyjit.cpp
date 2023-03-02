@@ -482,6 +482,21 @@ void initFlagProcessor() {
             "Write profiling data to <filename>")
         .withFlagParamName("filename");
 
+    xarg_flag_processor
+        .addOption(
+            "jit-profile-strip-pattern",
+            "PYTHONJITPROFILESTRIPPATTERN",
+            [](const std::string& pattern) {
+              try {
+                profileDataStripPattern = pattern;
+              } catch (const std::regex_error& ree) {
+                JIT_LOG(
+                    "Bad profile strip pattern '%s': %s", pattern, ree.what());
+              }
+            },
+            "Strip the given regex from file paths when computing code keys")
+        .withFlagParamName("pattern");
+
     xarg_flag_processor.addOption(
         "jit-profile-interp",
         "PYTHONJITPROFILEINTERP",

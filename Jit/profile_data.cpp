@@ -17,6 +17,8 @@
 
 namespace jit {
 
+std::regex profileDataStripPattern;
+
 uint32_t hashBytecode(PyCodeObject* code) {
   uint32_t crc = crc32(0, nullptr, 0);
   BorrowedRef<> bc = code->co_code;
@@ -348,7 +350,8 @@ PolymorphicTypes getProfiledTypes(
 }
 
 std::string codeKey(PyCodeObject* code) {
-  const std::string filename = unicodeAsString(code->co_filename);
+  const std::string filename = std::regex_replace(
+      unicodeAsString(code->co_filename), profileDataStripPattern, "");
   const int firstlineno = code->co_firstlineno;
   const std::string qualname = codeQualname(code);
   uint32_t hash = hashBytecode(code);

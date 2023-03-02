@@ -784,6 +784,10 @@ void HIRBuilder::translate(
   std::unordered_set<BasicBlock*> loop_headers;
 
   const CodeProfileData* profile_data = getProfileData(tc.frame.code);
+  JIT_DLOG(
+      "Found types for %d locations within %s.",
+      profile_data ? profile_data->size() : 0,
+      irfunc.fullname);
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());
