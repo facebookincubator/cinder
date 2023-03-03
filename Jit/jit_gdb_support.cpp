@@ -171,8 +171,8 @@ int register_pycode_debug_symbol(
     return 1;
   }
 
-  int code_size = compiled_func->GetCodeSize();
-  int stack_size = compiled_func->GetStackSize();
+  int code_size = compiled_func->codeSize();
+  int stack_size = compiled_func->stackSize();
   auto code = reinterpret_cast<void*>(compiled_func->vectorcallEntry());
   if (code_size < 1) {
     JIT_DLOG(

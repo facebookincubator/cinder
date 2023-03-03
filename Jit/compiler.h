@@ -45,28 +45,27 @@ class CompiledFunction {
     return static_entry_;
   }
 
-  PyObject* Invoke(PyObject* func, PyObject** args, Py_ssize_t nargs) const {
+  PyObject* invoke(PyObject* func, PyObject** args, Py_ssize_t nargs) const {
     return vectorcall_entry_(func, args, nargs, NULL);
   }
 
-  virtual void PrintHIR() const;
-  virtual void Disassemble() const;
+  virtual void printHIR() const;
+  virtual void disassemble() const;
 
   CodeRuntime* codeRuntime() const {
     return code_runtime_;
   }
 
-  int GetCodeSize() const {
+  int codeSize() const {
     return code_size_;
   }
-  int GetStackSize() const {
+  int stackSize() const {
     return stack_size_;
   }
-  int GetSpillStackSize() const {
+  int spillStackSize() const {
     return spill_stack_size_;
   }
-  const jit::hir::Function::InlineFunctionStats& GetInlinedFunctionsStats()
-      const {
+  const jit::hir::Function::InlineFunctionStats& inlinedFunctionsStats() const {
     return inline_function_stats_;
   }
 
@@ -107,8 +106,8 @@ class CompiledFunctionDebug : public CompiledFunction {
         irfunc_(std::move(irfunc)),
         ngen_(std::move(ngen)) {}
 
-  void Disassemble() const override;
-  void PrintHIR() const override;
+  void disassemble() const override;
+  void printHIR() const override;
 
  private:
   std::unique_ptr<hir::Function> irfunc_;

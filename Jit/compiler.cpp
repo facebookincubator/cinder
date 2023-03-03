@@ -23,22 +23,22 @@ namespace jit {
 
 ThreadedCompileContext g_threaded_compile_context;
 
-void CompiledFunction::Disassemble() const {
-  JIT_CHECK(false, "Disassemble() cannot be called in a release build.");
+void CompiledFunction::disassemble() const {
+  JIT_CHECK(false, "disassemble() cannot be called in a release build.");
 }
 
-void CompiledFunction::PrintHIR() const {
-  JIT_CHECK(false, "PrintHIR() cannot be called in a release build.");
+void CompiledFunction::printHIR() const {
+  JIT_CHECK(false, "printHIR() cannot be called in a release build.");
 }
 
-void CompiledFunctionDebug::Disassemble() const {
-  disassemble(
+void CompiledFunctionDebug::disassemble() const {
+  jit::disassemble(
       reinterpret_cast<const char*>(vectorcallEntry()),
-      GetCodeSize(),
+      codeSize(),
       reinterpret_cast<vma_t>(vectorcallEntry()));
 }
 
-void CompiledFunctionDebug::PrintHIR() const {
+void CompiledFunctionDebug::printHIR() const {
   jit::hir::HIRPrinter printer;
   printer.Print(*irfunc_.get());
 }

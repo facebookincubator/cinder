@@ -93,14 +93,14 @@ def func():
   bool did_deopt = false;
   auto callback = [&did_deopt](const jit::DeoptMetadata&) { did_deopt = true; };
   jit_rt->setGuardFailureCallback(callback);
-  auto res = Ref<>::steal(jitfunc->Invoke(pyfunc, nullptr, 0));
+  auto res = Ref<>::steal(jitfunc->invoke(pyfunc, nullptr, 0));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 314159);
   EXPECT_FALSE(did_deopt);
 
   // Patch and verify that a deopt occurred
   patcher->patch();
-  auto res2 = Ref<>::steal(jitfunc->Invoke(pyfunc, nullptr, 0));
+  auto res2 = Ref<>::steal(jitfunc->invoke(pyfunc, nullptr, 0));
   jit_rt->clearGuardFailureCallback();
   ASSERT_NE(res2, nullptr);
   ASSERT_EQ(PyLong_AsLong(res2), 314159);

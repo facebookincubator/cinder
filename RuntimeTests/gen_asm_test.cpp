@@ -42,7 +42,7 @@ def func():
   ASSERT_NE(compiled, nullptr);
 
   PyObject* args[] = {};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 0));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 0));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 314159);
 }
@@ -65,7 +65,7 @@ def func2(x):
   auto arg0 = Ref<>::steal(PyLong_FromLong(16));
   ASSERT_NE(arg0, nullptr);
   PyObject* args[] = {arg0};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res), 1);
 }
@@ -87,13 +87,13 @@ def func2(x):
   auto arg0 = Ref<>::steal(PyLong_FromLong(16));
   ASSERT_NE(arg0, nullptr);
   PyObject* args[] = {arg0};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res), 1);
 
   auto arg1 = Ref<>::steal(PyLong_FromLong(0));
   args[0] = arg1;
-  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res2 = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res2, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res2), 0);
 }
@@ -117,7 +117,7 @@ def test(x):
   ASSERT_NE(arg, nullptr);
 
   PyObject* args[] = {arg.get()};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_EQ(res, nullptr);
 
   PyObject *etyp, *eval, *etb;
@@ -166,7 +166,7 @@ def test(x):
   ASSERT_NE(arg, nullptr);
 
   PyObject* args[] = {arg};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   EXPECT_EQ(PyLong_AsLong(res), 1);
 }
@@ -186,7 +186,7 @@ def test(x):
   auto arg0 = Ref<>::steal(PyLong_FromLong(16));
   ASSERT_NE(arg0, nullptr);
   PyObject* args[] = {arg0};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 1);
 }
@@ -208,7 +208,7 @@ def test(x):
   ASSERT_NE(arg, nullptr);
 
   PyObject* args[] = {arg};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_EQ(res, nullptr);
 
   PyObject *etyp, *eval, *etb;
@@ -259,7 +259,7 @@ def test(x):
   ASSERT_NE(compiled, nullptr);
 
   PyObject* args[] = {klass};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
 
   auto val = Ref<>::steal(PyObject_GetAttrString(klass, "foo"));
@@ -283,14 +283,14 @@ def test(a, b):
   auto arg0 = Ref<>::steal(PyLong_FromLong(16));
   auto arg1 = Ref<>::steal(PyLong_FromLong(32));
   PyObject* args[] = {arg0, arg1};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res), 0);
 
   auto arg2 = Ref<>::steal(PyLong_FromLong(0));
   args[0] = arg2;
   args[1] = arg2;
-  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res2 = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
   ASSERT_NE(res2, nullptr);
   ASSERT_EQ(PyObject_IsTrue(res2), 1);
 }
@@ -308,7 +308,7 @@ def test():
   ASSERT_NE(compiled, nullptr);
 
   PyObject* args[] = {};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 0));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 0));
   ASSERT_NE(res, nullptr);
 
   PyObject* globals = PyFunction_GetGlobals(pyfunc);
@@ -342,7 +342,7 @@ def test(x):
   ASSERT_NE(arg.get(), nullptr);
 
   PyObject* args[] = {arg};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_Check(res.get()));
@@ -365,7 +365,7 @@ def test(l):
   ASSERT_NE(arg.get(), nullptr);
 
   PyObject* args[] = {arg};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_EQ(PyList_Size(arg), 1);
@@ -392,12 +392,12 @@ def test(a, b, c=100):
   auto two = Ref<>::steal(PyLong_FromLong(2));
   auto three = Ref<>::steal(PyLong_FromLong(3));
   PyObject* args[] = {one, two, three};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_EQ(PyLong_AsLong(res.get()), 103);
 
-  auto res2 = Ref<>::steal(compiled->Invoke(pyfunc, args, 3));
+  auto res2 = Ref<>::steal(compiled->invoke(pyfunc, args, 3));
   ASSERT_NE(res2.get(), nullptr);
   ASSERT_EQ(PyLong_AsLong(res2.get()), 6);
 }
@@ -452,7 +452,7 @@ def test(f):
   ASSERT_NE(compiled, nullptr);
 
   PyObject* args[] = {oracle};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_Check(res.get()));
@@ -479,7 +479,7 @@ def test(f):
   ASSERT_NE(compiled, nullptr);
 
   PyObject* args[] = {klass};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_EQ(PyObject_IsInstance(res, klass), 1);
@@ -504,7 +504,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -530,7 +530,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -556,7 +556,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyFloat_CheckExact(res.get()));
@@ -582,7 +582,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -608,7 +608,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -634,7 +634,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -660,7 +660,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -684,7 +684,7 @@ def test(x):
   ASSERT_NE(arg1.get(), nullptr);
 
   PyObject* args[] = {arg1};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -710,7 +710,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -736,7 +736,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyFloat_CheckExact(res.get()));
@@ -762,7 +762,7 @@ def test(a, b):
   ASSERT_NE(arg2.get(), nullptr);
 
   PyObject* args[] = {arg1, arg2};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_NE(res.get(), nullptr);
   ASSERT_TRUE(PyLong_CheckExact(res.get()));
@@ -793,7 +793,7 @@ def test(x, y):
   ASSERT_NE(arg2, nullptr);
 
   PyObject* args[] = {arg1.get(), arg2.get()};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
   ASSERT_EQ(res, nullptr);
 
   PyObject *etyp, *eval, *etb;
@@ -843,7 +843,7 @@ def test_list(a):
     ASSERT_NE(compiled, nullptr);
 
     PyObject* args[] = {three.get()};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_NE(res.get(), nullptr);
     ASSERT_EQ(PyTuple_GetItem(res.get(), 0), args[0]);
@@ -859,7 +859,7 @@ def test_list(a):
     ASSERT_NE(compiled, nullptr);
 
     PyObject* args[] = {three.get()};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_NE(res.get(), nullptr);
     ASSERT_EQ(PyList_GetItem(res.get(), 0), args[0]);
@@ -880,7 +880,7 @@ UnaryTest(ASMGeneratorTest* test, const char* pycode, int inp, int expected) {
     PyObject* args[] = {
         arg,
     };
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_NE(res.get(), nullptr);
     ASSERT_EQ(PyLong_AsLong(res.get()), expected);
@@ -890,7 +890,7 @@ UnaryTest(ASMGeneratorTest* test, const char* pycode, int inp, int expected) {
     PyObject* args[] = {
         arg,
     };
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_EQ(res, nullptr);
 
@@ -920,7 +920,7 @@ def test(a):
   {
     auto one = Ref<>::steal(PyLong_FromLong(1));
     PyObject* args[] = {one.get()};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_EQ(res.get(), Py_False);
   }
@@ -928,7 +928,7 @@ def test(a):
   {
     auto zero = Ref<>::steal(PyLong_FromLong(0));
     PyObject* args[] = {zero.get()};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
 
     ASSERT_EQ(res.get(), Py_True);
   }
@@ -980,7 +980,7 @@ def test(c, s, v):
   // Success case
   {
     PyObject* args[] = {dict, one, two};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 3));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 3));
 
     ASSERT_EQ(res.get(), Py_None);
     ASSERT_EQ(PyDict_Size(dict), 1);
@@ -989,7 +989,7 @@ def test(c, s, v):
   // Error case
   {
     PyObject* args[] = {one, dict, two};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 3));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 3));
     ASSERT_EQ(res.get(), nullptr);
 
     PyObject *etyp, *eval, *etb;
@@ -1019,14 +1019,14 @@ static void InPlaceOpTest(
     auto aval = Ref<>::steal(PyLong_FromLong(a));
     auto bval = Ref<>::steal(PyLong_FromLong(b));
     PyObject* args[] = {aval, bval};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
     ASSERT_NE(res.get(), nullptr);
     ASSERT_EQ(PyLong_AsLong(res.get()), expected);
   }
   {
     PyObject* args[] = {Py_None, Py_None};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
     ASSERT_EQ(res, nullptr);
 
@@ -1104,7 +1104,7 @@ def test(a, b):
   auto compiled = GenerateCode(pyfunc);
 
   PyObject* args[] = {Py_None, Py_None};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
   ASSERT_EQ(res, nullptr);
 
@@ -1184,14 +1184,14 @@ def test(a, b):
     auto aval = Ref<>::steal(PyLong_FromLong(1));
     auto bval = Ref<>::steal(PyLong_FromLong(2));
     PyObject* args[] = {aval, bval};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
     ASSERT_NE(res.get(), nullptr);
     ASSERT_EQ(PyFloat_AsDouble(res.get()), 0.5);
   }
   {
     PyObject* args[] = {Py_None, Py_None};
-    auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+    auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
 
     ASSERT_EQ(res, nullptr);
 
@@ -1228,7 +1228,7 @@ def test():
   auto compiled = GenerateCode(pyfunc);
 
   PyObject* args[] = {};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 0));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 0));
 
   ASSERT_EQ(res, nullptr);
 
@@ -1265,7 +1265,7 @@ def test(a, func):
   auto aval = Ref<>::steal(PyLong_FromLong(1));
 
   PyObject* args[] = {aval, f};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
   ASSERT_EQ(PyLong_AsLong(res), 20);
 }
 
@@ -1306,13 +1306,13 @@ def test_override_builtin_import(locals):
   // Without locals() call
   auto locals = Ref<>::steal(PyUnicode_FromString("locals"));
   PyObject* args[] = {Py_False};
-  auto res = Ref<>::steal(compiled_func->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled_func->invoke(pyfunc, args, 1));
   EXPECT_EQ(res.get(), Py_True)
       << "Failed to run test_override_builtin_import(False)";
 
   // With locals() call
   PyObject* args1[] = {PyDict_GetItem(PyEval_GetBuiltins(), locals)};
-  auto res1 = Ref<>::steal(compiled_func->Invoke(pyfunc, args1, 1));
+  auto res1 = Ref<>::steal(compiled_func->invoke(pyfunc, args1, 1));
   EXPECT_EQ(res1.get(), Py_True)
       << "Failed to run test_override_builtin_import(True)";
 }
@@ -1362,7 +1362,7 @@ TEST_F(ASMGeneratorTest, GetLength) {
   PyList_SET_ITEM(arg.get(), 1, PyLong_FromLong(5));
   PyList_SET_ITEM(arg.get(), 2, PyLong_FromLong(6));
   auto args = std::to_array({arg.get()});
-  auto result = Ref<>::steal(compiled->Invoke(func, args.data(), args.size()));
+  auto result = Ref<>::steal(compiled->invoke(func, args.data(), args.size()));
   EXPECT_TRUE(isIntEquals(result, 3));
 }
 
@@ -1388,7 +1388,7 @@ def func(x):
   auto arg0 = Ref<>::steal(PyLong_FromLong(12));
   ASSERT_NE(arg0, nullptr);
   PyObject* args[] = {arg0};
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 1));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 1));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 28);
 }
@@ -1416,7 +1416,7 @@ def func(a, b):
   ASSERT_NE(arg0, nullptr);
   PyObject* args[] = {arg0, arg1};
 
-  auto res = Ref<>::steal(compiled->Invoke(pyfunc, args, 2));
+  auto res = Ref<>::steal(compiled->invoke(pyfunc, args, 2));
   ASSERT_NE(res, nullptr);
   ASSERT_EQ(PyLong_AsLong(res), 106);
 }

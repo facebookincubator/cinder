@@ -243,7 +243,7 @@ int _PyJITContext_GetCodeSize(
     return -1;
   }
 
-  int size = jitfunc->GetCodeSize();
+  int size = jitfunc->codeSize();
   return size;
 }
 
@@ -255,7 +255,7 @@ int _PyJITContext_GetStackSize(
     return -1;
   }
 
-  return jitfunc->GetStackSize();
+  return jitfunc->stackSize();
 }
 
 int _PyJITContext_GetSpillStackSize(
@@ -266,7 +266,7 @@ int _PyJITContext_GetSpillStackSize(
     return -1;
   }
 
-  return jitfunc->GetSpillStackSize();
+  return jitfunc->spillStackSize();
 }
 
 // TODO(T142228417): Deprecate this once callsites have been updated to use
@@ -278,7 +278,7 @@ int _PyJITContext_GetNumInlinedFunctions(
   if (jitfunc == nullptr) {
     return -1;
   }
-  return jitfunc->GetInlinedFunctionsStats().num_inlined_functions;
+  return jitfunc->inlinedFunctionsStats().num_inlined_functions;
 }
 
 PyObject* _PyJITContext_GetInlinedFunctionsStats(
@@ -288,7 +288,7 @@ PyObject* _PyJITContext_GetInlinedFunctionsStats(
   if (jitfunc == nullptr) {
     return nullptr;
   }
-  auto stats = jitfunc->GetInlinedFunctionsStats();
+  auto stats = jitfunc->inlinedFunctionsStats();
   auto py_stats = Ref<>::steal(PyDict_New());
   if (py_stats == nullptr) {
     return nullptr;
@@ -354,7 +354,7 @@ int _PyJITContext_PrintHIR(
   if (jit_func == nullptr) {
     return -1;
   }
-  jit_func->PrintHIR();
+  jit_func->printHIR();
 
   return 0;
 }
@@ -366,7 +366,7 @@ int _PyJITContext_Disassemble(
   if (jit_func == nullptr) {
     return -1;
   }
-  jit_func->Disassemble();
+  jit_func->disassemble();
 
   return 0;
 }
