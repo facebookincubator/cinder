@@ -785,7 +785,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         finally:
             self.visiting_assignment_target = prev
 
-    def visitNamedExpr(self, node: ast.NamedExpr) -> None:
+    def visitNamedExpr(
+        self, node: ast.NamedExpr, type_ctx: Optional[Class] = None
+    ) -> None:
         target = node.target
         with self.in_target():
             self.visit(target)
@@ -793,7 +795,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.visit(node.value, target_type)
         value_type = self.get_type(node.value)
         self.assign_value(target, value_type)
-        self.set_type(node, target_type)
+        self.set_type(node, self.get_type(target))
 
     def visitAssign(self, node: Assign) -> None:
         # Sometimes, we need to propagate types from the target to the value to allow primitives to be handled

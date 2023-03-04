@@ -54,3 +54,35 @@ class WalrusOperatorTests(StaticTestBase):
         """
         with self.assertRaisesRegex(TypedSyntaxError, r"Literal\[1\]"):
             self.compile(codestr)
+
+    def test_walrus_operator_with_ctx(self):
+        codestr = """
+        from typing import Final
+
+        def fn() -> None:
+            x: int = not(b := 2 - 1)
+            reveal_type(b)
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, r"Literal\[1\]"):
+            self.compile(codestr)
+
+    def test_walrus_operator_post_type(self):
+        codestr = """
+        from typing import Final
+
+        def fn() -> None:
+            return (b:= 2)
+        """
+        with self.assertRaisesRegex(TypedSyntaxError, r"return type must be None, not"):
+            self.compile(codestr)
+
+    def test_walrus_operator_post_type_primitive(self):
+        codestr = """
+        from __static__ import int64
+
+        def fn() -> int64:
+            b: int64
+            return (b:= 2)
+        """
+        with self.in_module(codestr) as mod:
+            self.assertEqual(mod.fn(), 2)
