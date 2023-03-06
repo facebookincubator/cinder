@@ -5066,6 +5066,58 @@ static int set_context_thunk(ContextAwareTaskObj *self, PyObject *val)
 }
 
 static PyObject *
+ContextAwareTaskType_vectorcall(PyTypeObject *type, PyObject **args, size_t nargsf, PyObject *kwnames)
+{
+    static const char * const _keywords[] = {"coro", "loop", "name", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "ContextAwareTask", 0};
+
+    PyObject *argsbuf[3];
+    PyObject * const *fastargs;
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
+    PyObject *coro;
+    PyObject *loop = Py_None;
+    PyObject *name = Py_None;
+
+    fastargs = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 1, 0, argsbuf);
+    if (!fastargs) {
+        return NULL;
+    }
+    coro = fastargs[0];
+    switch (noptargs) {
+        case 0: break;
+        case 1: {
+            if (fastargs[1]) {
+                loop = fastargs[1];
+            }
+            else {
+                name = fastargs[2];
+            }
+        }
+        break;
+        case 2: {
+            loop = fastargs[1];
+            name = fastargs[2];
+        }
+        break;
+        default: {
+            Py_UNREACHABLE();
+        }
+        break;
+    }
+    PyObject *self = PyType_GenericNew(type, NULL, NULL);
+    if (self == NULL) {
+        return NULL;
+    }
+    int ok = _asyncio_ContextAwareTask___init___impl((ContextAwareTaskObj *)self, coro, loop, name);
+    if (ok == - 1) {
+        Py_DECREF(self);
+        return NULL;
+    }
+    return self;
+}
+
+static PyObject *
 ContextAwareTask___init_subclass(PyTypeObject *cls,
                                  PyObject *args,
                                  PyObject *kwargs)
@@ -5151,6 +5203,14 @@ ContextAwareTask___init_subclass(PyTypeObject *cls,
         if (PyCapsule_SetPointer(set_context, (void *)set_context_thunk) != 0) {
             return NULL;
         }
+    }
+
+    if (cls->tp_new == PyType_GenericNew &&
+        cls->tp_init == _asyncio_ContextAwareTask___init__ &&
+        cls->tp_vectorcall == NULL &&
+        cls->tp_call == NULL) {
+        cls->tp_vectorcall = (vectorcallfunc)ContextAwareTaskType_vectorcall;
+        cls->tp_call = PyVectorcall_Call;
     }
 
     Py_RETURN_NONE;
@@ -7533,7 +7593,8 @@ _asyncio_gather_impl(PyObject *const*args,
                           loop,
                           return_exceptions,
                           assume_no_duplicates,
-                          Ci_Py_AWAITED_CALL(nargsf) != 0);}
+                          Ci_Py_AWAITED_CALL(nargsf) != 0);
+}
 
 static PyObject *
 _asyncio_gather(PyObject *Py_UNUSED(module),
