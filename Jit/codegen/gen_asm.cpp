@@ -496,7 +496,6 @@ void NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   //  - N       - A fixed number of words > 1
   //  - *       - 0 or more words
   //  - ?       - 0 or 1 words
-  //  - ^       - shares the space with the item above
   //
   // +-----------------------+
   // | * memory arguments    |
@@ -510,8 +509,7 @@ void NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   // | * spilled values      |
   // | ? alignment padding   |
   // | * callee-saved regs   |
-  // | ? call arg buffer     |
-  // | ^ LOAD_METHOD scratch | <-- rsp
+  // | ? call arg buffer     | <-- rsp
   // +-----------------------+
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   int saved_regs_size = saved_regs.count() * 8;
