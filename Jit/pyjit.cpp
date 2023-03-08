@@ -227,7 +227,7 @@ void setJitLogFile(std::string log_filename) {
         marker_pos, std::strlen(kPidMarker), fmt::format("{}", getpid()));
   }
   FILE* file = fopen(pid_filename.c_str(), "w");
-  if (file == NULL) {
+  if (file == nullptr) {
     JIT_LOG(
         "Couldn't open log file %s (%s), logging to stderr",
         pid_filename,
@@ -797,7 +797,7 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
   if (!jit_config.multithreaded_compile_test) {
     PyErr_SetString(
         PyExc_NotImplementedError, "multithreaded_compile_test not enabled");
-    return NULL;
+    return nullptr;
   }
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
@@ -827,12 +827,12 @@ static PyObject*
 disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
   if (nargs > 1) {
     PyErr_SetString(PyExc_TypeError, "disable expects 0 or 1 arg");
-    return NULL;
+    return nullptr;
   } else if (nargs == 1 && !PyBool_Check(args[0])) {
     PyErr_SetString(
         PyExc_TypeError,
         "disable expects bool indicating to compile pending functions");
-    return NULL;
+    return nullptr;
   }
 
   if (nargs == 0 || args[0] == Py_True) {
@@ -866,7 +866,7 @@ static PyObject* get_batch_compilation_time_ms(PyObject*, PyObject*) {
 static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
   if (!PyFunction_Check(func)) {
     PyErr_SetString(PyExc_TypeError, "force_compile expected a function");
-    return NULL;
+    return nullptr;
   }
 
   if (_PyJIT_IsCompiled(func)) {
@@ -878,19 +878,19 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
       Py_RETURN_TRUE;
     case PYJIT_RESULT_CANNOT_SPECIALIZE:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_CANNOT_SPECIALIZE");
-      return NULL;
+      return nullptr;
     case PYJIT_RESULT_RETRY:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_RETRY");
-      return NULL;
+      return nullptr;
     case PYJIT_RESULT_UNKNOWN_ERROR:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_UNKNOWN_ERROR");
-      return NULL;
+      return nullptr;
     case PYJIT_NOT_INITIALIZED:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_NOT_INITIALIZED");
-      return NULL;
+      return nullptr;
   }
   PyErr_SetString(PyExc_RuntimeError, "Unhandled compilation result");
-  return NULL;
+  return nullptr;
 }
 
 int _PyJIT_IsCompiled(PyObject* func) {
@@ -907,7 +907,7 @@ int _PyJIT_IsCompiled(PyObject* func) {
 
 static PyObject* is_jit_compiled(PyObject* /* self */, PyObject* func) {
   int st = _PyJIT_IsCompiled(func);
-  PyObject* res = NULL;
+  PyObject* res = nullptr;
   if (st == 1) {
     res = Py_True;
   } else if (st == 0) {
@@ -920,19 +920,19 @@ static PyObject* is_jit_compiled(PyObject* /* self */, PyObject* func) {
 static PyObject* print_hir(PyObject* /* self */, PyObject* func) {
   if (!PyFunction_Check(func)) {
     PyErr_SetString(PyExc_TypeError, "arg 1 must be a function");
-    return NULL;
+    return nullptr;
   }
 
   int st = _PyJITContext_DidCompile(jit_ctx, func);
   if (st == -1) {
-    return NULL;
+    return nullptr;
   } else if (st == 0) {
     PyErr_SetString(PyExc_ValueError, "function is not jit compiled");
-    return NULL;
+    return nullptr;
   }
 
   if (_PyJITContext_PrintHIR(jit_ctx, func) < 0) {
-    return NULL;
+    return nullptr;
   } else {
     Py_RETURN_NONE;
   }
@@ -941,19 +941,19 @@ static PyObject* print_hir(PyObject* /* self */, PyObject* func) {
 static PyObject* disassemble(PyObject* /* self */, PyObject* func) {
   if (!PyFunction_Check(func)) {
     PyErr_SetString(PyExc_TypeError, "arg 1 must be a function");
-    return NULL;
+    return nullptr;
   }
 
   int st = _PyJITContext_DidCompile(jit_ctx, func);
   if (st == -1) {
-    return NULL;
+    return nullptr;
   } else if (st == 0) {
     PyErr_SetString(PyExc_ValueError, "function is not jit compiled");
-    return NULL;
+    return nullptr;
   }
 
   if (_PyJITContext_Disassemble(jit_ctx, func) < 0) {
-    return NULL;
+    return nullptr;
   } else {
     Py_RETURN_NONE;
   }
@@ -972,8 +972,8 @@ static PyObject* jit_list_append(PyObject* /* self */, PyObject* line) {
   }
   Py_ssize_t line_len;
   const char* line_str = PyUnicode_AsUTF8AndSize(line, &line_len);
-  if (line_str == NULL) {
-    return NULL;
+  if (line_str == nullptr) {
+    return nullptr;
   }
   g_jit_list->parseLine(
       {line_str, static_cast<std::string::size_type>(line_len)});
@@ -1004,14 +1004,14 @@ static PyObject* get_function_compilation_time(
 }
 
 static PyObject* get_inlined_functions_stats(PyObject*, PyObject* func) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     Py_RETURN_NONE;
   }
   return _PyJITContext_GetInlinedFunctionsStats(jit_ctx, func);
 }
 
 static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     return PyLong_FromLong(0);
   }
   int size = _PyJITContext_GetNumInlinedFunctions(jit_ctx, func);
@@ -1019,7 +1019,7 @@ static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
 }
 
 static PyObject* mlock_profiler_dependencies(PyObject* /* self */, PyObject*) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     Py_RETURN_NONE;
   }
   Runtime::get()->mlockProfilerDependencies();
@@ -1033,7 +1033,7 @@ static PyObject* page_in_profiler_dependencies(PyObject*, PyObject*) {
 
 namespace {
 
-// Simple wrapper functions to turn NULL or -1 return values from C-API
+// Simple wrapper functions to turn nullptr or -1 return values from C-API
 // functions into a thrown exception. Meant for repetitive runs of C-API calls
 // and not intended for use in public APIs.
 class CAPIError : public std::exception {};
@@ -1146,7 +1146,7 @@ static PyObject* clear_runtime_stats(PyObject* /* self */, PyObject*) {
 }
 
 static PyObject* get_compiled_size(PyObject* /* self */, PyObject* func) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     return PyLong_FromLong(0);
   }
 
@@ -1156,7 +1156,7 @@ static PyObject* get_compiled_size(PyObject* /* self */, PyObject* func) {
 }
 
 static PyObject* get_compiled_stack_size(PyObject* /* self */, PyObject* func) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     return PyLong_FromLong(0);
   }
 
@@ -1168,7 +1168,7 @@ static PyObject* get_compiled_stack_size(PyObject* /* self */, PyObject* func) {
 static PyObject* get_compiled_spill_stack_size(
     PyObject* /* self */,
     PyObject* func) {
-  if (jit_ctx == NULL) {
+  if (jit_ctx == nullptr) {
     return PyLong_FromLong(0);
   }
 
@@ -1203,7 +1203,7 @@ static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
 static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
   if (!PyFunction_Check(func_obj)) {
     PyErr_SetString(PyExc_TypeError, "Input must be a function");
-    return NULL;
+    return nullptr;
   }
   PyFunctionObject* func = reinterpret_cast<PyFunctionObject*>(func_obj);
 
@@ -1218,32 +1218,32 @@ static PyObject* get_allocator_stats(PyObject*, PyObject*) {
     Py_RETURN_NONE;
   }
   auto stats = Ref<>::steal(PyDict_New());
-  if (stats == NULL) {
-    return NULL;
+  if (stats == nullptr) {
+    return nullptr;
   }
   auto used_bytes =
       Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::usedBytes()));
-  if (used_bytes == NULL ||
+  if (used_bytes == nullptr ||
       PyDict_SetItemString(stats, "used_bytes", used_bytes) < 0) {
-    return NULL;
+    return nullptr;
   }
   auto lost_bytes =
       Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::lostBytes()));
-  if (lost_bytes == NULL ||
+  if (lost_bytes == nullptr ||
       PyDict_SetItemString(stats, "lost_bytes", lost_bytes) < 0) {
-    return NULL;
+    return nullptr;
   }
   auto fragmented_allocs =
       Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::fragmentedAllocs()));
-  if (fragmented_allocs == NULL ||
+  if (fragmented_allocs == nullptr ||
       PyDict_SetItemString(stats, "fragmented_allocs", fragmented_allocs) < 0) {
-    return NULL;
+    return nullptr;
   }
   auto huge_allocs =
       Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::hugeAllocs()));
-  if (huge_allocs == NULL ||
+  if (huge_allocs == nullptr ||
       PyDict_SetItemString(stats, "huge_allocs", huge_allocs) < 0) {
-    return NULL;
+    return nullptr;
   }
   return stats.release();
 }
@@ -1448,7 +1448,7 @@ static PyMethodDef jit_methods[] = {
      "If it is a JIT generator, deopt it, so it will resume in the interpreter "
      "the next time it executes, and return True. Otherwise, return False. "
      "Intended only for use in tests."},
-    {NULL, NULL, 0, NULL},
+    {nullptr, nullptr, 0, nullptr},
 };
 
 static PyModuleDef jit_module = {
@@ -1612,14 +1612,14 @@ int _PyJIT_Initialize() {
   jit_ctx = new _PyJITContext();
 
   PyObject* mod = PyModule_Create(&jit_module);
-  if (mod == NULL) {
+  if (mod == nullptr) {
     return -1;
   }
 
   jit_ctx->cinderjit_module = Ref<PyObject>::steal(mod);
 
   PyObject* modname = PyUnicode_InternFromString("cinderjit");
-  if (modname == NULL) {
+  if (modname == nullptr) {
     return -1;
   }
 
@@ -1983,13 +1983,13 @@ PyObject* _PyJIT_GenSend(
 
   gen_footer->state = Ci_JITGenState_Running;
 
-  // JIT generators use NULL arg to indicate an exception
+  // JIT generators use nullptr arg to indicate an exception
   if (exc) {
     JIT_DCHECK(
         arg == Py_None, "Arg should be None when injecting an exception");
-    arg = NULL;
+    arg = nullptr;
   } else {
-    if (arg == NULL) {
+    if (arg == nullptr) {
       arg = Py_None;
     }
   }
@@ -2051,7 +2051,7 @@ void _PyJIT_GenDealloc(PyGenObject* gen) {
 PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  PyObject* yf = NULL;
+  PyObject* yf = nullptr;
   if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     yf = gen_footer->yieldPoint->yieldFromValue(gen_footer);
     Py_XINCREF(yf);
