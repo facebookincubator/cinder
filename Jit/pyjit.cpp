@@ -251,6 +251,7 @@ static jit::FlagProcessor xarg_flag_processor;
 
 static int use_jit = 0;
 static int jit_help = 0;
+static std::string read_profile_file;
 static std::string write_profile_file;
 static int jit_profile_interp = 0;
 static int jit_profile_interp_period = 1;
@@ -262,6 +263,7 @@ static void warnJITOff(const char* flag) {
 
 void initFlagProcessor() {
   use_jit = 0;
+  read_profile_file = "";
   write_profile_file = "";
   jit_profile_interp = 0;
   jl_fn = "";
@@ -467,10 +469,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-read-profile",
             "PYTHONJITREADPROFILE",
-            [](std::string read_profile_file) {
-              JIT_LOG("Loading profile data from %s", read_profile_file);
-              readProfileData(read_profile_file);
-            },
+            read_profile_file,
             "Load profile data from <filename>")
         .withFlagParamName("filename");
 
@@ -577,7 +576,6 @@ void initFlagProcessor() {
         .withFlagParamName("function_list")
         .withDebugMessageOverride(
             "Will capture time taken in compilation phases and output summary");
-    ;
 
     xarg_flag_processor.addOption(
         "jit-enable-hir-inliner",
@@ -1585,6 +1583,13 @@ int _PyJIT_Initialize() {
     if (!jit_list->parseFile(jl_fn.c_str())) {
       JIT_LOG("Could not parse jit-list, disabling JIT.");
       return 0;
+    }
+  }
+
+  if (!read_profile_file.empty()) {
+    JIT_LOG("Loading profile data from %s", read_profile_file);
+    if (!readProfileData(read_profile_file)) {
+      return -1;
     }
   }
 

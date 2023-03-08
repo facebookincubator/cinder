@@ -536,7 +536,7 @@ TEST_F(CmdLineTest, ReadProfile) {
           },
           false,
           true),
-      0);
+      -2);
 }
 
 TEST_F(CmdLineTest, DisplayHelpMessage) {
