@@ -1,20 +1,17 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 import _testcapi
-import _testcindercapi
 import asyncio
 import builtins
-import re
 import cinder
 import dis
 import faulthandler
 import gc
 import multiprocessing
 import os
+import re
 import subprocess
-from importlib import is_lazy_imports_enabled
 import sys
-from test import cinder_support
 import tempfile
 import textwrap
 import threading
@@ -24,12 +21,15 @@ import warnings
 import weakref
 
 from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_SUPPRESS_JIT
+
+from compiler.static import StaticCodeGenerator
 from contextlib import contextmanager
+from importlib import is_lazy_imports_enabled
 from pathlib import Path
 from textwrap import dedent
 
-
-from compiler.static import StaticCodeGenerator
+import _testcindercapi
+from test import cinder_support
 
 try:
     with warnings.catch_warnings():
@@ -42,7 +42,7 @@ from contextlib import contextmanager
 
 try:
     import cinderjit
-    from cinderjit import jit_suppress, _deopt_gen, is_jit_compiled
+    from cinderjit import _deopt_gen, is_jit_compiled, jit_suppress
 except:
     cinderjit = None
 
@@ -192,7 +192,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
 
     @cinder_support.skipUnlessJITEnabled("Runs a subprocess with the JIT enabled")
     def test_line_numbers_after_jit_disabled(self):
-        code = textwrap.dedent("""
+        code = textwrap.dedent(
+            """
             import cinderjit
             import sys
 
@@ -205,7 +206,8 @@ class GetFrameLineNumberTests(unittest.TestCase):
             assert cinderjit.is_jit_compiled(f)
             cinderjit.disable()
             f()
-        """)
+        """
+        )
         jitlist = "__main__:*\n"
         with tempfile.TemporaryDirectory() as tmp:
             dirpath = Path(tmp)
@@ -274,17 +276,21 @@ def call_get_stack_multi():
     x = 1 + 1
     return get_stack_multi()
 
+
 @cinder_support.failUnlessJITCompiled
 def func_to_be_inlined(x, y):
     return x + y
 
+
 @cinder_support.failUnlessJITCompiled
-def func_with_defaults(x = 1, y = 2):
+def func_with_defaults(x=1, y=2):
     return x + y
+
 
 @cinder_support.failUnlessJITCompiled
 def func_with_varargs(x, *args):
     return x
+
 
 @cinder_support.failUnlessJITCompiled
 def func():
@@ -293,13 +299,16 @@ def func():
     c = func_with_varargs(1, 2, 3)
     return a + b + c
 
+
 @cinder_support.failUnlessJITCompiled
-def func_with_defaults_that_will_change(x = 1, y = 2):
+def func_with_defaults_that_will_change(x=1, y=2):
     return x + y
+
 
 @cinder_support.failUnlessJITCompiled
 def change_defaults():
     func_with_defaults_that_will_change.__defaults__ = (4, 5)
+
 
 @cinder_support.failUnlessJITCompiled
 def func_that_change_defaults():
@@ -314,7 +323,9 @@ class InlinedFunctionTests(unittest.TestCase):
         "meaningless without HIR inliner enabled",
     )
     def test_deopt_when_func_defaults_change(self):
-        self.assertEqual(cinderjit.get_num_inlined_functions(func_that_change_defaults), 2)
+        self.assertEqual(
+            cinderjit.get_num_inlined_functions(func_that_change_defaults), 2
+        )
         self.assertEqual(func_that_change_defaults(), 9)
 
 
@@ -331,15 +342,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_siblings), 2)
         stacks = get_stack_siblings()
         # Call to get_stack
-        self.assertEqual(stacks[0][-1].lineno,
-                firstlineno(get_stack)+3)
-        self.assertEqual(stacks[0][-2].lineno,
-                firstlineno(get_stack_siblings)+2)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(get_stack_siblings) + 2)
         # Call to get_stack2
-        self.assertEqual(stacks[1][-1].lineno,
-                firstlineno(get_stack2)+3)
-        self.assertEqual(stacks[1][-2].lineno,
-                firstlineno(get_stack_siblings)+2)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack2) + 3)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(get_stack_siblings) + 2)
 
     @jit_suppress
     @unittest.skipIf(
@@ -352,14 +359,10 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         # Call to get_stack_multi should be inlined
         self.assertEqual(cinderjit.get_num_inlined_functions(call_get_stack_multi), 1)
         stacks = call_get_stack_multi()
-        self.assertEqual(stacks[0][-1].lineno,
-                firstlineno(get_stack_multi)+3)
-        self.assertEqual(stacks[0][-2].lineno,
-                firstlineno(call_get_stack_multi)+3)
-        self.assertEqual(stacks[1][-1].lineno,
-                firstlineno(get_stack_multi)+5)
-        self.assertEqual(stacks[1][-2].lineno,
-                firstlineno(call_get_stack_multi)+3)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack_multi) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(call_get_stack_multi) + 3)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack_multi) + 5)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(call_get_stack_multi) + 3)
 
     @jit_suppress
     @unittest.skipIf(
@@ -372,11 +375,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(
             {
                 "num_inlined_functions": 2,
-                'failure_stats': {
-                    'HasVarargs': {'test.test_cinderjit:func_with_varargs'}
-                }
+                "failure_stats": {
+                    "HasVarargs": {"test.test_cinderjit:func_with_varargs"}
+                },
             },
-            stats
+            stats,
         )
 
     @jit_suppress
@@ -392,15 +395,11 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
         self.assertEqual(cinderjit.get_num_inlined_functions(get_stack_twice), 2)
         stacks = get_stack_twice()
         # First call to double
-        self.assertEqual(stacks[0][-1].lineno,
-                firstlineno(get_stack)+3)
-        self.assertEqual(stacks[0][-2].lineno,
-                firstlineno(get_stack_twice)+3)
+        self.assertEqual(stacks[0][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[0][-2].lineno, firstlineno(get_stack_twice) + 3)
         # Second call to double
-        self.assertEqual(stacks[1][-1].lineno,
-                firstlineno(get_stack)+3)
-        self.assertEqual(stacks[1][-2].lineno,
-                firstlineno(get_stack_twice)+4)
+        self.assertEqual(stacks[1][-1].lineno, firstlineno(get_stack) + 3)
+        self.assertEqual(stacks[1][-2].lineno, firstlineno(get_stack_twice) + 4)
 
 
 class FaulthandlerTracebackTests(unittest.TestCase):
@@ -425,7 +424,7 @@ class FaulthandlerTracebackTests(unittest.TestCase):
         with tempfile.TemporaryFile() as f:
             self.f1(f.fileno())
             f.seek(0)
-            output = f.read().decode('ascii')
+            output = f.read().decode("ascii")
             lines = output.split("\n")
             self.assertGreaterEqual(len(lines), len(expected) + 1)
             # Ignore first line, which is 'Current thread: ...'
@@ -1273,7 +1272,10 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 sys.modules = _orig_sys_modules
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports enabled")
+    @unittest.skipUnless(
+        is_lazy_imports_enabled(),
+        "Test relevant only when running with lazy imports enabled",
+    )
     def test_preload_side_effect_modifies_globals(self):
         with self.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
@@ -1338,7 +1340,10 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertEqual(relevant_deopts, [])
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports enabled")
+    @unittest.skipUnless(
+        is_lazy_imports_enabled(),
+        "Test relevant only when running with lazy imports enabled",
+    )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with self.temp_sys_path() as tmp:
@@ -1379,7 +1384,10 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(is_lazy_imports_enabled(), "Test relevant only when running with lazy imports enabled")
+    @unittest.skipUnless(
+        is_lazy_imports_enabled(),
+        "Test relevant only when running with lazy imports enabled",
+    )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with self.temp_sys_path() as tmp:
@@ -1702,19 +1710,15 @@ class JITCompileCrasherRegressionTests(StaticTestBase):
         # in non-static code.
         from __static__ import ContextDecorator
 
-
         async def a(child_fut, main_fut, box):
             return await b(child_fut, main_fut, box)
-
 
         async def b(child_fut, main_fut, box):
             return await c(child_fut, main_fut, box)
 
-
         @ContextDecorator()
         async def c(child_fut, main_fut, box):
             return await d(child_fut, main_fut, box)
-
 
         async def d(child_fut, main_fut, box):
             main_fut.set_result(True)
@@ -1724,7 +1728,6 @@ class JITCompileCrasherRegressionTests(StaticTestBase):
                 # force the frame to be materialized
                 box[0].cr_frame
                 raise
-
 
         async def main():
             child_fut = asyncio.Future()
@@ -2774,7 +2777,9 @@ class EagerCoroutineDispatch(StaticTestBase):
                 mod.await_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
             )
             self.assertInBytecode(
-                mod.await_await_x, "INVOKE_FUNCTION", (("test_invoke_function", "await_x"), 0)
+                mod.await_await_x,
+                "INVOKE_FUNCTION",
+                (("test_invoke_function", "await_x"), 0),
             )
             self.assertInBytecode(
                 mod.call_x, "INVOKE_FUNCTION", (("test_invoke_function", "x"), 0)
@@ -3947,15 +3952,19 @@ class GetFrameTests(unittest.TestCase):
         #
         # The test below exercises this scenario.
         thresholds = gc.get_threshold()
+
         @jit_suppress
         def inner():
             w = 1
             x = 2
             y = 3
             z = 4
+
             def f():
                 return w + x + y + z
+
             return 100
+
         # Initialize zombie frame for inner (called by _outer). The zombie
         # frame will be used the next time inner is called. This avoids a
         # trip to the allocator that could trigger GC and materialize the
@@ -4495,7 +4504,6 @@ class MatchTests(unittest.TestCase):
             case _:
                 return False
 
-
     def test_match_sequence(self):
         self.assertTrue(self.match_sequence((1, 2, 3, 7, 8, 9, 4, 5)))
         self.assertFalse(self.match_sequence((1, 2, 3, 4, 5, 6, 7, 8)))
@@ -4504,17 +4512,18 @@ class MatchTests(unittest.TestCase):
     @failUnlessHasOpcodes("MATCH_KEYS", "MATCH_MAPPING")
     def match_keys(self, m: dict) -> bool:
         match m:
-            case {'id': 1}:
+            case {"id": 1}:
                 return True
             case _:
                 return False
 
     def test_match_keys(self):
-        self.assertTrue(self.match_keys({'id': 1}))
-        self.assertFalse(self.match_keys({'id': 2}))
+        self.assertTrue(self.match_keys({"id": 1}))
+        self.assertFalse(self.match_keys({"id": 2}))
 
     class A:
-        __match_args__ = ("id")
+        __match_args__ = "id"
+
         def __init__(self, id):
             self.id = id
 
@@ -4522,7 +4531,7 @@ class MatchTests(unittest.TestCase):
     @failUnlessHasOpcodes("MATCH_CLASS")
     def match_class(self, a: A) -> bool:
         match a:
-            case self.A(id = 2):
+            case self.A(id=2):
                 return True
             case _:
                 return False
@@ -4531,18 +4540,17 @@ class MatchTests(unittest.TestCase):
         self.assertTrue(self.match_class(self.A(2)))
         self.assertFalse(self.match_class(self.A(3)))
 
-
-    class Point():
+    class Point:
         __match_args__ = 123
-        def __init__(self, x, y):
-                self.x = x
-                self.y = y
 
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
 
     @cinder_support.failUnlessJITCompiled
     @failUnlessHasOpcodes("MATCH_CLASS")
     def match_class_exc():
-        x, y = 5 ,5
+        x, y = 5, 5
         point = Point(x, y)
         # will raise because Point.__match_args__ is not a tuple
         match point:
@@ -4597,6 +4605,7 @@ class CopyDictWithoutKeysTest(unittest.TestCase):
         class C:
             x = 1
             y = 2
+
         obj = C.__dict__
         self.assertEqual(obj.__class__.__name__, "mappingproxy")
         result = self.match_keys_and_rest(obj)
@@ -4711,7 +4720,6 @@ def func(callee):
         flags = caller(callee)
         self.assertEqual(flags & flag, flag)
 
-
     def test_merge_compiler_flags(self):
         """Test that PyEval_MergeCompilerFlags retrieves the compiler flags of the
         calling function."""
@@ -4803,7 +4811,7 @@ class LoadMethodEliminationTests(unittest.TestCase):
     def lme_test_func(self, flag=False):
         return "{}{}".format(
             1,
-            '' if not flag else ' flag',
+            "" if not flag else " flag",
         )
 
     def test_multiple_call_method_same_load_method(self):
