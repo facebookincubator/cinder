@@ -934,7 +934,9 @@ class InstrT<T, opc> : public InstrT<T, opc, Instr> {
 //   `create` methods defined below.
 // - Constructors are provided for common arities that expect operands to be
 //   provided and handle setting them on the instruction.
-template <int n = -1>
+constexpr int kVariadic = -1;
+
+template <int n = kVariadic>
 struct Operands;
 
 template <class T, Opcode opcode, int arity, typename... Tys>
@@ -956,8 +958,9 @@ class InstrT<T, opcode, Operands<arity>, Tys...>
   // Usage:
   //   auto instr = T::create(<num_operands>, <args for T's constructor>);
   template <typename... Args, class T1 = T>
-      static std::enable_if_t <
-      arity<0, T1>* create(std::size_t num_ops, Args&&... args) {
+  static std::enable_if_t<arity == kVariadic, T1>* create(
+      std::size_t num_ops,
+      Args&&... args) {
     auto ptr = Instr::allocate(sizeof(T1), num_ops);
     return new (ptr) T1(std::forward<Args>(args)...);
   }
