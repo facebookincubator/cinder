@@ -99,7 +99,23 @@ struct Env {
     }
   }
 
-  // Similar to emitInstr<T>(), but does not automatically create an output
+  // Similar to emitRawInstr<T>(), but does not automatically create an output
+  // Create and insert the specified instruction. If the instruction has an
+  // output, a new Register* will be created and returned.
+  template <typename T, typename... Args>
+  Register* emitVariadic(std::size_t arity, Args&&... args) {
+    if constexpr (T::has_output) {
+      return emitRawInstr<T>(
+                 arity,
+                 func.env.AllocateRegister(),
+                 std::forward<Args>(args)...)
+          ->GetOutput();
+    } else {
+      return emitRawInstr<T>(arity, std::forward<Args>(args)...)->GetOutput();
+    }
+  }
+
+  // Similar to emit<T>(), but does not automatically create an output
   // register.
   template <typename T, typename... Args>
   T* emitRawInstr(Args&&... args) {
@@ -1020,12 +1036,56 @@ Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
   return nullptr;
 }
 
+// Translate VectorCallStatic to CallStatic whenever possible, saving stack
+// manipulation costs (pushing args to stack)
+static Register* trySpecializeCCall(Env& env, const VectorCallStatic* instr) {
+  if (instr->isAwaited()) {
+    // We can't pass the awaited flag outside of vectorcall.
+    return nullptr;
+  }
+  Register* callable = instr->func();
+  Type callable_type = callable->type();
+  PyObject* callable_obj = callable_type.asObject();
+  if (callable_obj == nullptr) {
+    return nullptr;
+  }
+
+  // Non METH_STATIC and METH_CLASS tp_methods on types are stored as
+  // PyMethodDescr inside tp_dict. Check out:
+  // Objects/typeobject.c#type_add_method
+  if (Py_TYPE(callable_obj) == &PyMethodDescr_Type) {
+    auto meth = reinterpret_cast<PyMethodDescrObject*>(callable_obj);
+    PyMethodDef* def = meth->d_method;
+    if (def->ml_flags & METH_NOARGS && instr->numArgs() == 1) {
+      Register* result = env.emitVariadic<CallStatic>(
+          1,
+          reinterpret_cast<void*>(def->ml_meth),
+          instr->GetOutput()->type() | TNullptr,
+          /* self */ instr->arg(0));
+      return env.emit<CheckExc>(result, *instr->frameState());
+    }
+    if (def->ml_flags & METH_O && instr->numArgs() == 2) {
+      Register* result = env.emitVariadic<CallStatic>(
+          2,
+          reinterpret_cast<void*>(def->ml_meth),
+          instr->GetOutput()->type() | TNullptr,
+          /* self */ instr->arg(0),
+          /* arg */ instr->arg(1));
+      return env.emit<CheckExc>(result, *instr->frameState());
+    }
+  }
+  return nullptr;
+}
+
 Register* simplifyVectorCallStatic(Env& env, const VectorCallStatic* instr) {
   Register* func = instr->func();
   if (isBuiltin(func, "list.append") && instr->numArgs() == 2) {
     env.emit<UseType>(func, func->type());
     env.emit<ListAppend>(instr->arg(0), instr->arg(1), *instr->frameState());
     return env.emit<LoadConst>(TNoneType);
+  }
+  if (Register* result = trySpecializeCCall(env, instr)) {
+    return result;
   }
   return nullptr;
 }

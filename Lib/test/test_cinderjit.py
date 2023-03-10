@@ -3256,6 +3256,21 @@ class ExceptionHandlingTests(unittest.TestCase):
         self.assertEqual(self.nested_finally(False), 10)
 
 
+class SpecializeCCallTests(unittest.TestCase):
+    """
+    The JIT performs direct calls of C functions with CallStatic when possible.
+    """
+
+    @cinder_support.failUnlessJITCompiled
+    def _c_func_that_sets_pyerr(self):
+        s = "abc"
+        return s.removeprefix(1)
+
+    def test_c_call_error_raised(self):
+        with self.assertRaises(TypeError):
+            self._c_func_that_sets_pyerr()
+
+
 class UnpackSequenceTests(unittest.TestCase):
     @failUnlessHasOpcodes("UNPACK_SEQUENCE")
     @cinder_support.failUnlessJITCompiled

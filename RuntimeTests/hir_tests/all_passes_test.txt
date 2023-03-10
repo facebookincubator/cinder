@@ -206,3 +206,159 @@ fun jittestmodule:test {
   }
 }
 ---
+AwaitedVectorCallStaticEmitsVectorCallStatic
+---
+async def test():
+  s = "abc"
+  return await s.lower()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v12:Nullptr = LoadConst<Nullptr>
+    v13:OptNoneType = InitialYield {
+      LiveValues<1> unc:v12
+      FrameState {
+        NextInstrOffset 0
+        Locals<1> v12
+      }
+    }
+    v14:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v17:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
+    v19:UnicodeExact = VectorCallStatic<1, awaited> v17 v14 {
+      LiveValues<2> b:v14 b:v17
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v14
+      }
+    }
+    v24:OptObject = CallCFunc<_PyCoro_GetAwaitableIter> v19
+    Decref v19
+    v25:Object = CheckExc v24 {
+      LiveValues<2> b:v14 o:v24
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v14
+      }
+    }
+    CondBranchCheckType<7, 8, ObjectUser[coroutine:Exact]> v25
+  }
+
+  bb 7 (preds 0) {
+    v26:OptObject = CallCFunc<_PyGen_yf> v25
+    CondBranch<9, 8> v26
+  }
+
+  bb 9 (preds 7) {
+    Decref v25
+    XDecref v26
+    RaiseStatic<RuntimeError, "coroutine is being awaited already", <<1> b:v14>> {
+      LiveValues<1> b:v14
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v14
+      }
+    }
+  }
+
+  bb 8 (preds 0, 7) {
+    v27:NoneType = LoadConst<NoneType>
+    SetCurrentAwaiter v25
+    v30:Object = YieldFrom v27 v25 {
+      LiveValues<3> b:v14 o:v25 b:v27
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v14
+        Stack<1> v25
+      }
+    }
+    Decref v25
+    Return v30
+  }
+}
+---
+UnicodeLowerWithMismatchedArgcountEmitsVectorCallStatic
+---
+def test():
+  s = "abc"
+  return s.lower(1)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v10:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
+    v12:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v13:UnicodeExact = VectorCallStatic<2> v10 v7 v12 {
+      LiveValues<3> b:v7 b:v10 unc:v12
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v7
+      }
+    }
+    Return v13
+  }
+}
+---
+UnicodeLowerEmitsCallStatic
+---
+def test():
+  s = "abc"
+  return s.lower()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v12:OptUnicodeExact = CallStatic<unicode_lower@0xdeadbeef, 1> v6
+    v13:UnicodeExact = CheckExc v12 {
+      LiveValues<2> b:v6 o:v12
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v6
+      }
+    }
+    Return v13
+  }
+}
+---
+UnicodeRemovePrefixWithMismatchedArgcountEmitsVectorCallStatic
+---
+def test():
+  s = "abc"
+  return s.removeprefix()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v9:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
+    v11:Object = VectorCallStatic<1> v9 v6 {
+      LiveValues<2> b:v6 b:v9
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v6
+      }
+    }
+    Return v11
+  }
+}
+---
+UnicodeRemovePrefixEmitsCallStatic
+---
+def test():
+  s = "abc"
+  return s.removeprefix("a")
+---
+fun jittestmodule:test {
+  bb 0 {
+    v7:MortalUnicodeExact["abc"] = LoadConst<MortalUnicodeExact["abc"]>
+    v12:MortalUnicodeExact["a"] = LoadConst<MortalUnicodeExact["a"]>
+    v14:OptObject = CallStatic<unicode_removeprefix@0xdeadbeef, 2> v7 v12
+    v15:Object = CheckExc v14 {
+      LiveValues<2> b:v7 o:v14
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v7
+      }
+    }
+    Return v15
+  }
+}
+---

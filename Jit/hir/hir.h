@@ -1662,6 +1662,21 @@ class INSTR_CLASS(CallStatic, (TTop), HasOutput, Operands<>) {
   CallStatic(Register* out, void* addr, Type ret_type)
       : InstrT(out), addr_(addr), ret_type_(ret_type) {}
 
+  template <typename... Args>
+  CallStatic(Register* out, void* addr, Type ret_type, Args&&... args)
+      : InstrT(out), addr_(addr), ret_type_(ret_type) {
+    std::array<Register*, sizeof...(Args)> operands{args...};
+    JIT_CHECK(
+        operands.size() == NumOperands(),
+        "Expected %d arguments, got %d",
+        NumOperands(),
+        operands.size());
+    size_t i = 0;
+    for (Register* operand : operands) {
+      SetOperand(i++, operand);
+    }
+  }
+
   std::size_t NumArgs() const {
     return NumOperands();
   }
