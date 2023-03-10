@@ -5658,6 +5658,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     StrictModules/Tests \
     ThirdParty/googletest-1.8.1/googletest \
     ThirdParty/i386-dis \
+    ThirdParty/asmjit/src/asmjit/arm \
     ThirdParty/asmjit/src/asmjit/core \
     ThirdParty/asmjit/src/asmjit/x86"
 AC_MSG_CHECKING(for build directories)
