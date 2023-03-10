@@ -186,6 +186,7 @@ INTERNED_STRINGS(DECLARE_STR)
 #undef DECLARE_STR
 
 static std::array<PyObject*, 256> s_opnames;
+static std::array<PyObject*, hir::kNumOpcodes> s_hir_opnames;
 
 static double total_compliation_time = 0.0;
 
@@ -1016,6 +1017,38 @@ static PyObject* get_num_inlined_functions(PyObject*, PyObject* func) {
   return PyLong_FromLong(size);
 }
 
+static PyObject* get_function_hir_opcode_counts(PyObject*, PyObject* func) {
+  if (jit_ctx == NULL) {
+    Py_RETURN_NONE;
+  }
+  const hir::OpcodeCounts* counts =
+      _PyJITContext_GetHIROpcodeCounts(jit_ctx, func);
+  if (counts == nullptr) {
+    Py_RETURN_NONE;
+  }
+  Ref<> dict = Ref<>::steal(PyDict_New());
+  if (dict == nullptr) {
+    return nullptr;
+  }
+#define HIR_OP(opname)                                               \
+  {                                                                  \
+    const size_t idx = static_cast<size_t>(hir::Opcode::k##opname);  \
+    int count = counts->at(idx);                                     \
+    if (count != 0) {                                                \
+      Ref<> count_obj = Ref<>::steal(PyLong_FromLong(count));        \
+      if (count_obj == nullptr) {                                    \
+        return nullptr;                                              \
+      }                                                              \
+      if (PyDict_SetItem(dict, s_hir_opnames[idx], count_obj) < 0) { \
+        return nullptr;                                              \
+      }                                                              \
+    }                                                                \
+  }
+  FOREACH_OPCODE(HIR_OP)
+#undef HIR_OP
+  return dict.release();
+}
+
 static PyObject* mlock_profiler_dependencies(PyObject* /* self */, PyObject*) {
   if (jit_ctx == nullptr) {
     Py_RETURN_NONE;
@@ -1427,6 +1460,11 @@ static PyMethodDef jit_methods[] = {
      get_num_inlined_functions,
      METH_O,
      "Return the number of inline sites in this function."},
+    {"get_function_hir_opcode_counts",
+     get_function_hir_opcode_counts,
+     METH_O,
+     "Return a map from HIR opcode name to the count of that opcode in the "
+     "JIT-compiled version of this function."},
     {"mlock_profiler_dependencies",
      mlock_profiler_dependencies,
      METH_NOARGS,
@@ -1542,6 +1580,15 @@ int _PyJIT_InitializeInternedStrings() {
   }
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
+
+#define HIR_OP(opname)                                                 \
+  if ((s_hir_opnames.at(static_cast<size_t>(hir::Opcode::k##opname)) = \
+           PyUnicode_InternFromString(#opname)) == nullptr) {          \
+    return -1;                                                         \
+  }
+  FOREACH_OPCODE(HIR_OP)
+#undef HIR_OP
+
   return 0;
 }
 
@@ -1956,11 +2003,12 @@ int _PyJIT_Finalize() {
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)
 #undef CLEAR_STR
+
   for (PyObject*& opname : s_opnames) {
-    if (opname != nullptr) {
-      Py_DECREF(opname);
-      opname = nullptr;
-    }
+    Py_CLEAR(opname);
+  }
+  for (PyObject*& opname : s_hir_opnames) {
+    Py_CLEAR(opname);
   }
 
   Runtime::shutdown();

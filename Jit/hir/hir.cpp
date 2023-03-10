@@ -67,6 +67,16 @@ const char* const kOpcodeNames[] = {
 #undef NAME_OP
 };
 
+OpcodeCounts count_opcodes(const Function& func) {
+  OpcodeCounts counts{};
+  for (const BasicBlock& block : func.cfg.blocks) {
+    for (const Instr& instr : block) {
+      counts[static_cast<size_t>(instr.opcode())]++;
+    }
+  }
+  return counts;
+}
+
 Edge::~Edge() {
   set_from(nullptr);
   set_to(nullptr);

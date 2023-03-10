@@ -4313,6 +4313,9 @@ enum class InlineFailureType {
 const char* getInlineFailureMessage(InlineFailureType failure_type);
 const char* getInlineFailureName(InlineFailureType failure_type);
 
+using OpcodeCounts = std::array<int, kNumOpcodes>;
+OpcodeCounts count_opcodes(const Function& func);
+
 class Function {
  public:
   using InlineFailureStats =

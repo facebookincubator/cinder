@@ -225,6 +225,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
         "HIR transformations",
         Compiler::runPasses(*irfunc, config))
   }
+  hir::OpcodeCounts hir_opcode_counts = hir::count_opcodes(*irfunc);
 
   auto ngen = ngen_factory_(irfunc.get());
   if (ngen == nullptr) {
@@ -270,6 +271,8 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   if (g_debug) {
     irfunc->setCompilationPhaseTimer(nullptr);
     return std::make_unique<CompiledFunctionDebug>(
+        std::move(irfunc),
+        std::move(ngen),
         reinterpret_cast<vectorcallfunc>(entry),
         ngen->getStaticEntry(),
         ngen->codeRuntime(),
@@ -277,8 +280,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
         stack_size,
         spill_stack_size,
         std::move(irfunc->inline_function_stats),
-        std::move(irfunc),
-        std::move(ngen));
+        hir_opcode_counts);
   } else {
     return std::make_unique<CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
@@ -287,7 +289,8 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
         func_size,
         stack_size,
         spill_stack_size,
-        std::move(irfunc->inline_function_stats));
+        std::move(irfunc->inline_function_stats),
+        hir_opcode_counts);
   }
 }
 

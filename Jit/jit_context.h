@@ -216,6 +216,14 @@ PyObject* _PyJITContext_GetInlinedFunctionsStats(
     BorrowedRef<PyFunctionObject> func);
 
 /*
+ * Returns the HIR opcode counts for a JIT-compiled function, or nullptr if the
+ * function has not been JIT-compiled.
+ */
+const jit::hir::OpcodeCounts* _PyJITContext_GetHIROpcodeCounts(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func);
+
+/*
  * Return a list of functions that are currently JIT-compiled.
  *
  * Returns a new reference.

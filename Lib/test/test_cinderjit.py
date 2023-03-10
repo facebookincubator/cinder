@@ -4836,5 +4836,23 @@ class LoadMethodEliminationTests(unittest.TestCase):
             self.assertTrue(is_jit_compiled(LoadMethodEliminationTests.lme_test_func))
 
 
+@unittest.skipIf(not cinderjit, "Tests functionality on cinderjit module")
+class HIROpcodeCountTests(unittest.TestCase):
+    def test_hir_opcode_count(self):
+        def f1():
+            return 5
+
+        def func():
+            return f1() + f1()
+
+        self.assertEqual(func(), 10)
+        ops = cinderjit.get_function_hir_opcode_counts(func)
+        self.assertIsInstance(ops, dict)
+        self.assertEqual(ops.get("Return"), 1)
+        self.assertEqual(ops.get("BinaryOp"), 1)
+        self.assertGreaterEqual(ops.get("Decref"), 2)
+        print(ops)
+
+
 if __name__ == "__main__":
     unittest.main()

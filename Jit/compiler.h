@@ -10,6 +10,8 @@
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include <utility>
+
 namespace jit {
 
 // CompiledFunction contains the native code that was compiled for a python
@@ -26,14 +28,16 @@ class CompiledFunction {
       int func_size,
       int stack_size,
       int spill_stack_size,
-      jit::hir::Function::InlineFunctionStats inline_function_stats_)
+      hir::Function::InlineFunctionStats inline_function_stats,
+      const hir::OpcodeCounts& hir_opcode_counts)
       : vectorcall_entry_(vectorcall_entry),
         static_entry_(static_entry),
         code_runtime_(code_runtime),
         code_size_(func_size),
         stack_size_(stack_size),
         spill_stack_size_(spill_stack_size),
-        inline_function_stats_(std::move(inline_function_stats_)) {}
+        inline_function_stats_(std::move(inline_function_stats)),
+        hir_opcode_counts_(hir_opcode_counts) {}
 
   virtual ~CompiledFunction() {}
 
@@ -65,8 +69,11 @@ class CompiledFunction {
   int spillStackSize() const {
     return spill_stack_size_;
   }
-  const jit::hir::Function::InlineFunctionStats& inlinedFunctionsStats() const {
+  const hir::Function::InlineFunctionStats& inlinedFunctionsStats() const {
     return inline_function_stats_;
+  }
+  const hir::OpcodeCounts& hirOpcodeCounts() const {
+    return hir_opcode_counts_;
   }
 
  private:
@@ -78,31 +85,20 @@ class CompiledFunction {
   const int code_size_;
   const int stack_size_;
   const int spill_stack_size_;
-  jit::hir::Function::InlineFunctionStats inline_function_stats_;
+  hir::Function::InlineFunctionStats inline_function_stats_;
+  hir::OpcodeCounts hir_opcode_counts_;
 };
 
 // same as CompiledFunction class but keeps HIR and LIR classes for debug
 // purposes
 class CompiledFunctionDebug : public CompiledFunction {
  public:
+  template <typename... Args>
   CompiledFunctionDebug(
-      vectorcallfunc entry,
-      void* static_entry,
-      CodeRuntime* code_runtime,
-      int func_size,
-      int stack_size,
-      int spill_stack_size,
-      jit::hir::Function::InlineFunctionStats inline_function_stats_,
       std::unique_ptr<hir::Function> irfunc,
-      std::unique_ptr<codegen::NativeGenerator> ngen)
-      : CompiledFunction(
-            entry,
-            static_entry,
-            code_runtime,
-            func_size,
-            stack_size,
-            spill_stack_size,
-            std::move(inline_function_stats_)),
+      std::unique_ptr<codegen::NativeGenerator> ngen,
+      Args&&... args)
+      : CompiledFunction(std::forward<Args>(args)...),
         irfunc_(std::move(irfunc)),
         ngen_(std::move(ngen)) {}
 

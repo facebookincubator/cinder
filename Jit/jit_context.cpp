@@ -333,6 +333,16 @@ PyObject* _PyJITContext_GetInlinedFunctionsStats(
   return py_stats.release();
 }
 
+const jit::hir::OpcodeCounts* _PyJITContext_GetHIROpcodeCounts(
+    _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func) {
+  jit::CompiledFunction* jit_func = lookupCompiledFunction(ctx, func);
+  if (jit_func == nullptr) {
+    return nullptr;
+  }
+  return &jit_func->hirOpcodeCounts();
+}
+
 PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx) {
   auto funcs = Ref<>::steal(PyList_New(0));
   if (funcs == nullptr) {

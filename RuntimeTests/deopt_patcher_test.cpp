@@ -22,7 +22,6 @@ class DeoptPatcherTest : public RuntimeTest {
     int func_size = ngen.GetCompiledFunctionSize();
     int stack_size = ngen.GetCompiledFunctionStackSize();
     int spill_stack_size = ngen.GetCompiledFunctionSpillStackSize();
-    jit::hir::Function::InlineFunctionStats stats;
     return std::make_unique<jit::CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
         ngen.getStaticEntry(),
@@ -30,7 +29,8 @@ class DeoptPatcherTest : public RuntimeTest {
         func_size,
         stack_size,
         spill_stack_size,
-        stats);
+        jit::hir::Function::InlineFunctionStats{},
+        jit::hir::OpcodeCounts{});
   }
 
  protected:
