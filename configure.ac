@@ -5660,7 +5660,8 @@ SRCDIRS="Parser Objects Python Modules Programs \
     ThirdParty/i386-dis \
     ThirdParty/asmjit/src/asmjit/arm \
     ThirdParty/asmjit/src/asmjit/core \
-    ThirdParty/asmjit/src/asmjit/x86"
+    ThirdParty/asmjit/src/asmjit/x86 \
+    ThirdParty/asmjit/src/asmjit/arm"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then
@@ -6095,26 +6096,39 @@ else
 fi
 AC_SUBST(TEST_MODULES)
 
-AC_MSG_CHECKING(whether to include CinderVM features)
-AC_ARG_ENABLE(cinder-vm,
-    AS_HELP_STRING(
-        [--disable-cinder-vm],
-        [build core with Cinder features marked for modularization]))
-if test "$enable_cinder_vm" = no; then
-    ENABLE_CINDERVM=no
-    BUILD_CINDERVM_SRCS=no
-else
+AC_MSG_CHECKING(whather to build CinderVM features into an .so)
+AC_ARG_ENABLE(cinder-vm-so,
+    AS_HELP_STRING([--enable-cinder-vm-so], [build CinderVM features into a .so]),
+[
+    ENABLE_CINDERVM_SO=yes
     ENABLE_CINDERVM=yes
-    BUILD_CINDERVM_SRCS=yes
-fi
-AC_MSG_RESULT($enable_cinder_vm)
+    BUILD_CINDERVM_SRCS=no
+],
+[
+    ENABLE_CINDERVM_SO=no
+    AC_MSG_CHECKING(whether to include CinderVM features)
+    AC_ARG_ENABLE(cinder-vm,
+        AS_HELP_STRING(
+            [--disable-cinder-vm],
+            [build core with Cinder features marked for modularization]))
+    if test "$enable_cinder_vm" = no; then
+        ENABLE_CINDERVM=no
+        BUILD_CINDERVM_SRCS=no
+    else
+        ENABLE_CINDERVM=yes
+        BUILD_CINDERVM_SRCS=yes
+    fi
+    AC_MSG_RESULT($enable_cinder_vm)
+])
 
 if test "$ENABLE_CINDERVM" = yes; then
     AC_DEFINE(ENABLE_CINDERVM, 1, [Build CinderVM features])
 fi
 
+AC_SUBST(ENABLE_CINDERVM_SO)
 AC_SUBST(BUILD_CINDERVM_SRCS)
 AC_SUBST(ENABLE_CINDERVM)
+
 # Cinder alterations to compiler flags
 BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
 BASECPPFLAGS="-I\"$srcdir\" ${BASECPPFLAGS}"

@@ -8,13 +8,13 @@ extern "C" {
 #  error "this header requires Py_BUILD_CORE define"
 #endif
 
-extern struct _mod* _PyParser_ASTFromString(
+CiAPI_FUNC(struct _mod*) _PyParser_ASTFromString(
     const char *str,
     PyObject* filename,
     int mode,
     PyCompilerFlags *flags,
     PyArena *arena);
-extern struct _mod* _PyParser_ASTFromFile(
+CiAPI_FUNC(struct _mod*) _PyParser_ASTFromFile(
     FILE *fp,
     PyObject *filename_ob,
     const char *enc,

@@ -432,6 +432,11 @@ _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
 
 CiAPI_FUNC(PyObject *)_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
 
+CiAPI_STATIC_INLINE_FUNC(_PyGenericTypeDef *)
+_PyClassLoader_GetGenericTypeDefFromType(PyTypeObject *gen_type);
+CiAPI_STATIC_INLINE_FUNC(_PyGenericTypeDef *)
+_PyClassLoader_GetGenericTypeDef(PyObject *gen_inst);
+
 /* gets the generic type definition for an instance if it is an instance of a
  * generic type, or returns NULL if it is not */
 static inline _PyGenericTypeDef *

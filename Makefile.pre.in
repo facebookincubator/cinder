@@ -326,6 +326,14 @@ STRICTM_TESTS_SRCDIR=$(srcdir)/$(STRICTM_TESTS_DIR)
 ASAN_TEST_ENV= @ASAN_TEST_ENV@
 ASAN_TEST_ENV_WITH_LSAN= @ASAN_TEST_ENV_WITH_LSAN@
 
+ENABLE_CINDERVM_SO=@ENABLE_CINDERVM_SO@
+ifeq ($(ENABLE_CINDERVM_SO), yes)
+	CINDERVM_SO=$(abs_srcdir)/Cinder/module/build/cindervm.$(SOABI).so
+else
+	CINDERVM_SO=
+endif
+
+
 # === Definitions added by makesetup ===
 
 
@@ -818,9 +826,13 @@ coverage-report: regen-token regen-importlib
 clinic: check-clean-src $(srcdir)/Modules/_blake2/blake2s_impl.c
 	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/clinic/clinic.py --make --srcdir $(srcdir)
 
+.PHONY: $(CINDERVM_SO)
+$(CINDERVM_SO):
+	$(abs_srcdir)/Cinder/module/build.sh
+
 # Build the interpreter
-$(BUILDPYTHON):	Programs/python.o $(LIBRARY_DEPS)
-	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG)
+$(BUILDPYTHON):	Programs/python.o $(LIBRARY_DEPS) $(CINDERVM_SO)
+	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERVM_SO)
 
 platform: $(BUILDPYTHON) pybuilddir.txt
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -c 'import sys ; from sysconfig import get_platform ; print("%s-%d.%d" % (get_platform(), *sys.version_info[:2]))' >platform
@@ -957,8 +969,8 @@ Makefile Modules/config.c: Makefile.pre \
 	@echo "The Makefile was updated, you may need to re-run make."
 
 
-Programs/_testembed: Programs/_testembed.o $(LIBRARY_DEPS)
-	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG)
+Programs/_testembed: Programs/_testembed.o $(LIBRARY_DEPS) $(CINDERVM_SO)
+	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERVM_SO)
 
 ############################################################################
 # Importlib

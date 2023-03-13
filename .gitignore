@@ -166,3 +166,4 @@ strict_module_tests
 pyembed_includes
 .sphinx-build/
 .cache/
+build_cindervm_venv/

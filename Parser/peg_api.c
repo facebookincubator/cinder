@@ -3,6 +3,8 @@
 #include "tokenizer.h"
 #include "pegen.h"
 
+#include "internal/pycore_parser.h"
+
 mod_ty
 _PyParser_ASTFromString(const char *str, PyObject* filename, int mode,
                         PyCompilerFlags *flags, PyArena *arena)

@@ -119,6 +119,7 @@ converting the dict to the combined table.
 #include "dict-common.h"
 #include "stringlib/eq.h"    // unicode_eq()
 #include "classloader.h"
+#include "cinder/exports.h"
 
 /* TODO(T113261295): Remove this once dict watchers are upstreamed. */
 #include "Jit/pyjit.h"

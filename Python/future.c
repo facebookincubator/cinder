@@ -1,6 +1,8 @@
 #include "Python.h"
 #include "pycore_ast.h"           // _PyAST_GetDocString()
 
+#include "pycore_compile.h"
+
 #define UNDEFINED_FUTURE_FEATURE "future feature %.100s is not defined"
 #define ERR_LATE_FUTURE \
 "from __future__ imports must occur at the beginning of the file"

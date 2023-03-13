@@ -8,6 +8,8 @@
 #include "structmember.h"         // PyMemberDef
 #include "Jit/pyjit.h"
 
+#include "cinder/exports.h"
+
 PyObject *
 PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname)
 {

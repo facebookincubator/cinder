@@ -3844,13 +3844,6 @@ inline PyObject * Ci_CheckedList_GetItem(PyObject *op, Py_ssize_t i) {
     return list_item((PyListObject *) op, i);
 }
 
-int
-_PyList_APPEND(PyObject *op, PyObject *newitem)
-{
-  assert(Ci_List_CheckIncludingChecked(op) && (newitem != NULL));
-  return app1((PyListObject *)op, newitem);
-}
-
 static PyMappingMethods chklist_as_mapping = {
     (lenfunc)list_length,
     (binaryfunc)list_subscript,

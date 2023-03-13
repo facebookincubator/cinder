@@ -12053,5 +12053,3 @@ int PyAST_Check(PyObject* obj)
     }
     return PyObject_IsInstance(obj, state->AST_type);
 }
-
-

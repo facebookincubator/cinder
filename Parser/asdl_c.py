@@ -186,7 +186,7 @@ typedef struct {
     %(ctype)s typed_elements[1];
 } asdl_%(name)s_seq;""" % locals(), reflow=False, depth=depth)
         self.emit("", depth)
-        self.emit("asdl_%(name)s_seq *_Py_asdl_%(name)s_seq_new(Py_ssize_t size, PyArena *arena);" % locals(), depth)
+        self.emit("CiAPI_FUNC(asdl_%(name)s_seq *) _Py_asdl_%(name)s_seq_new(Py_ssize_t size, PyArena *arena);" % locals(), depth)
         self.emit("", depth)
 
     def visitProduct(self, product, name, depth):
@@ -327,7 +327,7 @@ class PrototypeVisitor(EmitVisitor):
             argstr += ", PyArena *arena"
         else:
             argstr = "PyArena *arena"
-        self.emit("%s %s(%s);" % (ctype, ast_func_name(name), argstr), False)
+        self.emit("CiAPI_FUNC(%s) %s(%s);" % (ctype, ast_func_name(name), argstr), False)
 
     def visitProduct(self, prod, name):
         self.emit_function(name, get_c_type(name),
@@ -1442,6 +1442,8 @@ def generate_module_def(mod, f, internal_h):
         #include "structmember.h"
         #include <stddef.h>
 
+        #include "internal/pycore_ast.h"
+
         // Forward declaration
         static int init_types(struct ast_state *state);
 
@@ -1491,14 +1493,14 @@ def write_header(mod, f):
     PrototypeVisitor(f).visit(mod)
     f.write(textwrap.dedent("""
 
-        PyObject* PyAST_mod2obj(mod_ty t);
-        mod_ty PyAST_obj2mod(PyObject* ast, PyArena* arena, int mode);
+        CiAPI_FUNC(PyObject*) PyAST_mod2obj(mod_ty t);
+        CiAPI_FUNC(mod_ty) PyAST_obj2mod(PyObject* ast, PyArena* arena, int mode);
         int PyAST_Check(PyObject* obj);
 
         extern int _PyAST_Validate(mod_ty);
 
         /* _PyAST_ExprAsUnicode is defined in ast_unparse.c */
-        extern PyObject* _PyAST_ExprAsUnicode(expr_ty);
+        CiAPI_FUNC(PyObject*) _PyAST_ExprAsUnicode(expr_ty);
 
         /* Return the borrowed reference to the first literal string in the
            sequence of statements or NULL if it doesn't start from a literal string.

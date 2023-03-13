@@ -17,6 +17,8 @@
 #include "interpreteridobject.h"
 #include "cinder/exports.h"
 
+#include "cinder/exports.h"
+
 #ifdef Py_LIMITED_API
    // Prevent recursive call _Py_IncRef() <=> Py_INCREF()
 #  error "Py_LIMITED_API macro must not be defined"
