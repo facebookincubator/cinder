@@ -105,7 +105,7 @@ class AttributeCache {
   void
   fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> name, BorrowedRef<> descr);
 
-  std::array<AttributeMutator, 4> entries_;
+  std::array<AttributeMutator, 1> entries_;
 };
 
 // A cache for an individual StoreAttr instruction.
