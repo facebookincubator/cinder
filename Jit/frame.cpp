@@ -347,15 +347,7 @@ std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
   JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "must pass jit-owned shadow frame");
-
   std::vector<_PyShadowFrame*> frames;
-  int64_t vector_size = 0;
-  for (_PyShadowFrame* counter = shadow_frame; counter != nullptr;
-       counter = counter->prev) {
-    vector_size++;
-  }
-  frames.reserve(vector_size);
-
   while (shadow_frame != nullptr) {
     _PyShadowFrame_Owner owner = _PyShadowFrame_GetOwner(shadow_frame);
     switch (owner) {
