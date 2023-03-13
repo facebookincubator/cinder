@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#include "cinder/ci_api.h"
+
 
 #define COMMON_FIELDS(PREFIX) \
     PyObject *PREFIX ## globals; \
@@ -50,7 +52,7 @@ typedef struct {
      */
 } PyFunctionObject;
 
-PyObject *PyEntry_LazyInit(PyFunctionObject *func,
+CiAPI_FUNC(PyObject *) PyEntry_LazyInit(PyFunctionObject *func,
                            PyObject **stack,
                            Py_ssize_t nargsf,
                            PyObject *kwnames);

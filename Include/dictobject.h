@@ -21,20 +21,20 @@ PyAPI_DATA(PyTypeObject) PyDict_Type;
 PyAPI_FUNC(PyObject *) PyDict_New(void);
 PyAPI_FUNC(PyObject *) PyDict_GetItem(PyObject *mp, PyObject *key);
 PyAPI_FUNC(PyObject *) PyDict_GetItemWithError(PyObject *mp, PyObject *key);
-PyAPI_FUNC(PyObject *) PyDict_GetItemKeepLazy(PyObject *mp, PyObject *key);
+CiAPI_FUNC(PyObject *) PyDict_GetItemKeepLazy(PyObject *mp, PyObject *key);
 PyAPI_FUNC(int) PyDict_SetItem(PyObject *mp, PyObject *key, PyObject *item);
 PyAPI_FUNC(int) PyDict_DelItem(PyObject *mp, PyObject *key);
 PyAPI_FUNC(void) PyDict_Clear(PyObject *mp);
 PyAPI_FUNC(int) PyDict_Next(
     PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value);
-PyAPI_FUNC(int) PyDict_NextKeepLazy(
+CiAPI_FUNC(int) PyDict_NextKeepLazy(
     PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value);
 PyAPI_FUNC(PyObject *) PyDict_Keys(PyObject *mp);
 PyAPI_FUNC(PyObject *) PyDict_Values(PyObject *mp);
 PyAPI_FUNC(PyObject *) PyDict_Items(PyObject *mp);
 PyAPI_FUNC(Py_ssize_t) PyDict_Size(PyObject *mp);
 PyAPI_FUNC(PyObject *) PyDict_Copy(PyObject *mp);
-PyAPI_FUNC(int) PyDict_IsLazyImport(PyObject *mp, PyObject *name);
+CiAPI_FUNC(int) PyDict_IsLazyImport(PyObject *mp, PyObject *name);
 PyAPI_FUNC(int) PyDict_Contains(PyObject *mp, PyObject *key);
 
 /* PyDict_Update(mp, other) is equivalent to PyDict_Merge(mp, other, 1). */

@@ -400,6 +400,10 @@ fail:
   return TRetType();
 }
 
+static inline Py_ssize_t vectorcall_flags(size_t n) {
+  return n & (Ci_Py_VECTORCALL_ARGUMENT_MASK | PY_VECTORCALL_ARGUMENTS_OFFSET);
+}
+
 // This can either be a static method returning a primitive or a Python object,
 // so we use JITRT_StaticCallReturn.  If it's returning a primitive we'll return
 // rdx from the function, or return NULL for rdx when we dispatch to
@@ -440,10 +444,7 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
       return JITRT_CallStaticallyWithPrimitiveSignatureWorker<
           TRetType,
           TVectorcall>(
-          func,
-          arg_space,
-          total_args | Ci_PyVectorcall_FLAGS(nargsf),
-          arg_info);
+          func, arg_space, total_args | vectorcall_flags(nargsf), arg_info);
     }
 
     _PyFunction_Vectorcall((PyObject*)func, args, nargsf, kwnames);
@@ -530,7 +531,7 @@ PyObject* JITRT_ReportStaticArgTypecheckErrors(
   if (code->co_flags & CO_VARKEYWORDS) {
     nargs -= 1;
   }
-  Py_ssize_t flags = Ci_PyVectorcall_FLAGS(nargsf);
+  Py_ssize_t flags = vectorcall_flags(nargsf);
   return _PyFunction_Vectorcall(func, args, nargs | flags, new_kwnames);
 }
 

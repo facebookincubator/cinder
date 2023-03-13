@@ -2,6 +2,8 @@
 #  error "this header file must not be included directly"
 #endif
 
+#include "cinder/ci_api.h"
+
 typedef struct _dictkeysobject PyDictKeysObject;
 typedef struct _dictkeyentry PyDictKeyEntry;
 
@@ -59,17 +61,13 @@ PyObject *_PyDict_Pop_KnownHash(PyObject *, PyObject *, Py_hash_t, PyObject *);
 PyObject *_PyDict_FromKeys(PyObject *, PyObject *, PyObject *);
 #define _PyDict_HasSplitTable(d) ((d)->ma_values != NULL)
 /* facebook begin t39538061 */
-Py_ssize_t
-_PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
+CiAPI_FUNC(Py_ssize_t) _PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
 /* facebook end t39538061 */
 
-void
-_PyDictKeys_DecRef(PyDictKeysObject *keys);
-PyDictKeysObject *
-_PyDict_MakeKeysShared(PyObject *dict);
+CiAPI_FUNC(void) _PyDictKeys_DecRef(PyDictKeysObject *keys);
+CiAPI_FUNC(PyDictKeysObject *) _PyDict_MakeKeysShared(PyObject *dict);
 
-PyDictKeyEntry *
-_PyDictKeys_GetEntries(PyDictKeysObject *keys);
+CiAPI_FUNC(PyDictKeyEntry *) _PyDictKeys_GetEntries(PyDictKeysObject *keys);
 
 /* Like PyDict_Merge, but override can be 0, 1 or 2.  If override is 0,
    the first occurrence of a key wins, if override is 1, the last occurrence
@@ -82,8 +80,8 @@ PyAPI_FUNC(int) _PyDict_SetItemId(PyObject *dp, struct _Py_Identifier *key, PyOb
 PyAPI_FUNC(int) _PyDict_DelItemId(PyObject *mp, struct _Py_Identifier *key);
 PyAPI_FUNC(void) _PyDict_DebugMallocStats(FILE *out);
 
-int _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr, PyObject *name, PyObject *value);
-PyObject *_PyDict_LoadGlobal(PyDictObject *, PyDictObject *, PyObject *);
+CiAPI_FUNC(int) _PyObjectDict_SetItem(PyTypeObject *tp, PyObject **dictptr, PyObject *name, PyObject *value);
+CiAPI_FUNC(PyObject *) _PyDict_LoadGlobal(PyDictObject *, PyDictObject *, PyObject *);
 Py_ssize_t _PyDict_GetItemHint(PyDictObject *, PyObject *, Py_ssize_t, PyObject **);
 
 /* _PyDictView */
@@ -98,13 +96,13 @@ PyAPI_FUNC(PyObject *) _PyDictView_Intersect(PyObject* self, PyObject *other);
 
 /* Cinder _PyDict_GetItem_* specializations. */
 
-PyObject *_PyDict_GetItem_Unicode(PyObject *op, PyObject *key);
-PyObject *_PyDict_GetItem_String_KnownHash(PyObject *op,
+CiAPI_FUNC(PyObject *)_PyDict_GetItem_Unicode(PyObject *op, PyObject *key);
+CiAPI_FUNC(PyObject *)_PyDict_GetItem_String_KnownHash(PyObject *op,
                                            const char *key,
                                            Py_ssize_t len,
                                            Py_hash_t hash);
-PyObject *_PyDict_GetItem_UnicodeExact(PyObject *op, PyObject *key);
-PyAPI_FUNC(PyObject *) _PyDict_GetItem_StackKnownHash(PyObject *op,
+CiAPI_FUNC(PyObject *)_PyDict_GetItem_UnicodeExact(PyObject *op, PyObject *key);
+CiAPI_FUNC(PyObject *) _PyDict_GetItem_StackKnownHash(PyObject *op,
                                          PyObject *const *stack,
                                          Py_ssize_t nargs,
                                          Py_hash_t hash);
@@ -113,38 +111,37 @@ PyAPI_FUNC(PyObject *) _PyDict_GetItem_StackKnownHash(PyObject *op,
 
 /* Return 1 if the given dict has unicode-only keys and can be watched, or 0
  * otherwise. */
-PyAPI_FUNC(int) _PyDict_CanWatch(PyObject *);
+CiAPI_FUNC(int) _PyDict_CanWatch(PyObject *);
 
 /* Return 1 if the given dict is watched, or 0 otherwise. */
-PyAPI_FUNC(int) _PyDict_IsWatched(PyObject *);
+CiAPI_FUNC(int) _PyDict_IsWatched(PyObject *);
 
 /* Watch the given dict for changes, calling
  * _PyJIT_NotifyDict{Key,Clear,Unwatch}() as appropriate for any
  * changes to it. */
-PyAPI_FUNC(void) _PyDict_Watch(PyObject *);
+CiAPI_FUNC(void) _PyDict_Watch(PyObject *);
 
 /* Stop watching the given dict. */
-PyAPI_FUNC(void) _PyDict_Unwatch(PyObject *);
+CiAPI_FUNC(void) _PyDict_Unwatch(PyObject *);
 
 /* Return false if PyDict_Lookup() on the given dict is guaranteed to not cause
  * any heap mutations. */
-PyAPI_FUNC(int) _PyDict_HasUnsafeKeys(PyObject *);
+CiAPI_FUNC(int) _PyDict_HasUnsafeKeys(PyObject *);
 
 /* Increment the given dict's version tag for a set operation, notifying any
  * watchers of the new value.
  */
-void
-_PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
+CiAPI_FUNC(void) _PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
 
-PyObject *_PyDict_GetAttrItem(PyObject *op, PyObject *key);
+CiAPI_FUNC(PyObject *) _PyDict_GetAttrItem(PyObject *op, PyObject *key);
 
 /* Return 1 if the given dict has deferred objects, or 0 otherwise. */
-PyAPI_FUNC(int) _PyDict_HasDeferredObjects(PyObject *);
+CiAPI_FUNC(int) _PyDict_HasDeferredObjects(PyObject *);
 
 /* Flag dictionary as having deferred objects in it */
-PyAPI_FUNC(void) _PyDict_SetHasDeferredObjects(PyObject *);
+CiAPI_FUNC(void) _PyDict_SetHasDeferredObjects(PyObject *);
 
 /* Unflag dictionary as having deferred objects in it */
-PyAPI_FUNC(void) _PyDict_UnsetHasDeferredObjects(PyObject *);
+CiAPI_FUNC(void) _PyDict_UnsetHasDeferredObjects(PyObject *);
 
-PyAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *);
+CiAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *);

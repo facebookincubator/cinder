@@ -47,6 +47,9 @@ typedef struct {
 
 #define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
 
+CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDict(PyObject *mod);
+CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDictSetter(PyObject *mod);
+
 static inline PyObject* _PyStrictModuleGetDict(PyObject *mod) {
     assert(PyStrictModule_Check(mod));
     return ((PyStrictModuleObject*) mod) -> globals;

@@ -71,8 +71,7 @@ PyAPI_FUNC(PyFrameObject *) PyFrame_New(PyThreadState *, PyCodeObject *,
                                         PyObject *, PyObject *);
 
 /* only internal use */
-PyFrameObject*
-_PyFrame_New_NoTrack(PyThreadState *, PyFrameConstructor *, PyObject *);
+CiAPI_FUNC(PyFrameObject*) _PyFrame_New_NoTrack(PyThreadState *, PyFrameConstructor *, PyObject *);
 
 
 /* The rest of the interface is specific for frame objects */

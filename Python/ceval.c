@@ -1290,6 +1290,16 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
     Py_XDECREF((exc_info).exc_value);                                         \
     Py_XDECREF((exc_info).exc_traceback);
 
+#define Ci_RELEASE_FRAME(tstate, f)                                              \
+    if (Py_REFCNT(f) > 1) {                                                   \
+        Py_DECREF(f);                                                         \
+        _PyObject_GC_TRACK(f);                                                \
+    } else {                                                                  \
+        ++tstate->recursion_depth;                                            \
+        Py_DECREF(f);                                                         \
+        --tstate->recursion_depth;                                            \
+    }
+
     _PyErr_StackItem *previous_exc_info = tstate->exc_info;
     _PyErr_StackItem exc_info = {.exc_type = NULL,
                                  .exc_value = NULL,
@@ -1328,6 +1338,7 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
     Ci_RELEASE_FRAME(tstate, f);
 
 #undef RELEASE_EXC_INFO
+#undef Ci_RELEASE_FRAME
 
     return Ci_PyWaitHandle_New(retval, NULL);
 }

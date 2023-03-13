@@ -878,15 +878,6 @@ done:
     return rettype_check(Py_TYPE(self), res, (_PyClassLoader_RetTypeInfo *)state);
 }
 
-PyObject *_PyFunction_CallStatic(PyFunctionObject *func,
-                                 PyObject **args,
-                                 Py_ssize_t nargsf,
-                                 PyObject *kwnames);
-PyObject *_PyEntry_StaticEntry(PyFunctionObject *func,
-                               PyObject **args,
-                               Py_ssize_t nargsf,
-                               PyObject *kwnames);
-
 static inline int
 is_static_entry(vectorcallfunc func)
 {

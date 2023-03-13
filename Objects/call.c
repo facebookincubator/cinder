@@ -273,9 +273,10 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
 
 
 PyObject *
-Ci_PyVectorcall_CallTstate_WithFlags(PyThreadState *tstate, PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags)
+Ci_PyVectorcall_Call_WithFlags(PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags)
 {
     vectorcallfunc func;
+    PyThreadState *tstate = PyThreadState_GET();
 
     /* get vectorcallfunc as in PyVectorcall_Function, but without
      * the Py_TPFLAGS_HAVE_VECTORCALL check */

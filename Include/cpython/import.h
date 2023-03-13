@@ -23,7 +23,7 @@ PyAPI_FUNC(int) _PyImport_FixupBuiltin(
     );
 PyAPI_FUNC(int) _PyImport_FixupExtensionObject(PyObject*, PyObject *,
                                                PyObject *, PyObject *);
-PyAPI_FUNC(int) _PyImport_IsLazyImportsEnabled(PyThreadState* tstate);
+CiAPI_FUNC(int) _PyImport_IsLazyImportsEnabled(PyThreadState* tstate);
 
 struct _inittab {
     const char *name;           /* ASCII encoded string */

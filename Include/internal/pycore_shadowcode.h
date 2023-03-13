@@ -12,6 +12,8 @@
 #include "pycore_moduleobject.h"
 #include "pycore_object.h"
 
+#include "cinder/ci_api.h"
+
 #include <stdint.h>
 
 #ifndef Py_SHADOWCODE_H
@@ -41,7 +43,7 @@ typedef struct {
 
 typedef int (*pyshadowcache_invalidate)(PyObject *entry);
 
-PyAPI_DATA(PyTypeObject) _PyCodeCache_RefType;
+CiAPI_DATA(PyTypeObject) _PyCodeCache_RefType;
 
 #define PyCodeCacheRef_CheckRefExact(op) (Py_TYPE(op) == &_PyCodeCache_RefType)
 
@@ -225,18 +227,18 @@ typedef struct _PyCacheType {
     is_valid_func is_valid;
 } _PyCacheType;
 
-extern _PyCacheType _PyShadow_InstanceCacheDictNoDescr;
-extern _PyCacheType _PyShadow_InstanceCacheDictDescr;
-extern _PyCacheType _PyShadow_InstanceCacheSlot;
-extern _PyCacheType _PyShadow_InstanceCacheNoDictDescr;
-extern _PyCacheType _PyShadow_InstanceCacheSplitDictDescr;
-extern _PyCacheType _PyShadow_InstanceCacheSplitDict;
-extern _PyCacheType _PyShadow_InstanceCacheDictMethod;
-extern _PyCacheType _PyShadow_InstanceCacheNoDictMethod;
-extern _PyCacheType _PyShadow_InstanceCacheSplitDictMethod;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheDictNoDescr;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheDictDescr;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheSlot;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheNoDictDescr;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheSplitDictDescr;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheSplitDict;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheDictMethod;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheNoDictMethod;
+CiAPI_DATA(_PyCacheType) _PyShadow_InstanceCacheSplitDictMethod;
 
-extern _PyCacheType _PyShadow_ModuleAttrEntryType;
-extern _PyCacheType _PyShadow_StrictModuleAttrEntryType;
+CiAPI_DATA(_PyCacheType) _PyShadow_ModuleAttrEntryType;
+CiAPI_DATA(_PyCacheType) _PyShadow_StrictModuleAttrEntryType;
 
 void _PyShadow_InitGlobal(_PyShadow_EvalState *shadow,
                           const _Py_CODEUNIT *next_instr,
@@ -246,14 +248,14 @@ void _PyShadow_InitGlobal(_PyShadow_EvalState *shadow,
 
 PyObject *_PyShadow_GetInlineCacheStats(PyObject *self);
 
-PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
+CiAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 
 int _PyShadow_PatchByteCode(_PyShadow_EvalState *shadow,
                             const _Py_CODEUNIT *next_instr,
                             int op,
                             int arg);
 
-PyAPI_FUNC(int) _PyShadow_InitCache(PyCodeObject *co);
+CiAPI_FUNC(int) _PyShadow_InitCache(PyCodeObject *co);
 
 static inline PyObject **
 _PyShadow_GetGlobal(_PyShadow_EvalState *state, int offset)

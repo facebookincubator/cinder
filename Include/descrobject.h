@@ -101,18 +101,18 @@ typedef struct {
 PyAPI_DATA(PyTypeObject) PyClassMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyGetSetDescr_Type;
 PyAPI_DATA(PyTypeObject) PyMemberDescr_Type;
-PyAPI_DATA(PyTypeObject) PyAsyncCachedPropertyWithDescr_Type;
+CiAPI_DATA(PyTypeObject) PyAsyncCachedPropertyWithDescr_Type;
 PyAPI_DATA(PyTypeObject) PyMethodDescr_Type;
 PyAPI_DATA(PyTypeObject) PyWrapperDescr_Type;
 PyAPI_DATA(PyTypeObject) PyDictProxy_Type;
 #ifndef Py_LIMITED_API
 PyAPI_DATA(PyTypeObject) _PyMethodWrapper_Type;
 #endif /* Py_LIMITED_API */
-PyAPI_DATA(PyType_Spec) _PyCachedClassProperty_TypeSpec;     /* fb t46346203 */
-PyAPI_DATA(PyTypeObject) PyCachedProperty_Type;     /* fb T46346203 */
-PyAPI_DATA(PyTypeObject) PyCachedPropertyWithDescr_Type;     /* fb T46346203 */
-PyAPI_DATA(PyTypeObject) PyAsyncCachedProperty_Type;     /* fb T82701047 */
-PyAPI_DATA(PyTypeObject) PyAsyncCachedClassProperty_Type;     /* fb T82701047 */
+CiAPI_DATA(PyType_Spec) _PyCachedClassProperty_TypeSpec;     /* fb t46346203 */
+CiAPI_DATA(PyTypeObject) PyCachedProperty_Type;     /* fb T46346203 */
+CiAPI_DATA(PyTypeObject) PyCachedPropertyWithDescr_Type;     /* fb T46346203 */
+CiAPI_DATA(PyTypeObject) PyAsyncCachedProperty_Type;     /* fb T82701047 */
+CiAPI_DATA(PyTypeObject) PyAsyncCachedClassProperty_Type;     /* fb T82701047 */
 
 PyAPI_FUNC(PyObject *) PyDescr_NewMethod(PyTypeObject *, PyMethodDef *);
 PyAPI_FUNC(PyObject *) PyDescr_NewClassMethod(PyTypeObject *, PyMethodDef *);

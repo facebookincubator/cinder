@@ -7,9 +7,9 @@
 extern "C" {
 #endif
 
-PyAPI_DATA(PyTypeObject) PyLazyImport_Type;
+CiAPI_DATA(PyTypeObject) PyLazyImport_Type;
 PyAPI_DATA(PyTypeObject) PyModule_Type;
-PyAPI_DATA(PyTypeObject) PyStrictModule_Type;
+CiAPI_DATA(PyTypeObject) PyStrictModule_Type;
 
 #define PyLazyImport_CheckExact(op) (Py_TYPE(op) == &PyLazyImport_Type)
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
@@ -17,11 +17,11 @@ PyAPI_DATA(PyTypeObject) PyStrictModule_Type;
 #define PyStrictModule_Check(op) PyObject_TypeCheck(op, &PyStrictModule_Type)
 #define PyStrictModule_CheckExact(op) (Py_TYPE(op) == &PyStrictModule_Type)
 
-PyAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(
+CiAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(
     PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
-PyAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name);
+CiAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name);
 
-PyAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
+CiAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -122,10 +122,10 @@ int PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *nam
 extern Py_ssize_t strictmodule_dictoffset;
 
 int strictmodule_is_unassigned(PyObject *dict, PyObject *name);
-PyObject * PyStrictModule_GetOriginal(PyObject *obj, PyObject *name);
-PyAPI_FUNC(int) _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
-PyAPI_FUNC(PyObject *) PyStrictModule_GetDictSetter(PyObject *);
-PyAPI_FUNC(PyObject *) PyStrictModule_GetDict(PyObject *);
+CiAPI_FUNC(PyObject *) PyStrictModule_GetOriginal(PyObject *obj, PyObject *name);
+CiAPI_FUNC(int) _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
+CiAPI_FUNC(PyObject *) PyStrictModule_GetDictSetter(PyObject *);
+CiAPI_FUNC(PyObject *) PyStrictModule_GetDict(PyObject *);
 #endif
 
 #ifdef __cplusplus

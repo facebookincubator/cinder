@@ -137,25 +137,25 @@ typedef struct {
     PyObject *tcs_value;
 } _PyClassLoader_TypeCheckState;
 
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, awaitable_cb cb, awaitable_presend onsend);
 
-Py_ssize_t _PyClassLoader_ResolveMethod(PyObject *path);
-Py_ssize_t _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
-int _PyClassLoader_ResolvePrimitiveType(PyObject *descr);
-int _PyClassLoader_GetTypeCode(PyTypeObject *type);
-PyTypeObject * _PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact);
+CiAPI_FUNC(Py_ssize_t) _PyClassLoader_ResolveMethod(PyObject *path);
+CiAPI_FUNC(Py_ssize_t) _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);
+CiAPI_FUNC(int) _PyClassLoader_ResolvePrimitiveType(PyObject *descr);
+CiAPI_FUNC(int) _PyClassLoader_GetTypeCode(PyTypeObject *type);
+CiAPI_FUNC(PyTypeObject *) _PyClassLoader_ResolveType(PyObject *descr, int *optional, int *exact);
 
-int _PyClassLoader_PrimitiveTypeToStructMemberType(int type);
-Py_ssize_t _PyClassLoader_PrimitiveTypeToSize(int primitive_type);
+CiAPI_FUNC(int) _PyClassLoader_PrimitiveTypeToStructMemberType(int type);
+CiAPI_FUNC(Py_ssize_t) _PyClassLoader_PrimitiveTypeToSize(int primitive_type);
 
-int _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
+CiAPI_FUNC(int) _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
 
-PyAPI_FUNC(_PyType_VTable *) _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
-PyAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
-PyAPI_FUNC(void) _PyClassLoader_ClearGenericTypes(void);
+CiAPI_FUNC(_PyType_VTable *) _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses);
+CiAPI_FUNC(int) _PyClassLoader_ClearVtables(void);
+CiAPI_FUNC(void) _PyClassLoader_ClearGenericTypes(void);
 
-int
+CiAPI_FUNC(int)
 _PyClassLoader_IsPatchedThunk(PyObject *obj);
 
 
@@ -165,35 +165,35 @@ _PyClassLoader_IsPatchedThunk(PyObject *obj);
 * the pointer will start pointing at NULL and the function will need
 * to be re-resolved.
 */
-PyObject **
+CiAPI_FUNC(PyObject **)
 _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *container);
 
 /* Checks to see if the given container is immutable */
-int
+CiAPI_FUNC(int)
 _PyClassLoader_IsImmutable(PyObject *container);
 
 /* Resolves a function and returns the underlying object and the
  * container.  Static functions return the underlying callable */
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container);
 
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact, int *coroutine, int *classmethod);
 
-PyMethodDescrObject *
+CiAPI_FUNC(PyMethodDescrObject *)
 _PyClassLoader_ResolveMethodDef(PyObject *path);
-PyAPI_FUNC(void) _PyClassLoader_ClearCache(void);
+CiAPI_FUNC(void) _PyClassLoader_ClearCache(void);
 
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func);
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
 
 /* Checks whether any method in the members dict overrides a final method in the base type. This
    API explicitly takes in a base_type and members_dict instead of a type object as it is used
    within `type_new`.
  */
-int _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *members_dict);
+CiAPI_FUNC(int) _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, PyObject *members_dict);
 
 #define TYPED_INT_UNSIGNED 0
 #define TYPED_INT_SIGNED 1
@@ -338,12 +338,12 @@ typedef struct {
     int td_exact;
 } _PyTypedDescriptor;
 
-PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
+CiAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyTypedDescriptor_New(PyObject *name, PyObject *type, Py_ssize_t offset);
 
-PyAPI_DATA(PyTypeObject) _PyTypedDescriptorWithDefaultValue_Type;
+CiAPI_DATA(PyTypeObject) _PyTypedDescriptorWithDefaultValue_Type;
 
 typedef struct {
     PyObject_HEAD PyObject *td_name;
@@ -354,27 +354,27 @@ typedef struct {
     int td_exact;
 } _PyTypedDescriptorWithDefaultValue;
 
-PyAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
+CiAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 
-PyObject *
+CiAPI_FUNC(PyObject *)
 _PyTypedDescriptorWithDefaultValue_New(PyObject *name, PyObject *type, Py_ssize_t offset, PyObject *default_value);
 
-int _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
+CiAPI_FUNC(int) _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
                                     PyObject *name,
                                     PyObject *new_value);
 
-int _PyClassLoader_UpdateSlot(PyTypeObject *type,
+CiAPI_FUNC(int) _PyClassLoader_UpdateSlot(PyTypeObject *type,
                               PyObject *name,
                               PyObject *new_value);
 
-int _PyClassLoader_InitTypeForPatching(PyTypeObject *type);
+CiAPI_FUNC(int) _PyClassLoader_InitTypeForPatching(PyTypeObject *type);
 
-PyObject *_PyClassloader_SizeOf_DlSym_Cache(void);
-PyObject *_PyClassloader_SizeOf_DlOpen_Cache(void);
-void _PyClassloader_Clear_DlSym_Cache(void);
-void _PyClassloader_Clear_DlOpen_Cache(void);
+CiAPI_FUNC(PyObject *) _PyClassloader_SizeOf_DlSym_Cache(void);
+CiAPI_FUNC(PyObject *) _PyClassloader_SizeOf_DlOpen_Cache(void);
+CiAPI_FUNC(void) _PyClassloader_Clear_DlSym_Cache(void);
+CiAPI_FUNC(void) _PyClassloader_Clear_DlOpen_Cache(void);
 
-void* _PyClassloader_LookupSymbol(PyObject *lib_name,
+CiAPI_FUNC(void*) _PyClassloader_LookupSymbol(PyObject *lib_name,
                                       PyObject *symbol_name);
 
 static inline
@@ -415,11 +415,11 @@ typedef struct {
   _PyTypedArgInfo tai_args[1];
 } _PyTypedArgsInfo;
 
-PyAPI_DATA(PyTypeObject) _PyTypedArgsInfo_Type;
+CiAPI_DATA(PyTypeObject) _PyTypedArgsInfo_Type;
 
-_PyTypedArgsInfo *_PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives);
-_PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyObject *container, int only_primitives);
-int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
+CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives);
+CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyObject *container, int only_primitives);
+CiAPI_FUNC(int) _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
 static inline int
 _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
@@ -430,7 +430,7 @@ _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
            PyObject_TypeCheck(arg, param->gtp_type);
 }
 
-PyObject *_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
+CiAPI_FUNC(PyObject *)_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
 
 /* gets the generic type definition for an instance if it is an instance of a
  * generic type, or returns NULL if it is not */
@@ -450,25 +450,25 @@ _PyClassLoader_GetGenericTypeDef(PyObject *gen_inst)
     return _PyClassLoader_GetGenericTypeDefFromType(inst_type);
 }
 
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0_Opt;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1_Opt;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object_Opt;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String_Opt;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0_Opt;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1_Opt;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_Object_Opt;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_String_Opt;
 
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SSIZET;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SIZET;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT8;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT16;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT32;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT64;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT8;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT16;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT32;
-PyAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT64;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SSIZET;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_SIZET;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT8;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT16;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT32;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_INT64;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT8;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT16;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT32;
+CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT64;
 
 static inline int
 _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value);
@@ -604,7 +604,7 @@ _PyClassLoader_ConvertRet(void *value, int ret_type)
     }
 }
 
-PyAPI_FUNC(void) _PyClassLoader_ArgError(PyObject *func_name,
+CiAPI_FUNC(void) _PyClassLoader_ArgError(PyObject *func_name,
                                          int arg,
                                          int type_param,
                                          const Ci_Py_SigElement *sig_elem,
@@ -690,9 +690,9 @@ _PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
   return 1;
 }
 
-int _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key);
+CiAPI_FUNC(int) _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key);
 
-PyObject* _PyClassloader_InvokeNativeFunction(
+CiAPI_FUNC(PyObject*) _PyClassloader_InvokeNativeFunction(
     PyObject *lib_name,
     PyObject *symbol_name,
     PyObject *signature,
@@ -700,7 +700,7 @@ PyObject* _PyClassloader_InvokeNativeFunction(
     int64_t nargs
 );
 
-PyAPI_DATA(PyTypeObject) PyStaticArray_Type;
+CiAPI_DATA(PyTypeObject) PyStaticArray_Type;
 #define PyStaticArray_CheckExact(op) Py_IS_TYPE(op, &PyStaticArray_Type)
 
 typedef struct {
@@ -710,8 +710,8 @@ typedef struct {
 } PyStaticArrayObject;
 
 
-int _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value);
-PyObject* _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index);
+CiAPI_FUNC(int) _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value);
+CiAPI_FUNC(PyObject*) _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index);
 
 
 #endif

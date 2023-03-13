@@ -83,7 +83,7 @@ extern PyTypeObject PySTEntry_Type;
 
 extern int _PyST_GetScope(PySTEntryObject *, PyObject *);
 
-extern struct symtable* _PySymtable_Build(
+CiAPI_FUNC(struct symtable*) _PySymtable_Build(
     struct _mod *mod,
     PyObject *filename,
     PyFutureFeatures *future);
@@ -94,7 +94,7 @@ extern struct symtable* _PySymtable_BuildEx(
     int inline_comprehensions);
 PyAPI_FUNC(PySTEntryObject *) PySymtable_Lookup(struct symtable *, void *);
 
-extern void _PySymtable_Free(struct symtable *);
+CiAPI_FUNC(void) _PySymtable_Free(struct symtable *);
 
 /* Flags for def-use information */
 

@@ -110,14 +110,14 @@ CONFIGURE_LDFLAGS=	@LDFLAGS@
 # Avoid assigning CFLAGS, LDFLAGS, etc. so users can use them on the
 # command line to append to these values without stomping the pre-set
 # values.
-PY_CFLAGS=	$(BASECFLAGS) $(OPT) -I$(srcdir)/ThirdParty/folly $(CONFIGURE_CFLAGS) $(CFLAGS) $(EXTRA_CFLAGS)
-PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(srcdir)/Include/internal -I$(srcdir)/Cinder/Include
+PY_CFLAGS=	$(BASECFLAGS) $(OPT) -I$(abs_srcdir)/ThirdParty/folly $(CONFIGURE_CFLAGS) $(CFLAGS) $(EXTRA_CFLAGS)
+PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(abs_srcdir)/Include/internal -I$(abs_srcdir)/Cinder/Include
 PY_CXXFLAGS=$(BASECXXFLAGS) $(OPTCXX) $(CONFIGURE_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXXFLAGS)
-PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(srcdir)/Include/internal -I$(srcdir)/Cinder/Include
+PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdir)/Include/internal -I$(abs_srcdir)/Cinder/Include
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(srcdir)/Include -I$(srcdir)/ThirdParty/fmt-8.1.1/include -I$(srcdir)/ThirdParty/i386-dis -I$(srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(srcdir)/Cinder/Include
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_srcdir)/Cinder/Include
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)

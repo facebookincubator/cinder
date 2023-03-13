@@ -213,5 +213,5 @@ PyAPI_FUNC(void) _Py_NO_RETURN _Py_FatalErrorFormat(
 
 #define Py_FatalError(message) _Py_FatalErrorFunc(__func__, message)
 
-PyAPI_DATA(PyObject *) _PyErr_CinderWarnHandler;
-PyAPI_FUNC(int) _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg1);
+CiAPI_DATA(PyObject *) _PyErr_CinderWarnHandler;
+CiAPI_FUNC(int) _PyErr_RaiseCinderWarning(const char *warning, PyObject *arg0, PyObject *arg1);

@@ -159,7 +159,7 @@ PyObject *_PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
   `async_stack_len_out`, `sync_stack_len_out` - These are out parameters. On successful
   run, they contain the lengths of the async and sync stacks respectively.
 */
-PyAPI_FUNC(int) _PyShadowFrame_WalkAndPopulate(
+CiAPI_FUNC(int) _PyShadowFrame_WalkAndPopulate(
     PyCodeObject** async_stack,
     int* async_linenos,
     PyCodeObject** sync_stack,

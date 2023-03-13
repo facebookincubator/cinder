@@ -1,6 +1,8 @@
 #ifndef Py_OBJECT_H
 #define Py_OBJECT_H
 
+#include "cinder/ci_api.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -927,8 +929,8 @@ static inline int _PyType_CheckExact(PyObject *op) {
 }
 #define PyType_CheckExact(op) _PyType_CheckExact(_PyObject_CAST(op))
 
-PyAPI_FUNC(void) _PyType_ClearNoShadowingInstances(struct _typeobject *, PyObject *obj);
-PyAPI_FUNC(void) _PyType_SetNoShadowingInstances(struct _typeobject *);
+CiAPI_FUNC(void) _PyType_ClearNoShadowingInstances(struct _typeobject *, PyObject *obj);
+CiAPI_FUNC(void) _PyType_SetNoShadowingInstances(struct _typeobject *);
 
 #ifdef __cplusplus
 }
