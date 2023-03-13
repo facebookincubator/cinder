@@ -43,11 +43,11 @@ void AnalyzedModule::cleanModuleContent() {
 int AnalyzedModule::getModKindAsInt() const {
   switch (moduleKind_) {
     case ModuleKind::kStrict:
-      return STRICT_MODULE_KIND;
+      return Ci_STRICT_MODULE_KIND;
     case ModuleKind::kStatic:
-      return STATIC_MODULE_KIND;
+      return Ci_STATIC_MODULE_KIND;
     case ModuleKind::kNonStrict:
-      return NONSTRICT_MODULE_KIND;
+      return Ci_NONSTRICT_MODULE_KIND;
   }
   Py_UNREACHABLE();
 }

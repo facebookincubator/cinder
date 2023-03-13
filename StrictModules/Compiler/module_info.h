@@ -32,7 +32,7 @@ class StubKind {
   }
 
   bool isTyping() const {
-    return kind_ == STUB_KIND_MASK_TYPING;
+    return kind_ == Ci_STUB_KIND_MASK_TYPING;
   }
 
   int getValue() const {

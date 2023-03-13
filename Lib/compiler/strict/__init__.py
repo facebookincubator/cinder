@@ -19,7 +19,10 @@ from ast import (
 from types import CodeType
 from typing import Any, cast, Dict, final, List, Mapping, Optional
 
-from _strictmodule import MUTABLE_DECORATOR
+try:
+    from _strictmodule import MUTABLE_DECORATOR
+except ModuleNotFoundError:
+    MUTABLE_DECORATOR = None
 
 from .. import consts, symbols
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder

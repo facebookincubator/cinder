@@ -17,7 +17,10 @@ import py_compile
 import struct
 import filecmp
 from compiler.pysourceloader import PySourceFileLoader
-from compiler.strict.loader import strict_compile as strict_compile_fn
+try:
+   from compiler.strict.loader import strict_compile as strict_compile_fn
+except ModuleNotFoundError:
+   strict_compile_fn = None
 
 from functools import partial
 from pathlib import Path

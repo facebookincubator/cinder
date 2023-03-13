@@ -3,6 +3,7 @@
 #include "Jit/pyjit.h"
 
 #include "Python.h"
+#include "StrictModules/pystrictmodule.h"
 #include "cinder/exports.h"
 #include "internal/pycore_ceval.h"
 #include "internal/pycore_shadow_frame.h"
@@ -1593,11 +1594,20 @@ int _PyJIT_InitializeInternedStrings() {
 }
 
 int _PyJIT_Initialize() {
-  // We have to reference at least one of the values exported for Strobelight
-  // to ensure the linker doesn't DCE the .data section containing them.
+  // If we have data symbols which are public but not used within CPython code,
+  // we need to ensure the linker doesn't GC the .data section containing them.
+  // We can do this by referencing at least symbol from that sourfe module.
+  // In future versions of clang/gcc we may be able to eliminate this with
+  // 'keep' and/or 'used' attributes.
+  //
+  // We use 0xf0 because compiler optimizations can be smart enough to spot that
+  // things like 0 or 1 are not possible (due to alignment etc.)
   JIT_CHECK(
-      __strobe_CodeRuntime_py_code == CodeRuntime::kPyCodeOffset,
-      "Unexpected code offset");
+      reinterpret_cast<uintptr_t>(&__strobe_CodeRuntime_py_code) !=
+              static_cast<uintptr_t>(0xf0) &&
+          reinterpret_cast<uintptr_t>(&StrictModuleLoader_Type) !=
+              static_cast<uintptr_t>(0xf0),
+      "Missing symbol");
 
   if (jit_config.init_state == JIT_INITIALIZED) {
     return 0;

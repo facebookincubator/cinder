@@ -1,11 +1,14 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 import asyncio
-import cinder
 from _asyncio import _AwaitingFuture
 from functools import wraps
-from test.cinder_support import get_await_stack
+import unittest
+from test import cinder_support
 from test.test_asyncio import utils as test_utils
+
+if cinder_support.hasCinderVM():
+    from test.cinder_support import get_await_stack
 
 
 def tearDownModule():
@@ -83,6 +86,7 @@ class _AwaitingFutureTests(test_utils.TestCase):
         test_utils.run_briefly(self.loop)
         self.assertTrue(fut.done())
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     def test_propagates_awaiter(self):
         coro = None
 

@@ -768,6 +768,8 @@ done:
     }
 }
 
+#ifdef ENABLE_CINDERVM
+
 /* Write a frame into the file fd: "File "xxx", line xxx in xxx".
 
    This function is signal safe. */
@@ -855,6 +857,96 @@ _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
     Ci_dump_traceback(fd, tstate, 1);
 }
+#else // ENABLE_CINDERVM
+
+static void
+dump_frame(int fd, PyFrameObject *frame)
+{
+    PyCodeObject *code = PyFrame_GetCode(frame);
+    PUTS(fd, "  File ");
+    if (code->co_filename != NULL
+        && PyUnicode_Check(code->co_filename))
+    {
+        PUTS(fd, "\"");
+        _Py_DumpASCII(fd, code->co_filename);
+        PUTS(fd, "\"");
+    } else {
+        PUTS(fd, "???");
+    }
+
+    int lineno = PyFrame_GetLineNumber(frame);
+    PUTS(fd, ", line ");
+    if (lineno >= 0) {
+        _Py_DumpDecimal(fd, (size_t)lineno);
+    }
+    else {
+        PUTS(fd, "???");
+    }
+    PUTS(fd, " in ");
+
+    if (code->co_name != NULL
+       && PyUnicode_Check(code->co_name)) {
+        _Py_DumpASCII(fd, code->co_name);
+    }
+    else {
+        PUTS(fd, "???");
+    }
+
+    PUTS(fd, "\n");
+    Py_DECREF(code);
+}
+
+static void
+dump_traceback(int fd, PyThreadState *tstate, int write_header)
+{
+    PyFrameObject *frame;
+    unsigned int depth;
+
+    if (write_header) {
+        PUTS(fd, "Stack (most recent call first):\n");
+    }
+
+     // Use a borrowed reference. Avoid Py_INCREF/Py_DECREF, since this function
+     // can be called in a signal handler by the faulthandler module which must
+     // not modify Python objects.
+    frame = tstate->frame;
+    if (frame == NULL) {
+        PUTS(fd, "  <no Python frame>\n");
+        return;
+    }
+
+    depth = 0;
+    while (1) {
+        if (MAX_FRAME_DEPTH <= depth) {
+            PUTS(fd, "  ...\n");
+            break;
+        }
+        if (!PyFrame_Check(frame)) {
+            break;
+        }
+        dump_frame(fd, frame);
+        PyFrameObject *back = frame->f_back;
+
+        if (back == NULL) {
+            break;
+        }
+        frame = back;
+        depth++;
+    }
+}
+
+/* Dump the traceback of a Python thread into fd. Use write() to write the
+   traceback and retry if write() is interrupted by a signal (failed with
+   EINTR), but don't call the Python signal handler.
+
+   The caller is responsible to call PyErr_CheckSignals() to call Python signal
+   handlers if signals were received. */
+void
+_Py_DumpTraceback(int fd, PyThreadState *tstate)
+{
+    dump_traceback(fd, tstate, 1);
+}
+#endif // ENABLE_CINDERVM
 
 /* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
    is_current is true, "Thread 0xHHHH:\n" otherwise.
@@ -937,7 +1029,11 @@ _Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
         if (tstate == current_tstate && tstate->interp->gc.collecting) {
             PUTS(fd, "  Garbage-collecting\n");
         }
+#ifdef ENABLE_CINDERVM
         Ci_dump_traceback(fd, tstate, 0);
+#else
+        dump_traceback(fd, tstate, 0);
+#endif
         tstate = PyThreadState_Next(tstate);
         nthreads++;
     } while (tstate != NULL);

@@ -116,6 +116,8 @@ exit:
     return return_value;
 }
 
+#if defined(ENABLE_CINDERVM)
+
 PyDoc_STRVAR(async_cached_property_init__doc__,
 "async_cached_property(func, name_or_descr=None)\n"
 "--\n"
@@ -164,6 +166,10 @@ exit:
     return return_value;
 }
 
+#endif /* defined(ENABLE_CINDERVM) */
+
+#if defined(ENABLE_CINDERVM)
+
 PyDoc_STRVAR(async_cached_classproperty_new__doc__,
 "async_cached_classproperty(func)\n"
 "--\n"
@@ -201,4 +207,6 @@ async_cached_classproperty_new(PyTypeObject *type, PyObject *args, PyObject *kwa
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=65b7067b62e324c0 input=a9049054013a1b77]*/
+
+#endif /* defined(ENABLE_CINDERVM) */
+/*[clinic end generated code: output=1e3401d10f761978 input=a9049054013a1b77]*/

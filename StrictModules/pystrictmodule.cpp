@@ -788,23 +788,6 @@ PyTypeObject StrictModuleLoader_Type = {
 };
 #pragma GCC diagnostic pop
 
-const char* MUTABLE_DECORATOR = "<mutable>";
-const char* LOOSE_SLOTS_DECORATOR = "<loose_slots>";
-const char* EXTRA_SLOTS_DECORATOR = "<extra_slots>";
-const char* ENABLE_SLOTS_DECORATOR = "<enable_slots>";
-const char* CACHED_PROP_DECORATOR = "<cached_property>";
-
-// module kind
-int NONSTRICT_MODULE_KIND = 0;
-int STRICT_MODULE_KIND = 1;
-int STATIC_MODULE_KIND = 2;
-
-// stub kind
-int STUB_KIND_MASK_NONE = 0b000;
-int STUB_KIND_MASK_ALLOWLIST = 0b011;
-int STUB_KIND_MASK_TYPING = 0b100;
-int STUB_KIND_MASK_STRICT = 0b001;
-
 #ifdef __cplusplus
 }
 #endif

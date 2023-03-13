@@ -31,11 +31,19 @@ def write_contents(f):
     """Write C code contents to the target file object.
     """
     opcode = find_module('opcode')
-    targets = ['_unknown_opcode'] * 256
+    targets = [None] * 256
     for opname, op in opcode.opmap.items():
-        targets[op] = "TARGET_%s" % opname
+        targets[op] = opname
     f.write("static void *opcode_targets[256] = {\n")
-    f.write(",\n".join(["    &&%s" % s for s in targets]))
+    for s in targets:
+        if s is None:
+            f.write(f"    &&_unknown_opcode,\n")
+            continue
+        if s in opcode.cindervmop:
+            f.write(f"#ifdef ENABLE_CINDERVM\n")
+        f.write(f"    &&TARGET_{s},\n")
+        if s in opcode.cindervmop:
+            f.write(f"#else\n    &&_unknown_opcode,\n#endif\n")
     f.write("\n};\n")
 
 

@@ -25,24 +25,25 @@ typedef struct {
   PyObject* errors;
 } StrictModuleAnalysisResult;
 
-PyAPI_DATA(PyTypeObject) StrictModuleLoader_Type;
-PyAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
-PyAPI_DATA(const char*) MUTABLE_DECORATOR;
-PyAPI_DATA(const char*) LOOSE_SLOTS_DECORATOR;
-PyAPI_DATA(const char*) EXTRA_SLOTS_DECORATOR;
-PyAPI_DATA(const char*) ENABLE_SLOTS_DECORATOR;
-PyAPI_DATA(const char*) CACHED_PROP_DECORATOR;
+CiAPI_DATA(PyTypeObject) StrictModuleLoader_Type;
+CiAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
+
+#define Ci_MUTABLE_DECORATOR "<mutable>"
+#define Ci_EXTRA_SLOTS_DECORATOR "<extra_slots>"
+#define Ci_LOOSE_SLOTS_DECORATOR "<loose_slots>"
+#define Ci_ENABLE_SLOTS_DECORATOR "<enable_slots>"
+#define Ci_CACHED_PROP_DECORATOR "<cached_property>"
 
 // module kind
-PyAPI_DATA(int) STRICT_MODULE_KIND;
-PyAPI_DATA(int) STATIC_MODULE_KIND;
-PyAPI_DATA(int) NONSTRICT_MODULE_KIND;
+#define Ci_NONSTRICT_MODULE_KIND 0
+#define Ci_STRICT_MODULE_KIND 1
+#define Ci_STATIC_MODULE_KIND 2
 
 // stub kind
-PyAPI_DATA(int) STUB_KIND_MASK_NONE;
-PyAPI_DATA(int) STUB_KIND_MASK_ALLOWLIST;
-PyAPI_DATA(int) STUB_KIND_MASK_TYPING;
-PyAPI_DATA(int) STUB_KIND_MASK_STRICT;
+#define Ci_STUB_KIND_MASK_NONE 0b000
+#define Ci_STUB_KIND_MASK_ALLOWLIST 0b011
+#define Ci_STUB_KIND_MASK_TYPING 0b100
+#define Ci_STUB_KIND_MASK_STRICT 0b001
 
 #define StrictModuleLoaderObject_Check(v) \
   (Py_TYPE(v) == &StrictModuleLoader_Type)

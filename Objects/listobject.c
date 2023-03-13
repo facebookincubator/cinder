@@ -2190,7 +2190,10 @@ unsafe_tuple_compare(PyObject *v, PyObject *w, MergeState *ms)
         return PyObject_RichCompareBool(vt->ob_item[i], wt->ob_item[i], Py_LT);
 }
 
+#ifdef ENABLE_CINDERVM
 static inline int Ci_List_CheckIncludingChecked(PyObject *x);
+#endif
+
 /* An adaptive, stable, natural mergesort.  See listsort.txt.
  * Returns Py_None on success, NULL on error.  Even in case of error, the
  * list will be some permutation of its input state (nothing is lost or
@@ -2230,7 +2233,11 @@ list_sort_impl(PyListObject *self, PyObject *keyfunc, int reverse)
     PyObject **keys;
 
     assert(self != NULL);
+#ifdef ENABLE_CINDERVM
     assert(Ci_List_CheckIncludingChecked((PyObject *) self));
+#else
+    assert(PyList_Check(self));
+#endif
     if (keyfunc == Py_None)
         keyfunc = NULL;
 
@@ -2657,7 +2664,11 @@ list_richcompare(PyObject *v, PyObject *w, int op)
     PyListObject *vl, *wl;
     Py_ssize_t i;
 
+#ifdef ENABLE_CINDERVM
     if (!Ci_List_CheckIncludingChecked(v) || !Ci_List_CheckIncludingChecked(w))
+#else
+    if (!PyList_Check(v) || !PyList_Check(w))
+#endif
         Py_RETURN_NOTIMPLEMENTED;
 
     vl = (PyListObject *)v;
@@ -3200,7 +3211,11 @@ listiter_next(listiterobject *it)
     seq = it->it_seq;
     if (seq == NULL)
         return NULL;
+#ifdef ENABLE_CINDERVM
     assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
+#else
+    assert(PyList_Check((PyObject *) seq));
+#endif
 
     if (it->it_index < Ci_List_GET_SIZE(seq)) {
         item = Ci_List_GET_ITEM(seq, it->it_index);
@@ -3318,7 +3333,11 @@ list___reversed___impl(PyListObject *self)
     it = PyObject_GC_New(listreviterobject, &PyListRevIter_Type);
     if (it == NULL)
         return NULL;
+#ifdef ENABLE_CINDERVM
     assert(Ci_List_CheckIncludingChecked((PyObject *) self));
+#else
+    assert(PyList_Check((PyObject *) self));
+#endif
     it->it_index = Ci_List_GET_SIZE(self) - 1;
     Py_INCREF(self);
     it->it_seq = self;
@@ -3353,7 +3372,11 @@ listreviter_next(listreviterobject *it)
     if (seq == NULL) {
         return NULL;
     }
+#ifdef ENABLE_CINDERVM
     assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
+#else
+    assert(PyList_Check((PyObject *) seq));
+#endif
 
     index = it->it_index;
     if (index>=0 && index < Ci_List_GET_SIZE(seq)) {
@@ -3427,7 +3450,8 @@ listiter_reduce_general(void *_it, int forward)
     return Py_BuildValue("N(N)", _PyEval_GetBuiltinId(&PyId_iter), list);
 }
 
-_PyGenericTypeDef Ci_CheckedList_Type;
+#ifdef ENABLE_CINDERVM
+CiAPI_DATA(_PyGenericTypeDef) Ci_CheckedList_Type;
 #define IS_CHECKED_LIST(x)                                                    \
     (_PyClassLoader_GetGenericTypeDef((PyObject *)x) == &Ci_CheckedList_Type)
 
@@ -3925,3 +3949,4 @@ _PyGenericTypeDef Ci_CheckedList_Type = {
   .gtd_size = 1,
   .gtd_new = NULL,
 };
+#endif

@@ -157,102 +157,443 @@ static void *opcode_targets[256] = {
     &&TARGET_FORMAT_VALUE,
     &&TARGET_BUILD_CONST_KEY_MAP,
     &&TARGET_BUILD_STRING,
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_METHOD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_FIELD,
+#else
+    &&_unknown_opcode,
+#endif
     &&TARGET_LOAD_METHOD,
     &&TARGET_CALL_METHOD,
     &&TARGET_LIST_EXTEND,
     &&TARGET_SET_UPDATE,
     &&TARGET_DICT_MERGE,
     &&TARGET_DICT_UPDATE,
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_FIELD,
-    &&TARGET_SEQUENCE_REPEAT,
-    &&TARGET_BUILD_CHECKED_LIST,
-    &&TARGET_LOAD_TYPE,
-    &&TARGET_CAST,
-    &&TARGET_LOAD_LOCAL,
-    &&TARGET_STORE_LOCAL,
+#else
     &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_SEQUENCE_REPEAT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_BUILD_CHECKED_LIST,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_LOAD_TYPE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_CAST,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_LOAD_LOCAL,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_STORE_LOCAL,
+#else
+    &&_unknown_opcode,
+#endif
+    &&_unknown_opcode,
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_BOX,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_POP_JUMP_IF_ZERO,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_POP_JUMP_IF_NONZERO,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_UNBOX,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_BINARY_OP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_UNARY_OP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_COMPARE_OP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ITERABLE_ARG,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_MAPPING_ARG,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_FUNCTION,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_JUMP_IF_ZERO_OR_POP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_JUMP_IF_NONZERO_OR_POP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_FAST_LEN,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CONVERT_PRIMITIVE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CHECK_ARGS,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_NATIVE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_CLASS,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BUILD_CHECKED_MAP,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_SEQUENCE_GET,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_SEQUENCE_SET,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LIST_DEL,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_REFINE_TYPE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_LOAD_CONST,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_RETURN_PRIMITIVE,
+#else
+    &&_unknown_opcode,
+#endif
     &&TARGET_LOAD_METHOD_SUPER,
     &&TARGET_LOAD_ATTR_SUPER,
+#ifdef ENABLE_CINDERVM
     &&TARGET_TP_ALLOC,
+#else
+    &&_unknown_opcode,
+#endif
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
     &&_unknown_opcode,
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_UNSHADOWED_METHOD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_TYPE_METHODLIKE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BUILD_CHECKED_LIST_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_TP_ALLOC_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_S_MODULE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_S_MODULE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_FUNCTION_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_FUNCTION_INDIRECT_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BUILD_CHECKED_MAP_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CHECK_ARGS_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_PRIMITIVE_STORE_FAST,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CAST_CACHED_OPTIONAL,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CAST_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CAST_CACHED_EXACT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_CAST_CACHED_OPTIONAL_EXACT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_PRIMITIVE_FIELD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_PRIMITIVE_FIELD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_OBJ_FIELD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_OBJ_FIELD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_INVOKE_METHOD_CACHED,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BINARY_SUBSCR_TUPLE_CONST_INT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BINARY_SUBSCR_DICT_STR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BINARY_SUBSCR_LIST,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BINARY_SUBSCR_TUPLE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_BINARY_SUBSCR_DICT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_UNCACHABLE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_MODULE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_TYPE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_SPLIT_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_SPLIT_DICT_METHOD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_DICT_METHOD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_NO_DICT_METHOD,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_METHOD_NO_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_ATTR_SLOT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_ATTR_SPLIT_DICT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_ATTR_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_ATTR_UNCACHABLE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_STORE_ATTR_DICT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_POLYMORPHIC,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_SLOT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_MODULE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_TYPE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_SPLIT_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_SPLIT_DICT,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_DICT_NO_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_NO_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_DICT_DESCR,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_ATTR_UNCACHABLE,
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
     &&TARGET_LOAD_GLOBAL_CACHED,
-    &&TARGET_SHADOW_NOP
+#else
+    &&_unknown_opcode,
+#endif
+#ifdef ENABLE_CINDERVM
+    &&TARGET_SHADOW_NOP,
+#else
+    &&_unknown_opcode,
+#endif
+
 };

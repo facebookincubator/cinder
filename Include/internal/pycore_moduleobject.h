@@ -45,7 +45,11 @@ typedef struct {
     PyObject *imported_from;
 } PyStrictModuleObject;
 
-#define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
+#ifdef ENABLE_CINDERVM
+#   define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
+#else
+#   define PyModule_Dict(op) (((PyModuleObject *)op)->md_dict)
+#endif
 
 CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDict(PyObject *mod);
 CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDictSetter(PyObject *mod);

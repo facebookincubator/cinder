@@ -40,18 +40,18 @@ void Preprocessor::visitClassDef(const stmt_ty stmt) {
   std::vector<expr_ty> newDecorators;
   auto& attr = it->second->getRewriterAttrs();
   if (attr.isMutable()) {
-    newDecorators.emplace_back(makeName(MUTABLE_DECORATOR));
+    newDecorators.emplace_back(makeName(Ci_MUTABLE_DECORATOR));
   }
   const auto& extra_slots = attr.getExtraSlots();
   if (!extra_slots.empty()) {
     newDecorators.emplace_back(
-        makeNameCall(EXTRA_SLOTS_DECORATOR, extra_slots));
+        makeNameCall(Ci_EXTRA_SLOTS_DECORATOR, extra_slots));
   }
   if (attr.isLooseSlots()) {
-    newDecorators.emplace_back(makeName(LOOSE_SLOTS_DECORATOR));
+    newDecorators.emplace_back(makeName(Ci_LOOSE_SLOTS_DECORATOR));
   }
   if (hasSlots) {
-    newDecorators.emplace_back(makeName(ENABLE_SLOTS_DECORATOR));
+    newDecorators.emplace_back(makeName(Ci_ENABLE_SLOTS_DECORATOR));
   }
   auto& classDef = stmt->v.ClassDef;
   asdl_expr_seq* decorators = classDef.decorator_list;
@@ -96,7 +96,7 @@ void Preprocessor::visitFunctionLikeHelper(
       // add a new one. Just replace the old one with new one
       auto isAsyncObj = Ref<>::create(isAsync ? Py_True : Py_False);
       asdl_expr_seq* args = makeCallArgs({isAsyncObj.release()});
-      expr_ty call = makeCall(CACHED_PROP_DECORATOR, args);
+      expr_ty call = makeCall(Ci_CACHED_PROP_DECORATOR, args);
       asdl_seq_SET(decs, toRemove, call);
     }
   }

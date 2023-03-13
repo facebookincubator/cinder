@@ -55,12 +55,14 @@ gen_traverse(PyGenObject *gen, visitproc visit, void *arg)
     Py_VISIT(gen->gi_code);
     Py_VISIT(gen->gi_name);
     Py_VISIT(gen->gi_qualname);
+#ifdef ENABLE_CINDERVM
     if (gen->gi_jit_data) {
         int r = _PyJIT_GenVisitRefs(gen, visit, arg);
         if (r) {
             return r;
         }
     }
+#endif
     /* No need to visit cr_origin, because it's just tuples/str/int, so can't
        participate in a reference cycle. */
     return exc_state_traverse(&gen->gi_exc_state, visit, arg);
@@ -172,9 +174,11 @@ gen_dealloc(PyGenObject *gen)
         gen->gi_frame->f_gen = NULL;
         Py_CLEAR(gen->gi_frame);
     }
+#ifdef ENABLE_CINDERVM
     if (gen->gi_jit_data) {
         _PyJIT_GenDealloc(gen);
     }
+#endif
     if (((PyCodeObject *)gen->gi_code)->co_flags & CO_COROUTINE) {
         Py_CLEAR(((PyCoroObject *)gen)->cr_origin);
     }
@@ -297,14 +301,18 @@ gen_send_ex2(PyGenObject *gen, PyObject *arg, PyObject **presult,
 
     gen->gi_shadow_frame.prev = tstate->shadow_frame;
     tstate->shadow_frame = &gen->gi_shadow_frame;
+#ifdef ENABLE_CINDERVM
     if (gen->gi_jit_data) {
         result = _PyJIT_GenSend(gen, arg, exc, f, tstate, finish_yield_from);
         /* We might get a frame in shadow-frame mode if a deopt occurs. */
         assert(!f || f == gen->gi_frame);
         f = gen->gi_frame;
     } else {
+#endif
         result = _PyEval_EvalFrame(tstate, f, exc);
+#ifdef ENABLE_CINDERVM
     }
+#endif
     _PyShadowFrame_Pop(tstate, &gen->gi_shadow_frame);
     tstate->exc_info = gen->gi_exc_state.previous_item;
     gen->gi_exc_state.previous_item = NULL;
@@ -477,9 +485,11 @@ _PyGen_yf(PyGenObject *gen)
     PyObject *yf = NULL;
     PyFrameObject *f = gen->gi_frame;
 
+#ifdef ENABLE_CINDERVM
     if (gen->gi_jit_data) {
         return _PyJIT_GenYieldFromValue(gen);
     }
+#endif
 
     if (f) {
         PyObject *bytecode = f->f_code->co_code;
@@ -932,9 +942,11 @@ Ci_genlike_getframe(PyGenObject *gen, const char* attr_name)
     }
 
     PyFrameObject *frame = gen->gi_frame;
+#ifdef ENABLE_CINDERVM
     if (gen->gi_jit_data) {
         frame = _PyJIT_GenMaterializeFrame(gen);
     }
+#endif
     if (frame == NULL) {
         Py_RETURN_NONE;
     }

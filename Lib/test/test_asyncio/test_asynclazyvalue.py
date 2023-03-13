@@ -1,14 +1,16 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 import asyncio
-import cinder
 import inspect
 import unittest
 from _asyncio import AsyncLazyValue
 from functools import wraps
 from time import time
+from test import cinder_support
 
-from test.cinder_support import get_await_stack
+
+if cinder_support.hasCinderVM():
+    from test.cinder_support import get_await_stack
 
 
 def async_test(f):
@@ -153,6 +155,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         except IndexError as e:
             self.assertTrue(type(e.__context__) is Exc)
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     @async_test
     async def test_get_awaiter(self) -> None:
         async def g(f):
@@ -182,6 +185,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stack[0].cr_code, g.__code__)
         self.assertIs(await_stack[1], h_coro)
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     @async_test
     async def test_get_awaiter_from_gathered(self) -> None:
         async def g(f):

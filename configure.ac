@@ -6095,6 +6095,26 @@ else
 fi
 AC_SUBST(TEST_MODULES)
 
+AC_MSG_CHECKING(whether to include CinderVM features)
+AC_ARG_ENABLE(cinder-vm,
+    AS_HELP_STRING(
+        [--disable-cinder-vm],
+        [build core with Cinder features marked for modularization]))
+if test "$enable_cinder_vm" = no; then
+    ENABLE_CINDERVM=no
+    BUILD_CINDERVM_SRCS=no
+else
+    ENABLE_CINDERVM=yes
+    BUILD_CINDERVM_SRCS=yes
+fi
+AC_MSG_RESULT($enable_cinder_vm)
+
+if test "$ENABLE_CINDERVM" = yes; then
+    AC_DEFINE(ENABLE_CINDERVM, 1, [Build CinderVM features])
+fi
+
+AC_SUBST(BUILD_CINDERVM_SRCS)
+AC_SUBST(ENABLE_CINDERVM)
 # Cinder alterations to compiler flags
 BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
 BASECPPFLAGS="-I\"$srcdir\" ${BASECPPFLAGS}"

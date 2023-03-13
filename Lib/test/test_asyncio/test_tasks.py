@@ -1,7 +1,6 @@
 """Tests for tasks.py."""
 
 import _testcapi
-import cinder
 import collections
 import contextlib
 import contextvars
@@ -27,7 +26,7 @@ from asyncio import coroutines
 from asyncio import futures
 from asyncio import tasks
 from test.test_asyncio import utils as test_utils
-from test import support
+from test import cinder_support, support
 from test.support.script_helper import assert_python_ok
 from _testcapi import (
     AcquireContextPtr,
@@ -42,6 +41,9 @@ from _testcapi import (
     delete_context,
     get_context_helpers_for_task,
 )
+
+if cinder_support.hasCinderVM():
+    import cinder
 
 def tearDownModule():
     asyncio.set_event_loop_policy(None)
@@ -2594,6 +2596,7 @@ class BaseTaskTests:
         finally:
             loop.close()
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     def test_ci_cr_awaiter(self):
         ctask = getattr(tasks, '_CTask', None)
         if ctask is None or not issubclass(self.Task, ctask):
@@ -3176,6 +3179,7 @@ class GatherTestsBase:
         self.assertIsNone(cinder._get_coro_awaiter(a34))
         self.assertIsNone(cinder._get_coro_awaiter(a56))
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     def test_gather_ci_cr_awaiter_eager(self):
         async def eager_awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)
@@ -3183,6 +3187,7 @@ class GatherTestsBase:
 
         self._test_ci_cr_awaiter_impl(eager_awaiter)
 
+    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
     def test_gather_ci_cr_awaiter(self):
         async def awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)

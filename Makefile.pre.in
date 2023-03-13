@@ -388,7 +388,6 @@ PYTHON_OBJS=	\
 		Python/ast_unparse.o \
 		Python/bltinmodule.o \
 		@CEVAL_MAYBE_PROBED@ \
-			Python/classloader.o \
 		Python/codecs.o \
 		Python/compile.o \
 		Python/context.o \
@@ -674,6 +673,18 @@ ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
         $(ASMJIT_DIR)/asmjit/x86/x86operand.o \
         $(ASMJIT_DIR)/asmjit/x86/x86rapass.o
 
+BUILD_CINDERVM_SRCS=@BUILD_CINDERVM_SRCS@
+ifeq ($(BUILD_CINDERVM_SRCS), yes)
+	CINDERVM_OBJS = \
+		$(srcdir)/Python/classloader.o \
+		$(ASMJIT_OBJS) \
+		$(JIT_OBJS)    \
+		$(STRICTM_OBJS) \
+		$(I386_DASM_OBJS)
+else
+	CINDERVM_OBJS =
+endif
+
 ##########################################################################
 # objects that get linked into the Python library
 LIBRARY_OBJS_OMIT_FROZEN=	\
@@ -681,10 +692,7 @@ LIBRARY_OBJS_OMIT_FROZEN=	\
 		$(PARSER_OBJS) \
 		$(OBJECT_OBJS) \
 		$(PYTHON_OBJS) \
-		$(ASMJIT_OBJS) \
-		$(JIT_OBJS)    \
-		$(STRICTM_OBJS) \
-		$(I386_DASM_OBJS)    \
+		$(CINDERVM_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS)
 
@@ -1015,11 +1023,9 @@ Include/pydtrace.h: \
 Modules/getbuildinfo.o: $(PARSER_OBJS) \
 		$(OBJECT_OBJS) \
 		$(PYTHON_OBJS) \
-		$(ASMJIT_OBJS) \
-		$(JIT_OBJS) \
-		$(STRICTM_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS) \
+		$(CINDERVM_OBJS) \
 		$(DTRACE_OBJS) \
 		$(srcdir)/Modules/getbuildinfo.c
 	$(V)$(CC) -c $(PY_CORE_CFLAGS) \
@@ -1718,7 +1724,13 @@ ifneq ($(strip $(ASAN_TEST_ENV)),)
 	ASAN_SKIP_TESTS = $(srcdir)/Tools/scripts/asan_skip_tests.txt
 endif
 
-TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS))
+NO_CINDERVM_SKIP_TESTS=
+ENABLE_CINDERVM=@ENABLE_CINDERVM@
+ifeq ($(ENABLE_CINDERVM), no)
+	NO_CINDERVM_SKIP_TESTS = $(srcdir)/Tools/scripts/no_cindervm_skip_tests.txt
+endif
+
+TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS) $(NO_CINDERVM_SKIP_TESTS))
 TESTCINDER_REFLEAK_OPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS)) --ignorefile $(REFLEAK_SKIP_TESTS) -R :
 ifneq ($(strip $(USE_RR)),)
 	JIT_TEST_RR_ARGS=--use-rr

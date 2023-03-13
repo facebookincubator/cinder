@@ -14,17 +14,17 @@ inline bool endsWith(const std::string& name, const std::string& suffix) {
 }
 
 StubKind StubKind::getStubKind(const std::string& filename, bool isAllowList) {
-  int kind = STUB_KIND_MASK_NONE;
+  int kind = Ci_STUB_KIND_MASK_NONE;
   if (endsWith(
           filename, getFileSuffixKindName(FileSuffixKind::kStrictStubFile))) {
-    return StubKind(STUB_KIND_MASK_STRICT);
+    return StubKind(Ci_STUB_KIND_MASK_STRICT);
   } else if (endsWith(
                  filename,
                  getFileSuffixKindName(FileSuffixKind::kTypingStubFile))) {
-    kind |= STUB_KIND_MASK_TYPING;
+    kind |= Ci_STUB_KIND_MASK_TYPING;
   }
   if (isAllowList) {
-    kind |= STUB_KIND_MASK_ALLOWLIST;
+    kind |= Ci_STUB_KIND_MASK_ALLOWLIST;
   }
   return StubKind(kind);
 }

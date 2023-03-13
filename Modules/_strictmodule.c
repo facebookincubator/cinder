@@ -2,6 +2,8 @@
 #include "Python.h"
 #include "StrictModules/pystrictmodule.h"
 
+#include "cinder/exports.h"
+
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
 extern "C" {
@@ -29,7 +31,7 @@ static int strictmodule_exec(PyObject *m) {
   }
   PyObject *val;
 #define SET_STR(name)                                                          \
-  val = PyUnicode_FromString(name);                                            \
+  val = PyUnicode_FromString(Ci_ ## name);                                     \
   if (val == NULL) {                                                           \
     return -1;                                                                 \
   }                                                                            \
@@ -44,7 +46,7 @@ static int strictmodule_exec(PyObject *m) {
   SET_STR(CACHED_PROP_DECORATOR)
 #undef SET_STR
 #define SET_LONG(name)                                                         \
-  val = PyLong_FromLong(name);                                                 \
+  val = PyLong_FromLong(Ci_ ## name);                                          \
   if (val == NULL) {                                                           \
     return -1;                                                                 \
   }                                                                            \

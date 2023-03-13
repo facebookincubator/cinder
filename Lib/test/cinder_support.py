@@ -1,6 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-import cinder
 import multiprocessing
 import unittest
 
@@ -19,8 +18,21 @@ except ImportError:
     CINDERJIT_ENABLED = False
 
 
+try:
+    import cinder
+
+    def hasCinderVM():
+        return True
+
+except ImportError:
+
+    def hasCinderVM():
+        return False
+
+
 def get_await_stack(coro):
     """Return the chain of coroutines reachable from coro via its awaiter"""
+
     stack = []
     awaiter = cinder._get_coro_awaiter(coro)
     while awaiter is not None:

@@ -1,0 +1,16 @@
+test___static__
+test_cinder
+test_cinderjit
+test_compiler
+test_compiler_sbs_stdlib_0
+test_compiler_sbs_stdlib_1
+test_compiler_sbs_stdlib_2
+test_compiler_sbs_stdlib_3
+test_compiler_sbs_stdlib_4
+test_compiler_sbs_stdlib_5
+test_compiler_sbs_stdlib_6
+test_compiler_sbs_stdlib_7
+test_compiler_sbs_stdlib_8
+test_compiler_sbs_stdlib_9
+test_shadowcode
+test_strictmodule

@@ -1178,6 +1178,7 @@ init_interp_main(PyThreadState *tstate)
      * TODO(T126550863): Move this out of `init_interp_main` (potentially into
      * `pyinit_main`).
      */
+#ifdef ENABLE_CINDERVM
     if (is_main_interp) {
       int pj_jit_status = _PyJIT_Initialize();
       if (pj_jit_status < 0) {
@@ -1187,6 +1188,7 @@ init_interp_main(PyThreadState *tstate)
         Py_FatalError("Can't initialize jit");
       }
     }
+#endif
 
     status = init_importlib_external(tstate);
     if (_PyStatus_EXCEPTION(status)) {
@@ -1959,7 +1961,9 @@ Py_FinalizeEx(void)
     }
 #endif /* Py_TRACE_REFS */
 
+#ifdef ENABLE_CINDERVM
     _PyJIT_Finalize();
+#endif
 
     finalize_interp_clear(tstate);
     finalize_interp_delete(tstate->interp);

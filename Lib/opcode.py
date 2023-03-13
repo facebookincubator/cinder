@@ -32,13 +32,16 @@ hascompare = []
 hasfree = []
 hasnargs = [] # unused
 shadowop = set()
+cindervmop = set()
 
 opmap = {}
 opname = ['<%r>' % (op,) for op in range(256)]
 
-def def_op(name, op):
+def def_op(name, op, cindervm=False):
     opname[op] = name
     opmap[name] = op
+    if cindervm:
+        cindervmop.add(name)
 
 def name_op(name, op):
     def_op(name, op)
@@ -48,13 +51,14 @@ def jrel_op(name, op):
     def_op(name, op)
     hasjrel.append(op)
 
-def jabs_op(name, op):
-    def_op(name, op)
+def jabs_op(name, op, cindervm=False):
+    def_op(name, op, cindervm)
     hasjabs.append(op)
 
 def shadow_op(name, op):
     def_op(name, op)
     shadowop.add(op)
+    cindervmop.add(name)
 
 
 # Instruction opcodes for compiled code
@@ -219,77 +223,77 @@ def_op('SET_UPDATE', 163)
 def_op('DICT_MERGE', 164)
 def_op('DICT_UPDATE', 165)
 
-# Cinder-specific opcodes
+# CinderVM-specific opcodes
 
-def_op("INVOKE_METHOD", 158)
+def_op("INVOKE_METHOD", 158, cindervm=True)
 hasconst.append(158)
 
-def_op("LOAD_FIELD", 159)
+def_op("LOAD_FIELD", 159, cindervm=True)
 hasconst.append(159)
-def_op("STORE_FIELD", 166)
+def_op("STORE_FIELD", 166, cindervm=True)
 hasconst.append(166)
 
-def_op("SEQUENCE_REPEAT", 167)
+def_op("SEQUENCE_REPEAT", 167, cindervm=True)
 
-def_op("BUILD_CHECKED_LIST", 168)
+def_op("BUILD_CHECKED_LIST", 168, cindervm=True)
 hasconst.append(168)
-def_op("LOAD_TYPE", 169)
+def_op("LOAD_TYPE", 169, cindervm=True)
 hasconst.append(169)
 
-def_op("CAST", 170)
+def_op("CAST", 170, cindervm=True)
 hasconst.append(170)
 
-def_op("LOAD_LOCAL", 171)
+def_op("LOAD_LOCAL", 171, cindervm=True)
 hasconst.append(171)
-def_op("STORE_LOCAL", 172)
+def_op("STORE_LOCAL", 172, cindervm=True)
 hasconst.append(172)
 
-def_op("PRIMITIVE_BOX", 174)
+def_op("PRIMITIVE_BOX", 174, cindervm=True)
 
-jabs_op("POP_JUMP_IF_ZERO", 175)
-jabs_op("POP_JUMP_IF_NONZERO", 176)
+jabs_op("POP_JUMP_IF_ZERO", 175, cindervm=True)
+jabs_op("POP_JUMP_IF_NONZERO", 176, cindervm=True)
 
-def_op("PRIMITIVE_UNBOX", 177)
+def_op("PRIMITIVE_UNBOX", 177, cindervm=True)
 
-def_op("PRIMITIVE_BINARY_OP", 178)
-def_op("PRIMITIVE_UNARY_OP", 179)
-def_op("PRIMITIVE_COMPARE_OP", 180)
-def_op("LOAD_ITERABLE_ARG", 181)
-def_op("LOAD_MAPPING_ARG", 182)
-def_op("INVOKE_FUNCTION", 183)
+def_op("PRIMITIVE_BINARY_OP", 178, cindervm=True)
+def_op("PRIMITIVE_UNARY_OP", 179, cindervm=True)
+def_op("PRIMITIVE_COMPARE_OP", 180, cindervm=True)
+def_op("LOAD_ITERABLE_ARG", 181, cindervm=True)
+def_op("LOAD_MAPPING_ARG", 182, cindervm=True)
+def_op("INVOKE_FUNCTION", 183, cindervm=True)
 hasconst.append(183)
 
-jabs_op("JUMP_IF_ZERO_OR_POP", 184)
-jabs_op("JUMP_IF_NONZERO_OR_POP", 185)
+jabs_op("JUMP_IF_ZERO_OR_POP", 184, cindervm=True)
+jabs_op("JUMP_IF_NONZERO_OR_POP", 185, cindervm=True)
 
-def_op("FAST_LEN", 186)
-def_op("CONVERT_PRIMITIVE", 187)
+def_op("FAST_LEN", 186, cindervm=True)
+def_op("CONVERT_PRIMITIVE", 187, cindervm=True)
 
-def_op("CHECK_ARGS", 188)
+def_op("CHECK_ARGS", 188, cindervm=True)
 hasconst.append(188)
 
-def_op("LOAD_CLASS", 190)
+def_op("LOAD_CLASS", 190, cindervm=True)
 hasconst.append(190)
 
-def_op("INVOKE_NATIVE", 189)
+def_op("INVOKE_NATIVE", 189, cindervm=True)
 hasconst.append(189)
 
-def_op("BUILD_CHECKED_MAP", 191)
+def_op("BUILD_CHECKED_MAP", 191, cindervm=True)
 hasconst.append(191)
 
-def_op("SEQUENCE_GET", 192)
-def_op("SEQUENCE_SET", 193)
-def_op("LIST_DEL", 194)
-def_op("REFINE_TYPE", 195)
+def_op("SEQUENCE_GET", 192, cindervm=True)
+def_op("SEQUENCE_SET", 193, cindervm=True)
+def_op("LIST_DEL", 194, cindervm=True)
+def_op("REFINE_TYPE", 195, cindervm=True)
 hasconst.append(195)
-def_op("PRIMITIVE_LOAD_CONST", 196)
+def_op("PRIMITIVE_LOAD_CONST", 196, cindervm=True)
 hasconst.append(196)
-def_op("RETURN_PRIMITIVE", 197)
+def_op("RETURN_PRIMITIVE", 197, cindervm=True)
 def_op("LOAD_METHOD_SUPER", 198)
 hasconst.append(198)
 def_op("LOAD_ATTR_SUPER", 199)
 hasconst.append(199)
-def_op("TP_ALLOC", 200)
+def_op("TP_ALLOC", 200, cindervm=True)
 hasconst.append(200)
 
 shadow_op("LOAD_METHOD_UNSHADOWED_METHOD", 205)

@@ -29,6 +29,7 @@ static PyObject * cfunction_vectorcall_O(
 static PyObject * cfunction_call(
     PyObject *func, PyObject *args, PyObject *kwargs);
 
+#ifdef ENABLE_CINDERVM
 static PyObject *Ci_cfunction_vectorcall_typed_0(PyObject *func,
                                               PyObject *const *args,
                                               size_t nargsf,
@@ -41,6 +42,7 @@ static PyObject *Ci_cfunction_vectorcall_typed_2(PyObject *func,
                                               PyObject *const *args,
                                               size_t nargsf,
                                               PyObject *kwnames);
+#endif
 
 PyObject *
 PyCFunction_New(PyMethodDef *ml, PyObject *self)
@@ -59,7 +61,9 @@ PyCMethod_New(PyMethodDef *ml, PyObject *self, PyObject *module, PyTypeObject *c
 {
     /* Figure out correct vectorcall function to use */
     vectorcallfunc vectorcall;
+#ifdef ENABLE_CINDERVM
     Ci_PyTypedMethodDef *sig;
+#endif
     switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
                             METH_O | METH_KEYWORDS | METH_METHOD | Ci_METH_TYPED))
     {
@@ -84,6 +88,7 @@ PyCMethod_New(PyMethodDef *ml, PyObject *self, PyObject *module, PyTypeObject *c
         case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
             vectorcall = cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD;
             break;
+ #ifdef ENABLE_CINDERVM
         case Ci_METH_TYPED:
             sig = (Ci_PyTypedMethodDef *)ml->ml_meth;
             Py_ssize_t arg_cnt = 0;
@@ -100,7 +105,7 @@ PyCMethod_New(PyMethodDef *ml, PyObject *self, PyObject *module, PyTypeObject *c
                     return NULL;
             }
             break;
-
+#endif
         default:
             PyErr_Format(PyExc_SystemError,
                          "%s() method: bad call flags");
@@ -739,6 +744,7 @@ cfunction_call(PyObject *func, PyObject *args, PyObject *kwargs)
     }
     return _Py_CheckFunctionResult(tstate, func, result, NULL);
 }
+#ifdef ENABLE_CINDERVM
 
 typedef void *(*call_self_0)(PyObject *self);
 typedef void *(*call_self_1)(PyObject *self, void *);
@@ -872,3 +878,4 @@ done:
     Py_LeaveRecursiveCall();
     return (PyObject *)res;
 }
+#endif

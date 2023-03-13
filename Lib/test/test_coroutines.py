@@ -1,4 +1,3 @@
-import cinder
 import contextlib
 import copy
 import inspect
@@ -7,11 +6,14 @@ import sys
 import types
 import unittest
 import warnings
-from test import support
+from test import cinder_support, support
 from test.support import import_helper
 from test.support import maybe_get_event_loop_policy
 from test.support import warnings_helper
 from test.support.script_helper import assert_python_ok
+
+if cinder_support.hasCinderVM():
+    import cinder
 
 
 class AsyncYieldFrom:
@@ -2122,6 +2124,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(run_async(run_gen()), ([], 'end'))
 
 
+@unittest.skipUnless(cinder_support.hasCinderVM(), "Uses CinderVM features")
 class CoroutineAwaiterTest(unittest.TestCase):
     def test_basic_await(self):
         async def coro():

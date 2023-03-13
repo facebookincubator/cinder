@@ -640,7 +640,9 @@ code_new_impl(PyTypeObject *type, int argcount, int posonlyargcount,
 static void
 code_dealloc(PyCodeObject *co)
 {
+#ifdef ENABLE_CINDERVM
     _PyJIT_CodeDestroyed(co);
+#endif
 
     if (co->co_extra != NULL) {
         PyInterpreterState *interp = _PyInterpreterState_GET();

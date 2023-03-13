@@ -77,7 +77,11 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_weakreflist = NULL;
     op->func_module = module;
     op->func_annotations = NULL;
+#ifdef ENABLE_CINDERVM
     op->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+#else
+    op->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+#endif
 
     _PyObject_GC_TRACK(op);
     return (PyObject *)op;
@@ -347,8 +351,10 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     }
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
+#ifdef ENABLE_CINDERVM
     _PyJIT_FuncModified(op);
     PyEntry_init(op);
+#endif
     return 0;
 }
 
@@ -393,9 +399,11 @@ func_set_qualname(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
     }
     Py_INCREF(value);
     Py_XSETREF(op->func_qualname, value);
+#ifdef ENABLE_CINDERVM
     if (!_PyJIT_IsCompiled((PyObject *)op)) {
         PyEntry_init(op);
     }
+#endif
     return 0;
 }
 
@@ -436,12 +444,14 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
 
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
+#ifdef ENABLE_CINDERVM
     // JIT-compiled functions load their defaults at runtime if needed. Others
     // need their entrypoint recomputed.
     // TODO(T126790232): Don't load defaults at runtime and recompile as needed.
     if (!_PyJIT_IsCompiled((PyObject *)op)) {
         PyEntry_init(op);
     }
+#endif
     return 0;
 }
 
@@ -634,7 +644,9 @@ func_new_impl(PyTypeObject *type, PyCodeObject *code, PyObject *globals,
         newfunc->func_closure = closure;
     }
 
+#ifdef ENABLE_CINDERVM
     PyEntry_init(newfunc);
+#endif
 
     return (PyObject *)newfunc;
 }
@@ -660,7 +672,9 @@ func_clear(PyFunctionObject *op)
 static void
 func_dealloc(PyFunctionObject *op)
 {
+#ifdef ENABLE_CINDERVM
     _PyJIT_FuncDestroyed(op);
+#endif
     _PyObject_GC_UNTRACK(op);
     if (op->func_weakreflist != NULL) {
         PyObject_ClearWeakRefs((PyObject *) op);

@@ -685,9 +685,11 @@ new_threadstate(PyInterpreterState *interp, int init)
     HEAD_UNLOCK(runtime);
 
     tstate->profile_interp = 0;
+#ifdef ENABLE_CINDERVM
     if (_PyJIT_GetProfileNewInterpThreads()) {
       Ci_ThreadState_SetProfileInterp(tstate, 1);
     }
+#endif
 
     return tstate;
 }
@@ -1112,7 +1114,11 @@ PyFrameObject*
 PyThreadState_GetFrame(PyThreadState *tstate)
 {
     assert(tstate != NULL);
+#ifdef ENABLE_CINDERVM
     PyFrameObject *frame = _PyJIT_GetFrame(tstate);
+#else
+    PyFrameObject *frame = tstate->frame;
+#endif
     Py_XINCREF(frame);
     return frame;
 }

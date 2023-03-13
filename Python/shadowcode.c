@@ -225,6 +225,7 @@ _PyCacheType _PyShadow_ModuleAttrEntryType = {
     .is_valid = (is_valid_func)module_entry_is_valid,
 };
 
+#ifdef ENABLE_CINDERVM
 int
 strictmodule_entry_is_valid(_PyShadow_ModuleAttrEntry *entry) {
     return entry->module != NULL && entry->version == PYCACHE_STRICT_MODULE_VERSION(entry->module);
@@ -256,6 +257,7 @@ _PyCacheType _PyShadow_StrictModuleAttrEntryType = {
     .load_method_opcode = LOAD_METHOD_S_MODULE,
     .is_valid = (is_valid_func)strictmodule_entry_is_valid,
 };
+#endif
 
 static void
 invalidate_cache_entries(PyObject *dict)
@@ -373,7 +375,9 @@ _PyShadow_Init(void)
     _PyCodeCache_RefType.tp_dealloc = _PyWeakref_RefType.tp_dealloc;
     if (PyType_Ready(&_PyCodeCache_RefType) < 0 ||
         PyType_Ready(&_PyShadow_ModuleAttrEntryType.type) < 0 ||
+#ifdef ENABLE_CINDERVM
         PyType_Ready(&_PyShadow_StrictModuleAttrEntryType.type) < 0 ||
+#endif
         PyType_Ready(&_PyShadow_InstanceCacheDictNoDescr.type) < 0 ||
         PyType_Ready(&_PyShadow_InstanceCacheDictDescr.type) < 0 ||
         PyType_Ready(&_PyShadow_InstanceCacheSlot.type) < 0 ||
@@ -1036,10 +1040,16 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
         return;
     }
 
+    assert("Shadowcode broken");
+
+#ifdef ENABLE_CINDERVM
     PyObject **cache = _PyJIT_GetGlobalCache(builtins, globals, name);
     if (cache == NULL) {
         return;
     }
+#else
+    PyObject **cache = NULL;
+#endif
     assert(*cache != NULL);
 
     _PyShadowCode *shadow = state->shadow;
@@ -1074,7 +1084,6 @@ void
 _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
 {
     PyObject *mod_name;
-    PyTypeObject *tp = Py_TYPE(obj);
     if (PyModule_CheckExact(obj)) {
         PyErr_Clear();
         PyObject *mod_dict = ((PyModuleObject *)obj)->md_dict;
@@ -1093,8 +1102,9 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         }
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
-    } else
-    if (PyStrictModule_CheckExact(obj)) {
+    }
+#ifdef ENABLE_CINDERVM
+    else if (PyStrictModule_CheckExact(obj)) {
         PyErr_Clear();
         PyStrictModuleObject *m = (PyStrictModuleObject *)obj;
         if (m->globals) {
@@ -1110,8 +1120,10 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         }
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
-    } else
-    {
+    }
+#endif
+    else {
+        PyTypeObject *tp = Py_TYPE(obj);
         PyErr_Format(PyExc_AttributeError,
                      "'%.50s' object has no attribute '%U'",
                      tp->tp_name,
@@ -1323,10 +1335,12 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
         return NULL;
     }
 
+#ifdef ENABLE_CINDERVM
     /* Inline _PyObject_GetDictPtr */
     if (PyType_IsSubtype(tp, &PyStrictModule_Type)) {
         dictoffset = strictmodule_dictoffset;
     } else
+#endif
     {
       dictoffset = tp->tp_dictoffset;
     }
@@ -1345,7 +1359,9 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                     cache_type = &_PyShadow_InstanceCacheSlot;
                     goto done;
                 }
-            } else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
+            }
+#ifdef ENABLE_CINDERVM
+            else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
                 PyCachedPropertyDescrObject *member =
                     (PyCachedPropertyDescrObject *)descr;
                 if (Py_TYPE(member->name_or_descr) == &PyMemberDescr_Type) {
@@ -1361,6 +1377,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                 cache_type = &_PyShadow_InstanceCacheDictNoDescr;
                 goto done;
             }
+#endif
 
             /* not a special data descriptor */
             cache_type = &_PyShadow_InstanceCacheNoDictDescr;
@@ -1563,6 +1580,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
+#ifdef ENABLE_CINDERVM
         if (PyStrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
             if (strictmodule_is_unassigned(dict, name) == 0) {
@@ -1571,6 +1589,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
                 value = NULL;
             }
         } else
+#endif
         {
             version = PYCACHE_MODULE_VERSION(owner);
             value = _PyDict_GetAttrItem(dict, name);
@@ -1582,10 +1601,12 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
             *res = value;
 
             _PyShadow_ModuleAttrEntry *entry;
+#ifdef ENABLE_CINDERVM
             if (PyStrictModule_Check(owner)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
             } else
+#endif
             {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_ModuleAttrEntryType);
@@ -1616,7 +1637,10 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
              * dict which matches the string w/ a custom __eq__/__hash__ */
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-                                  PyStrictModule_Check(owner) ? LOAD_ATTR_S_MODULE : LOAD_ATTR_MODULE,
+#ifdef ENABLE_CINDERVM
+                                  PyStrictModule_Check(owner) ? LOAD_ATTR_S_MODULE :
+#endif
+                                  LOAD_ATTR_MODULE,
                                   (PyObject *)entry,
                                   name,
                                   &_PyShadow_LoadAttrMiss);
@@ -1683,7 +1707,9 @@ _PyShadow_LoadAttrWithCache(_PyShadow_EvalState *state,
             return res;
         } else if (
             type->tp_getattro == PyModule_Type.tp_getattro
+#ifdef ENABLE_CINDERVM
             || type->tp_getattro == PyStrictModule_Type.tp_getattro
+#endif
         ) {
             PyObject *descr = _PyType_Lookup(type, name);
             if (descr == NULL) {
@@ -1872,6 +1898,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
+#ifdef ENABLE_CINDERVM
         if (PyStrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
             if (strictmodule_is_unassigned(dict, name) == 0) {
@@ -1880,6 +1907,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
                 value = NULL;
             }
         } else
+#endif
         {
             version = PYCACHE_MODULE_VERSION(obj);
             value = _PyDict_GetAttrItem(dict, name);
@@ -1888,10 +1916,12 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         if (value != NULL) {
 
             _PyShadow_ModuleAttrEntry *entry;
+#ifdef ENABLE_CINDERVM
             if (PyStrictModule_Check(obj)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
             } else
+#endif
             {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_ModuleAttrEntryType);
@@ -1917,7 +1947,10 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
 
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-                                  PyStrictModule_Check(obj) ? LOAD_METHOD_S_MODULE : LOAD_METHOD_MODULE,
+#ifdef ENABLE_CINDERVM
+                                  PyStrictModule_Check(obj) ? LOAD_METHOD_S_MODULE :
+#endif
+                                  LOAD_METHOD_MODULE,
                                   (PyObject *)entry,
                                   name,
                                   &_PyShadow_LoadMethodMiss);
@@ -1955,7 +1988,9 @@ _PyShadow_LoadMethodWithCache(_PyShadow_EvalState *state,
                 return meth_found;
             }
         } else if (tp->tp_getattro == PyModule_Type.tp_getattro
+#ifdef ENABLE_CINDERVM
                    || tp->tp_getattro == PyStrictModule_Type.tp_getattro
+#endif
         ) {
             if (_PyType_Lookup(tp, name) == NULL) {
                 int meth_found = _PyShadow_LoadMethodFromModule(

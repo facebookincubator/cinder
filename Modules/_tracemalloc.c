@@ -300,13 +300,27 @@ hashtable_compare_traceback(const void *key1, const void *key2)
 
 
 static void
-tracemalloc_get_frame(PyObject *filename, int lineno, frame_t *frame)
+tracemalloc_get_frame(
+#ifdef ENABLE_CINDERVM
+    PyObject *filename,
+    int lineno,
+#else
+    PyFrameObject *pyframe,
+#endif
+    frame_t *frame)
 {
     frame->filename = unknown_filename;
+#ifndef ENABLE_CINDERVM
+    int lineno = PyFrame_GetLineNumber(pyframe);
+    PyCodeObject *code = PyFrame_GetCode(pyframe);
+    PyObject *filename = code->co_filename;
+    Py_DECREF(code);
+#endif
     if (lineno < 0) {
         lineno = 0;
     }
     frame->lineno = (unsigned int)lineno;
+
 
     if (filename == NULL) {
 #ifdef TRACE_DEBUG
@@ -379,6 +393,7 @@ traceback_hash(traceback_t *traceback)
     return x;
 }
 
+#ifdef ENABLE_CINDERVM
 /*
  * NB: Callers of this function may hold `tables_lock`. As a result, this
  * function, or any of its transitive callees, cannot allocate Python
@@ -398,6 +413,7 @@ Ci_traceback_process_frame(void *data, PyCodeObject *code, int lineno) {
     }
     return CI_SWD_CONTINUE_STACK_WALK;
 }
+#endif
 
 static void
 traceback_get_frames(traceback_t *traceback)
@@ -409,7 +425,25 @@ traceback_get_frames(traceback_t *traceback)
 #endif
         return;
     }
+#ifdef ENABLE_CINDERVM
     Ci_WalkStack(tstate, Ci_traceback_process_frame, traceback);
+#else
+    PyFrameObject *pyframe = PyThreadState_GetFrame(tstate);
+    for (; pyframe != NULL;) {
+        if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
+            tracemalloc_get_frame(pyframe, &traceback->frames[traceback->nframe]);
+            assert(traceback->frames[traceback->nframe].filename != NULL);
+            traceback->nframe++;
+        }
+        if (traceback->total_nframe < UINT16_MAX) {
+            traceback->total_nframe++;
+        }
+
+        PyFrameObject *back = PyFrame_GetBack(pyframe);
+        Py_DECREF(pyframe);
+        pyframe = back;
+    }
+#endif
 }
 
 

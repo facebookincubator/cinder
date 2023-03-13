@@ -7213,6 +7213,7 @@ _gather_multiple(PyObject *const*items,
     PyObject *current_task = NULL, *current_context = NULL, *awaiter = NULL;
     context_aware_task_set_ctx_f context_setter = NULL;
 
+#ifdef ENABLE_CINDERVM
     if (awaited) {
         _PyShadowFrame* sf = tstate->shadow_frame;
         // If our caller is executing eagerly, it won't have a coroutine to set
@@ -7222,6 +7223,7 @@ _gather_multiple(PyObject *const*items,
             awaiter = (PyObject *)_PyShadowFrame_GetGen(sf);
         }
     }
+#endif
 
     for (Py_ssize_t i = 0; i < nitems; ++i) {
         PyObject *arg = items[i];

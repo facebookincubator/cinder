@@ -96,8 +96,10 @@ static int import_all_from(PyThreadState *, PyFrameObject *, PyObject *);
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
+#ifdef ENABLE_CINDERVM
 static void try_profile_next_instr(PyFrameObject* f, PyObject** stack_pointer,
                                    const _Py_CODEUNIT* next_instr);
+#endif
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -347,17 +349,23 @@ PyObject *Ci_GetANext(PyThreadState *tstate, PyObject *aiter) {
 }
 
 // These are used to truncate primitives/check signed bits when converting between them
+#ifdef ENABLE_CINDERVM
 static uint64_t trunc_masks[] = {0xFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF};
 static uint64_t signed_bits[] = {0x80, 0x8000, 0x80000000, 0x8000000000000000};
 static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
                                   0xFFFFFFFF00000000, 0x0};
+#endif
 
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
 #include "ceval_gil.h"
 
+#ifdef ENABLE_CINDERVM
 int _PyEval_ShadowByteCodeEnabled = 1;
+#else
+int _PyEval_ShadowByteCodeEnabled = 0;
+#endif
 
 PyAPI_DATA(int) Py_LazyImportsFlag;
 
@@ -1234,10 +1242,12 @@ fail:
 
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
+#ifdef ENABLE_CINDERVM
 static inline void store_field(int field_type, void *addr, PyObject *value);
 static inline PyObject *load_field(int field_type, void *addr);
 static inline PyObject *
 box_primitive(int field_type, Py_ssize_t value);
+#endif
 
 PyObject *
 PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
@@ -1343,6 +1353,7 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
     return Ci_PyWaitHandle_New(retval, NULL);
 }
 
+#ifdef ENABLE_CINDERVM
 static inline Py_ssize_t
 unbox_primitive_int_and_decref(PyObject *x)
 {
@@ -1351,6 +1362,7 @@ unbox_primitive_int_and_decref(PyObject *x)
     Py_DECREF(x);
     return res;
 }
+#endif
 
 /* Handle signals, pending calls, GIL drop request
    and asynchronous exception */
@@ -1737,7 +1749,9 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _Py_atomic_int * const eval_breaker = &tstate->interp->ceval.eval_breaker;
     PyCodeObject *co;
     _PyShadowFrame shadow_frame;
+#ifdef ENABLE_CINDERVM
     Py_ssize_t profiled_instrs = 0;
+#endif
 
     const _Py_CODEUNIT *first_instr;
     PyObject *names;
@@ -1765,6 +1779,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     trace_info.cframe.previous = prev_cframe;
     tstate->cframe = &trace_info.cframe;
 
+#ifdef ENABLE_CINDERVM
     /*
      * When shadow-frame mode is active, `tstate->frame` may have changed
      * between when `f` was allocated and now. Reset `f->f_back` to point to
@@ -1774,6 +1789,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
       Py_XINCREF(tstate->frame);
       Py_XSETREF(f->f_back, tstate->frame);
     }
+#endif
 
     /* push frame */
     tstate->frame = f;
@@ -1971,6 +1987,7 @@ main_loop:
         f->f_lasti = INSTR_OFFSET();
         NEXTOPARG();
 
+#ifdef ENABLE_CINDERVM
         struct _ceval_state *ceval = &tstate->interp->ceval;
         if (tstate->profile_interp &&
             ++ceval->profile_instr_counter == ceval->profile_instr_period) {
@@ -1978,6 +1995,7 @@ main_loop:
             profiled_instrs++;
             try_profile_next_instr(f, stack_pointer, next_instr - 1);
         }
+#endif
 
         if (PyDTrace_LINE_ENABLED())
             maybe_dtrace_line(f, &trace_info, instr_prev);
@@ -3533,7 +3551,11 @@ main_loop:
             int err;
             STACK_SHRINK(2);
             map = PEEK(oparg);                      /* dict */
-            assert(PyDict_CheckExact(map) || Ci_CheckedDict_Check(map));
+            assert(PyDict_CheckExact(map)
+#ifdef ENABLE_CINDERVM
+                 || Ci_CheckedDict_Check(map)
+#endif
+                 );
             err = Ci_Dict_SetItemInternal(map, key, value);  /* map[key] = value */
             Py_DECREF(value);
             Py_DECREF(key);
@@ -4354,7 +4376,9 @@ main_loop:
                 func->func_defaults = POP();
             }
 
+#ifdef ENABLE_CINDERVM
             PyEntry_init(func);
+#endif
 
             PUSH((PyObject *)func);
             DISPATCH();
@@ -4446,6 +4470,7 @@ main_loop:
             DISPATCH();
         }
 
+#ifdef ENABLE_CINDERVM
         case TARGET(SHADOW_NOP): {
             DISPATCH();
         }
@@ -4997,6 +5022,7 @@ main_loop:
 
             DISPATCH();
         }
+#endif // ENABLE_CINDERVM
 
         case TARGET(EXTENDED_ARG): {
             int oldoparg = oparg;
@@ -5005,6 +5031,7 @@ main_loop:
             goto dispatch_opcode;
         }
 
+#ifdef ENABLE_CINDERVM
 #define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
             while (nargs--) {                                     \
                 Py_DECREF(POP());                                 \
@@ -6085,6 +6112,7 @@ main_loop:
             assert(f->f_iblock == 0);
             goto exiting;
         }
+#endif
 
         case TARGET(LOAD_METHOD_SUPER): {
             PyObject *pair = GETITEM(consts, oparg);
@@ -6148,6 +6176,7 @@ main_loop:
             DISPATCH();
         }
 
+#ifdef ENABLE_CINDERVM
         case TARGET(TP_ALLOC): {
             int optional;
             int exact;
@@ -6500,6 +6529,7 @@ main_loop:
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
+#endif // ENABLE_CINDERVM
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
@@ -6630,9 +6660,11 @@ exit_eval_frame:
     tstate->cframe = trace_info.cframe.previous;
     tstate->cframe->use_tracing = trace_info.cframe.use_tracing;
 
+#ifdef ENABLE_CINDERVM
     if (profiled_instrs != 0) {
         _PyJIT_CountProfiledInstrs(f->f_code, profiled_instrs);
     }
+#endif
 
     if (f->f_gen == NULL) {
         _PyShadowFrame_Pop(tstate, &shadow_frame);
@@ -7254,6 +7286,7 @@ fail:
     return res;
 }
 
+#ifdef ENABLE_CINDERVM
 static inline int8_t
 unbox_primitive_bool_and_decref(PyObject *x)
 {
@@ -7262,6 +7295,7 @@ unbox_primitive_bool_and_decref(PyObject *x)
     Py_DECREF(x);
     return res;
 }
+#endif
 
 PyObject *
 special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
@@ -7770,13 +7804,25 @@ PyFrameObject *
 PyEval_GetFrame(void)
 {
     PyThreadState* tstate = _PyThreadState_GET();
+#ifdef ENABLE_CINDERVM
     return _PyJIT_GetFrame(tstate);
+#else
+    return tstate->frame;
+#endif
 }
 
 PyObject *
 _PyEval_GetBuiltins(PyThreadState *tstate)
 {
+#ifdef ENABLE_CINDERVM
     return _PyJIT_GetBuiltins(tstate);
+#else
+    PyFrameObject *frame = tstate->frame;
+    if (frame != NULL) {
+        return frame->f_builtins;
+    }
+    return tstate->interp->builtins;
+#endif
 }
 
 PyObject *
@@ -7824,9 +7870,19 @@ PyObject *
 PyEval_GetGlobals(void)
 {
     PyThreadState *tstate = _PyThreadState_GET();
+#ifdef ENABLE_CINDERVM
     return _PyJIT_GetGlobals(tstate);
+#else
+    PyFrameObject *current_frame = tstate->frame;
+    if (current_frame == NULL) {
+        return NULL;
+    }
+    assert(current_frame->f_globals != NULL);
+    return current_frame->f_globals;
+#endif
 }
 
+#ifdef ENABLE_CINDERVM
 static CiStackWalkDirective
 Ci_get_topmost_code(void *ptr, PyCodeObject *code, int lineno)
 {
@@ -7834,18 +7890,25 @@ Ci_get_topmost_code(void *ptr, PyCodeObject *code, int lineno)
     *topmost_code = code;
     return CI_SWD_STOP_STACK_WALK;
 }
+#endif
 
 int
 PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyCodeObject *cur_code = NULL;
     int result = cf->cf_flags != 0;
 
+#ifdef ENABLE_CINDERVM
+    PyCodeObject *cur_code = NULL;
     Ci_WalkStack(tstate, Ci_get_topmost_code, &cur_code);
 
     if (cur_code != NULL) {
         const int codeflags = cur_code->co_flags;
+#else
+    PyFrameObject *current_frame = tstate->frame;
+    if (current_frame != NULL) {
+        const int codeflags = current_frame->f_code->co_flags;
+#endif
         const int compilerflags = codeflags & PyCF_MASK;
         if (compilerflags) {
             result = 1;
@@ -7990,35 +8053,6 @@ call_function(PyThreadState *tstate,
     return x;
 }
 
-static inline PyObject *
-box_primitive(int type, Py_ssize_t value)
-{
-    switch (type) {
-    case TYPED_BOOL:
-        return PyBool_FromLong((int8_t)value);
-    case TYPED_INT8:
-    case TYPED_CHAR:
-        return PyLong_FromSsize_t((int8_t)value);
-    case TYPED_INT16:
-        return PyLong_FromSsize_t((int16_t)value);
-    case TYPED_INT32:
-        return PyLong_FromSsize_t((int32_t)value);
-    case TYPED_INT64:
-        return PyLong_FromSsize_t((int64_t)value);
-    case TYPED_UINT8:
-        return PyLong_FromSize_t((uint8_t)value);
-    case TYPED_UINT16:
-        return PyLong_FromSize_t((uint16_t)value);
-    case TYPED_UINT32:
-        return PyLong_FromSize_t((uint32_t)value);
-    case TYPED_UINT64:
-        return PyLong_FromSize_t((uint64_t)value);
-    default:
-        assert(0);
-        return NULL;
-    }
-}
-
 static PyObject *
 do_call_core(PyThreadState *tstate,
              PyTraceInfo *trace_info,
@@ -8073,7 +8107,35 @@ do_call_core(PyThreadState *tstate,
     return PyObject_Call(func, callargs, kwdict);
 }
 
-
+#ifdef ENABLE_CINDERVM
+static inline PyObject *
+box_primitive(int type, Py_ssize_t value)
+{
+    switch (type) {
+    case TYPED_BOOL:
+        return PyBool_FromLong((int8_t)value);
+    case TYPED_INT8:
+    case TYPED_CHAR:
+        return PyLong_FromSsize_t((int8_t)value);
+    case TYPED_INT16:
+        return PyLong_FromSsize_t((int16_t)value);
+    case TYPED_INT32:
+        return PyLong_FromSsize_t((int32_t)value);
+    case TYPED_INT64:
+        return PyLong_FromSsize_t((int64_t)value);
+    case TYPED_UINT8:
+        return PyLong_FromSize_t((uint8_t)value);
+    case TYPED_UINT16:
+        return PyLong_FromSize_t((uint16_t)value);
+    case TYPED_UINT32:
+        return PyLong_FromSize_t((uint32_t)value);
+    case TYPED_UINT64:
+        return PyLong_FromSize_t((uint64_t)value);
+    default:
+        assert(0);
+        return NULL;
+    }
+}
 
 PyObject *_Py_HOT_FUNCTION
 _PyFunction_CallStatic(PyFunctionObject *func,
@@ -8221,6 +8283,7 @@ PyEntry_init(PyFunctionObject *func)
     PyEntry_initnow(func);
   }
 }
+#endif
 
 /* Extract a slice index from a PyLong or an object with the
    nb_index slot defined, and store in *pi.
@@ -8655,6 +8718,7 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
     return res;
 }
 
+#ifdef ENABLE_CINDERVM
 static inline void try_profile_next_instr(PyFrameObject* f,
                                           PyObject** stack_pointer,
                                           const _Py_CODEUNIT* next_instr) {
@@ -8765,6 +8829,7 @@ store_field(int field_type, void *addr, PyObject *value)
         PyErr_SetString(PyExc_RuntimeError, "unsupported field type");
     }
 }
+#endif
 
 #ifdef DYNAMIC_EXECUTION_PROFILE
 

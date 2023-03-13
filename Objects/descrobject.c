@@ -282,6 +282,7 @@ method_check_args(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObj
     return 0;
 }
 
+#ifdef ENABLE_CINDERVM
 static inline int
 Ci_method_check_args(PyObject *func, PyObject *const *args, Py_ssize_t nargs, size_t nargsf, PyObject *kwnames)
 {
@@ -321,6 +322,7 @@ Ci_method_check_args(PyObject *func, PyObject *const *args, Py_ssize_t nargs, si
     }
     return 0;
 }
+#endif
 
 typedef void (*funcptr)(void);
 
@@ -505,7 +507,7 @@ method_vectorcall_O(
     _Py_LeaveRecursiveCall(tstate);
     return result;
 }
-
+#ifdef ENABLE_CINDERVM
 
 typedef void *(*call_self_0)(PyObject *self);
 typedef void *(*call_self_1)(PyObject *self, void *);
@@ -648,6 +650,7 @@ done:
     Py_LeaveRecursiveCall();
     return (PyObject *)res;
 }
+#endif
 
 /* Instances of classmethod_descriptor are unlikely to be called directly.
    For one, the analogous class "classmethod" (for Python classes) is not
@@ -753,11 +756,13 @@ method_get_text_signature(PyMethodDescrObject *descr, void *closure)
     return _PyType_GetTextSignatureFromInternalDoc(descr->d_method->ml_name, descr->d_method->ml_doc);
 }
 
+#ifdef ENABLE_CINDERVM
 static PyObject *
 Ci_method_get_typed_signature(PyMethodDescrObject *descr, void *closure)
 {
     return Ci_PyMethodDef_GetTypedSignature(descr->d_method);
 }
+#endif
 
 static PyObject *
 calculate_qualname(PyDescrObject *descr)
@@ -819,7 +824,9 @@ static PyGetSetDef method_getset[] = {
     {"__doc__", (getter)method_get_doc},
     {"__qualname__", (getter)descr_get_qualname},
     {"__text_signature__", (getter)method_get_text_signature},
+#ifdef ENABLE_CINDERVM
     {"__typed_signature__", (getter)Ci_method_get_typed_signature},
+#endif
     {0}
 };
 
@@ -1095,7 +1102,9 @@ PyDescr_NewMethod(PyTypeObject *type, PyMethodDef *method)
 {
     /* Figure out correct vectorcall function to use */
     vectorcallfunc vectorcall;
+#ifdef ENABLE_CINDERVM
     Ci_PyTypedMethodDef *sig;
+#endif
     switch (method->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
                                 METH_O | METH_KEYWORDS | METH_METHOD | Ci_METH_TYPED))
     {
@@ -1120,6 +1129,7 @@ PyDescr_NewMethod(PyTypeObject *type, PyMethodDef *method)
         case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
             vectorcall = method_vectorcall_FASTCALL_KEYWORDS_METHOD;
             break;
+#ifdef ENABLE_CINDERVM
         case Ci_METH_TYPED:
             sig = (Ci_PyTypedMethodDef *)method->ml_meth;
             Py_ssize_t arg_cnt = 0;
@@ -1142,6 +1152,7 @@ PyDescr_NewMethod(PyTypeObject *type, PyMethodDef *method)
                     return NULL;
             }
             break;
+#endif
         default:
             PyErr_Format(PyExc_SystemError,
                          "%s() method: bad call flags", method->ml_name);
@@ -2134,6 +2145,8 @@ PyTypeObject PyProperty_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
+#ifdef ENABLE_CINDERVM
+
 /* fb t46346203 */
 
 typedef struct {
@@ -3058,3 +3071,4 @@ PyTypeObject PyAsyncCachedClassProperty_Type = {
 };
 
 /* end fb T82701047 */
+#endif

@@ -16,7 +16,9 @@
 #include "pycore_shadowcode.h"
 #include "classloader.h"
 #include "cinder/exports.h"
+#ifdef ENABLE_CINDERVM
 #include "Jit/pyjit.h"
+#endif
 
 #include <ctype.h>
 
@@ -255,7 +257,9 @@ get_type_cache(void)
 static void
 type_cache_clear(struct type_cache *cache, PyObject *value)
 {
+#ifdef ENABLE_CINDERVM
     _PyClassLoader_ClearCache();
+#endif
 
     for (Py_ssize_t i = 0; i < (1 << MCACHE_SIZE_EXP); i++) {
         struct type_cache_entry *entry = &cache->hashtable[i];
@@ -421,8 +425,10 @@ PyType_Modified(PyTypeObject *type)
     }
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
+#ifdef ENABLE_CINDERVM
     _PyShadow_TypeModified(type);
     _PyJIT_TypeModified(type);
+#endif
 }
 
 static void
@@ -624,7 +630,9 @@ type_set_name(PyTypeObject *type, PyObject *value, void *context)
         return -1;
     }
 
+#ifdef ENABLE_CINDERVM
     _PyJIT_TypeNameModified(type);
+#endif
     type->tp_name = tp_name;
     Py_INCREF(value);
     Py_SETREF(((PyHeapTypeObject*)type)->ht_name, value);
@@ -3364,7 +3372,9 @@ type_new_impl(type_new_ctx *ctx)
     }
 
     assert(_PyType_CheckConsistency(type));
+#ifdef ENABLE_CINDERVM
     _PyJIT_TypeCreated(type);
+#endif
     return (PyObject *)type;
 
 error:
@@ -4294,6 +4304,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         existing = PyDict_GetItem(type->tp_dict, name);
         Py_XINCREF(existing);
     }
+#ifdef ENABLE_CINDERVM
     if (type->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
         /* We're running in an environment where we're patching types.  Prepare
          * the type for tracking patches if it hasn't already been prepared */
@@ -4301,6 +4312,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
             return -1;
         }
     }
+#endif
     res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL);
     if (res == 0) {
         /* Clear the VALID_VERSION flag of 'type' and all its
@@ -4315,6 +4327,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         }
         _PyType_ClearNoShadowingInstances(type, value);
        assert(_PyType_CheckConsistency(type));
+#ifdef ENABLE_CINDERVM
        if (existing != value) {
             int slotupdate_res = _PyClassLoader_UpdateSlot(type, name, value);
             if (slotupdate_res == -1) {
@@ -4327,7 +4340,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
             }
             res = res || slotupdate_res;
         }
-
+#endif
     }
     Py_XDECREF(existing);
     Py_DECREF(name);
@@ -4433,6 +4446,7 @@ type_getattr(PyTypeObject *type, const char *name)
 static void
 type_dealloc(PyTypeObject *type)
 {
+#ifdef ENABLE_CINDERVM
     /* TODO(T113261512): Move this logic into the JIT callback.
      *
      * Don't tell the JIT about types that are destroyed before they were fully
@@ -4440,6 +4454,7 @@ type_dealloc(PyTypeObject *type)
     if (PyType_HasFeature(type, Py_TPFLAGS_READY)) {
         _PyJIT_TypeDestroyed(type);
     }
+#endif
 
     PyHeapTypeObject *et;
     PyObject *tp, *val, *tb;
@@ -5227,8 +5242,10 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
                 return -1;
             }
         }
+#ifdef ENABLE_CINDERVM
         _PyType_ClearNoShadowingInstances(newto, NULL);
         _PyJIT_InstanceTypeAssigned(oldto, newto);
+#endif
 
         return 0;
     }
@@ -6826,11 +6843,13 @@ PyType_Ready(PyTypeObject *type)
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
+#ifdef ENABLE_CINDERVM
     if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
       /* type_new_impl() has more work to do on heap types; only tell the JIT
        * about static types right here. */
       _PyJIT_TypeCreated(type);
     }
+#endif
     return 0;
 }
 
@@ -6848,9 +6867,11 @@ add_subclass(PyTypeObject *base, PyTypeObject *type)
         return -1;
     }
 
+#ifdef ENABLE_CINDERVM
     if (_PyClassLoader_AddSubclass(base, type)) {
         return -1;
     }
+#endif
 
     // Only get tp_subclasses after creating the key and value.
     // PyWeakref_NewRef() can trigger a garbage collection which can execute

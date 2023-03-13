@@ -163,6 +163,7 @@ _add_methods_to_object(PyObject *module, PyObject *name, PyMethodDef *functions)
         if (func == NULL) {
             return -1;
         }
+#ifdef ENABLE_CINDERVM
         if (PyStrictModule_Check(module)) {
             PyObject *globals = ((PyStrictModuleObject *)module)->globals;
             if (PyDict_SetItemString(globals, fdef->ml_name, func) != 0) {
@@ -170,7 +171,9 @@ _add_methods_to_object(PyObject *module, PyObject *name, PyMethodDef *functions)
                 return -1;
             }
         }
-        else if (PyObject_SetAttrString(module, fdef->ml_name, func) != 0) {
+        else
+#endif
+        if (PyObject_SetAttrString(module, fdef->ml_name, func) != 0) {
             Py_DECREF(func);
             return -1;
         }
@@ -466,12 +469,14 @@ PyModule_SetDocString(PyObject *m, const char *doc)
     if (v == NULL) {
         Py_XDECREF(v);
         return -1;
+#ifdef ENABLE_CINDERVM
     } else if (PyStrictModule_Check(m)) {
         PyObject *globals = ((PyStrictModuleObject*)m)->globals;
         if (_PyDict_SetItemId(globals, &PyId___doc__, v) != 0) {
             Py_DECREF(v);
             return -1;
         }
+#endif
     } else if(_PyObject_SetAttrId(m, &PyId___doc__, v) != 0) {
         Py_XDECREF(v);
         return -1;
@@ -1029,6 +1034,7 @@ PyTypeObject PyModule_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
+#ifdef ENABLE_CINDERVM
 static int
 strictmodule_init(PyStrictModuleObject *self, PyObject *args, PyObject *kwds)
 {
@@ -1607,6 +1613,7 @@ PyTypeObject PyStrictModule_Type = {
 };
 
  Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
+#endif // ENABLE_CINDERVM
 
 PyObject *
 PyLazyImportModule_NewObject(

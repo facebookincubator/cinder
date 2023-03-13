@@ -369,15 +369,6 @@ _symtable symtablemodule.c
 # Another example -- the 'xxsubtype' module shows C-level subtyping in action
 xxsubtype xxsubtype.c
 
-# Another example - the 'xxclassloader' module shows C-level classloader APIs in action
-xxclassloader xxclassloader.c
-
-# Static Python support
-_static _static.c
-
-# Strict Module Support
-_strictmodule _strictmodule.c
-
 # Uncommenting the following line tells makesetup that all following modules
 # are not built (see above for more detail).
 #

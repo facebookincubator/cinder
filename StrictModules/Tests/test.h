@@ -240,11 +240,11 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     auto modValue = mod->getModuleValue();
     ASSERT_NE(modValue.get(), nullptr);
 
-    PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);
-    const wchar_t* evalImportPaths =
-        L"Lib:StrictModules/Tests/comparison_tests/imports";
-    PySys_SetPath(evalImportPaths);
+    std::wstring path{Py_GetPath()};
+    path.append(L":StrictModules/Tests/comparison_tests/imports");
+    PySys_SetPath(path.c_str());
 
+    PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);
     auto pyMod = PyImport_ExecCodeModule(modname, code);
     PyObject* global = nullptr;
     if (vars_.empty()) {

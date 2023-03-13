@@ -577,6 +577,7 @@ static PyObject *_Py_NO_INLINE
 _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
                                         PyObject *owner)
 {
+#ifdef ENABLE_CINDERVM
     PyObject *res;
     if (entry->value != NULL) {
         /* cached_property descriptor, we need to create the value */
@@ -596,7 +597,12 @@ _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
         return NULL;
     }
     return res;
+#else
+    _PyShadow_SetLoadAttrError(owner, entry->name);
+    return NULL;
+#endif
 }
+
 
 static _Py_ALWAYS_INLINE PyObject *
 _PyShadow_LoadAttrDictNoDescrHit(_PyShadow_InstanceAttrEntry *entry,
@@ -649,6 +655,7 @@ _PyShadow_LoadAttrDictNoDescr(_PyShadow_EvalState *shadow,
 static _Py_ALWAYS_INLINE PyObject *
 _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
 {
+#ifdef ENABLE_CINDERVM
     PyObject *res = *(PyObject **)((char *)owner + entry->splitoffset);
     if (res == NULL) {
         if (entry->value != NULL &&
@@ -669,6 +676,11 @@ _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
     }
     Py_INCREF(res);
     return res;
+#else
+    (void)owner;
+    PyErr_SetObject(PyExc_AttributeError, entry->name);
+    return NULL;
+#endif
 }
 
 static inline PyObject *
@@ -870,6 +882,7 @@ _PyShadow_LoadAttrModule(_PyShadow_EvalState *shadow,
     return res;
 }
 
+#ifdef ENABLE_CINDERVM
 static inline PyObject *
 _PyShadow_LoadAttrStrictModule(_PyShadow_EvalState *shadow,
                          const _Py_CODEUNIT *next_instr,
@@ -904,6 +917,7 @@ _PyShadow_LoadAttrStrictModule(_PyShadow_EvalState *shadow,
     }
     return res;
 }
+#endif
 
 static _Py_ALWAYS_INLINE PyObject *
 _PyShadow_LoadAttrNoDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
@@ -1330,6 +1344,7 @@ _PyShadow_LoadMethodModule(_PyShadow_EvalState *shadow,
     LOAD_METHOD_CACHE_MISS(LOAD_METHOD_MODULE, NULL)
 }
 
+#ifdef ENABLE_CINDERVM
 static inline int
 _PyShadow_LoadMethodStrictModule(_PyShadow_EvalState *shadow,
                            const _Py_CODEUNIT *next_instr,
@@ -1363,6 +1378,7 @@ _PyShadow_LoadMethodStrictModule(_PyShadow_EvalState *shadow,
 
     LOAD_METHOD_CACHE_MISS(LOAD_METHOD_S_MODULE, NULL)
 }
+#endif
 
 #define STORE_ATTR_CACHE_MISS(opcode, target, v)                              \
     INLINE_CACHE_RECORD_STAT(opcode, misses);                                 \
