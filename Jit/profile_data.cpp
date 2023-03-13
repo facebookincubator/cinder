@@ -38,6 +38,7 @@ uint32_t hashBytecode(PyCodeObject* code) {
 namespace {
 
 const uint64_t kMagicHeader = 0x7265646e6963;
+constexpr uint32_t kThisPyVersion = PY_VERSION_HEX >> 16;
 
 using ProfileData = UnorderedMap<CodeKey, CodeProfileData>;
 ProfileData s_profile_data;
@@ -80,26 +81,6 @@ std::string readStr(std::istream& stream) {
   return result;
 }
 
-void readVersion1(std::istream& stream) {
-  auto num_code_keys = read<uint32_t>(stream);
-  for (size_t i = 0; i < num_code_keys; ++i) {
-    std::string code_key = readStr(stream);
-    auto& code_map = s_profile_data[code_key];
-
-    auto num_locations = read<uint16_t>(stream);
-    for (size_t j = 0; j < num_locations; ++j) {
-      auto bc_offset = BCOffset{read<uint16_t>(stream)};
-
-      auto& type_list = code_map[bc_offset];
-      auto num_types = read<uint8_t>(stream);
-      for (size_t k = 0; k < num_types; ++k) {
-        std::vector<std::string> single_profile{readStr(stream)};
-        type_list.emplace_back(single_profile);
-      }
-    }
-  }
-}
-
 void readVersion2(std::istream& stream) {
   auto num_code_keys = read<uint32_t>(stream);
   for (size_t i = 0; i < num_code_keys; ++i) {
@@ -124,7 +105,7 @@ void readVersion2(std::istream& stream) {
   }
 }
 
-void writeVersion3(std::ostream& stream, const TypeProfiles& profiles) {
+void writeVersion4(std::ostream& stream, const TypeProfiles& profiles) {
   ProfileData data;
   std::unordered_set<BorrowedRef<PyTypeObject>> dict_key_types;
 
@@ -167,6 +148,12 @@ void writeVersion3(std::ostream& stream, const TypeProfiles& profiles) {
   }
 
   // Second, write data to the given stream.
+  const int kNumPyVersions = 1;
+  write<uint8_t>(stream, kNumPyVersions);
+  write<uint16_t>(stream, kThisPyVersion);
+  int32_t version_offset = long{stream.tellp()} + sizeof(uint32_t);
+  write<uint32_t>(stream, version_offset);
+
   write<uint32_t>(stream, data.size());
   for (auto& [code_key, code_data] : data) {
     writeStr(stream, code_key);
@@ -206,17 +193,15 @@ void readVersion3(std::istream& stream) {
 }
 
 void readVersion4(std::istream& stream) {
-  constexpr uint32_t kTargetVersion = PY_VERSION_HEX >> 16;
-
   auto num_py_versions = read<uint8_t>(stream);
   std::vector<uint16_t> found_versions;
   for (size_t i = 0; i < num_py_versions; ++i) {
     auto py_version = read<uint16_t>(stream);
     auto offset = read<uint32_t>(stream);
-    if (py_version == kTargetVersion) {
+    if (py_version == kThisPyVersion) {
       JIT_LOG(
           "Loading profile for Python version %#x at offset %d",
-          kTargetVersion,
+          kThisPyVersion,
           offset);
       stream.seekg(offset);
       readVersion3(stream);
@@ -235,7 +220,7 @@ void readVersion4(std::istream& stream) {
   }
   JIT_LOG(
       "Couldn't find target version %#x in profile data; found versions [%s]",
-      kTargetVersion,
+      kThisPyVersion,
       versions_str);
 }
 
@@ -267,9 +252,7 @@ bool readProfileData(std::istream& stream) {
       return false;
     }
     auto version = read<uint32_t>(stream);
-    if (version == 1) {
-      readVersion1(stream);
-    } else if (version == 2) {
+    if (version == 2) {
       readVersion2(stream);
     } else if (version == 3) {
       readVersion3(stream);
@@ -310,8 +293,8 @@ bool writeProfileData(std::ostream& stream) {
   try {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     write<uint64_t>(stream, kMagicHeader);
-    write<uint32_t>(stream, 3);
-    writeVersion3(stream, Runtime::get()->typeProfiles());
+    write<uint32_t>(stream, 4);
+    writeVersion4(stream, Runtime::get()->typeProfiles());
   } catch (const std::runtime_error& e) {
     JIT_LOG("Failed to write profile data to stream: %s", e.what());
     return false;
