@@ -4040,6 +4040,9 @@ class BasicBlock {
   auto iterator_to(Instr& instr) {
     return instrs_.iterator_to(instr);
   }
+  auto const_iterator_to(const Instr& instr) const {
+    return instrs_.const_iterator_to(instr);
+  }
   auto begin() {
     return instrs_.begin();
   }

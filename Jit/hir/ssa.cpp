@@ -202,6 +202,33 @@ void checkRegisters(CheckEnv& env) {
     env.defined.insert(output);
   }
 }
+
+void checkLoadMethod(CheckEnv& env) {
+  if (env.instr->IsLoadMethod() || env.instr->IsLoadMethodSuper()) {
+    auto it = std::next(env.block->const_iterator_to(*env.instr));
+    if (it == env.block->end() || !it->IsGetLoadMethodInstance()) {
+      fmt::print(
+          env.err,
+          "ERROR: {} in bb {} not immediately followed by "
+          "GetLoadMethodInstance\n",
+          env.instr->opname(),
+          env.block->id);
+      env.ok = false;
+    }
+  } else if (env.instr->IsGetLoadMethodInstance()) {
+    auto it = env.block->const_iterator_to(*env.instr);
+    if (it == env.block->begin() ||
+        (!std::prev(it)->IsLoadMethod() &&
+         !std::prev(it)->IsLoadMethodSuper())) {
+      fmt::print(
+          env.err,
+          "ERROR: GetLoadMethodInstance in bb {} not immediately preceded by "
+          "LoadMethod/LoadMethodSuper\n",
+          env.block->id);
+      env.ok = false;
+    }
+  }
+}
 } // namespace
 
 // Verify the following properties:
@@ -216,6 +243,8 @@ void checkRegisters(CheckEnv& env) {
 // - No register is assigned to by more than one instruction.
 // - Every register has a link to its defining instruction.
 // - All uses of a register are dominated by its definition.
+// - LoadMethod and GetLoadMethodInstance only appear directly before or after
+//   each other, respectively.
 bool checkFunc(const Function& func, std::ostream& err) {
   if (!checkCFG(func, err)) {
     return false;
@@ -267,6 +296,7 @@ bool checkFunc(const Function& func, std::ostream& err) {
 
       checkTerminator(env);
       checkRegisters(env);
+      checkLoadMethod(env);
     }
   }
 

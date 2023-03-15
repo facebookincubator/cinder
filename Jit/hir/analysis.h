@@ -38,10 +38,6 @@ Register* modelReg(Register* reg);
 // Writes to err if any failure occurs and returns false
 bool funcTypeChecks(const Function& func, std::ostream& err);
 
-// Validates that the function always has a LoadMethod instruction followed
-// by a GetLoadMethodInstance
-void validateLoadMethods(const Function& func);
-
 // Returns true iff the constraint signifies that all of its instruction's
 // operands must match
 bool operandsMustMatch(OperandType op_type);

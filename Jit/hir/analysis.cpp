@@ -305,25 +305,6 @@ bool funcTypeChecks(const Function& func, std::ostream& err) {
   return true;
 }
 
-void validateLoadMethods(const Function& func) {
-  for (auto& block : func.cfg.blocks) {
-    for (auto it = block.begin(); it != block.end(); ++it) {
-      auto& instr = *it;
-      if (!instr.IsLoadMethod()) {
-        continue;
-      }
-      ++it;
-      JIT_CHECK(
-          it != block.end(),
-          "LoadMethod at the of block, should have GetLoadMethodInstance");
-      JIT_CHECK(
-          it->IsGetLoadMethodInstance(),
-          "LoadMethod not followed by GetLoadMethodInstance {}",
-          *it);
-    }
-  }
-}
-
 void DataflowAnalysis::AddBasicBlock(const BasicBlock* cfg_block) {
   auto res = df_blocks_.emplace(
       std::piecewise_construct,
