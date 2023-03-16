@@ -333,41 +333,9 @@ class Static38CodeGenerator(StrictCodeGenerator):
             return
         return klass
 
-    def _emit_cached_property(self, name: str, is_async: bool) -> None:
-        if is_async:
-            cached_property_prefix = ASYNC_CACHED_PROPERTY_IMPL_PREFIX
-            cached_property_function_name = "async_cached_property"
-        else:
-            cached_property_prefix = CACHED_PROPERTY_IMPL_PREFIX
-            cached_property_function_name = "cached_property"
-        impl_name = cached_property_prefix + name
-        self.emit("DUP_TOP")  # used for _setup_cached_property_on_type
-        self.emit("DUP_TOP")  # used to load descriptor
-        self.emit("DUP_TOP")  # used to load method implementation
-        self.emit("LOAD_ATTR", impl_name)  # Loads implemented method on the stack
-        self.emit("ROT_TWO")
-        self.emit("LOAD_ATTR", name)
-        self.emit(
-            "INVOKE_FUNCTION",
-            (("cinder", cached_property_function_name), 2),
-        )
-        self.emit("LOAD_CONST", name)
-        self.emit("LOAD_CONST", impl_name)
-        self.emit("INVOKE_FUNCTION", (("_static", "_setup_cached_property_on_type"), 4))
-        self.emit("POP_TOP")
-
-    def _emit_final_method_names(self, klass: Class) -> None:
-        final_methods: List[str] = []
-        for class_or_subclass in klass.mro:
-            final_methods.extend(class_or_subclass.get_own_final_method_names())
-
-        self.emit("DUP_TOP")
-        self.emit("LOAD_CONST", tuple(sorted(final_methods)))
-        self.emit("ROT_TWO")
-        self.emit("STORE_ATTR", "__final_method_names__")
-
     def emit_build_class(self, node: ast.ClassDef, class_body: CodeGenerator) -> None:
-        if not isinstance(self.scope, ModuleScope):
+        klass = self._resolve_class(node)
+        if not isinstance(self.scope, ModuleScope) or klass is None:
             # If a class isn't top-level then it's not going to be using static
             # features (we could relax this in the future for classes nested in classes).
             return super().emit_build_class(node, class_body)
@@ -389,28 +357,35 @@ class Static38CodeGenerator(StrictCodeGenerator):
         else:
             self.emit("LOAD_CONST", False)
 
+        assert klass is not None
+        final_methods: List[str] = []
+        for class_or_subclass in klass.mro:
+            final_methods.extend(class_or_subclass.get_own_final_method_names())
+        self.emit("LOAD_CONST", tuple(sorted(final_methods)))
+
+        if klass.is_final:
+            self.emit("LOAD_CONST", True)
+        else:
+            self.emit("LOAD_CONST", False)
+
+        count = 0
+        for name, value in klass.members.items():
+            if isinstance(value, CachedPropertyMethod):
+                self.emit("LOAD_CONST", CACHED_PROPERTY_IMPL_PREFIX + name)
+                count += 1
+            elif isinstance(value, AsyncCachedPropertyMethod):
+                self.emit("LOAD_CONST", ASYNC_CACHED_PROPERTY_IMPL_PREFIX + name)
+                count += 1
+
+        self.emit("BUILD_TUPLE", count)
+
         for base in node.bases:
             self.visit(base)
 
         self.emit(
             "INVOKE_FUNCTION",
-            (("_static", "__build_cinder_class__"), 4 + len(node.bases)),
+            (("_static", "__build_cinder_class__"), 7 + len(node.bases)),
         )
-
-    def post_process_and_store_name(self, node: ClassDef) -> None:
-        klass = self._resolve_class(node)
-        if klass:
-            self._emit_final_method_names(klass)
-            method = "set_type_static_final" if klass.is_final else "set_type_static"
-            self.emit("INVOKE_FUNCTION", (("_static", method), 1))
-
-            for name, value in klass.members.items():
-                if isinstance(value, CachedPropertyMethod):
-                    self._emit_cached_property(name, is_async=False)
-                elif isinstance(value, AsyncCachedPropertyMethod):
-                    self._emit_cached_property(name, is_async=True)
-
-        self.storeName(node.name)
 
     def processBody(
         self, node: AST, body: List[ast.stmt] | AST, gen: CodeGenerator

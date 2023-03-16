@@ -252,68 +252,27 @@ PyObject *is_type_static(PyObject *mod, PyObject *type) {
   Py_RETURN_FALSE;
 }
 
-PyObject *_set_type_static_impl(PyObject *type, int final) {
-  PyTypeObject *pytype;
+PyObject *set_type_static(PyObject *mod, PyObject *type) {
   if (!PyType_Check(type)) {
     PyErr_Format(PyExc_TypeError, "Expected a type object, not %.100s",
                  Py_TYPE(type)->tp_name);
     return NULL;
   }
-  pytype = (PyTypeObject *)type;
-  pytype->tp_flags |= Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED;
-
-  /* Inheriting a non-static type which inherits a static type is not sound, and
-   * we can only catch it at runtime. The compiler can't see the static base
-   * through the nonstatic type (which is opaque to it) and thus a) can't verify
-   * validity of method and attribute overrides, and b) also can't check
-   * statically if this case has occurred. */
-  PyObject *mro = pytype->tp_mro;
-  PyTypeObject *nonstatic_base = NULL;
-
-  for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
-    PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
-    if (next->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
-      if (nonstatic_base) {
-        PyErr_Format(
-          PyExc_TypeError,
-          "Static compiler cannot verify that static type '%s' is a valid "
-          "override of static base '%s' because intervening base '%s' is non-static.",
-          pytype->tp_name,
-          next->tp_name,
-          nonstatic_base->tp_name);
-        return NULL;
-      }
-    } else if (nonstatic_base == NULL) {
-      nonstatic_base = next;
-    }
-  }
-
-
-  if (pytype->tp_cache != NULL) {
-    /* If the v-table was inited because our base class was
-     * already inited, it is no longer valid...  we need to include
-     * statically defined methods (we'd be better off having custom
-     * static class building which knows we're building a static type
-     * from the get-go) */
-    Py_CLEAR(pytype->tp_cache);
-    if (_PyClassLoader_EnsureVtable(pytype, 0) == NULL) {
-        return NULL;
-    }
-  }
-
-  if (final) {
-    pytype->tp_flags &= ~Py_TPFLAGS_BASETYPE;
-  }
+  ((PyTypeObject *)type)->tp_flags |= Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED;
   Py_INCREF(type);
   return type;
 }
 
-PyObject *set_type_static(PyObject *mod, PyObject *type) {
-    return _set_type_static_impl(type, 0);
-}
-
 PyObject *set_type_static_final(PyObject *mod, PyObject *type) {
-    return _set_type_static_impl(type, 1);
+  if (!PyType_Check(type)) {
+    PyErr_Format(PyExc_TypeError, "Expected a type object, not %.100s",
+                 Py_TYPE(type)->tp_name);
+    return NULL;
+  }
+  ((PyTypeObject *)type)->tp_flags |= Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED;
+  ((PyTypeObject *)type)->tp_flags &= ~Py_TPFLAGS_BASETYPE;
+  Py_INCREF(type);
+  return type;
 }
 
 PyObject *set_type_final(PyObject *mod, PyObject *type) {
@@ -851,63 +810,6 @@ static_property_missing_fset(PyObject *mod, PyObject *self, PyObject *val)
 Ci_Py_TYPED_SIGNATURE(static_property_missing_fset, Ci_Py_SIG_ERROR, &Ci_Py_Sig_Object, &Ci_Py_Sig_Object, NULL);
 
 
-/*
-    Static Python compiles cached properties into something like this:
-        class C:
-            __slots__ = ("x")
-
-            def _x_impl(self): ...
-
-            C.x = cached_property(C._x_impl, C.x)
-            del C._x_impl
-
-    The last two lines result in a STORE_ATTR + DELETE_ATTR. However, both those
-    opcodes result in us creating a v-table on the C class. That's not correct, because
-    the v-table should be created only _after_ `C.x` is assigned (and the impl deleted).
-
-    This function does the job, without going through the v-table creation.
-*/
-static PyObject *
-setup_cached_property_on_type(PyObject *Py_UNUSED(module), PyObject **args, Py_ssize_t nargs)
-{
-    if (nargs != 4) {
-        PyErr_SetString(PyExc_TypeError, "Expected 4 arguments");
-        return NULL;
-    }
-    PyObject *typ = args[0];
-    if (!PyType_Check(typ)) {
-        PyErr_SetString(PyExc_TypeError, "Expected a type object as 1st argument");
-        return NULL;
-    }
-    PyObject *property = args[1];
-    PyObject *name = args[2];
-    if (!PyUnicode_Check(name)) {
-        PyErr_SetString(PyExc_TypeError, "Expected str as 3rd argument (name of the cached property)");
-        return NULL;
-    }
-    PyObject *impl_name = args[3];
-    if (!PyUnicode_Check(impl_name)) {
-        PyErr_SetString(PyExc_TypeError, "Expected str as 4th argument (name of the implementation slot)");
-        return NULL;
-    }
-
-    // First setup the cached_property
-    int res;
-    res = _PyObject_GenericSetAttrWithDict(typ, name, property, NULL);
-    if (res != 0) {
-        return NULL;
-    }
-
-    // Next clear the backing slot
-    res = _PyObject_GenericSetAttrWithDict(typ, impl_name, NULL, NULL);
-    if (res != 0) {
-        return NULL;
-    }
-
-    PyType_Modified((PyTypeObject*)typ);
-    Py_RETURN_NONE;
-}
-
 static int
 create_overridden_slot_descriptors_with_default(PyTypeObject *type)
 {
@@ -1331,13 +1233,141 @@ init_static_type(PyObject *obj, int leaked_type)
     return 0;
 }
 
+static int
+validate_base_types(PyTypeObject *pytype) {
+    /* Inheriting a non-static type which inherits a static type is not sound, and
+    * we can only catch it at runtime. The compiler can't see the static base
+    * through the nonstatic type (which is opaque to it) and thus a) can't verify
+    * validity of method and attribute overrides, and b) also can't check
+    * statically if this case has occurred. */
+    PyObject *mro = pytype->tp_mro;
+    PyTypeObject *nonstatic_base = NULL;
+
+    for (Py_ssize_t i = 1; i < PyTuple_GET_SIZE(mro); i++) {
+        PyTypeObject *next = (PyTypeObject *)PyTuple_GET_ITEM(mro, i);
+        if (next->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
+            if (nonstatic_base) {
+                PyErr_Format(
+                    PyExc_TypeError,
+                    "Static compiler cannot verify that static type '%s' is a valid "
+                    "override of static base '%s' because intervening base '%s' is non-static.",
+                    pytype->tp_name,
+                    next->tp_name,
+                    nonstatic_base->tp_name);
+                return -1;
+            }
+        } else if (nonstatic_base == NULL) {
+            nonstatic_base = next;
+        }
+    }
+    return 0;
+}
+
+static int
+init_cached_properties(PyTypeObject *type, PyObject *cached_properties) {
+    /*
+        Static Python compiles cached properties into something like this:
+            class C:
+                __slots__ = ("x")
+
+                def _x_impl(self): ...
+
+                C.x = cached_property(C._x_impl, C.x)
+                del C._x_impl
+
+        The last two lines result in a STORE_ATTR + DELETE_ATTR. However, both those
+        opcodes result in us creating a v-table on the C class. That's not correct, because
+        the v-table should be created only _after_ `C.x` is assigned (and the impl deleted).
+
+        This function does the job, without going through the v-table creation and does it
+        in bulk for all of the cached properties.
+    */
+    for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(cached_properties); i++) {
+        PyObject *impl_name = PyTuple_GET_ITEM(cached_properties, i);
+        if (!PyUnicode_CheckExact(impl_name)) {
+            PyErr_Format(PyExc_TypeError, "illegal cached property value: %s", Py_TYPE(impl_name)->tp_name);
+            return -1;
+        }
+        PyObject *impl = PyDict_GetItem(type->tp_dict, impl_name);
+        if (impl == NULL) {
+            PyErr_Format(PyExc_TypeError, "cached property impl doesn't exist: %R", impl_name);
+            return -1;
+        }
+
+        const char *name = PyUnicode_AsUTF8(impl_name);
+        const char *async_prefix = "_pystatic_async_cprop.";
+        const char *normal_prefix = "_pystatic_cprop.";
+        PyObject *property, *attr;
+        if (!strncmp(name, async_prefix, strlen(async_prefix))) {
+            char attr_name[strlen(name) - strlen(async_prefix) + 1];
+            strcpy(attr_name, name + strlen(async_prefix));
+            attr = PyUnicode_FromString(attr_name);
+            PyObject *descr = PyDict_GetItem(type->tp_dict, attr);
+            if (descr == NULL) {
+                PyErr_Format(PyExc_TypeError, "cached property descriptor doesn't exist: %R", attr);
+                return -1;
+            }
+
+            PyObject *args[2];
+
+            args[0] = impl;
+            args[1] = descr;
+            property = PyObject_Vectorcall((PyObject *)&PyAsyncCachedProperty_Type, args, 2, NULL);
+        } else if(!strncmp(name, normal_prefix, strlen(normal_prefix))) {
+            char attr_name[strlen(name) - strlen(normal_prefix) + 1];
+            strcpy(attr_name, name + strlen(normal_prefix));
+            attr = PyUnicode_FromString(attr_name);
+            PyObject *descr = PyDict_GetItem(type->tp_dict, attr);
+            if (descr == NULL) {
+                PyErr_Format(PyExc_TypeError, "cached property descriptor doesn't exist: %R", attr);
+                return -1;
+            }
+
+            PyObject *args[2];
+
+            args[0] = impl;
+            args[1] = descr;
+            property = PyObject_Vectorcall((PyObject *)&PyCachedProperty_Type, args, 2, NULL);
+        } else {
+            PyErr_Format(PyExc_TypeError, "unknown prefix: %R", impl_name);
+            return -1;
+        }
+        if (property == NULL) {
+            Py_DECREF(attr);
+            return -1;
+        }
+
+        // First setup the cached_property
+        int res;
+        res = _PyObject_GenericSetAttrWithDict((PyObject *)type, attr, property, NULL);
+        if (res != 0) {
+            return -1;
+        }
+
+        // Next clear the backing slot
+        res = _PyObject_GenericSetAttrWithDict((PyObject *)type, impl_name, NULL, NULL);
+        if (res != 0) {
+            return -1;
+        }
+        Py_DECREF(property);
+        Py_DECREF(attr);
+
+        PyType_Modified(type);
+
+    }
+    return 0;
+}
 
 static PyObject *
 _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 {
-    PyObject *mkw;
+    _Py_IDENTIFIER(__final_method_names__);
 
-    if (nargs < 4) {
+    PyObject *mkw;
+    PyObject *type = NULL;
+    const int min_arg_count = 7;    // the minimum number of arguments we take
+    const int extra_args = 5;   // the number of extra arguments we take in comparison to normal __build_class__
+    if (nargs < min_arg_count) {
         PyErr_SetString(PyExc_TypeError,
                         "__build_cinder_class__: not enough arguments");
         return NULL;
@@ -1355,6 +1385,15 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
     }
 
     int has_class_cell = PyObject_IsTrue(args[3]);
+    PyObject *final_method_names = args[4];
+    int final = PyObject_IsTrue(args[5]);
+    PyObject *cached_properties = args[6];
+    if (!PyTuple_CheckExact(cached_properties)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "__build_cinder_class__: cached_properties is not a tuple");
+        return NULL;
+    }
+
 
     PyObject *bc = get_build_class();
     if (bc == NULL) {
@@ -1372,16 +1411,16 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
     call_args[0] = args[0]; // func
     call_args[1] = args[1]; // name
 
-    // bases are offset by one due to kwarg dict
-    for (Py_ssize_t i = 4; i < nargs; i++) {
-        call_args[i - 2] = args[i];
+    // bases are offset by extra_args due to the extra args we take
+    for (Py_ssize_t i = min_arg_count; i < nargs; i++) {
+        call_args[i - extra_args] = args[i];
     }
 
     if (mkw != NULL) {
         Py_ssize_t i = 0, cur = 0;
         PyObject *key, *value;
         while (PyDict_Next(mkw, &i, &key, &value)) {
-            call_args[nargs - 2 + cur] = value;
+            call_args[nargs - extra_args + cur] = value;
             call_names[cur++] = key;
         }
     }
@@ -1394,8 +1433,35 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
         }
     }
 
-    PyObject *type = PyObject_Vectorcall(bc, call_args, nargs - 2, call_names_tuple);
+    type = PyObject_Vectorcall(bc, call_args, nargs - extra_args, call_names_tuple);
     if (type == NULL) {
+        goto error;
+    }
+
+    int res;
+    res = _PyObject_GenericSetAttrWithDict(type, _PyUnicode_FromId(&PyId___final_method_names__), final_method_names, NULL);
+    if (res != 0) {
+        goto error;
+    }
+
+    PyTypeObject *pytype = (PyTypeObject *)type;
+    int had_type_cache = 0;
+    if (pytype->tp_cache != NULL) {
+        /* If the v-table was inited because our base class was
+        * already inited, it is no longer valid...  we need to include
+        * statically defined methods (we'd be better off having custom
+        * static class building which knows we're building a static type
+        * from the get-go) */
+        Py_CLEAR(((PyTypeObject *)type)->tp_cache);
+        had_type_cache = 1;
+    }
+    pytype->tp_flags |= Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED;
+    if (final) {
+        pytype->tp_flags &= ~Py_TPFLAGS_BASETYPE;
+    }
+    pytype = (PyTypeObject *)type;
+
+    if (validate_base_types(pytype) < 0) {
         goto error;
     }
 
@@ -1432,12 +1498,24 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
                create_overridden_slot_descriptors_with_default((PyTypeObject *)type) < 0) {
         goto error;
     }
+    if (PyTuple_GET_SIZE(cached_properties) && init_cached_properties(pytype, cached_properties) < 0) {
+        goto error;
+    }
+    // If we were subtyping a class which was known statically then the v-table will be eagerly
+    // initialized before we completed the static initialization of the type.  In that case we
+    // cleared out the cache earlier, and now we want to make sure we have the v-table in place
+    // as there may already exist invokes against the base class members that we'd be used in.
+    if (had_type_cache && _PyClassLoader_EnsureVtable(pytype, 0) == NULL) {
+        goto error;
+    }
+
     Py_XDECREF(call_names_tuple);
     Py_DECREF(bc);
     return type;
 error:
     Py_XDECREF(call_names_tuple);
     Py_DECREF(bc);
+    Py_XDECREF(type);
     return NULL;
 }
 
@@ -1496,7 +1574,6 @@ static PyMethodDef static_methods[] = {
      "Returns time in nanoseconds as an int64. Note: Does no error checks at all."},
     {"_property_missing_fget", (PyCFunction)&static_property_missing_fget_def, Ci_METH_TYPED, ""},
     {"_property_missing_fset", (PyCFunction)&static_property_missing_fset_def, Ci_METH_TYPED, ""},
-    {"_setup_cached_property_on_type", (PyCFunction)setup_cached_property_on_type, METH_FASTCALL, ""},
     {"resolve_primitive_descr", (PyCFunction)(void(*)(void))resolve_primitive_descr, METH_O, ""},
     {"__build_cinder_class__",
      (PyCFunction)_static___build_cinder_class__,

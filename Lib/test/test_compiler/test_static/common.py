@@ -504,7 +504,9 @@ __slot_types__ = {slot_types!r}
             "exec",
             "exec",
         )
-        return __build_cinder_class__(FunctionType(c, globals(), "C"), "C", None, False)
+        return __build_cinder_class__(
+            FunctionType(c, globals(), "C"), "C", None, False, (), False, ()
+        )
 
     def assert_jitted(self, func):
         if cinderjit is None:
