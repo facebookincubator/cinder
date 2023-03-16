@@ -232,6 +232,32 @@ class ClassMethodTests(StaticTestBase):
             d = D()
             asyncio.run(d.bar())
 
+    def test_classmethod_dynamic_subclass_override(self):
+        codestr = """
+            class C:
+                @classmethod
+                async def foo(cls) -> int:
+                    return 3
+
+                async def bar(self) -> int:
+                    return await self.foo()
+
+                def return_foo_typ(self):
+                    return self.foo()
+        """
+        with self.in_module(codestr, name="mymod") as mod:
+            C = mod.C
+
+            class D(C):
+                # This isn't right and we should pass "self"
+                # here as well.  This is just to capture the current
+                # broken behavior.
+                async def foo() -> int:
+                    return 42
+
+            d = D()
+            asyncio.run(d.bar())
+
     def test_classmethod_other_dec(self):
         codestr = """
             from typing import final

@@ -128,6 +128,29 @@ class SubclassTests(StaticTestBase):
             class D(mod.B):
                 pass
 
+    def test_base_class_inited(self):
+        codestr = """
+            class B:
+                def f(self) -> int:
+                    return 42
+
+            def f(b: B) -> int:
+                return b.f()
+        """
+        with self.in_module(codestr, name="base") as mod:
+            b = mod.B()
+            self.assertEqual(mod.f(b), 42)
+            codestr = """
+                from __static__ import int8
+                from base import B
+                class D(B):
+                    def __init__(self, a: int8, b: int8) -> None:
+                        self.a: int8 = a
+                        self.b: int8 = b
+            """
+            with self.in_module(codestr) as derived:
+                pass
+
 
 if __name__ == "__main__":
     unittest.main()

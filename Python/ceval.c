@@ -5102,7 +5102,6 @@ main_loop:
                 stack,
                 nargs |
                 (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
-                (is_classmethod ? Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD : 0) |
                 Ci_Py_VECTORCALL_INVOKED_STATICALLY,
                 NULL);
 
@@ -6523,8 +6522,7 @@ main_loop:
                 vtable->vt_entries[slot].vte_state,
                 stack,
                 nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY |
-                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
-                (is_classmethod ? Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD : 0),
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0),
                 NULL);
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);

@@ -883,11 +883,7 @@ PyObject* JITRT_InvokeClassMethod(
 
   PyObject* func = vtable->vt_entries[slot].vte_state;
   return vtable->vt_entries[slot].vte_entry(
-      func,
-      args,
-      nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY |
-          Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD,
-      kwnames);
+      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
 }
 
 /* This function is inlined to LIR via kCHelpersManual, so changes here will

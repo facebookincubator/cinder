@@ -665,6 +665,49 @@ done:
 }
 
 static PyObject *
+type_vtable_coroutine_classmethod(_PyClassLoader_TypeCheckState *state,
+                       PyObject *const *args,
+                       size_t nargsf,
+                       PyObject *kwnames)
+{
+    PyObject *callable = state->tcs_value;
+    PyObject *coro;
+    Py_ssize_t awaited = nargsf & Ci_Py_AWAITED_CALL_MARKER;
+
+    if (Py_TYPE(callable) == &PyClassMethod_Type) {
+        // We need to do some special set up for class methods when invoking.
+        callable = Ci_PyClassMethod_GetFunc(state->tcs_value);
+        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    } else {
+        // In this case, we have a patched class method, and the self has been
+        // handled via descriptors already.
+        coro = _PyObject_Vectorcall(callable,
+                                    args + 1,
+                                    (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | awaited,
+                                    kwnames);
+    }
+
+    if (coro == NULL) {
+        return NULL;
+    }
+
+    int eager = Ci_PyWaitHandle_CheckExact(coro);
+    if (eager) {
+        Ci_PyWaitHandleObject *handle = (Ci_PyWaitHandleObject *)coro;
+        if (handle->wh_waiter == NULL) {
+            if (rettype_check(Py_TYPE(callable),
+                    handle->wh_coro_or_result, (_PyClassLoader_RetTypeInfo *)state)) {
+                return coro;
+            }
+            Ci_PyWaitHandle_Release(coro);
+            return NULL;
+        }
+    }
+
+    return _PyClassLoader_NewAwaitableWrapper(coro, eager, (PyObject *)state, rettype_cb, NULL);
+}
+
+static PyObject *
 type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
                        PyObject *const *args,
                        size_t nargsf,
@@ -672,53 +715,31 @@ type_vtable_coroutine(_PyClassLoader_TypeCheckState *state,
 {
     PyObject *coro;
     PyObject *callable = state->tcs_value;
-    if (Py_TYPE(callable) == &PyClassMethod_Type) {
+    if (PyFunction_Check(callable)) {
+        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+    } else if (Py_TYPE(callable) == &PyClassMethod_Type) {
         // We need to do some special set up for class methods when invoking.
         callable = Ci_PyClassMethod_GetFunc(state->tcs_value);
-        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-        assert(nargs > 0);
-        PyObject *classmethod_args[nargs];
-        PyObject *first_arg = args[0];
-        if (~nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
-            first_arg = (PyObject *) Py_TYPE(first_arg);
-        }
-        classmethod_args[0] = first_arg;
-        for (Py_ssize_t i = 1; i < nargs; ++i) {
-          classmethod_args[i] = args[i];
-        }
-        args = classmethod_args;
         coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
-    } else if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
-        Py_ssize_t awaited = nargsf & Ci_Py_AWAITED_CALL_MARKER;
-        // In this case, we have a patched class method, and the self has been
-        // handled via descriptors already.
-        coro = _PyObject_Vectorcall(callable,
-                                    args + 1,
-                                    (PyVectorcall_NARGS(nargsf) - 1) | PY_VECTORCALL_ARGUMENTS_OFFSET | awaited,
-                                    kwnames);
-    } else {
-        if (PyFunction_Check(callable)) {
-            coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
-        } else if (Py_TYPE(callable)->tp_descr_get != NULL) {
-            PyObject *self = args[0];
-            PyObject *get = Py_TYPE(callable)->tp_descr_get(
-                callable, self, (PyObject *)Py_TYPE(self));
-            if (get == NULL) {
-                return NULL;
-            }
-
-            Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-
-            coro =
-                _PyObject_Vectorcall(get,
-                                    args + 1,
-                                    (nargs - 1),
-                                    kwnames);
-            Py_DECREF(get);
-        } else {
-            // self isn't passed if we're not a descriptor
-            coro = _PyObject_Vectorcall(callable, args + 1, nargsf - 1, kwnames);
+    } else if (Py_TYPE(callable)->tp_descr_get != NULL) {
+        PyObject *self = args[0];
+        PyObject *get = Py_TYPE(callable)->tp_descr_get(
+            callable, self, (PyObject *)Py_TYPE(self));
+        if (get == NULL) {
+            return NULL;
         }
+
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+        coro =
+            _PyObject_Vectorcall(get,
+                                args + 1,
+                                (nargs - 1),
+                                kwnames);
+        Py_DECREF(get);
+    } else {
+        // self isn't passed if we're not a descriptor
+        coro = _PyObject_Vectorcall(callable, args + 1, nargsf - 1, kwnames);
     }
     if (coro == NULL) {
         return NULL;
@@ -950,7 +971,7 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
                                     size_t nargsf,
                                     PyObject *kwnames)
 {
-    if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD && _PyClassMethod_Check(state->tcs_value)) {
+    if (_PyClassMethod_Check(state->tcs_value)) {
         PyFunctionObject *func = (PyFunctionObject *)Ci_PyClassMethod_GetFunc(state->tcs_value);
         return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
     }
@@ -1523,10 +1544,12 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     Py_XDECREF(vtable->vt_entries[slot].vte_state);
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
-        // TODO(T128335015): Re-enable this once asyncio is supported.
-        if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
-        vtable->vt_entries[slot].vte_entry =
-            (vectorcallfunc)type_vtable_coroutine_property;
+        if (classmethod) {
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)type_vtable_coroutine_classmethod;
+        } else if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
+            vtable->vt_entries[slot].vte_entry =
+                (vectorcallfunc)type_vtable_coroutine_property;
         } else {
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)type_vtable_coroutine;
@@ -2480,19 +2503,13 @@ type_vtable_setslot(PyTypeObject *tp,
     because the v-table has been updated.
 */
 static PyObject *
-type_vtable_lazyinit(PyObject *name,
+type_vtable_lazyinit(PyObject *info,
                      PyObject **args,
                      size_t nargsf,
                      PyObject *kwnames)
 {
-    PyObject *self = args[0];
-    PyTypeObject *type;
-    if (nargsf & Ci_Py_VECTORCALL_INVOKED_CLASSMETHOD) {
-        type = (PyTypeObject *)self;
-    }
-    else {
-        type = Py_TYPE(self);
-    }
+    PyTypeObject *type = (PyTypeObject *)PyTuple_GET_ITEM(info, 1);
+    PyObject *name = PyTuple_GET_ITEM(info, 0);
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     PyObject *mro = type->tp_mro;
     Py_ssize_t slot =
@@ -2548,18 +2565,27 @@ _PyClassLoader_ClearGenericTypes()
     For every slot in the vtable slotmap, this sets the vectorcall entrypoint
     to `type_vtable_lazyinit`.
 */
-void
-_PyClassLoader_ReinitVtable(_PyType_VTable *vtable)
+int
+_PyClassLoader_ReinitVtable(PyTypeObject *type, _PyType_VTable *vtable)
 {
     PyObject *name, *slot;
     PyObject *slotmap = vtable->vt_slotmap;
     Py_ssize_t i = 0;
     while (PyDict_Next(slotmap, &i, &name, &slot)) {
         Py_ssize_t index = PyLong_AsSsize_t(slot);
-        vtable->vt_entries[index].vte_state = name;
+        PyObject *tuple = PyTuple_New(2);
+        if (tuple == NULL) {
+            return -1;
+        }
+
+        PyTuple_SET_ITEM(tuple, 0, name);
         Py_INCREF(name);
+        PyTuple_SET_ITEM(tuple, 1, (PyObject *)type);
+        Py_INCREF(type);
+        vtable->vt_entries[index].vte_state = tuple;
         vtable->vt_entries[index].vte_entry = (vectorcallfunc) type_vtable_lazyinit;
     }
+    return 0;
 }
 
 int
@@ -2803,10 +2829,13 @@ _PyClassLoader_EnsureVtable(PyTypeObject *self, int init_subclasses)
     vtable->vt_specials = NULL;
     vtable->vt_slotmap = slotmap;
     vtable->vt_typecode = TYPED_OBJECT;
+
+    if (_PyClassLoader_ReinitVtable(self, vtable)) {
+        Py_DECREF(vtable);
+        return NULL;
+    }
+
     self->tp_cache = (PyObject *)vtable;
-
-    _PyClassLoader_ReinitVtable(vtable);
-
     PyObject_GC_Track(vtable);
 
     if (init_subclasses && type_init_subclass_vtables(self)) {
