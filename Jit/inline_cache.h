@@ -20,8 +20,8 @@ namespace jit {
 struct SplitMutator {
   PyObject* setAttr(PyObject* obj, PyObject* name, PyObject* value);
   PyObject* getAttr(PyObject* obj, PyObject* name);
-  Py_ssize_t dict_offset;
-  Py_ssize_t val_offset;
+  uint32_t dict_offset;
+  uint32_t val_offset;
   PyDictKeysObject* keys; // Borrowed
 };
 

@@ -85,8 +85,14 @@ void AttributeMutator::set_split(
     PyDictKeysObject* keys) {
   kind_ = Kind::kSplit;
   type_ = type;
-  split_.dict_offset = type->tp_dictoffset;
-  split_.val_offset = val_offset;
+  JIT_CHECK(
+      type->tp_dictoffset <= std::numeric_limits<uint32_t>::max(),
+      "Dict offset does not fit into a 32-bit int");
+  JIT_CHECK(
+      val_offset <= std::numeric_limits<uint32_t>::max(),
+      "Val offset does not fit into a 32-bit int");
+  split_.dict_offset = static_cast<uint32_t>(type->tp_dictoffset);
+  split_.val_offset = static_cast<uint32_t>(val_offset);
   split_.keys = keys;
 }
 
