@@ -4851,7 +4851,6 @@ class HIROpcodeCountTests(unittest.TestCase):
         self.assertEqual(ops.get("Return"), 1)
         self.assertEqual(ops.get("BinaryOp"), 1)
         self.assertGreaterEqual(ops.get("Decref"), 2)
-        print(ops)
 
 
 if __name__ == "__main__":
