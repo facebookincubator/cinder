@@ -279,6 +279,50 @@ property after we've already cached the non-existance of the split property'''
         for _i in range(REPETITION):
             self.assertEqual(f(b), 100)
 
+    def test_dict_descr_set_no_get(self):
+        class Descr:
+            def __set__(self, obj, value):
+                pass
+
+        class C:
+            x = Descr()
+
+        # unsplit the dicts for C instances
+        a = C()
+        a.foo = 1
+        b = C()
+        b.bar = 2
+
+        c_no_x = C()
+        c_x = C()
+        c_x.__dict__["x"] = 42
+
+        def f(c):
+            return c.x
+
+        for _i in range(REPETITION):
+            self.assertIs(f(c_no_x), C.x)
+            self.assertEqual(f(c_x), 42)
+
+    def test_split_dict_descr_set_no_get(self):
+        class Descr:
+            def __set__(self, obj, value):
+                pass
+
+        class C:
+            x = Descr()
+
+        c_no_x = C()
+        c_x = C()
+        c_x.__dict__["x"] = 42
+
+        def f(c):
+            return c.x
+
+        for _i in range(REPETITION):
+            self.assertIs(f(c_no_x), C.x)
+            self.assertEqual(f(c_x), 42)
+
     def test_module(self):
         version = sys.version
 

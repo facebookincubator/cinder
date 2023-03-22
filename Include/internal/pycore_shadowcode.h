@@ -475,9 +475,8 @@ void _PyShadow_Stat(const char *cat, const char *name);
 
 #endif
 
-/* Attempts to do a cached split dict lookup.  Returns 1 if the cache is
- * invalid and needs to be updated, or 0 if the cache is valid for the given
- * dict with res set to the value in the dictionary or NULL */
+/* Attempts to do a cached split dict lookup.  Returns the value in the
+ * dictionary or NULL */
 static inline PyObject *
 _PyShadow_TrySplitDictLookup(_PyShadow_InstanceAttrEntry *entry,
                              PyObject *dict,
@@ -521,7 +520,7 @@ _PyShadow_LoadAttrDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
                                PyObject *owner)
 {
     /* Cache hit */
-    PyObject *res;
+    PyObject *res = NULL;
     Py_ssize_t dictoffset =
         _PyShadow_NormalizeDictOffset(owner, entry->dictoffset);
     /* if GetItem mutates the dictionary and instance we need the
@@ -532,21 +531,24 @@ _PyShadow_LoadAttrDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
     PyObject **dictptr = (PyObject **)((char *)owner + dictoffset);
     PyObject *dict = *dictptr;
     INLINE_CACHE_RECORD_STAT(LOAD_ATTR_DICT_DESCR, hits);
-    if (!PyDescr_IsData(descr) &&
-        dict != NULL &&
-        (res = _PyDict_GetItem_UnicodeExact(dict, entry->name)) != NULL) {
-        Py_INCREF(res); /* got a borrowed ref */
-        Py_DECREF(descr);
-    } else {
-        res = descr;
-        if (Py_TYPE(res)->tp_descr_get != NULL) {
-            PyObject *got = Py_TYPE(res)->tp_descr_get(
-                res, owner, (PyObject *)Py_TYPE(owner));
-            Py_DECREF(res);
+    if (dict != NULL) {
+        res = _PyDict_GetItem_UnicodeExact(dict, entry->name);
+        Py_XINCREF(res); /* got a borrowed ref */
+    }
+    if (res == NULL || PyDescr_IsData(descr)) {
+        descrgetfunc f = Py_TYPE(descr)->tp_descr_get;
+        if (f != NULL) {
+            PyObject *got = f(descr, owner, (PyObject *)Py_TYPE(owner));
+            Py_DECREF(descr);
+            Py_XDECREF(res);
             res = got;
-            if (res == NULL)
-                return NULL;
+        } else if (res == NULL) {
+            res = descr;
+        } else {
+            Py_DECREF(descr);
         }
+    } else {
+        Py_DECREF(descr);
     }
     return res;
 }
@@ -760,14 +762,17 @@ _PyShadow_LoadAttrSplitDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
 
     if (res == NULL || PyDescr_IsData(value)) {
         INLINE_CACHE_RECORD_STAT(LOAD_ATTR_SPLIT_DICT_DESCR, hits);
-        Py_XDECREF(res);
-        res = value;
-        if (Py_TYPE(res)->tp_descr_get != NULL) {
+        descrgetfunc f = Py_TYPE(value)->tp_descr_get;
+        if (f != NULL) {
             PyTypeObject *tp = Py_TYPE(owner);
-            PyObject *got =
-                Py_TYPE(res)->tp_descr_get(res, owner, (PyObject *)tp);
+            PyObject *got = f(value, owner, (PyObject *)tp);
             Py_DECREF(value);
+            Py_XDECREF(res);
             res = got;
+        } else if (res == NULL) {
+            res = value;
+        } else {
+            Py_DECREF(value);
         }
     } else {
         Py_DECREF(value);

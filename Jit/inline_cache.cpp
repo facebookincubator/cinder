@@ -146,7 +146,8 @@ void AttributeCache::fill(
 
   if (descr != nullptr) {
     BorrowedRef<PyTypeObject> descr_type(Py_TYPE(descr));
-    if (descr_type->tp_descr_set != nullptr) {
+    if (descr_type->tp_descr_get != nullptr &&
+        descr_type->tp_descr_set != nullptr) {
       // Data descriptor
       if (descr_type == &PyMemberDescr_Type) {
         mut->set_member_descr(type, descr);
