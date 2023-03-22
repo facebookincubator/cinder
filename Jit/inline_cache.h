@@ -58,14 +58,20 @@ struct DescrOrClassVarMutator {
 // get/set of a particular kind of attribute.
 class AttributeMutator {
  public:
-  enum class Kind {
+  // Kind enum is designed to fit within 3 bits and it's value is embedded into
+  // the type_ pointer
+  enum class Kind : uint8_t {
     kEmpty,
     kSplit,
     kCombined,
     kDataDescr,
     kMemberDescr,
     kDescrOrClassVar,
+    kMaxValue,
   };
+  static_assert(
+      static_cast<uint8_t>(Kind::kMaxValue) <= 8,
+      "Kind enum should fit in 3 bits");
 
   AttributeMutator();
   PyTypeObject* type() const;
@@ -82,8 +88,12 @@ class AttributeMutator {
   PyObject* getAttr(PyObject* obj, PyObject* name);
 
  private:
-  Kind kind_;
-  PyTypeObject* type_; // borrowed
+  void set_type(PyTypeObject* type, Kind kind);
+  Kind get_kind() const;
+
+  uintptr_t type_; // This value stores both a PyTypeObject* for the type object
+                   // and the Kind enum value which are bitpacked together to
+                   // reduce memory consumption
   union {
     SplitMutator split_;
     CombinedMutator combined_;

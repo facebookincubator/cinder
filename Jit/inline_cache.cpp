@@ -56,26 +56,27 @@ TypeWatcher<LoadMethodCache> lm_watcher;
 
 } // namespace
 
+constexpr uintptr_t kKindMask = 0x07;
+
 AttributeMutator::AttributeMutator() {
   reset();
 }
 
 PyTypeObject* AttributeMutator::type() const {
-  return type_;
+  // clear tagged bits and return
+  return reinterpret_cast<PyTypeObject*>(type_ & ~kKindMask);
 }
 
 void AttributeMutator::reset() {
-  kind_ = Kind::kEmpty;
-  type_ = nullptr;
+  set_type(nullptr, Kind::kEmpty);
 }
 
 bool AttributeMutator::isEmpty() const {
-  return kind_ == Kind::kEmpty;
+  return get_kind() == Kind::kEmpty;
 }
 
 void AttributeMutator::set_combined(PyTypeObject* type) {
-  kind_ = Kind::kCombined;
-  type_ = type;
+  set_type(type, Kind::kCombined);
   combined_.dict_offset = type->tp_dictoffset;
 }
 
@@ -83,8 +84,7 @@ void AttributeMutator::set_split(
     PyTypeObject* type,
     Py_ssize_t val_offset,
     PyDictKeysObject* keys) {
-  kind_ = Kind::kSplit;
-  type_ = type;
+  set_type(type, Kind::kSplit);
   JIT_CHECK(
       type->tp_dictoffset <= std::numeric_limits<uint32_t>::max(),
       "Dict offset does not fit into a 32-bit int");
@@ -97,24 +97,32 @@ void AttributeMutator::set_split(
 }
 
 void AttributeMutator::set_data_descr(PyTypeObject* type, PyObject* descr) {
-  kind_ = Kind::kDataDescr;
-  type_ = type;
+  set_type(type, Kind::kDataDescr);
   data_descr_.descr = descr;
 }
 
 void AttributeMutator::set_member_descr(PyTypeObject* type, PyObject* descr) {
-  kind_ = Kind::kMemberDescr;
-  type_ = type;
+  set_type(type, Kind::kMemberDescr);
   member_descr_.memberdef = ((PyMemberDescrObject*)descr)->d_member;
 }
 
 void AttributeMutator::set_descr_or_classvar(
     PyTypeObject* type,
     PyObject* descr) {
-  kind_ = Kind::kDescrOrClassVar;
-  type_ = type;
+  set_type(type, Kind::kDescrOrClassVar);
   descr_or_cvar_.descr = descr;
   descr_or_cvar_.dictoffset = type->tp_dictoffset;
+}
+
+void AttributeMutator::set_type(PyTypeObject* type, Kind kind) {
+  auto raw = reinterpret_cast<uintptr_t>(type);
+  JIT_CHECK((raw & kKindMask) == 0, "PyTypeObject* expected to be aligned");
+  auto mask = static_cast<uintptr_t>(kind);
+  type_ = raw | mask;
+}
+
+AttributeMutator::Kind AttributeMutator::get_kind() const {
+  return static_cast<Kind>(type_ & kKindMask);
 }
 
 AttributeCache::~AttributeCache() {
@@ -199,7 +207,8 @@ AttributeMutator* AttributeCache::findEmptyEntry() {
 
 inline PyObject*
 AttributeMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
-  switch (kind_) {
+  AttributeMutator::Kind kind = get_kind();
+  switch (kind) {
     case AttributeMutator::Kind::kSplit:
       return split_.setAttr(obj, name, value);
     case AttributeMutator::Kind::kCombined:
@@ -214,12 +223,13 @@ AttributeMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
       JIT_CHECK(
           false,
           "cannot invoke setAttr for attr of kind %d",
-          static_cast<int>(kind_));
+          static_cast<int>(kind));
   }
 }
 
 inline PyObject* AttributeMutator::getAttr(PyObject* obj, PyObject* name) {
-  switch (kind_) {
+  AttributeMutator::Kind kind = get_kind();
+  switch (kind) {
     case AttributeMutator::Kind::kSplit:
       return split_.getAttr(obj, name);
     case AttributeMutator::Kind::kCombined:
@@ -234,7 +244,7 @@ inline PyObject* AttributeMutator::getAttr(PyObject* obj, PyObject* name) {
       JIT_CHECK(
           false,
           "cannot invoke getAttr for attr of kind %d",
-          static_cast<int>(kind_));
+          static_cast<int>(kind));
   }
 }
 
