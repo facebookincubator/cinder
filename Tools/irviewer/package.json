@@ -9,11 +9,11 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/plugin-transform-modules-commonjs": "^7.10.4",
-    "jest": "^26.6.3",
-    "prettier": "2.1.2",
-    "webpack": "^5.69.1",
-    "webpack-cli": "^4.9.2"
+    "@babel/plugin-transform-modules-commonjs": "^7.21.2",
+    "jest": "^29.5.0",
+    "prettier": "2.8.6",
+    "webpack": "^5.76.2",
+    "webpack-cli": "^5.0.1"
   },
   "jest": {
     "moduleDirectories": [
@@ -22,8 +22,8 @@
     ]
   },
   "dependencies": {
-    "d3": "^6.2.0",
+    "d3": "^7.8.2",
     "dagre-d3": "^0.6.4",
-    "jquery": "^3.5.1"
+    "jquery": "^3.6.4"
   }
 }
