@@ -644,6 +644,24 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_imp_hydrate_lazy_objects__doc__,
+"hydrate_lazy_objects($module, /)\n"
+"--\n"
+"\n"
+"Hydrates lazy objects in all modules, from loaded modules.");
+
+#define _IMP_HYDRATE_LAZY_OBJECTS_METHODDEF    \
+    {"hydrate_lazy_objects", (PyCFunction)_imp_hydrate_lazy_objects, METH_NOARGS, _imp_hydrate_lazy_objects__doc__},
+
+static PyObject *
+_imp_hydrate_lazy_objects_impl(PyObject *module);
+
+static PyObject *
+_imp_hydrate_lazy_objects(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    return _imp_hydrate_lazy_objects_impl(module);
+}
+
 #ifndef _IMP_CREATE_DYNAMIC_METHODDEF
     #define _IMP_CREATE_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_CREATE_DYNAMIC_METHODDEF) */
@@ -651,4 +669,4 @@ exit:
 #ifndef _IMP_EXEC_DYNAMIC_METHODDEF
     #define _IMP_EXEC_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_EXEC_DYNAMIC_METHODDEF) */
-/*[clinic end generated code: output=b4dd949667edf292 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=b23498e420fae294 input=a9049054013a1b77]*/

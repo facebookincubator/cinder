@@ -8,6 +8,7 @@
 #include "pycore_interp.h"        // _PyInterpreterState_ClearModules()
 #include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
 #include "pycore_long.h"          // _PyLong_GetZero()
+#include "pycore_moduleobject.h"  // PyModule_Dict()
 #include "pycore_pyerrors.h"
 #include "pycore_pyhash.h"
 #include "pycore_pylifecycle.h"
@@ -2872,6 +2873,138 @@ _imp__maybe_set_submodule_attribute_impl(PyObject *module, PyObject *parent,
     return ret;
 }
 
+/*[clinic input]
+_imp.hydrate_lazy_objects
+
+Hydrates lazy objects in all modules, from loaded modules.
+[clinic start generated code]*/
+
+static PyObject *
+_imp_hydrate_lazy_objects_impl(PyObject *module)
+/*[clinic end generated code: output=a8de66742eee3d97 input=3ff2a1f59a6cce35]*/
+{
+    long lazy = 0;
+    long hydrated = 0;
+    PyObject *ret = NULL;
+    PyObject *dst_dict = NULL;
+    PyObject *src_module = NULL;
+    PyObject *src_dict = NULL;
+    PyObject *modules = PyImport_GetModuleDict();
+    if (modules != NULL && PyDict_CheckExact(modules)) {
+        PyObject *module_name, *dst_module;
+        Py_ssize_t module_pos = 0;
+        while (PyDict_Next(modules, &module_pos, &module_name, &dst_module)) {
+            if (dst_module != Py_None) {
+                Py_XDECREF(dst_dict);
+                if (PyModule_Check(dst_module)) {
+                    dst_dict = PyModule_Dict(dst_module);
+                    Py_XINCREF(dst_dict);
+                } else {
+                    dst_dict = _PyObject_GetAttrId(dst_module, &PyId___dict__);
+                }
+                if (dst_dict == NULL) {
+                    goto error;
+                }
+                if (!PyDict_Check(dst_dict)) {
+                    continue;
+                }
+                PyObject *key, *value;
+                Py_ssize_t pos = 0;
+                while (PyDict_NextKeepLazy(dst_dict, &pos, &key, &value)) {
+                    if (PyLazyImport_CheckExact(value)) {
+                        PyLazyImportObject *d = (PyLazyImportObject *)value;
+                        src_module = PyImport_GetModule(d->lz_from);
+                        if (src_module == NULL) {
+                            if (PyErr_Occurred()) {
+                                goto error;
+                            }
+                        } else if(src_module != Py_None) {
+                            if (d->lz_attr) {
+                                Py_XDECREF(src_dict);
+                                if (PyModule_Check(src_module)) {
+                                    src_dict = PyModule_Dict(src_module);
+                                    Py_XINCREF(src_dict);
+                                } else {
+                                    src_dict = _PyObject_GetAttrId(src_module, &PyId___dict__);
+                                }
+                                if (src_dict == NULL) {
+                                    goto error;
+                                }
+                                if (PyDict_Check(src_dict)) {
+                                    PyObject *attr = _PyDict_GetItemKeepLazy(src_dict, d->lz_attr);
+                                    if (attr == NULL) {
+                                        if (PyErr_Occurred()) {
+                                            goto error;
+                                        }
+                                    } else if (!PyLazyImport_CheckExact(attr)) {
+                                        if (PyDict_SetItem(dst_dict, key, attr) == -1) {
+                                            goto error;
+                                        }
+                                        ++hydrated;
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                Py_ssize_t dot = PyUnicode_FindChar(d->lz_from, '.', 0,
+                                                                    PyUnicode_GET_LENGTH(d->lz_from), 1);
+                                if (dot == -2) {
+                                    goto error;
+                                } else if (dot == -1) {
+                                    if (PyDict_SetItem(dst_dict, key, src_module) == -1) {
+                                        goto error;
+                                    }
+                                    ++hydrated;
+                                    continue;
+                                } else {
+                                    PyObject *front = PyUnicode_Substring(d->lz_from, 0, dot);
+                                    if (front == NULL) {
+                                        goto error;
+                                    }
+                                    PyObject *front_module = PyImport_GetModule(front);
+                                    Py_DECREF(front);
+                                    if (front_module == NULL) {
+                                        if (PyErr_Occurred()) {
+                                            goto error;
+                                        }
+                                    } else {
+                                        if (PyDict_SetItem(dst_dict, key, front_module) == -1) {
+                                            Py_DECREF(front_module);
+                                            goto error;
+                                        }
+                                        Py_DECREF(front_module);
+                                        ++hydrated;
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                        ++lazy;
+                    }
+                }
+            }
+        }
+    }
+
+    PyObject *_hydrated = PyLong_FromLong(hydrated);
+    if (_hydrated == NULL) {
+        goto error;
+    }
+    PyObject *_lazy = PyLong_FromLong(lazy);
+    if (_lazy == NULL) {
+        Py_DECREF(_hydrated);
+        goto error;
+    }
+    ret = PyTuple_Pack(2, _hydrated, _lazy);
+    Py_DECREF(_hydrated);
+    Py_DECREF(_lazy);
+
+  error:
+    Py_XDECREF(dst_dict);
+    Py_XDECREF(src_module);
+    Py_XDECREF(src_dict);
+    return ret;
+}
+
 PyDoc_STRVAR(doc_imp,
 "(Extremely) low-level import machinery bits as used by importlib and imp.");
 
@@ -2896,6 +3029,7 @@ static PyMethodDef imp_methods[] = {
     _IMP__SET_LAZY_IMPORTS_IN_MODULE_METHODDEF
     _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
     _IMP__MAYBE_SET_SUBMODULE_ATTRIBUTE_METHODDEF
+    _IMP_HYDRATE_LAZY_OBJECTS_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
 

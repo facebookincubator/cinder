@@ -64,6 +64,7 @@ from ._bootstrap import __import__
 
 is_lazy_imports_enabled = _imp.is_lazy_imports_enabled
 is_lazy_import = _imp.is_lazy_import
+hydrate_lazy_objects = _imp.hydrate_lazy_objects
 
 
 def set_lazy_imports(enable = True, *, excluding = None):
