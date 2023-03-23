@@ -34,7 +34,6 @@ class FutureParser(ASTVisitor):
         "generator_stop",
         "barry_as_FLUFL",
         "annotations",
-        "eager_imports",
     )
 
     def __init__(self):

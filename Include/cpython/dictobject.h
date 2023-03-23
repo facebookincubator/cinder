@@ -133,8 +133,6 @@ CiAPI_FUNC(int) _PyDict_HasUnsafeKeys(PyObject *);
  */
 CiAPI_FUNC(void) _PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
 
-CiAPI_FUNC(PyObject *) _PyDict_GetAttrItem(PyObject *op, PyObject *key);
-
 /* Return 1 if the given dict has deferred objects, or 0 otherwise. */
 CiAPI_FUNC(int) _PyDict_HasDeferredObjects(PyObject *);
 
@@ -144,4 +142,4 @@ CiAPI_FUNC(void) _PyDict_SetHasDeferredObjects(PyObject *);
 /* Unflag dictionary as having deferred objects in it */
 CiAPI_FUNC(void) _PyDict_UnsetHasDeferredObjects(PyObject *);
 
-CiAPI_FUNC(int) _PyDict_LoadDeferred(PyDictObject *);
+CiAPI_FUNC(Py_ssize_t) PyDict_ResolveLazyImports(PyObject *);

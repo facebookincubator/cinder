@@ -4,6 +4,7 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
+#include "internal/pycore_import.h"
 #include "internal/pycore_interp.h"
 #include "internal/pycore_pyerrors.h"
 #include "internal/pycore_pystate.h"
@@ -2585,7 +2586,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr.nameIdx());
         bbb.AppendCall(
             i.GetOutput(),
-            _Py_DoImportFrom,
+            _PyImport_ImportFrom,
             "__asm_tstate",
             instr.module(),
             name);

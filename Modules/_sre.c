@@ -2181,6 +2181,9 @@ _sre_SRE_Match_groupdict_impl(MatchObject *self, PyObject *default_value)
     if (!result || !self->pattern->groupindex)
         return result;
 
+    if (PyDict_ResolveLazyImports(self->pattern->groupindex) != 0)
+        goto failed;
+
     while (_PyDict_Next(self->pattern->groupindex, &pos, &key, &value, &hash)) {
         int status;
         Py_INCREF(key);

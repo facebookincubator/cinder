@@ -17,6 +17,8 @@
 #include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
 #include "pycore_code.h"          // _PyCode_InitOpcache()
 #include "pycore_initconfig.h"    // _PyStatus_OK()
+#include "pycore_import.h"        // _PyImport_EagerImportName()
+#include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "pycore_pyerrors.h"      // _PyErr_Fetch()
 #include "pycore_pylifecycle.h"   // _PyErr_Print()
@@ -92,7 +94,7 @@ static void maybe_dtrace_line(PyFrameObject *, PyTraceInfo *, int);
 static void dtrace_function_entry(PyFrameObject *);
 static void dtrace_function_return(PyFrameObject *);
 
-static int import_all_from(PyThreadState *, PyFrameObject *, PyObject *);
+static int import_all_from(PyThreadState *, PyObject *, PyObject *);
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
@@ -1924,20 +1926,9 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     assert(!_PyErr_Occurred(tstate));
 #endif
 
-int lazy_imports_eager_import = 0;
-
-if (f->f_globals == f->f_locals) {
-    PyObject *modname  = _PyDict_GetItemIdWithError(f->f_globals, &PyId___name__);
-
-    if (modname != NULL) {
-        PyObject *filter = tstate->interp->eager_imports;
-
-        if (filter != NULL &&
-            PySequence_Contains(filter, modname)) {
-            lazy_imports_eager_import = 1;
-        }
-    }
-}
+f->lazy_imports = -1;
+f->lazy_imports_cache = 0;
+f->lazy_imports_cache_seq = -1;
 
 main_loop:
     for (;;) {
@@ -2923,15 +2914,6 @@ main_loop:
                 goto error;
             }
             if (PyDict_CheckExact(ns)) {
-                if (PyLazyImport_CheckExact(v)) {
-                    PyObject *d = PyDict_GetItemKeepLazy(ns, name);
-                    if (d != NULL && PyLazyImport_CheckExact(d)) {
-                        assert(((PyLazyImport *)v)->lz_next == NULL);
-                        Py_INCREF(d);
-                        ((PyLazyImport *)v)->lz_next = d;
-                    }
-                    _PyDict_SetHasDeferredObjects(ns);
-                }
                 err = PyDict_SetItem(ns, name, v);
             } else {
                 err = PyObject_SetItem(ns, name, v);
@@ -3048,15 +3030,6 @@ main_loop:
             PyObject *name = GETITEM(names, oparg);
             PyObject *v = POP();
             int err;
-            if (PyLazyImport_CheckExact(v)) {
-                PyObject *d = PyDict_GetItemKeepLazy(f->f_globals, name);
-                if (d != NULL && PyLazyImport_CheckExact(d)) {
-                    assert(((PyLazyImport *)v)->lz_next == NULL);
-                    Py_INCREF(d);
-                    ((PyLazyImport *)v)->lz_next = d;
-                }
-                _PyDict_SetHasDeferredObjects(f->f_globals);
-            }
             err = PyDict_SetItem(f->f_globals, name, v);
             Py_DECREF(v);
             if (err != 0)
@@ -3675,24 +3648,21 @@ main_loop:
             PyObject *level = TOP();
             PyObject *res;
 
-            if (co->co_flags & CO_FUTURE_EAGER_IMPORTS) {
-                lazy_imports_eager_import = 1;
-            }
-
-            if (lazy_imports_eager_import == 0
-                && _PyImport_IsLazyImportsEnabled(tstate)
+            if (_PyImport_IsLazyImportsEnabled(tstate)
                 && f->f_globals == f->f_locals
                 && f->f_iblock == 0) {
-                res = PyImport_LazyImportName(name,
-                                              f->f_globals,
-                                              f->f_locals == NULL ? Py_None : f->f_locals,
-                                              fromlist,
-                                              level);
-            }
-            else {
-                res = PyImport_EagerImportName(name,
+                res = _PyImport_LazyImportName(f->f_builtins,
                                                f->f_globals,
                                                f->f_locals == NULL ? Py_None : f->f_locals,
+                                               name,
+                                               fromlist,
+                                               level);
+            }
+            else {
+                res = _PyImport_EagerImportName(f->f_builtins,
+                                               f->f_globals,
+                                               f->f_locals == NULL ? Py_None : f->f_locals,
+                                               name,
                                                fromlist,
                                                level);
             }
@@ -3706,13 +3676,16 @@ main_loop:
         }
 
         case TARGET(IMPORT_STAR): {
-            PyObject *from = POP();
+            PyObject *from = POP(), *locals;
             int err;
             if (PyLazyImport_CheckExact(from)) {
-                PyObject *mod = PyImport_LoadLazyObject(from);
-                Py_XINCREF(mod);
+                PyObject *mod = _PyImport_LoadLazyImport(from, 1);
                 Py_DECREF(from);
                 if (mod == NULL) {
+                    if (!_PyErr_Occurred(tstate)) {
+                        _PyErr_SetString(tstate, PyExc_SystemError,
+                                         "Lazy Import cycle");
+                    }
                     goto error;
                 }
                 from = mod;
@@ -3723,7 +3696,14 @@ main_loop:
                 goto error;
             }
 
-            err = import_all_from(tstate, f, from);
+            locals = f->f_locals;
+            if (locals == NULL) {
+                _PyErr_SetString(tstate, PyExc_SystemError,
+                                 "no locals found during 'import *'");
+                Py_DECREF(from);
+                goto error;
+            }
+            err = import_all_from(tstate, locals, from);
             Py_DECREF(from);
             if (err != 0)
                 goto error;
@@ -3736,9 +3716,9 @@ main_loop:
             PyObject *from = TOP();
             PyObject *res;
             if (PyLazyImport_CheckExact(from)) {
-                res = PyLazyImportObject_NewObject((PyObject *)from, name);
+                res = _PyLazyImport_NewObject((PyObject *)from, name);
             } else {
-                res = _Py_DoImportFrom(tstate, from, name);
+                res = _PyImport_ImportFrom(tstate, from, name);
             }
             PUSH(res);
             if (res == NULL)
@@ -8331,95 +8311,14 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     return 1;
 }
 
-PyObject *
-_Py_DoImportFrom(PyThreadState *tstate, PyObject *v, PyObject *name)
-{
-    PyObject *x;
-    PyObject *fullmodname, *pkgname, *pkgpath, *pkgname_or_unknown, *errmsg;
-
-    if (_PyObject_LookupAttr(v, name, &x) != 0) {
-        return x;
-    }
-    /* Issue #17636: in case this failed because of a circular relative
-       import, try to fallback on reading the module directly from
-       sys.modules. */
-    pkgname = _PyObject_GetAttrId(v, &PyId___name__);
-    if (pkgname == NULL) {
-        goto error;
-    }
-    if (!PyUnicode_Check(pkgname)) {
-        Py_CLEAR(pkgname);
-        goto error;
-    }
-    fullmodname = PyUnicode_FromFormat("%U.%U", pkgname, name);
-    if (fullmodname == NULL) {
-        Py_DECREF(pkgname);
-        return NULL;
-    }
-    x = PyImport_GetModule(fullmodname);
-    Py_DECREF(fullmodname);
-    if (x == NULL && !_PyErr_Occurred(tstate)) {
-        goto error;
-    }
-    Py_DECREF(pkgname);
-    return x;
- error:
-    pkgpath = PyModule_GetFilenameObject(v);
-    if (pkgname == NULL) {
-        pkgname_or_unknown = PyUnicode_FromString("<unknown module name>");
-        if (pkgname_or_unknown == NULL) {
-            Py_XDECREF(pkgpath);
-            return NULL;
-        }
-    } else {
-        pkgname_or_unknown = pkgname;
-    }
-
-    if (pkgpath == NULL || !PyUnicode_Check(pkgpath)) {
-        _PyErr_Clear(tstate);
-        errmsg = PyUnicode_FromFormat(
-            "cannot import name %R from %R (unknown location)",
-            name, pkgname_or_unknown
-        );
-        /* NULL checks for errmsg and pkgname done by PyErr_SetImportError. */
-        PyErr_SetImportError(errmsg, pkgname, NULL);
-    }
-    else {
-        _Py_IDENTIFIER(__spec__);
-        PyObject *spec = _PyObject_GetAttrId(v, &PyId___spec__);
-        const char *fmt =
-            _PyModuleSpec_IsInitializing(spec) ?
-            "cannot import name %R from partially initialized module %R "
-            "(most likely due to a circular import) (%S)" :
-            "cannot import name %R from %R (%S)";
-        Py_XDECREF(spec);
-
-        errmsg = PyUnicode_FromFormat(fmt, name, pkgname_or_unknown, pkgpath);
-        /* NULL checks for errmsg and pkgname done by PyErr_SetImportError. */
-        PyErr_SetImportError(errmsg, pkgname, pkgpath);
-    }
-
-    Py_XDECREF(errmsg);
-    Py_XDECREF(pkgname_or_unknown);
-    Py_XDECREF(pkgpath);
-    return NULL;
-}
-
 static int
-import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
+import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
 {
     _Py_IDENTIFIER(__all__);
     _Py_IDENTIFIER(__dict__);
     PyObject *all, *dict, *name, *value;
     int skip_leading_underscores = 0;
     int pos, err;
-
-    if (f->f_locals == NULL) {
-        _PyErr_SetString(tstate, PyExc_SystemError,
-                         "no locals found during 'import *'");
-        Py_DECREF(v);
-        return -1;
-    }
 
     if (_PyObject_LookupAttrId(v, &PyId___all__, &all) < 0) {
         return -1; /* Unexpected error */
@@ -8428,6 +8327,7 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
         Py_XDECREF(all);
         return -1; /* Unexpected error */
     }
+
     if (all == NULL) {
         if (dict == NULL) {
             _PyErr_SetString(tstate, PyExc_ImportError,
@@ -8440,9 +8340,6 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
             return -1;
         }
         skip_leading_underscores = 1;
-    } else if (dict == NULL) {
-        Py_DECREF(all);
-        return -1;
     }
 
     for (pos = 0, err = 0; ; pos++) {
@@ -8492,25 +8389,22 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
                 continue;
             }
         }
-        if (f->f_globals == f->f_locals
-            && f->f_iblock == 0
-            && _PyDict_HasDeferredObjects(dict)) {
-            value = PyDict_GetItemKeepLazy(dict, name);
+        if (PyDict_CheckExact(locals) && dict != NULL && PyDict_CheckExact(dict)) {
+            value = _PyDict_GetItemKeepLazy(dict, name);
             if (value != NULL) {
-                if (PyLazyImport_CheckExact(value)) {
-                    _PyDict_SetHasDeferredObjects(f->f_globals);
-                }
                 Py_INCREF(value);
+            } else if (!_PyErr_Occurred(tstate)) {
+                value = PyObject_GetAttr(v, name);
             }
         } else {
             value = PyObject_GetAttr(v, name);
         }
         if (value == NULL) {
             err = -1;
-        } else if (PyDict_CheckExact(f->f_locals)) {
-            err = PyDict_SetItem(f->f_locals, name, value);
+        } else if (PyDict_CheckExact(locals)) {
+            err = PyDict_SetItem(locals, name, value);
         } else {
-            err = PyObject_SetItem(f->f_locals, name, value);
+            err = PyObject_SetItem(locals, name, value);
         }
         Py_DECREF(name);
         Py_XDECREF(value);
@@ -8518,7 +8412,7 @@ import_all_from(PyThreadState *tstate, PyFrameObject *f, PyObject *v)
             break;
     }
     Py_DECREF(all);
-    Py_DECREF(dict);
+    Py_XDECREF(dict);
     return err;
 }
 

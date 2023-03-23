@@ -509,11 +509,10 @@ _PyDict_DelItem_KnownHash
 PyDict_DelItemString
 _PyDict_Fini
 _PyDict_FromKeys
-_PyDict_GetAttrItem
 PyDict_GetItem
 _PyDict_GetItemHint
 _PyDict_GetItemIdWithError
-PyDict_GetItemKeepLazy
+_PyDict_GetItemKeepLazy
 _PyDict_GetItem_KnownHash
 _PyDict_GetItem_StackKnownHash
 PyDict_GetItemString
@@ -539,7 +538,6 @@ _PyDictKeys_GetEntries
 _PyDictKeys_GetSplitIndex
 _PyDict_KeysSize
 PyDictKeys_Type
-_PyDict_LoadDeferred
 _PyDict_LoadGlobal
 _PyDict_MakeKeysShared
 _PyDict_MaybeUntrack
@@ -556,6 +554,7 @@ _PyDict_Pop
 _PyDict_Pop_KnownHash
 PyDictProxy_New
 PyDictProxy_Type
+PyDict_ResolveLazyImports
 PyDictRevIterItem_Type
 PyDictRevIterKey_Type
 PyDictRevIterValue_Type
@@ -578,8 +577,6 @@ _PyDictView_Intersect.PyId_intersection
 _PyDictView_New
 _PyDict_Watch
 _Py_DisplaySourceLine
-_Py_DoImportFrom
-_Py_DoImportFrom.PyId___spec__
 Py_DontWriteBytecodeFlag
 _Py_do_strictmodule_patch
 _Py_DumpASCII
@@ -963,6 +960,7 @@ PyImport_AddModule
 PyImport_AddModuleObject
 PyImport_AppendInittab
 _PyImport_DynLoadFiletab
+_PyImport_EagerImportName
 PyImport_ExecCodeModule
 PyImport_ExecCodeModuleEx
 PyImport_ExecCodeModuleObject
@@ -975,10 +973,12 @@ PyImport_FrozenModules
 PyImport_GetImporter
 PyImport_GetMagicNumber
 PyImport_GetMagicTag
+_PyImport_GetModule
 PyImport_GetModule
 PyImport_GetModuleDict
 _PyImport_GetModuleId
 PyImport_Import
+_PyImport_ImportFrom
 PyImport_ImportFrozenModule
 PyImport_ImportFrozenModuleObject
 PyImport_ImportModule
@@ -989,9 +989,13 @@ PyImport_Inittab
 _PyImport_IsInitialized
 _PyImport_IsLazyImportsEnabled
 PyImport_IsLazyImportsEnabled
+_PyImport_LazyImportName
 _PyImport_LoadDynamicModuleWithSpec
+_PyImport_LoadLazyImport
 _PyImport_ReleaseLock
 PyImport_ReloadModule
+PyImport_SetLazyImports
+PyImport_SetLazyImportsInModule
 _PyImport_SetModule
 _PyImport_SetModuleString
 _Py_IncRef
@@ -1072,8 +1076,9 @@ Py_IsTrue
 PyIter_Check
 PyIter_Next
 PyIter_Send
-PyLazyImportModule_NewObject
-PyLazyImportObject_NewObject
+_PyLazyImport_GetName
+_PyLazyImport_NewModule
+_PyLazyImport_NewObject
 PyLazyImport_Type
 Py_LeaveRecursiveCall
 _Py_LegacyLocaleDetected

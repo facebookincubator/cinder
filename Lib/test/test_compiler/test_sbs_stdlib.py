@@ -21,8 +21,6 @@ IGNORE_PATTERNS = (
     "test/bad_coding",
     # run separately via test_corpus.py
     "test/test_compiler/testcorpus",
-    # Stock Python doesn't know about eager_imports future import
-    "Lib/test/lazyimports/future_eager",
 )
 
 SbsCompileTests = []

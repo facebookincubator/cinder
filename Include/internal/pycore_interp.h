@@ -243,13 +243,13 @@ struct _is {
     // sys.modules dictionary
     PyObject *modules;
     PyObject *modules_by_index;
+    PyObject *lazy_modules;
     // Dictionary of the sys module
     PyObject *sysdict;
     // Dictionary of the builtins module
     PyObject *builtins;
     // importlib module
     PyObject *importlib;
-    PyObject *lazy_loaded;
     PyObject *eager_imports;
 
     /* Used in Modules/_threadmodule.c. */

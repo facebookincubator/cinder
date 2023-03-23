@@ -598,6 +598,7 @@ OBJECT_OBJS=	\
 		Objects/funcobject.o \
 		Objects/interpreteridobject.o \
 		Objects/iterobject.o \
+		Objects/lazyimportobject.o \
 		Objects/listobject.o \
 		Objects/longobject.o \
 		Objects/dictobject.o \
@@ -1507,6 +1508,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/interpreteridobject.h \
 		$(srcdir)/Include/intrcheck.h \
 		$(srcdir)/Include/iterobject.h \
+		$(srcdir)/Include/lazyimportobject.h \
 		$(srcdir)/Include/listobject.h \
 		$(srcdir)/Include/longintrepr.h \
 		$(srcdir)/Include/longobject.h \
@@ -1614,6 +1616,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/internal/pycore_import.h \
 		$(srcdir)/Include/internal/pycore_initconfig.h \
 		$(srcdir)/Include/internal/pycore_interp.h \
+		$(srcdir)/Include/internal/pycore_lazyimport.h \
 		$(srcdir)/Include/internal/pycore_list.h \
 		$(srcdir)/Include/internal/pycore_long.h \
 		$(srcdir)/Include/internal/pycore_moduleobject.h \

@@ -864,11 +864,11 @@ class TestDiscovery(unittest.TestCase):
             sys.modules[packagename] = package
             return package
 
-        with unittest.mock.patch('builtins.__import__', _import):
-            # Since loader.discover() can modify sys.path, restore it when done.
-            with import_helper.DirsOnSysPath():
-                # Make sure to remove 'package' from sys.modules when done.
-                with test.test_importlib.util.uncache('package'):
+        # Make sure to remove 'package' from sys.modules when done.
+        with test.test_importlib.util.uncache('package'):
+            with unittest.mock.patch('builtins.__import__', _import):
+                # Since loader.discover() can modify sys.path, restore it when done.
+                with import_helper.DirsOnSysPath():
                     with self.assertRaises(TypeError) as cm:
                         loader.discover('package')
                     self.assertEqual(str(cm.exception),

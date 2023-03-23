@@ -1890,7 +1890,7 @@ set_mro_error(PyObject **to_merge, Py_ssize_t to_merge_size, int *remain)
 {
     Py_ssize_t i, n, off;
     char buf[1000];
-    PyObject *k, *v;
+    PyObject *k;
     PyObject *set = PyDict_New();
     if (!set) return;
 
@@ -1909,7 +1909,7 @@ set_mro_error(PyObject **to_merge, Py_ssize_t to_merge_size, int *remain)
     off = PyOS_snprintf(buf, sizeof(buf), "Cannot create a \
 consistent method resolution\norder (MRO) for bases");
     i = 0;
-    while (PyDict_Next(set, &i, &k, &v) && (size_t)off < sizeof(buf)) {
+    while (PyDict_Next(set, &i, &k, NULL) && (size_t)off < sizeof(buf)) {
         PyObject *name = class_name(k);
         const char *name_str = NULL;
         if (name != NULL) {

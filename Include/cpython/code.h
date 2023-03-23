@@ -95,7 +95,6 @@ struct PyCodeObject {
 #define CO_FUTURE_ANNOTATIONS    0x1000000
 
 /* Cinder */
-#define CO_FUTURE_EAGER_IMPORTS  0x2000000
 #define CO_STATICALLY_COMPILED   0x4000000
 #define CO_SUPPRESS_JIT          0x40000000
 /* end Cinder */

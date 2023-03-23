@@ -7,21 +7,15 @@
 extern "C" {
 #endif
 
-CiAPI_DATA(PyTypeObject) PyLazyImport_Type;
 PyAPI_DATA(PyTypeObject) PyModule_Type;
 CiAPI_DATA(PyTypeObject) PyStrictModule_Type;
 
-#define PyLazyImport_CheckExact(op) (Py_TYPE(op) == &PyLazyImport_Type)
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
 #define PyStrictModule_Check(op) PyObject_TypeCheck(op, &PyStrictModule_Type)
 #define PyStrictModule_CheckExact(op) (Py_TYPE(op) == &PyStrictModule_Type)
 
-CiAPI_FUNC(PyObject *) PyLazyImportModule_NewObject(
-    PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level);
-CiAPI_FUNC(PyObject *) PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name);
-
-CiAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
+PyAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -100,22 +94,6 @@ typedef struct PyModuleDef{
 #ifdef Py_BUILD_CORE
 extern int _PyModule_IsExtension(PyObject *obj);
 #endif
-
-typedef struct {
-    PyObject_HEAD
-    PyObject *lz_lazy_import;
-    PyObject *lz_name;
-    PyObject *lz_globals;
-    PyObject *lz_locals;
-    PyObject *lz_fromlist;
-    PyObject *lz_level;
-    PyObject *lz_obj;
-    PyObject *lz_next;
-    int lz_resolving;
-    int lz_skip_warmup;
-} PyLazyImport;
-
-int PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name);
 
 #if !defined(Py_LIMITED_API)
 

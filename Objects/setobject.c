@@ -887,7 +887,6 @@ set_update_internal(PySetObject *so, PyObject *other)
         return set_merge(so, other);
 
     if (PyDict_CheckExact(other)) {
-        PyObject *value;
         Py_ssize_t pos = 0;
         Py_hash_t hash;
         Py_ssize_t dictsize = PyDict_GET_SIZE(other);
@@ -902,7 +901,7 @@ set_update_internal(PySetObject *so, PyObject *other)
             if (set_table_resize(so, (so->used + dictsize)*2) != 0)
                 return -1;
         }
-        while (_PyDict_Next(other, &pos, &key, &value, &hash)) {
+        while (_PyDict_Next(other, &pos, &key, NULL, &hash)) {
             if (set_add_entry(so, key, hash))
                 return -1;
         }
@@ -1629,8 +1628,7 @@ set_symmetric_difference_update(PySetObject *so, PyObject *other)
         return set_clear(so, NULL);
 
     if (PyDict_CheckExact(other)) {
-        PyObject *value;
-        while (_PyDict_Next(other, &pos, &key, &value, &hash)) {
+        while (_PyDict_Next(other, &pos, &key, NULL, &hash)) {
             Py_INCREF(key);
             rv = set_discard_entry(so, key, hash);
             if (rv < 0) {

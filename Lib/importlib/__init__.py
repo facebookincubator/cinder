@@ -61,6 +61,7 @@ import warnings
 
 from ._bootstrap import __import__
 
+
 is_lazy_imports_enabled = _imp.is_lazy_imports_enabled
 is_lazy_import = _imp.is_lazy_import
 
@@ -74,12 +75,18 @@ def set_lazy_imports(enable = True, *, excluding = None):
     _imp._set_lazy_imports(enable, excluding=excluding)
 
 
+def enable_lazy_imports_in_module(enable = True):
+    """Programmatic API for enabling lazy imports in a given module.
+    """
+    _imp._set_lazy_imports_in_module(enable)
+
+
 class eager_imports:
     """A context manager that forces imports executed within to be
        executed eagerly even if lazy imports are enabled.
 
     Note that the implementation is intentionally trivial,
-    since imports inside a with block are *always* executed eagerly.
+    since imports inside *any* with block *always* execute eagerly.
     """
     def __enter__(self):
         pass

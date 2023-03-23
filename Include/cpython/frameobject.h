@@ -38,6 +38,10 @@ struct _frame {
     char f_trace_lines;         /* Emit per-line trace events? */
     char f_trace_opcodes;       /* Emit per-opcode trace events? */
 
+    short lazy_imports : 2; /* flag for lazy imports status in the current frame */
+    short lazy_imports_cache : 1; /* resolved state of lazy import is cached here */
+    short lazy_imports_cache_seq : 13; /* sequencial needed to bust lazy imports cache */
+
     /* Borrowed reference to a generator (or coroutine), or NULL */
     PyObject *f_gen;
 

@@ -1,2 +1,0 @@
-from test.lazyimports import dict_changes_when_loading
-dict_changes_when_loading

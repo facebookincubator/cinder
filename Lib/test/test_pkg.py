@@ -23,6 +23,8 @@ def fixdir(lst):
         lst.remove("__builtins__")
     if "__initializing__" in lst:
         lst.remove("__initializing__")
+    if "__lazy_submodules__" in lst:
+        lst.remove("__lazy_submodules__")
     return lst
 
 

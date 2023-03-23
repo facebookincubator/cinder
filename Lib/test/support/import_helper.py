@@ -1,3 +1,4 @@
+import _imp
 import contextlib
 import importlib
 import importlib.util
@@ -128,6 +129,7 @@ def import_fresh_module(name, fresh=(), blocked=(), deprecated=False):
         for modname in blocked:
             sys.modules[modname] = None
 
+        previously = _imp._set_lazy_imports(False)
         try:
             # Return None when one of the "fresh" modules can not be imported.
             try:
@@ -135,10 +137,9 @@ def import_fresh_module(name, fresh=(), blocked=(), deprecated=False):
                     __import__(modname)
             except ImportError:
                 return None
-            mod = importlib.import_module(name)
-            mod.__dict__.values()
-            return mod
+            return importlib.import_module(name)
         finally:
+            _imp._set_lazy_imports(*previously)
             _save_and_remove_modules(names)
             sys.modules.update(orig_modules)
 

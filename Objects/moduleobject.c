@@ -22,8 +22,6 @@ static PyMemberDef module_members[] = {
     {0}
 };
 
-static PyObject *lazy_import_name(PyLazyImport *m);
-
 
 PyTypeObject PyModuleDef_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
@@ -749,21 +747,6 @@ _PyModuleSpec_IsInitializing(PyObject *spec)
     return 0;
 }
 
-int
-PyLazyImport_Match(PyLazyImport *deferred, PyObject *mod_dict, PyObject *name)
-{
-    PyObject *mod_name = _PyDict_GetItemIdWithError(mod_dict, &PyId___name__);
-    if (mod_name == NULL || !PyUnicode_Check(mod_name)) {
-        return 0;
-    }
-    PyObject *fqn = PyUnicode_FromFormat("%U.%U", mod_name, name);
-    PyObject *deferred_fqn = lazy_import_name(deferred);
-    int match = PyUnicode_Tailmatch(deferred_fqn, fqn, 0, PyUnicode_GET_LENGTH(fqn), -1);
-    Py_DECREF(fqn);
-    Py_DECREF(deferred_fqn);
-    return match;
-}
-
 static PyObject*
 Ci_module_lookupattro_impl(PyModuleObject *m, PyObject *name, int suppress)
 {
@@ -1162,7 +1145,7 @@ int strictmodule_is_unassigned(PyObject *dict, PyObject *name) {
         if (assigned_name == NULL) {
             return -1;
         }
-        PyObject *assigned_status = _PyDict_GetAttrItem(dict, assigned_name);
+        PyObject *assigned_status = PyDict_GetItemWithError(dict, assigned_name);
         Py_DECREF(assigned_name);
         if (assigned_status == Py_False) {
             // name has a corresponding <assigned:name> that's False
@@ -1220,10 +1203,6 @@ static PyObject * strict_module_dict_get(PyObject *self, void *closure)
                 goto error;
             }
         }
-    }
-
-    if (_PyDict_HasDeferredObjects(m->globals)) {
-        _PyDict_SetHasDeferredObjects(dict);
     }
 
     return dict;
@@ -1439,7 +1418,7 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
             if (name_unassigned < 0) {
                 return NULL;
             } else if (!name_unassigned) {
-                attr = _PyDict_GetAttrItem(m->globals, name);
+                attr = PyDict_GetItemWithError(m->globals, name);
                 if (attr != NULL) {
                     Py_INCREF(attr);
                     return attr;
@@ -1612,200 +1591,5 @@ PyTypeObject PyStrictModule_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
- Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
+Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
 #endif // ENABLE_CINDERVM
-
-PyObject *
-PyLazyImportModule_NewObject(
-    PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
-{
-    PyLazyImport *m;
-    if (!name || !PyUnicode_Check(name) ||
-        !globals || !locals ||
-        !fromlist || !level) {
-        PyErr_BadArgument();
-        return NULL;
-    }
-    m = PyObject_GC_New(PyLazyImport, &PyLazyImport_Type);
-    if (m == NULL) {
-        return NULL;
-    }
-    m->lz_lazy_import = NULL;
-    Py_INCREF(name);
-    m->lz_name = name;
-    Py_INCREF(globals);
-    m->lz_globals = globals;
-    Py_INCREF(locals);
-    m->lz_locals = locals;
-    Py_INCREF(fromlist);
-    m->lz_fromlist = fromlist;
-    Py_INCREF(level);
-    m->lz_level = level;
-    m->lz_obj = NULL;
-    m->lz_next = NULL;
-    m->lz_resolving = 0;
-    m->lz_skip_warmup = 0;
-    PyObject_GC_Track(m);
-    return (PyObject *)m;
-}
-
-PyObject *
-PyLazyImportObject_NewObject(PyObject *deferred, PyObject *name)
-{
-    PyLazyImport *m;
-    if (!deferred || !PyLazyImport_CheckExact(deferred) ||
-        !name || !PyUnicode_Check(name)) {
-        PyErr_BadArgument();
-        return NULL;
-    }
-    m = PyObject_GC_New(PyLazyImport, &PyLazyImport_Type);
-    if (m == NULL) {
-        return NULL;
-    }
-    PyLazyImport *d = (PyLazyImport *)deferred;
-    if (d->lz_fromlist != NULL && d->lz_fromlist != Py_None) {
-        PyObject *frmlst = PyList_New(0);
-        if (frmlst == NULL) {
-            return NULL;
-        }
-        PyList_Append(frmlst, name);
-        PyObject *frm = PyLazyImportModule_NewObject(
-            d->lz_name, d->lz_globals, d->lz_locals, frmlst, d->lz_level);
-        Py_DECREF(frmlst);
-        if (frm == NULL) {
-            return NULL;
-        }
-        m->lz_lazy_import = frm;
-    } else {
-        Py_INCREF(deferred);
-        m->lz_lazy_import = deferred;
-    }
-    Py_INCREF(name);
-    m->lz_name = name;
-    m->lz_globals = NULL;
-    m->lz_locals = NULL;
-    m->lz_fromlist = NULL;
-    m->lz_level = NULL;
-    m->lz_obj = NULL;
-    m->lz_next = NULL;
-    m->lz_resolving = 0;
-    m->lz_skip_warmup = 0;
-    PyObject_GC_Track(m);
-    return (PyObject *)m;
-}
-
-static void
-lazy_import_dealloc(PyLazyImport *m)
-{
-    Py_XDECREF(m->lz_lazy_import);
-    Py_XDECREF(m->lz_name);
-    Py_XDECREF(m->lz_globals);
-    Py_XDECREF(m->lz_locals);
-    Py_XDECREF(m->lz_fromlist);
-    Py_XDECREF(m->lz_level);
-    Py_XDECREF(m->lz_obj);
-    Py_XDECREF(m->lz_next);
-    Py_TYPE(m)->tp_free((PyObject *)m);
-}
-
-static PyObject *
-lazy_import_name(PyLazyImport *m)
-{
-    if (m->lz_lazy_import != NULL) {
-        PyObject *name = lazy_import_name((PyLazyImport *)m->lz_lazy_import);
-        PyObject *res = PyUnicode_FromFormat("%U.%U", name, m->lz_name);
-        Py_DECREF(name);
-        return res;
-    }
-    if (m->lz_fromlist == NULL ||
-        m->lz_fromlist == Py_None ||
-        !PyObject_IsTrue(m->lz_fromlist)) {
-        Py_ssize_t dot = PyUnicode_FindChar(m->lz_name, '.', 0, PyUnicode_GET_LENGTH(m->lz_name), 1);
-        if (dot >= 0) {
-            return PyUnicode_Substring(m->lz_name, 0, dot);
-        }
-    }
-    Py_INCREF(m->lz_name);
-    return m->lz_name;
-}
-
-static PyObject *
-lazy_import_repr(PyLazyImport *m)
-{
-    PyObject *name = lazy_import_name(m);
-    PyObject *res = PyUnicode_FromFormat("<deferred '%U'>", name);
-    Py_DECREF(name);
-    return res;
-}
-
-static int
-lazy_import_traverse(PyLazyImport *m, visitproc visit, void *arg)
-{
-    Py_VISIT(m->lz_lazy_import);
-    Py_VISIT(m->lz_name);
-    Py_VISIT(m->lz_globals);
-    Py_VISIT(m->lz_locals);
-    Py_VISIT(m->lz_fromlist);
-    Py_VISIT(m->lz_level);
-    Py_VISIT(m->lz_obj);
-    Py_VISIT(m->lz_next);
-    return 0;
-}
-
-static int
-lazy_import_clear(PyLazyImport *m)
-{
-    Py_CLEAR(m->lz_lazy_import);
-    Py_CLEAR(m->lz_name);
-    Py_CLEAR(m->lz_globals);
-    Py_CLEAR(m->lz_locals);
-    Py_CLEAR(m->lz_fromlist);
-    Py_CLEAR(m->lz_level);
-    Py_CLEAR(m->lz_obj);
-    Py_CLEAR(m->lz_next);
-    return 0;
-}
-
-
-PyTypeObject PyLazyImport_Type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    "lazy_import",                              /* tp_name */
-    sizeof(PyLazyImport),                       /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)lazy_import_dealloc,            /* tp_dealloc */
-    0,                                          /* tp_print */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_reserved */
-    (reprfunc)lazy_import_repr,                 /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE,                    /* tp_flags */
-    0,                                          /* tp_doc */
-    (traverseproc)lazy_import_traverse,         /* tp_traverse */
-    (inquiry)lazy_import_clear,                 /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
-    PyType_GenericAlloc,                        /* tp_alloc */
-    PyType_GenericNew,                          /* tp_new */
-    PyObject_GC_Del,                            /* tp_free */
-};

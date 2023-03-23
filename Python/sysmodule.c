@@ -3108,11 +3108,11 @@ _PySys_Create(PyThreadState *tstate, PyObject **sysmod_p)
     }
     interp->modules = modules;
 
-    PyObject *lazy_loaded = PySet_New(NULL);
-    if (lazy_loaded == NULL) {
-        return _PyStatus_ERR("can't make lazy_loaded set");
+    PyObject *lazy_modules = PyDict_New();
+    if (lazy_modules == NULL) {
+        goto error;
     }
-    interp->lazy_loaded = lazy_loaded;
+    interp->lazy_modules = lazy_modules;
 
     PyObject *sysmod = _PyModule_CreateInitialized(&sysmodule, PYTHON_API_VERSION);
     if (sysmod == NULL) {
@@ -3130,8 +3130,8 @@ _PySys_Create(PyThreadState *tstate, PyObject **sysmod_p)
         goto error;
     }
 
-    if (PyDict_SetItemString(sysdict, "lazy_loaded", interp->lazy_loaded) < 0) {
-        return _PyStatus_ERR("can't initialize sys lazy_loaded");
+    if (PyDict_SetItemString(sysdict, "lazy_modules", interp->lazy_modules) < 0) {
+        goto error;
     }
 
     PyStatus status = _PySys_SetPreliminaryStderr(sysdict);

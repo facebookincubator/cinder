@@ -986,7 +986,7 @@ _ERR_MSG = _ERR_MSG_PREFIX + '{!r}'
 
 def _find_and_load_unlocked(name, import_):
     path = None
-    parent = name.rpartition('.')[0]
+    parent, _, child = name.rpartition('.')
     if parent:
         if parent not in sys.modules:
             _call_with_frames_removed(import_, parent)
@@ -1004,15 +1004,11 @@ def _find_and_load_unlocked(name, import_):
         raise ModuleNotFoundError(_ERR_MSG.format(name), name=name)
     else:
         module = _load_unlocked(spec)
-    if parent and name not in sys.lazy_loaded:
-        # Set the module as an attribute on its parent.
-        parent_module = sys.modules[parent]
-        child = name.rpartition('.')[2]
-        try:
-            setattr(parent_module, child, module)
-        except AttributeError:
-            msg = f"Cannot set an attribute on {parent!r} for child module {child!r}"
-            _warnings.warn(msg, ImportWarning)
+    try:
+        _imp._maybe_set_submodule_attribute(parent, child, module, name)
+    except Exception as e:
+        msg = f"Cannot set an attribute on {parent!r} for child module {child!r}: {e!r}"
+        _warnings.warn(msg, ImportWarning)
     return module
 
 

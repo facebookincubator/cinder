@@ -1584,7 +1584,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         if (PyStrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = _PyDict_GetAttrItem(dict, name);
+                value = PyDict_GetItemWithError(dict, name);
             } else {
                 value = NULL;
             }
@@ -1592,7 +1592,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
 #endif
         {
             version = PYCACHE_MODULE_VERSION(owner);
-            value = _PyDict_GetAttrItem(dict, name);
+            value = PyDict_GetItemWithError(dict, name);
         }
 
         if (value != NULL) {
@@ -1902,7 +1902,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         if (PyStrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
             if (strictmodule_is_unassigned(dict, name) == 0) {
-                value = _PyDict_GetAttrItem(dict, name);
+                value = PyDict_GetItemWithError(dict, name);
             } else {
                 value = NULL;
             }
@@ -1910,7 +1910,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
 #endif
         {
             version = PYCACHE_MODULE_VERSION(obj);
-            value = _PyDict_GetAttrItem(dict, name);
+            value = PyDict_GetItemWithError(dict, name);
         }
 
         if (value != NULL) {
