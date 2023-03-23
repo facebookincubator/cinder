@@ -2900,7 +2900,7 @@ top:
         item = PyList_GET_ITEM(v, i);
         value = PyTuple_GET_ITEM(item, 1);
         if (PyLazyImport_CheckExact(value)) {
-            resolved_value = _PyImport_LoadLazyImport(value, 0);
+            resolved_value = _PyImport_LoadLazyImportTstate(tstate, value, 0);
             if (resolved_value == NULL) {
                 if (!_PyErr_Occurred(tstate)) {
                     PyErr_Format(PyExc_ImportError,

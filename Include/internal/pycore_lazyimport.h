@@ -11,24 +11,13 @@ extern "C" {
 
 typedef struct {
     PyObject_HEAD
-    PyObject *lz_lazy_import;
-    PyObject *lz_name;
-    PyObject *lz_globals;
-    PyObject *lz_locals;
-    PyObject *lz_fromlist;
-    PyObject *lz_level;
-    PyObject *lz_resolved;
-    PyObject *lz_resolving;
+    PyObject *lz_from;
+    PyObject *lz_attr;
 } PyLazyImportObject;
 
 
 PyAPI_FUNC(PyObject *) _PyLazyImport_GetName(PyObject *lazy_import);
-CiAPI_FUNC(PyObject *) _PyLazyImport_NewModule(PyObject *name,
-                                               PyObject *globals,
-                                               PyObject *locals,
-                                               PyObject *fromlist,
-                                               PyObject *level);
-CiAPI_FUNC(PyObject *) _PyLazyImport_NewObject(PyObject *from, PyObject *name);
+PyAPI_FUNC(PyObject *) _PyLazyImport_New(PyObject *from, PyObject *attr);
 
 
 #ifdef __cplusplus

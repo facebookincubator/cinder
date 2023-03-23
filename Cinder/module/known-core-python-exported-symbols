@@ -960,7 +960,6 @@ PyImport_AddModule
 PyImport_AddModuleObject
 PyImport_AppendInittab
 _PyImport_DynLoadFiletab
-_PyImport_EagerImportName
 PyImport_ExecCodeModule
 PyImport_ExecCodeModuleEx
 PyImport_ExecCodeModuleObject
@@ -985,13 +984,16 @@ PyImport_ImportModule
 PyImport_ImportModuleLevel
 PyImport_ImportModuleLevelObject
 PyImport_ImportModuleNoBlock
+_PyImport_ImportName
 PyImport_Inittab
 _PyImport_IsInitialized
 _PyImport_IsLazyImportsEnabled
 PyImport_IsLazyImportsEnabled
+_PyImport_LazyImportFrom
 _PyImport_LazyImportName
 _PyImport_LoadDynamicModuleWithSpec
 _PyImport_LoadLazyImport
+_PyImport_LoadLazyImportTstate
 _PyImport_ReleaseLock
 PyImport_ReloadModule
 PyImport_SetLazyImports
@@ -1077,8 +1079,7 @@ PyIter_Check
 PyIter_Next
 PyIter_Send
 _PyLazyImport_GetName
-_PyLazyImport_NewModule
-_PyLazyImport_NewObject
+_PyLazyImport_New
 PyLazyImport_Type
 Py_LeaveRecursiveCall
 _Py_LegacyLocaleDetected

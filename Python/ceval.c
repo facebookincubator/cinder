@@ -17,7 +17,7 @@
 #include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
 #include "pycore_code.h"          // _PyCode_InitOpcache()
 #include "pycore_initconfig.h"    // _PyStatus_OK()
-#include "pycore_import.h"        // _PyImport_EagerImportName()
+#include "pycore_import.h"        // _PyImport_ImportName()
 #include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "pycore_pyerrors.h"      // _PyErr_Fetch()
@@ -3659,12 +3659,12 @@ main_loop:
                                                level);
             }
             else {
-                res = _PyImport_EagerImportName(f->f_builtins,
-                                               f->f_globals,
-                                               f->f_locals == NULL ? Py_None : f->f_locals,
-                                               name,
-                                               fromlist,
-                                               level);
+                res = _PyImport_ImportName(f->f_builtins,
+                                           f->f_globals,
+                                           f->f_locals == NULL ? Py_None : f->f_locals,
+                                           name,
+                                           fromlist,
+                                           level);
             }
 
             Py_DECREF(level);
@@ -3679,7 +3679,7 @@ main_loop:
             PyObject *from = POP(), *locals;
             int err;
             if (PyLazyImport_CheckExact(from)) {
-                PyObject *mod = _PyImport_LoadLazyImport(from, 1);
+                PyObject *mod = _PyImport_LoadLazyImportTstate(tstate, from, 1);
                 Py_DECREF(from);
                 if (mod == NULL) {
                     if (!_PyErr_Occurred(tstate)) {
@@ -3716,7 +3716,7 @@ main_loop:
             PyObject *from = TOP();
             PyObject *res;
             if (PyLazyImport_CheckExact(from)) {
-                res = _PyLazyImport_NewObject((PyObject *)from, name);
+                res = _PyImport_LazyImportFrom(tstate, from, name);
             } else {
                 res = _PyImport_ImportFrom(tstate, from, name);
             }
@@ -7845,9 +7845,8 @@ PyEval_GetLocals(void)
 }
 
 PyObject *
-PyEval_GetGlobals(void)
+_PyEval_GetGlobals(PyThreadState *tstate)
 {
-    PyThreadState *tstate = _PyThreadState_GET();
 #ifdef ENABLE_CINDERVM
     return _PyJIT_GetGlobals(tstate);
 #else
@@ -7858,6 +7857,13 @@ PyEval_GetGlobals(void)
     assert(current_frame->f_globals != NULL);
     return current_frame->f_globals;
 #endif
+}
+
+PyObject *
+PyEval_GetGlobals(void)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    return _PyEval_GetGlobals(tstate);
 }
 
 #ifdef ENABLE_CINDERVM

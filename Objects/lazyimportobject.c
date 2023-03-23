@@ -5,81 +5,25 @@
 #include "pycore_pystate.h"     // _PyThreadState_GET()
 
 PyObject *
-_PyLazyImport_NewModule(
-    PyObject *name, PyObject *globals, PyObject *locals, PyObject *fromlist, PyObject *level)
+_PyLazyImport_New(PyObject *from, PyObject *attr)
 {
     PyLazyImportObject *m;
-    if (!name || !PyUnicode_Check(name) ||
-        !globals || !locals || !fromlist) {
+    if (!from || !PyUnicode_Check(from)) {
         PyErr_BadArgument();
         return NULL;
     }
-    if (level == NULL) {
-        level = PyLong_FromLong(0);
-        if (level == NULL) {
-            return NULL;
-        }
-    } else {
-        Py_INCREF(level);
+    if (attr == Py_None) {
+        attr = NULL;
     }
+    assert(!attr || PyObject_IsTrue(attr));
     m = PyObject_GC_New(PyLazyImportObject, &PyLazyImport_Type);
     if (m == NULL) {
         return NULL;
     }
-    m->lz_lazy_import = NULL;
-    Py_INCREF(name);
-    m->lz_name = name;
-    Py_INCREF(globals);
-    m->lz_globals = globals;
-    Py_INCREF(locals);
-    m->lz_locals = locals;
-    Py_INCREF(fromlist);
-    m->lz_fromlist = fromlist;
-    m->lz_level = level;
-    m->lz_resolved = NULL;
-    m->lz_resolving = NULL;
-    PyObject_GC_Track(m);
-    return (PyObject *)m;
-}
-
-PyObject *
-_PyLazyImport_NewObject(PyObject *from, PyObject *name)
-{
-    PyLazyImportObject *m;
-    if (!from || !PyLazyImport_CheckExact(from) || !name || !PyUnicode_Check(name)) {
-        PyErr_BadArgument();
-        return NULL;
-    }
-    m = PyObject_GC_New(PyLazyImportObject, &PyLazyImport_Type);
-    if (m == NULL) {
-        return NULL;
-    }
-    PyLazyImportObject *d = (PyLazyImportObject *)from;
-    if (d->lz_fromlist != NULL && d->lz_fromlist != Py_None) {
-        PyObject *frmlst = PyList_New(0);
-        if (frmlst == NULL) {
-            return NULL;
-        }
-        PyList_Append(frmlst, name);
-        PyObject *frm = _PyLazyImport_NewModule(
-            d->lz_name, d->lz_globals, d->lz_locals, frmlst, d->lz_level);
-        Py_DECREF(frmlst);
-        if (frm == NULL) {
-            return NULL;
-        }
-        m->lz_lazy_import = frm;
-    } else {
-        Py_INCREF(from);
-        m->lz_lazy_import = from;
-    }
-    Py_INCREF(name);
-    m->lz_name = name;
-    m->lz_globals = NULL;
-    m->lz_locals = NULL;
-    m->lz_fromlist = NULL;
-    m->lz_level = NULL;
-    m->lz_resolved = NULL;
-    m->lz_resolving = NULL;
+    Py_INCREF(from);
+    m->lz_from = from;
+    Py_XINCREF(attr);
+    m->lz_attr = attr;
     PyObject_GC_Track(m);
     return (PyObject *)m;
 }
@@ -88,36 +32,23 @@ static void
 lazy_import_dealloc(PyLazyImportObject *m)
 {
     PyObject_GC_UnTrack(m);
-    Py_XDECREF(m->lz_lazy_import);
-    Py_XDECREF(m->lz_name);
-    Py_XDECREF(m->lz_globals);
-    Py_XDECREF(m->lz_locals);
-    Py_XDECREF(m->lz_fromlist);
-    Py_XDECREF(m->lz_level);
-    Py_XDECREF(m->lz_resolved);
-    Py_XDECREF(m->lz_resolving);
+    Py_XDECREF(m->lz_from);
+    Py_XDECREF(m->lz_attr);
     Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
 static PyObject *
 lazy_import_name(PyLazyImportObject *m)
 {
-    if (m->lz_lazy_import != NULL) {
-        PyObject *name = lazy_import_name((PyLazyImportObject *)m->lz_lazy_import);
-        PyObject *res = PyUnicode_FromFormat("%U.%U", name, m->lz_name);
-        Py_DECREF(name);
-        return res;
-    }
-    if (m->lz_fromlist == NULL ||
-        m->lz_fromlist == Py_None ||
-        !PyObject_IsTrue(m->lz_fromlist)) {
-        Py_ssize_t dot = PyUnicode_FindChar(m->lz_name, '.', 0, PyUnicode_GET_LENGTH(m->lz_name), 1);
-        if (dot >= 0) {
-            return PyUnicode_Substring(m->lz_name, 0, dot);
+    if (m->lz_attr != NULL) {
+        if (PyUnicode_Check(m->lz_attr)) {
+            return PyUnicode_FromFormat("%U.%U", m->lz_from, m->lz_attr);
+        } else {
+            return PyUnicode_FromFormat("%U...", m->lz_from);
         }
     }
-    Py_INCREF(m->lz_name);
-    return m->lz_name;
+    Py_INCREF(m->lz_from);
+    return m->lz_from;
 }
 
 static PyObject *
@@ -132,28 +63,16 @@ lazy_import_repr(PyLazyImportObject *m)
 static int
 lazy_import_traverse(PyLazyImportObject *m, visitproc visit, void *arg)
 {
-    Py_VISIT(m->lz_lazy_import);
-    Py_VISIT(m->lz_name);
-    Py_VISIT(m->lz_globals);
-    Py_VISIT(m->lz_locals);
-    Py_VISIT(m->lz_fromlist);
-    Py_VISIT(m->lz_level);
-    Py_VISIT(m->lz_resolved);
-    Py_VISIT(m->lz_resolving);
+    Py_VISIT(m->lz_from);
+    Py_VISIT(m->lz_attr);
     return 0;
 }
 
 static int
 lazy_import_clear(PyLazyImportObject *m)
 {
-    Py_CLEAR(m->lz_lazy_import);
-    Py_CLEAR(m->lz_name);
-    Py_CLEAR(m->lz_globals);
-    Py_CLEAR(m->lz_locals);
-    Py_CLEAR(m->lz_fromlist);
-    Py_CLEAR(m->lz_level);
-    Py_CLEAR(m->lz_resolved);
-    Py_CLEAR(m->lz_resolving);
+    Py_CLEAR(m->lz_from);
+    Py_CLEAR(m->lz_attr);
     return 0;
 }
 

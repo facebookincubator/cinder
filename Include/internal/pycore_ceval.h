@@ -36,6 +36,7 @@ void _PyEval_Fini(void);
 
 
 extern PyObject* _PyEval_GetBuiltins(PyThreadState *tstate);
+extern PyObject* _PyEval_GetGlobals(PyThreadState *tstate);
 extern PyObject *_PyEval_BuiltinsFromGlobals(
     PyThreadState *tstate,
     PyObject *globals);
