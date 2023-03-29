@@ -1507,29 +1507,29 @@ JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
   }
 
   // PyObject** args is:
-  // arg0
-  // arg1
+  // arg0 - function object
+  // arg1 - first real argument
   // arg2
   // arg3
   // arg4
   // arg5
   // previous rbp
   // return address to JITed code
-  // memory argument 0
+  // memory argument 0 (6th real argument)
   // memory argument 1
   // ...
 
   PyObject** dest_args;
   PyObject* final_args[total_args];
-  if (total_args <= 6) {
+  if (total_args <= 5) {
     // no gap in args to worry about
-    dest_args = args;
+    dest_args = args + 1;
   } else {
-    for (int i = 0; i < 6; i++) {
-      final_args[i] = args[i];
+    for (int i = 0; i < 5; i++) {
+      final_args[i] = args[i + 1];
     }
-    for (int i = 6; i < total_args; i++) {
-      final_args[i] = args[i + 2];
+    for (int i = 5; i < total_args; i++) {
+      final_args[i] = args[i + 3];
     }
     dest_args = final_args;
   }
@@ -1545,7 +1545,7 @@ JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
     for (Py_ssize_t i = 0; i < Py_SIZE(arg_info); i++) {
       if (arg_info->tai_args[i].tai_primitive_type != -1) {
         // primitive type, box...
-        int arg = arg_info->tai_args[i].tai_argnum;
+        int arg = arg_info->tai_args[i].tai_argnum + 1;
         uint64_t arg_val;
         if (arg >= 6) {
           arg += 4;
@@ -1597,7 +1597,7 @@ JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
         // we can update the incoming arg array, either it's
         // the pushed values on the stack by the trampoline, or
         // it's final_args we allocated above.
-        dest_args[arg] = new_val;
+        dest_args[arg - 1] = new_val;
         allocated_args[allocated_count++] = new_val;
       }
     }

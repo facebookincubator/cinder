@@ -15,8 +15,9 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v5:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
-    Return v5
+    v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    Return v6
   }
 }
 ---
@@ -33,14 +34,16 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v10:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
-    v14:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
-    UseType<LongExact> v10
-    UseType<LongExact> v14
-    UseType<ImmortalLongExact[3]> v10
-    UseType<ImmortalLongExact[4]> v14
-    v17:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
-    Return v17
+    v5:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v12:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v7:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v16:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    UseType<LongExact> v12
+    UseType<LongExact> v16
+    UseType<ImmortalLongExact[3]> v12
+    UseType<ImmortalLongExact[4]> v16
+    v19:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
+    Return v19
   }
 }
 ---
@@ -56,17 +59,18 @@ fun jittestmodule:test {
   bb 0 {
     v4:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v5:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
+    v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:add> {
       NextInstrOffset 10
     }
-    v15:Object = BinaryOp<Add> v4 v5 {
+    v16:Object = BinaryOp<Add> v4 v5 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v4 v5
       }
     }
     EndInlinedFunction
-    Return v15
+    Return v16
   }
 }
 ---
@@ -91,13 +95,15 @@ fun jittestmodule:test {
         NextInstrOffset 4
       }
     }
-    v15:CInt8[4] = LoadConst<CInt8[4]>
-    v17:Nullptr = LoadConst<Nullptr>
-    UseType<CInt8> v15
-    StoreField<foo@16> v5 v15 v17
-    v19:NoneType = LoadConst<NoneType>
-    v26:CInt8 = LoadField<foo@16, CInt8, borrowed> v5
-    Return<CInt8> v26
+    v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v17:CInt8[4] = LoadConst<CInt8[4]>
+    v19:Nullptr = LoadConst<Nullptr>
+    UseType<CInt8> v17
+    StoreField<foo@16> v5 v17 v19
+    v21:NoneType = LoadConst<NoneType>
+    v8:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v28:CInt8 = LoadField<foo@16, CInt8, borrowed> v5
+    Return<CInt8> v28
   }
 }
 ---

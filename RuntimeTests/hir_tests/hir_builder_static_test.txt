@@ -938,7 +938,8 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadConst<MortalUnicodeExact["hello"]>
     v1 = LoadConst<ImmortalLongExact[123]>
-    v3 = InvokeStaticFunction<jittestmodule.x, 2, Unicode> v0 v1 {
+    v2 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v3 = InvokeStaticFunction<jittestmodule.x, 3, Unicode> v2 v0 v1 {
       FrameState {
         NextInstrOffset 10
       }
@@ -964,7 +965,8 @@ fun jittestmodule:test {
     }
     v1 = LoadConst<MortalUnicodeExact["hello"]>
     v2 = LoadConst<ImmortalLongExact[123]>
-    v4 = InvokeStaticFunction<jittestmodule.x, 2, Object> v1 v2 {
+    v3 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v4 = InvokeStaticFunction<jittestmodule.x, 3, Object> v3 v1 v2 {
       FrameState {
         NextInstrOffset 12
       }
@@ -1157,7 +1159,8 @@ fun jittestmodule:test {
         Stack<5> v2 v3 v8 v13 v14
       }
     }
-    v20 = InvokeStaticFunction<jittestmodule.x, 5, Long> v2 v3 v8 v13 v18 {
+    v19 = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v20 = InvokeStaticFunction<jittestmodule.x, 6, Long> v19 v2 v3 v8 v13 v18 {
       FrameState {
         NextInstrOffset 42
         Locals<1> v0

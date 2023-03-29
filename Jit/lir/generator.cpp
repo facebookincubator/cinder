@@ -134,7 +134,7 @@ BasicBlock* LIRGenerator::GenerateEntryBlock() {
       bindVReg("__asm_extra_args", jit::codegen::PhyLocation::R10);
   env_->asm_tstate = bindVReg("__asm_tstate", jit::codegen::PhyLocation::R11);
   if (func_->uses_runtime_func) {
-    env_->asm_func = bindVReg("__asm_func", jit::codegen::PhyLocation::RAX);
+    env_->asm_func = bindVReg("__asm_func", jit::codegen::PhyLocation::RDI);
   }
 
   return block;
@@ -1842,10 +1842,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyFunctionObject* func = instr->func();
 
         std::stringstream ss;
-        JIT_CHECK(
-            !usesRuntimeFunc(func->func_code),
-            "Can't statically invoke given function: %s",
-            PyUnicode_AsUTF8(func->func_qualname));
+
         if (_PyJIT_IsCompiled((PyObject*)func)) {
           ss << fmt::format(
               "Call {}, {}",

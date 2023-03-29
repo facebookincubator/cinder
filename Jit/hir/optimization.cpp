@@ -791,7 +791,7 @@ struct AbstractCall {
   Register* arg(std::size_t i) const {
     if (instr->opcode() == Opcode::kInvokeStaticFunction) {
       auto f = dynamic_cast<InvokeStaticFunction*>(instr);
-      return f->arg(i);
+      return f->arg(i + 1);
     }
     if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
       return f->arg(i);
@@ -1090,7 +1090,7 @@ void InlineFunctionCalls::Run(Function& irfunc) {
       } else if (instr.IsInvokeStaticFunction()) {
         auto call = static_cast<InvokeStaticFunction*>(&instr);
         to_inline.emplace_back(
-            AbstractCall(call->func(), call->NumArgs(), call));
+            AbstractCall(call->func(), call->NumArgs() - 1, call));
       }
     }
   }

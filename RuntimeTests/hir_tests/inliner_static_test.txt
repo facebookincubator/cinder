@@ -14,12 +14,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 6
     }
-    v5:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     EndInlinedFunction
-    Return v5
+    Return v6
   }
 }
 ---
@@ -36,6 +37,7 @@ fun jittestmodule:test {
   bb 0 {
     v4:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v5:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 10
     }
@@ -43,9 +45,9 @@ fun jittestmodule:test {
     UseType<LongExact> v5
     UseType<ImmortalLongExact[1]> v4
     UseType<ImmortalLongExact[2]> v5
-    v20:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    v21:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     EndInlinedFunction
-    Return v20
+    Return v21
   }
 }
 ---
@@ -62,12 +64,13 @@ def test() -> int8:
 ---
 fun jittestmodule:test {
   bb 0 {
+    v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 6
     }
-    v5:CInt8[4] = LoadConst<CInt8[4]>
+    v6:CInt8[4] = LoadConst<CInt8[4]>
     EndInlinedFunction
-    Return<CInt8> v5
+    Return<CInt8> v6
   }
 }
 ---
@@ -84,26 +87,27 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "x">
+    v5:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 8
       Locals<1> v3
     }
-    v12:OptObject = LoadGlobalCached<0; "isinstance">
-    v13:MortalObjectUser[builtin_function_or_method:isinstance:0xdeadbeef] = GuardIs<0xdeadbeef> v12 {
+    v13:OptObject = LoadGlobalCached<0; "isinstance">
+    v14:MortalObjectUser[builtin_function_or_method:isinstance:0xdeadbeef] = GuardIs<0xdeadbeef> v13 {
       Descr 'LOAD_GLOBAL: isinstance'
     }
-    v15:OptObject = LoadGlobalCached<1; "bool">
-    v16:ImmortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v15 {
+    v16:OptObject = LoadGlobalCached<1; "bool">
+    v17:ImmortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v16 {
       Descr 'LOAD_GLOBAL: bool'
     }
-    v17:Object = VectorCall<2> v13 v3 v16 {
+    v18:Object = VectorCall<2> v14 v3 v17 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v3
       }
     }
     EndInlinedFunction
-    Return v17
+    Return v18
   }
 }
 ---

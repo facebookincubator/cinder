@@ -1975,7 +1975,7 @@ bool HIRBuilder::emitInvokeFunction(
   Register* funcreg = temps_.AllocateStack();
   if (target.container_is_immutable) {
     // try to emit a direct x64 call (InvokeStaticFunction/CallStatic) if we can
-    if (!target.uses_runtime_func) {
+
       if (target.is_function && target.is_statically_typed) {
         if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
           JIT_DLOG(
@@ -1988,11 +1988,16 @@ bool HIRBuilder::emitInvokeFunction(
         // it'll just have an extra indirection if not JIT compiled.
         Register* out = temps_.AllocateStack();
         Type typ = target.return_type;
+        tc.emit<LoadConst>(funcreg, Type::fromObject(target.callable));
+
         auto call =
-            tc.emit<InvokeStaticFunction>(nargs, out, target.func(), typ);
+            tc.emit<InvokeStaticFunction>(nargs + 1, out, target.func(), typ);
+
+        call->SetOperand(0, funcreg);
+
         for (auto i = nargs - 1; i >= 0; i--) {
           Register* operand = tc.frame.stack.pop();
-          call->SetOperand(i, operand);
+          call->SetOperand(i + 1, operand);
         }
         call->setFrameState(tc.frame);
 
@@ -2003,7 +2008,6 @@ bool HIRBuilder::emitInvokeFunction(
           target.is_builtin && tryEmitDirectMethodCall(target, tc, nargs)) {
         return false;
       }
-    }
 
     // we couldn't emit an x64 call, but we know what object we'll vectorcall,
     // so load it directly

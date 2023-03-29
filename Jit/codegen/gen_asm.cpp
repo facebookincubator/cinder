@@ -242,7 +242,9 @@ void* NativeGenerator::getVectorcallEntry() {
   // arguments.
   const std::vector<TypedArgument>& checks = GetFunction()->typed_args;
 
-  for (size_t i = 0, check_index = 0, gp_index = 0, fp_index = 0;
+  // gp_index starts at 1 because the first argument is reserved for the
+  // function
+  for (size_t i = 0, check_index = 0, gp_index = 1, fp_index = 0;
        i < static_cast<size_t>(GetFunction()->numArgs());
        i++) {
     auto add_gp = [&]() {
@@ -842,7 +844,7 @@ void NativeGenerator::generatePrologue(
   auto frame_cursor = as_->cursor();
   as_->bind(setup_frame);
 
-  constexpr auto kFuncPtrReg = x86::rax;
+  constexpr auto kFuncPtrReg = x86::rdi;
   constexpr auto kArgsReg = x86::r10;
   constexpr auto kArgsPastSixReg = kArgsReg;
 
@@ -873,7 +875,7 @@ void NativeGenerator::generatePrologue(
     // deal with loading them from here...
     as_->lea(
         kArgsPastSixReg,
-        x86::ptr(kArgsReg, ARGUMENT_REGS.size() * sizeof(void*)));
+        x86::ptr(kArgsReg, (ARGUMENT_REGS.size() - 1) * sizeof(void*)));
   }
 
   // Finally allocate the saved space required for the actual function
@@ -1240,6 +1242,7 @@ void NativeGenerator::generateStaticEntryPoint(
   std::vector<std::pair<const x86::Reg&, const x86::Reg&>> save_regs;
 
   if (!isGen()) {
+    save_regs.emplace_back(x86::rdi, x86::rdi);
     for (size_t i = 0, check_index = 0, arg_index = 0, fp_index = 0;
          i < total_args;
          i++) {
@@ -1279,8 +1282,8 @@ void NativeGenerator::generateStaticEntryPoint(
         }
       }
 
-      if (arg_index < ARGUMENT_REGS.size()) {
-        switch (ARGUMENT_REGS[arg_index++]) {
+      if (arg_index + 1 < ARGUMENT_REGS.size()) {
+        switch (ARGUMENT_REGS[++arg_index]) {
           case PhyLocation::RDI:
             save_regs.emplace_back(x86::rdi, x86::rdi);
             break;
@@ -1308,7 +1311,7 @@ void NativeGenerator::generateStaticEntryPoint(
 
   loadOrGenerateLinkFrame(x86::r11, save_regs);
 
-  if (total_args > ARGUMENT_REGS.size()) {
+  if (total_args + 1 > ARGUMENT_REGS.size()) {
     as_->lea(x86::r10, x86::ptr(x86::rbp, 16));
   }
   as_->jmp(native_entry_point);
@@ -1324,8 +1327,7 @@ void NativeGenerator::generateStaticEntryPoint(
 
 bool NativeGenerator::hasStaticEntry() const {
   PyCodeObject* code = GetFunction()->code;
-  return (code->co_flags & CO_STATICALLY_COMPILED) &&
-      !GetFunction()->uses_runtime_func;
+  return (code->co_flags & CO_STATICALLY_COMPILED);
 }
 
 void NativeGenerator::generateCode(CodeHolder& codeholder) {
