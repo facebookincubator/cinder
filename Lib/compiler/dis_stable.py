@@ -159,8 +159,6 @@ class Disassembler:
             co.co_filename,
             co.co_name,
             co.co_firstlineno,
-            # pyre-fixme[6]: For 14th param expected `bytes` but got `object`.
-            # pyre-fixme: https://github.com/python/typeshed/pull/7856
             co.co_linetable,
             co.co_freevars,
             co.co_cellvars,

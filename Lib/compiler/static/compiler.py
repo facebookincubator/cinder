@@ -227,7 +227,6 @@ class Compiler:
             "callable": reflect_builtin_function(callable, None, self.type_env),
             # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "chr": reflect_builtin_function(chr, None, self.type_env),
-            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "compile": reflect_builtin_function(compile, None, self.type_env),
             # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "dir": reflect_builtin_function(dir, None, self.type_env),
@@ -259,7 +258,6 @@ class Compiler:
             "repr": reflect_builtin_function(repr, None, self.type_env),
             "round": reflect_builtin_function(round, None, self.type_env),
             "sum": reflect_builtin_function(sum, None, self.type_env),
-            # pyre-ignore[6]: Pyre can't know this callable is a BuiltinFunctionType
             "vars": reflect_builtin_function(vars, None, self.type_env),
         }
         strict_builtins = StrictBuiltins(builtins_children, self.type_env)

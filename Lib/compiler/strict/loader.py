@@ -272,6 +272,8 @@ class StrictSourceFileLoader(SourceFileLoader):
             data = data[_MAGIC_LEN:]
         return data
 
+    # pyre-fixme[14]: `set_data` overrides method defined in `SourceFileLoader`
+    #  inconsistently.
     def set_data(self, path: bytes | str, data: bytes, *, _mode=0o666) -> None:
         assert isinstance(path, str)
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
