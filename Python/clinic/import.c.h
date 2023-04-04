@@ -585,44 +585,37 @@ _imp_is_lazy_imports_enabled(PyObject *module, PyObject *Py_UNUSED(ignored))
     return _imp_is_lazy_imports_enabled_impl(module);
 }
 
-PyDoc_STRVAR(_imp__maybe_set_submodule_attribute__doc__,
-"_maybe_set_submodule_attribute($module, parent, child, child_module,\n"
-"                               name, /)\n"
+PyDoc_STRVAR(_imp__maybe_set_parent_attribute__doc__,
+"_maybe_set_parent_attribute($module, parent_module, child,\n"
+"                            child_module, name, /)\n"
 "--\n"
 "\n"
-"Sets the module as an attribute on its parent, if the side effect is neded.");
+"Sets the module as an attribute on its parent, as a side effect.");
 
-#define _IMP__MAYBE_SET_SUBMODULE_ATTRIBUTE_METHODDEF    \
-    {"_maybe_set_submodule_attribute", (PyCFunction)(void(*)(void))_imp__maybe_set_submodule_attribute, METH_FASTCALL, _imp__maybe_set_submodule_attribute__doc__},
-
-static PyObject *
-_imp__maybe_set_submodule_attribute_impl(PyObject *module, PyObject *parent,
-                                         PyObject *child,
-                                         PyObject *child_module,
-                                         PyObject *name);
+#define _IMP__MAYBE_SET_PARENT_ATTRIBUTE_METHODDEF    \
+    {"_maybe_set_parent_attribute", (PyCFunction)(void(*)(void))_imp__maybe_set_parent_attribute, METH_FASTCALL, _imp__maybe_set_parent_attribute__doc__},
 
 static PyObject *
-_imp__maybe_set_submodule_attribute(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+_imp__maybe_set_parent_attribute_impl(PyObject *module,
+                                      PyObject *parent_module,
+                                      PyObject *child,
+                                      PyObject *child_module, PyObject *name);
+
+static PyObject *
+_imp__maybe_set_parent_attribute(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
 {
     PyObject *return_value = NULL;
-    PyObject *parent;
+    PyObject *parent_module;
     PyObject *child;
     PyObject *child_module;
     PyObject *name;
 
-    if (!_PyArg_CheckPositional("_maybe_set_submodule_attribute", nargs, 4, 4)) {
+    if (!_PyArg_CheckPositional("_maybe_set_parent_attribute", nargs, 4, 4)) {
         goto exit;
     }
-    if (!PyUnicode_Check(args[0])) {
-        _PyArg_BadArgument("_maybe_set_submodule_attribute", "argument 1", "str", args[0]);
-        goto exit;
-    }
-    if (PyUnicode_READY(args[0]) == -1) {
-        goto exit;
-    }
-    parent = args[0];
+    parent_module = args[0];
     if (!PyUnicode_Check(args[1])) {
-        _PyArg_BadArgument("_maybe_set_submodule_attribute", "argument 2", "str", args[1]);
+        _PyArg_BadArgument("_maybe_set_parent_attribute", "argument 2", "str", args[1]);
         goto exit;
     }
     if (PyUnicode_READY(args[1]) == -1) {
@@ -631,14 +624,52 @@ _imp__maybe_set_submodule_attribute(PyObject *module, PyObject *const *args, Py_
     child = args[1];
     child_module = args[2];
     if (!PyUnicode_Check(args[3])) {
-        _PyArg_BadArgument("_maybe_set_submodule_attribute", "argument 4", "str", args[3]);
+        _PyArg_BadArgument("_maybe_set_parent_attribute", "argument 4", "str", args[3]);
         goto exit;
     }
     if (PyUnicode_READY(args[3]) == -1) {
         goto exit;
     }
     name = args[3];
-    return_value = _imp__maybe_set_submodule_attribute_impl(module, parent, child, child_module, name);
+    return_value = _imp__maybe_set_parent_attribute_impl(module, parent_module, child, child_module, name);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_imp__set_lazy_attributes__doc__,
+"_set_lazy_attributes($module, child_module, name, /)\n"
+"--\n"
+"\n"
+"Sets attributes to lazy submodules on the module, as side effects.");
+
+#define _IMP__SET_LAZY_ATTRIBUTES_METHODDEF    \
+    {"_set_lazy_attributes", (PyCFunction)(void(*)(void))_imp__set_lazy_attributes, METH_FASTCALL, _imp__set_lazy_attributes__doc__},
+
+static PyObject *
+_imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
+                               PyObject *name);
+
+static PyObject *
+_imp__set_lazy_attributes(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+    PyObject *child_module;
+    PyObject *name;
+
+    if (!_PyArg_CheckPositional("_set_lazy_attributes", nargs, 2, 2)) {
+        goto exit;
+    }
+    child_module = args[0];
+    if (!PyUnicode_Check(args[1])) {
+        _PyArg_BadArgument("_set_lazy_attributes", "argument 2", "str", args[1]);
+        goto exit;
+    }
+    if (PyUnicode_READY(args[1]) == -1) {
+        goto exit;
+    }
+    name = args[1];
+    return_value = _imp__set_lazy_attributes_impl(module, child_module, name);
 
 exit:
     return return_value;
@@ -669,4 +700,4 @@ _imp_hydrate_lazy_objects(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef _IMP_EXEC_DYNAMIC_METHODDEF
     #define _IMP_EXEC_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_EXEC_DYNAMIC_METHODDEF) */
-/*[clinic end generated code: output=b23498e420fae294 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=c844b9883a2d4a98 input=a9049054013a1b77]*/
