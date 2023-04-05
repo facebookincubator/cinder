@@ -99,6 +99,7 @@ fun test {
         NextInstrOffset 0
       }
     }
+    UseType<Tuple> v4
     Unreachable
   }
 }
@@ -228,6 +229,7 @@ fun test {
         NextInstrOffset 0
       }
     }
+    UseType<Tuple> v1
     Unreachable
   }
 }

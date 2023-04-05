@@ -445,3 +445,24 @@ class LoadAttrTests(ProfileTest):
             # Make sure get_y() was unaffected.
             with self.assertDeopts({}):
                 self.assertEqual(get_y(p), 222)
+
+
+class Duck:
+    def speak(self):
+        return "quack"
+
+
+class ShimmedDuck(Duck):
+
+    pass
+
+
+GLOBAL_DUCK = Duck() if PROFILING else ShimmedDuck()
+
+
+class FailingGuardTest(ProfileTest):
+    def test_always_failing_guard(self):
+
+        # Test that we behave correctly when the type of a global changes
+        # between profiling and execution.
+        self.assertEqual(GLOBAL_DUCK.speak(), "quack")

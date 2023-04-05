@@ -556,6 +556,18 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
         it = prev_it;
       } while (it != block->begin());
 
+      if (it != block->begin() && std::prev(it)->IsGuardType()) {
+        // Everything after this GuardType is unreachable, but only as long as
+        // the GuardType fails at runtime. Indicate that the guard is required
+        // for correctness with a UseType. This prevents GuardTypeElimination
+        // from removing it.
+        Instr& guard_type = *std::prev(it);
+        block->insert(
+            UseType::create(
+                guard_type.GetOutput(), guard_type.GetOutput()->type()),
+            it);
+      }
+
       block->insert(Unreachable::create(), it);
       // Clean up dangling phi references
       if (Instr* old_term = block->GetTerminator()) {
@@ -595,6 +607,9 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           }
 
           if (branch->IsCondBranchCheckType()) {
+            // Before replacing a CondBranchCheckType with a Branch to the
+            // reachable block, insert a RefineType to preserve the type
+            // information implied by following that path.
             auto check_type_branch = static_cast<CondBranchCheckType*>(branch);
             Register* refined_value = cfg->func->env.AllocateRegister();
             Type check_type = check_type_branch->type();
