@@ -2653,7 +2653,38 @@ class GatherAndAsyncLazyValueTests(unittest.TestCase):
         await self.run_duplicate_success_test("test_suspended_duplicate_success", True)
 
 
+@cinder_support.skipUnderJIT("Recursion checks are not consistent in JIT")
+class TestTaskCancel(unittest.TestCase):
+    def test_recursive_cancel(self):
+        def run(TaskConstructor):
+            async def main():
+                # create first task
+                fut = asyncio.Future()
+                t1 = TaskConstructor(f1(fut))
+                t2 = TaskConstructor(f2(t1))
+                fut.set_result(t2)
+                await asyncio.sleep(1)
+                t1.cancel()
+
+            async def f1(fut):
+                task = await fut
+                await task
+
+            async def f2(task):
+                await task
+
+            with self.assertRaises(RecursionError):
+                asyncio.run(main())
+
+        with self.subTest("PyTask"):
+            run(asyncio.tasks._PyTask)
+
+        with self.subTest("asyncio.Task"):
+            run(asyncio.Task)
+
+
 class GeneralRegressionTests(unittest.TestCase):
+
     # This tests a fix for an issue reported in T130047792
     @async_test
     async def test_skip_duplicated_coro_on_earlier_failure(self):

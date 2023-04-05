@@ -1,6 +1,7 @@
 #include "Python.h"
 #include "pycore_list.h"          // _PyList_ITEMS()
 #include "pycore_pyerrors.h"      // _PyErr_ClearExcState()
+#include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_pystate.h"
 #include "pycore_call.h"
 #include <stddef.h>               // offsetof()
@@ -3780,7 +3781,12 @@ task_cancel_impl(TaskObj *self, PyObject *msg) {
         if (tableref == NULL) {
             return -1;
         }
+        PyThreadState *tstate = PyThreadState_GET();
+        if (_Py_EnterRecursiveCall(tstate, " while calling 'cancel' on the task")) {
+            return -1;
+        }
         is_true = tableref->cancel(self->task_fut_waiter, msg);
+        _Py_LeaveRecursiveCall(tstate);
 
         if (is_true < 0) {
             return -1;
