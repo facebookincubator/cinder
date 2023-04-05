@@ -37,7 +37,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kDeoptPatchpoint:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
-    case Opcode::kGetLoadMethodInstance:
+    case Opcode::kGetSecondOutput:
     case Opcode::kGuardType:
     case Opcode::kHintType:
     case Opcode::kIntBinaryOp:

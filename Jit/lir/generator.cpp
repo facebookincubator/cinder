@@ -1298,10 +1298,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         break;
       }
-      case Opcode::kGetLoadMethodInstance: {
-        hir::Register* dest = i.GetOutput();
-        // TODO(T139682668): Generalize this and rewrite to RDX before regalloc.
-        bbb.appendInstr(dest, Instruction::kMove, PhyReg{PhyLocation::RDX});
+      case Opcode::kGetSecondOutput: {
+        bbb.appendInstr(
+            i.GetOutput(), Instruction::kLoadSecondCallResult, i.GetOperand(0));
         break;
       }
       case Opcode::kLoadMethodSuper: {

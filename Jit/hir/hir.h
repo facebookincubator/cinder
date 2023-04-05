@@ -256,7 +256,7 @@ struct FrameState {
   V(GetANext)                          \
   V(GetIter)                           \
   V(GetLength)                         \
-  V(GetLoadMethodInstance)             \
+  V(GetSecondOutput)                   \
   V(GetTuple)                          \
   V(Guard)                             \
   V(GuardIs)                           \
@@ -1794,18 +1794,17 @@ DEFINE_SIMPLE_INSTR(
 // return code.
 DEFINE_SIMPLE_INSTR(CheckNeg, (TCInt), HasOutput, Operands<1>, CheckBase);
 
-// DEFINE_SIMPLE_INSTR(GetLoadMethodInstance, (TOptObject), HasOutput,
-// Operands<>);
-
-class INSTR_CLASS(GetLoadMethodInstance, (TOptObject), HasOutput, Operands<>) {
+class INSTR_CLASS(GetSecondOutput, (TTop), HasOutput, Operands<1>) {
  public:
-  GetLoadMethodInstance(Register* dst, const std::vector<Register*>& args)
-      : InstrT(dst) {
-    size_t i = 0;
-    for (Register* arg : args) {
-      SetOperand(i++, arg);
-    }
+  GetSecondOutput(Register* dst, Type type, Register* src)
+      : InstrT(dst, src), type_(type) {}
+
+  Type type() const {
+    return type_;
   }
+
+ private:
+  Type type_;
 };
 
 class CheckBaseWithName : public CheckBase {

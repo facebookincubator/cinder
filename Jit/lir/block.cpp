@@ -108,4 +108,13 @@ void BasicBlock::setSuccessor(size_t index, BasicBlock* bb) {
   bb->predecessors_.push_back(this);
 }
 
+BasicBlock::InstrList::iterator BasicBlock::iterator_to(Instruction* instr) {
+  for (auto it = instrs_.begin(); it != instrs_.end(); ++it) {
+    if (it->get() == instr) {
+      return it;
+    }
+  }
+  JIT_CHECK(false, "Instruction not found in list");
+}
+
 } // namespace jit::lir

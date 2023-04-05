@@ -439,18 +439,12 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "GetIter") {
     auto iterable = ParseRegister();
     instruction = newInstr<GetIter>(dst, iterable);
-  } else if (opcode == "GetLoadMethodInstance") {
+  } else if (opcode == "GetSecondOutput") {
     expect("<");
-    int num_args = GetNextInteger();
+    Type ty = Type::parse(env_, GetNextToken());
     expect(">");
-
-    std::vector<Register*> args(num_args);
-    std::generate(
-        args.begin(),
-        args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
-
-    NEW_INSTR(GetLoadMethodInstance, num_args, dst, args);
+    Register* value = ParseRegister();
+    NEW_INSTR(GetSecondOutput, dst, ty, value);
   } else if (opcode == "LoadTypeAttrCacheItem") {
     expect("<");
     int cache_id = GetNextInteger();

@@ -241,6 +241,11 @@ constexpr auto ARGUMENT_REGS = std::to_array({
     PhyLocation::R9,
 });
 
+constexpr auto RETURN_REGS = std::to_array({
+    PhyLocation::RAX,
+    PhyLocation::RDX,
+});
+
 constexpr auto FP_ARGUMENT_REGS = std::to_array({
     PhyLocation::XMM0,
     PhyLocation::XMM1,

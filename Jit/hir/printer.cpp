@@ -542,8 +542,9 @@ static std::string format_immediates(const Instr& instr) {
       const auto& make = static_cast<const MakeTuple&>(instr);
       return fmt::format("{}", make.nvalues());
     }
-    case Opcode::kGetLoadMethodInstance: {
-      return fmt::format("{}", instr.NumOperands());
+    case Opcode::kGetSecondOutput: {
+      return fmt::format(
+          "{}", static_cast<const GetSecondOutput&>(instr).type());
     }
     case Opcode::kLoadTupleItem: {
       const auto& loaditem = static_cast<const LoadTupleItem&>(instr);

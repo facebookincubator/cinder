@@ -772,8 +772,8 @@ fun jittestmodule:test {
         Cells<1> v14
       }
     }
-    v18:OptObject = GetLoadMethodInstance<1> v16
     Decref v16
+    v18:OptObject = GetSecondOutput<OptObject> v17
     v19:Object = CallMethod<2> v17 v18 {
       LiveValues<4> unc:v13 o:v14 o:v17 o:v18
       FrameState {

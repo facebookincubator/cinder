@@ -111,7 +111,7 @@ fun jittestmodule:test {
         Stack<3> v10 v11 v8
       }
     }
-    v15:OptObject = GetLoadMethodInstance<1> v8
+    v15:OptObject = GetSecondOutput<OptObject> v14
     v16:Object = CallMethod<2> v14 v15 {
       FrameState {
         NextInstrOffset 12
@@ -264,7 +264,7 @@ fun jittestmodule:test {
         NextInstrOffset 4
       }
     }
-    v8:OptObject = GetLoadMethodInstance<1> v6
+    v8:OptObject = GetSecondOutput<OptObject> v7
     v9:MortalUnicodeExact["Hello"] = LoadConst<MortalUnicodeExact["Hello"]>
     v10:Object = CallMethod<3> v7 v8 v9 {
       FrameState {
@@ -288,7 +288,7 @@ fun jittestmodule:test {
         NextInstrOffset 4
       }
     }
-    v6:OptObject = GetLoadMethodInstance<1> v4
+    v6:OptObject = GetSecondOutput<OptObject> v5
     v7:Object = CallMethod<2> v5 v6 {
       FrameState {
         NextInstrOffset 6

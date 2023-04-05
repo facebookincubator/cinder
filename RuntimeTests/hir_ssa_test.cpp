@@ -253,38 +253,6 @@ fun test {
   EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
 }
 
-TEST(CheckFuncTest, BadLoadMethod) {
-  const char* hir_source = R"(
-fun test {
-  bb 0 {
-    v0 = LoadArg<0>
-    v1 = LoadMethod<0> v0
-    Return v1
-  }
-}
-)";
-  const char* expected_err =
-      "ERROR: LoadMethod in bb 0 not immediately followed by "
-      "GetLoadMethodInstance\n";
-  EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
-}
-
-TEST(CheckFuncTest, BadGetLoadMethodInstance) {
-  const char* hir_source = R"(
-fun test {
-  bb 0 {
-    v0 = LoadArg<0>
-    v1 = GetLoadMethodInstance<0>
-    Return v1
-  }
-}
-)";
-  const char* expected_err =
-      "ERROR: GetLoadMethodInstance in bb 0 not immediately preceded by "
-      "LoadMethod/LoadMethodSuper\n";
-  EXPECT_NO_FATAL_FAILURE(testCheckFunc(hir_source, expected_err));
-}
-
 TEST(CheckFuncTest, BadCFG) {
   Function func;
   auto b0 = func.cfg.entry_block = func.cfg.AllocateBlock();

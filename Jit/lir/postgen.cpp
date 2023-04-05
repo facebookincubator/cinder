@@ -241,4 +241,118 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBatchDecrefInstrs(
       reinterpret_cast<uint64_t>(JITRT_BatchDecref)));
   return kChanged;
 }
+
+static void populateLoadSecondCallResultPhi(
+    OperandBase::DataType data_type,
+    Instruction* phi1,
+    Instruction* phi2,
+    UnorderedMap<Operand*, Instruction*>& seen_srcs);
+
+// Return an Instruction* (which may already exist) defining the second call
+// result for src, with the given DataType.
+//
+// instr, if given, will be reused rather than inserting a new instruction (to
+// preserve its vreg identity).
+//
+// seen_srcs is used to ensure only one Move is inserted for each root Call
+// instruction in the presence of loops or repeated Phi uses of the same vreg.
+static Instruction* getSecondCallResult(
+    OperandBase::DataType data_type,
+    Operand* src,
+    Instruction* instr,
+    UnorderedMap<Operand*, Instruction*>& seen_srcs) {
+  auto it = seen_srcs.find(src);
+  if (it != seen_srcs.end()) {
+    return it->second;
+  }
+  Instruction* src_instr = src->instr();
+  BasicBlock* src_block = src_instr->basicblock();
+  auto src_it = src_block->iterator_to(src_instr);
+  JIT_CHECK(
+      src_instr->isCall() || src_instr->isPhi(),
+      "LoadSecondCallResult input must come from Call or Phi, not '%s'",
+      *src_instr);
+
+  if (src_instr->isCall()) {
+    // Check that this Call hasn't already been handled on behalf of another
+    // LoadSecondCallResult. If we need to support this pattern in the future,
+    // this rewrite function should probably become a standalone pass, with the
+    // scope of seen_srcs expanded to the whole function.
+    auto next_it = std::next(src_it);
+    JIT_CHECK(
+        next_it != src_block->instructions().end(),
+        "Block ends with Call instruction");
+    Instruction* next_instr = next_it->get();
+    JIT_CHECK(
+        !(next_instr->isMove() && next_instr->getNumInputs() == 1 &&
+          next_instr->getInput(0)->isReg() &&
+          next_instr->getInput(0)->getPhyRegister() == RETURN_REGS[1]),
+        "Call output consumed by multiple LoadSecondCallResult instructions");
+  }
+
+  if (instr) {
+    // We want to keep using the vreg defined by instr, so move it to after
+    // src_instr, rather than allocating a new one.
+    BasicBlock* instr_block = instr->basicblock();
+    auto instr_it = instr_block->iterator_to(instr);
+    auto instr_owner = instr_block->removeInstr(instr_it);
+    src_block->instructions().insert(std::next(src_it), std::move(instr_owner));
+    instr->setNumInputs(0);
+  }
+
+  Instruction::Opcode new_op =
+      src_instr->isCall() ? Instruction::kMove : Instruction::kPhi;
+  if (instr) {
+    instr->setOpcode(new_op);
+  } else {
+    instr = src_block->allocateInstrBefore(
+        std::next(src_it), new_op, OutVReg(data_type));
+  }
+  seen_srcs[src] = instr;
+  if (new_op == Instruction::kMove) {
+    instr->addOperands(PhyReg(RETURN_REGS[1], data_type));
+  } else {
+    // instr is now a Phi (either newly-created or a replacement for
+    // instr). Recursively populate its inputs with the second result of all
+    // original Calls.
+    populateLoadSecondCallResultPhi(data_type, src_instr, instr, seen_srcs);
+  }
+
+  return instr;
+}
+
+// Given a Phi that joins the outputs of multiple Calls (or more Phis that
+// ultimately join the outputs of Calls), populate a second, parallel Phi to
+// join the second result of all original Calls.
+static void populateLoadSecondCallResultPhi(
+    OperandBase::DataType data_type,
+    Instruction* phi1,
+    Instruction* phi2,
+    UnorderedMap<Operand*, Instruction*>& seen_srcs) {
+  for (size_t i = 1; i < phi1->getNumInputs(); i += 2) {
+    Operand* src1 = phi1->getInput(i)->getDefine();
+    Instruction* instr2 =
+        getSecondCallResult(data_type, src1, nullptr, seen_srcs);
+    phi2->addOperands(
+        Lbl(phi1->getInput(i - 1)->getBasicBlock()), VReg(instr2));
+  }
+}
+
+Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadSecondCallResult(
+    instr_iter_t instr_iter) {
+  // Replace "%x = LoadSecondCallResult %y" with "%x = Move RDX" immediately
+  // after the call that defines %y. If necessary, trace through Phis,
+  // inserting multiple Moves and a new Phi to reconcile them.
+
+  Instruction* instr = instr_iter->get();
+  if (!instr->isLoadSecondCallResult()) {
+    return kUnchanged;
+  }
+
+  Operand* src = instr->getInput(0)->getDefine();
+  UnorderedMap<Operand*, Instruction*> seen_srcs;
+  getSecondCallResult(instr->output()->dataType(), src, instr, seen_srcs);
+  return kRemoved;
+}
+
 } // namespace jit::lir

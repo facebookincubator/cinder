@@ -138,6 +138,13 @@ class BasicBlock {
     return instrs_;
   }
 
+  // Return an iterator to the given instruction. Behavior is undefined if the
+  // given Instruction is not in this block.
+  //
+  // This function is O(getNumInstrs()) due to implementation details in
+  // InstrList.
+  InstrList::iterator iterator_to(Instruction* instr);
+
   bool isEmpty() const {
     return instrs_.empty();
   }

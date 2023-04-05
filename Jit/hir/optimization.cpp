@@ -1173,11 +1173,11 @@ void BeginInlinedFunctionElimination::Run(Function& irfunc) {
 
 struct MethodInvoke {
   LoadMethod* load_method{nullptr};
-  GetLoadMethodInstance* get_instance{nullptr};
+  GetSecondOutput* get_instance{nullptr};
   CallMethod* call_method{nullptr};
 };
 
-// Returns true if LoadMethod/CallMethod/GetLoadMethodInstance were removed.
+// Returns true if LoadMethod/CallMethod/GetSecondOutput were removed.
 // Returns false if they could not be removed.
 static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   ThreadedCompileSerialize guard;
@@ -1284,9 +1284,9 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
             "LoadMethod/CallMethod should be paired");
         auto lm = static_cast<LoadMethod*>(func_instr);
         JIT_DCHECK(
-            cm->self()->instr()->IsGetLoadMethodInstance(),
-            "GetLoadMethodInstance/CallMethod should be paired");
-        auto glmi = static_cast<GetLoadMethodInstance*>(cm->self()->instr());
+            cm->self()->instr()->IsGetSecondOutput(),
+            "GetSecondOutput/CallMethod should be paired");
+        auto glmi = static_cast<GetSecondOutput*>(cm->self()->instr());
         auto result = invokes.insert({lm, MethodInvoke{lm, glmi, cm}});
         if (!result.second) {
           // This pass currently only handles 1:1 LoadMethod/CallMethod

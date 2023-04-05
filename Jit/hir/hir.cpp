@@ -137,7 +137,7 @@ bool Instr::isReplayable() const {
     case Opcode::kCheckVar:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFormatValue:
-    case Opcode::kGetLoadMethodInstance:
+    case Opcode::kGetSecondOutput:
     case Opcode::kGuard:
     case Opcode::kGuardIs:
     case Opcode::kGuardType:

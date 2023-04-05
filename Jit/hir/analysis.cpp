@@ -74,7 +74,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kGetAIter:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
-    case Opcode::kGetLoadMethodInstance:
+    case Opcode::kGetSecondOutput:
     case Opcode::kGetTuple:
     case Opcode::kImportFrom:
     case Opcode::kImportName:

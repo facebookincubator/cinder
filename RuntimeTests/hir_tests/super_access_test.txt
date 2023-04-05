@@ -180,7 +180,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
-    v7 = GetLoadMethodInstance<3> v0 v4 v5
+    v7 = GetSecondOutput<OptObject> v6
     v8 = CallMethod<2> v6 v7 {
       FrameState {
         NextInstrOffset 12

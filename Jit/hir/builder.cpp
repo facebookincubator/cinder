@@ -2218,8 +2218,7 @@ void HIRBuilder::emitLoadMethod(
   Register* result = temps_.AllocateStack();
   Register* method_instance = temps_.AllocateStack();
   tc.emit<LoadMethod>(result, receiver, bc_instr.oparg(), tc.frame);
-  tc.emit<GetLoadMethodInstance>(
-      1, method_instance, std::vector<Register*>{receiver});
+  tc.emit<GetSecondOutput>(method_instance, TOptObject, result);
   tc.frame.stack.push(result);
   tc.frame.stack.push(method_instance);
 }
@@ -2245,10 +2244,7 @@ void HIRBuilder::emitLoadMethodOrAttrSuper(
         name_idx,
         no_args_in_super_call,
         tc.frame);
-    tc.emit<GetLoadMethodInstance>(
-        3,
-        method_instance,
-        std::vector<Register*>{receiver, global_super, type});
+    tc.emit<GetSecondOutput>(method_instance, TOptObject, result);
     tc.frame.stack.push(result);
     tc.frame.stack.push(method_instance);
   } else {

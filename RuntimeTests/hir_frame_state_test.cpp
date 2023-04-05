@@ -353,7 +353,7 @@ def test(f, a):
         Locals<2> v0 v1
       }
     }
-    v3 = GetLoadMethodInstance<1> v0
+    v3 = GetSecondOutput<OptObject> v2
     Snapshot {
       NextInstrOffset 4
       Locals<2> v0 v1

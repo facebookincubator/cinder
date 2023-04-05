@@ -22,6 +22,7 @@ class PostGenerationRewrite : public Rewrite {
     registerOneRewriteFunction(rewriteGuardLargeConstant, 1);
     registerOneRewriteFunction(rewriteLoadArg, 1);
     registerOneRewriteFunction(rewriteMoveToMemoryLargeConstant, 1);
+    registerOneRewriteFunction(rewriteLoadSecondCallResult, 1);
   }
 
  private:
@@ -48,6 +49,9 @@ class PostGenerationRewrite : public Rewrite {
 
   // rewrite BatchDecref instructions
   static RewriteResult rewriteBatchDecrefInstrs(instr_iter_t instr_iter);
+
+  // replace LoadSecondCallResult instructions with an appropriate Move.
+  static RewriteResult rewriteLoadSecondCallResult(instr_iter_t instr_iter);
 
   FRIEND_TEST(LIRRewriteTest, RewriteCondBranchTest);
 };

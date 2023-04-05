@@ -738,7 +738,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v15 = GetLoadMethodInstance<1> v1
+    v15 = GetSecondOutput<OptObject> v14
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 48
