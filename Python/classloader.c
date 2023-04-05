@@ -997,8 +997,7 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
         }
     }
 
-    PyFunctionObject *func = (PyFunctionObject *)Ci_PyClassMethod_GetFunc(state->tcs_value);
-    return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
+    return _PyObject_Vectorcall(state->tcs_value, args, nargsf, kwnames);
 }
 
 static PyObject *

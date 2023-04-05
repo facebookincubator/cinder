@@ -1,5 +1,6 @@
 import asyncio
 from unittest import skip, skipIf
+from unittest.mock import patch
 
 from .common import StaticTestBase
 
@@ -231,6 +232,30 @@ class ClassMethodTests(StaticTestBase):
 
             d = D()
             asyncio.run(d.bar())
+
+    def test_patch(self):
+        codestr = """
+            class C:
+                @classmethod
+                def caller(cls):
+                    if cls.is_testing():
+                        return True
+                    return False
+
+                @classmethod
+                def is_testing(cls):
+                    return True
+
+            class Child(C):
+                pass
+        """
+
+        with self.in_module(codestr) as mod:
+            with patch(f"{mod.__name__}.C.is_testing", return_value=False) as p:
+                c = mod.Child()
+
+                self.assertEqual(c.caller(), False)
+                self.assertEqual(p.call_args[0], (mod.Child,))
 
     def test_classmethod_dynamic_subclass_override(self):
         codestr = """
