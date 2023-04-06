@@ -1552,40 +1552,8 @@ JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
         }
         arg_val = (uint64_t)args[arg];
 
-        PyObject* new_val;
-        switch (arg_info->tai_args[i].tai_primitive_type) {
-          case TYPED_BOOL:
-            new_val = arg_val ? Py_True : Py_False;
-            break;
-          case TYPED_INT8:
-            new_val = PyLong_FromLong((int8_t)arg_val);
-            break;
-          case TYPED_INT16:
-            new_val = PyLong_FromLong((int16_t)arg_val);
-            break;
-          case TYPED_INT32:
-            new_val = PyLong_FromLong((int32_t)arg_val);
-            break;
-          case TYPED_INT64:
-            new_val = PyLong_FromSsize_t((Py_ssize_t)arg_val);
-            break;
-          case TYPED_UINT8:
-            new_val = PyLong_FromUnsignedLong((uint8_t)arg_val);
-            break;
-          case TYPED_UINT16:
-            new_val = PyLong_FromUnsignedLong((uint16_t)arg_val);
-            break;
-          case TYPED_UINT32:
-            new_val = PyLong_FromUnsignedLong((uint32_t)arg_val);
-            break;
-          case TYPED_UINT64:
-            new_val = PyLong_FromSize_t((size_t)arg_val);
-            break;
-          default:
-            assert(false);
-            PyErr_SetString(PyExc_RuntimeError, "unsupported primitive type");
-            new_val = nullptr;
-        }
+        PyObject* new_val = _PyClassLoader_Box(
+            arg_val, arg_info->tai_args[i].tai_primitive_type);
 
         if (new_val == nullptr) {
           for (int i = 0; i < allocated_count; i++) {

@@ -905,6 +905,51 @@ is_static_entry(vectorcallfunc func)
     return func == (vectorcallfunc)_PyEntry_StaticEntry;
 }
 
+PyObject *
+_PyClassLoader_Box(uint64_t value, int primitive_type)
+{
+    PyObject* new_val;
+    switch (primitive_type) {
+        case TYPED_BOOL:
+            new_val = value ? Py_True : Py_False;
+            Py_INCREF(new_val);
+            break;
+        case TYPED_INT8:
+            new_val = PyLong_FromLong((int8_t)value);
+            break;
+        case TYPED_INT16:
+            new_val = PyLong_FromLong((int16_t)value);
+            break;
+        case TYPED_INT32:
+            new_val = PyLong_FromLong((int32_t)value);
+            break;
+        case TYPED_INT64:
+            new_val = PyLong_FromSsize_t((Py_ssize_t)value);
+            break;
+        case TYPED_UINT8:
+            new_val = PyLong_FromUnsignedLong((uint8_t)value);
+            break;
+        case TYPED_UINT16:
+            new_val = PyLong_FromUnsignedLong((uint16_t)value);
+            break;
+        case TYPED_UINT32:
+            new_val = PyLong_FromUnsignedLong((uint32_t)value);
+            break;
+        case TYPED_UINT64:
+            new_val = PyLong_FromSize_t((size_t)value);
+            break;
+        default:
+            assert(0);
+            PyErr_SetString(PyExc_RuntimeError, "unsupported primitive type");
+            new_val = NULL;
+            break;
+    }
+    return new_val;
+}
+
+
+
+
 /**
     This vectorcall entrypoint pulls out the function, slot index and replaces
     its own entrypoint in the v-table with optimized static vectorcall. (It also

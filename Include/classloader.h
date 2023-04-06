@@ -421,6 +421,8 @@ CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code
 CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyObject *container, int only_primitives);
 CiAPI_FUNC(int) _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
+CiAPI_FUNC(PyObject *) _PyClassLoader_Box(uint64_t value, int primitive_type);
+
 static inline int
 _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
 {
