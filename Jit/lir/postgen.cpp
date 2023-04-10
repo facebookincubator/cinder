@@ -279,15 +279,14 @@ static Instruction* getSecondCallResult(
     // this rewrite function should probably become a standalone pass, with the
     // scope of seen_srcs expanded to the whole function.
     auto next_it = std::next(src_it);
-    JIT_CHECK(
-        next_it != src_block->instructions().end(),
-        "Block ends with Call instruction");
-    Instruction* next_instr = next_it->get();
-    JIT_CHECK(
-        !(next_instr->isMove() && next_instr->getNumInputs() == 1 &&
-          next_instr->getInput(0)->isReg() &&
-          next_instr->getInput(0)->getPhyRegister() == RETURN_REGS[1]),
-        "Call output consumed by multiple LoadSecondCallResult instructions");
+    if (next_it != src_block->instructions().end()) {
+      Instruction* next_instr = next_it->get();
+      JIT_CHECK(
+          !(next_instr->isMove() && next_instr->getNumInputs() == 1 &&
+            next_instr->getInput(0)->isReg() &&
+            next_instr->getInput(0)->getPhyRegister() == RETURN_REGS[1]),
+          "Call output consumed by multiple LoadSecondCallResult instructions");
+    }
   }
 
   if (instr) {

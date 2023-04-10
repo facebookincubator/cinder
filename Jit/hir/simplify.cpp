@@ -500,6 +500,30 @@ Register* simplifyLoadVarObjectSize(Env& env, const LoadVarObjectSize* instr) {
   return nullptr;
 }
 
+Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
+  Register* receiver = load_meth->GetOperand(0);
+  if (!receiver->isA(TType)) {
+    return nullptr;
+  }
+  const int cache_id = env.func.env.allocateLoadTypeMethodCache();
+  env.emit<UseType>(receiver, TType);
+  Register* guard = env.emit<LoadTypeMethodCacheEntryType>(cache_id);
+  Register* type_matches =
+      env.emit<PrimitiveCompare>(PrimitiveCompareOp::kEqual, guard, receiver);
+  return env.emitCond(
+      [&](BasicBlock* fast_path, BasicBlock* slow_path) {
+        env.emit<CondBranch>(type_matches, fast_path, slow_path);
+      },
+      [&] { // Fast path
+        return env.emit<LoadTypeMethodCacheEntryValue>(cache_id, receiver);
+      },
+      [&] { // Slow path
+        int name_idx = load_meth->name_idx();
+        return env.emit<FillTypeMethodCache>(
+            receiver, name_idx, cache_id, *load_meth->frameState());
+      });
+}
+
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   Register* lhs = instr->left();
   Register* rhs = instr->right();
@@ -1126,6 +1150,8 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
 
     case Opcode::kLoadAttr:
       return simplifyLoadAttr(env, static_cast<const LoadAttr*>(instr));
+    case Opcode::kLoadMethod:
+      return simplifyLoadMethod(env, static_cast<const LoadMethod*>(instr));
     case Opcode::kLoadField:
       return simplifyLoadField(env, static_cast<const LoadField*>(instr));
     case Opcode::kLoadTupleItem:

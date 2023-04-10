@@ -118,6 +118,11 @@ LIRGenerator::LIRGenerator(
     load_type_attr_caches_.emplace_back(
         Runtime::get()->allocateLoadTypeAttrCache());
   }
+
+  for (int i = 0, n = func->env.numLoadTypeMethodCaches(); i < n; i++) {
+    load_type_method_caches_.emplace_back(
+        Runtime::get()->allocateLoadTypeMethodCache());
+  }
 }
 
 BasicBlock* LIRGenerator::GenerateEntryBlock() {
@@ -1274,6 +1279,40 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             load_type_attr_caches_.at(instr->cache_id()),
             instr->receiver(),
             tmp_id);
+        break;
+      }
+      case Opcode::kFillTypeMethodCache: {
+        auto instr = static_cast<const FillTypeMethodCache*>(&i);
+        std::string tmp_id = GetSafeTempName();
+        PyCodeObject* code = instr->frameState()->code;
+        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
+        bbb.AppendCode(
+            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        bbb.AppendCall(
+            instr->GetOutput(),
+            jit::LoadTypeMethodCache::lookupHelper,
+            load_type_method_caches_.at(instr->cache_id()),
+            instr->receiver(),
+            tmp_id);
+        break;
+      }
+      case Opcode::kLoadTypeMethodCacheEntryType: {
+        auto instr = static_cast<const LoadTypeMethodCacheEntryType*>(&i);
+        LoadTypeMethodCache* cache =
+            load_type_method_caches_.at(instr->cache_id());
+        BorrowedRef<PyTypeObject>* addr = &cache->type;
+        bbb.appendInstr(instr->dst(), Instruction::kMove, MemImm{addr});
+        break;
+      }
+      case Opcode::kLoadTypeMethodCacheEntryValue: {
+        auto instr = static_cast<const LoadTypeMethodCacheEntryValue*>(&i);
+        LoadTypeMethodCache* cache =
+            load_type_method_caches_.at(instr->cache_id());
+        bbb.AppendCall(
+            instr->dst(),
+            LoadTypeMethodCache::getValueHelper,
+            cache,
+            instr->receiver());
         break;
       }
       case Opcode::kLoadMethod: {

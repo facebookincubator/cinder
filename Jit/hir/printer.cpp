@@ -599,6 +599,18 @@ static std::string format_immediates(const Instr& instr) {
       const auto& ftac = static_cast<const FillTypeAttrCache&>(instr);
       return fmt::format("{}, {}", ftac.cache_id(), ftac.name_idx());
     }
+    case Opcode::kLoadTypeMethodCacheEntryValue: {
+      const auto& i = static_cast<const LoadTypeMethodCacheEntryValue&>(instr);
+      return fmt::format("{}", i.cache_id());
+    }
+    case Opcode::kLoadTypeMethodCacheEntryType: {
+      const auto& i = static_cast<const LoadTypeMethodCacheEntryType&>(instr);
+      return fmt::format("{}", i.cache_id());
+    }
+    case Opcode::kFillTypeMethodCache: {
+      const auto& ftmc = static_cast<const FillTypeMethodCache&>(instr);
+      return fmt::format("{}, {}", ftmc.cache_id(), ftmc.name_idx());
+    }
     case Opcode::kSetFunctionAttr: {
       const auto& set_fn_attr = static_cast<const SetFunctionAttr&>(instr);
       return fmt::format("{}", functionFieldName(set_fn_attr.field()));

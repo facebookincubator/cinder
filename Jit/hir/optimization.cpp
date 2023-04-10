@@ -1279,13 +1279,28 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
         if (func_instr->IsLoadMethodSuper()) {
           continue;
         }
+
+        if (isAnyLoadMethod(*func_instr) && !func_instr->IsLoadMethod()) {
+          // {FillTypeMethodCache | LoadTypeMethodCacheEntryValue} and
+          // CallMethod represent loading and invoking methods off a type (e.g.
+          // dict.fromkeys(...)) which do not need to follow
+          // LoadMethod/CallMethod pairing invariant and do not benefit from
+          // tryEliminateLoadMethod which only handles eliminating of method
+          // calls on the instance
+          continue;
+        }
+
         JIT_DCHECK(
             func_instr->IsLoadMethod(),
-            "LoadMethod/CallMethod should be paired");
+            "LoadMethod/CallMethod should be paired but got %s/CallMethod",
+            func_instr->opname());
         auto lm = static_cast<LoadMethod*>(func_instr);
+
         JIT_DCHECK(
             cm->self()->instr()->IsGetSecondOutput(),
-            "GetSecondOutput/CallMethod should be paired");
+            "GetSecondOutput/CallMethod should be paired but got "
+            "%s/CallMethod",
+            cm->self()->instr()->opname());
         auto glmi = static_cast<GetSecondOutput*>(cm->self()->instr());
         auto result = invokes.insert({lm, MethodInvoke{lm, glmi, cm}});
         if (!result.second) {

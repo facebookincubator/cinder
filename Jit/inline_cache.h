@@ -207,6 +207,44 @@ class LoadMethodCache {
   std::array<Entry, 4> entries_;
 };
 
+// A cache for LoadMethod instructions where we expect the receiver to be a type
+// object.
+//
+// The first entry in `entry` is the type receiver. The second entry in `entry`
+// is the cached value.
+//
+// The code for loading a method where the expected receiver is a type is
+// specialized into a fast path and a slow path. The first element is loaded
+// from the cache and compared against the receiver. If they are equal, the
+// `getValueHelper()` is called which returns the cached value. If they are not
+// equal, `lookupHelper()` is called, which performs the full lookup and
+// potentially fills the cache.
+class LoadTypeMethodCache {
+ public:
+  BorrowedRef<PyTypeObject> type;
+  BorrowedRef<> value;
+  bool is_unbound_meth;
+
+  ~LoadTypeMethodCache();
+  static JITRT_LoadMethodResult lookupHelper(
+      LoadTypeMethodCache* cache,
+      BorrowedRef<PyTypeObject> obj,
+      BorrowedRef<> name);
+  static JITRT_LoadMethodResult getValueHelper(
+      LoadTypeMethodCache* cache,
+      BorrowedRef<> obj);
+
+  JITRT_LoadMethodResult lookup(
+      BorrowedRef<PyTypeObject> obj,
+      BorrowedRef<> name);
+  void typeChanged(BorrowedRef<PyTypeObject> type);
+
+ private:
+  void
+  fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> value, bool is_bound_meth);
+  void reset();
+};
+
 struct GlobalCacheKey {
   // builtins and globals are weak references; the invalidation code is
   // responsible for erasing any relevant keys when a dict is freed.

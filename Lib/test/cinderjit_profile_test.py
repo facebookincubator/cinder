@@ -154,6 +154,233 @@ class GetProfilesTests(ProfileTest):
             self.fail("Didn't find expected profile hit in results")
 
 
+@cinder_support.failUnlessJITCompiled
+def run_cls_meth(cls):
+    return cls.cls_meth()
+
+
+@cinder_support.failUnlessJITCompiled
+def run_static_meth(cls):
+    return cls.static_meth()
+
+
+@cinder_support.failUnlessJITCompiled
+def run_regular_meth(cls):
+    return cls.regular_meth()
+
+
+class LoadTypeMethodCacheTests(ProfileTest):
+    def _new_cls_meth(cls):
+        return 2
+
+    new_cls_meth = classmethod(_new_cls_meth)
+
+    def _new_static_meth():
+        return 1
+
+    new_static_meth = staticmethod(_new_static_meth)
+
+    def _prime_cache(self, obj, method_runner, expected_output):
+        # Uncached
+        self.assertEqual(method_runner(obj), expected_output)
+        # Cached
+        self.assertEqual(method_runner(obj), expected_output)
+
+    def test_type_modified(self):
+        class Oracle:
+            @classmethod
+            def cls_meth(cls):
+                return 42
+
+            @staticmethod
+            def static_meth():
+                return 41
+
+            def regular_meth():
+                return 40
+
+        obj = Oracle
+
+        self._prime_cache(obj, run_cls_meth, 42)
+        # Invalidate cache
+        Oracle.cls_meth = self.new_cls_meth
+        self.assertEqual(run_cls_meth(obj), 2)
+
+        self._prime_cache(obj, run_static_meth, 41)
+        # Invalidate cache
+        Oracle.static_meth = self.new_static_meth
+        self.assertEqual(run_static_meth(obj), 1)
+
+        self._prime_cache(obj, run_regular_meth, 40)
+        # Invalidate cache
+        def _new_regular_meth():
+            return 0
+
+        Oracle.regular_meth = _new_regular_meth
+        self.assertEqual(run_regular_meth(obj), 0)
+
+    def test_base_type_modified(self):
+        class Base:
+            @classmethod
+            def cls_meth(cls):
+                return 42
+
+            @staticmethod
+            def static_meth():
+                return 41
+
+            def regular_meth():
+                return 40
+
+        class Derived(Base):
+            pass
+
+        obj = Derived
+        self._prime_cache(obj, run_cls_meth, 42)
+        # Mutate Base. Should propagate to Derived and invalidate the cache.
+        Base.cls_meth = self.new_cls_meth
+        self.assertEqual(run_cls_meth(obj), 2)
+
+        self._prime_cache(obj, run_static_meth, 41)
+        Base.static_meth = self.new_static_meth
+        self.assertEqual(run_static_meth(obj), 1)
+
+        self._prime_cache(obj, run_regular_meth, 40)
+
+        def _new_regular_meth():
+            return 0
+
+        Base.regular_meth = _new_regular_meth
+        self.assertEqual(run_regular_meth(obj), 0)
+
+    def test_cache_invalidation_when_second_base_type_modified(self):
+        class Base1:
+            pass
+
+        class Base2:
+            @classmethod
+            def cls_meth(cls):
+                return 42
+
+            @staticmethod
+            def static_meth():
+                return 41
+
+            def regular_meth():
+                return 40
+
+        class Derived(Base1, Base2):
+            pass
+
+        obj = Derived
+        self._prime_cache(obj, run_cls_meth, 42)
+        # Mutate Base. Should propagate to Derived and invalidate the cache.
+        Base2.cls_meth = self.new_cls_meth
+        self.assertEqual(run_cls_meth(obj), 2)
+
+        self._prime_cache(obj, run_static_meth, 41)
+        Base2.static_meth = self.new_static_meth
+        self.assertEqual(run_static_meth(obj), 1)
+
+        self._prime_cache(obj, run_regular_meth, 40)
+
+        def _new_regular_meth():
+            return 0
+
+        Base2.regular_meth = _new_regular_meth
+
+        self.assertEqual(run_regular_meth(obj), 0)
+
+    def test_cache_invalidation_when_changing_bases(self):
+        class Base1:
+            @classmethod
+            def cls_meth(cls):
+                return 42
+
+            @staticmethod
+            def static_meth():
+                return 41
+
+            def regular_meth():
+                return 40
+
+        class Derived(Base1):
+            pass
+
+        class Base2:
+            @classmethod
+            def cls_meth(cls):
+                return 2
+
+            @staticmethod
+            def static_meth():
+                return 1
+
+            def regular_meth():
+                return 0
+
+        self._prime_cache(Derived, run_cls_meth, 42)
+        self._prime_cache(Derived, run_static_meth, 41)
+        self._prime_cache(Derived, run_regular_meth, 40)
+
+        Derived.__bases__ = (Base2,)
+        self.assertEqual(run_cls_meth(Derived), 2)
+        self.assertEqual(run_static_meth(Derived), 1)
+        self.assertEqual(run_regular_meth(Derived), 0)
+
+    def test_cache_with_inner_custom_descriptor(self):
+        class ClassMeth:
+            def __get__(self, obj, objtype=None):
+                return lambda: 42
+
+        class Test:
+            cls_meth = classmethod(ClassMeth())
+
+        self._prime_cache(Test, run_cls_meth, 42)
+
+        def new_get(self, obj, objtype=None):
+            return lambda: 2
+
+        ClassMeth.__get__ = new_get
+        self.assertEqual(run_cls_meth(Test), 2)
+
+    def test_custom_objects_decorated_with_classmeth(self):
+        class ClassMeth:
+            def __call__(self, cls):
+                return 123
+
+        class Test:
+            cls_meth = classmethod(ClassMeth())
+
+        self.assertEqual(run_cls_meth(Test), 123)
+
+        def new_get(self, obj, objtype=None):
+            return lambda: 2
+
+        # turn it into a descriptor
+        ClassMeth.__get__ = new_get
+        self.assertEqual(run_cls_meth(Test), 2)
+
+    def test_dyanmic_type_method_lookup(self):
+        class A:
+            @classmethod
+            def foo(cls):
+                return "A"
+
+        class B:
+            @classmethod
+            def foo(cls):
+                return "B"
+
+        def call_foo(ty):
+            return ty.foo()
+
+        call_foo(A)
+        call_foo(B)
+        self.assertEqual(call_foo(A), "A")
+        self.assertEqual(call_foo(B), "B")
+
+
 class LoadAttrTests(ProfileTest):
     def make_slot_type(caller_name, name, slots, bases=None):
         def init(self, **kwargs):

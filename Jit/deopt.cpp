@@ -278,7 +278,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
   auto get_source = [&](jit::hir::Register* reg) {
     reg = hir::modelReg(reg);
     auto instr = reg->instr();
-    if (instr->IsLoadMethod()) {
+    if (isAnyLoadMethod(*instr)) {
       return LiveValue::Source::kLoadMethod;
     }
     return LiveValue::Source::kUnknown;
@@ -331,7 +331,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
                             DeoptFrameMetadata& meta, hir::FrameState* fs) {
     std::unordered_set<jit::hir::Register*> lms_on_stack;
     for (auto& reg : fs->stack) {
-      if (reg->instr()->IsLoadMethod()) {
+      if (isAnyLoadMethod(*reg->instr())) {
         // Our logic for reconstructing the Python stack assumes that if a
         // value on the stack was produced by a LoadMethod instruction, it
         // corresponds to the output of a LOAD_METHOD opcode and will

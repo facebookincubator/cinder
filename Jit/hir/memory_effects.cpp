@@ -2,6 +2,7 @@
 
 #include "Jit/hir/memory_effects.h"
 
+#include "Jit/hir/alias_class.h"
 #include "Jit/hir/hir.h"
 
 namespace jit::hir {
@@ -114,6 +115,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kDictUpdate:
     case Opcode::kDictSubscr:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kFillTypeMethodCache:
     case Opcode::kGetAIter:
     case Opcode::kGetANext:
     case Opcode::kGetIter:
@@ -237,6 +239,15 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return borrowFrom(inst, ADictItem);
     case Opcode::kLoadTypeAttrCacheItem:
       return borrowFrom(inst, ATypeAttrCache);
+    case Opcode::kLoadTypeMethodCacheEntryValue:
+      // This instruction will return a struct containing 2 pointers where the
+      // second pointer is emitted as an output by GetLoadMethodInstance who
+      // does not produce a borrowed reference. We are choosing to also not
+      // produce borrowed reference here to be consistent with
+      // GetLoadMethodInstance's memory effects for simplicity
+      return commonEffects(inst, AEmpty);
+    case Opcode::kLoadTypeMethodCacheEntryType:
+      return borrowFrom(inst, ATypeMethodCache);
 
     case Opcode::kReturn:
       return {false, AEmpty, {1, 1}, AManagedHeapAny};

@@ -30,6 +30,10 @@ std::ostream& operator<<(std::ostream& os, const RegisterSet& set);
 // section of Jit/hir/refcount_insertion.md for a concrete example).
 bool isPassthrough(const Instr& instr);
 
+// Return true if the given instruction represents LoadMethod or Phi composed
+// of a FillTypeMethodCache and LoadTypeMethodCacheEntryValue
+bool isAnyLoadMethod(const Instr& instr);
+
 // Trace through any passthrough instructions in the definition chain of the
 // given value, returning the original source of the value.
 Register* modelReg(Register* reg);

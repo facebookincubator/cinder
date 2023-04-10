@@ -27,7 +27,8 @@ namespace jit::hir {
   X(ListItem)             \
   X(Other)                \
   X(TupleItem)            \
-  X(TypeAttrCache)
+  X(TypeAttrCache)        \
+  X(TypeMethodCache)
 
 #define HIR_OR_BITS(name) | k##name
 

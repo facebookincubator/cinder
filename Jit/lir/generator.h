@@ -54,6 +54,7 @@ class LIRGenerator {
   // Borrowed pointers so the caches can be looked up by index; they're
   // allocated from and owned by Runtime.
   std::vector<LoadTypeAttrCache*> load_type_attr_caches_;
+  std::vector<LoadTypeMethodCache*> load_type_method_caches_;
 
   void AnalyzeCopies();
   BasicBlock* GenerateEntryBlock();

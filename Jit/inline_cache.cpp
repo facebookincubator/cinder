@@ -53,6 +53,7 @@ struct TypeWatcher {
 TypeWatcher<AttributeCache> ac_watcher;
 TypeWatcher<LoadTypeAttrCache> ltac_watcher;
 TypeWatcher<LoadMethodCache> lm_watcher;
+TypeWatcher<LoadTypeMethodCache> ltm_watcher;
 
 } // namespace
 
@@ -626,7 +627,7 @@ PyObject* LoadAttrCache::doInvoke(PyObject* obj, PyObject* name) {
   return invokeSlowPath(obj, name);
 }
 
-// NB: This needs to be kept in-sync with the logic in type_getattro
+// This needs to be kept in sync with PyType_Type.tp_getattro.
 PyObject* LoadTypeAttrCache::doInvoke(PyObject* obj, PyObject* name) {
   PyTypeObject* metatype = Py_TYPE(obj);
   if (metatype->tp_getattro != PyType_Type.tp_getattro) {
@@ -930,10 +931,183 @@ JITRT_LoadMethodResult LoadMethodCache::lookupHelper(
   return cache->lookup(obj, name);
 }
 
+// This needs to be kept in sync with PyType_Type.tp_getattro.
+JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
+    BorrowedRef<PyTypeObject> obj,
+    BorrowedRef<> name) {
+  PyTypeObject* metatype = Py_TYPE(obj);
+  if (metatype->tp_getattro != PyType_Type.tp_getattro) {
+    PyObject* res = PyObject_GetAttr(obj, name);
+    Py_INCREF(Py_None);
+    return {Py_None, res};
+  }
+  if (obj->tp_dict == nullptr) {
+    if (PyType_Ready(obj) < 0) {
+      return {nullptr, nullptr};
+    }
+  }
+
+  descrgetfunc meta_get = nullptr;
+  PyObject* meta_attribute = _PyType_Lookup(metatype, name);
+  if (meta_attribute != nullptr) {
+    Py_INCREF(meta_attribute);
+    meta_get = Py_TYPE(meta_attribute)->tp_descr_get;
+
+    if (meta_get != nullptr && PyDescr_IsData(meta_attribute)) {
+      /* Data descriptors implement tp_descr_set to intercept
+       * writes. Assume the attribute is not overridden in
+       * type's tp_dict (and bases): call the descriptor now.
+       */
+      PyObject* res =
+          meta_get(meta_attribute, obj, reinterpret_cast<PyObject*>(metatype));
+      Py_DECREF(meta_attribute);
+      Py_INCREF(Py_None);
+      return {Py_None, res};
+    }
+  }
+
+  /* No data descriptor found on metatype. Look in tp_dict of this
+   * type and its bases */
+  PyObject* attribute = _PyType_Lookup(obj, name);
+  if (attribute != nullptr) {
+    Py_XDECREF(meta_attribute);
+    BorrowedRef<PyTypeObject> attribute_type = Py_TYPE(attribute);
+    if (attribute_type == &PyClassMethod_Type) {
+      BorrowedRef<> cm_callable = Ci_PyClassMethod_GetFunc(attribute);
+      if (Py_TYPE(cm_callable) == &PyFunction_Type) {
+        Py_INCREF(obj);
+        Py_INCREF(cm_callable);
+
+        // Get the underlying callable from classmethod and return the callable
+        // alongside the class object, allowing the runtime to call the method
+        // as an unbound method.
+        fill(obj, cm_callable, true);
+        return {cm_callable, obj};
+      } else if (Py_TYPE(cm_callable)->tp_descr_get != NULL) {
+        // cm_callable has custom tp_descr_get that can run arbitrary
+        // user code. Do not cache in this instance.
+        Py_INCREF(Py_None);
+        return {
+            Py_None, Py_TYPE(cm_callable)->tp_descr_get(cm_callable, obj, obj)};
+      } else {
+        // It is not safe to cache custom objects decorated with classmethod
+        // as they can be modified later
+        BorrowedRef<> py_meth = PyMethod_New(cm_callable, obj);
+        Py_INCREF(Py_None);
+        return {Py_None, py_meth};
+      }
+    }
+    if (attribute_type == &PyStaticMethod_Type) {
+      BorrowedRef<> cm_callable = Ci_PyStaticMethod_GetFunc(attribute);
+      Py_INCREF(cm_callable);
+      Py_INCREF(Py_None);
+      fill(obj, cm_callable, false);
+      return {Py_None, cm_callable};
+    }
+    if (PyFunction_Check(attribute)) {
+      Py_INCREF(attribute);
+      Py_INCREF(Py_None);
+      fill(obj, attribute, false);
+      return {Py_None, attribute};
+    }
+    Py_INCREF(attribute);
+    /* Implement descriptor functionality, if any */
+    descrgetfunc local_get = Py_TYPE(attribute)->tp_descr_get;
+    if (local_get != nullptr) {
+      /* NULL 2nd argument indicates the descriptor was
+       * found on the target object itself (or a base)  */
+      PyObject* res = local_get(attribute, nullptr, obj);
+      Py_DECREF(attribute);
+      Py_INCREF(Py_None);
+      return {Py_None, res};
+    }
+    Py_INCREF(Py_None);
+    return {Py_None, attribute};
+  }
+
+  /* No attribute found in local __dict__ (or bases): use the
+   * descriptor from the metatype, if any */
+  if (meta_get != nullptr) {
+    PyObject* res;
+    res = meta_get(meta_attribute, obj, reinterpret_cast<PyObject*>(metatype));
+    Py_DECREF(meta_attribute);
+    Py_INCREF(Py_None);
+    return {Py_None, res};
+  }
+
+  /* If an ordinary attribute was found on the metatype, return it now */
+  if (meta_attribute != nullptr) {
+    Py_INCREF(Py_None);
+    return {Py_None, meta_attribute};
+  }
+
+  /* Give up */
+  PyErr_Format(
+      PyExc_AttributeError,
+      "type object '%.50s' has no attribute '%U'",
+      type->tp_name,
+      name);
+  return {nullptr, nullptr};
+}
+
+JITRT_LoadMethodResult LoadTypeMethodCache::getValueHelper(
+    LoadTypeMethodCache* cache,
+    BorrowedRef<> obj) {
+  PyObject* result = cache->value;
+  Py_INCREF(result);
+  if (cache->is_unbound_meth) {
+    Py_INCREF(obj);
+    return {result, obj};
+  } else {
+    Py_INCREF(Py_None);
+    return {Py_None, result};
+  }
+}
+
+JITRT_LoadMethodResult LoadTypeMethodCache::lookupHelper(
+    LoadTypeMethodCache* cache,
+    BorrowedRef<PyTypeObject> obj,
+    BorrowedRef<> name) {
+  return cache->lookup(obj, name);
+}
+
+void LoadTypeMethodCache::typeChanged(BorrowedRef<PyTypeObject> /* type */) {
+  type.reset();
+  value.reset();
+}
+
+LoadTypeMethodCache::~LoadTypeMethodCache() {
+  if (type != nullptr) {
+    ltm_watcher.unwatch(type, this);
+  }
+}
+
+void LoadTypeMethodCache::fill(
+    BorrowedRef<PyTypeObject> type,
+    BorrowedRef<> value,
+    bool is_unbound_meth) {
+  if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    // The type must have a valid version tag in order for us to be able to
+    // invalidate the cache when the type is modified. See the comment at
+    // the top of `PyType_Modified` for more details.
+    return;
+  }
+
+  if (!PyType_HasFeature(type, Py_TPFLAGS_NO_SHADOWING_INSTANCES) &&
+      (type->tp_dictoffset != 0)) {
+    return;
+  }
+  ltm_watcher.unwatch(this->type, this);
+  this->type = type;
+  this->value = value;
+  this->is_unbound_meth = is_unbound_meth;
+  ltm_watcher.watch(type, this);
+}
 void notifyICsTypeChanged(BorrowedRef<PyTypeObject> type) {
   ac_watcher.typeChanged(type);
   ltac_watcher.typeChanged(type);
   lm_watcher.typeChanged(type);
+  ltm_watcher.typeChanged(type);
 }
 
 } // namespace jit

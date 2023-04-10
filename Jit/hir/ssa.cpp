@@ -375,6 +375,7 @@ Type outputType(
     case Opcode::kDictSubscr:
     case Opcode::kBinaryOp:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kFillTypeMethodCache:
     case Opcode::kGetAIter:
     case Opcode::kGetANext:
     case Opcode::kGetIter:
@@ -548,6 +549,10 @@ Type outputType(
       auto item = static_cast<const LoadTypeAttrCacheItem&>(instr).item_idx();
       return item == 1 ? TObject : TOptObject;
     }
+    case Opcode::kLoadTypeMethodCacheEntryType:
+      return TOptType;
+    case Opcode::kLoadTypeMethodCacheEntryValue:
+      return TObject;
     case Opcode::kAssign:
       return get_op_type(0);
     case Opcode::kBitCast:

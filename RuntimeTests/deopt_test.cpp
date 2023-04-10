@@ -571,6 +571,25 @@ def test(n):
   runTest(src, args, 1, result);
 }
 
+TEST_F(DeoptStressTest, CallStaticMethod) {
+  const char* src = R"(
+class BinOps:
+  @staticmethod
+  def mul(x, y):
+    return x * y
+
+def test(n):
+  acc = 1
+  for x in range(1, n + 1):
+    acc = BinOps.mul(acc, x)
+  return acc
+)";
+  auto arg1 = Ref<>::steal(PyLong_FromLong(5));
+  PyObject* args[] = {arg1};
+  auto result = Ref<>::steal(PyLong_FromLong(120));
+  runTest(src, args, 1, result);
+}
+
 TEST_F(DeoptStressTest, CallDescriptor) {
   const char* src = R"(
 class Multiplier:

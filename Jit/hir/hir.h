@@ -251,6 +251,7 @@ struct FrameState {
   V(DoubleBinaryOp)                    \
   V(EndInlinedFunction)                \
   V(FillTypeAttrCache)                 \
+  V(FillTypeMethodCache)               \
   V(FormatValue)                       \
   V(GetAIter)                          \
   V(GetANext)                          \
@@ -302,6 +303,8 @@ struct FrameState {
   V(LoadSplitDictItem)                 \
   V(LoadTupleItem)                     \
   V(LoadTypeAttrCacheItem)             \
+  V(LoadTypeMethodCacheEntryType)      \
+  V(LoadTypeMethodCacheEntryValue)     \
   V(LoadVarObjectSize)                 \
   V(LongCompare)                       \
   V(LongBinaryOp)                      \
@@ -2876,6 +2879,91 @@ DEFINE_SIMPLE_INSTR(
     Operands<3>,
     LoadSuperBase);
 
+// Perform a full method lookup. Fill the cache if the receiver does not match
+// the type cached
+class INSTR_CLASS(
+    FillTypeMethodCache,
+    (TType),
+    HasOutput,
+    Operands<1>,
+    DeoptBase) {
+ public:
+  FillTypeMethodCache(
+      Register* dst,
+      Register* receiver,
+      int name_idx,
+      int cache_id,
+      const FrameState& frame)
+      : InstrT(dst, receiver, frame),
+        name_idx_(name_idx),
+        cache_id_(cache_id) {}
+  FillTypeMethodCache(
+      Register* dst,
+      Register* receiver,
+      int name_idx,
+      int cache_id,
+      std::unique_ptr<FrameState> frame)
+      : InstrT(dst, receiver), name_idx_(name_idx), cache_id_(cache_id) {
+    setFrameState(std::move(frame));
+  }
+
+  // The object we're loading the method from
+  Register* receiver() const {
+    return reg();
+  }
+
+  // Index of the method name in the code object's co_names tuple
+  int name_idx() const {
+    return name_idx_;
+  }
+
+  int cache_id() const {
+    return cache_id_;
+  }
+
+ private:
+  int name_idx_;
+  int cache_id_;
+};
+
+// Load the type from a cache specialized for loading methods from type
+// receivers
+class INSTR_CLASS(LoadTypeMethodCacheEntryType, (), HasOutput, Operands<0>) {
+ public:
+  LoadTypeMethodCacheEntryType(Register* dst, int cache_id)
+      : InstrT(dst), cache_id_(cache_id) {}
+
+  int cache_id() const {
+    return cache_id_;
+  }
+
+ private:
+  int cache_id_;
+};
+
+// Load the value from a cache specialized for loading methods from type
+// receivers
+class INSTR_CLASS(
+    LoadTypeMethodCacheEntryValue,
+    (TType),
+    HasOutput,
+    Operands<1>) {
+ public:
+  LoadTypeMethodCacheEntryValue(Register* dst, int cache_id, Register* receiver)
+      : InstrT(dst, receiver), cache_id_(cache_id) {}
+
+  int cache_id() const {
+    return cache_id_;
+  }
+
+  // The type object we're loading the method from
+  Register* receiver() const {
+    return reg();
+  }
+
+ private:
+  int cache_id_;
+};
 // Load the current PyFunctionObject* into a Register. Must not appear after
 // any non-LoadArg instructions.
 DEFINE_SIMPLE_INSTR(LoadCurrentFunc, (), HasOutput, Operands<0>);
@@ -4247,6 +4335,14 @@ class Environment {
     return next_load_method_cache_;
   }
 
+  int allocateLoadTypeMethodCache() {
+    return next_load_type_method_cache_++;
+  }
+
+  int numLoadTypeMethodCaches() const {
+    return next_load_type_method_cache_;
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(Environment);
 
@@ -4255,6 +4351,7 @@ class Environment {
   int next_register_id_{0};
   int next_load_type_attr_cache_{0};
   int next_load_method_cache_{0};
+  int next_load_type_method_cache_{0};
 };
 
 enum class FrameMode {

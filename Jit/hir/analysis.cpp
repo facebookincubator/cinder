@@ -69,6 +69,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kDictUpdate:
     case Opcode::kDoubleBinaryOp:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kFillTypeMethodCache:
     case Opcode::kFormatValue:
     case Opcode::kGetANext:
     case Opcode::kGetAIter:
@@ -111,6 +112,8 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadSplitDictItem:
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
+    case Opcode::kLoadTypeMethodCacheEntryValue:
+    case Opcode::kLoadTypeMethodCacheEntryType:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kLongCompare:
     case Opcode::kLongBinaryOp:
@@ -201,6 +204,21 @@ Register* modelReg(Register* reg) {
     JIT_DCHECK(reg != orig_reg, "Hit cycle while looking for model reg");
   }
   return reg;
+}
+
+bool isAnyLoadMethod(const Instr& instr) {
+  if (instr.IsLoadMethod()) {
+    return true;
+  }
+  if (!instr.IsPhi() || instr.NumOperands() != 2) {
+    return false;
+  }
+  const Instr* arg1 = instr.GetOperand(0)->instr();
+  const Instr* arg2 = instr.GetOperand(1)->instr();
+  return (arg1->IsLoadTypeMethodCacheEntryValue() &&
+          arg2->IsFillTypeMethodCache()) ||
+      (arg2->IsLoadTypeMethodCacheEntryValue() &&
+       arg1->IsFillTypeMethodCache());
 }
 
 static bool isSingleCInt(Type t) {

@@ -2334,3 +2334,259 @@ fun jittestmodule:test {
   }
 }
 ---
+LoadMethodFromTypeIsSpecialized
+---
+class Foo:
+  def regular_meth(x, y):
+    return x + y
+def test():
+  return Foo.regular_meth(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:OptObject = LoadGlobalCached<0; "Foo">
+    v7:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v6 {
+      Descr 'LOAD_GLOBAL: Foo'
+    }
+    UseType<Type> v7
+    v13:OptType = LoadTypeMethodCacheEntryType<0>
+    v14:CBool = PrimitiveCompare<Equal> v13 v7
+    CondBranch<1, 2> v14
+  }
+
+  bb 1 (preds 0) {
+    v15:Object = LoadTypeMethodCacheEntryValue<0> v7
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v16:Object = FillTypeMethodCache<0, 1> v7 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v17:Object = Phi<1, 2> v15 v16
+    v9:OptObject = GetSecondOutput<OptObject> v17
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v11:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:Object = CallMethod<4> v17 v9 v10 v11 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v12
+  }
+}
+---
+LoadClassMethodFromTypeIsSpecialized
+---
+class Foo:
+  @classmethod
+  def meth(cls, x, y):
+    return x + y
+
+def test():
+  return Foo.meth(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:OptObject = LoadGlobalCached<0; "Foo">
+    v7:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v6 {
+      Descr 'LOAD_GLOBAL: Foo'
+    }
+    UseType<Type> v7
+    v13:OptType = LoadTypeMethodCacheEntryType<0>
+    v14:CBool = PrimitiveCompare<Equal> v13 v7
+    CondBranch<1, 2> v14
+  }
+
+  bb 1 (preds 0) {
+    v15:Object = LoadTypeMethodCacheEntryValue<0> v7
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v16:Object = FillTypeMethodCache<0, 1> v7 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v17:Object = Phi<1, 2> v15 v16
+    v9:OptObject = GetSecondOutput<OptObject> v17
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v11:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:Object = CallMethod<4> v17 v9 v10 v11 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v12
+  }
+}
+---
+LoadStaticMethodFromTypeIsSpecialized
+---
+class Foo:
+  @staticmethod
+  def meth(x, y):
+    return x + y
+
+def test():
+  return Foo.meth(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:OptObject = LoadGlobalCached<0; "Foo">
+    v7:MortalTypeExact[Foo:obj] = GuardIs<0xdeadbeef> v6 {
+      Descr 'LOAD_GLOBAL: Foo'
+    }
+    UseType<Type> v7
+    v13:OptType = LoadTypeMethodCacheEntryType<0>
+    v14:CBool = PrimitiveCompare<Equal> v13 v7
+    CondBranch<1, 2> v14
+  }
+
+  bb 1 (preds 0) {
+    v15:Object = LoadTypeMethodCacheEntryValue<0> v7
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v16:Object = FillTypeMethodCache<0, 1> v7 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v17:Object = Phi<1, 2> v15 v16
+    v9:OptObject = GetSecondOutput<OptObject> v17
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v11:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:Object = CallMethod<4> v17 v9 v10 v11 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v12
+  }
+}
+---
+LoadMethodFromBuiltinTypeIsSpecialized
+---
+def test():
+  return int.__add__(1, 2)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:OptObject = LoadGlobalCached<0; "int">
+    v7:ImmortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v6 {
+      Descr 'LOAD_GLOBAL: int'
+    }
+    UseType<Type> v7
+    v13:OptType = LoadTypeMethodCacheEntryType<0>
+    v14:CBool = PrimitiveCompare<Equal> v13 v7
+    CondBranch<1, 2> v14
+  }
+
+  bb 1 (preds 0) {
+    v15:Object = LoadTypeMethodCacheEntryValue<0> v7
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v16:Object = FillTypeMethodCache<0, 1> v7 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v17:Object = Phi<1, 2> v15 v16
+    v9:OptObject = GetSecondOutput<OptObject> v17
+    v10:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
+    v11:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:Object = CallMethod<4> v17 v9 v10 v11 {
+      FrameState {
+        NextInstrOffset 10
+      }
+    }
+    Return v12
+  }
+}
+---
+LoadMethodFromModuleIsUnspecialized
+---
+import time
+
+def test():
+  return time.time()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v4:OptObject = LoadGlobalCached<0; "time">
+    v5:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
+      Descr 'LOAD_GLOBAL: time'
+    }
+    v6:Object = LoadMethod<0; "time"> v5 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    v7:OptObject = GetSecondOutput<OptObject> v6
+    v8:Object = CallMethod<2> v6 v7 {
+      FrameState {
+        NextInstrOffset 6
+      }
+    }
+    Return v8
+  }
+}
+---
+LoadClassMethodFromInstanceIsUnspecialized
+---
+class A:
+  @classmethod
+  def hello(cls):
+    return 1
+def test():
+  return A().hello()
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:OptObject = LoadGlobalCached<0; "A">
+    v6:MortalTypeExact[A:obj] = GuardIs<0xdeadbeef> v5 {
+      Descr 'LOAD_GLOBAL: A'
+    }
+    v7:Object = VectorCall<0> v6 {
+      FrameState {
+        NextInstrOffset 4
+      }
+    }
+    v8:Object = LoadMethod<1; "hello"> v7 {
+      FrameState {
+        NextInstrOffset 6
+      }
+    }
+    v9:OptObject = GetSecondOutput<OptObject> v8
+    v10:Object = CallMethod<2> v8 v9 {
+      FrameState {
+        NextInstrOffset 8
+      }
+    }
+    Return v10
+  }
+}
+---

@@ -158,6 +158,8 @@ bool Instr::isReplayable() const {
     case Opcode::kLoadSplitDictItem:
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
+    case Opcode::kLoadTypeMethodCacheEntryValue:
+    case Opcode::kLoadTypeMethodCacheEntryType:
     case Opcode::kLoadVarObjectSize:
     case Opcode::kLongCompare:
     case Opcode::kPrimitiveBox:
@@ -209,6 +211,7 @@ bool Instr::isReplayable() const {
     case Opcode::kDictUpdate:
     case Opcode::kEndInlinedFunction:
     case Opcode::kFillTypeAttrCache:
+    case Opcode::kFillTypeMethodCache:
     case Opcode::kGetAIter:
     case Opcode::kGetANext:
     case Opcode::kGetIter:

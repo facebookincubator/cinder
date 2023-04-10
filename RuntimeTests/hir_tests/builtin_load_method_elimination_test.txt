@@ -248,7 +248,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoadMethodOnTypeObjectDoesNotChange
+LoadMethodOnTypeObjectBecomesCachedWithoutLoadMethodElimination
 ---
 def test():
     return str.upper("Hello")
@@ -259,14 +259,31 @@ fun jittestmodule:test {
     v6:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: str'
     }
-    v7:Object = LoadMethod<1; "upper"> v6 {
+    UseType<Type> v6
+    v11:OptType = LoadTypeMethodCacheEntryType<0>
+    v12:CBool = PrimitiveCompare<Equal> v11 v6
+    CondBranch<1, 2> v12
+  }
+
+  bb 1 (preds 0) {
+    v13:Object = LoadTypeMethodCacheEntryValue<0> v6
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v14:Object = FillTypeMethodCache<0, 1> v6 {
       FrameState {
         NextInstrOffset 4
       }
     }
-    v8:OptObject = GetSecondOutput<OptObject> v7
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v15:Object = Phi<1, 2> v13 v14
+    v8:OptObject = GetSecondOutput<OptObject> v15
     v9:MortalUnicodeExact["Hello"] = LoadConst<MortalUnicodeExact["Hello"]>
-    v10:Object = CallMethod<3> v7 v8 v9 {
+    v10:Object = CallMethod<3> v15 v8 v9 {
       FrameState {
         NextInstrOffset 8
       }
