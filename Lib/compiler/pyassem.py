@@ -338,16 +338,6 @@ class Block:
     def get_children(self):
         return list(self.outEdges) + ([self.next] if self.next is not None else [])
 
-    def get_followers(self):
-        """Get the whole list of followers, including the next block."""
-        followers = {self.next}
-        # Blocks that must be emitted *after* this one, because of
-        # bytecode offsets (e.g. relative jumps) pointing to them.
-        for inst in self.insts:
-            if inst[0] in self.opcode.hasjrel:
-                followers.add(inst[1])
-        return followers
-
     def getContainedGraphs(self):
         """Return all graphs contained within this block.
 
