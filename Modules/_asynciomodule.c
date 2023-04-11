@@ -287,7 +287,7 @@ typedef struct _SuspendedCoroNode {
 // it is not that trivial. In order to solve this we
 // store coroutine in the linked list before calling
 // 'create_task' and remove it afterwards.
-static _SuspendedCoroNode *suspended_coroutines = NULL;
+_Thread_local _SuspendedCoroNode *suspended_coroutines = NULL;
 
 typedef struct {
     // used to avoid allocations for cases <=64 bit
@@ -3528,10 +3528,9 @@ leave_task(PyObject *loop, PyObject *task)
 static inline int
 _is_coro_suspended(PyObject *coro)
 {
-    if ((PyCoro_CheckExact(coro) || PyGen_CheckExact(coro)) &&
-        Ci_PyGen_IsSuspended((PyGenObject *)coro)) {
+    if (PyCoro_CheckExact(coro) || PyGen_CheckExact(coro)) {
         // do not automatically schedule suspended coroutines
-        return 1;
+        return Ci_PyGen_IsSuspended((PyGenObject *)coro);
     }
     _SuspendedCoroNode *n = suspended_coroutines;
     while (n != NULL) {
