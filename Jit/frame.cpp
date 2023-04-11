@@ -736,8 +736,29 @@ PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
   if (!mod_name) {
     return NULL;
   }
+
+  if (!PyUnicode_Check(mod_name)) {
+    PyErr_Format(
+        PyExc_RuntimeError,
+        "expected module name to be a string, got %s",
+        Py_TYPE(mod_name)->tp_name);
+    Py_DECREF(mod_name);
+    return nullptr;
+  }
+
   PyCodeObject* code = _PyShadowFrame_GetCode(shadow_frame);
-  PyObject* result = PyUnicode_FromFormat("%U:%U", mod_name, code->co_qualname);
+  PyObject* code_name = code->co_qualname;
+  char const* format = "%U:%U";
+  // If co_qualname is some invalid value, we try to do our best by using the
+  // co_name instead. While this is an error condition (and should be
+  // investigated), we don't crash here, someone might be trying to debug the
+  // issue itself by calling this function!
+  if (!code->co_qualname || !PyUnicode_Check(code->co_qualname)) {
+    code_name = code->co_name;
+    format = "%U:!%U";
+  }
+
+  PyObject* result = PyUnicode_FromFormat(format, mod_name, code_name);
   Py_DECREF(mod_name);
   return result;
 }
