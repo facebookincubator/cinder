@@ -14,6 +14,10 @@ try:
 except ImportError:
     _testcapi = None
 
+try:
+    import cinderjit
+except:
+    cinderjit = None
 
 EMPTY_STRING_SIZE = sys.getsizeof(b'')
 INVALID_NFRAME = (-1, 2**30)
@@ -221,6 +225,10 @@ class TestTracemallocEnabled(unittest.TestCase):
         domain2, size2, traceback2, length2 = trace2
         self.assertIs(traceback2, traceback1)
 
+    @unittest.skipIf(
+        cinderjit and cinderjit.is_inline_cache_stats_collection_enabled(),
+        "#TODO(T150421262): Traced memory does not work well with JIT's inline cache stats collection.",
+    )
     def test_get_traced_memory(self):
         # Python allocates some internals objects, so the test must tolerate
         # a small difference between the expected size and the real usage

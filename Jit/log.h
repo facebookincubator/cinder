@@ -40,6 +40,7 @@ extern int g_dump_c_helper;
 extern int g_dump_asm;
 extern int g_symbolize_funcs;
 extern int g_dump_stats;
+extern int g_collect_inline_cache_stats;
 extern FILE* g_log_file;
 
 // Use PyObject_Repr() to get a string representation of a PyObject. Use with

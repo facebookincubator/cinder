@@ -7,13 +7,16 @@ test.test_isinstance.TestIsInstanceIsSubclass.test_infinite_recursion_in_bases
 test.test_json.test_recursion.TestPyRecursion.test_endless_recursion
 test.test_json.test_recursion.TestPyRecursion.test_highly_nested_objects_decoding
 test.test_json.test_recursion.TestPyRecursion.test_highly_nested_objects_encoding
+test.test_logging.ModuleLevelMiscTest.test_recursion_error
 test.test_pickle.*.test_bad_getattr
 test.test_pickletools.*.test_bad_getattr
 test.test_plistlib.TestBinaryPlistlib.test_deep_nesting
 test.test_sys.SysModuleTest.test_recursionlimit_recovery
 test.test_sys.SysModuleTest.test_setrecursionlimit_recursion_depth
 test.test_traceback.TracebackFormatTests.test_recursive_traceback_cpython_internal
+test.test_threading.ThreadingExceptionTests.test_recursion_limit
 test.test_traceback.TracebackFormatTests.test_recursive_traceback_python
+test.test_traceback.TestTracebackException.test_long_context_chain
 
 # TODO(T87023404): Eval breaker timing
 unittest.test.test_break.*.testInterruptCaught

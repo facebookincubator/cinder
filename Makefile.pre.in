@@ -1764,7 +1764,7 @@ define RUN_TESTCINDERJIT_PROFILE
 endef
 
 define RUN_TESTCINDERJIT
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 	# TODO re-enable when it doesn't crash on exit
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(1) -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py $(TESTOPTS)
 endef

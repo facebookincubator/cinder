@@ -402,6 +402,13 @@ void initFlagProcessor() {
         .withFlagParamName("filename");
 
     xarg_flag_processor.addOption(
+        "jit-enable-inline-cache-stats-collection",
+        "PYTHONJITCOLLECTINLINECACHESTATS",
+        [](std::string) { g_collect_inline_cache_stats = 1; },
+        "Collect inline cache stats (supported stats are cache misses for load "
+        "method inline caches");
+
+    xarg_flag_processor.addOption(
         "jit-gdb-support",
         "PYTHONJITGDBSUPPORT",
         [](std::string) {
@@ -1232,6 +1239,57 @@ static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
   return set.release();
 }
 
+static PyObject* get_and_clear_inline_cache_stats(
+    PyObject* /* self */,
+    PyObject*) {
+  auto stats = Ref<>::steal(PyDict_New());
+  if (stats == nullptr) {
+    return nullptr;
+  }
+
+  auto make_inline_cache_stats = [](PyObject* stats, CacheStats& cache_stats) {
+    auto result = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItemString(
+        result,
+        "filename",
+        PyUnicode_InternFromString(cache_stats.filename.c_str())));
+    check(PyDict_SetItemString(
+        result,
+        "method",
+        PyUnicode_InternFromString(cache_stats.method_name.c_str())));
+    auto cache_misses_dict = Ref<>::steal(check(PyDict_New()));
+    check(PyDict_SetItemString(result, "cache_misses", cache_misses_dict));
+    for (auto& [key, miss] : cache_stats.misses) {
+      auto py_key = Ref<>::steal(check(PyUnicode_FromString(key.c_str())));
+      auto miss_dict = Ref<>::steal(check(PyDict_New()));
+      check(PyDict_SetItemString(
+          miss_dict, "count", PyLong_FromLong(miss.count)));
+      check(PyDict_SetItemString(
+          miss_dict,
+          "reason",
+          PyUnicode_InternFromString(
+              std::string(cacheMissReason(miss.reason)).c_str())));
+
+      check(PyDict_SetItem(cache_misses_dict, py_key, miss_dict));
+    }
+    check(PyList_Append(stats, result));
+  };
+  auto load_method_stats = Ref<>::steal(check(PyList_New(0)));
+  check(PyDict_SetItemString(stats, "load_method_stats", load_method_stats));
+  for (auto& cache_stats : Runtime::get()->getAndClearLoadMethodCacheStats()) {
+    make_inline_cache_stats(load_method_stats, cache_stats);
+  }
+
+  auto load_type_method_stats = Ref<>::steal(check(PyList_New(0)));
+  check(PyDict_SetItemString(
+      stats, "load_type_method_stats", load_type_method_stats));
+  for (auto& cache_stats :
+       Runtime::get()->getAndClearLoadTypeMethodCacheStats()) {
+    make_inline_cache_stats(load_type_method_stats, cache_stats);
+  }
+
+  return stats.release();
+}
 static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
   if (!PyFunction_Check(func_obj)) {
     PyErr_SetString(PyExc_TypeError, "Input must be a function");
@@ -1283,6 +1341,15 @@ static PyObject* get_allocator_stats(PyObject*, PyObject*) {
 static PyObject* is_hir_inliner_enabled(PyObject* /* self */, PyObject*) {
   int result = _PyJIT_IsHIRInlinerEnabled();
   if (result) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
+}
+
+static PyObject* is_inline_cache_stats_collection_enabled(
+    PyObject* /* self */,
+    PyObject*) {
+  if (g_collect_inline_cache_stats) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -1405,6 +1472,17 @@ static PyMethodDef jit_methods[] = {
      clear_runtime_stats,
      METH_NOARGS,
      "Clears runtime stats about JIT-compiled code without returning a value."},
+    {"get_and_clear_inline_cache_stats",
+     get_and_clear_inline_cache_stats,
+     METH_NOARGS,
+     "Returns and clears information about the runtime inline cache stats "
+     "behavior of JIT-compiled code. Stats will only be collected with X "
+     "flag jit-enable-inline-cache-stats-collection"},
+    {"is_inline_cache_stats_collection_enabled",
+     is_inline_cache_stats_collection_enabled,
+     METH_NOARGS,
+     "Return True if jit-enable-inline-cache-stats-collection is on and False "
+     "otherwise."},
     {"get_compiled_size",
      get_compiled_size,
      METH_O,

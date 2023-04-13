@@ -281,6 +281,8 @@ struct CodeProfile {
 
 using TypeProfiles = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
 
+using InlineCacheStats = std::vector<CacheStats>;
+
 class Builtins {
  public:
   void init();
@@ -365,6 +367,10 @@ class Runtime {
   // Get and/or clear runtime deopt stats.
   const DeoptStats& deoptStats() const;
   void clearDeoptStats();
+
+  // Get and clear inline cache stats.
+  InlineCacheStats getAndClearLoadMethodCacheStats();
+  InlineCacheStats getAndClearLoadTypeMethodCacheStats();
 
   TypeProfiles& typeProfiles();
 

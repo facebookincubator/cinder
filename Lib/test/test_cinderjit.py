@@ -329,6 +329,61 @@ class InlinedFunctionTests(unittest.TestCase):
         self.assertEqual(func_that_change_defaults(), 9)
 
 
+class InlineCacheStatsTests(unittest.TestCase):
+    @jit_suppress
+    @unittest.skipIf(
+        not cinderjit or not cinderjit.is_inline_cache_stats_collection_enabled(),
+        "meaningless without inline cache stats collection enabled",
+    )
+    def test_load_method_cache_stats(self):
+        # Clear inline cache stats of any collected data from importing
+        # builtin modules
+        cinderjit.get_and_clear_inline_cache_stats()
+
+        import linecache
+
+        class BinOps:
+            def instance_mul(self, x, y):
+                return x * y
+
+            @staticmethod
+            def mul(x, y):
+                return x * y
+
+        @cinder_support.failUnlessJITCompiled
+        def trigger_load_method_with_stats():
+            a = BinOps()
+            a.instance_mul(100, 1)
+            a.mul(100, 1)  # This should be a cache miss.
+            b = linecache.getline("abc", 123)  # This should be a cache miss.
+            return a
+
+        trigger_load_method_with_stats()
+        stats = cinderjit.get_and_clear_inline_cache_stats()
+
+        load_method_stats = stats["load_method_stats"]
+        relevant_load_method_stats = list(
+            filter(
+                lambda stat: "Lib/test/test_cinderjit" in stat["filename"]
+                and stat["method"] == "trigger_load_method_with_stats",
+                load_method_stats,
+            )
+        )
+        self.assertTrue(len(relevant_load_method_stats) == 3)
+        misses = [cache["cache_misses"] for cache in relevant_load_method_stats]
+        load_method_cache_misses = {k: v for miss in misses for k, v in miss.items()}
+        self.assertEqual(
+            load_method_cache_misses,
+            {
+                "test.test_cinderjit:BinOps.mul": {
+                    "count": 1,
+                    "reason": "Uncategorized",
+                },
+                "module.getline": {"count": 1, "reason": "WrongTpGetAttro"},
+            },
+        )
+
+
 class InlinedFunctionLineNumberTests(unittest.TestCase):
     @jit_suppress
     @unittest.skipIf(

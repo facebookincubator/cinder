@@ -186,25 +186,54 @@ class LoadTypeAttrCache {
   void reset();
 };
 
+#define FOREACH_CACHE_MISS_REASON(V) \
+  V(WrongTpGetAttro)                 \
+  V(PyDescrIsData)                   \
+  V(Uncategorized)
+
+enum class CacheMissReason {
+#define DECLARE_CACHE_MISS_REASON(name) k##name,
+  FOREACH_CACHE_MISS_REASON(DECLARE_CACHE_MISS_REASON)
+#undef DECLARE_CACHE_MISS_REASON
+};
+
+std::string_view cacheMissReason(CacheMissReason reason);
+
+struct CacheMiss {
+  int count{0};
+  CacheMissReason reason{CacheMissReason::kUncategorized};
+};
+
+struct CacheStats {
+  std::string filename;
+  std::string method_name;
+  std::unordered_map<std::string, CacheMiss> misses;
+};
+
 class LoadMethodCache {
  public:
   struct Entry {
     BorrowedRef<PyTypeObject> type{nullptr};
     BorrowedRef<> value{nullptr};
   };
+
   ~LoadMethodCache();
 
   static JITRT_LoadMethodResult
   lookupHelper(LoadMethodCache* cache, BorrowedRef<> obj, BorrowedRef<> name);
   JITRT_LoadMethodResult lookup(BorrowedRef<> obj, BorrowedRef<> name);
-
   void typeChanged(PyTypeObject* type);
+
+  void initCacheStats(const char* filename, const char* method_name);
+  void clearCacheStats();
+  const CacheStats* cacheStats();
 
  private:
   JITRT_LoadMethodResult lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name);
   void fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> value);
 
   std::array<Entry, 4> entries_;
+  std::unique_ptr<CacheStats> cache_stats_;
 };
 
 // A cache for LoadMethod instructions where we expect the receiver to be a type
@@ -239,10 +268,15 @@ class LoadTypeMethodCache {
       BorrowedRef<> name);
   void typeChanged(BorrowedRef<PyTypeObject> type);
 
+  void initCacheStats(const char* filename, const char* method_name);
+  void clearCacheStats();
+  const CacheStats* cacheStats();
+
  private:
   void
   fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> value, bool is_bound_meth);
   void reset();
+  std::unique_ptr<CacheStats> cache_stats_;
 };
 
 struct GlobalCacheKey {

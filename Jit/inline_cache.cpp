@@ -7,8 +7,10 @@
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/dict_watch.h"
+#include "Jit/util.h"
 
 #include <algorithm>
+#include <memory>
 #include <unordered_set>
 
 // clang-format off
@@ -786,6 +788,32 @@ void GlobalCache::disable() const {
   jit::Runtime::get()->forgetLoadGlobalCache(*this);
 }
 
+std::string_view kCacheMissReasons[] = {
+#define NAME_REASON(reason) #reason,
+    FOREACH_CACHE_MISS_REASON(NAME_REASON)
+#undef NAME_REASON
+};
+
+std::string_view cacheMissReason(CacheMissReason reason) {
+  return kCacheMissReasons[static_cast<size_t>(reason)];
+}
+
+void LoadMethodCache::initCacheStats(
+    const char* filename,
+    const char* method_name) {
+  cache_stats_ = std::make_unique<CacheStats>();
+  cache_stats_->filename = filename;
+  cache_stats_->method_name = method_name;
+}
+
+void LoadMethodCache::clearCacheStats() {
+  cache_stats_->misses.clear();
+}
+
+const CacheStats* LoadMethodCache::cacheStats() {
+  return cache_stats_.get();
+}
+
 LoadMethodCache::~LoadMethodCache() {
   for (auto& entry : entries_) {
     if (entry.type != nullptr) {
@@ -830,6 +858,19 @@ void LoadMethodCache::fill(
   }
 }
 
+static void maybeCollectCacheStats(
+    std::unique_ptr<CacheStats>& stat,
+    BorrowedRef<PyTypeObject> tp,
+    BorrowedRef<> name,
+    CacheMissReason reason) {
+  if (!g_collect_inline_cache_stats) {
+    return;
+  }
+  std::string key =
+      fmt::format("{}.{}", typeFullname(tp), PyUnicode_AsUTF8(name));
+  stat->misses.insert({key, CacheMiss{0, reason}}).first->second.count++;
+}
+
 JITRT_LoadMethodResult __attribute__((noinline))
 LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
   PyTypeObject* tp = Py_TYPE(obj);
@@ -842,6 +883,8 @@ LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
   if ((tp->tp_getattro != PyObject_GenericGetAttr)) {
     PyObject* res = PyObject_GetAttr(obj, name);
     if (res != nullptr) {
+      maybeCollectCacheStats(
+          cache_stats_, tp, name, CacheMissReason::kWrongTpGetAttro);
       Py_INCREF(Py_None);
       return {Py_None, res};
     }
@@ -859,6 +902,8 @@ LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
     } else {
       f = descr->ob_type->tp_descr_get;
       if (f != nullptr && PyDescr_IsData(descr)) {
+        maybeCollectCacheStats(
+            cache_stats_, tp, name, CacheMissReason::kPyDescrIsData);
         PyObject* result = f(descr, obj, (PyObject*)obj->ob_type);
         Py_DECREF(descr);
         Py_INCREF(Py_None);
@@ -872,6 +917,8 @@ LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
     Py_INCREF(dict);
     attr = PyDict_GetItem(dict, name);
     if (attr != nullptr) {
+      maybeCollectCacheStats(
+          cache_stats_, tp, name, CacheMissReason::kUncategorized);
       Py_INCREF(attr);
       Py_DECREF(dict);
       Py_XDECREF(descr);
@@ -888,6 +935,8 @@ LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
   }
 
   if (f != nullptr) {
+    maybeCollectCacheStats(
+        cache_stats_, tp, name, CacheMissReason::kUncategorized);
     PyObject* result = f(descr, obj, (PyObject*)Py_TYPE(obj));
     Py_DECREF(descr);
     Py_INCREF(Py_None);
@@ -895,6 +944,8 @@ LoadMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
   }
 
   if (descr != nullptr) {
+    maybeCollectCacheStats(
+        cache_stats_, tp, name, CacheMissReason::kUncategorized);
     Py_INCREF(Py_None);
     return {Py_None, descr};
   }
@@ -937,6 +988,8 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
     BorrowedRef<> name) {
   PyTypeObject* metatype = Py_TYPE(obj);
   if (metatype->tp_getattro != PyType_Type.tp_getattro) {
+    maybeCollectCacheStats(
+        cache_stats_, metatype, name, CacheMissReason::kWrongTpGetAttro);
     PyObject* res = PyObject_GetAttr(obj, name);
     Py_INCREF(Py_None);
     return {Py_None, res};
@@ -958,6 +1011,8 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
        * writes. Assume the attribute is not overridden in
        * type's tp_dict (and bases): call the descriptor now.
        */
+      maybeCollectCacheStats(
+          cache_stats_, metatype, name, CacheMissReason::kPyDescrIsData);
       PyObject* res =
           meta_get(meta_attribute, obj, reinterpret_cast<PyObject*>(metatype));
       Py_DECREF(meta_attribute);
@@ -986,12 +1041,16 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
       } else if (Py_TYPE(cm_callable)->tp_descr_get != NULL) {
         // cm_callable has custom tp_descr_get that can run arbitrary
         // user code. Do not cache in this instance.
+        maybeCollectCacheStats(
+            cache_stats_, metatype, name, CacheMissReason::kUncategorized);
         Py_INCREF(Py_None);
         return {
             Py_None, Py_TYPE(cm_callable)->tp_descr_get(cm_callable, obj, obj)};
       } else {
         // It is not safe to cache custom objects decorated with classmethod
         // as they can be modified later
+        maybeCollectCacheStats(
+            cache_stats_, metatype, name, CacheMissReason::kUncategorized);
         BorrowedRef<> py_meth = PyMethod_New(cm_callable, obj);
         Py_INCREF(Py_None);
         return {Py_None, py_meth};
@@ -1016,11 +1075,15 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
     if (local_get != nullptr) {
       /* NULL 2nd argument indicates the descriptor was
        * found on the target object itself (or a base)  */
+      maybeCollectCacheStats(
+          cache_stats_, metatype, name, CacheMissReason::kUncategorized);
       PyObject* res = local_get(attribute, nullptr, obj);
       Py_DECREF(attribute);
       Py_INCREF(Py_None);
       return {Py_None, res};
     }
+    maybeCollectCacheStats(
+        cache_stats_, metatype, name, CacheMissReason::kUncategorized);
     Py_INCREF(Py_None);
     return {Py_None, attribute};
   }
@@ -1028,6 +1091,8 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
   /* No attribute found in local __dict__ (or bases): use the
    * descriptor from the metatype, if any */
   if (meta_get != nullptr) {
+    maybeCollectCacheStats(
+        cache_stats_, metatype, name, CacheMissReason::kUncategorized);
     PyObject* res;
     res = meta_get(meta_attribute, obj, reinterpret_cast<PyObject*>(metatype));
     Py_DECREF(meta_attribute);
@@ -1037,6 +1102,8 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
 
   /* If an ordinary attribute was found on the metatype, return it now */
   if (meta_attribute != nullptr) {
+    maybeCollectCacheStats(
+        cache_stats_, metatype, name, CacheMissReason::kUncategorized);
     Py_INCREF(Py_None);
     return {Py_None, meta_attribute};
   }
@@ -1074,6 +1141,22 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookupHelper(
 void LoadTypeMethodCache::typeChanged(BorrowedRef<PyTypeObject> /* type */) {
   type.reset();
   value.reset();
+}
+
+void LoadTypeMethodCache::initCacheStats(
+    const char* filename,
+    const char* method_name) {
+  cache_stats_ = std::make_unique<CacheStats>();
+  cache_stats_->filename = filename;
+  cache_stats_->method_name = method_name;
+}
+
+void LoadTypeMethodCache::clearCacheStats() {
+  cache_stats_->misses.clear();
+}
+
+const CacheStats* LoadTypeMethodCache::cacheStats() {
+  return cache_stats_.get();
 }
 
 LoadTypeMethodCache::~LoadTypeMethodCache() {

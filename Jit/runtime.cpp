@@ -270,6 +270,34 @@ void Runtime::clearDeoptStats() {
   deopt_stats_.clear();
 }
 
+InlineCacheStats Runtime::getAndClearLoadMethodCacheStats() {
+  InlineCacheStats stats;
+  for (auto& cache : load_method_caches_) {
+    if (cache.cacheStats() == nullptr) {
+      // Cache stat may not have been initialized if LoadMethod instr
+      // was optimized away.
+      continue;
+    }
+    stats.push_back(*cache.cacheStats());
+    cache.clearCacheStats();
+  }
+  return stats;
+}
+
+InlineCacheStats Runtime::getAndClearLoadTypeMethodCacheStats() {
+  InlineCacheStats stats;
+  for (auto& cache : load_type_method_caches_) {
+    if (cache.cacheStats() == nullptr) {
+      // Cache stat may not have been initialized if LoadTypeMethod instr
+      // was optimized away.
+      continue;
+    }
+    stats.push_back(*cache.cacheStats());
+    cache.clearCacheStats();
+  }
+  return stats;
+}
+
 TypeProfiles& Runtime::typeProfiles() {
   return type_profiles_;
 }

@@ -118,7 +118,6 @@ LIRGenerator::LIRGenerator(
     load_type_attr_caches_.emplace_back(
         Runtime::get()->allocateLoadTypeAttrCache());
   }
-
   for (int i = 0, n = func->env.numLoadTypeMethodCaches(); i < n; i++) {
     load_type_method_caches_.emplace_back(
         Runtime::get()->allocateLoadTypeMethodCache());
@@ -1286,12 +1285,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
+        auto cache_entry = load_type_method_caches_.at(instr->cache_id());
+        if (g_collect_inline_cache_stats) {
+          cache_entry->initCacheStats(
+              PyUnicode_AsUTF8(code->co_filename),
+              PyUnicode_AsUTF8(code->co_name));
+        }
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeMethodCache::lookupHelper,
-            load_type_method_caches_.at(instr->cache_id()),
+            cache_entry,
             instr->receiver(),
             tmp_id);
         break;
@@ -1321,12 +1326,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
-
         bbb.AppendCode(
             "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
-
         auto func = reinterpret_cast<uint64_t>(LoadMethodCache::lookupHelper);
         auto cache_entry = Runtime::get()->allocateLoadMethodCache();
+        if (g_collect_inline_cache_stats) {
+          cache_entry->initCacheStats(
+              PyUnicode_AsUTF8(code->co_filename),
+              PyUnicode_AsUTF8(code->co_name));
+        }
         bbb.AppendCode(
             "Call {}, {:#x}, {:#x}, {}, {}",
             instr->dst(),

@@ -19,6 +19,7 @@ int g_dump_c_helper = 0;
 int g_dump_asm = 0;
 int g_symbolize_funcs = 1;
 int g_dump_stats = 0;
+int g_collect_inline_cache_stats = 0;
 FILE* g_log_file = stderr;
 
 std::string repr(BorrowedRef<> obj) {
