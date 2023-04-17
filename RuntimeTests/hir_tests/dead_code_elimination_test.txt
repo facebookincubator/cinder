@@ -109,3 +109,21 @@ fun jittestmodule:test {
   }
 }
 ---
+DeadCodeEliminationRemovesPrimitiveBox
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; "a", CInt32>
+    v1 = PrimitiveBox<CInt32> v0
+    Return<CInt32> v0
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:CInt32 = LoadArg<0, CInt32>
+    Return<CInt32> v0
+  }
+}
+---

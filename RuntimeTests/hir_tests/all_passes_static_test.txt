@@ -1,0 +1,87 @@
+AllPassesStaticTest
+---
+@AllPasses
+---
+LoopDoesNotBoxIndex
+---
+def test(*x):
+  for i in x:
+   print(i)
+---
+fun jittestmodule:test {
+  bb 0 {
+    v15:TupleExact = LoadArg<0; "x", TupleExact>
+    v16:Nullptr = LoadConst<Nullptr>
+    v18:CInt64[0] = LoadConst<CInt64[0]>
+    Branch<4>
+  }
+
+  bb 4 (preds 0, 2) {
+    v24:CInt64 = Phi<0, 2> v18 v37
+    v25:OptObject = Phi<0, 2> v16 v47
+    v21:CInt32 = LoadEvalBreaker
+    CondBranch<5, 1> v21
+  }
+
+  bb 5 (preds 4) {
+    v26:CInt32 = RunPeriodicTasks {
+      LiveValues<3> b:v15 s:v24 o:v25
+      FrameState {
+        NextInstrOffset 8
+        Locals<3> v15 v24 v25
+        Stack<1> v15
+      }
+    }
+    Branch<1>
+  }
+
+  bb 1 (preds 4, 5) {
+    v31:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v15
+    v32:CBool = PrimitiveCompare<GreaterThan> v31 v24
+    CondBranch<2, 3> v32
+  }
+
+  bb 2 (preds 1) {
+    v46:CInt64 = CheckSequenceBounds v15 v24 {
+      LiveValues<3> b:v15 s:v24 o:v25
+      FrameState {
+        NextInstrOffset 26
+        Locals<3> v15 v24 v25
+        Stack<1> v15
+      }
+    }
+    v47:Object = LoadArrayItem<Offset[24]> v15 v46 v15
+    v36:CInt64[1] = LoadConst<CInt64[1]>
+    v37:CInt64 = IntBinaryOp<Add> v24 v36
+    v40:OptObject = LoadGlobalCached<0; "print">
+    v41:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v40 {
+      Descr 'LOAD_GLOBAL: print'
+      LiveValues<6> b:v15 s:v24 o:v25 s:v37 b:v40 b:v47
+      FrameState {
+        NextInstrOffset 32
+        Locals<3> v15 v24 v25
+        Stack<3> v15 v47 v37
+      }
+    }
+    Incref v47
+    XDecref v25
+    v43:Object = VectorCall<1> v41 v47 {
+      LiveValues<4> b:v15 s:v37 b:v41 o:v47
+      FrameState {
+        NextInstrOffset 42
+        Locals<3> v15 v37 v47
+        Stack<1> v15
+      }
+    }
+    Decref v43
+    Branch<4>
+  }
+
+  bb 3 (preds 1) {
+    XDecref v25
+    v44:NoneType = LoadConst<NoneType>
+    Incref v44
+    Return v44
+  }
+}
+---
