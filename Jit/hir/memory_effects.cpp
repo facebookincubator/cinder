@@ -78,7 +78,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     // These push/pop shadow frames and should not get DCE'd.
     case Opcode::kBeginInlinedFunction:
     case Opcode::kEndInlinedFunction:
-      return commonEffects(inst, AAny);
+      return commonEffects(inst, AOther);
 
     // Can write to fields of its operands.
     case Opcode::kSetCurrentAwaiter:
