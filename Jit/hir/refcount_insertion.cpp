@@ -154,6 +154,10 @@ struct RegState {
 
   // Merge `from` into `this`.
   void merge(const RegState& from) {
+    JIT_DCHECK(
+        model_ == from.model_,
+        "Attempting to merge RegStates for different models");
+
     if (kind() == from.kind()) {
       // The two kinds are the same, so keep that in the merged result. For
       // two borrowed references, merge their support.
@@ -162,7 +166,8 @@ struct RegState {
       }
     } else if (isUncounted()) {
       // Merging Uncounted with anything else takes the other state.
-      *this = from;
+      kind_ = from.kind_;
+      support_ = from.support_;
     } else if (from.isUncounted()) {
       // As with the previous case, use what's already in this.
     } else {
@@ -698,6 +703,8 @@ void initializeInState(
     auto inserted = in_state.emplace(phi.GetOutput(), phi.GetOutput()).second;
     JIT_DCHECK(inserted, "Register shouldn't exist in map yet");
   });
+
+  TRACE("Initial in-state for bb %d:\n%s", block->id, in_state);
 }
 
 // Return true iff the given register is live into the given block, in the
@@ -849,6 +856,7 @@ void updateInState(Env& env, BasicBlock* block) {
   }
 
   PhiSupport phi_support = processPhis(env, block, preds, in_state);
+  TRACE("In-state for bb %d after processing Phis:\n%s", block->id, in_state);
 
   for (auto& pair : in_state) {
     auto& rstate = pair.second;
@@ -1017,7 +1025,11 @@ void processInstr(Env& env, Instr& instr) {
   stealInputs(env, instr, effects.stolen_inputs, dying_regs);
 
   if (instr.IsReturn()) {
-    JIT_DCHECK(env.live_regs.size() == 1, "Unexpected live value(s) at Return");
+    JIT_DCHECK(
+        env.live_regs.size() == 1 &&
+            env.live_regs.begin()->second.numCopies() == 1,
+        "Unexpected live value(s) at Return, with state:\n%s",
+        env.live_regs);
     JIT_DCHECK(
         !map_get(env.live_regs, instr.GetOperand(0)).isOwned(),
         "Return operand should not be owned at exit");
