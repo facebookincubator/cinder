@@ -348,6 +348,16 @@ Instr* BasicBlock::pop_front() {
 }
 
 void BasicBlock::insert(Instr* instr, Instr::List::iterator it) {
+  // If the instruction doesn't come with a bytecode offset, try to take one
+  // from an adjacent instruction.
+  if (instr->bytecodeOffset() == -1) {
+    if (it != instrs_.begin()) {
+      instr->setBytecodeOffset(std::prev(it)->bytecodeOffset());
+    } else if (it != instrs_.end()) {
+      instr->setBytecodeOffset(it->bytecodeOffset());
+    }
+  }
+
   instrs_.insert(*instr, it);
   instr->link(this);
 }
