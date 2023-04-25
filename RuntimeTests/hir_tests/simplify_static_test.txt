@@ -272,3 +272,32 @@ fun jittestmodule:test {
   }
 }
 ---
+UnboxBoxWithDifferentSizesNotOptimized
+---
+from __static__ import int8, int64, box, unbox
+
+def test(x: int64) -> int8:
+    y: int8 = unbox(box(x))
+    return y
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:CInt64 = LoadArg<0; "x", CInt64>
+    v6:Nullptr = LoadConst<Nullptr>
+    v7:LongExact = PrimitiveBox<CInt64> v5 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v5 v6
+      }
+    }
+    v9:CInt8 = PrimitiveUnbox<CInt8> v7
+    v10:CInt64 = IsNegativeAndErrOccurred v9 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<2> v5 v6
+      }
+    }
+    Return<CInt8> v9
+  }
+}
+---
