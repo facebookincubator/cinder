@@ -849,7 +849,14 @@ typedef struct {
     set_task_context_f set_task_context;
 } PyMethodTableRef;
 
+// PyMethodTableRef is a weakref so clearing them is not necessary
 static PyMethodTableRef *GatheringFuture_TableRef;
+static PyMethodTableRef *Future_TableRef;
+
+// borrowed reference to the last task type that was created in create_task
+static PyTypeObject *LastUsedTaskType;
+// method table for the last used task type
+static PyMethodTableRef *LastUsedTaskType_TableRef;
 
 // Auxiliary macros for cases when method tables are used to
 // perform actions over awaitables stores in collections.
@@ -1178,6 +1185,16 @@ create_method_table(PyTypeObject *type) {
 
 static PyMethodTableRef*
 get_or_create_method_table(PyTypeObject *type) {
+    if (type == &FutureType) {
+        return Future_TableRef;
+    }
+    if (type == &_GatheringFutureType) {
+        return GatheringFuture_TableRef;
+    }
+    // if we saw this exact task type before - we have method table for it
+    if (type == LastUsedTaskType) {
+        return LastUsedTaskType_TableRef;
+    }
     PyMethodTableRef *tableref = get_method_table(type);
     if (tableref != NULL) {
         return tableref;
@@ -5482,6 +5499,13 @@ create_task(PyObject *coro, PyObject *loop)
         Py_DECREF(task);
         return NULL;
     }
+    if (LastUsedTaskType != Py_TYPE(task)) {
+        // keep track of last used task type
+        // applications typically don't use multiple task type
+        // so we can avoid lookups in case if the same type is used all the time
+        LastUsedTaskType = Py_TYPE(task);
+        LastUsedTaskType_TableRef = t;
+    }
     PyObject *tb = t->source_traceback(task);
     if (tb == NULL) {
         Py_DECREF(task);
@@ -8714,6 +8738,14 @@ set_gather_entrypoint(PyObject *mod,
     return 0;
 }
 
+PyMethodTableRef *init_table(PyTypeObject *t) {
+    PyMethodTableRef *table = get_method_table(t);
+    if (table != NULL) {
+        return table;
+    }
+    return create_method_table(t);
+}
+
 PyMODINIT_FUNC
 PyInit__asyncio(void)
 {
@@ -8826,8 +8858,13 @@ PyInit__asyncio(void)
         return NULL;
     }
 
-    GatheringFuture_TableRef =
-        get_or_create_method_table(&_GatheringFutureType);
+
+    Future_TableRef = init_table(&FutureType);
+    if (Future_TableRef == NULL) {
+        return NULL;
+    }
+
+    GatheringFuture_TableRef = init_table(&_GatheringFutureType);
     if (GatheringFuture_TableRef == NULL) {
         return NULL;
     }
