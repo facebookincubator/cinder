@@ -515,6 +515,15 @@ class FastCallTests(unittest.TestCase):
                 result = _testcapi.pyobject_vectorcall(func, args, kwnames)
                 self.check_result(result, expected)
 
+    def test_setvectorcall(self):
+        from _testcapi import function_setvectorcall
+        def f(num): return num + 1
+        assert_equal = self.assertEqual
+        num = 10
+        assert_equal(11, f(num))
+        function_setvectorcall(f)
+        assert_equal("overridden", f(num))
+
     def test_fastcall_clearing_dict(self):
         # Test bpo-36907: the point of the test is just checking that this
         # does not crash.

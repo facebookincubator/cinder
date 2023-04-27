@@ -228,6 +228,13 @@ PyFunction_SetClosure(PyObject *op, PyObject *closure)
     return 0;
 }
 
+void
+PyFunction_SetVectorcall(PyFunctionObject *func, vectorcallfunc vectorcall)
+{
+    assert(func != NULL);
+    func->vectorcall = vectorcall;
+}
+
 static PyObject *
 func_get_annotation_dict(PyFunctionObject *op)
 {

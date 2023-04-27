@@ -872,6 +872,7 @@ PyFunction_SetAnnotations
 PyFunction_SetClosure
 PyFunction_SetDefaults
 PyFunction_SetKwDefaults
+PyFunction_SetVectorcall
 PyFunction_Type
 _PyFunction_Vectorcall
 _PyFuture_FromAST
