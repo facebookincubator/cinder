@@ -7707,6 +7707,38 @@ do_step(PyObject *task,
     return execute(task, exc);
 }
 
+static PyObject*
+call_soon_direct_test(PyObject *loop, PyObject *f, PyObject *arg, PyObject *ctx)
+{
+    _Py_IDENTIFIER(call_soon);
+    PyObject *stack[3];
+    Py_ssize_t nargs = 1;
+    PyObject *kwnames = NULL;
+
+    stack[0] = f;
+    if (arg != NULL) {
+        stack[nargs] = arg;
+        nargs++;
+    }
+    if (ctx != NULL) {
+        stack[nargs] = ctx;
+        kwnames = Py_BuildValue("(s)", "context");
+        if (kwnames == NULL) {
+            return NULL;
+        }
+    }
+    PyObject *result = NULL;
+    PyObject *callable = _PyObject_GetAttrId(loop, &PyId_call_soon);
+    if (callable == NULL) {
+        goto exit;
+    }
+    result = _PyObject_Vectorcall(callable, stack, nargs, kwnames);
+    Py_DECREF(callable);
+exit:
+    Py_CLEAR(kwnames);
+    return result;
+}
+
 static struct PyModuleDef _testcapimodule = {
     PyModuleDef_HEAD_INIT,
     "_testcapi",
@@ -7836,6 +7868,11 @@ PyInit__testcapi(void)
         return NULL;
     }
     PyModule_AddObject(m, "SetContextRef", set_context_ref);
+
+    PyObject *call_soon_direct = PyCapsule_New(call_soon_direct_test, NULL, NULL);
+    if (call_soon_direct != NULL) {
+        PyModule_AddObject(m, "CallSoonDirect", call_soon_direct);
+    }
 
     PyModule_AddObject(m, "CHAR_MAX", PyLong_FromLong(CHAR_MAX));
     PyModule_AddObject(m, "CHAR_MIN", PyLong_FromLong(CHAR_MIN));

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import unittest
 import weakref
+from _testcapi import CallSoonDirect
 
 from cinder import (
     async_cached_classproperty,
@@ -2681,6 +2682,44 @@ class TestTaskCancel(unittest.TestCase):
 
         with self.subTest("asyncio.Task"):
             run(asyncio.Task)
+
+
+loop = asyncio.new_event_loop()
+
+
+class Loop(loop.__class__):
+    _call_soon_direct = CallSoonDirect
+
+
+loop.close()
+del loop
+asyncio.set_event_loop_policy(None)
+
+
+class TestCallSoonDirect(unittest.TestCase):
+    def setUp(self) -> None:
+        self.loop = Loop()
+        asyncio.set_event_loop(self.loop)
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    def test_call_soon(self):
+        async def coro(fut):
+            await asyncio.sleep(1)
+            fut.set_result(42)
+
+        async def coro2(fut):
+            await fut
+
+        async def main():
+            fut = self.loop.create_future()
+            t = self.loop.create_task(coro(fut))
+            await coro2(fut)
+            await t
+
+        self.loop.run_until_complete(main())
 
 
 class GeneralRegressionTests(unittest.TestCase):

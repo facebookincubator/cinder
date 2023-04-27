@@ -32,6 +32,8 @@ _Py_IDENTIFIER(throw);
 _Py_IDENTIFIER(done);
 _Py_IDENTIFIER(close);
 
+_Py_IDENTIFIER(_call_soon_direct);
+
 
 /* facebook: method table */
 _Py_IDENTIFIER(_step);
@@ -1209,6 +1211,13 @@ typedef PyObject* (*invoke_get_debug_f)(
     PyObject *loop
 );
 
+typedef PyObject* (*invoke_call_soon_direct_f)(
+    PyObject *loop,
+    PyObject *callback,
+    PyObject *arg,
+    PyObject *ctx
+);
+
 typedef PyObject* (*invoke_call_soon_f)(
     struct PyEventLoopDispatchTable*,
     PyObject *loop,
@@ -1228,6 +1237,7 @@ typedef struct PyEventLoopDispatchTable {
 
     PyObject *call_soon_method_object;
     _PyCFunctionFastWithKeywords call_soon_method;
+    invoke_call_soon_direct_f call_soon_direct;
     invoke_call_soon_f invoke_call_soon;
 } PyEventLoopDispatchTable;
 
@@ -1249,6 +1259,17 @@ static PyObject *context_name = NULL;
 // pre-computed hash for the context_name
 static Py_hash_t context_name_hash;
 
+static PyObject*
+invoke_call_soon_directly(
+    PyEventLoopDispatchTable *table,
+    PyObject *loop,
+    PyObject *func,
+    PyObject *arg,
+    PyObject *ctx
+)
+{
+    return table->call_soon_direct(loop, func, arg, ctx);
+}
 
 static PyObject*
 invoke_call_soon_method(
@@ -1412,14 +1433,21 @@ get_dispatch_table(PyTypeObject *type)
             return NULL;
         }
         table->version_tag = type->tp_version_tag;
-        PyObject *call_soon = lookup_attr(type, &PyId_call_soon, &PyMethodDescr_Type);
-        if (call_soon != NULL &&
-            ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_FASTCALL | METH_KEYWORDS))
-        {
-            table->call_soon_method_object = call_soon;
-            Py_INCREF(call_soon);
-            table->invoke_call_soon = invoke_call_soon_method;
-            table->call_soon_method = (_PyCFunctionFastWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
+        PyObject *_call_soon_direct = lookup_attr(type, &PyId__call_soon_direct, &PyCapsule_Type);
+        if (_call_soon_direct != NULL) {
+            table->invoke_call_soon = invoke_call_soon_directly;
+            table->call_soon_direct = PyCapsule_GetPointer(_call_soon_direct, NULL);
+        }
+        else {
+            PyObject *call_soon = lookup_attr(type, &PyId_call_soon, &PyMethodDescr_Type);
+            if (call_soon != NULL &&
+                ((PyMethodDescrObject*)call_soon)->d_method->ml_flags == (METH_FASTCALL | METH_KEYWORDS))
+            {
+                table->call_soon_method_object = call_soon;
+                Py_INCREF(call_soon);
+                table->invoke_call_soon = invoke_call_soon_method;
+                table->call_soon_method = (_PyCFunctionFastWithKeywords)((PyMethodDescrObject*)call_soon)->d_method->ml_meth;
+            }
         }
         PyObject *get_debug = lookup_attr(type, &PyId_get_debug, &PyMethodDescr_Type);
         if (get_debug != NULL &&
