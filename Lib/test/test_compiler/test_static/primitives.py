@@ -3681,3 +3681,15 @@ class PrimitivesTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             self.assertInBytecode(mod.f, "CONVERT_PRIMITIVE")
+
+    def test_overflow_while_unboxing(self):
+        codestr = """
+        from __static__ import int8, int64, box, unbox
+
+        def f(x: int64) -> int8:
+            y: int8 = unbox(box(x))
+            return y
+        """
+        with self.in_module(codestr) as mod:
+            with self.assertRaises(OverflowError):
+                mod.f(128)

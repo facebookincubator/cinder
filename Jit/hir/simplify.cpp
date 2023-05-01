@@ -680,6 +680,15 @@ Register* simplifyPrimitiveBoxBool(Env& env, const PrimitiveBoxBool* instr) {
 
 Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
   Register* unboxed_value = instr->GetOperand(0);
+  if (unboxed_value->instr()->IsPrimitiveBox()) {
+    // Simplify unbox(box(x)) -> x
+    const PrimitiveBox* box =
+        static_cast<PrimitiveBox*>(unboxed_value->instr());
+    if (box->type() == instr->type()) {
+      // We can't optimize away the potential overflow in unboxing.
+      return box->GetOperand(0);
+    }
+  }
   Type unbox_output_type = instr->GetOutput()->type();
   // Ensure that we are dealing with either a integer or a double.
   Type unboxed_value_type = unboxed_value->type();

@@ -2590,3 +2590,88 @@ fun jittestmodule:test {
   }
 }
 ---
+UnboxOfBoxedPrimitiveUsesOriginalPrimitive
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; "a", CInt64>
+    v1 = PrimitiveBox<CInt64> v0
+    v2 = PrimitiveUnbox<CInt64> v1
+    Return<CInt64> v2
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:CInt64 = LoadArg<0, CInt64>
+    v1:LongExact = PrimitiveBox<CInt64> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Return<CInt64> v0
+  }
+}
+---
+UnboxOfBoxedPrimitiveDoesNotSeeThroughPhi
+---
+# HIR
+fun test {
+  bb 0 {
+    v0 = LoadArg<0; "a", CInt64>
+    v1 = LoadArg<1; "b", CInt64>
+    v2 = LoadArg<2; "cond", CBool>
+    CondBranch<1,2> v2
+  }
+
+  bb 1 {
+    v3 = PrimitiveBox<CInt64> v0
+    Branch<3>
+  }
+
+  bb 2 {
+    v4 = PrimitiveBox<CInt64> v1
+    Branch<3>
+  }
+
+  bb 3 {
+    v5 = Phi<1, 2> v3 v4
+    v6 = PrimitiveUnbox<CInt64> v5
+    Return<CInt64> v6
+  }
+}
+---
+fun test {
+  bb 0 {
+    v0:CInt64 = LoadArg<0, CInt64>
+    v1:CInt64 = LoadArg<1, CInt64>
+    v2:CBool = LoadArg<2, CBool>
+    CondBranch<1, 2> v2
+  }
+
+  bb 1 (preds 0) {
+    v3:LongExact = PrimitiveBox<CInt64> v0 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v4:LongExact = PrimitiveBox<CInt64> v1 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v5:LongExact = Phi<1, 2> v3 v4
+    v6:CInt64 = PrimitiveUnbox<CInt64> v5
+    Return<CInt64> v6
+  }
+}
+---

@@ -344,7 +344,7 @@ void PhiElimination::Run(Function& func) {
 
 static bool isUseful(Instr& instr) {
   return instr.IsTerminator() || instr.IsSnapshot() ||
-      instr.asDeoptBase() != nullptr ||
+      (instr.asDeoptBase() != nullptr && !instr.IsPrimitiveBox()) ||
       (!instr.IsPhi() && memoryEffects(instr).may_store != AEmpty);
 }
 
