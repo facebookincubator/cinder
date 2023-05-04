@@ -685,7 +685,7 @@ ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
 BUILD_CINDERVM_SRCS=@BUILD_CINDERVM_SRCS@
 ifeq ($(BUILD_CINDERVM_SRCS), yes)
 	CINDERVM_OBJS = \
-		$(srcdir)/Python/classloader.o \
+		Python/classloader.o \
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS)    \
 		$(STRICTM_OBJS) \
