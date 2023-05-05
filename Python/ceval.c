@@ -1440,8 +1440,7 @@ invoke_static_function(PyObject *func, PyObject **args, Py_ssize_t nargs, int aw
     return _PyObject_Vectorcall(
         func,
         args,
-        (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
-        Ci_Py_VECTORCALL_INVOKED_STATICALLY | nargs,
+        (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) | nargs,
         NULL);
 }
 #endif
@@ -8130,7 +8129,6 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     assert(co->co_argcount == nargs);
     assert(co->co_flags & CO_STATICALLY_COMPILED);
     assert(co->co_flags & CO_OPTIMIZED);
-    assert(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY);
     assert(kwnames == NULL);
 
     // the rest of this is _PyEval_Vector plus skipping CHECK_ARGS
@@ -8171,33 +8169,12 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     return retval;
 }
 
-PyObject *_Py_HOT_FUNCTION
-_PyEntry_StaticEntry(PyFunctionObject *func,
-                     PyObject **args,
-                     Py_ssize_t nargsf,
-                     PyObject *kwnames)
-{
-
-    if (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) {
-        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
-    }
-
-    return _PyFunction_Vectorcall((PyObject *)func, args, nargsf, kwnames);
-}
-
 void
 PyEntry_initnow(PyFunctionObject *func)
 {
     // Check that func hasn't already been initialized.
     assert(func->vectorcall == (vectorcallfunc)PyEntry_LazyInit);
-    PyCodeObject *co = (PyCodeObject *)func->func_code;
-
-    if (co->co_flags & CO_STATICALLY_COMPILED)
-    {
-        func->vectorcall = (vectorcallfunc)_PyEntry_StaticEntry;
-    } else {
-        func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
-    }
+    func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
 }
 
 PyObject *

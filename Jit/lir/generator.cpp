@@ -1791,8 +1791,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (TranslateSpecializedCall(bbb, instr)) {
           break;
         }
-        size_t flags = Ci_Py_VECTORCALL_INVOKED_STATICALLY |
-            (instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0);
+        size_t flags = (instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0);
         emitVectorCall(bbb, instr, flags, false);
         break;
       }

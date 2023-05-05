@@ -767,9 +767,6 @@ void NativeGenerator::generatePrologue(
       }
       as_->leave();
       as_->ret();
-    } else {
-      as_->bt(x86::rdx, Ci_Py_VECTORCALL_INVOKED_STATICALLY_BIT_POS);
-      as_->jb(setup_frame);
     }
   }
 
@@ -1517,6 +1514,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
+
   PyFrameObject* frame = f.release();
   PyFrameObject* frame_iter = frame;
   _PyShadowFrame* sf_iter = tstate->shadow_frame;

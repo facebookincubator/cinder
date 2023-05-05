@@ -1112,7 +1112,6 @@ _PyClassLoader_StaticCallReturn
 type_vtable_nonfunc_native(_PyClassLoader_TypeCheckState *state, void **args)
 {
     PyObject *original = state->tcs_rt.rt_base.mt_original;
-
     Py_ssize_t arg_count = get_original_argcount(&original);
     if (arg_count < 0) {
         return StaticError;
@@ -1197,7 +1196,7 @@ _PyClassLoader_InvokeMethod(_PyType_VTable *vtable, Py_ssize_t slot, PyObject **
 {
     vectorcallfunc func = JITRT_GET_NORMAL_ENTRY_FROM_STATIC(vtable->vt_entries[slot].vte_entry);
     PyObject *state = vtable->vt_entries[slot].vte_state;
-    return func(state, args, nargsf|Ci_Py_VECTORCALL_INVOKED_STATICALLY, NULL);
+    return func(state, args, nargsf, NULL);
 }
 
 
@@ -1251,15 +1250,10 @@ type_vtable_func_overridable_native(_PyClassLoader_TypeCheckState *state, void *
 
 VTABLE_THUNK(type_vtable_func_overridable)
 
-PyObject *_PyEntry_StaticEntry(PyFunctionObject *func,
-                               PyObject **args,
-                               Py_ssize_t nargsf,
-                               PyObject *kwnames);
-
 static inline int
 is_static_entry(vectorcallfunc func)
 {
-    return func == (vectorcallfunc)_PyEntry_StaticEntry;
+    return func == (vectorcallfunc)_PyFunction_Vectorcall;
 }
 
 void set_entry_from_func(_PyType_VTableEntry *entry, PyFunctionObject *func) {
@@ -1635,7 +1629,7 @@ type_vtable_set_opt_slot(PyTypeObject *tp,
         Py_XDECREF(vtable->vt_entries[slot].vte_state);
         vtable->vt_entries[slot].vte_state = state;
         vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_func_lazyinit_dont_bolt;
-    } else if(entry == (vectorcallfunc)_PyEntry_StaticEntry) {
+    } else if(entry == (vectorcallfunc)_PyFunction_Vectorcall) {
         // non-JITed function, it could return a primitive in which case we need a stub to unbox the value.
         int optional, exact, coroutine, classmethod;
         PyTypeObject *ret_type = (PyTypeObject *)_PyClassLoader_ResolveReturnType(value, &optional, &exact, &coroutine, &classmethod);

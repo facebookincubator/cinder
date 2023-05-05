@@ -510,14 +510,9 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
     } else if (arg == NULL) {
         *error = 1;
     } else if (argtype & Ci_Py_SIG_TYPE_PARAM) {
-        if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
-            if (!_PyClassLoader_CheckParamType(
-                    ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype))) {
-                *error = 1;
-            }
-        } else {
-            assert(_PyClassLoader_CheckParamType(
-                ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype)));
+        if (!_PyClassLoader_CheckParamType(
+                ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype))) {
+            *error = 1;
         }
         return arg;
     } else {
@@ -525,11 +520,7 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
         case Ci_Py_SIG_OBJECT:
             return arg;
         case Ci_Py_SIG_STRING:
-            if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
-                *error = !PyUnicode_Check(arg);
-            } else {
-                assert(PyUnicode_Check(arg));
-            }
+            *error = !PyUnicode_Check(arg);
             return arg;
         case Ci_Py_SIG_UINT8:
         case Ci_Py_SIG_UINT16:
