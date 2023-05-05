@@ -864,26 +864,22 @@ PyObject* JITRT_InvokeMethod(
     Py_ssize_t slot,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames) {
+    PyObject*) {
   PyTypeObject* self_type = Py_TYPE(args[0]);
   _PyType_VTable* vtable = (_PyType_VTable*)self_type->tp_cache;
 
-  PyObject* func = vtable->vt_entries[slot].vte_state;
-  return vtable->vt_entries[slot].vte_entry(
-      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
+  return _PyClassLoader_InvokeMethod(vtable, slot, args, nargs);
 }
 
 PyObject* JITRT_InvokeClassMethod(
     Py_ssize_t slot,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject* kwnames) {
+    PyObject*) {
   PyTypeObject* self_type = (PyTypeObject*)args[0];
   _PyType_VTable* vtable = (_PyType_VTable*)self_type->tp_cache;
 
-  PyObject* func = vtable->vt_entries[slot].vte_state;
-  return vtable->vt_entries[slot].vte_entry(
-      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
+  return _PyClassLoader_InvokeMethod(vtable, slot, args, nargs);
 }
 
 /* This function is inlined to LIR via kCHelpersManual, so changes here will

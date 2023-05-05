@@ -386,6 +386,12 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
   ((vectorcallfunc)(((char*)entry) + JITRT_STATIC_ENTRY_OFFSET))
 
 /*
+ * Fixes the JITed function entry point up to be the static entry point after
+ * binding the args */
+#define JITRT_GET_NORMAL_ENTRY_FROM_STATIC(entry) \
+  ((vectorcallfunc)(((char*)entry) - JITRT_STATIC_ENTRY_OFFSET))
+
+/*
  * Checks if the given function is JITed.
 
  * Returns 1 if the function is JITed, 0 if not.

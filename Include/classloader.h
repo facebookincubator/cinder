@@ -46,6 +46,16 @@ typedef struct {
     _PyType_VTableEntry vt_entries[1];
 } _PyType_VTable;
 
+typedef struct _PyClassLoader_StaticCallReturn {
+  void* rax;
+  void* rdx;
+} _PyClassLoader_StaticCallReturn;
+
+typedef struct {
+    PyObject_HEAD;
+    PyObject *mt_original;
+} _PyClassLoader_MethodThunk;
+
 /**
     In order to ensure sanity of types at runtime, we need to check the return values
     of functions and ensure they remain compatible with the declared return type (even
@@ -54,7 +64,7 @@ typedef struct {
     This structure helps us do that.
 */
 typedef struct {
-    PyObject_HEAD;
+    _PyClassLoader_MethodThunk rt_base;
     PyTypeObject *rt_expected;
     PyObject *rt_name;
     int rt_optional;
@@ -720,6 +730,8 @@ typedef struct {
 CiAPI_FUNC(int) _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value);
 CiAPI_FUNC(PyObject*) _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index);
 
+PyObject *
+_PyClassLoader_InvokeMethod(_PyType_VTable *vtable, Py_ssize_t slot, PyObject **args, Py_ssize_t nargsf);
 
 #endif
 
