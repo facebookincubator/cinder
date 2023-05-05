@@ -431,6 +431,8 @@ Type outputType(
 
     case Opcode::kLoadVarObjectSize:
       return TCInt64;
+    case Opcode::kInvokeMethodStatic:
+      return static_cast<const InvokeMethodStatic&>(instr).ret_type();
     case Opcode::kInvokeStaticFunction:
       return static_cast<const InvokeStaticFunction&>(instr).ret_type();
     case Opcode::kLoadArrayItem:

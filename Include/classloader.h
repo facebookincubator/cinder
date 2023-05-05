@@ -51,6 +51,7 @@ typedef struct _PyClassLoader_StaticCallReturn {
   void* rdx;
 } _PyClassLoader_StaticCallReturn;
 
+
 typedef struct {
     PyObject_HEAD;
     PyObject *mt_original;
@@ -432,6 +433,9 @@ CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject 
 CiAPI_FUNC(int) _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
 CiAPI_FUNC(PyObject *) _PyClassLoader_Box(uint64_t value, int primitive_type);
+CiAPI_FUNC(uint64_t) _PyClassLoader_Unbox(PyObject *value, int primitive_type);
+
+
 
 static inline int
 _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)

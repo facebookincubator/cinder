@@ -1446,7 +1446,6 @@ invoke_static_function(PyObject *func, PyObject **args, Py_ssize_t nargs, int aw
 }
 #endif
 
-
 /* Computed GOTOs, or
        the-optimization-commonly-but-improperly-known-as-"threaded code"
    using gcc's labels-as-values extension

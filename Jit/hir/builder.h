@@ -467,7 +467,8 @@ class HIRBuilder {
   std::vector<Register*> setupStaticArgs(
       TranslationContext& tc,
       const InvokeTarget& target,
-      long nargs);
+      long nargs,
+      bool statically_invoked);
   void fixStaticReturn(TranslationContext& tc, Register* reg, Type ret_type);
 
   // Box the primitive value from src into dst, using the given type.
