@@ -2946,7 +2946,8 @@ class ClassMethodArgMapping(ArgMapping):
         self_arg = self.self_arg
         assert self_arg is not None
         code_gen.visit(self_arg)
-        if self.is_instance_call:
+
+        if self.is_instance_call and not self.needs_virtual_invoke(code_gen):
             code_gen.emit("LOAD_TYPE")
 
         code_gen.set_lineno(self.call)
@@ -2966,7 +2967,7 @@ class ClassMethodArgMapping(ArgMapping):
             code_gen.emit_invoke_method(
                 self.callable.type_descr,
                 len(func_args) if extra_self else len(func_args) - 1,
-                is_classmethod=True,
+                is_classmethod=not self.is_instance_call,
             )
         else:
             code_gen.emit("EXTENDED_ARG", 0)

@@ -7,6 +7,7 @@
 #include "object.h"
 #include "opcode.h"
 #include "pyerrors.h"
+#include "pyport.h"
 #include "structmember.h"
 #include "Jit/pyjit.h"
 #include "pycore_object.h"  // PyHeapType_CINDER_EXTRA
@@ -665,19 +666,41 @@ done:
 }
 
 static PyObject *
+type_vtable_classmethod(PyObject *state,
+                        PyObject *const *stack,
+                        size_t nargsf,
+                        PyObject *kwnames);
+
+
+static PyObject *
 type_vtable_coroutine_classmethod(_PyClassLoader_TypeCheckState *state,
                        PyObject *const *args,
                        size_t nargsf,
                        PyObject *kwnames)
 {
-    PyObject *callable = state->tcs_value;
+    PyObject *callable = PyTuple_GET_ITEM(state->tcs_value, 0);
     PyObject *coro;
     Py_ssize_t awaited = nargsf & Ci_Py_AWAITED_CALL_MARKER;
 
     if (Py_TYPE(callable) == &PyClassMethod_Type) {
         // We need to do some special set up for class methods when invoking.
-        callable = Ci_PyClassMethod_GetFunc(state->tcs_value);
-        coro = _PyObject_Vectorcall(callable, args, nargsf, kwnames);
+        coro = type_vtable_classmethod(state->tcs_value, args, nargsf, kwnames);
+    } else if (Py_TYPE(callable)->tp_descr_get != NULL) {
+        PyObject *self = args[0];
+        PyObject *get = Py_TYPE(callable)->tp_descr_get(
+            callable, self, (PyObject *)Py_TYPE(self));
+        if (get == NULL) {
+            return NULL;
+        }
+
+        Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+
+        coro =
+            _PyObject_Vectorcall(get,
+                                args + 1,
+                                (nargs - 1),
+                                kwnames);
+        Py_DECREF(get);
     } else {
         // In this case, we have a patched class method, and the self has been
         // handled via descriptors already.
@@ -1004,9 +1027,22 @@ type_vtable_classmethod(PyObject *state,
                         size_t nargsf,
                         PyObject *kwnames)
 {
-    PyObject *func = Ci_PyClassMethod_GetFunc(state);
-    return _PyObject_Vectorcall(func, stack, nargsf, kwnames);
+    PyObject *classmethod = PyTuple_GET_ITEM(state, 0);
+    PyTypeObject *decltype = (PyTypeObject *)PyTuple_GET_ITEM(state, 1);
+    PyObject *func = Ci_PyClassMethod_GetFunc(classmethod);
+    if (!PyObject_TypeCheck(stack[0], decltype)) {
+       return _PyObject_Vectorcall(func, stack, nargsf, kwnames);
+    }
+
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    PyObject *args[nargs];
+    args[0] = (PyObject *)Py_TYPE(stack[0]);
+    for(Py_ssize_t i = 1; i<nargs; i++) {
+        args[i] = stack[i];
+    }
+    return _PyObject_Vectorcall(func, args, nargsf, kwnames);
 }
+
 
 #define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
 
@@ -1016,9 +1052,9 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
                                     size_t nargsf,
                                     PyObject *kwnames)
 {
-    if (_PyClassMethod_Check(state->tcs_value)) {
-        PyFunctionObject *func = (PyFunctionObject *)Ci_PyClassMethod_GetFunc(state->tcs_value);
-        return func->vectorcall((PyObject *)func, args, nargsf, kwnames);
+    PyObject *clsmethod = PyTuple_GET_ITEM(state->tcs_value, 0);
+    if (_PyClassMethod_Check(clsmethod)) {
+        return type_vtable_classmethod(state->tcs_value, args, nargsf, kwnames);
     }
     // Invoked via an instance, we need to check its dict to see if the classmethod was
     // overridden.
@@ -1042,7 +1078,7 @@ type_vtable_classmethod_overridable(_PyClassLoader_TypeCheckState *state,
         }
     }
 
-    return _PyObject_Vectorcall(state->tcs_value, args, nargsf, kwnames);
+    return _PyObject_Vectorcall(clsmethod, args, nargsf, kwnames);
 }
 
 static PyObject *
@@ -1561,7 +1597,8 @@ PyTypeObject _PyType_TypeCheckState = {
 };
 
 static int
-type_vtable_setslot_typecheck(PyObject *ret_type,
+type_vtable_setslot_typecheck(PyTypeObject *decltype,
+                              PyObject *ret_type,
                               int optional,
                               int exact,
                               int coroutine,
@@ -1589,6 +1626,15 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
     vtable->vt_entries[slot].vte_state = (PyObject *)state;
     if (coroutine) {
         if (classmethod) {
+            PyObject *tuple = PyTuple_New(2);
+            if (tuple == NULL) {
+                Py_DECREF(state);
+                return -1;
+            }
+            PyTuple_SET_ITEM(tuple, 0, value);
+            PyTuple_SET_ITEM(tuple, 1, (PyObject *)decltype);
+            Py_INCREF(decltype);
+            state->tcs_value = tuple;
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)type_vtable_coroutine_classmethod;
         } else if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
@@ -1605,6 +1651,15 @@ type_vtable_setslot_typecheck(PyObject *ret_type,
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_nonfunc_property;
     } else if (classmethod) {
+        PyObject *tuple = PyTuple_New(2);
+        if (tuple == NULL) {
+            Py_DECREF(state);
+            return -1;
+        }
+        PyTuple_SET_ITEM(tuple, 0, value);
+        PyTuple_SET_ITEM(tuple, 1, (PyObject *)decltype);
+        Py_INCREF(decltype);
+        state->tcs_value = tuple;
         vtable->vt_entries[slot].vte_entry = (vectorcallfunc)type_vtable_classmethod_overridable;
     } else {
         vtable->vt_entries[slot].vte_entry =
@@ -2463,7 +2518,14 @@ type_vtable_setslot(PyTypeObject *tp,
                 return 0;
             } else if (Py_TYPE(value) == &PyClassMethod_Type &&
                     _PyClassLoader_IsStaticFunction(Ci_PyClassMethod_GetFunc(value))) {
-                Py_XSETREF(vtable->vt_entries[slot].vte_state, value);
+                PyObject *tuple = PyTuple_New(2);
+                if (tuple == NULL) {
+                    return -1;
+                }
+                PyTuple_SET_ITEM(tuple, 0, value);
+                PyTuple_SET_ITEM(tuple, 1, (PyObject *)tp);
+                Py_INCREF(tp);
+                Py_XSETREF(vtable->vt_entries[slot].vte_state, tuple);
                 vtable->vt_entries[slot].vte_entry = type_vtable_classmethod;
                 Py_INCREF(value);
                 return 0;
@@ -2534,7 +2596,7 @@ type_vtable_setslot(PyTypeObject *tp,
     }
 
     int res = type_vtable_setslot_typecheck(
-         ret_type, optional, exact, coroutine, classmethod, name, vtable, slot, value);
+         tp, ret_type, optional, exact, coroutine, classmethod, name, vtable, slot, value);
     Py_DECREF(ret_type);
     return res;
 }
