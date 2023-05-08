@@ -24,7 +24,7 @@ import __static__
 
 from __static__ import CheckedList, cast
 from typing import final
-
+from enum import IntEnum
 
 @final
 class Strength(object):
@@ -625,6 +625,7 @@ def projection_test(n: int) -> None:
     dests: CheckedList[Variable] = []
 
     i = 0
+    dst = Variable("dst%s" % i, i)
     while i < n:
         src = Variable("src%s" % i, i)
         dst = Variable("dst%s" % i, i)

@@ -24,7 +24,7 @@ import __static__
 
 from __static__ import CheckedList, box, cast, cbool, clen, int64, inline
 from typing import final
-
+from enum import IntEnum
 
 @inline
 def stronger(s1: Strength, s2: Strength) -> cbool:
@@ -59,7 +59,7 @@ NORMAL = Strength(4, "normal")
 WEAK_DEFAULT = Strength(5, "weakDefault")
 WEAKEST = Strength(6, "weakest")
 
-STRENGTHS: CheckedList[Strength] = [
+STRENGTHS: CheckedList[Strength] = CheckedList[Strength]([
     WEAKEST,
     WEAK_DEFAULT,
     NORMAL,
@@ -68,7 +68,7 @@ STRENGTHS: CheckedList[Strength] = [
     # TODO: This looks like a bug in the original code. Shouldn't this be
     #       ``STRONG_PREFERRED? Keeping for porting sake...
     REQUIRED,
-]
+])
 
 
 class Constraint(object):
@@ -233,7 +233,9 @@ class BinaryConstraint(Constraint):
         self.direction = Direction.NONE
 
     def is_satisfied(self) -> cbool:
-        return self.direction != Direction.NONE
+        if self.direction != Direction.NONE:
+            return True
+        return False
 
     def mark_inputs(self, mark: int64) -> None:
         self.input().mark = mark
@@ -563,6 +565,8 @@ def projection_test(n: int64) -> None:
     dests: CheckedList[Variable] = []
 
     i: int64 = 0
+    bi = box(i)
+    dst = Variable("dst%s" % bi, i)
     while i < n:
         bi = box(i)
         src = Variable("src%s" % bi, i)
