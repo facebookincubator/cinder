@@ -688,6 +688,7 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
 // entry points into the v-table and can easily switch to the vector call
 // form when we're invoking from the interpreter or somewhere that can't use
 // the native calling convention.
+#if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__)
 #define VTABLE_THUNK(name)                                                          \
     void name##_dont_bolt(void) {                                                   \
         __asm__(                                                                    \
@@ -736,7 +737,14 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
                 "leave\n"                                                           \
         );                                                                          \
     }
-
+#else
+#define VTABLE_THUNK(name)                                                          \
+    PyObject *name##_dont_bolt(PyObject *state,                                     \
+                    PyObject *const *args,                                          \
+                    size_t nargsf) {                                                \
+        return name##_vectorcall(state, args, nargsf);                              \
+    }
+#endif
 
 PyObject *
 type_vtable_coroutine_property_vectorcall(_PyClassLoader_TypeCheckState *state,
