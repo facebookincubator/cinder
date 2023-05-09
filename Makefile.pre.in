@@ -483,7 +483,6 @@ JIT_OBJS=       \
 		Jit/jit_time_log.o \
 		Jit/live_type_map.o \
 		Jit/log.o \
-		Jit/patternmatch.o \
 		Jit/perf_jitdump.o \
 		Jit/profile_data.o \
 		Jit/pyjit.o \
@@ -1351,7 +1350,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/jit_list.h \
 		$(srcdir)/Jit/jit_rt.h \
 		$(srcdir)/Jit/jit_time_log.h \
-		$(srcdir)/Jit/patternmatch.h \
 		$(srcdir)/Jit/perf_jitdump.h \
 		$(srcdir)/Jit/profile_data.h \
 		$(srcdir)/Jit/ref.h \
