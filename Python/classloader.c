@@ -690,7 +690,7 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
 // the native calling convention.
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__)
 #define VTABLE_THUNK(name)                                                          \
-    void name##_dont_bolt(void) {                                                   \
+    __attribute__((naked)) void name##_dont_bolt(void) {                            \
         __asm__(                                                                    \
                 /* static_entry: */                                                 \
                 /* we explicitly encode the jmp forward to static_entry_impl so */  \
@@ -735,6 +735,7 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
                 "movq %rax, %xmm0\n"                                                \
                 "movq %rdx, %xmm1\n"                                                \
                 "leave\n"                                                           \
+                "ret\n"                                                             \
         );                                                                          \
     }
 #else
