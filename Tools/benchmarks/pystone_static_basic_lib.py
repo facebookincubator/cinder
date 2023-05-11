@@ -134,8 +134,9 @@ def Proc0(loops=LOOPS):
         String2Loc: str = "DHRYSTONE PROGRAM, 2'ND STRING"
         EnumLoc: int = Ident2
         BoolGlob = not Func2(String1Loc, String2Loc)
+        IntLoc3: int = 0
         while IntLoc1 < IntLoc2:
-            IntLoc3: int = 5 * IntLoc1 - IntLoc2
+            IntLoc3 = 5 * IntLoc1 - IntLoc2
             IntLoc3 = Proc7(IntLoc1, IntLoc2)
             IntLoc1 = IntLoc1 + 1
         Proc8(Array1Glob, Array2Glob, IntLoc1, IntLoc3)
@@ -174,6 +175,7 @@ def Proc1(PtrParIn: Record) -> Record:
 
 def Proc2(IntParIO: int) -> int:
     IntLoc: int = IntParIO + 10
+    EnumLoc: int = 0
     while 1:
         if Char1Glob == "A":
             IntLoc = IntLoc - 1
@@ -267,9 +269,10 @@ def Func1(CharPar1: str, CharPar2: str) -> int:
 
 def Func2(StrParI1: str, StrParI2: str) -> bool:
     IntLoc: int = 1
+    CharLoc: str = ""
     while IntLoc <= 1:
         if Func1(StrParI1[IntLoc], StrParI2[IntLoc + 1]) == Ident1:
-            CharLoc: str = "A"
+            CharLoc = "A"
             IntLoc = IntLoc + 1
     if CharLoc >= "W" and CharLoc <= "Z":
         IntLoc = 7
