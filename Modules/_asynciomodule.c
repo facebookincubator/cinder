@@ -234,6 +234,14 @@ typedef struct {
     FutureObj_HEAD(fut)
 } FutureObj;
 
+// Future type returned when awaiting on running AsyncLazyValue
+// Maintains the reference to the closest AsyncLazyValue
+// that is blocked on this future
+typedef struct {
+    FutureObj_HEAD(alvrf);
+    PyObject *alvrf_blocked_by_this;
+} _ALVResultFutureObj;
+
 static inline uintptr_t
 tag_counter(int c)
 {
@@ -433,6 +441,7 @@ static PyTypeObject _AsyncLazyValue_Type;
 static PyTypeObject _AsyncLazyValueCompute_Type;
 static PyTypeObject AwaitableValue_Type;
 static PyTypeObject _AwaitingFuture_Type;
+static PyTypeObject _ALVResultFuture_Type;
 
 #if defined(HAVE_GETPID) && !defined(MS_WINDOWS)
 static pid_t current_pid;
@@ -452,6 +461,9 @@ static pid_t current_pid;
 
 #define _GatheringFuture_CheckExact(obj)                                      \
     (Py_TYPE(obj) == &_GatheringFutureType)
+
+#define _ALVResultFuture_Type_CheckExact(obj) \
+    (Py_TYPE(obj) == &_ALVResultFuture_Type)
 
 #define Future_Check(obj) PyObject_TypeCheck(obj, &FutureType)
 #define Task_Check(obj) PyObject_TypeCheck(obj, &TaskType)
@@ -854,6 +866,7 @@ typedef struct {
 // PyMethodTableRef is a weakref so clearing them is not necessary
 static PyMethodTableRef *GatheringFuture_TableRef;
 static PyMethodTableRef *Future_TableRef;
+static PyMethodTableRef *_ALVResultFuture_TableRef;
 
 // borrowed reference to the last task type that was created in create_task
 static PyTypeObject *LastUsedTaskType;
@@ -1192,6 +1205,9 @@ get_or_create_method_table(PyTypeObject *type) {
     }
     if (type == &_GatheringFutureType) {
         return GatheringFuture_TableRef;
+    }
+    if (type == &_ALVResultFuture_Type) {
+        return _ALVResultFuture_TableRef;
     }
     // if we saw this exact task type before - we have method table for it
     if (type == LastUsedTaskType) {
@@ -1628,7 +1644,7 @@ is_coroutine(PyObject *coro)
 static int
 isfuture(PyObject *obj)
 {
-    if (Future_CheckExact(obj) || Task_CheckExact(obj)) {
+    if (Future_CheckExact(obj) || Task_CheckExact(obj) || _ALVResultFuture_Type_CheckExact(obj)) {
         return 1;
     }
 
@@ -3036,6 +3052,90 @@ static PyTypeObject FutureType = {
     .tp_finalize = (destructor)FutureObj_finalize,
 };
 
+/*********************** _ALVResultFuture_Type *********************/
+
+// clang-format off
+/*[clinic input]
+class _asyncio._ALVResultFuture "_ALVResultFutureObj *" "(PyTypeObject *)&_ALVResultFuture_Type"
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=85648b57c482f688]*/
+// clang-format on
+
+/*[clinic input]
+_asyncio._ALVResultFuture.__init__
+
+    *
+    loop: object = None
+
+[clinic start generated code]*/
+
+static int
+_asyncio__ALVResultFuture___init___impl(_ALVResultFutureObj *self,
+                                        PyObject *loop)
+/*[clinic end generated code: output=b3d3154a8e0526a8 input=54f4b2064e952ce3]*/
+{
+    if (future_init((FutureObj*)self, loop)) {
+        return -1;
+    }
+    self->alvrf_blocked_by_this = NULL;
+    return 0;
+}
+static int
+_ALVResultFutureObj_clear(_ALVResultFutureObj *fut)
+{
+    (void)FutureObj_clear((FutureObj *)fut);
+    Py_CLEAR(fut->alvrf_blocked_by_this);
+    return 0;
+}
+
+static int
+_ALVResultFutureObj_traverse(_ALVResultFutureObj *fut,
+                            visitproc visit,
+                            void *arg)
+{
+    FutureObj_traverse((FutureObj *)fut, visit, arg);
+    Py_VISIT(fut->alvrf_blocked_by_this);
+    return 0;
+}
+
+static void _ALVResultFutureObj_dealloc(PyObject *self) {
+    if (PyObject_CallFinalizerFromDealloc(self) < 0) {
+        // resurrected.
+        return;
+    }
+    PyObject_GC_UnTrack(self);
+
+    _ALVResultFutureObj *fut = (_ALVResultFutureObj *)self;
+    if (fut->alvrf_weakreflist != NULL) {
+        PyObject_ClearWeakRefs(self);
+    }
+
+    (void)_ALVResultFutureObj_clear(fut);
+    Py_TYPE(fut)->tp_free(fut);
+}
+
+static PyTypeObject _ALVResultFuture_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "_asyncio._ALVResultFuture",
+    sizeof(_ALVResultFutureObj),             /* tp_basicsize */
+    .tp_base = &FutureType,
+    .tp_dealloc = _ALVResultFutureObj_dealloc,
+    .tp_as_async = &FutureType_as_async,
+    .tp_repr = (reprfunc)FutureObj_repr,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_doc = _asyncio_Future___init____doc__,
+    .tp_traverse = (traverseproc)_ALVResultFutureObj_traverse,
+    .tp_clear = (inquiry)_ALVResultFutureObj_clear,
+    .tp_weaklistoffset = offsetof(_ALVResultFutureObj, alvrf_weakreflist),
+    .tp_iter = (getiterfunc)future_new_iter,
+    .tp_methods = FutureType_methods,
+    .tp_getset = FutureType_getsetlist,
+    .tp_dictoffset = offsetof(_ALVResultFutureObj, dict),
+    .tp_init = (initproc)_asyncio__ALVResultFuture___init__,
+    .tp_new = PyType_GenericNew,
+    .tp_finalize = (destructor)FutureObj_finalize,
+};
+
 static void
 FutureObj_dealloc(PyObject *self)
 {
@@ -4354,7 +4454,7 @@ task_set_fut_waiter_impl(TaskObj *task, PyObject *result)
     }
 
     /* Check if `result` is FutureObj or TaskObj (and not a subclass) */
-    if (Future_CheckExact(result) || Task_CheckExact(result)) {
+    if (Future_CheckExact(result) || Task_CheckExact(result) || _ALVResultFuture_Type_CheckExact(result)) {
         PyObject *wrapper;
         PyObject *res;
         FutureObj *fut = (FutureObj*)result;
@@ -4723,7 +4823,7 @@ task_wakeup(TaskObj *task, PyObject *o)
     PyObject *result;
     assert(o);
 
-    if (Future_CheckExact(o) || Task_CheckExact(o)) {
+    if (Future_CheckExact(o) || Task_CheckExact(o) || _ALVResultFuture_Type_CheckExact(o)) {
         PyObject *fut_result = NULL;
         int res = future_get_result((FutureObj*)o, &fut_result);
 
@@ -7329,7 +7429,7 @@ _gather_multiple(PyObject *const*items,
             continue;
         }
         // 3. completed future/task
-        if ((Future_CheckExact(arg) || Task_CheckExact(arg)) &&
+        if ((Future_CheckExact(arg) || Task_CheckExact(arg) || _ALVResultFuture_Type_CheckExact(arg)) &&
             ((FutureObj *)arg)->fut_state == STATE_FINISHED) {
             PyList_SET_ITEM(
                 data, i, FutureObj_get_result((FutureObj *)arg, NULL));
@@ -8818,6 +8918,9 @@ PyInit__asyncio(void)
     if (PyType_Ready((PyTypeObject *)&AwaitableValue_Type) < 0) {
         return NULL;
     }
+    if (PyType_Ready((PyTypeObject *)&_ALVResultFuture_Type) < 0) {
+        return NULL;
+    }
     if (PyType_Ready(&_AwaitingFuture_Type) < 0) {
         return NULL;
     }
@@ -8896,6 +8999,10 @@ PyInit__asyncio(void)
     if (GatheringFuture_TableRef == NULL) {
         return NULL;
     }
+    _ALVResultFuture_TableRef = init_table(&_ALVResultFuture_Type);
+    if (GatheringFuture_TableRef == NULL) {
+        return NULL;
+    }
 
     PyObject *m = PyModule_Create(&_asynciomodule);
     if (m == NULL) {
@@ -8929,6 +9036,12 @@ PyInit__asyncio(void)
     if (PyModule_AddObject(
             m, "_AwaitingFuture", (PyObject *)&_AwaitingFuture_Type) < 0) {
         Py_DECREF(&_AwaitingFuture_Type);
+        return NULL;
+    }
+    Py_INCREF(&_ALVResultFuture_Type);
+    if (PyModule_AddObject(
+            m, "_ALVResultFuture", (PyObject *)&_ALVResultFuture_Type) < 0) {
+        Py_DECREF(&_ALVResultFuture_Type);
         return NULL;
     }
     Py_INCREF(&AwaitableValue_Type);

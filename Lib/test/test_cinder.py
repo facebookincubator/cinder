@@ -35,8 +35,9 @@ import _testcindercapi
 
 from test import cinder_support, libregrtest
 from test.cinder_support import get_await_stack, verify_stack
-
 from test.support.script_helper import assert_python_ok, make_script
+
+from test.test_asyncio.test_futures import CFutureTests
 
 
 class NoWayError(Exception):
@@ -2662,7 +2663,9 @@ class TestTaskCancel(unittest.TestCase):
                 # create first task
                 fut = asyncio.Future()
                 t1 = TaskConstructor(f1(fut))
+                t1._log_destroy_pending = False
                 t2 = TaskConstructor(f2(t1))
+                t2._log_destroy_pending = False
                 fut.set_result(t2)
                 await asyncio.sleep(1)
                 t1.cancel()
@@ -2738,5 +2741,16 @@ class GeneralRegressionTests(unittest.TestCase):
             await asyncio.gather(failingCoro(), c, c)
 
 
+@unittest.skipUnless(
+    hasattr(_asyncio, "_ALVResultFuture"), "requires the C _asyncio module"
+)
+class ALVFutureTests(CFutureTests):
+    try:
+        cls = _asyncio._ALVResultFuture
+    except AttributeError:
+        cls = None
+
+
 if __name__ == "__main__":
+
     unittest.main()

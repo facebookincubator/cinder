@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 from types import GenericAlias
 import asyncio
+import _asyncio
 from asyncio import futures
 from test.test_asyncio import utils as test_utils
 from test import support

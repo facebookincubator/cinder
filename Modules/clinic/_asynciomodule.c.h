@@ -309,6 +309,37 @@ _asyncio_Future__repr_info(FutureObj *self, PyObject *Py_UNUSED(ignored))
     return _asyncio_Future__repr_info_impl(self);
 }
 
+static int
+_asyncio__ALVResultFuture___init___impl(_ALVResultFutureObj *self,
+                                        PyObject *loop);
+
+static int
+_asyncio__ALVResultFuture___init__(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    int return_value = -1;
+    static const char * const _keywords[] = {"loop", NULL};
+    static _PyArg_Parser _parser = {NULL, _keywords, "_ALVResultFuture", 0};
+    PyObject *argsbuf[1];
+    PyObject * const *fastargs;
+    Py_ssize_t nargs = PyTuple_GET_SIZE(args);
+    Py_ssize_t noptargs = nargs + (kwargs ? PyDict_GET_SIZE(kwargs) : 0) - 0;
+    PyObject *loop = Py_None;
+
+    fastargs = _PyArg_UnpackKeywords(_PyTuple_CAST(args)->ob_item, nargs, kwargs, NULL, &_parser, 0, 0, 0, argsbuf);
+    if (!fastargs) {
+        goto exit;
+    }
+    if (!noptargs) {
+        goto skip_optional_kwonly;
+    }
+    loop = fastargs[0];
+skip_optional_kwonly:
+    return_value = _asyncio__ALVResultFuture___init___impl((_ALVResultFutureObj *)self, loop);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_asyncio_Task___init____doc__,
 "Task(coro, *, loop=None, name=None)\n"
 "--\n"
@@ -1571,4 +1602,4 @@ skip_optional_pos:
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=8ed6665799b57e65 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=4937dcb18f834436 input=a9049054013a1b77]*/
