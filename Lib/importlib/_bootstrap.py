@@ -1004,19 +1004,10 @@ def _find_and_load_unlocked(name, import_):
         raise ModuleNotFoundError(_ERR_MSG.format(name), name=name)
     else:
         module = _load_unlocked(spec)
-    if parent:
-        # Set the module as an attribute on its parent.
-        parent_module = sys.modules[parent]
-        try:
-            _imp._maybe_set_parent_attribute(parent_module, child, module, name)
-        except Exception as e:
-            msg = f"Cannot set an attribute on {parent!r} for child module {child!r}: {e!r}"
-            _warnings.warn(msg, ImportWarning)
-    # Set attributes to lazy submodules on the module.
     try:
-        _imp._set_lazy_attributes(module, name)
+        _imp._maybe_set_submodule_attribute(parent, child, module, name)
     except Exception as e:
-        msg = f"Cannot set lazy attributes on {name!r}: {e!r}"
+        msg = f"Cannot set an attribute on {parent!r} for child module {child!r}: {e!r}"
         _warnings.warn(msg, ImportWarning)
     return module
 

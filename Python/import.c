@@ -2759,84 +2759,74 @@ _imp_is_lazy_imports_enabled_impl(PyObject *module)
 }
 
 /*[clinic input]
-_imp._maybe_set_parent_attribute
-    parent_module: object
+_imp._maybe_set_submodule_attribute
+    parent: unicode
     child: unicode
     child_module: object
     name: unicode
     /
-Sets the module as an attribute on its parent, as a side effect.
+Sets the module as an attribute on its parent, if the side effect is neded.
 [clinic start generated code]*/
 
 static PyObject *
-_imp__maybe_set_parent_attribute_impl(PyObject *module,
-                                      PyObject *parent_module,
-                                      PyObject *child,
-                                      PyObject *child_module, PyObject *name)
-/*[clinic end generated code: output=2e72910095d0e43d input=cf011300051834d8]*/
-{
-    PyObject *parent_dict = NULL;
-    PyObject *ret = NULL;
-
-    assert(parent_module != NULL);
-
-    parent_dict = _PyObject_GetAttrId(parent_module, &PyId___dict__);
-    if (parent_dict == NULL) {
-        goto error;
-    }
-    if (PyDict_CheckExact(parent_dict)) {
-        if (has_lazy_submodule(parent_module, child)) {
-            PyObject *attr = _PyDict_GetItemKeepLazy(parent_dict, child);
-            if (attr == NULL) {
-                if (PyErr_Occurred()) {
-                    goto error;
-                }
-            } else if (PyLazyImport_CheckExact(attr)) {
-                PyObject *attr_name = _PyLazyImport_GetName(attr);
-                if (PyUnicode_Compare(attr_name, name) == 0) {
-                    if (PyDict_SetItem(parent_dict, child, child_module) < 0) {
-                        Py_DECREF(attr_name);
-                        goto error;
-                    }
-                }
-                Py_DECREF(attr_name);
-            }
-        } else {
-            if (PyDict_SetItem(parent_dict, child, child_module) < 0) {
-                goto error;
-            }
-        }
-    } else {
-        if (PyObject_SetAttr(parent_module, child, child_module) < 0) {
-            goto error;
-        }
-    }
-
-    ret = Py_NewRef(Py_None);
-
-  error:
-    Py_XDECREF(parent_dict);
-    return ret;
-}
-
-/*[clinic input]
-_imp._set_lazy_attributes
-    child_module: object
-    name: unicode
-    /
-Sets attributes to lazy submodules on the module, as side effects.
-[clinic start generated code]*/
-
-static PyObject *
-_imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
-                               PyObject *name)
-/*[clinic end generated code: output=bd34f2e16f215c29 input=d959fbfa236f4d59]*/
+_imp__maybe_set_submodule_attribute_impl(PyObject *module, PyObject *parent,
+                                         PyObject *child,
+                                         PyObject *child_module,
+                                         PyObject *name)
+/*[clinic end generated code: output=feecdb6df3bfd974 input=b0ac59fdbc72ab0f]*/
 {
     PyThreadState *tstate = _PyThreadState_GET();
+    PyObject *parent_module = NULL;
+    PyObject *parent_dict = NULL;
     PyObject *child_dict = NULL;
     PyObject *lazy_module_attr = NULL;
     PyObject *ret = NULL;
 
+    assert(parent != NULL);
+
+    /* add attributes to parent */
+    int has_parent = PyObject_IsTrue(parent);
+    if (has_parent < 0) {
+        goto error;
+    }
+    if (has_parent) {
+        parent_module = _PyImport_GetModule(tstate, parent);
+        if (parent_module != NULL) {
+            parent_dict = _PyObject_GetAttrId(parent_module, &PyId___dict__);
+            if (parent_dict == NULL) {
+                goto error;
+            }
+            if (PyDict_CheckExact(parent_dict)) {
+                if (has_lazy_submodule(parent_module, child)) {
+                    PyObject *attr = _PyDict_GetItemKeepLazy(parent_dict, child);
+                    if (attr == NULL) {
+                        if (PyErr_Occurred()) {
+                            goto error;
+                        }
+                    } else if (PyLazyImport_CheckExact(attr)) {
+                        PyObject *attr_name = _PyLazyImport_GetName(attr);
+                        if (PyUnicode_Compare(attr_name, name) == 0) {
+                            if (PyDict_SetItem(parent_dict, child, child_module) < 0) {
+                                Py_DECREF(attr_name);
+                                goto error;
+                            }
+                        }
+                        Py_DECREF(attr_name);
+                    }
+                } else {
+                    if (PyDict_SetItem(parent_dict, child, child_module) < 0) {
+                        goto error;
+                    }
+                }
+            } else {
+                if (PyObject_SetAttr(parent_module, child, child_module) < 0) {
+                    goto error;
+                }
+            }
+        }
+    }
+
+    /* add attributes to child */
     PyObject *lazy_modules = tstate->interp->lazy_modules;
     if (lazy_modules != NULL) {
         PyObject *lazy_submodules = PyDict_GetItemWithError(lazy_modules, name);
@@ -2877,7 +2867,9 @@ _imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
     ret = Py_NewRef(Py_None);
 
   error:
+    Py_XDECREF(parent_dict);
     Py_XDECREF(child_dict);
+    Py_XDECREF(parent_module);
     Py_XDECREF(lazy_module_attr);
     return ret;
 }
@@ -3037,8 +3029,7 @@ static PyMethodDef imp_methods[] = {
     _IMP__SET_LAZY_IMPORTS_METHODDEF
     _IMP__SET_LAZY_IMPORTS_IN_MODULE_METHODDEF
     _IMP_IS_LAZY_IMPORTS_ENABLED_METHODDEF
-    _IMP__MAYBE_SET_PARENT_ATTRIBUTE_METHODDEF
-    _IMP__SET_LAZY_ATTRIBUTES_METHODDEF
+    _IMP__MAYBE_SET_SUBMODULE_ATTRIBUTE_METHODDEF
     _IMP_HYDRATE_LAZY_OBJECTS_METHODDEF
     {NULL, NULL}  /* sentinel */
 };
