@@ -1067,6 +1067,11 @@ class Value:
     def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
         code_gen.defaultVisit(node)
 
+    def emit_continue(
+        self, node: ast.Continue, code_gen: Static38CodeGenerator
+    ) -> None:
+        code_gen.defaultVisit(node)
+
     def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
         start = code_gen.newBlock("default_forloop_start")
         anchor = code_gen.newBlock("default_forloop_anchor")
@@ -6556,6 +6561,27 @@ class CRangeIterator(Object[Class]):
         assert isinstance(target, ast.Name)
         return target.id
 
+    def emit_continue(
+        self, node: ast.Continue, code_gen: Static38CodeGenerator
+    ) -> None:
+        loop_node = code_gen.get_node_data(node, AST)
+        assert isinstance(loop_node, ast.For)  # help pyre
+        loop_idx = self._loop_var_name(loop_node)
+        descr = ("__static__", "int64", "#")
+        self._emit_incr(loop_idx, descr, code_gen)
+        super().emit_continue(node, code_gen)
+
+    def _emit_incr(
+        self,
+        loop_idx: str,
+        descr: Tuple[str, str, str],
+        code_gen: Static38CodeGenerator,
+    ) -> None:
+        code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
+        code_gen.emit("PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
+        code_gen.emit("PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
+        code_gen.emit("STORE_LOCAL", (loop_idx, descr))
+
     def emit_forloop(self, node: ast.For, code_gen: Static38CodeGenerator) -> None:
         start = code_gen.newBlock("crange_forloop_start")
         anchor = code_gen.newBlock("crange_forloop_anchor")
@@ -6579,10 +6605,7 @@ class CRangeIterator(Object[Class]):
         code_gen.emit("PRIMITIVE_COMPARE_OP", PRIM_OP_GT_INT)
         code_gen.emit("POP_JUMP_IF_ZERO", anchor)
         code_gen.visit(node.body)
-        code_gen.emit("LOAD_LOCAL", (loop_idx, descr))
-        code_gen.emit("PRIMITIVE_LOAD_CONST", (1, TYPED_INT64))
-        code_gen.emit("PRIMITIVE_BINARY_OP", PRIM_OP_ADD_INT)
-        code_gen.emit("STORE_LOCAL", (loop_idx, descr))
+        self._emit_incr(loop_idx, descr, code_gen)
         code_gen.emit("JUMP_ABSOLUTE", start)
         code_gen.nextBlock(anchor)
         code_gen.emit("POP_TOP")  # Pop limit

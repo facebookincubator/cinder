@@ -1029,6 +1029,17 @@ class Static38CodeGenerator(StrictCodeGenerator):
                 self.emit_invoke_method(extend_descr, 1)
                 self.emit("POP_TOP")
 
+    def visitContinue(self, node: ast.Continue) -> None:
+        loop_node = self.get_opt_node_data(node, AST)
+        if isinstance(loop_node, ast.For):
+            # Since we support primitive int for loops with crange()
+            # we have some special handling to deal with the "continue"
+            # statement.
+            iter_type = self.get_type(loop_node.iter)
+            iter_type.emit_continue(node, self)
+        else:
+            super().visitContinue(node)
+
     def visitFor(self, node: ast.For) -> None:
         self.strictPreVisitFor(node)
         iter_type = self.get_type(node.iter)

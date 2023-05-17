@@ -168,3 +168,18 @@ class CRangeTests(StaticTestBase):
             TypedSyntaxError, r"can't use crange with arg: object"
         ):
             self.compile(codestr)
+
+    def test_crange_continue(self):
+        codestr = """
+        from __static__ import crange, int64, box
+
+        def run_loop() -> int:
+            n: int64 = 7
+            c = 0
+            for i in crange(n):
+                c += 1
+                continue
+            return c
+        """
+        with self.in_strict_module(codestr) as mod:
+            self.assertEqual(mod.run_loop(), 7)

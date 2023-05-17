@@ -1645,6 +1645,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.terminals[node] = level
 
     def visitContinue(self, node: ast.Continue) -> None:
+        self.set_node_data(node, AST, self.current_loop)
         self.set_terminal_kind(node, TerminalKind.BreakOrContinue)
 
     def visitBreak(self, node: ast.Break) -> None:
