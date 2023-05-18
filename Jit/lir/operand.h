@@ -601,3 +601,5 @@ DECLARE_TYPE_ARG(OutInd, MemoryIndirect, true);
 DECLARE_TYPE_ARG(OutVReg, void, true);
 
 } // namespace jit::lir
+
+#define FUNC_MARKER_BATCHDECREF (void*)0x0001

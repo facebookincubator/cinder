@@ -60,7 +60,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteCallInstrs(
     rsp_sub = rewriteVectorCallFunctions(instr_iter);
   } else if (instr->getInput(0)->isImm()) {
     void* func = reinterpret_cast<void*>(instr->getInput(0)->getConstant());
-    if (func == JITRT_BatchDecref) {
+    if (func == FUNC_MARKER_BATCHDECREF) {
       rsp_sub = rewriteBatchDecrefFunction(instr_iter);
     } else {
       rsp_sub = rewriteRegularFunction(instr_iter);
@@ -257,6 +257,9 @@ int PostRegAllocRewrite::rewriteBatchDecrefFunction(instr_iter_t instr_iter) {
       ((num_arguments % 2) ? num_arguments + 1 : num_arguments) *
       sizeof(PyObject*);
 
+  static_cast<Operand*>(instr->getInput(0))
+      ->setConstant(
+          reinterpret_cast<uint64_t>(JITRT_BatchDecref), Operand::k64bit);
   block->allocateInstrBefore(
       instr_iter,
       Instruction::kLea,

@@ -238,7 +238,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBatchDecrefInstrs(
       nullptr,
       Operand::k64bit,
       Operand::kImm,
-      reinterpret_cast<uint64_t>(JITRT_BatchDecref)));
+      reinterpret_cast<uint64_t>(FUNC_MARKER_BATCHDECREF)));
   return kChanged;
 }
 
