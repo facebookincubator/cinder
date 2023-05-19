@@ -410,6 +410,30 @@ done:
     Py_RETURN_NONE;
 }
 
+static PyObject *
+write_perf_map_entry(PyObject *self, PyObject *args)
+{
+    const void *code_addr;
+    unsigned int code_size;
+    const char *entry_name;
+
+    if (!PyArg_ParseTuple(args, "KIs", &code_addr, &code_size, &entry_name))
+        return NULL;
+
+    int ret = PyUnstable_WritePerfMapEntry(code_addr, code_size, entry_name);
+    if (ret == -1) {
+        PyErr_SetString(PyExc_OSError, "Failed to write performance map entry");
+        return NULL;
+    }
+    return Py_BuildValue("i", ret);
+}
+
+static PyObject *
+perf_map_state_teardown(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(ignored))
+{
+    PyUnstable_PerfMapState_Fini();
+    Py_RETURN_NONE;
+}
 
 // These are used in native calling tests, ensure the compiler
 // doesn't hide or remove these symbols
@@ -438,6 +462,8 @@ static PyMethodDef TestMethods[] = {
     {"test_atomic_funcs", test_atomic_funcs, METH_NOARGS},
     {"test_edit_cost", test_edit_cost, METH_NOARGS},
     {"test_gc_visit_objects", test_gc_visit_objects, METH_NOARGS},
+    {"write_perf_map_entry", write_perf_map_entry, METH_VARARGS},
+    {"perf_map_state_teardown", perf_map_state_teardown, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 

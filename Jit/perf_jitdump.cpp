@@ -6,6 +6,7 @@
 #include "Jit/pyjit.h"
 #include "Jit/threaded_compile.h"
 #include "Jit/util.h"
+#include "pycore_ceval.h"
 
 #include <elf.h>
 #include <fcntl.h>
@@ -19,6 +20,10 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <iostream>
+#include <regex>
+#include <sstream>
+#include <tuple>
 
 #ifdef __x86_64__
 // Use the cheaper rdtsc by default. If you disable this for some reason, or
@@ -242,6 +247,40 @@ void initFiles() {
   inited = true;
 }
 
+// Parses a JIT entry and returns a tuple containing the
+// code address, code size, and entry name. An example of an entry is:
+// 7fa873c00148 360 __CINDER_JIT:__main__:foo2
+std::tuple<const void*, unsigned int, const char*> parseJitEntry(
+    const char* entry) {
+  std::string_view entry_view = entry;
+  size_t space_pos_1 = entry_view.find(' ');
+
+  // Extract the hexadecimal code address
+  const char* code_addr_str = entry_view.substr(0, space_pos_1).data();
+  unsigned long long code_addr_val = 0;
+  std::from_chars(
+      code_addr_str, code_addr_str + space_pos_1, code_addr_val, 16);
+  const void* code_addr = reinterpret_cast<const void*>(code_addr_val);
+
+  // Find the second space character
+  size_t space_pos_2 = entry_view.find(' ', space_pos_1 + 1);
+
+  // Extract the hexadecimal code size
+  const char* code_size_str =
+      entry_view.substr(space_pos_1 + 1, space_pos_2).data();
+  uint32_t code_size;
+  std::from_chars(
+      code_size_str,
+      code_size_str + (space_pos_2 - space_pos_1 - 1),
+      code_size,
+      16);
+
+  // Extract the entry name
+  const char* entry_name = entry_view.substr(space_pos_2 + 1).data();
+
+  return std::make_tuple(code_addr, code_size, entry_name);
+}
+
 // Copy the contents of from_name to to_name. Returns a std::FILE* at the end
 // of to_name on success, or nullptr on failure.
 std::FILE* copyFile(const std::string& from_name, const std::string& to_name) {
@@ -277,6 +316,74 @@ std::FILE* copyFile(const std::string& from_name, const std::string& to_name) {
   }
 }
 
+// Copy the contents of the parent perf map file to the child perf map file.
+// Returns 1 on success and 0 on failure.
+int copyJitFile(const std::string& parent_filename) {
+  auto parent_file = std::fopen(parent_filename.c_str(), "r");
+  if (parent_file == nullptr) {
+    JIT_LOG(
+        "Couldn't open %s for reading (%s)",
+        parent_filename,
+        string_error(errno));
+    return 0;
+  }
+
+  char buf[1024];
+  while (std::fgets(buf, sizeof(buf), parent_file) != nullptr) {
+    buf[strcspn(buf, "\n")] = '\0';
+    auto jit_entry = parseJitEntry(buf);
+    try {
+      PyUnstable_WritePerfMapEntry(
+          std::get<0>(jit_entry),
+          std::get<1>(jit_entry),
+          std::get<2>(jit_entry));
+    } catch (const std::invalid_argument& e) {
+      JIT_LOG("Error: Invalid JIT entry: %s \n", buf);
+    }
+  }
+  std::fclose(parent_file);
+  return 1;
+}
+
+// Copy the JIT entries from the parent perf map file to the child perf map
+// file. This is used when perf-trampoline is enabled, as the perf map file
+// will also include trampoline entries. We only want to copy the JIT entries.
+// Returns 1 on success, and 0 on failure.
+int copyJitEntries(const std::string& parent_filename) {
+  auto parent_file = std::fopen(parent_filename.c_str(), "r");
+  if (parent_file == nullptr) {
+    JIT_LOG(
+        "Couldn't open %s for reading (%s)",
+        parent_filename,
+        string_error(errno));
+    return 0;
+  }
+
+  char buf[1024];
+  while (std::fgets(buf, sizeof(buf), parent_file) != nullptr) {
+    if (std::strstr(buf, "__CINDER_") != nullptr) {
+      buf[strcspn(buf, "\n")] = '\0';
+      auto jit_entry = parseJitEntry(buf);
+      try {
+        PyUnstable_WritePerfMapEntry(
+            std::get<0>(jit_entry),
+            std::get<1>(jit_entry),
+            std::get<2>(jit_entry));
+      } catch (const std::invalid_argument& e) {
+        JIT_LOG("Error: Invalid JIT entry: %s \n", buf);
+      }
+    }
+  }
+  std::fclose(parent_file);
+  return 1;
+}
+
+bool isPerfTrampolineActive() {
+  PyThreadState* tstate = PyThreadState_GET();
+  return tstate->interp->eval_frame &&
+      tstate->interp->eval_frame != _PyEval_EvalFrameDefault;
+}
+
 // Copy the perf pid map from the parent process into a new file for this child
 // process.
 void copyFileInfo(FileInfo& info) {
@@ -290,33 +397,53 @@ void copyFileInfo(FileInfo& info) {
       fmt::format(fmt::runtime(info.filename_format), getpid());
   info = {};
 
-  unlink(child_filename.c_str());
-
-  if (_PyJIT_IsEnabled()) {
-    // The JIT is still enabled: copy the file to allow for more compilation in
-    // this process.
-    if (auto new_pid_map = copyFile(parent_filename, child_filename)) {
-      info.filename = child_filename;
-      info.file = new_pid_map;
+  if (parent_filename.starts_with("/tmp/perf-") &&
+      parent_filename.ends_with(".map") && isPerfTrampolineActive()) {
+    if (!copyJitEntries(parent_filename)) {
+      JIT_LOG(
+          "Failed to copy JIT entries from %s to %s",
+          parent_filename,
+          child_filename);
+    }
+  } else if (
+      parent_filename.starts_with("/tmp/perf-") &&
+      parent_filename.ends_with(".map") && _PyJIT_IsEnabled()) {
+    // The JIT is still enabled: copy the file to allow for more compilation
+    // in this process.
+    if (!copyJitFile(parent_filename)) {
+      JIT_LOG(
+          "Failed to copy perf map file from %s to %s",
+          parent_filename,
+          child_filename);
     }
   } else {
-    // The JIT has been disabled: hard link the file to save disk space. Don't
-    // open it in this process, to avoid messing with the parent's file.
-    if (::link(parent_filename.c_str(), child_filename.c_str()) != 0) {
-      JIT_LOG(
-          "Failed to link %s to %s: %s",
-          child_filename,
-          parent_filename,
-          string_error(errno));
-    } else {
-      // Poke the file's atime to keep tmpwatch at bay.
-      std::FILE* file = std::fopen(parent_filename.c_str(), "r");
-      if (file != nullptr) {
-        std::fclose(file);
+    unlink(child_filename.c_str());
+    if (_PyJIT_IsEnabled()) {
+      // The JIT is still enabled: copy the file to allow for more compilation
+      // in this process.
+      if (auto new_pid_map = copyFile(parent_filename, child_filename)) {
+        info.filename = child_filename;
+        info.file = new_pid_map;
       }
+    } else {
+      // The JIT has been disabled: hard link the file to save disk space. Don't
+      // open it in this process, to avoid messing with the parent's file.
+      if (::link(parent_filename.c_str(), child_filename.c_str()) != 0) {
+        JIT_LOG(
+            "Failed to link %s to %s: %s",
+            child_filename,
+            parent_filename,
+            string_error(errno));
+      } else {
+        // Poke the file's atime to keep tmpwatch at bay.
+        std::FILE* file = std::fopen(parent_filename.c_str(), "r");
+        if (file != nullptr) {
+          std::fclose(file);
+        }
+      }
+      info.file = nullptr;
+      info.filename = "";
     }
-    info.file = nullptr;
-    info.filename = "";
   }
 }
 
@@ -353,19 +480,12 @@ void registerFunction(
 
   initFiles();
 
-  if (auto file = g_pid_map.file) {
-    for (auto& section_and_size : code_sections) {
-      void* code = section_and_size.first;
-      std::size_t size = section_and_size.second;
-      fmt::print(
-          file,
-          "{:x} {:x} {}:{}\n",
-          reinterpret_cast<uintptr_t>(code),
-          size,
-          prefix,
-          name);
-      std::fflush(file);
-    }
+  for (auto& section_and_size : code_sections) {
+    void* code = section_and_size.first;
+    std::size_t size = section_and_size.second;
+    auto jit_entry = prefix + ":" + name;
+    PyUnstable_WritePerfMapEntry(
+        static_cast<const void*>(code), size, jit_entry.c_str());
   }
 
   if (auto file = g_jitdump_file.file) {
