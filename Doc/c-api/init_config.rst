@@ -318,6 +318,20 @@ PyPreConfig
 
       Default: ``1`` in Python config, ``0`` in isolated config.
 
+   .. c:member:: int perf_profiling
+
+      Enable compatibility mode with the perf profiler?
+
+      If non-zero, initialize the perf trampoline. See :ref:`perf_profiling`
+      for more information.
+
+      Set by :option:`-X perf <-X>` command line option and by the
+      :envvar:`PYTHONPERFSUPPORT` environment variable.
+
+      Default: ``-1``.
+
+      .. versionadded:: 3.12
+
    .. c:member:: int use_environment
 
       Use :ref:`environment variables <using-on-envvars>`? See

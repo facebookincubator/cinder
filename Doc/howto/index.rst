@@ -30,4 +30,4 @@ Currently, the HOWTOs are:
    clinic.rst
    instrumentation.rst
    annotations.rst
-
+   perf_profiling.rst

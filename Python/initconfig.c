@@ -102,6 +102,11 @@ static const char usage_3[] = "\
              The default is sys.int_info.default_max_str_digits.  0 disables.\n\
          -X usepycompiler: use python written compiler\n\
          -X install-strict-loader: use strict/static module loader\n\
+         -X perf: activate support for the Linux \"perf\" profiler by activating the \"perf\"\n\
+            trampoline. When this option is activated, the Linux \"perf\" profiler will be \n\
+            able to report Python calls. This option is only available on some platforms and will \n\
+            do nothing if is not supported on the current system. The default value is \"off\".\n\
+        \n\
          -X jit-help: print all available Cinder JIT flags and exits\n\
 \n\
 --check-hash-based-pycs always|default|never:\n\
@@ -717,6 +722,7 @@ _PyConfig_InitCompatConfig(PyConfig *config)
     config->use_hash_seed = -1;
     config->faulthandler = -1;
     config->tracemalloc = -1;
+    config->perf_profiling = -1;
     config->module_search_paths_set = 0;
     config->parse_argv = 0;
     config->site_import = -1;
@@ -799,6 +805,7 @@ PyConfig_InitIsolatedConfig(PyConfig *config)
     config->use_hash_seed = 0;
     config->faulthandler = 0;
     config->tracemalloc = 0;
+    config->perf_profiling = 0;
     config->pathconfig_warnings = 0;
 #ifdef MS_WINDOWS
     config->legacy_windows_stdio = 0;
@@ -909,6 +916,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_ATTR(_install_importlib);
     COPY_ATTR(faulthandler);
     COPY_ATTR(tracemalloc);
+    COPY_ATTR(perf_profiling);
     COPY_ATTR(import_time);
     COPY_ATTR(show_ref_count);
     COPY_ATTR(dump_refs);
@@ -1016,6 +1024,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_UINT(hash_seed);
     SET_ITEM_INT(faulthandler);
     SET_ITEM_INT(tracemalloc);
+    SET_ITEM_INT(perf_profiling);
     SET_ITEM_INT(import_time);
     SET_ITEM_INT(show_ref_count);
     SET_ITEM_INT(dump_refs);
@@ -1295,6 +1304,7 @@ _PyConfig_FromDict(PyConfig *config, PyObject *dict)
     CHECK_VALUE("hash_seed", config->hash_seed <= MAX_HASH_SEED);
     GET_UINT(faulthandler);
     GET_UINT(tracemalloc);
+    GET_UINT(perf_profiling);
     GET_UINT(import_time);
     GET_UINT(show_ref_count);
     GET_UINT(dump_refs);
@@ -1750,6 +1760,26 @@ config_read_env_vars(PyConfig *config)
     return _PyStatus_OK();
 }
 
+static PyStatus
+config_init_perf_profiling(PyConfig *config)
+{
+    int active = 0;
+    const char *env = config_get_env(config, "PYTHONPERFSUPPORT");
+    if (env) {
+        if (_Py_str_to_int(env, &active) != 0) {
+            active = 0;
+        }
+        if (active) {
+            config->perf_profiling = 1;
+        }
+    }
+    const wchar_t *xoption = config_get_xoption(config, L"perf");
+    if (xoption) {
+        config->perf_profiling = 1;
+    }
+    return _PyStatus_OK();
+
+}
 
 static PyStatus
 config_init_tracemalloc(PyConfig *config)
@@ -1898,6 +1928,14 @@ config_read_complex_options(PyConfig *config)
             return status;
         }
     }
+
+    if (config->perf_profiling < 0) {
+        status = config_init_perf_profiling(config);
+        if (_PyStatus_EXCEPTION(status)) {
+            return status;
+        }
+    }
+
     if (_Py_global_config_int_max_str_digits < 0) {
         status = config_init_int_max_str_digits(config);
         if (_PyStatus_EXCEPTION(status)) {
@@ -2195,6 +2233,9 @@ config_read(PyConfig *config, int compute_path_config)
     }
     if (config->tracemalloc < 0) {
         config->tracemalloc = 0;
+    }
+    if (config->perf_profiling < 0) {
+        config->perf_profiling = 0;
     }
     if (config->use_hash_seed < 0) {
         config->use_hash_seed = 0;

@@ -1738,6 +1738,8 @@ _Py_tracemalloc_config
 _PyTraceMalloc_GetTraceback
 PyTraceMalloc_Track
 PyTraceMalloc_Untrack
+_Py_trampoline_func_end
+_Py_trampoline_func_start
 _PyTrash_begin
 _PyTrash_cond
 _PyTrash_deposit_object
