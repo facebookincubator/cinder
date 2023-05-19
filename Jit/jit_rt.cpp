@@ -327,7 +327,8 @@ bool JITRT_PackStaticArgs(
     PyObject** args,
     _PyTypedArgsInfo* arg_info,
     void** arg_space,
-    Py_ssize_t nargs) {
+    Py_ssize_t nargs,
+    bool invoked_statically) {
   Py_ssize_t arg_index = 0;
 
   for (Py_ssize_t i = 0; i < nargs; i++) {
@@ -336,7 +337,8 @@ bool JITRT_PackStaticArgs(
       _PyTypedArgInfo* cur_arg = &arg_info->tai_args[arg_index];
       PyObject* arg = args[i];
       if (cur_arg->tai_primitive_type == -1) {
-        if (!_PyObject_TypeCheckOptional(
+        if (!invoked_statically &&
+            !_PyObject_TypeCheckOptional(
                 arg,
                 cur_arg->tai_type,
                 cur_arg->tai_optional,
@@ -383,7 +385,9 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
     _PyTypedArgsInfo* arg_info) {
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   void* arg_space[nargs];
-  if (JITRT_PackStaticArgs(args, arg_info, arg_space, nargs)) {
+  bool invoked_statically = (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) != 0;
+  if (JITRT_PackStaticArgs(
+          args, arg_info, arg_space, nargs, invoked_statically)) {
     goto fail;
   }
 
@@ -416,7 +420,9 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureTemplate(
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
   PyCodeObject* co = (PyCodeObject*)func->func_code;
 
-  if ((kwnames || nargs != co->co_argcount ||
+  int invoked_statically = (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) != 0;
+  if (!invoked_statically &&
+      (kwnames || nargs != co->co_argcount ||
        co->co_flags & (CO_VARARGS | CO_VARKEYWORDS))) {
     // we need to fixup kwnames, defaults, etc...
     PyCodeObject* co = (PyCodeObject*)func->func_code;
@@ -731,7 +737,8 @@ JITRT_CallFunctionExAwaited(PyObject* func, PyObject* pargs, PyObject* kwargs) {
 template <bool is_awaited>
 static inline PyObject*
 invoke_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {
-  size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
+  size_t flags = Ci_Py_VECTORCALL_INVOKED_STATICALLY |
+      PY_VECTORCALL_ARGUMENTS_OFFSET |
       (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, NULL);
 }
@@ -857,22 +864,26 @@ PyObject* JITRT_InvokeMethod(
     Py_ssize_t slot,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject*) {
+    PyObject* kwnames) {
   PyTypeObject* self_type = Py_TYPE(args[0]);
   _PyType_VTable* vtable = (_PyType_VTable*)self_type->tp_cache;
 
-  return _PyClassLoader_InvokeMethod(vtable, slot, args, nargs);
+  PyObject* func = vtable->vt_entries[slot].vte_state;
+  return vtable->vt_entries[slot].vte_entry(
+      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
 }
 
 PyObject* JITRT_InvokeClassMethod(
     Py_ssize_t slot,
     PyObject** args,
     Py_ssize_t nargs,
-    PyObject*) {
+    PyObject* kwnames) {
   PyTypeObject* self_type = (PyTypeObject*)args[0];
   _PyType_VTable* vtable = (_PyType_VTable*)self_type->tp_cache;
 
-  return _PyClassLoader_InvokeMethod(vtable, slot, args, nargs);
+  PyObject* func = vtable->vt_entries[slot].vte_state;
+  return vtable->vt_entries[slot].vte_entry(
+      func, args, nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY, kwnames);
 }
 
 /* This function is inlined to LIR via kCHelpersManual, so changes here will

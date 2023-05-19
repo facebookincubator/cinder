@@ -1434,16 +1434,6 @@ eval_frame_handle_pending(PyThreadState *tstate)
     return 0;
 }
 
-#ifdef ENABLE_CINDERVM
-static PyObject *
-invoke_static_function(PyObject *func, PyObject **args, Py_ssize_t nargs, int awaited) {
-    return _PyObject_Vectorcall(
-        func,
-        args,
-        (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) | nargs,
-        NULL);
-}
-#endif
 
 /* Computed GOTOs, or
        the-optimization-commonly-but-improperly-known-as-"threaded code"
@@ -5087,7 +5077,13 @@ main_loop:
             assert(!PyErr_Occurred());
 
             int awaited = IS_AWAITED();
-            PyObject *res = _PyClassLoader_InvokeMethod(vtable, slot, stack, nargs | (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0));
+            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+                vtable->vt_entries[slot].vte_state,
+                stack,
+                nargs |
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY,
+                NULL);
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
@@ -5637,7 +5633,12 @@ main_loop:
             }
              int awaited = IS_AWAITED();
             PyObject **sp = stack_pointer - nargs;
-            PyObject *res = invoke_static_function(func, sp, nargs, awaited);
+            PyObject *res = _PyObject_Vectorcall(
+                func,
+                sp,
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY | nargs,
+                NULL);
 
             if (shadow.shadow != NULL && nargs < 0x80) {
                 if (_PyClassLoader_IsImmutable(container)) {
@@ -6272,7 +6273,13 @@ main_loop:
             int awaited = IS_AWAITED();
 
             PyObject **sp = stack_pointer - nargs;
-            PyObject *res = invoke_static_function(func, sp, nargs, awaited);
+            PyObject *res = _PyObject_Vectorcall(
+                func,
+                sp,
+                nargs |
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0) |
+                Ci_Py_VECTORCALL_INVOKED_STATICALLY,
+                NULL);
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
@@ -6491,7 +6498,12 @@ main_loop:
             int awaited = IS_AWAITED();
 
             assert(!PyErr_Occurred());
-            PyObject *res = _PyClassLoader_InvokeMethod(vtable, slot, stack, nargs | (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0));
+            PyObject *res = (*vtable->vt_entries[slot].vte_entry)(
+                vtable->vt_entries[slot].vte_state,
+                stack,
+                nargs | Ci_Py_VECTORCALL_INVOKED_STATICALLY |
+                (awaited ? Ci_Py_AWAITED_CALL_MARKER : 0),
+                NULL);
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
@@ -8129,6 +8141,7 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     assert(co->co_argcount == nargs);
     assert(co->co_flags & CO_STATICALLY_COMPILED);
     assert(co->co_flags & CO_OPTIMIZED);
+    assert(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY);
     assert(kwnames == NULL);
 
     // the rest of this is _PyEval_Vector plus skipping CHECK_ARGS
@@ -8169,12 +8182,33 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     return retval;
 }
 
+PyObject *_Py_HOT_FUNCTION
+_PyEntry_StaticEntry(PyFunctionObject *func,
+                     PyObject **args,
+                     Py_ssize_t nargsf,
+                     PyObject *kwnames)
+{
+
+    if (nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY) {
+        return _PyFunction_CallStatic(func, args, nargsf, kwnames);
+    }
+
+    return _PyFunction_Vectorcall((PyObject *)func, args, nargsf, kwnames);
+}
+
 void
 PyEntry_initnow(PyFunctionObject *func)
 {
     // Check that func hasn't already been initialized.
     assert(func->vectorcall == (vectorcallfunc)PyEntry_LazyInit);
-    func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    PyCodeObject *co = (PyCodeObject *)func->func_code;
+
+    if (co->co_flags & CO_STATICALLY_COMPILED)
+    {
+        func->vectorcall = (vectorcallfunc)_PyEntry_StaticEntry;
+    } else {
+        func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    }
 }
 
 PyObject *

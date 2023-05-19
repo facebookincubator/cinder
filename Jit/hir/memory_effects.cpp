@@ -125,7 +125,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kInPlaceOp:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
-    case Opcode::kInvokeMethodStatic:
     case Opcode::kInvokeStaticFunction:
     case Opcode::kIsInstance:
     case Opcode::kIsTruthy:

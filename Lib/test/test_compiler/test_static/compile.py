@@ -1111,7 +1111,7 @@ class StaticCompilationTests(StaticTestBase):
 
             d = D()
             self.assertEqual(x(d), 84)
-            d.__dict__["f"] = lambda: 100
+            d.__dict__["f"] = lambda x: 100
             self.assertEqual(x(d), 200)
 
     def test_invoke_new_derived_nonfunc_descriptor_modified(self):

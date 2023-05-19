@@ -79,35 +79,6 @@ inline Operand::DataType hirTypeToDataType(hir::Type tp) {
   }
 }
 
-static inline std::pair<std::string, Operand::DataType> GetIdAndType(
-    const std::string& name) {
-  static UnorderedMap<std::string_view, Operand::DataType> typeMap = {
-      {"CInt8", Operand::k8bit},
-      {"CUInt8", Operand::k8bit},
-      {"CBool", Operand::k8bit},
-      {"CInt16", Operand::k16bit},
-      {"CUInt16", Operand::k16bit},
-      {"CInt32", Operand::k32bit},
-      {"CUInt32", Operand::k32bit},
-      {"CInt64", Operand::k64bit},
-      {"CUInt64", Operand::k64bit},
-      {"CDouble", Operand::kDouble},
-  };
-  size_t colon;
-  Operand::DataType data_type = Operand::kObject;
-
-  if ((colon = name.find(':')) != std::string::npos) {
-    auto type = std::string_view(name).substr(colon + 1);
-    auto t = typeMap.find(type);
-    if (t != typeMap.end()) {
-      data_type = t->second;
-    }
-    return {name.substr(0, colon), data_type};
-  } else {
-    return {name, data_type};
-  }
-}
-
 class BasicBlockBuilder {
  public:
   BasicBlockBuilder(jit::codegen::Environ* env, Function* func);
@@ -152,23 +123,6 @@ class BasicBlockBuilder {
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
     JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest->name());
-    return instr;
-  }
-
-  // Allocate and append a new instruction to the instruction stream.
-  //
-  // The instruction is expecting to produce a VReg and match it to an HIR
-  // register.
-  template <class... Args>
-  Instruction*
-  appendInstr(std::string dest, Instruction::Opcode opcode, Args&&... args) {
-    std::string sval;
-    Operand::DataType type;
-    std::tie(sval, type) = GetIdAndType(dest);
-    auto dest_lir = OutVReg{type};
-    auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
-    auto [it, inserted] = env_->output_map.emplace(sval, instr);
-    JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest);
     return instr;
   }
 

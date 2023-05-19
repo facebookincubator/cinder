@@ -573,18 +573,20 @@ Ci_method_vectorcall_typed_1(PyObject *func,
                           PyObject *kwnames)
 {
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-    if (Ci_method_check_args(func, args, nargs, nargsf, kwnames)) {
-        return NULL;
-    } else if (nargs > 2) {
+    if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
+        if (Ci_method_check_args(func, args, nargs, nargsf, kwnames)) {
+            return NULL;
+        } else if (nargs > 2) {
 
-        PyObject *funcstr = _PyObject_FunctionStr(func);
-        if (funcstr != NULL) {
-            PyErr_Format(PyExc_TypeError,
-                            "%.200s() takes at most 1 argument, got %zd",
-                            funcstr,
-                            nargs - 1);
+            PyObject *funcstr = _PyObject_FunctionStr(func);
+            if (funcstr != NULL) {
+                PyErr_Format(PyExc_TypeError,
+                             "%.200s() takes at most 1 argument, got %zd",
+                             funcstr,
+                             nargs - 1);
+            }
+            return NULL;
         }
-        return NULL;
     }
 
     PyThreadState *tstate = _PyThreadState_GET();
@@ -614,17 +616,19 @@ Ci_method_vectorcall_typed_2(PyObject *func,
 {
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
 
-    if (Ci_method_check_args(func, args, nargs, nargsf, kwnames)) {
-        return NULL;
-    } else if (nargs > 3) {
-        PyObject *funcstr = _PyObject_FunctionStr(func);
-        if (funcstr != NULL) {
-            PyErr_Format(PyExc_TypeError,
-                            "%.200s() expected at most 2 arguments, got %zd",
-                            funcstr,
-                            nargs - 1);
+    if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
+        if (Ci_method_check_args(func, args, nargs, nargsf, kwnames)) {
+            return NULL;
+        } else if (nargs > 3) {
+            PyObject *funcstr = _PyObject_FunctionStr(func);
+            if (funcstr != NULL) {
+                PyErr_Format(PyExc_TypeError,
+                             "%.200s() expected at most 2 arguments, got %zd",
+                             funcstr,
+                             nargs - 1);
+            }
+            return NULL;
         }
-        return NULL;
     }
 
     PyThreadState *tstate = _PyThreadState_GET();

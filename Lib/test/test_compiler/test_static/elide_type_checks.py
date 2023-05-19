@@ -1,10 +1,5 @@
-import unittest
-
 from .common import StaticTestBase
-try:
-    import cinderjit
-except ImportError:
-    cinderjit = None
+
 
 class ElideTypeChecksTests(StaticTestBase):
     def test_check_args_precedes_gen_start(self) -> None:
@@ -16,7 +11,6 @@ class ElideTypeChecksTests(StaticTestBase):
             self.assertInBytecode(mod.f, "CHECK_ARGS", (), index=0)
             self.assertInBytecode(mod.f, "GEN_START", 1, index=1)
 
-    @unittest.skipIf(cinderjit is None, "JIT disabled")
     def test_invoke_function_skips_arg_type_checks(self) -> None:
         codestr = """
             from xxclassloader import unsafe_change_type
@@ -44,15 +38,11 @@ class ElideTypeChecksTests(StaticTestBase):
                 TypeError, "g expected 'A' for argument a, got 'B'"
             ):
                 mod.g(mod.B())
-
-            cinderjit.force_compile(mod.f)
-
             # Should not raise a TypeError because static invokes skip arg
-            # checks in JITed code.  This results in an unsound call in this case,
-            # but only because we are using an unsound C extension method.
+            # checks.  This results in an unsound call in this case, but only
+            # because we are using an unsound C extension method.
             self.assertEqual(mod.f(), "B")
 
-    @unittest.skipIf(cinderjit is None, "JIT disabled")
     def test_invoke_method_skips_arg_type_checks(self) -> None:
         codestr = """
             from xxclassloader import unsafe_change_type
@@ -81,17 +71,9 @@ class ElideTypeChecksTests(StaticTestBase):
                 TypeError, "g expected 'A' for argument a, got 'B'"
             ):
                 mod.C().g(mod.B())
-
-            # force compilation on first call and populate the v-table
-            # with the JITed entrypoint
-            try:
-                mod.f(mod.C())
-            except TypeError:
-                pass
-
             # Should not raise a TypeError because static invokes skip arg
-            # checks in JITed code.  This results in an unsound call in this case,
-            # but only because we are using an unsound C extension method.
+            # checks.  This results in an unsound call in this case, but only
+            # because we are using an unsound C extension method.
             self.assertEqual(mod.f(mod.C()), "B")
 
     def test_elide_check_with_one_optional(self) -> None:

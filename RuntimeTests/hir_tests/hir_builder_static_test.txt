@@ -19,12 +19,13 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = InvokeMethodStatic<1> v0 {
+    v1 = InvokeMethod<1> v0 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v0
       }
     }
+    v1 = RefineType<Long> v1
     Return v1
   }
 }
@@ -53,7 +54,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v2 = InvokeMethodStatic<1, awaited> v0 {
+    v2 = InvokeMethod<1, awaited> v0 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v0
@@ -153,12 +154,13 @@ fun jittestmodule:test {
       }
     }
     v1 = LoadConst<ImmortalLongExact[1]>
-    v2 = InvokeMethodStatic<2> v0 v1 {
+    v2 = InvokeMethod<2> v0 v1 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v0
       }
     }
+    v2 = RefineType<Long> v2
     Return v2
   }
 }
