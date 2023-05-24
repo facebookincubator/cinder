@@ -203,7 +203,7 @@ PhyLocation get_arg_location_phy_location(int arg) {
     return ARGUMENT_REGS[arg];
   }
 
-  JIT_CHECK(false, "only six first registers should be used");
+  JIT_ABORT("only six first registers should be used");
   return 0;
 }
 
@@ -556,7 +556,7 @@ x86::Gp get_arg_location(int arg) {
     return x86::gpq(phyloc);
   }
 
-  JIT_CHECK(false, "should only be used with first six args");
+  JIT_ABORT("should only be used with first six args");
 }
 
 constexpr size_t kConstStackAlignmentRequirement = 16;
@@ -603,7 +603,7 @@ void NativeGenerator::loadOrGenerateLinkFrame(
           as_->sub(x86::rsp, pair.first.size());
           as_->movdqu(x86::dqword_ptr(x86::rsp), (asmjit::x86::Xmm&)pair.first);
         } else {
-          JIT_CHECK(false, "unsupported saved register type");
+          JIT_ABORT("unsupported saved register type");
         }
         rsp_offset += pair.first.size();
       }
@@ -639,7 +639,7 @@ void NativeGenerator::loadOrGenerateLinkFrame(
               (asmjit::x86::Xmm&)iter->second, x86::dqword_ptr(x86::rsp));
           as_->add(x86::rsp, 16);
         } else {
-          JIT_CHECK(false, "unsupported saved register type");
+          JIT_ABORT("unsupported saved register type");
         }
       }
       break;
@@ -1466,7 +1466,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       case FrameMode::kShadow:
         return perf::kShadowFrameSymbolPrefix;
     }
-    JIT_CHECK(false, "Invalid frame mode");
+    JIT_ABORT("Invalid frame mode");
   }();
   // For perf, we want only the size of the code, so we get that directly from
   // the text sections.
@@ -1555,7 +1555,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
         raiseUnboundFreevarError(deopt_meta.eh_name);
         break;
       case DeoptReason::kUnhandledException:
-        JIT_CHECK(false, "unhandled exception without error set");
+        JIT_ABORT("unhandled exception without error set");
         break;
       case DeoptReason::kRaise:
         // This code mirrors what happens in _PyEval_EvalFrameDefault although
@@ -1570,7 +1570,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
 #endif
         break;
       case jit::DeoptReason::kRaiseStatic:
-        JIT_CHECK(false, "Lost exception when raising static exception");
+        JIT_ABORT("Lost exception when raising static exception");
         break;
       case DeoptReason::kReraise:
         PyErr_SetString(PyExc_RuntimeError, "No active exception to reraise");

@@ -245,7 +245,7 @@ void setASMSyntax(std::string asm_syntax) {
   } else if (asm_syntax.compare("att") == 0) {
     set_att_syntax();
   } else {
-    JIT_CHECK(false, "unknown asm syntax '%s'", asm_syntax);
+    JIT_ABORT("unknown asm syntax '%s'", asm_syntax);
   }
 }
 

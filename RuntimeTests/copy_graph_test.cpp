@@ -17,7 +17,7 @@ std::ostream& operator<<(std::ostream& os, const Op& op) {
     case Op::Kind::kExchange:
       return os << fmt::format("Exchange({} <-> {})", op.from, op.to);
   }
-  JIT_CHECK(false, "Bad Op::Kind");
+  JIT_ABORT("Bad Op::Kind");
 }
 
 TEST(CopyGraphTest, SimpleChain) {

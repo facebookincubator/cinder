@@ -47,7 +47,7 @@ class AutoTranslator {
       case jit::lir::OperandBase::k64bit:
         return asmjit::x86::gpq(reg);
       case jit::lir::OperandBase::kDouble:
-        JIT_CHECK(false, "incorrect register type.");
+        JIT_ABORT("incorrect register type.");
     }
     Py_UNREACHABLE();
   }
@@ -59,7 +59,7 @@ class AutoTranslator {
         return asmjit::x86::xmm(
             op->getPhyRegister() - PhyLocation::XMM_REG_BASE);
       default:
-        JIT_CHECK(false, "incorrect register type.");
+        JIT_ABORT("incorrect register type.");
     }
   }
 

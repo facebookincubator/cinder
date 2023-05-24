@@ -24,11 +24,11 @@ namespace jit {
 ThreadedCompileContext g_threaded_compile_context;
 
 void CompiledFunction::disassemble() const {
-  JIT_CHECK(false, "disassemble() cannot be called in a release build.");
+  JIT_ABORT("disassemble() cannot be called in a release build.");
 }
 
 void CompiledFunction::printHIR() const {
-  JIT_CHECK(false, "printHIR() cannot be called in a release build.");
+  JIT_ABORT("printHIR() cannot be called in a release build.");
 }
 
 void CompiledFunctionDebug::disassemble() const {

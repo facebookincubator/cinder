@@ -1356,7 +1356,7 @@ class INSTR_CLASS(SetFunctionAttr, (TObject, TFunc), Operands<2>) {
       case FunctionAttr::kDefaults:
         return offsetof(PyFunctionObject, func_defaults);
     }
-    JIT_CHECK(false, "invalid field %d", static_cast<int>(field_));
+    JIT_ABORT("invalid field %d", static_cast<int>(field_));
   }
 
  private:

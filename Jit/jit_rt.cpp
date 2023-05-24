@@ -1795,7 +1795,7 @@ PyObject* JITRT_CompareIs(PyObject* left, PyObject* right, int op) {
     }
     Py_RETURN_FALSE;
   }
-  JIT_CHECK(false, "bad comparison op %d", op);
+  JIT_ABORT("bad comparison op %d", op);
 }
 
 /* perform a batch decref to the objects in args */

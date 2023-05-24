@@ -114,7 +114,7 @@ BasicBlock::InstrList::iterator BasicBlock::iterator_to(Instruction* instr) {
       return it;
     }
   }
-  JIT_CHECK(false, "Instruction not found in list");
+  JIT_ABORT("Instruction not found in list");
 }
 
 } // namespace jit::lir

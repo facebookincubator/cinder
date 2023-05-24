@@ -189,9 +189,9 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kRaise:
     case Opcode::kRaiseStatic:
     case Opcode::kWaitHandleRelease:
-      JIT_CHECK(false, "Opcode %s has no output", instr.opname());
+      JIT_ABORT("Opcode %s has no output", instr.opname());
   }
-  JIT_CHECK(false, "Bad opcode %d", static_cast<int>(instr.opcode()));
+  JIT_ABORT("Bad opcode %d", static_cast<int>(instr.opcode()));
 }
 
 Register* modelReg(Register* reg) {
@@ -250,7 +250,7 @@ bool registerTypeMatches(Type op_type, OperandType expected_type) {
       return isSingleCInt(op_type) || op_type <= TCBool ||
           op_type <= TCDouble || op_type <= TCPtr;
   }
-  JIT_CHECK(false, "unknown constraint");
+  JIT_ABORT("unknown constraint");
   return false;
 }
 
@@ -268,7 +268,7 @@ bool operandsMustMatch(OperandType op_type) {
     case Constraint::kOptObjectOrCIntOrCBool:
       return false;
   }
-  JIT_CHECK(false, "unknown constraint");
+  JIT_ABORT("unknown constraint");
   return false;
 }
 

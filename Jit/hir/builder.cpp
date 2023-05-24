@@ -1355,7 +1355,7 @@ void HIRBuilder::translate(
         }
         default: {
           // NOTREACHED
-          JIT_CHECK(false, "unhandled opcode: %d", bc_instr.opcode());
+          JIT_ABORT("unhandled opcode: %d", bc_instr.opcode());
           break;
         }
       }
@@ -1582,7 +1582,7 @@ static inline BinaryOpKind get_bin_op_kind(
       return BinaryOpKind::kXor;
     }
     default: {
-      JIT_CHECK(false, "unhandled binary op %d", bc_instr.opcode());
+      JIT_ABORT("unhandled binary op %d", bc_instr.opcode());
       // NOTREACHED
       break;
     }
@@ -1640,7 +1640,7 @@ void HIRBuilder::emitAnyCall(
       break;
     }
     default: {
-      JIT_CHECK(false, "Unhandled call opcode");
+      JIT_ABORT("Unhandled call opcode");
     }
   }
   if (is_awaited && call_used_is_awaited) {
@@ -1723,7 +1723,7 @@ static inline InPlaceOpKind get_inplace_op_kind(
       return InPlaceOpKind::kXor;
     }
     default: {
-      JIT_CHECK(false, "unhandled inplace op %d", bc_instr.opcode());
+      JIT_ABORT("unhandled inplace op %d", bc_instr.opcode());
       // NOTREACHED
       break;
     }
@@ -1758,7 +1758,7 @@ static inline UnaryOpKind get_unary_op_kind(
       return UnaryOpKind::kInvert;
 
     default:
-      JIT_CHECK(false, "unhandled unary op %d", bc_instr.opcode());
+      JIT_ABORT("unhandled unary op %d", bc_instr.opcode());
       // NOTREACHED
       break;
   }
@@ -2495,7 +2495,7 @@ static inline BinaryOpKind get_primitive_bin_op_kind(
       return BinaryOpKind::kPower;
     }
     default: {
-      JIT_CHECK(false, "unhandled binary op %d", bc_instr.oparg());
+      JIT_ABORT("unhandled binary op %d", bc_instr.oparg());
       // NOTREACHED
       break;
     }
@@ -2529,7 +2529,7 @@ static inline bool is_double_binop(int oparg) {
       return true;
     }
     default: {
-      JIT_CHECK(false, "Invalid binary op %d", oparg);
+      JIT_ABORT("Invalid binary op %d", oparg);
       // NOTREACHED
       break;
     }
@@ -2546,7 +2546,7 @@ static inline Type element_type_from_seq_type(int seq_type) {
     case SEQ_ARRAY_INT64:
       return TCInt64;
     default:
-      JIT_CHECK(false, "invalid sequence type: (%d)", seq_type);
+      JIT_ABORT("invalid sequence type: (%d)", seq_type);
       // NOTREACHED
       break;
   }
@@ -2617,7 +2617,7 @@ void HIRBuilder::emitPrimitiveCompare(
       op = PrimitiveCompareOp::kGreaterThanEqualUnsigned;
       break;
     default:
-      JIT_CHECK(false, "unsupported comparison");
+      JIT_ABORT("unsupported comparison");
       break;
   }
   tc.emit<PrimitiveCompare>(result, op, left, right);
@@ -2655,7 +2655,7 @@ void HIRBuilder::emitPrimitiveUnaryOp(
       break;
     }
     default: {
-      JIT_CHECK(false, "unsupported unary op");
+      JIT_ABORT("unsupported unary op");
       break;
     }
   }
@@ -2768,7 +2768,7 @@ void HIRBuilder::emitSequenceGet(
         Type::fromCInt(offsetof(PyStaticArrayObject, ob_item), TCInt64));
     tc.emit<LoadFieldAddress>(ob_item, sequence, offset_reg);
   } else {
-    JIT_CHECK(false, "Unsupported oparg for SEQUENCE_GET: %d", oparg);
+    JIT_ABORT("Unsupported oparg for SEQUENCE_GET: %d", oparg);
   }
 
   auto type = element_type_from_seq_type(oparg);
@@ -2873,7 +2873,7 @@ void HIRBuilder::emitSequenceSet(
     int offset = offsetof(PyListObject, ob_item);
     tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
   } else {
-    JIT_CHECK(false, "Unsupported oparg for SEQUENCE_SET: %d", oparg);
+    JIT_ABORT("Unsupported oparg for SEQUENCE_SET: %d", oparg);
   }
   tc.emit<StoreArrayItem>(
       ob_item,
@@ -3520,7 +3520,7 @@ void HIRBuilder::emitRaiseVarargs(
       tc.emit<Raise>(0, tc.frame);
       break;
     default:
-      JIT_CHECK(false, "unsupported RAISE_VARARGS op: %d", bc_instr.oparg());
+      JIT_ABORT("unsupported RAISE_VARARGS op: %d", bc_instr.oparg());
       break;
   }
 }

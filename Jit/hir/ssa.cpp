@@ -704,9 +704,9 @@ Type outputType(
     case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
-      JIT_CHECK(false, "Opcode %s has no output", instr.opname());
+      JIT_ABORT("Opcode %s has no output", instr.opname());
   }
-  JIT_CHECK(false, "Bad opcode %d", static_cast<int>(instr.opcode()));
+  JIT_ABORT("Bad opcode %d", static_cast<int>(instr.opcode()));
 }
 
 Type outputType(const Instr& instr) {

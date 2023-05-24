@@ -82,27 +82,38 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
     }                             \
   }
 
-#define JIT_CHECK(__cond, ...)                             \
-  {                                                        \
-    if (!(__cond)) {                                       \
-      fmt::fprintf(                                        \
-          stderr,                                          \
-          "JIT: %s:%d -- assertion failed: %s\n",          \
-          __FILE__,                                        \
-          __LINE__,                                        \
-          #__cond);                                        \
-      ::jit::protected_fprintf(stderr, __VA_ARGS__);       \
-      fmt::fprintf(stderr, "\n");                          \
-      std::fflush(stderr);                                 \
-      PyThreadState* tstate = _PyThreadState_GET();        \
-      if (tstate != NULL && tstate->curexc_type != NULL) { \
-        PyErr_Display(                                     \
-            tstate->curexc_type,                           \
-            tstate->curexc_value,                          \
-            tstate->curexc_traceback);                     \
-      }                                                    \
-      abort();                                             \
-    }                                                      \
+#define JIT_CHECK(__cond, ...)                    \
+  {                                               \
+    if (!(__cond)) {                              \
+      fmt::fprintf(                               \
+          stderr,                                 \
+          "JIT: %s:%d -- Assertion failed: %s\n", \
+          __FILE__,                               \
+          __LINE__,                               \
+          #__cond);                               \
+      JIT_ABORT_IMPL(__VA_ARGS__);                \
+    }                                             \
+  }
+
+#define JIT_ABORT(...)                                                 \
+  {                                                                    \
+    fmt::fprintf(stderr, "JIT: %s:%d -- Abort\n", __FILE__, __LINE__); \
+    JIT_ABORT_IMPL(__VA_ARGS__);                                       \
+  }
+
+#define JIT_ABORT_IMPL(...)                              \
+  {                                                      \
+    ::jit::protected_fprintf(stderr, __VA_ARGS__);       \
+    fmt::fprintf(stderr, "\n");                          \
+    std::fflush(stderr);                                 \
+    PyThreadState* tstate = _PyThreadState_GET();        \
+    if (tstate != NULL && tstate->curexc_type != NULL) { \
+      PyErr_Display(                                     \
+          tstate->curexc_type,                           \
+          tstate->curexc_value,                          \
+          tstate->curexc_traceback);                     \
+    }                                                    \
+    std::abort();                                        \
   }
 
 #ifdef Py_DEBUG

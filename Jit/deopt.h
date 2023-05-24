@@ -56,7 +56,7 @@ struct LiveValue {
       case Source::kUnknown:
         return "Unknown";
     }
-    JIT_CHECK(false, "Unknown source");
+    JIT_ABORT("Unknown source");
   }
   Source source;
 

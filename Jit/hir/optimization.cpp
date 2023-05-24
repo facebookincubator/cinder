@@ -635,7 +635,7 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           }
           cond_branch->ReplaceWith(*Branch::create(target));
         } else {
-          JIT_CHECK(false, "Unexpected branch instruction %s", *branch);
+          JIT_ABORT("Unexpected branch instruction %s", *branch);
         }
         delete branch;
       }
@@ -811,7 +811,7 @@ struct AbstractCall {
     if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
       return f->arg(i);
     }
-    JIT_CHECK(false, "unsupported call type %s", instr->opname());
+    JIT_ABORT("unsupported call type %s", instr->opname());
   }
 
   Register* target{nullptr};

@@ -689,7 +689,7 @@ Type Type::asBoxed() const {
   if (*this <= TCDouble) {
     return TFloat;
   }
-  JIT_CHECK(false, "%s does not have a boxed equivalent", *this);
+  JIT_ABORT("%s does not have a boxed equivalent", *this);
 }
 
 unsigned int Type::sizeInBytes() const {
@@ -705,7 +705,7 @@ unsigned int Type::sizeInBytes() const {
   if (*this <= (TCInt64 | TCUInt64 | TCPtr | TCDouble | TObject | TNullptr)) {
     return 8;
   }
-  JIT_CHECK(false, "unexpected type %s", *this);
+  JIT_ABORT("unexpected type %s", *this);
 }
 
 } // namespace jit::hir

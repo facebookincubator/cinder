@@ -12,7 +12,7 @@ const char* codeSectionName(CodeSection section) {
     case CodeSection::kCold:
       return ".coldtext";
   }
-  JIT_CHECK(false, "Bad code section %d", static_cast<int>(section));
+  JIT_ABORT("Bad code section %d", static_cast<int>(section));
 }
 
 CodeSection codeSectionFromName(const char* name) {
@@ -22,7 +22,7 @@ CodeSection codeSectionFromName(const char* name) {
   if (strcmp(name, ".coldtext") == 0) {
     return CodeSection::kCold;
   }
-  JIT_CHECK(false, "Bad code section name %s", name);
+  JIT_ABORT("Bad code section name %s", name);
 }
 
 void populateCodeSections(

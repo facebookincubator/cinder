@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os, RefKind kind) {
     case RefKind::kOwned:
       return os << "Owned";
   }
-  JIT_CHECK(false, "Bad RefKind %d", static_cast<int>(kind));
+  JIT_ABORT("Bad RefKind %d", static_cast<int>(kind));
 }
 
 std::ostream& operator<<(std::ostream& os, ValueKind kind) {
@@ -46,7 +46,7 @@ std::ostream& operator<<(std::ostream& os, ValueKind kind) {
     case ValueKind::kDouble:
       return os << "Double";
   }
-  JIT_CHECK(false, "Bad ValueKind %d", static_cast<int>(kind));
+  JIT_ABORT("Bad ValueKind %d", static_cast<int>(kind));
 }
 
 } // namespace jit::hir

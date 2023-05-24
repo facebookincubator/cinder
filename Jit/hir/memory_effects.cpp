@@ -300,7 +300,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return commonEffects(inst, AAny);
   }
 
-  JIT_CHECK(false, "Bad opcode %d", static_cast<int>(inst.opcode()));
+  JIT_ABORT("Bad opcode %d", static_cast<int>(inst.opcode()));
 }
 
 } // namespace jit::hir

@@ -548,7 +548,7 @@ class Instruction {
       CASE_FLIP(kBranchL, kBranchGE)
       CASE_FLIP(kBranchG, kBranchLE)
       default:
-        JIT_CHECK(false, "Not a conditional branch opcode.");
+        JIT_ABORT("Not a conditional branch opcode.");
     }
   }
 
@@ -561,7 +561,7 @@ class Instruction {
       CASE_FLIP(kBranchL, kBranchG)
       CASE_FLIP(kBranchLE, kBranchGE)
       default:
-        JIT_CHECK(false, "Unable to flip direction for opcode.");
+        JIT_ABORT("Unable to flip direction for opcode.");
     }
   }
 
@@ -576,7 +576,7 @@ class Instruction {
       case kNotEqual:
         return kNotEqual;
       default:
-        JIT_CHECK(false, "Unable to flip direction for comparison opcode.");
+        JIT_ABORT("Unable to flip direction for comparison opcode.");
     }
   }
 
@@ -605,7 +605,7 @@ class Instruction {
       case kLessThanEqualSigned:
         return kBranchLE;
       default:
-        JIT_CHECK(false, "Not a compare opcode.");
+        JIT_ABORT("Not a compare opcode.");
     }
   }
 

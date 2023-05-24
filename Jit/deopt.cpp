@@ -55,7 +55,7 @@ const char* deoptReasonName(DeoptReason reason) {
     DEOPT_REASONS(REASON)
 #undef REASON
   }
-  JIT_CHECK(false, "Invalid DeoptReason %d", static_cast<int>(reason));
+  JIT_ABORT("Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
 BorrowedRef<> MemoryView::readBorrowed(const LiveValue& value) const {
@@ -82,7 +82,7 @@ Ref<> MemoryView::readOwned(const LiveValue& value) const {
     case jit::hir::ValueKind::kObject:
       return Ref<>::create(reinterpret_cast<PyObject*>(raw));
   }
-  JIT_CHECK(false, "Unhandled ValueKind");
+  JIT_ABORT("Unhandled ValueKind");
 }
 
 static void reifyLocalsplus(
@@ -261,7 +261,7 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
         case hir::Raise::Kind::kRaiseWithExcAndCause:
           return DeoptReason::kRaise;
       }
-      JIT_CHECK(false, "invalid raise kind");
+      JIT_ABORT("invalid raise kind");
     }
     case jit::hir::Opcode::kRaiseStatic: {
       return DeoptReason::kRaiseStatic;

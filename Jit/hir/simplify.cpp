@@ -281,7 +281,7 @@ Register* emitGetLengthInt64(Env& env, Register* obj) {
       offset = offsetof(PyASCIIObject, length);
       name = "length";
     } else {
-      JIT_CHECK(false, "unexpected type");
+      JIT_ABORT("unexpected type");
     }
     env.emit<UseType>(obj, ty.unspecialized());
     return env.emit<LoadField>(obj, name, offset, TCInt64);

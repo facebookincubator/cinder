@@ -336,7 +336,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBitExtensionInstrs(
       break;
     case OperandBase::k64bit:
     case OperandBase::kObject:
-      JIT_CHECK(false, "can't be smaller than the maximum size");
+      JIT_ABORT("can't be smaller than the maximum size");
       break;
     case OperandBase::kDouble:
       JIT_CHECK(
@@ -800,7 +800,7 @@ bool PostRegAllocRewrite::insertMoveToRegister(
     } else if (op->isStack()) {
       move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
     } else if (op->isMem()) {
-      JIT_CHECK(false, "unsupported: div from mem");
+      JIT_ABORT("unsupported: div from mem");
     } else {
       JIT_CHECK(
           false, "unexpected operand base: %d", static_cast<int>(op->type()));

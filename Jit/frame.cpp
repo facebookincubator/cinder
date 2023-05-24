@@ -86,7 +86,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       break;
     }
     default: {
-      JIT_CHECK(false, "unknown ptr kind");
+      JIT_ABORT("unknown ptr kind");
     }
   }
   Py_XINCREF(result);
@@ -256,10 +256,10 @@ PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
       return Ci_JITGenIsExecuting(gen) ? FRAME_EXECUTING : FRAME_SUSPENDED;
     }
     case Ci_JITGenState_Completed: {
-      JIT_CHECK(false, "completed generators don't have frames");
+      JIT_ABORT("completed generators don't have frames");
     }
   }
-  JIT_CHECK(false, "Invalid generator state");
+  JIT_ABORT("Invalid generator state");
 }
 
 // Ensure that a PyFrameObject with f_lasti equal to last_instr_offset exists
@@ -329,7 +329,7 @@ bool isInlined(_PyShadowFrame* shadow_frame) {
       return false;
     }
     default: {
-      JIT_CHECK(false, "invalid ptr kind %d for rt", rt_kind);
+      JIT_ABORT("invalid ptr kind %d for rt", rt_kind);
     }
   }
 }
@@ -354,7 +354,7 @@ std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
       case PYSF_INTERP: {
         // We've reached an interpreter frame before finding the non-inlined
         // frame.
-        JIT_CHECK(false, "couldn't find non-inlined frame");
+        JIT_ABORT("couldn't find non-inlined frame");
       }
       case PYSF_JIT: {
         frames.emplace_back(shadow_frame);
@@ -368,7 +368,7 @@ std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
     shadow_frame = shadow_frame->prev;
   }
   // We've walked entire stack without finding the non-inlined frame.
-  JIT_CHECK(false, "couldn't find non-inlined frame");
+  JIT_ABORT("couldn't find non-inlined frame");
 }
 
 // The shadow frames (non-inlined + inlined) and their respective code
@@ -652,7 +652,7 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
       seen.insert(left);
       left = left->f_back;
     }
-    JIT_CHECK(false, "stack walk didn't consume entire python stack");
+    JIT_ABORT("stack walk didn't consume entire python stack");
   }
 }
 
@@ -727,7 +727,7 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
     case PYSF_RTFS:
       return static_cast<jit::RuntimeFrameState*>(ptr)->code();
     default:
-      JIT_CHECK(false, "Unsupported ptr kind %d:", ptr_kind);
+      JIT_ABORT("Unsupported ptr kind %d:", ptr_kind);
   }
 }
 
