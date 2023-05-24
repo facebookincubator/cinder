@@ -194,13 +194,13 @@ perf_map_write_entry(void *state, const void *code_addr,
         filename = PyUnicode_AsUTF8(co->co_filename);
     }
     size_t perf_map_entry_size = snprintf(NULL, 0, "py::%s:%s", entry, filename) + 1;
-    char* perf_map_entry = (char*) malloc(perf_map_entry_size);
+    char* perf_map_entry = (char*) PyMem_RawMalloc(perf_map_entry_size);
     if (perf_map_entry == NULL) {
         return;
     }
     snprintf(perf_map_entry, perf_map_entry_size, "py::%s:%s", entry, filename);
     PyUnstable_WritePerfMapEntry(code_addr, code_size, perf_map_entry);
-    free(perf_map_entry);
+    PyMem_RawFree(perf_map_entry);
 }
 
 _PyPerf_Callbacks _Py_perfmap_callbacks = {
@@ -397,13 +397,6 @@ _PyPerfTrampoline_Init(int activate)
         tstate->interp->eval_frame = py_trampoline_evaluator;
         if (new_code_arena() < 0) {
             return -1;
-        }
-        if (trampoline_api.state == NULL && trampoline_api.init_state != NULL) {
-            void *state = trampoline_api.init_state();
-            if (state == NULL) {
-                return -1;
-            }
-            trampoline_api.state = state;
         }
         extra_code_index = _PyEval_RequestCodeExtraIndex(NULL);
         if (extra_code_index == -1) {
