@@ -66,6 +66,10 @@ static PyObject *asyncio_InvalidStateError;
 static PyObject *asyncio_CancelledError;
 static PyObject *context_kwname;
 static PyObject *collections_abc_Awaitable;
+static PyObject *asyncio_alv_metadata_entrypoint_name;
+static PyObject *asyncio_CycleDetected;
+static PyObject *cinder_get_arg0_from_pyframe;
+
 static int module_initialized;
 
 static PyObject *cached_running_holder;
@@ -104,6 +108,8 @@ static PyObject *done_name;
 static PyObject *create_task_name;
 static PyObject *minus_one;
 static PyObject *throw_name;
+static PyObject *zero;
+static PyObject *one;
 
 static PyObject *create_future_name;
 /**********************Context aware helpers ******************************/
@@ -239,7 +245,11 @@ typedef struct {
 // that is blocked on this future
 typedef struct {
     FutureObj_HEAD(alvrf);
+    // reference to AsyncLazyValue blocked on this future
     PyObject *alvrf_blocked_by_this;
+    // used during cycle detection to mark futures
+    // that code was blocking on.
+    int alvrf_cycle_boundary;
 } _ALVResultFutureObj;
 
 static inline uintptr_t
@@ -400,6 +410,8 @@ typedef struct {
     PyObject *alv_result;
     PyObject *alv_futures;
     ASYNC_LAZY_VALUE_STATE alv_state;
+    // parent AsyncLazyValue that triggered the execution of current AsyncLazyValue
+    PyObject *alv_parent;
 } AsyncLazyValueObj;
 
 typedef struct {
@@ -3078,6 +3090,7 @@ _asyncio__ALVResultFuture___init___impl(_ALVResultFutureObj *self,
         return -1;
     }
     self->alvrf_blocked_by_this = NULL;
+    self->alvrf_cycle_boundary = 0;
     return 0;
 }
 static int
@@ -3161,6 +3174,109 @@ FutureObj_dealloc(PyObject *self)
     Py_TYPE(fut)->tp_free(fut);
 }
 
+typedef enum {
+    FCR_CYCLE_FOUND,
+    FCR_CYCLE_NOT_FOUND,
+    FCR_ERROR
+} FIND_CYCLE_RESULT;
+
+static FIND_CYCLE_RESULT find_cycle(PyObject *alvObj, PyObject **cycle) {
+    if (alvObj == NULL) {
+        return FCR_CYCLE_NOT_FOUND;
+    }
+    AsyncLazyValueObj *alv = (AsyncLazyValueObj *)alvObj;
+    if (alv->alv_futures != NULL) {
+        for (Py_ssize_t i = 0; i < PyList_GET_SIZE(alv->alv_futures); ++i) {
+            PyObject *f = PyList_GET_ITEM(alv->alv_futures, i);
+            assert(_ALVResultFuture_Type_CheckExact(f));
+
+            if (((_ALVResultFutureObj*)f)->alvrf_cycle_boundary) {
+                PyObject *c = PyList_New(0);
+                if (c == NULL) {
+                    return FCR_ERROR;
+                }
+                if (PyList_Append(c, (PyObject*)alv) < 0) {
+                    Py_DECREF(c);
+                    return FCR_ERROR;
+                }
+                *cycle = c;
+                return FCR_CYCLE_FOUND;
+            }
+            PyObject *blocked_by_this_future = ((_ALVResultFutureObj*)f)->alvrf_blocked_by_this;
+            if (blocked_by_this_future == NULL) {
+                continue;
+            }
+            FIND_CYCLE_RESULT result = find_cycle(blocked_by_this_future, cycle);
+            if (result == FCR_ERROR) {
+                return FCR_ERROR;
+            }
+            else if (result == FCR_CYCLE_FOUND) {
+                // cycle found - add current ALV into the cycle and return
+                if (PyList_Append(*cycle, (PyObject *)alv) < 0) {
+                    Py_DECREF(*cycle);
+                    return FCR_ERROR;
+                }
+                return FCR_CYCLE_FOUND;
+            }
+        }
+    }
+    FIND_CYCLE_RESULT result = find_cycle(alv->alv_parent, cycle);
+    if (result == FCR_CYCLE_FOUND) {
+        if (PyList_Append(*cycle, (PyObject *)alv) < 0) {
+            Py_DECREF(*cycle);
+            return FCR_ERROR;
+        }
+    }
+    return result;
+}
+
+PyObject *call_get_arg0_from_pyframe(PyObject *entrypoint_name, PyObject *to_skip) {
+    assert(cinder_get_arg0_from_pyframe != NULL);
+    PyObject *stack[] = {entrypoint_name, to_skip};
+    return _PyObject_Vectorcall(cinder_get_arg0_from_pyframe, stack, 2, NULL);
+}
+
+static int
+check_cycles(_ALVResultFutureObj* fut)
+{
+    // find ALV that would be blocked by this future
+    PyObject *alv = call_get_arg0_from_pyframe(asyncio_alv_metadata_entrypoint_name, /*to_skip*/ zero);
+    if (alv == NULL) {
+        return -1;
+    }
+
+    if (alv == Py_None) {
+        // code is running outside of async lazy value
+        Py_DECREF(alv);
+        return 0;
+    }
+    fut->alvrf_cycle_boundary = 1;
+    PyObject *cycle = NULL;
+    FIND_CYCLE_RESULT result = find_cycle(alv, &cycle);
+    fut->alvrf_cycle_boundary = 0;
+
+    if (result == FCR_ERROR) {
+        assert(PyErr_Occurred());
+        Py_DECREF(alv);
+        return -1;
+    }
+    else if (result == FCR_CYCLE_FOUND) {
+        assert(!PyErr_Occurred());
+        Py_DECREF(alv);
+
+        PyObject *err = PyObject_CallOneArg(asyncio_CycleDetected, cycle);
+        Py_DECREF(cycle);
+        if (err == NULL) {
+            return -1;
+        }
+        PyErr_SetObject(asyncio_CycleDetected, err);
+        Py_DECREF(err);
+        return -1;
+    }
+    // steals reference
+    fut->alvrf_blocked_by_this = alv;
+    return 0;
+}
 
 /*********************** Future Iterator **************************/
 
@@ -3208,6 +3324,11 @@ FutureIter_am_send(futureiterobject *it,
 
     if (fut->fut_state == STATE_PENDING) {
         if (!fut->fut_blocking) {
+            if (_ALVResultFuture_Type_CheckExact(fut)) {
+                if (check_cycles((_ALVResultFutureObj *)fut) == -1) {
+                    return PYGEN_ERROR;
+                }
+            }
             fut->fut_blocking = 1;
             Py_INCREF(fut);
             *result = (PyObject *)fut;
@@ -5549,9 +5670,25 @@ AsyncLazyValue_init(AsyncLazyValueObj *self, PyObject *args, PyObject *kwargs)
 static PyObject *
 AsyncLazyValue_new_future(AsyncLazyValueObj *self, PyObject *loop)
 {
-    FutureObj *fut = (FutureObj *)PyType_GenericNew(&FutureType, NULL, NULL);
-    if (fut == NULL) {
-        return NULL;
+    FutureObj *fut;
+    // if cinder is not present - stack walking is not available so create regular future
+    // also create regular future if we have exactly AsyncLazyValue (not a subtype that might add dedicated frame to identify running ALVs)
+    if (cinder_get_arg0_from_pyframe == NULL || _AsyncLazyValue_CheckExact(self)) {
+        fut = (FutureObj *)PyType_GenericNew(&FutureType, NULL, NULL);
+        if (fut == NULL) {
+            return NULL;
+        }
+    }
+    else {
+        // for subclasses of _AsyncLazyValue_Type - create dedicated future type
+        _ALVResultFutureObj *f =
+            (_ALVResultFutureObj *)PyType_GenericNew(&_ALVResultFuture_Type, NULL, NULL);
+        if (f == NULL) {
+            return NULL;
+        }
+        f->alvrf_blocked_by_this = NULL;
+        f->alvrf_cycle_boundary = 0;
+        fut = (FutureObj *)f;
     }
     if (future_init(fut, loop) < 0) {
         Py_DECREF(fut);
@@ -5711,6 +5848,31 @@ AsyncLazyValue_ensure_future(AsyncLazyValueObj *self, PyObject *loop)
     }
 }
 
+static PyObject*
+AsyncLazyValue_link(AsyncLazyValueObj *self, PyObject *Py_UNUSED(arg))
+{
+    if (cinder_get_arg0_from_pyframe != NULL) {
+        PyObject *parent = call_get_arg0_from_pyframe(asyncio_alv_metadata_entrypoint_name, /*to_skip*/ one);
+        if (parent == NULL) {
+            return NULL;
+        }
+        if (parent != Py_None) {
+            self->alv_parent = parent;
+        }
+        else {
+            Py_DECREF(parent);
+        }
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+AsyncLazyValue_unlink(AsyncLazyValueObj *self, PyObject *Py_UNUSED(arg))
+{
+    Py_CLEAR(self->alv_parent);
+    Py_RETURN_NONE;
+}
+
 static int
 AsyncLazyValue_traverse(AsyncLazyValueObj *self, visitproc visit, void *arg)
 {
@@ -5718,6 +5880,7 @@ AsyncLazyValue_traverse(AsyncLazyValueObj *self, visitproc visit, void *arg)
     Py_VISIT(self->alv_kwargs);
     Py_VISIT(self->alv_futures);
     Py_VISIT(self->alv_result);
+    Py_VISIT(self->alv_parent);
     return 0;
 }
 
@@ -5728,6 +5891,7 @@ AsyncLazyValue_clear(AsyncLazyValueObj *self)
     Py_CLEAR(self->alv_kwargs);
     Py_CLEAR(self->alv_futures);
     Py_CLEAR(self->alv_result);
+    Py_CLEAR(self->alv_parent);
     return 0;
 }
 
@@ -5802,6 +5966,8 @@ static PyAsyncMethodsWithExtra _AsyncLazyValue_Type_as_async = {
 
 static PyMethodDef AsyncLazyValue_methods[] = {
     {"ensure_future", (PyCFunction)AsyncLazyValue_ensure_future, METH_O, NULL},
+    {"_link", (PyCFunction)AsyncLazyValue_link, METH_NOARGS, NULL},
+    {"_unlink", (PyCFunction)AsyncLazyValue_unlink, METH_NOARGS, NULL},
     {NULL, NULL} /* Sentinel */
 };
 
@@ -5814,7 +5980,7 @@ static PyTypeObject _AsyncLazyValue_Type = {
     PyVarObject_HEAD_INIT(NULL, 0) "_asyncio.AsyncLazyValue",
     .tp_basicsize = sizeof(AsyncLazyValueObj),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-                Py_TPFLAGS_HAVE_AM_EXTRA,
+                Py_TPFLAGS_HAVE_AM_EXTRA | Py_TPFLAGS_BASETYPE,
     .tp_traverse = (traverseproc)AsyncLazyValue_traverse,
     .tp_clear = (inquiry)AsyncLazyValue_clear,
     .tp_iter = PyObject_SelfIter,
@@ -8620,11 +8786,16 @@ module_free(void *m)
     Py_CLEAR(asyncio_task_repr_info_func);
     Py_CLEAR(asyncio_InvalidStateError);
     Py_CLEAR(asyncio_CancelledError);
+    Py_CLEAR(asyncio_alv_metadata_entrypoint_name);
+    Py_CLEAR(asyncio_CycleDetected);
+    Py_CLEAR(cinder_get_arg0_from_pyframe);
 
     Py_CLEAR(collections_abc_Awaitable);
     Py_CLEAR(asyncio_coroutines__COROUTINE_TYPES);
     Py_CLEAR(asyncio_tasks__wrap_awaitable);
     Py_CLEAR(minus_one);
+    Py_CLEAR(zero);
+    Py_CLEAR(one);
 
     Py_CLEAR(all_non_asyncio_tasks);
     Py_CLEAR(current_tasks);
@@ -8639,8 +8810,6 @@ module_free(void *m)
     Py_CLEAR(context_aware_task_hooks);
     Py_CLEAR(known_coroutine_types);
     Py_CLEAR(awaitable_types_cache);
-
-    Py_CLEAR(minus_one);
 
     all_asyncio_tasks = NULL;
 
@@ -8725,6 +8894,25 @@ module_init(void)
 
     WITH_MOD("asyncio.base_futures")
     GET_MOD_ATTR(asyncio_future_repr_info_func, "_future_repr_info")
+
+    GET_MOD_ATTR(asyncio_alv_metadata_entrypoint_name, "_METADATA_ENTRYPOINT_NAME_")
+    GET_MOD_ATTR(asyncio_CycleDetected, "CycleDetected")
+    {
+        PyObject *m = PyImport_ImportModule("cinder");
+        if (m != NULL) {
+            cinder_get_arg0_from_pyframe = PyObject_GetAttrString(m, "_get_arg0_from_pyframe");
+            Py_CLEAR(m);
+            if (cinder_get_arg0_from_pyframe == NULL) {
+                goto fail;
+            }
+        }
+        else if (PyErr_ExceptionMatches(PyExc_ModuleNotFoundError)) {
+            PyErr_Clear();
+        }
+        else {
+            goto fail;
+        }
+    }
 
     WITH_MOD("asyncio.exceptions")
     GET_MOD_ATTR(asyncio_InvalidStateError, "InvalidStateError")
@@ -8975,6 +9163,14 @@ PyInit__asyncio(void)
     if (minus_one == NULL) {
         return NULL;
     }
+    zero = PyLong_FromLong(0);
+    if (zero == NULL) {
+        return NULL;
+    }
+    one = PyLong_FromLong(1);
+    if (one == NULL) {
+        return NULL;
+    }
     throw_name = _PyUnicode_FromId(&PyId_throw);
     if (throw_name == NULL) {
         return NULL;
@@ -8999,8 +9195,9 @@ PyInit__asyncio(void)
     if (GatheringFuture_TableRef == NULL) {
         return NULL;
     }
-    _ALVResultFuture_TableRef = init_table(&_ALVResultFuture_Type);
-    if (GatheringFuture_TableRef == NULL) {
+    _ALVResultFuture_TableRef =
+        init_table(&_ALVResultFuture_Type);
+    if (_ALVResultFuture_TableRef == NULL) {
         return NULL;
     }
 
@@ -9038,11 +9235,13 @@ PyInit__asyncio(void)
         Py_DECREF(&_AwaitingFuture_Type);
         return NULL;
     }
-    Py_INCREF(&_ALVResultFuture_Type);
-    if (PyModule_AddObject(
-            m, "_ALVResultFuture", (PyObject *)&_ALVResultFuture_Type) < 0) {
-        Py_DECREF(&_ALVResultFuture_Type);
-        return NULL;
+    if (cinder_get_arg0_from_pyframe) {
+        Py_INCREF(&_ALVResultFuture_Type);
+        if (PyModule_AddObject(
+                m, "_ALVResultFuture", (PyObject *)&_ALVResultFuture_Type) < 0) {
+            Py_DECREF(&_ALVResultFuture_Type);
+            return NULL;
+        }
     }
     Py_INCREF(&AwaitableValue_Type);
     if (PyModule_AddObject(

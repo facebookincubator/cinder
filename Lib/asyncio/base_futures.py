@@ -78,3 +78,26 @@ def _future_repr_info(future):
         frame = future._source_traceback[-1]
         info.append(f'created at {frame[0]}:{frame[1]}')
     return info
+
+try:
+    from cinderjit import jit_suppress
+except ImportError:
+    def jit_suppress(f):
+        return f
+
+# metadata entrypoint
+# should never be put on a JIT list to make sure python frame is available
+# on the stack
+@jit_suppress
+async def _asyncio_async_lazy_value_metadata_entrypoint_(alv, f, *args, **kwargs):
+    try:
+        alv._link()
+        return await f(*args, **kwargs)
+    finally:
+        alv._unlink()
+
+_METADATA_ENTRYPOINT_NAME_ = _asyncio_async_lazy_value_metadata_entrypoint_.__code__.co_name
+
+class CycleDetected(Exception):
+    def __init__(self, parts):
+        self.parts = parts

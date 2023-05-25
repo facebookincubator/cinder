@@ -2751,6 +2751,92 @@ class ALVFutureTests(CFutureTests):
         cls = None
 
 
+@cinder_support.skipUnderJIT("Cycle detection require selective JIT suppression")
+class AsyncLazyValueCycleTest(unittest.TestCase):
+    @async_test
+    async def test_cycle1(self):
+        alv1 = None
+        alv2 = None
+        alv3 = None
+
+        async def awaits_alv2():
+            await asyncio.sleep(1)
+            await alv2
+
+        async def awaits_alv3():
+            await asyncio.sleep(1)
+            await alv3
+
+        async def awaits_alv1():
+            await asyncio.sleep(1)
+            await alv1
+
+        async def main():
+            nonlocal alv1, alv2, alv3
+            alv1 = asyncio.AsyncLazyValue(awaits_alv2)
+            alv2 = asyncio.AsyncLazyValue(awaits_alv3)
+            alv3 = asyncio.AsyncLazyValue(awaits_alv1)
+
+            await asyncio.wait_for(asyncio.gather(alv1, alv2, alv3), timeout=2)
+
+        with self.assertRaises(asyncio.tasks.CycleDetected) as c:
+            await main()
+
+        d = c.exception
+        self.assertEqual(len(d.parts), 3)
+        self.assertIn(alv1, d.parts)
+        self.assertIn(alv2, d.parts)
+        self.assertIn(alv3, d.parts)
+
+    async def _test_cycle_2(self, await_directly):
+        alv1 = None
+        alv2 = None
+        alv3 = None
+        alv4 = None
+
+        async def awaits_alv2():
+            await alv2
+
+        async def awaits_alv3():
+            await alv3
+
+        async def awaits_alv4():
+            await alv4
+
+        async def awaits_alv2():
+            await alv2
+
+        async def main():
+            nonlocal alv1, alv2, alv3, alv4
+            alv1 = asyncio.AsyncLazyValue(awaits_alv2)
+            alv2 = asyncio.AsyncLazyValue(awaits_alv3)
+            alv3 = asyncio.AsyncLazyValue(awaits_alv4)
+            alv4 = asyncio.AsyncLazyValue(awaits_alv2)
+            if await_directly:
+                await alv1
+            else:
+                fut = asyncio.ensure_future(alv1)
+                fut.__log_traceback = False
+                await fut
+
+        with self.assertRaises(asyncio.tasks.CycleDetected) as c:
+            await asyncio.wait_for(main(), timeout=2)
+
+        d = c.exception
+        self.assertEqual(len(d.parts), 3)
+        self.assertIn(alv2, d.parts)
+        self.assertIn(alv3, d.parts)
+        self.assertIn(alv4, d.parts)
+
+    @async_test
+    async def test_cycle2_direct_await(self):
+        await self._test_cycle_2(True)
+
+    @async_test
+    async def test_cycle2_indirect_await(self):
+        await self._test_cycle_2(False)
+
+
 if __name__ == "__main__":
 
     unittest.main()

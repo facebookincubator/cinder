@@ -512,6 +512,55 @@ cinder_debug_break(PyObject *self, PyObject *obj) {
     Py_RETURN_NONE;
 }
 
+static PyObject*
+get_arg0_from_pyframe(PyObject *module, PyObject **args, Py_ssize_t nargs) {
+  if (nargs != 2) {
+    PyErr_SetString(PyExc_TypeError, "2 arguments expected");
+  }
+  PyObject *frame_name = args[0];
+  if (!PyUnicode_Check(frame_name)) {
+    PyErr_SetString(PyExc_TypeError, "Expected string as 'frame_name'");
+    return NULL;
+  }
+  if (!PyLong_Check(args[1])) {
+    PyErr_SetString(PyExc_TypeError, "Expected int as 'to_skip'");
+    return NULL;
+  }
+  Py_ssize_t to_skip = PyLong_AsSsize_t(args[1]);
+  if (to_skip < 0) {
+    PyErr_SetString(PyExc_TypeError, "Expected positive number as 'to_skip' argument");
+    return NULL;
+  }
+
+  _PyShadowFrame *shadow_frame = PyThreadState_GET()->shadow_frame;
+
+  while (shadow_frame != NULL) {
+    if (to_skip == 0) {
+        _PyShadowFrame_PtrKind ptrKind = _PyShadowFrame_GetPtrKind(shadow_frame);
+        if (ptrKind == PYSF_PYFRAME) {
+            PyFrameObject *pyframe = _PyShadowFrame_GetPyFrame(shadow_frame);
+            if (_PyUnicode_EQ(pyframe->f_code->co_name, frame_name)) {
+                PyObject *loc = pyframe->f_localsplus[0];
+                assert(loc != NULL);
+                Py_INCREF(loc);
+                return loc;
+            }
+        }
+    }
+    else {
+        to_skip--;
+    }
+    _PyShadowFrame* awaiter_frame = _PyShadowFrame_GetAwaiterFrame(shadow_frame);
+    if (awaiter_frame != NULL) {
+        shadow_frame=  awaiter_frame;
+    }
+    else {
+        shadow_frame = shadow_frame->prev;
+    }
+  }
+  Py_RETURN_NONE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"debug_break",
      cinder_debug_break,
@@ -618,6 +667,11 @@ static struct PyMethodDef cinder_module_methods[] = {
         watch_sys_modules,
         METH_NOARGS,
         "Watch the sys.modules dict to allow invalidating Static Python's internal caches."},
+    {"_get_arg0_from_pyframe",
+        (PyCFunction)get_arg0_from_pyframe,
+        METH_FASTCALL,
+        "Walks the call stack searching for Python frame with name that matches frame_name parameter. "
+        "Returns first argument from the frame or None if frame was not found"},
     {NULL, NULL} /* sentinel */
 };
 

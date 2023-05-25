@@ -992,3 +992,21 @@ else:
     _c_leave_task = _leave_task
     _c_all_tasks = all_tasks
     _c_current_task = current_task
+
+try:
+    # try importing cinder to see if module is available
+    from cinder import _get_arg0_from_pyframe # noqa
+    from .base_futures import _asyncio_async_lazy_value_metadata_entrypoint_, CycleDetected # noqa
+
+    # only add this type if Cinder is present
+    class AsyncLazyValue(_ASYNC_LAZY_VALUE_TYPE):
+        def __init__(self, f, *args, **kwargs):
+            self.f = f
+            super().__init__(_asyncio_async_lazy_value_metadata_entrypoint_, self, f, *args, **kwargs)
+        def __repr__(self):
+            return f"AsyncLazyValue {self.f}"
+
+    __all__ += ('AsyncLazyValue',)
+
+except ImportError:
+    pass
