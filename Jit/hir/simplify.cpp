@@ -500,11 +500,15 @@ Register* simplifyLoadVarObjectSize(Env& env, const LoadVarObjectSize* instr) {
   return nullptr;
 }
 
-Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
+Register* simplifyLoadModuleMethod(Env& env, const LoadMethod* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
-  if (!receiver->isA(TType)) {
-    return nullptr;
-  }
+  int name_idx = load_meth->name_idx();
+  return env.emit<LoadModuleMethod>(
+      receiver, name_idx, *load_meth->frameState());
+}
+
+Register* simplifyLoadTypeMethod(Env& env, const LoadMethod* load_meth) {
+  Register* receiver = load_meth->GetOperand(0);
   const int cache_id = env.func.env.allocateLoadTypeMethodCache();
   env.emit<UseType>(receiver, TType);
   Register* guard = env.emit<LoadTypeMethodCacheEntryType>(cache_id);
@@ -522,6 +526,19 @@ Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
         return env.emit<FillTypeMethodCache>(
             receiver, name_idx, cache_id, *load_meth->frameState());
       });
+}
+
+Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
+  Register* receiver = load_meth->GetOperand(0);
+  Type ty = receiver->type();
+  if (receiver->isA(TType)) {
+    return simplifyLoadTypeMethod(env, load_meth);
+  }
+  BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
+  if (type == &PyModule_Type || type == &PyStrictModule_Type) {
+    return simplifyLoadModuleMethod(env, load_meth);
+  }
+  return nullptr;
 }
 
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {

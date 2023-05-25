@@ -414,6 +414,10 @@ class Runtime {
     return load_method_caches_.allocate();
   }
 
+  LoadModuleMethodCache* allocateLoadModuleMethodCache() {
+    return load_module_method_caches_.allocate();
+  }
+
   LoadTypeMethodCache* allocateLoadTypeMethodCache() {
     return load_type_method_caches_.allocate();
   }
@@ -478,6 +482,7 @@ class Runtime {
   SlabArena<LoadAttrCache> load_attr_caches_;
   SlabArena<LoadTypeAttrCache> load_type_attr_caches_;
   SlabArena<LoadMethodCache> load_method_caches_;
+  SlabArena<LoadModuleMethodCache> load_module_method_caches_;
   SlabArena<LoadTypeMethodCache> load_type_method_caches_;
   SlabArena<StoreAttrCache> store_attr_caches_;
   SlabArena<void*> pointer_caches_;

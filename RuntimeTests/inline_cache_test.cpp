@@ -73,3 +73,39 @@ regular_meth = RequestContext.regular_meth
         << "Expected method " << meth << " to be cached";
   }
 }
+
+TEST_F(InlineCacheTest, LoadModuleMethodCacheLookUp) {
+  const char* src = R"(
+import functools
+module_meth = functools._unwrap_partial
+)";
+  Ref<PyObject> globals(MakeGlobals());
+  ASSERT_NE(globals.get(), nullptr) << "Failed creating globals";
+
+  auto locals = Ref<>::steal(PyDict_New());
+  ASSERT_NE(locals.get(), nullptr) << "Failed creating locals";
+
+  auto st = Ref<>::steal(PyRun_String(src, Py_file_input, globals, locals));
+  ASSERT_NE(st.get(), nullptr) << "Failed executing code";
+
+  PyObject* functools_mod = PyDict_GetItemString(locals, "functools");
+  ASSERT_NE(functools_mod, nullptr) << "Couldn't get module functools";
+
+  PyObject* module_meth = PyDict_GetItemString(locals, "module_meth");
+  ASSERT_NE(module_meth, nullptr) << "Couldn't get PyObject module_meth";
+
+  auto name = Ref<>::steal(PyUnicode_FromString("_unwrap_partial"));
+
+  jit::LoadModuleMethodCache cache;
+  auto res = cache.lookup(functools_mod, name);
+  ASSERT_EQ(PyObject_RichCompareBool(res.inst, module_meth, Py_EQ), 1)
+      << "Expected method " << name << " to be cached";
+  ASSERT_EQ(Py_None, res.func)
+      << "Expected Py_None to be returned from cache lookup";
+
+  ASSERT_EQ(PyObject_RichCompareBool(cache.value(), module_meth, Py_EQ), 1)
+      << "Expected method " << name << " to be cached";
+  ASSERT_EQ(
+      PyObject_RichCompareBool(cache.moduleObj(), functools_mod, Py_EQ), 1)
+      << "Expected functools to be cached as an obj";
+}

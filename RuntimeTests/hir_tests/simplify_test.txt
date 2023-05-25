@@ -2527,7 +2527,7 @@ fun jittestmodule:test {
   }
 }
 ---
-LoadMethodFromModuleIsUnspecialized
+LoadMethodFromModuleIsSpecialized
 ---
 import time
 
@@ -2540,13 +2540,13 @@ fun jittestmodule:test {
     v5:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: time'
     }
-    v6:Object = LoadMethod<0; "time"> v5 {
+    v9:Object = LoadModuleMethod<0; "time"> v5 {
       FrameState {
         NextInstrOffset 4
       }
     }
-    v7:OptObject = GetSecondOutput<OptObject> v6
-    v8:Object = CallMethod<2> v6 v7 {
+    v7:OptObject = GetSecondOutput<OptObject> v9
+    v8:Object = CallMethod<2> v9 v7 {
       FrameState {
         NextInstrOffset 6
       }

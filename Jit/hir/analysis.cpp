@@ -108,6 +108,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadGlobal:
     case Opcode::kLoadGlobalCached:
     case Opcode::kLoadMethod:
+    case Opcode::kLoadModuleMethod:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLoadSplitDictItem:
     case Opcode::kLoadTupleItem:
@@ -206,8 +207,12 @@ Register* modelReg(Register* reg) {
   return reg;
 }
 
+bool isLoadMethodBase(const Instr& instr) {
+  return dynamic_cast<const LoadMethodBase*>(&instr) != nullptr;
+}
+
 bool isAnyLoadMethod(const Instr& instr) {
-  if (instr.IsLoadMethod()) {
+  if (isLoadMethodBase(instr)) {
     return true;
   }
   if (!instr.IsPhi() || instr.NumOperands() != 2) {

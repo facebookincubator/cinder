@@ -798,6 +798,111 @@ std::string_view cacheMissReason(CacheMissReason reason) {
   return kCacheMissReasons[static_cast<size_t>(reason)];
 }
 
+JITRT_LoadMethodResult LoadModuleMethodCache::lookupHelper(
+    LoadModuleMethodCache* cache,
+    BorrowedRef<> obj,
+    BorrowedRef<> name) {
+  return cache->lookup(obj, name);
+}
+
+static uint64_t getModuleVersion(BorrowedRef<PyModuleObject> mod) {
+  if (mod->md_dict) {
+    BorrowedRef<PyDictObject> md_dict = mod->md_dict;
+    return md_dict->ma_version_tag;
+  }
+  return 0;
+}
+
+static uint64_t getModuleVersion(BorrowedRef<PyStrictModuleObject> mod) {
+  if (mod->globals) {
+    BorrowedRef<PyDictObject> globals = mod->globals;
+    return globals->ma_version_tag;
+  }
+  return 0;
+}
+
+BorrowedRef<> LoadModuleMethodCache::moduleObj() {
+  return module_obj_;
+}
+
+BorrowedRef<> LoadModuleMethodCache::value() {
+  return value_;
+}
+
+JITRT_LoadMethodResult LoadModuleMethodCache::lookup(
+    BorrowedRef<> obj,
+    BorrowedRef<> name) {
+  if (module_obj_ == obj && value_ != nullptr) {
+    uint64_t version = 0;
+    if (PyModule_Check(obj)) {
+      BorrowedRef<PyModuleObject> mod{obj};
+      version = getModuleVersion(mod);
+    } else if (PyStrictModule_Check(obj)) {
+      BorrowedRef<PyStrictModuleObject> mod{obj};
+      version = getModuleVersion(mod);
+    }
+    if (module_version_ == version) {
+      Py_INCREF(Py_None);
+      Py_INCREF(value_);
+      return {Py_None, value_};
+    }
+  }
+  return lookupSlowPath(obj, name);
+}
+
+JITRT_LoadMethodResult __attribute__((noinline))
+LoadModuleMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
+  BorrowedRef<PyTypeObject> tp = Py_TYPE(obj);
+  uint64_t dict_version = 0;
+  BorrowedRef<> res = nullptr;
+  if (PyModule_Check(obj) && tp->tp_getattro == PyModule_Type.tp_getattro) {
+    if (_PyType_Lookup(tp, name) == nullptr) {
+      BorrowedRef<PyModuleObject> mod{obj};
+      BorrowedRef<> dict = mod->md_dict;
+      if (dict) {
+        dict_version = getModuleVersion(mod);
+        res = PyDict_GetItemWithError(dict, name);
+      }
+    }
+  } else if (
+      PyStrictModule_Check(obj) &&
+      tp->tp_getattro == PyStrictModule_Type.tp_getattro) {
+    if (_PyType_Lookup(tp, name) == nullptr) {
+      BorrowedRef<PyStrictModuleObject> mod{obj};
+      BorrowedRef<> dict = mod->globals;
+      if (dict && strictmodule_is_unassigned(dict, name) == 0) {
+        dict_version = getModuleVersion(mod);
+        res = PyDict_GetItemWithError(dict, name);
+      }
+    }
+  }
+  if (res != nullptr) {
+    if (PyFunction_Check(res) || PyCFunction_Check(res) ||
+        Py_TYPE(res) == &PyMethodDescr_Type) {
+      fill(obj, res, dict_version);
+    }
+    Py_INCREF(Py_None);
+    // PyDict_GetItemWithError returns a borrowed reference, so
+    // we need to increment it before returning.
+    Py_INCREF(res);
+    return {Py_None, res};
+  }
+  auto generic_res = Ref<>::steal(PyObject_GetAttr(obj, name));
+  if (generic_res != nullptr) {
+    return {Py_None, generic_res.release()};
+  }
+  return {nullptr, nullptr};
+}
+
+void LoadModuleMethodCache::fill(
+    BorrowedRef<> obj,
+    BorrowedRef<> value,
+    uint64_t version) {
+  module_obj_ = obj;
+  value_ = value;
+  module_version_ = version;
+}
+
 void LoadMethodCache::initCacheStats(
     const char* filename,
     const char* method_name) {
@@ -1033,9 +1138,9 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
         Py_INCREF(obj);
         Py_INCREF(cm_callable);
 
-        // Get the underlying callable from classmethod and return the callable
-        // alongside the class object, allowing the runtime to call the method
-        // as an unbound method.
+        // Get the underlying callable from classmethod and return the
+        // callable alongside the class object, allowing the runtime to call
+        // the method as an unbound method.
         fill(obj, cm_callable, true);
         return {cm_callable, obj};
       } else if (Py_TYPE(cm_callable)->tp_descr_get != NULL) {

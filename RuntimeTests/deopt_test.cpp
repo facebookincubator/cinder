@@ -590,6 +590,24 @@ def test(n):
   runTest(src, args, 1, result);
 }
 
+TEST_F(DeoptStressTest, CallModuleMethod) {
+  const char* src = R"(
+import functools
+
+def abc(y):
+  return y * y
+def test(n):
+  acc = 1
+  for x in range(1, n + 1):
+    acc += functools._unwrap_partial(abc)(x)
+  return acc
+)";
+  auto arg1 = Ref<>::steal(PyLong_FromLong(5));
+  PyObject* args[] = {arg1};
+  auto result = Ref<>::steal(PyLong_FromLong(56));
+  runTest(src, args, 1, result);
+}
+
 TEST_F(DeoptStressTest, CallDescriptor) {
   const char* src = R"(
 class Multiplier:

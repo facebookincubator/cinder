@@ -1,7 +1,11 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 import multiprocessing
+import sys
+import tempfile
 import unittest
+from contextlib import contextmanager
+from pathlib import Path
 
 try:
     from cinderjit import force_compile, is_jit_compiled, jit_frame_mode
@@ -101,6 +105,20 @@ def failUnlessJITCompiled(func):
 # This is pretty long because ASAN + JIT + subprocess + the Python compiler can
 # be pretty slow in CI.
 SUBPROCESS_TIMEOUT_SEC = 5
+
+
+@contextmanager
+def temp_sys_path():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _orig_sys_modules = sys.modules
+        sys.modules = _orig_sys_modules.copy()
+        _orig_sys_path = sys.path[:]
+        sys.path.insert(0, tmpdir)
+        try:
+            yield Path(tmpdir)
+        finally:
+            sys.path[:] = _orig_sys_path
+            sys.modules = _orig_sys_modules
 
 
 def runInSubprocess(func):

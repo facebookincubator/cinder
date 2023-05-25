@@ -279,6 +279,26 @@ class LoadTypeMethodCache {
   std::unique_ptr<CacheStats> cache_stats_;
 };
 
+class LoadModuleMethodCache {
+ public:
+  static JITRT_LoadMethodResult lookupHelper(
+      LoadModuleMethodCache* cache,
+      BorrowedRef<> obj,
+      BorrowedRef<> name);
+  JITRT_LoadMethodResult lookup(BorrowedRef<> obj, BorrowedRef<> name);
+  BorrowedRef<> moduleObj();
+  BorrowedRef<> value();
+
+ private:
+  JITRT_LoadMethodResult lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name);
+  void fill(BorrowedRef<> obj, BorrowedRef<> value, uint64_t version);
+
+  // This corresponds to module __dict__'s version which allows us
+  // to correctly invalidate the cache whenever the dictionary changes.
+  uint64_t module_version_{0};
+  BorrowedRef<> module_obj_;
+  BorrowedRef<> value_;
+};
 struct GlobalCacheKey {
   // builtins and globals are weak references; the invalidation code is
   // responsible for erasing any relevant keys when a dict is freed.

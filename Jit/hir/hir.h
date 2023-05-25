@@ -299,6 +299,7 @@ struct FrameState {
   V(LoadGlobalCached)                  \
   V(LoadGlobal)                        \
   V(LoadMethod)                        \
+  V(LoadModuleMethod)                  \
   V(LoadMethodSuper)                   \
   V(LoadSplitDictItem)                 \
   V(LoadTupleItem)                     \
@@ -2795,22 +2796,16 @@ class INSTR_CLASS(
   int cache_id_;
 };
 
-// Like LoadAttr, but when we know that we're loading an attribute that will be
-// used for a method call.
-class INSTR_CLASS(LoadMethod, (TObject), HasOutput, Operands<1>, DeoptBase) {
- public:
-  LoadMethod(
-      Register* dst,
-      Register* receiver,
-      int name_idx,
-      const FrameState& frame)
-      : InstrT(dst, receiver, frame), name_idx_(name_idx) {}
+class LoadMethodBase : public DeoptBase {
+ protected:
+  LoadMethodBase(Opcode op, int name_idx, const FrameState& frame)
+      : DeoptBase(op, frame), name_idx_(name_idx) {}
 
+ public:
   // The object we're loading the attribute from
   Register* receiver() const {
     return GetOperand(0);
   }
-
   // Index of the attribute name in the code object's co_names tuple
   int name_idx() const {
     return name_idx_;
@@ -2819,6 +2814,23 @@ class INSTR_CLASS(LoadMethod, (TObject), HasOutput, Operands<1>, DeoptBase) {
  private:
   int name_idx_;
 };
+
+// Like LoadAttr, but when we know that we're loading an attribute that will be
+// used for a method call.
+DEFINE_SIMPLE_INSTR(
+    LoadMethod,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    LoadMethodBase);
+
+// Like LoadMethod, but specialized for loading a method from a module
+DEFINE_SIMPLE_INSTR(
+    LoadModuleMethod,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    LoadMethodBase);
 
 class LoadSuperBase : public DeoptBase {
  protected:

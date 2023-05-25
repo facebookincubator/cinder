@@ -35,8 +35,12 @@ try:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         from .test_compiler.test_static.common import StaticTestBase
+        from .test_compiler.test_strict.test_loader import base_sandbox, sandbox
+
+
 except ImportError:
     from test_compiler.test_static.common import StaticTestBase
+    from test_compiler.test_strict.test_loader import base_sandbox, sandbox
 
 from contextlib import contextmanager
 
@@ -870,6 +874,75 @@ class LoadMethodCacheTests(unittest.TestCase):
         self.assertEqual(self._index_long(), 6)
 
 
+@unittest.skipUnless(cinderjit, "Test meaningless without the JIT enabled")
+class LoadModuleMethodCacheTests(unittest.TestCase):
+    def test_load_method_from_module(self):
+        with cinder_support.temp_sys_path() as tmp:
+            (tmp / "tmp_a.py").write_text(
+                dedent(
+                    """
+                    a = 1
+                    def get_a():
+                        return 1+2
+                    """
+                ),
+                encoding="utf8",
+            )
+            (tmp / "tmp_b.py").write_text(
+                dedent(
+                    """
+                    import tmp_a
+
+                    def test():
+                        return tmp_a.get_a()
+                    """
+                ),
+                encoding="utf8",
+            )
+            import tmp_b
+
+            self.assertEqual(tmp_b.test(), 3)
+            self.assertTrue(cinderjit.is_jit_compiled(tmp_b.test))
+            self.assertTrue(
+                "LoadModuleMethod"
+                in cinderjit.get_function_hir_opcode_counts(tmp_b.test)
+            )
+            import tmp_a
+
+            tmp_a.get_a = lambda: 10
+            self.assertEqual(tmp_b.test(), 10)
+            delattr(tmp_a, "get_a")
+            with self.assertRaises(AttributeError):
+                tmp_b.test()
+
+    def test_load_method_from_strict_module(self):
+        strict_sandbox = base_sandbox.use_cm(sandbox, self)
+        code_str = """
+        import __strict__
+        a = 1
+        def get_a():
+            return 1+2
+        """
+        strict_sandbox.write_file("tmp_a.py", code_str)
+        code_str = """
+        import __strict__
+        import tmp_a
+
+        def test():
+            return tmp_a.get_a()
+        """
+        strict_sandbox.write_file("tmp_b.py", code_str)
+        tmp_b = strict_sandbox.strict_import("tmp_b")
+        cinderjit.force_compile(tmp_b.test)
+        self.assertTrue(cinderjit.is_jit_compiled(tmp_b.test))
+        self.assertTrue(
+            "LoadModuleMethod" in cinderjit.get_function_hir_opcode_counts(tmp_b.test)
+        )
+        # prime the cache
+        self.assertEqual(tmp_b.test(), 3)
+        self.assertEqual(tmp_b.test(), 3)
+
+
 @cinder_support.failUnlessJITCompiled
 @failUnlessHasOpcodes("LOAD_ATTR")
 def get_foo(obj):
@@ -1313,26 +1386,13 @@ class LoadGlobalCacheTests(unittest.TestCase):
         finally:
             del builtins.__dict__[42]
 
-    @contextmanager
-    def temp_sys_path(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            _orig_sys_modules = sys.modules
-            sys.modules = _orig_sys_modules.copy()
-            _orig_sys_path = sys.path[:]
-            sys.path.insert(0, tmpdir)
-            try:
-                yield Path(tmpdir)
-            finally:
-                sys.path[:] = _orig_sys_path
-                sys.modules = _orig_sys_modules
-
     @failUnlessHasOpcodes("LOAD_GLOBAL")
     @unittest.skipUnless(
         is_lazy_imports_enabled(),
         "Test relevant only when running with lazy imports enabled",
     )
     def test_preload_side_effect_modifies_globals(self):
-        with self.temp_sys_path() as tmp:
+        with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
@@ -1401,7 +1461,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
     )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_globals_unwatchable(self):
-        with self.temp_sys_path() as tmp:
+        with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
@@ -1445,7 +1505,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
     )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_builtins_unwatchable(self):
-        with self.temp_sys_path() as tmp:
+        with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """

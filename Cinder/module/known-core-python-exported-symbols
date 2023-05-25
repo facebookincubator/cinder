@@ -2028,6 +2028,7 @@ stat_S_ISDIR
 stat_S_ISDIR_doc
 stat_S_ISDOOR
 stat_S_ISDOOR_doc
+strictmodule_is_unassigned
 __TMC_END__
 UnicodeDecodeError_init
 UnicodeDecodeError_str
