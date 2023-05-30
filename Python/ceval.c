@@ -1724,6 +1724,9 @@ Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
         }
         return result;
     }
+    if (type->tp_getattro != PyObject_GenericGetAttr) {
+        meth_found = NULL;
+    }
     return Ci_Super_Lookup(type, self, name, NULL, meth_found);
 }
 
