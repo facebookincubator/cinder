@@ -1380,6 +1380,7 @@ class LoadGlobalCacheTests(unittest.TestCase):
         self.assertEqual(self.get_global(), "hey")
         builtins.__dict__[42] = 42
 
+    @cinder_support.runInSubprocess
     def test_unwatch_builtins(self):
         try:
             self._test_unwatch_builtins()

@@ -2675,3 +2675,167 @@ fun test {
   }
 }
 ---
+TestCallBuiltinTypes
+---
+class C:
+  pass
+
+
+class D(dict):
+  pass
+
+def test(x):
+  return (bool(x), bytes(x), dict(x), float(x), list(x), set(x), tuple(x),
+          type(x), str(x), int(x), object(x), C(x), D(x))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v28:Object = LoadArg<0; "x">
+    v29:OptObject = LoadGlobalCached<0; "bool">
+    v30:ImmortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v29 {
+      Descr 'LOAD_GLOBAL: bool'
+    }
+    v32:Bool = VectorCall<1> v30 v28 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<1> v28
+      }
+    }
+    v33:OptObject = LoadGlobalCached<1; "bytes">
+    v34:ImmortalTypeExact[bytes:obj] = GuardIs<0xdeadbeef> v33 {
+      Descr 'LOAD_GLOBAL: bytes'
+    }
+    v36:BytesExact = VectorCall<1> v34 v28 {
+      FrameState {
+        NextInstrOffset 12
+        Locals<1> v28
+        Stack<1> v32
+      }
+    }
+    v37:OptObject = LoadGlobalCached<2; "dict">
+    v38:ImmortalTypeExact[dict:obj] = GuardIs<0xdeadbeef> v37 {
+      Descr 'LOAD_GLOBAL: dict'
+    }
+    v40:DictExact = VectorCall<1> v38 v28 {
+      FrameState {
+        NextInstrOffset 18
+        Locals<1> v28
+        Stack<2> v32 v36
+      }
+    }
+    v41:OptObject = LoadGlobalCached<3; "float">
+    v42:ImmortalTypeExact[float:obj] = GuardIs<0xdeadbeef> v41 {
+      Descr 'LOAD_GLOBAL: float'
+    }
+    v44:FloatExact = VectorCall<1> v42 v28 {
+      FrameState {
+        NextInstrOffset 24
+        Locals<1> v28
+        Stack<3> v32 v36 v40
+      }
+    }
+    v45:OptObject = LoadGlobalCached<4; "list">
+    v46:ImmortalTypeExact[list:obj] = GuardIs<0xdeadbeef> v45 {
+      Descr 'LOAD_GLOBAL: list'
+    }
+    v48:ListExact = VectorCall<1> v46 v28 {
+      FrameState {
+        NextInstrOffset 30
+        Locals<1> v28
+        Stack<4> v32 v36 v40 v44
+      }
+    }
+    v49:OptObject = LoadGlobalCached<5; "set">
+    v50:ImmortalTypeExact[set:obj] = GuardIs<0xdeadbeef> v49 {
+      Descr 'LOAD_GLOBAL: set'
+    }
+    v52:SetExact = VectorCall<1> v50 v28 {
+      FrameState {
+        NextInstrOffset 36
+        Locals<1> v28
+        Stack<5> v32 v36 v40 v44 v48
+      }
+    }
+    v53:OptObject = LoadGlobalCached<6; "tuple">
+    v54:ImmortalTypeExact[tuple:obj] = GuardIs<0xdeadbeef> v53 {
+      Descr 'LOAD_GLOBAL: tuple'
+    }
+    v56:TupleExact = VectorCall<1> v54 v28 {
+      FrameState {
+        NextInstrOffset 42
+        Locals<1> v28
+        Stack<6> v32 v36 v40 v44 v48 v52
+      }
+    }
+    v57:OptObject = LoadGlobalCached<7; "type">
+    v58:ImmortalTypeExact[type:obj] = GuardIs<0xdeadbeef> v57 {
+      Descr 'LOAD_GLOBAL: type'
+    }
+    UseType<ImmortalTypeExact[type:obj]> v58
+    v82:Type = LoadField<ob_type@8, Type, borrowed> v28
+    v61:OptObject = LoadGlobalCached<8; "str">
+    v62:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v61 {
+      Descr 'LOAD_GLOBAL: str'
+    }
+    v64:UnicodeExact = VectorCall<1> v62 v28 {
+      FrameState {
+        NextInstrOffset 54
+        Locals<1> v28
+        Stack<8> v32 v36 v40 v44 v48 v52 v56 v82
+      }
+    }
+    v65:OptObject = LoadGlobalCached<9; "int">
+    v66:ImmortalTypeExact[int:obj] = GuardIs<0xdeadbeef> v65 {
+      Descr 'LOAD_GLOBAL: int'
+    }
+    v68:LongExact = VectorCall<1> v66 v28 {
+      FrameState {
+        NextInstrOffset 60
+        Locals<1> v28
+        Stack<9> v32 v36 v40 v44 v48 v52 v56 v82 v64
+      }
+    }
+    v69:OptObject = LoadGlobalCached<10; "object">
+    v70:ImmortalTypeExact[object:obj] = GuardIs<0xdeadbeef> v69 {
+      Descr 'LOAD_GLOBAL: object'
+    }
+    v72:ObjectExact = VectorCall<1> v70 v28 {
+      FrameState {
+        NextInstrOffset 66
+        Locals<1> v28
+        Stack<10> v32 v36 v40 v44 v48 v52 v56 v82 v64 v68
+      }
+    }
+    v73:OptObject = LoadGlobalCached<11; "C">
+    v74:MortalTypeExact[C:obj] = GuardIs<0xdeadbeef> v73 {
+      Descr 'LOAD_GLOBAL: C'
+    }
+    v76:Object = VectorCall<1> v74 v28 {
+      FrameState {
+        NextInstrOffset 72
+        Locals<1> v28
+        Stack<11> v32 v36 v40 v44 v48 v52 v56 v82 v64 v68 v72
+      }
+    }
+    v77:OptObject = LoadGlobalCached<12; "D">
+    v78:MortalTypeExact[D:obj] = GuardIs<0xdeadbeef> v77 {
+      Descr 'LOAD_GLOBAL: D'
+    }
+    v80:Object = VectorCall<1> v78 v28 {
+      FrameState {
+        NextInstrOffset 78
+        Locals<1> v28
+        Stack<12> v32 v36 v40 v44 v48 v52 v56 v82 v64 v68 v72 v76
+      }
+    }
+    v81:MortalTupleExact = MakeTuple<13> v32 v36 v40 v44 v48 v52 v56 v82 v64 v68 v72 v76 v80 {
+      FrameState {
+        NextInstrOffset 80
+        Locals<1> v28
+        Stack<13> v32 v36 v40 v44 v48 v52 v56 v82 v64 v68 v72 v76 v80
+      }
+    }
+    Return v81
+  }
+}
+---

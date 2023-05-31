@@ -346,6 +346,13 @@ Type returnType(Type callable) {
         reinterpret_cast<PyMethodDescrObject*>(callable_obj);
     return returnType(meth->d_method);
   }
+  if (Py_TYPE(callable_obj) == &PyType_Type) {
+    Type result =
+        Type::fromTypeExact(reinterpret_cast<PyTypeObject*>(callable_obj));
+    if (result <= TBuiltinExact && !(result <= TType)) {
+      return result;
+    }
+  }
   return TObject;
 }
 

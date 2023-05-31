@@ -962,7 +962,7 @@ fun jittestmodule:test {
         Locals<4> v15 v16 v17 v18
       }
     }
-    v21:Object = VectorCall<0> v20 {
+    v21:DictExact = VectorCall<0> v20 {
       LiveValues<5> b:v15 b:v16 b:v17 unc:v18 unc:v20
       FrameState {
         NextInstrOffset 4
@@ -1029,7 +1029,7 @@ fun jittestmodule:test {
 
   bb 4 (preds 3, 6) {
     v42:Object = Phi<3, 6> v21 v16
-    v44:Object = Phi<3, 6> v39 v21
+    v44:{DictExact|NoneType} = Phi<3, 6> v39 v21
     v45:NoneType = LoadConst<NoneType>
     v47:OptObject = LoadGlobalCached<1; "print">
     v48:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v47 {
