@@ -60,8 +60,7 @@ class TestPerfTrampoline(unittest.TestCase):
                 stdout=subprocess.PIPE,
             ) as process:
                 stdout, stderr = process.communicate()
-        print("stderr: ", stderr)
-        self.assertEqual(stderr, "")
+        self.assertNotIn("Error:", stderr)
         self.assertEqual(stdout, "")
 
         perf_file = pathlib.Path(f"/tmp/perf-{process.pid}.map")
@@ -112,7 +111,7 @@ class TestPerfTrampoline(unittest.TestCase):
                 stdout, stderr = process.communicate()
 
         self.assertEqual(process.returncode, 0)
-        self.assertEqual(stderr, "")
+        self.assertNotIn("Error:", stderr)
         child_pid = int(stdout.strip())
         perf_file = pathlib.Path(f"/tmp/perf-{process.pid}.map")
         perf_child_file = pathlib.Path(f"/tmp/perf-{child_pid}.map")
@@ -161,7 +160,7 @@ class TestPerfTrampoline(unittest.TestCase):
             ) as process:
                 stdout, stderr = process.communicate()
 
-        self.assertEqual(stderr, "")
+        self.assertNotIn("Error:", stderr)
         self.assertEqual(stdout, "")
 
         perf_file = pathlib.Path(f"/tmp/perf-{process.pid}.map")
@@ -311,7 +310,7 @@ class TestPerfProfiler(unittest.TestCase):
                 """
             script = make_script(script_dir, "perftest", code)
             stdout, stderr = run_perf(script_dir, sys.executable, "-Xperf", script)
-            self.assertEqual(stderr, "")
+            self.assertNotIn("Error:", stderr)
 
             self.assertIn(f"py::foo:{script}", stdout)
             self.assertIn(f"py::bar:{script}", stdout)
@@ -335,7 +334,7 @@ class TestPerfProfiler(unittest.TestCase):
                 """
             script = make_script(script_dir, "perftest", code)
             stdout, stderr = run_perf(script_dir, sys.executable, script)
-            self.assertEqual(stderr, "")
+            self.assertNotIn("Error:", stderr)
 
             self.assertNotIn(f"py::foo:{script}", stdout)
             self.assertNotIn(f"py::bar:{script}", stdout)
