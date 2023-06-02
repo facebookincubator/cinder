@@ -382,6 +382,7 @@ typedef struct {
     int gf_cancel_requested;
     int gf_return_exceptions;
     Py_ssize_t gf_pending;
+    int gf_contains_running_alv;
 } _GatheringFutureObj;
 
 typedef struct {
@@ -3236,8 +3237,47 @@ PyObject *call_get_arg0_from_pyframe(PyObject *entrypoint_name, PyObject *to_ski
     return _PyObject_Vectorcall(cinder_get_arg0_from_pyframe, stack, 2, NULL);
 }
 
+static void
+mark_cycle_boundaries_in_gathering_fut(_GatheringFutureObj* gfut)
+{
+    FOREACH_INDEX(gfut->gf_datamap, i)
+    {
+        PyObject *f = PyList_GET_ITEM(gfut->gf_data, i);
+        if (_ALVResultFuture_Type_CheckExact(f)) {
+            // found _ALVResultFuture - set the bit on it
+            ((_ALVResultFutureObj*)f)->alvrf_cycle_boundary = 1;
+        }
+        else if (_GatheringFuture_CheckExact(f) && ((_GatheringFutureObj*)f)->gf_contains_running_alv) {
+            // recurse to handle _ALVResultFuture nested in GatheringFutures
+            mark_cycle_boundaries_in_gathering_fut((_GatheringFutureObj*)f);
+        }
+    }
+    FOREACH_INDEX_END();
+}
+
+static void finish_cycle_check_in_gathering_fut(_GatheringFutureObj* gfut, PyObject *alv)
+{
+    FOREACH_INDEX(gfut->gf_datamap, i)
+    {
+        PyObject *f = PyList_GET_ITEM(gfut->gf_data, i);
+        if (_ALVResultFuture_Type_CheckExact(f)) {
+            // reet the mark in _ALVResultFuture and save the reference to AsyncLazyValue blocked by this future
+            ((_ALVResultFutureObj*)f)->alvrf_cycle_boundary = 0;
+            if (alv != NULL) {
+                ((_ALVResultFutureObj*)f)->alvrf_blocked_by_this = alv;
+                Py_INCREF(alv);
+            }
+        }
+        else if (_GatheringFuture_CheckExact(f) && ((_GatheringFutureObj*)f)->gf_contains_running_alv) {
+            // recurse to handle _ALVResultFuture nested in GatheringFutures
+            finish_cycle_check_in_gathering_fut((_GatheringFutureObj*)f, alv);
+        }
+    }
+    FOREACH_INDEX_END();
+}
+
 static int
-check_cycles(_ALVResultFutureObj* fut)
+check_cycles(FutureObj* fut)
 {
     // find ALV that would be blocked by this future
     PyObject *alv = call_get_arg0_from_pyframe(asyncio_alv_metadata_entrypoint_name, /*to_skip*/ zero);
@@ -3250,20 +3290,37 @@ check_cycles(_ALVResultFutureObj* fut)
         Py_DECREF(alv);
         return 0;
     }
-    fut->alvrf_cycle_boundary = 1;
+
+    // mark starting futures so they could be recognized later
+    if (_GatheringFuture_CheckExact(fut)) {
+        mark_cycle_boundaries_in_gathering_fut((_GatheringFutureObj*)fut);
+    }
+    else {
+        ((_ALVResultFutureObj*)fut)->alvrf_cycle_boundary = 1;
+    }
+
     PyObject *cycle = NULL;
     FIND_CYCLE_RESULT result = find_cycle(alv, &cycle);
-    fut->alvrf_cycle_boundary = 0;
+
+    // reset marks and possibly track reference for AsyncLazyValue blocked by current future
+    if (_GatheringFuture_CheckExact(fut)) {
+        finish_cycle_check_in_gathering_fut((_GatheringFutureObj*)fut, result == FCR_CYCLE_NOT_FOUND ? alv : NULL);
+    }
+    else {
+        ((_ALVResultFutureObj*)fut)->alvrf_cycle_boundary = 0;
+        if (result == FCR_CYCLE_NOT_FOUND) {
+            ((_ALVResultFutureObj*)fut)->alvrf_blocked_by_this = alv;
+            Py_INCREF(alv);
+        }
+    }
+    Py_DECREF(alv);
 
     if (result == FCR_ERROR) {
         assert(PyErr_Occurred());
-        Py_DECREF(alv);
         return -1;
     }
     else if (result == FCR_CYCLE_FOUND) {
         assert(!PyErr_Occurred());
-        Py_DECREF(alv);
-
         PyObject *err = PyObject_CallOneArg(asyncio_CycleDetected, cycle);
         Py_DECREF(cycle);
         if (err == NULL) {
@@ -3273,8 +3330,6 @@ check_cycles(_ALVResultFutureObj* fut)
         Py_DECREF(err);
         return -1;
     }
-    // steals reference
-    fut->alvrf_blocked_by_this = alv;
     return 0;
 }
 
@@ -3324,9 +3379,15 @@ FutureIter_am_send(futureiterobject *it,
 
     if (fut->fut_state == STATE_PENDING) {
         if (!fut->fut_blocking) {
-            if (_ALVResultFuture_Type_CheckExact(fut)) {
-                if (check_cycles((_ALVResultFutureObj *)fut) == -1) {
-                    return PYGEN_ERROR;
+            if (cinder_get_arg0_from_pyframe) {
+                // attempt on future that represents either running AsyncLazyValue
+                // or gathering future that contain futures for running AsyncLazyValue (direcly or indirectly)
+                // this could introduce cycle in evaluation - do the check
+                if (_ALVResultFuture_Type_CheckExact(fut) ||
+                (_GatheringFuture_CheckExact(fut) && ((_GatheringFutureObj*)fut)->gf_contains_running_alv)) {
+                    if (check_cycles(fut) == -1) {
+                        return PYGEN_ERROR;
+                    }
                 }
             }
             fut->fut_blocking = 1;
@@ -6660,7 +6721,8 @@ static CORO_OR_FUTURE_KIND
 _get_coro_or_future_kind(PyObject *coro_or_future)
 {
     // push fast checks first
-    if (_AsyncLazyValue_CheckExact(coro_or_future)) {
+    if (_AsyncLazyValue_CheckExact(coro_or_future) ||
+        PyObject_IsInstance(coro_or_future, (PyObject*)&_AsyncLazyValue_Type)) {
         return KIND_ASYNC_LAZY_VALUE;
     }
     PyTypeObject *t = Py_TYPE(coro_or_future);
@@ -7547,7 +7609,7 @@ _gather_multiple(PyObject *const*items,
         }
     }
 #endif
-
+    int contains_running_alv = 0;
     for (Py_ssize_t i = 0; i < nitems; ++i) {
         PyObject *arg = items[i];
         if (awaiter) {
@@ -7601,6 +7663,15 @@ _gather_multiple(PyObject *const*items,
                 data, i, FutureObj_get_result((FutureObj *)arg, NULL));
             continue;
         }
+        // 4. in-flight AsyncLazyValue or gathering future containing in-flight AsyncLazyValue
+        if (kind == KIND_ASYNC_LAZY_VALUE &&
+            ((AsyncLazyValueObj *)arg)->alv_state == ALV_RUNNING) {
+            contains_running_alv = 1;
+        }
+        else if (_GatheringFuture_CheckExact(arg) && ((_GatheringFutureObj*)arg)->gf_contains_running_alv) {
+            contains_running_alv = 1;
+        }
+
         PyObject *fut;
         int is_non_started_alv =
             kind == KIND_ASYNC_LAZY_VALUE
@@ -7794,6 +7865,8 @@ _gather_multiple(PyObject *const*items,
     assert(gfut->gf_pending > 0);
     // create new reference to gfut
     Py_INCREF(gfut);
+
+    gfut->gf_contains_running_alv = contains_running_alv;
     // drop refs to data and done_callback
     // they are already captured in gfut or pending tasks
     Py_DECREF(data);

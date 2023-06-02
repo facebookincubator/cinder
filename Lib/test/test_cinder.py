@@ -2836,6 +2836,101 @@ class AsyncLazyValueCycleTest(unittest.TestCase):
     async def test_cycle2_indirect_await(self):
         await self._test_cycle_2(False)
 
+    @async_test
+    async def test_cycle_gather_1(self):
+        alv1 = None
+        alv2 = None
+        alv3 = None
+
+        async def a():
+            await alv2
+
+        async def b():
+            await alv3
+
+        async def c():
+            await asyncio.gather(alv1)
+
+        async def main():
+            nonlocal alv1, alv2, alv3
+            alv1 = asyncio.AsyncLazyValue(a)
+            alv2 = asyncio.AsyncLazyValue(b)
+            alv3 = asyncio.AsyncLazyValue(c)
+            await alv1
+
+        try:
+            await asyncio.wait_for(main(), timeout=2)
+        except asyncio.tasks.CycleDetected as d:
+            self.assertEqual(len(d.parts), 3)
+            self.assertIn(alv1, d.parts)
+            self.assertIn(alv2, d.parts)
+            self.assertIn(alv3, d.parts)
+
+    @async_test
+    async def test_cycle_gather_2(self):
+        alv1 = None
+        alv2 = None
+        alv3 = None
+
+        async def a():
+            await alv2
+
+        async def b():
+            await alv3
+
+        async def c():
+            await asyncio.gather(asyncio.gather(alv1))
+
+        async def main():
+            nonlocal alv1, alv2, alv3
+            alv1 = asyncio.AsyncLazyValue(a)
+            alv2 = asyncio.AsyncLazyValue(b)
+            alv3 = asyncio.AsyncLazyValue(c)
+            await alv1
+
+        try:
+            await asyncio.wait_for(main(), timeout=2)
+        except asyncio.tasks.CycleDetected as d:
+            self.assertEqual(len(d.parts), 3)
+            self.assertIn(alv1, d.parts)
+            self.assertIn(alv2, d.parts)
+            self.assertIn(alv3, d.parts)
+
+    @async_test
+    async def test_cycle_gather_3(self):
+        alv1 = None
+        alv2 = None
+        alv3 = None
+        alv4 = None
+
+        async def a():
+            await alv2
+
+        async def b():
+            await asyncio.gather(alv3, alv4)
+
+        async def b_1():
+            await asyncio.sleep(0)
+
+        async def c():
+            await asyncio.gather(asyncio.gather(alv1))
+
+        async def main():
+            nonlocal alv1, alv2, alv3, alv4
+            alv1 = asyncio.AsyncLazyValue(a)
+            alv2 = asyncio.AsyncLazyValue(b)
+            alv3 = asyncio.AsyncLazyValue(b_1)
+            alv4 = asyncio.AsyncLazyValue(c)
+            await alv1
+
+        try:
+            await asyncio.wait_for(main(), timeout=2)
+        except asyncio.tasks.CycleDetected as d:
+            self.assertEqual(len(d.parts), 3)
+            self.assertIn(alv1, d.parts)
+            self.assertIn(alv2, d.parts)
+            self.assertIn(alv4, d.parts)
+
 
 if __name__ == "__main__":
 
