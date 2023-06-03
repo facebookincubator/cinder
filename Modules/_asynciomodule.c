@@ -3261,7 +3261,7 @@ static void finish_cycle_check_in_gathering_fut(_GatheringFutureObj* gfut, PyObj
     {
         PyObject *f = PyList_GET_ITEM(gfut->gf_data, i);
         if (_ALVResultFuture_Type_CheckExact(f)) {
-            // reet the mark in _ALVResultFuture and save the reference to AsyncLazyValue blocked by this future
+            // reset the mark in _ALVResultFuture and save the reference to AsyncLazyValue blocked by this future
             ((_ALVResultFutureObj*)f)->alvrf_cycle_boundary = 0;
             if (alv != NULL) {
                 ((_ALVResultFutureObj*)f)->alvrf_blocked_by_this = alv;

@@ -119,6 +119,7 @@ typedef CiStackWalkDirective (*CiWalkStackCallback)(void *data,
  * The return value of cb controls whether or not stack walking continues.
  */
 CiAPI_FUNC(void) Ci_WalkStack(PyThreadState *tstate, CiWalkStackCallback cb, void *data);
+CiAPI_FUNC(void) Ci_WalkAsyncStack(PyThreadState *tstate, CiWalkStackCallback cb, void *data);
 
 CiAPI_FUNC(PyObject *) CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code);
 CiAPI_FUNC(PyObject *) CiAsyncGen_New_NoFrame(PyCodeObject *code);

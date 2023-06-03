@@ -435,6 +435,59 @@ get_call_stack(PyObject *self, PyObject *args) {
     return stack;
 }
 
+typedef struct {
+    PyObject *list;
+    int hasError;
+} StackWalkState;
+
+static CiStackWalkDirective frame_data_collector(
+    void *data,
+    PyCodeObject *code,
+    int lineno)
+{
+    StackWalkState *state = (StackWalkState*)data;
+    PyObject *qualname = ((PyCodeObject *)code)->co_qualname;
+    if (!qualname || !PyUnicode_Check(qualname)) {
+        qualname = ((PyCodeObject *)code)->co_name;
+    }
+    PyObject *t = PyTuple_New(2);
+    if (t == NULL) {
+        goto fail;
+    }
+    PyObject *lineNoObj = PyLong_FromLong(lineno);
+    if (lineNoObj == NULL) {
+        Py_DECREF(t);
+        goto fail;
+    }
+    PyTuple_SET_ITEM(t, 0, qualname);
+    Py_INCREF(qualname);
+
+    // steals ref
+    PyTuple_SET_ITEM(t, 1, lineNoObj);
+    int failed = PyList_Append(state->list, t);
+    Py_DECREF(t);
+    if (!failed) {
+        return CI_SWD_CONTINUE_STACK_WALK;
+    }
+fail:
+    state->hasError = 1;
+    return CI_SWD_STOP_STACK_WALK;
+}
+
+static PyObject*
+get_entire_call_stack_as_qualnames_with_lineno(PyObject *self, PyObject *Py_UNUSED(args)) {
+    PyObject *stack = PyList_New(0);
+    if (stack == NULL) {
+        return NULL;
+    }
+    StackWalkState state = { .list=stack, .hasError = 0 };
+    Ci_WalkAsyncStack(PyThreadState_GET(), frame_data_collector, &state);
+    if (state.hasError || (PyList_Reverse(stack) != 0)) {
+        Py_CLEAR(stack);
+    }
+    return stack;
+}
+
 static PyObject*
 get_entire_call_stack_as_qualnames(PyObject *self, PyObject *Py_UNUSED(args)) {
   _PyShadowFrame *shadow_frame = PyThreadState_GET()->shadow_frame;
@@ -663,6 +716,10 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_entire_call_stack_as_qualnames,
         METH_NOARGS,
         "Return the current stack as a list of qualnames."},
+    {"_get_entire_call_stack_as_qualnames_with_lineno",
+        get_entire_call_stack_as_qualnames_with_lineno,
+        METH_NOARGS,
+        "Return the current stack as a list of tuples (qualname, lineno)."},
     {"watch_sys_modules",
         watch_sys_modules,
         METH_NOARGS,

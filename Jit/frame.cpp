@@ -822,3 +822,12 @@ void Ci_WalkStack(PyThreadState* tstate, CiWalkStackCallback cb, void* data) {
         return cb(data, loc.code, loc.lineNo()) == CI_SWD_CONTINUE_STACK_WALK;
       });
 }
+
+void Ci_WalkAsyncStack(
+    PyThreadState* tstate,
+    CiWalkStackCallback cb,
+    void* data) {
+  jit::walkAsyncShadowStack(tstate, [&](const jit::CodeObjLoc& loc) {
+    return cb(data, loc.code, loc.lineNo()) == CI_SWD_CONTINUE_STACK_WALK;
+  });
+}

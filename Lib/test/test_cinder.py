@@ -2031,6 +2031,60 @@ class TestWaitForAwaiter(unittest.TestCase):
         self.assertIs(await_stacks[1][1].cr_code, waiter.__code__)
 
 
+class TestStackWithLineno(unittest.TestCase):
+    def test_get_stack_with_lineno_1(self):
+        # use code string to have deterministic line numbers
+        code = """
+from cinder import _get_entire_call_stack_as_qualnames_with_lineno
+import asyncio
+
+result = None
+async def f1():
+    return await f2()
+
+async def f2():
+    global result
+    result = _get_entire_call_stack_as_qualnames_with_lineno()
+
+async def g0():
+    return await f1();
+
+asyncio.run(g0())
+        """
+        g = {}
+        exec(code, g)
+        last_frames = g["result"][-3:]
+        self.assertEqual(last_frames, [("g0", 14), ("f1", 7), ("f2", 11)])
+
+    def test_get_stack_with_lineno_2(self):
+        # use code string to have deterministic line numbers
+        code = """
+from cinder import _get_entire_call_stack_as_qualnames_with_lineno
+import asyncio
+
+result = None
+async def f1():
+    await asyncio.sleep(0)
+    return await f2()
+
+async def f2():
+    global result
+    result = _get_entire_call_stack_as_qualnames_with_lineno()
+
+async def g0():
+    return await g1();
+
+async def g1():
+    return await asyncio.gather(f1())
+
+asyncio.run(g0())
+        """
+        g = {}
+        exec(code, g)
+        last_frames = g["result"][-4:]
+        self.assertEqual(last_frames, [("g0", 15), ("g1", 18), ("f1", 8), ("f2", 12)])
+
+
 class Rendez:
     def __init__(self):
         self.started = asyncio.Future()
