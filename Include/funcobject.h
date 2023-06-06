@@ -52,6 +52,12 @@ typedef struct {
      */
 } PyFunctionObject;
 
+
+/* Temporarily disabling BOLT on this function as we end up with a
+ * comparison to the unoptimized function when referred to from a 
+ * function which isn't being BOLTed */
+#define PyEntry_LazyInit PyEntry_LazyInit_dont_bolt
+
 CiAPI_FUNC(PyObject *) PyEntry_LazyInit(PyFunctionObject *func,
                            PyObject **stack,
                            Py_ssize_t nargsf,
