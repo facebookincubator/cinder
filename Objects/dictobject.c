@@ -4959,9 +4959,12 @@ _PyDictView_New(PyObject *dict, PyTypeObject *type)
         return NULL;
     Py_INCREF(dict);
     d = (PyDictObject *)dict;
-    if (DICT_HAS_DEFERRED(d)
-        && PyDict_ResolveLazyImports((PyObject *)d) != 0) {
-        return NULL;
+    if (type == &PyDictItems_Type ||
+        type == &PyDictValues_Type) {
+        if (DICT_HAS_DEFERRED(d)
+            && PyDict_ResolveLazyImports((PyObject *)d) != 0) {
+            return NULL;
+        }
     }
     dv->dv_dict = d;
     _PyObject_GC_TRACK(dv);
