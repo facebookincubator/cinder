@@ -678,6 +678,65 @@ class LoadAttrTests(ProfileTest):
             with self.assertDeopts({}):
                 self.assertEqual(get_y(p), 222)
 
+    def test_load_attr_from_replaced_property(self):
+        class C:
+            @property
+            def x(self):
+                return "hello from property"
+
+        def load_x(o):
+            return o.x
+
+        c = C()
+        self.assertEqual(load_x(c), "hello from property")
+
+        if TESTING:
+            C.x = "goodbye"
+            with self.assertDeopts(
+                {(("reason", "GuardFailure"), ("description", "property attribute")): 1}
+            ):
+                self.assertEqual(load_x(c), "goodbye")
+
+    def test_load_attr_from_replaced_descriptor(self):
+        class Descr:
+            def __get__(self, instance, owner=None):
+                return "descr!"
+
+            def __set__(self, instance, value):
+                raise RuntimeError
+
+        class C:
+            attr = Descr()
+
+        def load_attr(o):
+            return o.attr
+
+        c = C()
+        self.assertEqual(load_attr(c), "descr!")
+
+        if TESTING:
+            del Descr.__get__
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "tp_descr_get/tp_descr_set"),
+                    ): 1
+                }
+            ):
+                self.assertIs(load_attr(c), C.attr)
+
+            C.attr = "not descr"
+            with self.assertDeopts(
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "generic descriptor attribute"),
+                    ): 1
+                }
+            ):
+                self.assertEqual(load_attr(c), "not descr")
+
 
 class Duck:
     def speak(self):

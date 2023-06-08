@@ -368,3 +368,76 @@ fun jittestmodule:test {
   }
 }
 ---
+SpecializeLoadAttrFromProperty
+---
+class C:
+  @property
+  def name(self):
+    return "bob"
+
+def test(o):
+  return o.name
+
+test(C())
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Object = LoadArg<0; "o">
+    DeoptPatchpoint<0xdeadbeef> {
+      Descr 'property attribute'
+      GuiltyReg v2
+    }
+    v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
+    v7:Object = VectorCall<1> v6 v2 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v2
+      }
+    }
+    Return v7
+  }
+}
+---
+SpecializeLoadAttrFromUserDescriptor
+---
+class Descr:
+  def __get__(self, instance, owner=None):
+    pass
+  def __set__(self, instance, value):
+    pass
+
+class C:
+  attr = Descr()
+
+def test(o):
+  return o.attr
+test(C())
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Object = LoadArg<0; "o">
+    v4:ObjectUser[C:Exact] = GuardType<ObjectUser[C:Exact]> v2 {
+      GuiltyReg v2
+    }
+    DeoptPatchpoint<0xdeadbeef> {
+      Descr 'generic descriptor attribute'
+      GuiltyReg v4
+    }
+    DeoptPatchpoint<0xdeadbeef> {
+      Descr 'tp_descr_get/tp_descr_set'
+      GuiltyReg v4
+    }
+    UseType<ObjectUser[C:Exact]> v4
+    v6:MortalObjectUser[Descr:0xdeadbeef] = LoadConst<MortalObjectUser[Descr:0xdeadbeef]>
+    v7:MortalTypeExact[C:obj] = LoadConst<MortalTypeExact[C:obj]>
+    v8:OptObject = CallStatic<slot_tp_descr_get@0xdeadbeef, 3> v6 v4 v7
+    v9:Object = CheckExc v8 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<1> v4
+      }
+    }
+    Return v9
+  }
+}
+---

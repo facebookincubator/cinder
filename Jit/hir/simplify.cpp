@@ -877,6 +877,60 @@ Register* simplifyLoadAttrMemberDescr(Env& env, const DescrInfo& info) {
   return nullptr;
 }
 
+Register* simplifyLoadAttrProperty(Env& env, const DescrInfo& info) {
+  if (Py_TYPE(info.descr) != &PyProperty_Type) {
+    return nullptr;
+  }
+  auto property = reinterpret_cast<Ci_propertyobject*>(info.descr.get());
+  BorrowedRef<> getter = property->prop_get;
+  if (getter == nullptr) {
+    return nullptr;
+  }
+
+  emitTypeAttrDeoptPatcher(env, info, "property attribute");
+  Register* getter_obj = env.emit<LoadConst>(Type::fromObject(getter));
+  auto call = env.emitRawInstr<VectorCall>(
+      2,
+      env.func.env.AllocateRegister(),
+      /* is_awaited= */ false,
+      *info.load_attr->frameState());
+  call->SetOperand(0, getter_obj);
+  call->SetOperand(1, info.receiver);
+  return call->GetOutput();
+}
+
+Register* simplifyLoadAttrGenericDescriptor(Env& env, const DescrInfo& info) {
+  BorrowedRef<PyTypeObject> descr_type = Py_TYPE(info.descr);
+  descrgetfunc descr_get = descr_type->tp_descr_get;
+  descrsetfunc descr_set = descr_type->tp_descr_set;
+  if (descr_get == nullptr || descr_set == nullptr) {
+    return nullptr;
+  }
+
+  emitTypeAttrDeoptPatcher(env, info, "generic descriptor attribute");
+  if (!_PyClassLoader_IsImmutable(descr_type)) {
+    // We unfortunately have to use a generic TypeDeoptPatcher here that
+    // patches on any changes to the type, since type_setattro() calls
+    // PyType_Modified() before updating tp_descr_{get,set}.
+    auto patchpoint = env.emitInstr<DeoptPatchpoint>(
+        Runtime::get()->allocateDeoptPatcher<TypeDeoptPatcher>(descr_type));
+    patchpoint->setGuiltyReg(info.receiver);
+    patchpoint->setDescr("tp_descr_get/tp_descr_set");
+  }
+  env.emit<UseType>(info.receiver, info.type);
+  Register* descr_reg = env.emit<LoadConst>(Type::fromObject(info.descr));
+  Register* type_reg = env.emit<LoadConst>(Type::fromObject(info.py_type));
+  auto call = env.emitRawInstr<CallStatic>(
+      3,
+      env.func.env.AllocateRegister(),
+      reinterpret_cast<void*>(descr_get),
+      TOptObject);
+  call->SetOperand(0, descr_reg);
+  call->SetOperand(1, info.receiver);
+  call->SetOperand(2, type_reg);
+  return env.emit<CheckExc>(call->GetOutput(), *info.load_attr->frameState());
+}
+
 // Attempt to handle LoadAttr cases where the load is a common case for object
 // instances (not types).
 Register* simplifyLoadAttrInstanceReceiver(
@@ -904,6 +958,8 @@ Register* simplifyLoadAttrInstanceReceiver(
   DescrInfo info{load_attr, receiver, type, py_type, attr_name, descr};
   auto descr_funcs = {
       simplifyLoadAttrMemberDescr,
+      simplifyLoadAttrProperty,
+      simplifyLoadAttrGenericDescriptor,
   };
   for (auto func : descr_funcs) {
     if (Register* reg = func(env, info)) {

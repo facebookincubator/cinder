@@ -11,11 +11,15 @@
 
 namespace jit {
 
+// Patch a DeoptPatchpoint when the given PyTypeObject changes at all. This
+// should only be used (instead of a more specific subclass) in cases where it
+// is impossible to check the property we care about in maybePatch() (e.g., if
+// the change to the type happens after PyType_Modified() is called).
 class TypeDeoptPatcher : public DeoptPatcher {
  public:
   TypeDeoptPatcher(BorrowedRef<PyTypeObject> type);
 
-  virtual bool maybePatch(BorrowedRef<PyTypeObject> new_ty) = 0;
+  virtual bool maybePatch(BorrowedRef<PyTypeObject> new_ty);
 
  protected:
   void init() override;

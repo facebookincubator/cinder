@@ -12,6 +12,11 @@ namespace jit {
 TypeDeoptPatcher::TypeDeoptPatcher(BorrowedRef<PyTypeObject> type)
     : type_{type} {}
 
+bool TypeDeoptPatcher::maybePatch(BorrowedRef<PyTypeObject>) {
+  patch();
+  return true;
+}
+
 void TypeDeoptPatcher::init() {
   Runtime::get()->watchType(type_, this);
 }
