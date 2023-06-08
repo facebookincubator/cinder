@@ -2645,12 +2645,20 @@ DEFINE_SIMPLE_INSTR(BatchDecref, (TObject), Operands<>);
 
 class DeoptBaseWithNameIdx : public DeoptBase {
  public:
+  DeoptBaseWithNameIdx(Opcode op, int name_idx)
+      : DeoptBase(op), name_idx_(name_idx) {}
+
   DeoptBaseWithNameIdx(Opcode op, int name_idx, const FrameState& frame)
       : DeoptBase(op, frame), name_idx_(name_idx) {}
 
-  // Index of the attribute name in the code object's co_names tuple
+  // Index of the attribute name in the code object's co_names tuple.
   int name_idx() const {
     return name_idx_;
+  }
+
+  // The name object, retrieved from the code object's co_names tuple.
+  BorrowedRef<PyUnicodeObject> name() const {
+    return PyTuple_GET_ITEM(frameState()->code->co_names, name_idx());
   }
 
  private:
@@ -2756,7 +2764,7 @@ class INSTR_CLASS(
     (TType),
     HasOutput,
     Operands<1>,
-    DeoptBase) {
+    DeoptBaseWithNameIdx) {
  public:
   FillTypeAttrCache(
       Register* dst,
@@ -2764,16 +2772,14 @@ class INSTR_CLASS(
       int name_idx,
       int cache_id,
       const FrameState& frame)
-      : InstrT(dst, receiver, frame),
-        name_idx_(name_idx),
-        cache_id_(cache_id) {}
+      : InstrT(dst, receiver, name_idx, frame), cache_id_(cache_id) {}
   FillTypeAttrCache(
       Register* dst,
       Register* receiver,
       int name_idx,
       int cache_id,
       std::unique_ptr<FrameState> frame)
-      : InstrT(dst, receiver), name_idx_(name_idx), cache_id_(cache_id) {
+      : InstrT(dst, receiver, name_idx), cache_id_(cache_id) {
     setFrameState(std::move(frame));
   }
 
@@ -2782,37 +2788,24 @@ class INSTR_CLASS(
     return reg();
   }
 
-  // Index of the attribute name in the code object's co_names tuple
-  int name_idx() const {
-    return name_idx_;
-  }
-
   int cache_id() const {
     return cache_id_;
   }
 
  private:
-  int name_idx_;
   int cache_id_;
 };
 
-class LoadMethodBase : public DeoptBase {
+class LoadMethodBase : public DeoptBaseWithNameIdx {
  protected:
   LoadMethodBase(Opcode op, int name_idx, const FrameState& frame)
-      : DeoptBase(op, frame), name_idx_(name_idx) {}
+      : DeoptBaseWithNameIdx(op, name_idx, frame) {}
 
  public:
   // The object we're loading the attribute from
   Register* receiver() const {
     return GetOperand(0);
   }
-  // Index of the attribute name in the code object's co_names tuple
-  int name_idx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
 };
 
 // Like LoadAttr, but when we know that we're loading an attribute that will be
@@ -2832,11 +2825,10 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>,
     LoadMethodBase);
 
-class LoadSuperBase : public DeoptBase {
+class LoadSuperBase : public DeoptBaseWithNameIdx {
  protected:
   LoadSuperBase(Opcode op, int name_idx, bool no_args_in_super_call)
-      : DeoptBase(op),
-        name_idx_(name_idx),
+      : DeoptBaseWithNameIdx(op, name_idx),
         no_args_in_super_call_(no_args_in_super_call) {}
 
   LoadSuperBase(
@@ -2844,8 +2836,7 @@ class LoadSuperBase : public DeoptBase {
       int name_idx,
       bool no_args_in_super_call,
       const FrameState& frame)
-      : DeoptBase(op, frame),
-        name_idx_(name_idx),
+      : DeoptBaseWithNameIdx(op, name_idx, frame),
         no_args_in_super_call_(no_args_in_super_call) {}
 
  public:
@@ -2864,17 +2855,12 @@ class LoadSuperBase : public DeoptBase {
   Register* receiver() const {
     return GetOperand(2);
   }
-  // Index of the attribute name in the code object's co_names tuple
-  int name_idx() const {
-    return name_idx_;
-  }
 
   bool no_args_in_super_call() const {
     return no_args_in_super_call_;
   }
 
  private:
-  int name_idx_;
   bool no_args_in_super_call_;
 };
 
@@ -2898,7 +2884,7 @@ class INSTR_CLASS(
     (TType),
     HasOutput,
     Operands<1>,
-    DeoptBase) {
+    DeoptBaseWithNameIdx) {
  public:
   FillTypeMethodCache(
       Register* dst,
@@ -2906,16 +2892,14 @@ class INSTR_CLASS(
       int name_idx,
       int cache_id,
       const FrameState& frame)
-      : InstrT(dst, receiver, frame),
-        name_idx_(name_idx),
-        cache_id_(cache_id) {}
+      : InstrT(dst, receiver, name_idx, frame), cache_id_(cache_id) {}
   FillTypeMethodCache(
       Register* dst,
       Register* receiver,
       int name_idx,
       int cache_id,
       std::unique_ptr<FrameState> frame)
-      : InstrT(dst, receiver), name_idx_(name_idx), cache_id_(cache_id) {
+      : InstrT(dst, receiver, name_idx), cache_id_(cache_id) {
     setFrameState(std::move(frame));
   }
 
@@ -2924,17 +2908,11 @@ class INSTR_CLASS(
     return reg();
   }
 
-  // Index of the method name in the code object's co_names tuple
-  int name_idx() const {
-    return name_idx_;
-  }
-
   int cache_id() const {
     return cache_id_;
   }
 
  private:
-  int name_idx_;
   int cache_id_;
 };
 
@@ -3077,18 +3055,12 @@ class INSTR_CLASS(LoadGlobalCached, (), HasOutput, Operands<0>) {
   int name_idx_;
 };
 
-class INSTR_CLASS(LoadGlobal, (), HasOutput, Operands<0>, DeoptBase) {
- public:
-  LoadGlobal(Register* dst, int name_idx, const FrameState& frame)
-      : InstrT(dst, frame), name_idx_(name_idx) {}
-
-  int name_idx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
-};
+DEFINE_SIMPLE_INSTR(
+    LoadGlobal,
+    (),
+    HasOutput,
+    Operands<0>,
+    DeoptBaseWithNameIdx);
 
 // Return a copy of the input with a refined Type. The output Type is the
 // intersection of the given Type and the input's Type.
@@ -3811,25 +3783,23 @@ DEFINE_SIMPLE_INSTR(
     Operands<2>,
     DeoptBase);
 
-class INSTR_CLASS(ImportFrom, (TObject), HasOutput, Operands<1>, DeoptBase) {
+class INSTR_CLASS(
+    ImportFrom,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    DeoptBaseWithNameIdx) {
  public:
   ImportFrom(
       Register* dst,
       Register* module,
       int name_idx,
       const FrameState& frame)
-      : InstrT(dst, module, frame), name_idx_(name_idx) {}
+      : InstrT(dst, module, name_idx, frame) {}
 
   Register* module() const {
     return GetOperand(0);
   }
-
-  int nameIdx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
 };
 
 class INSTR_CLASS(
@@ -3837,7 +3807,7 @@ class INSTR_CLASS(
     (TObject, TLong),
     HasOutput,
     Operands<2>,
-    DeoptBase) {
+    DeoptBaseWithNameIdx) {
  public:
   ImportName(
       Register* dst,
@@ -3845,7 +3815,7 @@ class INSTR_CLASS(
       Register* fromlist,
       Register* level,
       const FrameState& frame)
-      : InstrT(dst, fromlist, level, frame), name_idx_(name_idx) {}
+      : InstrT(dst, fromlist, level, name_idx, frame) {}
 
   Register* GetFromList() const {
     return GetOperand(0);
@@ -3854,13 +3824,6 @@ class INSTR_CLASS(
   Register* GetLevel() const {
     return GetOperand(1);
   }
-
-  int name_idx() const {
-    return name_idx_;
-  }
-
- private:
-  int name_idx_;
 };
 
 // (Re)raises an exception with optional cause.

@@ -180,7 +180,7 @@ TEST_F(HIRParserTest, ParsesHIR) {
   ASSERT_NE(it, end);
   ASSERT_EQ(it->opcode(), Opcode::kImportFrom);
   ASSERT_EQ(static_cast<ImportFrom&>(*it).GetOutput()->name(), "v1");
-  ASSERT_EQ(static_cast<ImportFrom&>(*it).nameIdx(), 2);
+  ASSERT_EQ(static_cast<ImportFrom&>(*it).name_idx(), 2);
   ASSERT_EQ(static_cast<ImportFrom&>(*it).module()->name(), "v3");
   ++it;
   ASSERT_NE(it, end);

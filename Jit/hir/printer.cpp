@@ -667,7 +667,7 @@ static std::string format_immediates(const Instr& instr) {
     }
     case Opcode::kImportFrom: {
       const auto& import_from = static_cast<const ImportFrom&>(instr);
-      return format_name(import_from, import_from.nameIdx());
+      return format_name(import_from, import_from.name_idx());
     }
     case Opcode::kImportName: {
       const auto& import_name = static_cast<const ImportName&>(instr);
