@@ -2,6 +2,8 @@
 
 #include "Jit/util.h"
 
+#include "cinder/exports.h"
+
 #include "Jit/log.h"
 #include "Jit/ref.h"
 
@@ -187,6 +189,16 @@ BorrowedRef<> typeLookupSafe(
     }
   }
   return nullptr;
+}
+
+bool ensureVersionTag(BorrowedRef<PyTypeObject> type) {
+  // Avoid taking the compilation lock in the common case that the type already
+  // has a version tag.
+  if (PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
+    return true;
+  }
+  ThreadedCompileSerialize guard;
+  return Ci_Type_AssignVersionTag(type);
 }
 
 } // namespace jit

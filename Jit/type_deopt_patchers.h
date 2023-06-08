@@ -15,7 +15,7 @@ class TypeDeoptPatcher : public DeoptPatcher {
  public:
   TypeDeoptPatcher(BorrowedRef<PyTypeObject> type);
 
-  virtual bool shouldPatch(BorrowedRef<PyTypeObject> new_ty) const = 0;
+  virtual bool maybePatch(BorrowedRef<PyTypeObject> new_ty) = 0;
 
  protected:
   void init() override;
@@ -23,24 +23,20 @@ class TypeDeoptPatcher : public DeoptPatcher {
   BorrowedRef<PyTypeObject> type_;
 };
 
-// Patch a DeoptPatchpoint when the given PyTypeObject no longer has a
-// PyMemberDescr that fit the requires parameters for an optimized lookup.
-class MemberDescrDeoptPatcher : public TypeDeoptPatcher {
+// Patch a DeoptPatchpoint when the given PyTypeObject no longer has the given
+// PyObject* at the specified name.
+class TypeAttrDeoptPatcher : public TypeDeoptPatcher {
  public:
-  MemberDescrDeoptPatcher(
+  TypeAttrDeoptPatcher(
       BorrowedRef<PyTypeObject> type,
-      BorrowedRef<PyUnicodeObject> member_name,
-      int member_type,
-      Py_ssize_t member_offset);
+      BorrowedRef<PyUnicodeObject> attr_name,
+      BorrowedRef<> target_object);
 
-  void addReferences(CodeRuntime* code_rt) override;
-
-  bool shouldPatch(BorrowedRef<PyTypeObject> new_ty) const override;
+  bool maybePatch(BorrowedRef<PyTypeObject> new_ty) override;
 
  private:
-  BorrowedRef<PyUnicodeObject> member_name_;
-  int member_type_;
-  Py_ssize_t member_offset_;
+  Ref<PyUnicodeObject> attr_name_;
+  Ref<> target_object_;
 };
 
 class SplitDictDeoptPatcher : public TypeDeoptPatcher {
@@ -50,16 +46,14 @@ class SplitDictDeoptPatcher : public TypeDeoptPatcher {
       BorrowedRef<PyUnicodeObject> attr_name,
       PyDictKeysObject* keys);
 
-  void addReferences(CodeRuntime* code_rt) override;
-
-  bool shouldPatch(BorrowedRef<PyTypeObject> new_ty) const override;
+  bool maybePatch(BorrowedRef<PyTypeObject> new_ty) override;
 
  private:
-  BorrowedRef<PyUnicodeObject> attr_name_;
+  Ref<PyUnicodeObject> attr_name_;
 
-  // We don't need to grab a strong reference to keys_ like
-  // MemberDescrDeoptPatcher does with member_name_ because calls to
-  // PyTypeModified() happen before the old keys object is decrefed.
+  // We don't need to hold a strong reference to keys_ like we do for
+  // attr_name_ because calls to PyTypeModified() happen before the old keys
+  // object is decrefed.
   PyDictKeysObject* keys_;
 };
 

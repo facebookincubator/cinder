@@ -802,80 +802,112 @@ Register* simplifyLoadAttrSplitDict(
   return checked_attr;
 }
 
+// For LoadAttr instructions that resolve to a descriptor, DescrInfo holds
+// unpacked state that's used by a number of different simplification cases.
+struct DescrInfo {
+  const LoadAttr* load_attr;
+  Register* receiver;
+  Type type;
+  BorrowedRef<PyTypeObject> py_type;
+  BorrowedRef<PyUnicodeObject> attr_name;
+  BorrowedRef<> descr;
+};
+
+void emitTypeAttrDeoptPatcher(
+    Env& env,
+    const DescrInfo& info,
+    const char* description) {
+  if (_PyClassLoader_IsImmutable(info.py_type)) {
+    return;
+  }
+
+  // The descriptor could be from a base type, but PyType_Modified() also
+  // notifies subtypes of the modified type, so we only have to watch the
+  // object's type.
+  auto patchpoint = env.emitInstr<DeoptPatchpoint>(
+      Runtime::get()->allocateDeoptPatcher<TypeAttrDeoptPatcher>(
+          info.py_type, info.attr_name, info.descr));
+  patchpoint->setGuiltyReg(info.receiver);
+  patchpoint->setDescr(description);
+}
+
+Register* simplifyLoadAttrMemberDescr(Env& env, const DescrInfo& info) {
+  if (Py_TYPE(info.descr) != &PyMemberDescr_Type) {
+    return nullptr;
+  }
+
+  // PyMemberDescrs are data descriptors, so we don't need to check if the
+  // instance dictionary overrides the descriptor.
+  PyMemberDef* def =
+      reinterpret_cast<PyMemberDescrObject*>(info.descr.get())->d_member;
+  if (def->flags & READ_RESTRICTED) {
+    // This should be rare and requires raising an audit event; see
+    // Objects/descrobject.c:member_get().
+    return nullptr;
+  }
+
+  if (def->type == T_OBJECT || def->type == T_OBJECT_EX) {
+    const char* name_cstr = PyUnicode_AsUTF8(info.attr_name);
+    if (name_cstr == nullptr) {
+      PyErr_Clear();
+      name_cstr = "<unknown>";
+    }
+    emitTypeAttrDeoptPatcher(env, info, "member descriptor attribute");
+    env.emit<UseType>(info.receiver, info.type);
+    Register* field =
+        env.emit<LoadField>(info.receiver, name_cstr, def->offset, TOptObject);
+    if (def->type == T_OBJECT_EX) {
+      auto check_field = env.emitInstr<CheckField>(
+          field, info.attr_name, *info.load_attr->frameState());
+      check_field->setGuiltyReg(info.receiver);
+      return check_field->GetOutput();
+    }
+
+    return env.emitCond(
+        [&](BasicBlock* bb1, BasicBlock* bb2) {
+          env.emit<CondBranch>(field, bb1, bb2);
+        },
+        [&] { // Field is set
+          return env.emit<RefineType>(TObject, field);
+        },
+        [&] { // Field is nullptr
+          return env.emit<LoadConst>(TNoneType);
+        });
+  }
+  return nullptr;
+}
+
 // Attempt to handle LoadAttr cases where the load is a common case for object
-// instances (not types). For now, this handle slots and split dicts, but it
-// will be extended to include other cases in the future.
+// instances (not types).
 Register* simplifyLoadAttrInstanceReceiver(
     Env& env,
     const LoadAttr* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
-  Type ty = receiver->type();
-  BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
-  if (type == nullptr || !ty.isExact()) {
+  Type type = receiver->type();
+  BorrowedRef<PyTypeObject> py_type{type.runtimePyType()};
+  if (!type.isExact() || py_type == nullptr ||
+      !PyType_HasFeature(py_type, Py_TPFLAGS_READY) ||
+      py_type->tp_getattro != PyObject_GenericGetAttr ||
+      !ensureVersionTag(py_type)) {
     return nullptr;
   }
-  if (!PyType_HasFeature(type, Py_TPFLAGS_READY) ||
-      !PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG) ||
-      type->tp_getattro != PyObject_GenericGetAttr) {
-    return nullptr;
-  }
-  BorrowedRef<PyUnicodeObject> name{PyTuple_GET_ITEM(
-      load_attr->frameState()->code->co_names, load_attr->name_idx())};
-  if (!PyUnicode_CheckExact(name)) {
+  BorrowedRef<PyUnicodeObject> attr_name{load_attr->name()};
+  if (!PyUnicode_CheckExact(attr_name)) {
     return nullptr;
   }
 
-  BorrowedRef<> descr{typeLookupSafe(type, name)};
+  BorrowedRef<> descr{typeLookupSafe(py_type, attr_name)};
   if (descr == nullptr) {
-    return simplifyLoadAttrSplitDict(env, load_attr, type, name);
+    return simplifyLoadAttrSplitDict(env, load_attr, py_type, attr_name);
   }
 
-  BorrowedRef<PyTypeObject> descr_type{Py_TYPE(descr)};
-  if (descr_type == &PyMemberDescr_Type) {
-    // PyMemberDescrs are data descriptors, so we don't need to check if the
-    // instance dictionary overrides the descriptor.
-    PyMemberDef* def =
-        reinterpret_cast<PyMemberDescrObject*>(descr.get())->d_member;
-    if (def->flags & READ_RESTRICTED) {
-      // This should be rare and requires raising an audit event; see
-      // Objects/descrobject.c:member_get().
-      return nullptr;
-    }
-
-    if (def->type == T_OBJECT || def->type == T_OBJECT_EX) {
-      const char* name_cstr = PyUnicode_AsUTF8(name);
-      if (name_cstr == nullptr) {
-        PyErr_Clear();
-        name_cstr = "<unknown>";
-      }
-
-      // The descriptor could be from a base type, but PyType_Modified() also
-      // notifies subtypes of the modified type, so we only have to watch the
-      // object's type.
-      auto patchpoint = env.emitInstr<DeoptPatchpoint>(
-          Runtime::get()->allocateDeoptPatcher<MemberDescrDeoptPatcher>(
-              type, name, def->type, def->offset));
-      patchpoint->setGuiltyReg(receiver);
-      env.emit<UseType>(receiver, ty);
-      Register* field =
-          env.emit<LoadField>(receiver, name_cstr, def->offset, TOptObject);
-      if (def->type == T_OBJECT_EX) {
-        auto check_field =
-            env.emitInstr<CheckField>(field, name, *load_attr->frameState());
-        check_field->setGuiltyReg(receiver);
-        return check_field->GetOutput();
-      }
-
-      return env.emitCond(
-          [&](BasicBlock* bb1, BasicBlock* bb2) {
-            env.emit<CondBranch>(field, bb1, bb2);
-          },
-          [&] { // Field is set
-            return env.emit<RefineType>(TObject, field);
-          },
-          [&] { // Field is nullptr
-            return env.emit<LoadConst>(TNoneType);
-          });
+  DescrInfo info{load_attr, receiver, type, py_type, attr_name, descr};
+  auto descr_funcs = {
+      simplifyLoadAttrMemberDescr,
+  };
+  for (auto func : descr_funcs) {
+    if (Register* reg = func(env, info)) {
+      return reg;
     }
   }
   return nullptr;

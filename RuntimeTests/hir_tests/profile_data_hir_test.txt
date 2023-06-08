@@ -240,6 +240,7 @@ fun jittestmodule:test {
       GuiltyReg v4
     }
     DeoptPatchpoint<0xdeadbeef> {
+      Descr 'member descriptor attribute'
       GuiltyReg v6
     }
     UseType<ObjectUser[Point:Exact]> v6
@@ -252,6 +253,7 @@ fun jittestmodule:test {
       }
     }
     DeoptPatchpoint<0xdeadbeef> {
+      Descr 'member descriptor attribute'
       GuiltyReg v6
     }
     UseType<ObjectUser[Point:Exact]> v6
@@ -329,6 +331,40 @@ fun jittestmodule:test {
       }
     }
     Return v12
+  }
+}
+---
+SpecializeLoadAttrFromMemberOnImmutableType
+---
+from collections import defaultdict
+def test(o):
+  return o.default_factory
+test(defaultdict(int))
+---
+fun jittestmodule:test {
+  bb 0 {
+    v2:Object = LoadArg<0; "o">
+    v4:DictUser[collections.defaultdict:Exact] = GuardType<DictUser[collections.defaultdict:Exact]> v2 {
+      GuiltyReg v2
+    }
+    UseType<DictUser[collections.defaultdict:Exact]> v4
+    v6:OptObject = LoadField<default_factory@48, OptObject, borrowed> v4
+    CondBranch<1, 2> v6
+  }
+
+  bb 1 (preds 0) {
+    v7:Object = RefineType<Object> v6
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    v8:NoneType = LoadConst<NoneType>
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v9:Object = Phi<1, 2> v7 v8
+    Return v9
   }
 }
 ---

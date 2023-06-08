@@ -334,6 +334,7 @@ void Runtime::releaseReferences() {
     code_rt.releaseReferences();
   }
   references_.clear();
+  type_deopt_patchers_.clear();
 }
 
 std::optional<std::string> symbolize(const void* func) {
@@ -364,10 +365,8 @@ void Runtime::notifyTypeModified(
 
   std::vector<TypeDeoptPatcher*> remaining_patchers;
   for (TypeDeoptPatcher* patcher : it->second) {
-    if (!patcher->shouldPatch(new_type)) {
+    if (!patcher->maybePatch(new_type)) {
       remaining_patchers.emplace_back(patcher);
-    } else {
-      patcher->patch();
     }
   }
 

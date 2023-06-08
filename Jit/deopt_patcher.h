@@ -52,8 +52,6 @@ class DeoptPatcher {
   // a signed 32 bit int.
   void link(uintptr_t patchpoint, uintptr_t deopt_exit);
 
-  virtual void addReferences(CodeRuntime*) {}
-
   // Write the nop that will be overwritten at runtime when patch() is called.
   static void emitPatchpoint(asmjit::x86::Builder& as);
 

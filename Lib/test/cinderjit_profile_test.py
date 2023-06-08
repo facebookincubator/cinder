@@ -467,7 +467,7 @@ class LoadAttrTests(ProfileTest):
                 {
                     (
                         ("reason", "GuardFailure"),
-                        ("description", "DeoptPatchpoint"),
+                        ("description", "member descriptor attribute"),
                     ): 3,
                 }
             ):
@@ -500,7 +500,12 @@ class LoadAttrTests(ProfileTest):
                 self.assertEqual(get_foo(o), "foo")
 
             with self.assertDeopts(
-                {(("reason", "GuardFailure"), ("description", "DeoptPatchpoint")): 1}
+                {
+                    (
+                        ("reason", "GuardFailure"),
+                        ("description", "member descriptor attribute"),
+                    ): 1
+                }
             ):
                 self.assertEqual(get_bar(o), 5)
 
@@ -537,7 +542,7 @@ class LoadAttrTests(ProfileTest):
                 {
                     (
                         ("reason", "GuardFailure"),
-                        ("description", "DeoptPatchpoint"),
+                        ("description", "member descriptor attribute"),
                         (
                             "guilty_type",
                             "test.cinderjit_profile_test:OtherFakeSlotType",

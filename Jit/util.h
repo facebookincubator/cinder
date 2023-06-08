@@ -284,6 +284,10 @@ BorrowedRef<> typeLookupSafe(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<> name);
 
+// Attempt to ensure that the given type has a valid version tag, returning
+// true if successful.
+bool ensureVersionTag(BorrowedRef<PyTypeObject> type);
+
 } // namespace jit
 
 template <typename D, typename S>

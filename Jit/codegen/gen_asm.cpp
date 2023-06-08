@@ -1166,7 +1166,6 @@ void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
     uint64_t patchpoint = base + code.labelOffsetFromBase(udp.patchpoint);
     uint64_t deopt_exit = base + code.labelOffsetFromBase(udp.deopt_exit);
     udp.patcher->link(patchpoint, deopt_exit);
-    udp.patcher->addReferences(env_.code_rt);
   }
 }
 

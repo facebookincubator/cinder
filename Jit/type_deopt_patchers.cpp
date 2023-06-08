@@ -46,62 +46,60 @@ bool shouldPatchForAttr(
 }
 } // namespace
 
-MemberDescrDeoptPatcher::MemberDescrDeoptPatcher(
+TypeAttrDeoptPatcher::TypeAttrDeoptPatcher(
     BorrowedRef<PyTypeObject> type,
-    BorrowedRef<PyUnicodeObject> member_name,
-    int member_type,
-    Py_ssize_t member_offset)
-    : TypeDeoptPatcher{type},
-      member_name_{member_name},
-      member_type_{member_type},
-      member_offset_{member_offset} {}
-
-bool MemberDescrDeoptPatcher::shouldPatch(
-    BorrowedRef<PyTypeObject> new_ty) const {
-  return shouldPatchForAttr(
-      type_, new_ty, member_name_, [&](BorrowedRef<> descr) {
-        if (descr == nullptr || Py_TYPE(descr) != &PyMemberDescr_Type) {
-          return true;
-        }
-
-        PyMemberDef* def =
-            reinterpret_cast<PyMemberDescrObject*>(descr.get())->d_member;
-        return (def->flags & READ_RESTRICTED) || def->type != member_type_ ||
-            def->offset != member_offset_;
-      });
+    BorrowedRef<PyUnicodeObject> attr_name,
+    BorrowedRef<> target_object)
+    : TypeDeoptPatcher{type} {
+  ThreadedCompileSerialize guard;
+  attr_name_.reset(attr_name);
+  target_object_.reset(target_object);
 }
 
-void MemberDescrDeoptPatcher::addReferences(CodeRuntime* code_rt) {
-  code_rt->addReference(member_name_);
+bool TypeAttrDeoptPatcher::maybePatch(BorrowedRef<PyTypeObject> new_ty) {
+  bool should_patch =
+      shouldPatchForAttr(type_, new_ty, attr_name_, [&](BorrowedRef<> attr) {
+        return attr != target_object_;
+      });
+  if (should_patch) {
+    patch();
+    attr_name_.reset();
+    target_object_.reset();
+  }
+  return should_patch;
 }
 
 SplitDictDeoptPatcher::SplitDictDeoptPatcher(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<PyUnicodeObject> attr_name,
     PyDictKeysObject* keys)
-    : TypeDeoptPatcher{type}, attr_name_{attr_name}, keys_{keys} {}
-
-void SplitDictDeoptPatcher::addReferences(CodeRuntime* code_rt) {
-  code_rt->addReference(attr_name_);
+    : TypeDeoptPatcher{type}, keys_{keys} {
+  ThreadedCompileSerialize guard;
+  attr_name_.reset(attr_name);
 }
 
-bool SplitDictDeoptPatcher::shouldPatch(
-    BorrowedRef<PyTypeObject> new_ty) const {
-  return shouldPatchForAttr(type_, new_ty, attr_name_, [&](BorrowedRef<> attr) {
-    if (attr != nullptr) {
-      // This is more conservative than strictly necessary: the split dict
-      // lookup would still be OK if attr isn't a data descriptor, but we'd
-      // have to watch attr's type to safely rely on that fact.
-      return true;
-    }
+bool SplitDictDeoptPatcher::maybePatch(BorrowedRef<PyTypeObject> new_ty) {
+  bool should_patch =
+      shouldPatchForAttr(type_, new_ty, attr_name_, [&](BorrowedRef<> attr) {
+        if (attr != nullptr) {
+          // This is more conservative than strictly necessary: the split dict
+          // lookup would still be OK if attr isn't a data descriptor, but we'd
+          // have to watch attr's type to safely rely on that fact.
+          return true;
+        }
 
-    if (!PyType_HasFeature(new_ty, Py_TPFLAGS_HEAPTYPE)) {
-      return true;
-    }
+        if (!PyType_HasFeature(new_ty, Py_TPFLAGS_HEAPTYPE)) {
+          return true;
+        }
 
-    BorrowedRef<PyHeapTypeObject> ht(new_ty);
-    return ht->ht_cached_keys != keys_;
-  });
+        BorrowedRef<PyHeapTypeObject> ht(new_ty);
+        return ht->ht_cached_keys != keys_;
+      });
+  if (should_patch) {
+    patch();
+    attr_name_.reset();
+  }
+  return should_patch;
 }
 
 } // namespace jit
