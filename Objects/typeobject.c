@@ -5244,7 +5244,6 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
         }
 #ifdef ENABLE_CINDERVM
         _PyType_ClearNoShadowingInstances(newto, NULL);
-        _PyJIT_InstanceTypeAssigned(oldto, newto);
 #endif
 
         return 0;

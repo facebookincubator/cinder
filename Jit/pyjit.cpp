@@ -1671,6 +1671,46 @@ int _PyJIT_InitializeInternedStrings() {
   return 0;
 }
 
+// JIT audit event callback. For now, we only pay attention to when an object's
+// __class__ is assigned to.
+static int jit_audit_hook(const char* event, PyObject* args, void* /* data */) {
+  if (strcmp(event, "object.__setattr__") != 0 || PyTuple_GET_SIZE(args) != 3) {
+    return 0;
+  }
+  BorrowedRef<> name(PyTuple_GET_ITEM(args, 1));
+  if (!PyUnicode_Check(name) ||
+      PyUnicode_CompareWithASCIIString(name, "__class__") != 0) {
+    return 0;
+  }
+
+  BorrowedRef<> object(PyTuple_GET_ITEM(args, 0));
+  BorrowedRef<PyTypeObject> new_type(PyTuple_GET_ITEM(args, 2));
+  _PyJIT_InstanceTypeAssigned(Py_TYPE(object), new_type);
+  return 0;
+}
+
+static int install_jit_audit_hook() {
+  void* kData = nullptr;
+  if (PySys_AddAuditHook(jit_audit_hook, kData) < 0) {
+    return -1;
+  }
+
+  // PySys_AddAuditHook() can fail to add the hook but still return 0 if an
+  // existing audit function aborts the sys.addaudithook event. Since we rely
+  // on it for correctness, walk the linked list of audit functions and make
+  // sure ours is there.
+  _PyRuntimeState* runtime = &_PyRuntime;
+  for (_Py_AuditHookEntry* e = runtime->audit_hook_head; e != nullptr;
+       e = e->next) {
+    if (e->hookCFunction == jit_audit_hook && e->userData == kData) {
+      return 0;
+    }
+  }
+
+  PyErr_SetString(PyExc_RuntimeError, "Could not install JIT audit hook");
+  return -1;
+}
+
 int _PyJIT_Initialize() {
   // If we have data symbols which are public but not used within CPython code,
   // we need to ensure the linker doesn't GC the .data section containing them.
@@ -1770,7 +1810,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  if (register_fork_callback(mod) < 0) {
+  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0) {
     return -1;
   }
 
