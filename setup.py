@@ -1024,6 +1024,8 @@ class PyBuildExt(build_ext):
             self.add(Extension('_static', ['_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
             self.add(Extension('_strictmodule', ['_strictmodule.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
 
+        self.add(Extension('gdb_dbg', ['gdb_dbg.c']) )
+
         # Memoize module
         self.add(Extension('memoize', ['memoizemodule.c'],extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
 

@@ -1958,3 +1958,112 @@ class PyLocals(gdb.Command):
                       pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
+
+_PyRunningTargetFrameAddress = None
+_PyRunningTargetFrameBackAddress = None
+
+class PyTraceBreakpoint(gdb.Breakpoint):
+    def __init__(self):
+        super().__init__('gdb_tracefunc')
+        self.silent = True
+
+    def stop(self):
+        global _PyRunningTargetFrameAddress
+        global _PyRunningTargetFrameBackAddress
+
+        if _PyRunningTargetFrameAddress is not None:
+            frame = Frame.get_selected_python_frame()
+            if not frame:
+                print('Unable to locate python frame')
+                return True
+
+            pyop_frame = frame.get_pyop()
+            if not pyop_frame:
+                print(UNABLE_READ_INFO_PYTHON_FRAME)
+                return True
+
+            if (pyop_frame.as_address() != _PyRunningTargetFrameAddress
+                   and pyop_frame.as_address() != _PyRunningTargetFrameBackAddress):
+                return False
+
+            _PyRunningTargetFrameBackAddress = None
+            _PyRunningTargetFrameAddress = None
+
+        #gdb.execute("call gdb_disable_trace(0, 0)")
+        self.enabled = False
+
+        PyList.invoke(None, "", False)
+        return True
+
+# Lazily setup the breakpoint so if we have tracing enabled from the start we
+# don't immediately get triggered in bootstrap code. I think this is needed
+# even if we initialize the breakpoint as disabled because this might be ignored 
+# if the breakpoint is deferred until the gdb_dbg.so is loaded.
+PY_TRACE_POINT = None
+
+def enable_breakpoint():
+    global PY_TRACE_POINT
+    if PY_TRACE_POINT is None:
+        PY_TRACE_POINT = PyTraceBreakpoint()
+    else:
+        PY_TRACE_POINT.enabled = True
+
+
+class PyStep(gdb.Command):
+    'Step through lines of Python code'
+    def __init__(self, name, cont_command):
+        gdb.Command.__init__ (self,
+                              name,
+                              gdb.COMMAND_RUNNING,
+                              gdb.COMPLETE_NONE)
+        self.cont_command = cont_command
+
+    def invoke(self, args, from_tty):
+        # gdb.execute("call gdb_enable_trace()")
+        enable_breakpoint()
+        gdb.execute(self.cont_command)
+
+
+PyStep("py-step", "cont")
+PyStep("py-rstep", "reverse-cont")
+
+
+class PyNext(gdb.Command):
+    'Next through lines of Python code'
+    def __init__(self, name, cont_command):
+        gdb.Command.__init__ (self,
+                              name,
+                              gdb.COMMAND_RUNNING,
+                              gdb.COMPLETE_NONE)
+        self.cont_command = cont_command
+
+    def invoke(self, args, from_tty):
+        global _PyRunningTargetFrameAddress
+        global _PyRunningTargetFrameBackAddress
+
+        frame = Frame.get_selected_python_frame()
+        if not frame:
+            print('Unable to locate python frame')
+            return
+
+        pyop_frame = frame.get_pyop()
+        if not pyop_frame:
+            print(UNABLE_READ_INFO_PYTHON_FRAME)
+            return
+
+        _PyRunningTargetFrameAddress = pyop_frame.as_address()
+        _PyRunningTargetFrameBackAddress = pyop_frame.field("f_back")
+
+        # gdb.execute("call gdb_enable_trace(0, 0)")
+        enable_breakpoint()
+
+        gdb.execute(self.cont_command)
+
+PyNext("py-next", "cont")
+PyNext("py-rnext", "reverse-cont")
+
+# def PyRunningInit():
+#     gdb.execute('call (void*)dlopen("gdb_dbg.cpython-312-x86_64-linux-gnu.so", 2)')
+
+# PyRunningInit()
+
