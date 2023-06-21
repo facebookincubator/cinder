@@ -132,7 +132,7 @@ class NativeGenerator {
   void generateStaticEntryPoint(
       asmjit::Label native_entry_point,
       asmjit::Label static_jmp_location);
-  void generateTypedArgumentInfo();
+
   void loadTState(asmjit::x86::Gp dst_reg);
 
   FRIEND_TEST(LinearScanAllocatorTest, RegAllocation);

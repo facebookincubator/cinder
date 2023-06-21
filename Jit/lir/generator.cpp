@@ -1800,8 +1800,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (TranslateSpecializedCall(bbb, instr)) {
           break;
         }
-        size_t flags = Ci_Py_VECTORCALL_INVOKED_STATICALLY |
-            (instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0);
+        size_t flags = (instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0);
         emitVectorCall(bbb, instr, flags, false);
         break;
       }
@@ -1957,6 +1956,63 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // kwnames
         // TODO(T140174965): This should be MemImm.
         instr->addOperands(Imm{0});
+        break;
+      }
+
+      case Opcode::kInvokeMethodStatic: {
+        auto& hir_instr = static_cast<const InvokeMethodStatic&>(i);
+        auto slot = hir_instr.slot();
+        Instruction* self_reg = bbb.getDefInstr(hir_instr.self());
+
+        Instruction* type;
+        if (!hir_instr.isClassmethod()) {
+          type = bbb.appendInstr(
+              GetSafeTempName(),
+              Instruction::kMove,
+              Ind{self_reg, (int32_t)offsetof(PyObject, ob_type)});
+        } else {
+          type = self_reg;
+        }
+
+        auto load_vtable = bbb.appendInstr(
+            GetSafeTempName(),
+            Instruction::kMove,
+            Ind{type, (int32_t)offsetof(PyTypeObject, tp_cache)});
+
+        auto load_state = bbb.appendInstr(
+            GetSafeTempName(),
+            Instruction::kMove,
+            Ind{load_vtable,
+                (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_state))});
+        auto load_entry = bbb.appendInstr(
+            GetSafeTempName(),
+            Instruction::kMove,
+            Ind{load_vtable,
+                (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_entry))});
+
+        auto instr = bbb.appendInstr(
+            hir_instr.dst(), Instruction::kCall, load_entry, load_state);
+        for (hir::Register* arg : hir_instr.GetOperands()) {
+          instr->addOperands(VReg{bbb.getDefInstr(arg)});
+        }
+
+        auto kind = InstrGuardKind::kNotZero;
+        Type ret_type = hir_instr.ret_type();
+        if (ret_type <= TCDouble) {
+          appendGuard(
+              bbb,
+              kind,
+              hir_instr,
+              PhyReg{PhyLocation::XMM1, OperandBase::kDouble});
+        } else if (ret_type <= TPrimitive) {
+          appendGuard(
+              bbb,
+              kind,
+              hir_instr,
+              PhyReg{PhyLocation::RDX, OperandBase::k32bit});
+        } else {
+          appendGuard(bbb, kind, hir_instr, hir_instr.GetOutput());
+        }
         break;
       }
 
@@ -2800,6 +2856,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         case Opcode::kGuard:
         case Opcode::kGuardIs:
         case Opcode::kGuardType:
+        case Opcode::kInvokeMethodStatic:
         case Opcode::kInvokeStaticFunction:
         case Opcode::kRaiseAwaitableError:
         case Opcode::kRaise:

@@ -393,6 +393,11 @@ static std::string format_immediates(const Instr& instr) {
       return fmt::format(
           "{}{}", call.NumOperands(), call.isAwaited() ? ", awaited" : "");
     }
+    case Opcode::kInvokeMethodStatic: {
+      const auto& call = static_cast<const InvokeMethodStatic&>(instr);
+      return fmt::format(
+          "{}{}", call.NumOperands(), call.isAwaited() ? ", awaited" : "");
+    }
     case Opcode::kLoadField: {
       const auto& lf = static_cast<const LoadField&>(instr);
       std::size_t offset = lf.offset();

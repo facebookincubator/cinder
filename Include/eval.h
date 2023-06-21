@@ -28,10 +28,6 @@ CiAPI_FUNC(PyObject *) _PyFunction_CallStatic(PyFunctionObject *func,
                                  PyObject* const* args,
                                  Py_ssize_t nargsf,
                                  PyObject *kwnames);
-CiAPI_FUNC(PyObject *) _PyEntry_StaticEntry(PyFunctionObject *func,
-                               PyObject **args,
-                               Py_ssize_t nargsf,
-                               PyObject *kwnames);
 
 #endif
 
