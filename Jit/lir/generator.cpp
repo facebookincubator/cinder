@@ -274,8 +274,8 @@ void LIRGenerator::addLiveRegOperands(
 // Attempt to emit a type-specialized call, returning true if successful.
 bool LIRGenerator::TranslateSpecializedCall(
     BasicBlockBuilder& bbb,
-    const VectorCallBase& instr) {
-  Register* callable = instr.func();
+    const hir::VectorCallBase& hir_instr) {
+  hir::Register* callable = hir_instr.func();
   if (!callable->type().hasValueSpec(TObject)) {
     return false;
   }
@@ -294,13 +294,16 @@ bool LIRGenerator::TranslateSpecializedCall(
   // vectorcall.
   if (Py_TYPE(callee) == &PyCFunction_Type) {
     if (PyCFunction_GET_FUNCTION(callee) == (PyCFunction)&builtin_next) {
-      if (instr.numArgs() == 1) {
+      if (hir_instr.numArgs() == 1) {
         bbb.AppendCall(
-            instr.dst(), Ci_Builtin_Next_Core, instr.arg(0), nullptr);
+            hir_instr.dst(), Ci_Builtin_Next_Core, hir_instr.arg(0), nullptr);
         return true;
-      } else if (instr.numArgs() == 2) {
+      } else if (hir_instr.numArgs() == 2) {
         bbb.AppendCall(
-            instr.dst(), Ci_Builtin_Next_Core, instr.arg(0), instr.arg(1));
+            hir_instr.dst(),
+            Ci_Builtin_Next_Core,
+            hir_instr.arg(0),
+            hir_instr.arg(1));
         return true;
       }
     }
@@ -308,9 +311,9 @@ bool LIRGenerator::TranslateSpecializedCall(
         PyCFunction_GET_FLAGS(callee) &
         (METH_VARARGS | METH_FASTCALL | METH_NOARGS | METH_O | METH_KEYWORDS)) {
       case METH_NOARGS:
-        if (instr.numArgs() == 0) {
+        if (hir_instr.numArgs() == 0) {
           bbb.AppendCall(
-              instr.dst(),
+              hir_instr.dst(),
               PyCFunction_GET_FUNCTION(callee),
               PyCFunction_GET_SELF(callee),
               nullptr);
@@ -318,12 +321,12 @@ bool LIRGenerator::TranslateSpecializedCall(
         }
         break;
       case METH_O:
-        if (instr.numArgs() == 1) {
+        if (hir_instr.numArgs() == 1) {
           bbb.AppendCall(
-              instr.dst(),
+              hir_instr.dst(),
               PyCFunction_GET_FUNCTION(callee),
               PyCFunction_GET_SELF(callee),
-              instr.arg(0));
+              hir_instr.arg(0));
           return true;
         }
         break;
@@ -338,19 +341,16 @@ bool LIRGenerator::TranslateSpecializedCall(
     return false;
   }
 
-  fmt::memory_buffer buf;
-  auto buf_ins = std::back_inserter(buf);
-  fmt::format_to(
-      buf_ins,
-      "Vectorcall {}, {}, 0, {}",
-      instr.dst()->name(),
-      reinterpret_cast<uint64_t>(func),
-      reinterpret_cast<uint64_t>(callee));
-  for (size_t i = 0, num_args = instr.numArgs(); i < num_args; i++) {
-    fmt::format_to(buf_ins, ", {}", instr.arg(i));
+  auto instr = bbb.appendInstr(
+      hir_instr.dst(),
+      Instruction::kVectorCall,
+      // TODO(T140174965): This should be MemImm.
+      Imm{reinterpret_cast<uint64_t>(func)},
+      Imm{0});
+  for (hir::Register* arg : hir_instr.GetOperands()) {
+    instr->addOperands(VReg{bbb.getDefInstr(arg)});
   }
-  buf.append(std::string_view(", 0"));
-  bbb.AppendCode(buf);
+  instr->addOperands(Imm{0});
   return true;
 }
 
