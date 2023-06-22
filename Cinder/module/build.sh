@@ -2,8 +2,8 @@
 
 ROOT=$(git rev-parse --show-toplevel)
 MODULE_DIR=$(readlink -f "$(dirname "$0")")
-PYTHON_FOR_CINDERVM_BUILD_DIR="$ROOT/build_cindervm_venv"
-VENV_DIR="$PYTHON_FOR_CINDERVM_BUILD_DIR/venv"
+PYTHON_FOR_CINDERX_BUILD_DIR="$ROOT/build_cinderx_venv"
+VENV_DIR="$PYTHON_FOR_CINDERX_BUILD_DIR/venv"
 
 if ! [ -f "$VENV_DIR"/bin/activate ]; then
   >&2 echo "Run $MODULE_DIR/bootstrap.sh with a clean checkout."
@@ -15,7 +15,7 @@ set -xe
 
 . "$VENV_DIR"/bin/activate
 
-# Build the cindervm "module" .so
+# Build the cinderx "module" .so
 cd "$MODULE_DIR"
 rm -rf "$MODULE_DIR"/build
 # Uses Python from our venv

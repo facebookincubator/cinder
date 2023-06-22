@@ -16,7 +16,7 @@
 #include "pycore_shadowcode.h"
 #include "classloader.h"
 #include "cinder/exports.h"
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
 #endif
 
@@ -257,7 +257,7 @@ get_type_cache(void)
 static void
 type_cache_clear(struct type_cache *cache, PyObject *value)
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyClassLoader_ClearCache();
 #endif
 
@@ -425,7 +425,7 @@ PyType_Modified(PyTypeObject *type)
     }
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyShadow_TypeModified(type);
     _PyJIT_TypeModified(type);
 #endif
@@ -630,7 +630,7 @@ type_set_name(PyTypeObject *type, PyObject *value, void *context)
         return -1;
     }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyJIT_TypeNameModified(type);
 #endif
     type->tp_name = tp_name;
@@ -3372,7 +3372,7 @@ type_new_impl(type_new_ctx *ctx)
     }
 
     assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyJIT_TypeCreated(type);
 #endif
     return (PyObject *)type;
@@ -4304,7 +4304,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         existing = PyDict_GetItem(type->tp_dict, name);
         Py_XINCREF(existing);
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (type->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
         /* We're running in an environment where we're patching types.  Prepare
          * the type for tracking patches if it hasn't already been prepared */
@@ -4327,7 +4327,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         }
         _PyType_ClearNoShadowingInstances(type, value);
        assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
        if (existing != value) {
             int slotupdate_res = _PyClassLoader_UpdateSlot(type, name, value);
             if (slotupdate_res == -1) {
@@ -4446,7 +4446,7 @@ type_getattr(PyTypeObject *type, const char *name)
 static void
 type_dealloc(PyTypeObject *type)
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     /* TODO(T113261512): Move this logic into the JIT callback.
      *
      * Don't tell the JIT about types that are destroyed before they were fully
@@ -5242,7 +5242,7 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
                 return -1;
             }
         }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         _PyType_ClearNoShadowingInstances(newto, NULL);
 #endif
 
@@ -6842,7 +6842,7 @@ PyType_Ready(PyTypeObject *type)
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
       /* type_new_impl() has more work to do on heap types; only tell the JIT
        * about static types right here. */
@@ -6866,7 +6866,7 @@ add_subclass(PyTypeObject *base, PyTypeObject *type)
         return -1;
     }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (_PyClassLoader_AddSubclass(base, type)) {
         return -1;
     }

@@ -98,7 +98,7 @@ static int import_all_from(PyThreadState *, PyObject *, PyObject *);
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static void try_profile_next_instr(PyFrameObject* f, PyObject** stack_pointer,
                                    const _Py_CODEUNIT* next_instr);
 #endif
@@ -351,7 +351,7 @@ PyObject *Ci_GetANext(PyThreadState *tstate, PyObject *aiter) {
 }
 
 // These are used to truncate primitives/check signed bits when converting between them
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static uint64_t trunc_masks[] = {0xFF, 0xFFFF, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF};
 static uint64_t signed_bits[] = {0x80, 0x8000, 0x80000000, 0x8000000000000000};
 static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
@@ -363,7 +363,7 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 #endif
 #include "ceval_gil.h"
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 int _PyEval_ShadowByteCodeEnabled = 1;
 #else
 int _PyEval_ShadowByteCodeEnabled = 0;
@@ -1244,7 +1244,7 @@ fail:
 
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline void store_field(int field_type, void *addr, PyObject *value);
 static inline PyObject *load_field(int field_type, void *addr);
 static inline PyObject *
@@ -1355,7 +1355,7 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
     return Ci_PyWaitHandle_New(retval, NULL);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline Py_ssize_t
 unbox_primitive_int_and_decref(PyObject *x)
 {
@@ -1434,7 +1434,7 @@ eval_frame_handle_pending(PyThreadState *tstate)
     return 0;
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static PyObject *
 invoke_static_function(PyObject *func, PyObject **args, Py_ssize_t nargs, int awaited) {
     return _PyObject_Vectorcall(
@@ -1764,7 +1764,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     _Py_atomic_int * const eval_breaker = &tstate->interp->ceval.eval_breaker;
     PyCodeObject *co;
     _PyShadowFrame shadow_frame;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     Py_ssize_t profiled_instrs = 0;
 #endif
 
@@ -1794,7 +1794,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     trace_info.cframe.previous = prev_cframe;
     tstate->cframe = &trace_info.cframe;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     /*
      * When shadow-frame mode is active, `tstate->frame` may have changed
      * between when `f` was allocated and now. Reset `f->f_back` to point to
@@ -1991,7 +1991,7 @@ main_loop:
         f->f_lasti = INSTR_OFFSET();
         NEXTOPARG();
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         struct _ceval_state *ceval = &tstate->interp->ceval;
         if (tstate->profile_interp &&
             ++ceval->profile_instr_counter == ceval->profile_instr_period) {
@@ -3538,7 +3538,7 @@ main_loop:
             STACK_SHRINK(2);
             map = PEEK(oparg);                      /* dict */
             assert(PyDict_CheckExact(map)
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
                  || Ci_CheckedDict_Check(map)
 #endif
                  );
@@ -4369,7 +4369,7 @@ main_loop:
                 func->func_defaults = POP();
             }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
             PyEntry_init(func);
 #endif
 
@@ -4463,7 +4463,7 @@ main_loop:
             DISPATCH();
         }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         case TARGET(SHADOW_NOP): {
             DISPATCH();
         }
@@ -5015,7 +5015,7 @@ main_loop:
 
             DISPATCH();
         }
-#endif // ENABLE_CINDERVM
+#endif // ENABLE_CINDERX
 
         case TARGET(EXTENDED_ARG): {
             int oldoparg = oparg;
@@ -5024,7 +5024,7 @@ main_loop:
             goto dispatch_opcode;
         }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 #define _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res)   \
             while (nargs--) {                                     \
                 Py_DECREF(POP());                                 \
@@ -6157,7 +6157,7 @@ main_loop:
             DISPATCH();
         }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         case TARGET(TP_ALLOC): {
             int optional;
             int exact;
@@ -6498,7 +6498,7 @@ main_loop:
 
             _POST_INVOKE_CLEANUP_PUSH_DISPATCH(nargs, awaited, res);
         }
-#endif // ENABLE_CINDERVM
+#endif // ENABLE_CINDERX
 
 #if USE_COMPUTED_GOTOS
         _unknown_opcode:
@@ -6629,7 +6629,7 @@ exit_eval_frame:
     tstate->cframe = trace_info.cframe.previous;
     tstate->cframe->use_tracing = trace_info.cframe.use_tracing;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (profiled_instrs != 0) {
         _PyJIT_CountProfiledInstrs(f->f_code, profiled_instrs);
     }
@@ -7255,7 +7255,7 @@ fail:
     return res;
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline int8_t
 unbox_primitive_bool_and_decref(PyObject *x)
 {
@@ -7773,7 +7773,7 @@ PyFrameObject *
 PyEval_GetFrame(void)
 {
     PyThreadState* tstate = _PyThreadState_GET();
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     return _PyJIT_GetFrame(tstate);
 #else
     return tstate->frame;
@@ -7783,7 +7783,7 @@ PyEval_GetFrame(void)
 PyObject *
 _PyEval_GetBuiltins(PyThreadState *tstate)
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     return _PyJIT_GetBuiltins(tstate);
 #else
     PyFrameObject *frame = tstate->frame;
@@ -7838,7 +7838,7 @@ PyEval_GetLocals(void)
 PyObject *
 _PyEval_GetGlobals(PyThreadState *tstate)
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     return _PyJIT_GetGlobals(tstate);
 #else
     PyFrameObject *current_frame = tstate->frame;
@@ -7857,7 +7857,7 @@ PyEval_GetGlobals(void)
     return _PyEval_GetGlobals(tstate);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static CiStackWalkDirective
 Ci_get_topmost_code(void *ptr, PyCodeObject *code, int lineno)
 {
@@ -7873,7 +7873,7 @@ PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
     PyThreadState *tstate = _PyThreadState_GET();
     int result = cf->cf_flags != 0;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     PyCodeObject *cur_code = NULL;
     Ci_WalkStack(tstate, Ci_get_topmost_code, &cur_code);
 
@@ -8082,7 +8082,7 @@ do_call_core(PyThreadState *tstate,
     return PyObject_Call(func, callargs, kwdict);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline PyObject *
 box_primitive(int type, Py_ssize_t value)
 {
@@ -8585,7 +8585,7 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
     return res;
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline void try_profile_next_instr(PyFrameObject* f,
                                           PyObject** stack_pointer,
                                           const _Py_CODEUNIT* next_instr) {

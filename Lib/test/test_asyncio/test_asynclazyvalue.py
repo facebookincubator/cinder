@@ -9,7 +9,7 @@ from time import time
 from test import cinder_support
 
 
-if cinder_support.hasCinderVM():
+if cinder_support.hasCinderX():
     from test.cinder_support import get_await_stack
 
 
@@ -155,7 +155,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         except IndexError as e:
             self.assertTrue(type(e.__context__) is Exc)
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     @async_test
     async def test_get_awaiter(self) -> None:
         async def g(f):
@@ -185,7 +185,7 @@ class AsyncLazyValueCoroTest(unittest.TestCase):
         self.assertIs(await_stack[0].cr_code, g.__code__)
         self.assertIs(await_stack[1], h_coro)
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     @async_test
     async def test_get_awaiter_from_gathered(self) -> None:
         async def g(f):

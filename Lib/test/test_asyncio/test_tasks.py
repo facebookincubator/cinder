@@ -42,7 +42,7 @@ from _testcapi import (
     get_context_helpers_for_task,
 )
 
-if cinder_support.hasCinderVM():
+if cinder_support.hasCinderX():
     import cinder
 
 def tearDownModule():
@@ -2596,7 +2596,7 @@ class BaseTaskTests:
         finally:
             loop.close()
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     def test_ci_cr_awaiter(self):
         ctask = getattr(tasks, '_CTask', None)
         if ctask is None or not issubclass(self.Task, ctask):
@@ -3179,7 +3179,7 @@ class GatherTestsBase:
         self.assertIsNone(cinder._get_coro_awaiter(a34))
         self.assertIsNone(cinder._get_coro_awaiter(a56))
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     def test_gather_ci_cr_awaiter_eager(self):
         async def eager_awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)
@@ -3187,7 +3187,7 @@ class GatherTestsBase:
 
         self._test_ci_cr_awaiter_impl(eager_awaiter)
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     def test_gather_ci_cr_awaiter(self):
         async def awaiter(o1, o2, o3):
             t3 = self.one_loop.create_task(o3)

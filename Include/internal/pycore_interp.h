@@ -45,7 +45,7 @@ struct _ceval_state {
     struct _gil_runtime_state gil;
 #endif
 
-    /* TODO(T123968561): Put remaining fields somewhere CinderVM-specific. */
+    /* TODO(T123968561): Put remaining fields somewhere CinderX-specific. */
 
     /* Global instruction counter used by interpreter type profiling. */
     long profile_instr_counter;

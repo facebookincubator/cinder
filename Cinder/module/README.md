@@ -1,4 +1,4 @@
-# CinderVM
+# CinderX
 
 High-performance Python runtime extensions
 

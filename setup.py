@@ -63,7 +63,7 @@ DISABLED_MODULE_LIST = []
 # --list-module-names option used by Tools/scripts/generate_module_names.py
 LIST_MODULE_NAMES = False
 
-ENABLE_CINDERVM = (sysconfig.get_config_var('ENABLE_CINDERVM') == 1)
+ENABLE_CINDERX = (sysconfig.get_config_var('ENABLE_CINDERX') == 1)
 
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -1018,7 +1018,7 @@ class PyBuildExt(build_ext):
         self.add(Extension('_xxsubinterpreters', ['_xxsubinterpretersmodule.c']))
 
         # Cinder specific module
-        if ENABLE_CINDERVM:
+        if ENABLE_CINDERX:
             self.add(Extension('cinder', ['cinder.c']) )
             self.add(Extension('xxclassloader', ['xxclassloader.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
             self.add(Extension('_static', ['_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
@@ -1078,7 +1078,7 @@ class PyBuildExt(build_ext):
 
         # Helpers for testing cinder-specific C APIs and cinder-specific modifications
         # to upstream CPython code
-        if ENABLE_CINDERVM:
+        if ENABLE_CINDERX:
             self.add(Extension('_testcindercapi', ['_testcindercapi.c'],
                             extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
 

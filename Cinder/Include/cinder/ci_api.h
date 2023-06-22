@@ -2,12 +2,12 @@
 
 /*
  * Macros for marking components in core CPython we currently export for the
- * CinderVM module. This includes things added by Cinder and things which
+ * CinderX module. This includes things added by Cinder and things which
  * already existed but which weren't public.
  *
- * The intent is grepping for "CiAPI" reveals everything the CinderVM module may
+ * The intent is grepping for "CiAPI" reveals everything the CinderX module may
  * depend on in the core CPython code. Eliminating all of these is one of the
- * prerequisites for CinderVM being compatible with non-Cinder Python.
+ * prerequisites for CinderX being compatible with non-Cinder Python.
  */
 
 // These function the same as PyAPI_* - exporting symbols for use in .so's etc.

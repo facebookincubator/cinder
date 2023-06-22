@@ -640,7 +640,7 @@ code_new_impl(PyTypeObject *type, int argcount, int posonlyargcount,
 static void
 code_dealloc(PyCodeObject *co)
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyJIT_CodeDestroyed(co);
 #endif
 

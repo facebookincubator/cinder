@@ -25,12 +25,12 @@ except ImportError:
 try:
     import cinder
 
-    def hasCinderVM():
+    def hasCinderX():
         return True
 
 except ImportError:
 
-    def hasCinderVM():
+    def hasCinderX():
         return False
 
 

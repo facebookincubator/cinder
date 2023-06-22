@@ -45,7 +45,7 @@ typedef struct {
     PyObject *imported_from;
 } PyStrictModuleObject;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 #   define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
 #else
 #   define PyModule_Dict(op) (((PyModuleObject *)op)->md_dict)

@@ -116,7 +116,7 @@ exit:
     return return_value;
 }
 
-#if defined(ENABLE_CINDERVM)
+#if defined(ENABLE_CINDERX)
 
 PyDoc_STRVAR(async_cached_property_init__doc__,
 "async_cached_property(func, name_or_descr=None)\n"
@@ -166,9 +166,9 @@ exit:
     return return_value;
 }
 
-#endif /* defined(ENABLE_CINDERVM) */
+#endif /* defined(ENABLE_CINDERX) */
 
-#if defined(ENABLE_CINDERVM)
+#if defined(ENABLE_CINDERX)
 
 PyDoc_STRVAR(async_cached_classproperty_new__doc__,
 "async_cached_classproperty(func)\n"
@@ -208,5 +208,5 @@ exit:
     return return_value;
 }
 
-#endif /* defined(ENABLE_CINDERVM) */
+#endif /* defined(ENABLE_CINDERX) */
 /*[clinic end generated code: output=1e3401d10f761978 input=a9049054013a1b77]*/

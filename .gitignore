@@ -147,7 +147,7 @@ Tools/ssl/win32
 # Cinder-related ignores
 !.vscode/settings.json
 dist/
-cindervm.egg-info
+cinderx.egg-info
 Include/pydtrace_probes_ceval.h
 Include/pydtrace_probes_gcmodule.h
 Include/pydtrace_probes_import.h
@@ -166,4 +166,4 @@ strict_module_tests
 pyembed_includes
 .sphinx-build/
 .cache/
-build_cindervm_venv/
+build_cinderx_venv/

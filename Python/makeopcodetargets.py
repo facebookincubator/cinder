@@ -39,10 +39,10 @@ def write_contents(f):
         if s is None:
             f.write(f"    &&_unknown_opcode,\n")
             continue
-        if s in opcode.cindervmop:
-            f.write(f"#ifdef ENABLE_CINDERVM\n")
+        if s in opcode.cinderxop:
+            f.write(f"#ifdef ENABLE_CINDERX\n")
         f.write(f"    &&TARGET_{s},\n")
-        if s in opcode.cindervmop:
+        if s in opcode.cinderxop:
             f.write(f"#else\n    &&_unknown_opcode,\n#endif\n")
     f.write("\n};\n")
 

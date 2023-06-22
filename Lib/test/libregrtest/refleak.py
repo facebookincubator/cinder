@@ -21,7 +21,7 @@ except ImportError:
         return (registry_weakrefs, cls._abc_cache,
                 cls._abc_negative_cache, cls._abc_negative_cache_version)
 
-if cinder_support.hasCinderVM():
+if cinder_support.hasCinderX():
     import cinder
 
 _RUNNING_REF_LEAK_TEST = False
@@ -164,7 +164,7 @@ def dash_R(ns, test_name, test_func):
     return failed
 
 
-if cinder_support.hasCinderVM():
+if cinder_support.hasCinderX():
     CINDER_KNOBS = cinder.getknobs()
 
 
@@ -188,7 +188,7 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
 
     # disable shadow byte code, we don't want to allocate new caches while
     # cleaning caches
-    if cinder_support.hasCinderVM():
+    if cinder_support.hasCinderX():
         cinder.setknobs({"shadowcode": False})
         cinder.clear_caches()
         has_caches = [x for x in gc.get_objects()
@@ -230,7 +230,7 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
 
     clear_caches()
 
-    if cinder_support.hasCinderVM():
+    if cinder_support.hasCinderX():
         cinder.setknobs(CINDER_KNOBS)
 
 

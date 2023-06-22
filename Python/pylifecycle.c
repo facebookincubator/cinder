@@ -1178,7 +1178,7 @@ init_interp_main(PyThreadState *tstate)
      * TODO(T126550863): Move this out of `init_interp_main` (potentially into
      * `pyinit_main`).
      */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (is_main_interp) {
       int pj_jit_status = _PyJIT_Initialize();
       if (pj_jit_status < 0) {
@@ -1972,7 +1972,7 @@ Py_FinalizeEx(void)
     }
 #endif /* Py_TRACE_REFS */
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     _PyJIT_Finalize();
 #endif
 

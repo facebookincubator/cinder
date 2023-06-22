@@ -149,11 +149,11 @@ struct _ts {
 
     /* XXX signal handlers should also be here */
 
-    /* TODO(T123968561): Put remaining fields somewhere CinderVM-specific. */
-
     /* The current top of the shadow frame stack; analogous to the frame member
      * up above. */
     struct _PyShadowFrame *shadow_frame;
+
+    /* TODO(T123968561): Put remaining fields somewhere CinderX-specific. */
 
     /* 0 or 1 to indicate if this thread has interpreter type profiling
      * enabled. */

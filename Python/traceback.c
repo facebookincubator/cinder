@@ -768,7 +768,7 @@ done:
     }
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 
 /* Write a frame into the file fd: "File "xxx", line xxx in xxx".
 
@@ -857,7 +857,7 @@ _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
     Ci_dump_traceback(fd, tstate, 1);
 }
-#else // ENABLE_CINDERVM
+#else // ENABLE_CINDERX
 
 static void
 dump_frame(int fd, PyFrameObject *frame)
@@ -946,7 +946,7 @@ _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
     dump_traceback(fd, tstate, 1);
 }
-#endif // ENABLE_CINDERVM
+#endif // ENABLE_CINDERX
 
 /* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
    is_current is true, "Thread 0xHHHH:\n" otherwise.
@@ -1029,7 +1029,7 @@ _Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
         if (tstate == current_tstate && tstate->interp->gc.collecting) {
             PUTS(fd, "  Garbage-collecting\n");
         }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         Ci_dump_traceback(fd, tstate, 0);
 #else
         dump_traceback(fd, tstate, 0);

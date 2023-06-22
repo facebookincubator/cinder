@@ -287,7 +287,7 @@ dict_modify_key(PyDictObject *dict, PyObject *key, PyObject *new_value)
         dict->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
         /* TODO(T113261295): Replace this with the generic hook once dict
          * watchers are upstreamed. */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         _PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
 #endif
     } else {
@@ -301,7 +301,7 @@ dict_set_lookup(PyDictObject *dict, dict_lookup_func new_lookup)
     if (UNLIKELY(dict_is_watched(dict))) {
         /* TODO(T113261295): Replace this with the generic hook once dict
          * watchers are upstreamed. */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         _PyJIT_NotifyDictUnwatch((PyObject *)dict);
 #endif
         dict->ma_version_tag = DICT_NEXT_VERSION();
@@ -643,7 +643,7 @@ _PyDict_UnsetHasDeferredObjects(PyObject *dict)
     }
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline int Ci_Dict_CheckIncludingChecked(PyObject *x);
 #endif
 
@@ -654,7 +654,7 @@ _PyDict_CheckConsistency(PyObject *op, int check_content)
     do { if (!(expr)) { _PyObject_ASSERT_FAILED_MSG(op, Py_STRINGIFY(expr)); } } while (0)
 
     assert(op != NULL);
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     CHECK(Ci_Dict_CheckIncludingChecked(op));
 #else
     CHECK(PyDict_Check(op));
@@ -1315,7 +1315,7 @@ _PyDict_HasOnlyStringKeys(PyObject *dict)
 {
     Py_ssize_t pos = 0;
     PyObject *key, *value;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_Dict_CheckIncludingChecked(dict));
 #else
     assert(PyDict_Check(dict));
@@ -1909,7 +1909,7 @@ PyDict_GetItemWithError(PyObject *op, PyObject *key)
     PyDictObject*mp = (PyDictObject *)op;
     PyObject *value;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_Dict_CheckIncludingChecked(op)) {
 #else
     if (!PyDict_Check(op)) {
@@ -2191,7 +2191,7 @@ PyDict_Clear(PyObject *op)
     PyObject **oldvalues;
     Py_ssize_t i, n;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_Dict_CheckIncludingChecked(op))
 #else
     if (!PyDict_Check(op))
@@ -2206,7 +2206,7 @@ PyDict_Clear(PyObject *op)
         mp->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
         /* TODO(T113261295): Replace this with the generic hook once dict
          * watchers are upstreamed. */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         _PyJIT_NotifyDictClear((PyObject *)mp);
 #endif
     } else {
@@ -2247,7 +2247,7 @@ _PyDict_Next(PyObject *op, Py_ssize_t *ppos, PyObject **pkey,
     PyDictKeyEntry *ep;
     PyObject *value;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_Dict_CheckIncludingChecked(op))
 #else
     if (!PyDict_Check(op))
@@ -2341,7 +2341,7 @@ _PyDict_Pop_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject *d
     PyDictKeyEntry *ep;
     PyDictObject *mp;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_Dict_CheckIncludingChecked(dict));
 #else
     assert(PyDict_Check(dict));
@@ -2516,7 +2516,7 @@ dict_dealloc(PyDictObject *mp)
     if (UNLIKELY(dict_is_watched(mp))) {
         /* TODO(T113261295): Replace this with the generic hook once dict
          * watchers are upstreamed. */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         _PyJIT_NotifyDictUnwatch((PyObject *)mp);
 #endif
     }
@@ -3110,7 +3110,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
      * things quite efficiently.  For the latter, we only require that
      * PyMapping_Keys() and PyObject_GetItem() be supported.
      */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (a == NULL || !Ci_Dict_CheckIncludingChecked(a) || b == NULL) {
 #else
     if (a == NULL || !PyDict_Check(a) || b == NULL) {
@@ -3155,7 +3155,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 if (UNLIKELY(dict_is_watched(mp))) {
                   /* TODO(T113261295): Replace this with the generic hook once
                    * dict watchers are upstreamed. */
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
                     _PyJIT_NotifyDictUnwatch((PyObject *)mp);
 #endif
                 }
@@ -3591,7 +3591,7 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
     PyObject *value;
     Py_hash_t hash;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_Dict_CheckIncludingChecked(d)) {
 #else
     if (!PyDict_Check(d)) {
@@ -4350,7 +4350,7 @@ dictiter_iternextkey(dictiterobject *di)
 
     if (d == NULL)
         return NULL;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert (Ci_Dict_CheckIncludingChecked((PyObject*) d));
 #else
     assert (PyDict_Check((PyObject*) d));
@@ -4445,7 +4445,7 @@ dictiter_iternextvalue(dictiterobject *di)
 
     if (d == NULL)
         return NULL;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert (Ci_Dict_CheckIncludingChecked((PyObject *) d));
 #else
     assert (PyDict_Check((PyObject *) d));
@@ -4570,7 +4570,7 @@ dictiter_iternextitem(dictiterobject *di)
 
     if (d == NULL)
         return NULL;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert (Ci_Dict_CheckIncludingChecked((PyObject *) d));
 #else
     assert (PyDict_Check((PyObject *) d));
@@ -4718,7 +4718,7 @@ dictreviter_iternext(dictiterobject *di)
     if (d == NULL) {
         return NULL;
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert (Ci_Dict_CheckIncludingChecked((PyObject *) d));
 #else
     assert (PyDict_Check((PyObject *) d));
@@ -4855,7 +4855,7 @@ static PyObject *
 dict___reversed___impl(PyDictObject *self)
 /*[clinic end generated code: output=e674483336d1ed51 input=23210ef3477d8c4d]*/
 {
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert (Ci_Dict_CheckIncludingChecked((PyObject *) self));
 #else
     assert (PyDict_Check((PyObject *) self));
@@ -4943,7 +4943,7 @@ _PyDictView_New(PyObject *dict, PyTypeObject *type)
         PyErr_BadInternalCall();
         return NULL;
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_Dict_CheckIncludingChecked(dict)) {
 #else
     if (!PyDict_Check(dict)) {
@@ -6090,7 +6090,7 @@ _PyDictKeys_GetEntries(PyDictKeysObject *keys)
     return DK_ENTRIES(keys);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 
 /***********************************************************************
  * Type-enforced dictionary - shares most of the implementation with the

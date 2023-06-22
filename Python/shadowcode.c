@@ -225,7 +225,7 @@ _PyCacheType _PyShadow_ModuleAttrEntryType = {
     .is_valid = (is_valid_func)module_entry_is_valid,
 };
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 int
 strictmodule_entry_is_valid(_PyShadow_ModuleAttrEntry *entry) {
     return entry->module != NULL && entry->version == PYCACHE_STRICT_MODULE_VERSION(entry->module);
@@ -375,7 +375,7 @@ _PyShadow_Init(void)
     _PyCodeCache_RefType.tp_dealloc = _PyWeakref_RefType.tp_dealloc;
     if (PyType_Ready(&_PyCodeCache_RefType) < 0 ||
         PyType_Ready(&_PyShadow_ModuleAttrEntryType.type) < 0 ||
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         PyType_Ready(&_PyShadow_StrictModuleAttrEntryType.type) < 0 ||
 #endif
         PyType_Ready(&_PyShadow_InstanceCacheDictNoDescr.type) < 0 ||
@@ -1042,7 +1042,7 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
 
     assert("Shadowcode broken");
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     PyObject **cache = _PyJIT_GetGlobalCache(builtins, globals, name);
     if (cache == NULL) {
         return;
@@ -1103,7 +1103,7 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     else if (PyStrictModule_CheckExact(obj)) {
         PyErr_Clear();
         PyStrictModuleObject *m = (PyStrictModuleObject *)obj;
@@ -1335,7 +1335,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
         return NULL;
     }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     /* Inline _PyObject_GetDictPtr */
     if (PyType_IsSubtype(tp, &PyStrictModule_Type)) {
         dictoffset = strictmodule_dictoffset;
@@ -1360,7 +1360,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
                     goto done;
                 }
             }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
             else if (Py_TYPE(descr) == &PyCachedProperty_Type) {
                 PyCachedPropertyDescrObject *member =
                     (PyCachedPropertyDescrObject *)descr;
@@ -1580,7 +1580,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         if (PyStrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
             if (strictmodule_is_unassigned(dict, name) == 0) {
@@ -1601,7 +1601,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
             *res = value;
 
             _PyShadow_ModuleAttrEntry *entry;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
             if (PyStrictModule_Check(owner)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
@@ -1637,7 +1637,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
              * dict which matches the string w/ a custom __eq__/__hash__ */
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
                                   PyStrictModule_Check(owner) ? LOAD_ATTR_S_MODULE :
 #endif
                                   LOAD_ATTR_MODULE,
@@ -1707,7 +1707,7 @@ _PyShadow_LoadAttrWithCache(_PyShadow_EvalState *state,
             return res;
         } else if (
             type->tp_getattro == PyModule_Type.tp_getattro
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
             || type->tp_getattro == PyStrictModule_Type.tp_getattro
 #endif
         ) {
@@ -1898,7 +1898,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         int version;
         PyObject *value;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
         if (PyStrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
             if (strictmodule_is_unassigned(dict, name) == 0) {
@@ -1916,7 +1916,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         if (value != NULL) {
 
             _PyShadow_ModuleAttrEntry *entry;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
             if (PyStrictModule_Check(obj)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
@@ -1947,7 +1947,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
 
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
                                   PyStrictModule_Check(obj) ? LOAD_METHOD_S_MODULE :
 #endif
                                   LOAD_METHOD_MODULE,
@@ -1988,7 +1988,7 @@ _PyShadow_LoadMethodWithCache(_PyShadow_EvalState *state,
                 return meth_found;
             }
         } else if (tp->tp_getattro == PyModule_Type.tp_getattro
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
                    || tp->tp_getattro == PyStrictModule_Type.tp_getattro
 #endif
         ) {

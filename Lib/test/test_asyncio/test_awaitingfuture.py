@@ -7,7 +7,7 @@ import unittest
 from test import cinder_support
 from test.test_asyncio import utils as test_utils
 
-if cinder_support.hasCinderVM():
+if cinder_support.hasCinderX():
     from test.cinder_support import get_await_stack
 
 
@@ -86,7 +86,7 @@ class _AwaitingFutureTests(test_utils.TestCase):
         test_utils.run_briefly(self.loop)
         self.assertTrue(fut.done())
 
-    @unittest.skipUnless(cinder_support.hasCinderVM(), "Tests CinderVM features")
+    @unittest.skipUnless(cinder_support.hasCinderX(), "Tests CinderX features")
     def test_propagates_awaiter(self):
         coro = None
 

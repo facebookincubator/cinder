@@ -41,8 +41,8 @@
    least significant byte first */
 #undef DOUBLE_IS_LITTLE_ENDIAN_IEEE754
 
-/* Build CinderVM features */
-#undef ENABLE_CINDERVM
+/* Build CinderX features */
+#undef ENABLE_CINDERX
 
 /* Define if --enable-ipv6 is specified */
 #undef ENABLE_IPV6

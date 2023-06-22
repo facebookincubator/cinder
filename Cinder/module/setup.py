@@ -252,7 +252,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="cindervm",
+    name="cinderx",
     version="0.0.3",
     author="Meta Platforms, Inc.",
     author_email="cinder@meta.com",
@@ -263,7 +263,7 @@ setuptools.setup(
     cmdclass={"build_ext": CinderBuildExt},
     ext_modules=[
         setuptools.Extension(
-            "cindervm",
+            "cinderx",
             sources=ALL_SRCS,
             include_dirs=INCLUDE_DIRS,
             define_macros=[("FMT_HEADER_ONLY", 1), ("Py_BUILD_CORE", None)],

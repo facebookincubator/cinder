@@ -301,7 +301,7 @@ hashtable_compare_traceback(const void *key1, const void *key2)
 
 static void
 tracemalloc_get_frame(
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     PyObject *filename,
     int lineno,
 #else
@@ -310,7 +310,7 @@ tracemalloc_get_frame(
     frame_t *frame)
 {
     frame->filename = unknown_filename;
-#ifndef ENABLE_CINDERVM
+#ifndef ENABLE_CINDERX
     int lineno = PyFrame_GetLineNumber(pyframe);
     PyCodeObject *code = PyFrame_GetCode(pyframe);
     PyObject *filename = code->co_filename;
@@ -393,7 +393,7 @@ traceback_hash(traceback_t *traceback)
     return x;
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 /*
  * NB: Callers of this function may hold `tables_lock`. As a result, this
  * function, or any of its transitive callees, cannot allocate Python
@@ -425,7 +425,7 @@ traceback_get_frames(traceback_t *traceback)
 #endif
         return;
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     Ci_WalkStack(tstate, Ci_traceback_process_frame, traceback);
 #else
     PyFrameObject *pyframe = PyThreadState_GetFrame(tstate);

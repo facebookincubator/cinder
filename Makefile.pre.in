@@ -326,11 +326,11 @@ STRICTM_TESTS_SRCDIR=$(srcdir)/$(STRICTM_TESTS_DIR)
 ASAN_TEST_ENV= @ASAN_TEST_ENV@
 ASAN_TEST_ENV_WITH_LSAN= @ASAN_TEST_ENV_WITH_LSAN@
 
-ENABLE_CINDERVM_SO=@ENABLE_CINDERVM_SO@
-ifeq ($(ENABLE_CINDERVM_SO), yes)
-	CINDERVM_SO=$(abs_srcdir)/Cinder/module/build/cindervm.$(SOABI).so
+ENABLE_CINDERX_SO=@ENABLE_CINDERX_SO@
+ifeq ($(ENABLE_CINDERX_SO), yes)
+	CINDERX_SO=$(abs_srcdir)/Cinder/module/build/cinderx.$(SOABI).so
 else
-	CINDERVM_SO=
+	CINDERX_SO=
 endif
 
 
@@ -683,16 +683,16 @@ ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
         $(ASMJIT_DIR)/asmjit/x86/x86operand.o \
         $(ASMJIT_DIR)/asmjit/x86/x86rapass.o
 
-BUILD_CINDERVM_SRCS=@BUILD_CINDERVM_SRCS@
-ifeq ($(BUILD_CINDERVM_SRCS), yes)
-	CINDERVM_OBJS = \
+BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
+ifeq ($(BUILD_CINDERX_SRCS), yes)
+	CINDERX_OBJS = \
 		Python/classloader.o \
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS)    \
 		$(STRICTM_OBJS) \
 		$(I386_DASM_OBJS)
 else
-	CINDERVM_OBJS =
+	CINDERX_OBJS =
 endif
 
 ##########################################################################
@@ -702,7 +702,7 @@ LIBRARY_OBJS_OMIT_FROZEN=	\
 		$(PARSER_OBJS) \
 		$(OBJECT_OBJS) \
 		$(PYTHON_OBJS) \
-		$(CINDERVM_OBJS) \
+		$(CINDERX_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS)
 
@@ -828,13 +828,13 @@ coverage-report: regen-token regen-importlib
 clinic: check-clean-src $(srcdir)/Modules/_blake2/blake2s_impl.c
 	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/clinic/clinic.py --make --srcdir $(srcdir)
 
-.PHONY: $(CINDERVM_SO)
-$(CINDERVM_SO):
+.PHONY: $(CINDERX_SO)
+$(CINDERX_SO):
 	$(abs_srcdir)/Cinder/module/build.sh
 
 # Build the interpreter
-$(BUILDPYTHON):	Programs/python.o $(LIBRARY_DEPS) $(CINDERVM_SO)
-	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERVM_SO)
+$(BUILDPYTHON):	Programs/python.o $(LIBRARY_DEPS) $(CINDERX_SO)
+	$(V)$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/python.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERX_SO)
 
 platform: $(BUILDPYTHON) pybuilddir.txt
 	$(RUNSHARED) $(PYTHON_FOR_BUILD) -c 'import sys ; from sysconfig import get_platform ; print("%s-%d.%d" % (get_platform(), *sys.version_info[:2]))' >platform
@@ -971,8 +971,8 @@ Makefile Modules/config.c: Makefile.pre \
 	@echo "The Makefile was updated, you may need to re-run make."
 
 
-Programs/_testembed: Programs/_testembed.o $(LIBRARY_DEPS) $(CINDERVM_SO)
-	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERVM_SO)
+Programs/_testembed: Programs/_testembed.o $(LIBRARY_DEPS) $(CINDERX_SO)
+	$(LINKCC) $(PY_CORE_LDFLAGS) $(LINKFORSHARED) -o $@ Programs/_testembed.o $(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LRT_FLAG) $(CINDERX_SO)
 
 ############################################################################
 # Importlib
@@ -1039,7 +1039,7 @@ Modules/getbuildinfo.o: $(PARSER_OBJS) \
 		$(PYTHON_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS) \
-		$(CINDERVM_OBJS) \
+		$(CINDERX_OBJS) \
 		$(DTRACE_OBJS) \
 		$(srcdir)/Modules/getbuildinfo.c
 	$(V)$(CC) -c $(PY_CORE_CFLAGS) \
@@ -1739,13 +1739,13 @@ ifneq ($(strip $(ASAN_TEST_ENV)),)
 	ASAN_SKIP_TESTS = $(srcdir)/Tools/scripts/asan_skip_tests.txt
 endif
 
-NO_CINDERVM_SKIP_TESTS=
-ENABLE_CINDERVM=@ENABLE_CINDERVM@
-ifeq ($(ENABLE_CINDERVM), no)
-	NO_CINDERVM_SKIP_TESTS = $(srcdir)/Tools/scripts/no_cindervm_skip_tests.txt
+NO_CINDERX_SKIP_TESTS=
+ENABLE_CINDERX=@ENABLE_CINDERX@
+ifeq ($(ENABLE_CINDERX), no)
+	NO_CINDERX_SKIP_TESTS = $(srcdir)/Tools/scripts/no_cinderx_skip_tests.txt
 endif
 
-TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS) $(NO_CINDERVM_SKIP_TESTS))
+TESTCINDEROPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS) $(ASAN_SKIP_TESTS) $(NO_CINDERX_SKIP_TESTS))
 TESTCINDER_REFLEAK_OPTS= $(TESTOPTS) -x $$(cat $(DEV_SKIP_TESTS)) --ignorefile $(REFLEAK_SKIP_TESTS) -R :
 ifneq ($(strip $(USE_RR)),)
 	JIT_TEST_RR_ARGS=--use-rr

@@ -13,7 +13,7 @@ extern "C" {
  * CPython-internal files (e.g., Objects/funcobject.c, Python/ceval.c) so they
  * can access private functions or data, and are not intended to be candidates
  * for upstreaming. They should all go away one way or another as part of our
- * CinderVM work.
+ * CinderX work.
  */
 
 CiAPI_FUNC(PyObject *) Ci_PyClassMethod_GetFunc(PyObject *method);

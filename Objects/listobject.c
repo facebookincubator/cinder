@@ -2190,7 +2190,7 @@ unsafe_tuple_compare(PyObject *v, PyObject *w, MergeState *ms)
         return PyObject_RichCompareBool(vt->ob_item[i], wt->ob_item[i], Py_LT);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 static inline int Ci_List_CheckIncludingChecked(PyObject *x);
 #endif
 
@@ -2233,7 +2233,7 @@ list_sort_impl(PyListObject *self, PyObject *keyfunc, int reverse)
     PyObject **keys;
 
     assert(self != NULL);
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_List_CheckIncludingChecked((PyObject *) self));
 #else
     assert(PyList_Check(self));
@@ -2664,7 +2664,7 @@ list_richcompare(PyObject *v, PyObject *w, int op)
     PyListObject *vl, *wl;
     Py_ssize_t i;
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     if (!Ci_List_CheckIncludingChecked(v) || !Ci_List_CheckIncludingChecked(w))
 #else
     if (!PyList_Check(v) || !PyList_Check(w))
@@ -3211,7 +3211,7 @@ listiter_next(listiterobject *it)
     seq = it->it_seq;
     if (seq == NULL)
         return NULL;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
 #else
     assert(PyList_Check((PyObject *) seq));
@@ -3333,7 +3333,7 @@ list___reversed___impl(PyListObject *self)
     it = PyObject_GC_New(listreviterobject, &PyListRevIter_Type);
     if (it == NULL)
         return NULL;
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_List_CheckIncludingChecked((PyObject *) self));
 #else
     assert(PyList_Check((PyObject *) self));
@@ -3372,7 +3372,7 @@ listreviter_next(listreviterobject *it)
     if (seq == NULL) {
         return NULL;
     }
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
     assert(Ci_List_CheckIncludingChecked((PyObject *) seq));
 #else
     assert(PyList_Check((PyObject *) seq));
@@ -3450,7 +3450,7 @@ listiter_reduce_general(void *_it, int forward)
     return Py_BuildValue("N(N)", _PyEval_GetBuiltinId(&PyId_iter), list);
 }
 
-#ifdef ENABLE_CINDERVM
+#ifdef ENABLE_CINDERX
 CiAPI_DATA(_PyGenericTypeDef) Ci_CheckedList_Type;
 #define IS_CHECKED_LIST(x)                                                    \
     (_PyClassLoader_GetGenericTypeDef((PyObject *)x) == &Ci_CheckedList_Type)

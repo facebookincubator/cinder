@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Generates a list of symbols exported from "core" (non-CinderVM) Python.
+# Generates a list of symbols exported from "core" (non-CinderX) Python.
 #
-# To be run after a Cinder VM .so build which additionally has --enable-shared
+# To be run after a CinderX .so build which additionally has --enable-shared
 # configured. E.g to match Sandcatle:
 #
-#   OPT=-O2 python3 Tools/scripts/facebook/configure_with_fb_toolchain.py --shared --debug -- --enable-cinder-vm-so
+#   OPT=-O2 python3 Tools/scripts/facebook/configure_with_fb_toolchain.py --shared --debug -- --enable-cinderx-so
 #   make -j
 #
 # Note the "OPT=-O2".
