@@ -858,7 +858,9 @@ PyFrozenSet_New
 PyFrozenSet_Type
 _Py_fstat
 _Py_fstat_noraise
+PyFunction_AddWatcher
 _PyFunction_CallStatic
+PyFunction_ClearWatcher
 PyFunction_GetAnnotations
 PyFunction_GetClosure
 PyFunction_GetCode

@@ -10,6 +10,100 @@
 
 #include "cinder/exports.h"
 
+static PyObject* func_repr(PyFunctionObject *op);
+
+static const char *
+func_event_name(PyFunction_WatchEvent event) {
+    switch (event) {
+        #define CASE(op)                \
+        case PyFunction_EVENT_##op:         \
+            return "PyFunction_EVENT_" #op;
+        PY_FOREACH_FUNC_EVENT(CASE)
+        #undef CASE
+    }
+    Py_UNREACHABLE();
+}
+
+static void
+notify_func_watchers(PyInterpreterState *interp, PyFunction_WatchEvent event,
+                     PyFunctionObject *func, PyObject *new_value)
+{
+    uint8_t bits = interp->active_func_watchers;
+    int i = 0;
+    while (bits) {
+        assert(i < FUNC_MAX_WATCHERS);
+        if (bits & 1) {
+            PyFunction_WatchCallback cb = interp->func_watchers[i];
+            // callback must be non-null if the watcher bit is set
+            assert(cb != NULL);
+            if (cb(event, func, new_value) < 0) {
+                // Don't risk resurrecting the func if an unraisablehook keeps a
+                // reference; pass a string as context.
+                PyObject *context = NULL;
+                PyObject *repr = func_repr(func);
+                if (repr != NULL) {
+                    context = PyUnicode_FromFormat(
+                        "%s watcher callback for %U",
+                        func_event_name(event), repr);
+                    Py_DECREF(repr);
+                }
+                if (context == NULL) {
+                    context = Py_NewRef(Py_None);
+                }
+                PyErr_WriteUnraisable(context);
+                Py_DECREF(context);
+            }
+        }
+        i++;
+        bits >>= 1;
+    }
+}
+
+static inline void
+handle_func_event(PyFunction_WatchEvent event, PyFunctionObject *func,
+                  PyObject *new_value)
+{
+    assert(Py_REFCNT(func) > 0);
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (interp->active_func_watchers) {
+        notify_func_watchers(interp, event, func, new_value);
+    }
+}
+
+int
+PyFunction_AddWatcher(PyFunction_WatchCallback callback)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    for (int i = 0; i < FUNC_MAX_WATCHERS; i++) {
+        if (interp->func_watchers[i] == NULL) {
+            interp->func_watchers[i] = callback;
+            interp->active_func_watchers |= (1 << i);
+            return i;
+        }
+    }
+    PyErr_SetString(PyExc_RuntimeError, "no more func watcher IDs available");
+    return -1;
+}
+
+int
+PyFunction_ClearWatcher(int watcher_id)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (watcher_id < 0 || watcher_id >= FUNC_MAX_WATCHERS) {
+        PyErr_Format(PyExc_ValueError, "invalid func watcher ID %d",
+                     watcher_id);
+        return -1;
+    }
+    if (!interp->func_watchers[watcher_id]) {
+        PyErr_Format(PyExc_ValueError, "no func watcher set for ID %d",
+                     watcher_id);
+        return -1;
+    }
+    interp->func_watchers[watcher_id] = NULL;
+    interp->active_func_watchers &= ~(1 << watcher_id);
+    return 0;
+}
+
 PyObject *
 PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname)
 {
@@ -86,6 +180,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
 #endif
 
     _PyObject_GC_TRACK(op);
+    handle_func_event(PyFunction_EVENT_CREATE, op, NULL);
     return (PyObject *)op;
 
 error:
@@ -161,6 +256,8 @@ PyFunction_SetDefaults(PyObject *op, PyObject *defaults)
         PyErr_SetString(PyExc_SystemError, "non-tuple default args");
         return -1;
     }
+    handle_func_event(PyFunction_EVENT_MODIFY_DEFAULTS,
+                      (PyFunctionObject *)op, defaults);
     Py_XSETREF(((PyFunctionObject *)op)->func_defaults, defaults);
     return 0;
 }
@@ -192,6 +289,8 @@ PyFunction_SetKwDefaults(PyObject *op, PyObject *defaults)
                         "non-dict keyword only default args");
         return -1;
     }
+    handle_func_event(PyFunction_EVENT_MODIFY_KWDEFAULTS,
+                      (PyFunctionObject *) op, defaults);
     Py_XSETREF(((PyFunctionObject *)op)->func_kwdefaults, defaults);
     return 0;
 }
@@ -358,6 +457,7 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
                      nclosure, nfree);
         return -1;
     }
+    handle_func_event(PyFunction_EVENT_MODIFY_CODE, op, value);
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
 #ifdef ENABLE_CINDERX
@@ -451,6 +551,7 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
         return -1;
     }
 
+    handle_func_event(PyFunction_EVENT_MODIFY_DEFAULTS, op, value);
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
 #ifdef ENABLE_CINDERX
@@ -500,6 +601,7 @@ func_set_kwdefaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignor
         return -1;
     }
 
+    handle_func_event(PyFunction_EVENT_MODIFY_KWDEFAULTS, op, value);
     Py_XINCREF(value);
     Py_XSETREF(op->func_kwdefaults, value);
     return 0;
@@ -684,6 +786,14 @@ func_dealloc(PyFunctionObject *op)
 #ifdef ENABLE_CINDERX
     _PyJIT_FuncDestroyed(op);
 #endif
+    assert(Py_REFCNT(op) == 0);
+    Py_SET_REFCNT(op, 1);
+    handle_func_event(PyFunction_EVENT_DESTROY, op, NULL);
+    if (Py_REFCNT(op) > 1) {
+        Py_SET_REFCNT(op, Py_REFCNT(op) - 1);
+        return;
+    }
+    Py_SET_REFCNT(op, 0);
     _PyObject_GC_UNTRACK(op);
     if (op->func_weakreflist != NULL) {
         PyObject_ClearWeakRefs((PyObject *) op);
