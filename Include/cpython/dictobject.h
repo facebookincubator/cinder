@@ -94,6 +94,65 @@ typedef struct {
 PyAPI_FUNC(PyObject *) _PyDictView_New(PyObject *, PyTypeObject *);
 PyAPI_FUNC(PyObject *) _PyDictView_Intersect(PyObject* self, PyObject *other);
 
+/* Dictionary watchers */
+
+PyAPI_DATA(uint64_t) _pydict_global_version;
+
+#define PY_FOREACH_DICT_EVENT(V) \
+    V(ADDED)                     \
+    V(MODIFIED)                  \
+    V(DELETED)                   \
+    V(CLONED)                    \
+    V(CLEARED)                   \
+    V(DEALLOCATED)
+
+typedef enum {
+    #define PY_DEF_EVENT(EVENT) PyDict_EVENT_##EVENT,
+    PY_FOREACH_DICT_EVENT(PY_DEF_EVENT)
+    #undef PY_DEF_EVENT
+} PyDict_WatchEvent;
+
+#define DICT_MAX_WATCHERS 8
+
+#define DICT_VERSION_INCREMENT (1 << DICT_MAX_WATCHERS)
+#define DICT_VERSION_MASK (DICT_VERSION_INCREMENT - 1)
+
+#define DICT_NEXT_VERSION() (_pydict_global_version += DICT_VERSION_INCREMENT)
+
+PyAPI_FUNC(void) _PyDict_SendEvent(int watcher_bits,
+                                   PyDict_WatchEvent event,
+                                   PyDictObject *mp,
+                                   PyObject *key,
+                                   PyObject *value);
+
+static inline uint64_t
+_PyDict_NotifyEvent(PyDict_WatchEvent event,
+                    PyDictObject *mp,
+                    PyObject *key,
+                    PyObject *value)
+{
+    assert(Py_REFCNT((PyObject*)mp) > 0);
+    int watcher_bits = mp->ma_version_tag & DICT_VERSION_MASK;
+    if (watcher_bits) {
+        _PyDict_SendEvent(watcher_bits, event, mp, key, value);
+        return DICT_NEXT_VERSION() | watcher_bits;
+    }
+    return DICT_NEXT_VERSION();
+}
+
+// Callback to be invoked when a watched dict is cleared, dealloced, or modified.
+// In clear/dealloc case, key and new_value will be NULL. Otherwise, new_value will be the
+// new value for key, NULL if key is being deleted.
+typedef int(*PyDict_WatchCallback)(PyDict_WatchEvent event, PyObject* dict, PyObject* key, PyObject* new_value);
+
+// Register/unregister a dict-watcher callback
+PyAPI_FUNC(int) PyDict_AddWatcher(PyDict_WatchCallback callback);
+PyAPI_FUNC(int) PyDict_ClearWatcher(int watcher_id);
+
+// Mark given dictionary as "watched" (callback will be called if it is modified)
+PyAPI_FUNC(int) PyDict_Watch(int watcher_id, PyObject* dict);
+PyAPI_FUNC(int) PyDict_Unwatch(int watcher_id, PyObject* dict);
+
 /* Cinder _PyDict_GetItem_* specializations. */
 
 CiAPI_FUNC(PyObject *)_PyDict_GetItem_Unicode(PyObject *op, PyObject *key);
@@ -107,31 +166,16 @@ CiAPI_FUNC(PyObject *) _PyDict_GetItem_StackKnownHash(PyObject *op,
                                          Py_ssize_t nargs,
                                          Py_hash_t hash);
 
-/* Dict watchers */
+/* Dict watchers (Cinder-only) TODO move to CinderX */
 
-/* Return 1 if the given dict has unicode-only keys and can be watched, or 0
- * otherwise. */
-CiAPI_FUNC(int) _PyDict_CanWatch(PyObject *);
-
-/* Return 1 if the given dict is watched, or 0 otherwise. */
-CiAPI_FUNC(int) _PyDict_IsWatched(PyObject *);
-
-/* Watch the given dict for changes, calling
- * _PyJIT_NotifyDict{Key,Clear,Unwatch}() as appropriate for any
- * changes to it. */
-CiAPI_FUNC(void) _PyDict_Watch(PyObject *);
-
-/* Stop watching the given dict. */
-CiAPI_FUNC(void) _PyDict_Unwatch(PyObject *);
+/* Return 1 if the given dict has unicode-only keys, or 0 otherwise. */
+CiAPI_FUNC(int) _PyDict_HasOnlyUnicodeKeys(PyObject *);
 
 /* Return false if PyDict_Lookup() on the given dict is guaranteed to not cause
  * any heap mutations. */
 CiAPI_FUNC(int) _PyDict_HasUnsafeKeys(PyObject *);
 
-/* Increment the given dict's version tag for a set operation, notifying any
- * watchers of the new value.
- */
-CiAPI_FUNC(void) _PyDict_IncVersionForSet(PyDictObject *dp, PyObject *key, PyObject *value);
+/* Lazy imports */
 
 /* Return 1 if the given dict has deferred objects, or 0 otherwise. */
 CiAPI_FUNC(int) _PyDict_HasDeferredObjects(PyObject *);

@@ -45,6 +45,13 @@ PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
 
 /*
+ * Initialize per-subinterpreter JIT state.
+ *
+ * Returns 0 on success or -1 on error.
+ */
+PyAPI_FUNC(int) _PyJIT_InitializeSubInterp(void);
+
+/*
  * Enable the global JIT.
  *
  * _PyJIT_Initialize must be called before calling this.
@@ -146,6 +153,21 @@ PyAPI_FUNC(_PyJIT_Result) _PyJIT_CompileFunction(PyFunctionObject* func);
  * and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_RegisterFunction(PyFunctionObject* func);
+
+/*
+ * Watch or unwatch a dictionary.
+ */
+PyAPI_FUNC(void) _PyJIT_WatchDict(PyObject* dict);
+PyAPI_FUNC(void) _PyJIT_UnwatchDict(PyObject* dict);
+
+/*
+ * Dict watcher callback; called on modifications to any watched dict.
+ */
+PyAPI_FUNC(int) _PyJIT_DictWatcher(
+    PyDict_WatchEvent event,
+    PyObject* dict,
+    PyObject* key,
+    PyObject* new_value);
 
 /*
  * Informs the JIT that a type, function, or code object is being created,

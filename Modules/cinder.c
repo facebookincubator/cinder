@@ -546,7 +546,7 @@ watch_sys_modules(PyObject *self, PyObject *obj)
     if (modules == NULL) {
       Py_RETURN_NONE;
     }
-    _PyDict_Watch(modules);
+    _PyJIT_WatchDict(modules);
     Py_DECREF(modules);
     Py_RETURN_NONE;
 }

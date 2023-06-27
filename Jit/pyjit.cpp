@@ -64,6 +64,7 @@ struct JitConfig {
   size_t cold_code_section_size{0};
   int hir_inliner_enabled{0};
   unsigned int auto_jit_threshold{0};
+  int dict_watcher_id{-1};
 };
 static JitConfig jit_config;
 
@@ -1711,6 +1712,46 @@ static int install_jit_audit_hook() {
   return -1;
 }
 
+static int install_jit_dict_watcher() {
+  int watcher_id = PyDict_AddWatcher(_PyJIT_DictWatcher);
+  if (watcher_id < 0) {
+    return -1;
+  }
+  jit_config.dict_watcher_id = watcher_id;
+  return 0;
+}
+
+void _PyJIT_WatchDict(PyObject* dict) {
+  if (PyDict_Watch(jit_config.dict_watcher_id, dict) < 0) {
+    PyErr_Print();
+    JIT_ABORT("Unable to watch dict.");
+  }
+}
+
+void _PyJIT_UnwatchDict(PyObject* dict) {
+  if (PyDict_Unwatch(jit_config.dict_watcher_id, dict) < 0) {
+    PyErr_Print();
+    JIT_ABORT("Unable to unwatch dict.");
+  }
+}
+
+int _PyJIT_InitializeSubInterp() {
+  // HACK: for now we assume we are the only dict watcher out there, so that we
+  // can just keep track of a single dict watcher ID rather than one per
+  // interpreter.
+  int prev_watcher_id = jit_config.dict_watcher_id;
+  JIT_CHECK(
+      prev_watcher_id >= 0,
+      "Initializing sub-interpreter without main interpreter?");
+  if (install_jit_dict_watcher() < 0) {
+    return -1;
+  }
+  JIT_CHECK(
+      jit_config.dict_watcher_id == prev_watcher_id,
+      "Somebody else watching dicts?");
+  return 0;
+}
+
 int _PyJIT_Initialize() {
   // If we have data symbols which are public but not used within CPython code,
   // we need to ensure the linker doesn't GC the .data section containing them.
@@ -1736,6 +1777,12 @@ int _PyJIT_Initialize() {
   }
 
   initJitConfig_();
+
+  // install the dict watcher early (before even deciding if the JIT will be
+  // enabled) because shadowcode and Static Python also rely on it.
+  if (install_jit_dict_watcher() < 0) {
+    return -1;
+  }
 
   initFlagProcessor();
 
@@ -2140,6 +2187,16 @@ int _PyJIT_Finalize() {
   }
 
   Runtime::shutdown();
+
+  // must happen after Runtime::shutdown() so that we've cleared dict caches
+  if (jit_config.dict_watcher_id >= 0) {
+    if (PyDict_ClearWatcher(jit_config.dict_watcher_id) < 0) {
+      PyErr_Print();
+      PyErr_Clear();
+    }
+    jit_config.dict_watcher_id = -1;
+  }
+
   return 0;
 }
 

@@ -301,9 +301,12 @@ SplitMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
       }
     }
 
+    uint64_t new_version =
+        _PyDict_NotifyEvent(PyDict_EVENT_MODIFIED, dict, name, value);
+
     Py_INCREF(value);
     dict->ma_values[val_offset] = value;
-    _PyDict_IncVersionForSet(dict, name, value);
+    dict->ma_version_tag = new_version;
 
     if (old_value == nullptr) {
       dict->ma_used++;
@@ -740,7 +743,7 @@ void GlobalCache::init(PyObject** cache) const {
     if (valuePtr()) {
       *valuePtr() = globals_value;
     }
-  } else if (_PyDict_CanWatch(builtins)) {
+  } else if (_PyDict_HasOnlyUnicodeKeys(builtins)) {
     *valuePtr() = PyDict_GetItem(builtins, key().name);
     if (key().globals != builtins) {
       watchDictKey(builtins, key().name, *this);
@@ -755,7 +758,7 @@ void GlobalCache::update(
   PyObject* builtins = key().builtins;
   if (dict == key().globals) {
     if (new_value == nullptr && key().globals != builtins) {
-      if (!_PyDict_CanWatch(builtins)) {
+      if (!_PyDict_HasOnlyUnicodeKeys(builtins)) {
         // builtins is no longer watchable. Mark this cache for disabling.
         to_disable.emplace_back(*this);
         return;
@@ -774,7 +777,7 @@ void GlobalCache::update(
     }
   } else {
     JIT_CHECK(dict == builtins, "Unexpected dict");
-    JIT_CHECK(_PyDict_CanWatch(key().globals), "Bad globals dict");
+    JIT_CHECK(_PyDict_HasOnlyUnicodeKeys(key().globals), "Bad globals dict");
     // Check if this value is shadowed.
     PyObject* globals_value = PyDict_GetItem(key().globals, key().name);
     if (globals_value == nullptr) {

@@ -1035,8 +1035,8 @@ _PyShadow_InitGlobal(_PyShadow_EvalState *state,
                      PyObject *builtins,
                      PyObject *name)
 {
-    if (!_PyShadow_EnsureInit() || !_PyDict_CanWatch(builtins) ||
-        !_PyDict_CanWatch(globals)) {
+    if (!_PyShadow_EnsureInit() || !_PyDict_HasOnlyUnicodeKeys(builtins) ||
+        !_PyDict_HasOnlyUnicodeKeys(globals)) {
         return;
     }
 

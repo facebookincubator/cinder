@@ -5727,7 +5727,7 @@ test_fatal_error(PyObject *self, PyObject *args)
 }
 
 static PyObject *
-test_dict_can_watch(PyObject *self, PyObject *Py_UNUSED(ignored)) {
+test_dict_unicode_keys(PyObject *self, PyObject *Py_UNUSED(ignored)) {
     PyObject *dict = NULL, *five = NULL;
 
     dict = PyDict_New();
@@ -5738,51 +5738,51 @@ test_dict_can_watch(PyObject *self, PyObject *Py_UNUSED(ignored)) {
     if (five == NULL) {
         goto error;
     }
-    if (!_PyDict_CanWatch(dict)) {
+    if (!_PyDict_HasOnlyUnicodeKeys(dict)) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Empty dict can't be watched");
+            "test_dict_unicode_keys: Empty dict false negative");
         goto error;
     }
 
     if (PyDict_SetItemString(dict, "some_key", Py_None) < 0) {
         goto error;
     }
-    if (!_PyDict_CanWatch(dict)) {
+    if (!_PyDict_HasOnlyUnicodeKeys(dict)) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Dict with str key can't be watched");
+            "test_dict_unicode_keys: Dict with str key false negative");
         goto error;
     }
 
     if (PyDict_GetItem(dict, five) != NULL) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Dict shouldn't contain key 5 yet");
+            "test_dict_unicode_keys: Dict shouldn't contain key 5 yet");
         goto error;
     }
-    if (!_PyDict_CanWatch(dict)) {
+    if (!_PyDict_HasOnlyUnicodeKeys(dict)) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Dict can't be watched after non-str key lookup");
+            "test_dict_unicode_keys: False negative after non-str key lookup");
         goto error;
     }
 
     if (PyDict_SetItem(dict, five, Py_None) < 0) {
         goto error;
     }
-    if (_PyDict_CanWatch(dict)) {
+    if (_PyDict_HasOnlyUnicodeKeys(dict)) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Dict with int key can be watched");
+            "test_dict_unicode_keys: Dict with int key false positive");
         goto error;
     }
 
     _PyDict_SetHasDeferredObjects(dict);
-    if (_PyDict_CanWatch(dict)) {
+    if (_PyDict_HasOnlyUnicodeKeys(dict)) {
         PyErr_SetString(
             TestError,
-            "test_dict_can_watch: Dict with int key and deferred imports can be watched");
+            "test_dict_unicode_keys: Dict with int key and deferred imports false positive");
         goto error;
     }
 
@@ -6099,6 +6099,159 @@ _get_context_helpers_for_task(PyObject *Py_UNUSED(module),
     return _get_context_helpers_for_task_impl();
 }
 
+// Test dict watching
+static PyObject *g_dict_watch_events;
+static int g_dict_watchers_installed;
+
+static int
+dict_watch_callback(PyDict_WatchEvent event,
+                    PyObject *dict,
+                    PyObject *key,
+                    PyObject *new_value)
+{
+    PyObject *msg;
+    switch (event) {
+        case PyDict_EVENT_CLEARED:
+            msg = PyUnicode_FromString("clear");
+            break;
+        case PyDict_EVENT_DEALLOCATED:
+            msg = PyUnicode_FromString("dealloc");
+            break;
+        case PyDict_EVENT_CLONED:
+            msg = PyUnicode_FromString("clone");
+            break;
+        case PyDict_EVENT_ADDED:
+            msg = PyUnicode_FromFormat("new:%S:%S", key, new_value);
+            break;
+        case PyDict_EVENT_MODIFIED:
+            msg = PyUnicode_FromFormat("mod:%S:%S", key, new_value);
+            break;
+        case PyDict_EVENT_DELETED:
+            msg = PyUnicode_FromFormat("del:%S", key);
+            break;
+        default:
+            msg = PyUnicode_FromString("unknown");
+    }
+    if (msg == NULL) {
+        return -1;
+    }
+    assert(PyList_Check(g_dict_watch_events));
+    if (PyList_Append(g_dict_watch_events, msg) < 0) {
+        Py_DECREF(msg);
+        return -1;
+    }
+    Py_DECREF(msg);
+    return 0;
+}
+
+static int
+dict_watch_callback_second(PyDict_WatchEvent event,
+                           PyObject *dict,
+                           PyObject *key,
+                           PyObject *new_value)
+{
+    PyObject *msg = PyUnicode_FromString("second");
+    if (msg == NULL) {
+        return -1;
+    }
+    int rc = PyList_Append(g_dict_watch_events, msg);
+    Py_DECREF(msg);
+    if (rc < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static int
+dict_watch_callback_error(PyDict_WatchEvent event,
+                          PyObject *dict,
+                          PyObject *key,
+                          PyObject *new_value)
+{
+    PyErr_SetString(PyExc_RuntimeError, "boom!");
+    return -1;
+}
+
+static PyObject *
+add_dict_watcher(PyObject *self, PyObject *kind)
+{
+    int watcher_id;
+    assert(PyLong_Check(kind));
+    long kind_l = PyLong_AsLong(kind);
+    if (kind_l == 2) {
+        watcher_id = PyDict_AddWatcher(dict_watch_callback_second);
+    }
+    else if (kind_l == 1) {
+        watcher_id = PyDict_AddWatcher(dict_watch_callback_error);
+    }
+    else {
+        watcher_id = PyDict_AddWatcher(dict_watch_callback);
+    }
+    if (watcher_id < 0) {
+        return NULL;
+    }
+    if (!g_dict_watchers_installed) {
+        assert(!g_dict_watch_events);
+        if (!(g_dict_watch_events = PyList_New(0))) {
+            return NULL;
+        }
+    }
+    g_dict_watchers_installed++;
+    return PyLong_FromLong(watcher_id);
+}
+
+static PyObject *
+clear_dict_watcher(PyObject *self, PyObject *watcher_id)
+{
+    if (PyDict_ClearWatcher(PyLong_AsLong(watcher_id))) {
+        return NULL;
+    }
+    g_dict_watchers_installed--;
+    if (!g_dict_watchers_installed) {
+        assert(g_dict_watch_events);
+        Py_CLEAR(g_dict_watch_events);
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+watch_dict(PyObject *self, PyObject *args)
+{
+    PyObject *dict;
+    int watcher_id;
+    if (!PyArg_ParseTuple(args, "iO", &watcher_id, &dict)) {
+        return NULL;
+    }
+    if (PyDict_Watch(watcher_id, dict)) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+unwatch_dict(PyObject *self, PyObject *args)
+{
+    PyObject *dict;
+    int watcher_id;
+    if (!PyArg_ParseTuple(args, "iO", &watcher_id, &dict)) {
+        return NULL;
+    }
+    if (PyDict_Unwatch(watcher_id, dict)) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+get_dict_watcher_events(PyObject *self, PyObject *Py_UNUSED(args))
+{
+    if (!g_dict_watch_events) {
+        PyErr_SetString(PyExc_RuntimeError, "no watchers active");
+        return NULL;
+    }
+    return Py_NewRef(g_dict_watch_events);
+}
+
 static PyMethodDef TestMethods[] = {
     {"raise_exception",         raise_exception,                 METH_VARARGS},
     {"raise_memoryerror",       raise_memoryerror,               METH_NOARGS},
@@ -6383,7 +6536,7 @@ static PyMethodDef TestMethods[] = {
     {"make_call_soon_descriptor", EventLoop_make_call_soon_descriptor, METH_O},
     {"get_context_indirect", get_context, METH_VARARGS},
     {"set_context_indirect", set_context, METH_VARARGS},
-    {"test_dict_can_watch", test_dict_can_watch, METH_NOARGS},
+    {"test_dict_unicode_keys", test_dict_unicode_keys, METH_NOARGS},
     {"initialize_context_helpers", _initialize_context_helpers, METH_NOARGS},
     {"modify_context", _modify_context, METH_O},
     {"delete_context", _delete_context, METH_NOARGS},
@@ -6391,6 +6544,11 @@ static PyMethodDef TestMethods[] = {
     {"get_context_helpers_for_task", _get_context_helpers_for_task, METH_NOARGS},
     {"test_dict_has_unsafe_keys", test_dict_has_unsafe_keys, METH_NOARGS},
     {"type_get_version", type_get_version, METH_O, PyDoc_STR("type->tp_version_tag")},
+    {"add_dict_watcher", add_dict_watcher, METH_O},
+    {"clear_dict_watcher", clear_dict_watcher, METH_O},
+    {"watch_dict", watch_dict, METH_VARARGS},
+    {"unwatch_dict", unwatch_dict, METH_VARARGS},
+    {"get_dict_watcher_events", get_dict_watcher_events, METH_NOARGS},
     {NULL, NULL} /* sentinel */
 };
 

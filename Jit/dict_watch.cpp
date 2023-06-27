@@ -50,7 +50,7 @@ void watchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
   auto& watchers = g_dict_watchers[dict][key];
   bool inserted = watchers.emplace(cache).second;
   JIT_CHECK(inserted, "cache was already watching key");
-  _PyDict_Watch(dict);
+  _PyJIT_WatchDict(dict);
 }
 
 void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
@@ -67,12 +67,38 @@ void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
     dict_keys.erase(key_it);
     if (dict_keys.empty()) {
       g_dict_watchers.erase(dict_it);
-      _PyDict_Unwatch(dict);
+      _PyJIT_UnwatchDict(dict);
     }
   }
 }
 
 } // namespace jit
+
+int _PyJIT_DictWatcher(
+    PyDict_WatchEvent event,
+    PyObject* dict,
+    PyObject* key,
+    PyObject* new_value) {
+  switch (event) {
+    case PyDict_EVENT_ADDED:
+    case PyDict_EVENT_MODIFIED:
+    case PyDict_EVENT_DELETED:
+      if (!PyUnicode_CheckExact(key)) {
+        _PyJIT_NotifyDictUnwatch(dict);
+      } else {
+        _PyJIT_NotifyDictKey(dict, key, new_value);
+      }
+      break;
+    case PyDict_EVENT_CLEARED:
+      _PyJIT_NotifyDictClear(dict);
+      break;
+    case PyDict_EVENT_CLONED:
+    case PyDict_EVENT_DEALLOCATED:
+      _PyJIT_NotifyDictUnwatch(dict);
+      break;
+  }
+  return 0;
+}
 
 void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
   // key is overwhemlingly likely to be interned, since in normal code it comes
@@ -180,7 +206,7 @@ void _PyJIT_ClearDictCaches() {
     // so we need to make sure each dictionary is still being watched
     if (dict_it != jit::g_dict_watchers.end()) {
       _PyJIT_NotifyDictUnwatch(dict);
-      _PyDict_Unwatch(dict);
+      _PyJIT_UnwatchDict(dict);
     }
   }
 }
