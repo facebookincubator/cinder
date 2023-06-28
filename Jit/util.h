@@ -42,7 +42,7 @@ struct jit_string_t* ss_sprintf_alloc(const char* format, ...);
 #ifdef __cplusplus
 }
 
-const bool py_debug =
+constexpr bool kPyDebug =
 #ifdef Py_DEBUG
     true;
 #else
@@ -61,14 +61,14 @@ const char* ss_get_string(const auto_jit_string_t& ss);
 
 namespace jit {
 
-const int kPointerSize = sizeof(void*);
+constexpr int kPointerSize = sizeof(void*);
 
-const int kKiB = 1024;
-const int kMiB = kKiB * kKiB;
-const int kGiB = kKiB * kKiB * kKiB;
+constexpr int kKiB = 1024;
+constexpr int kMiB = kKiB * kKiB;
+constexpr int kGiB = kKiB * kKiB * kKiB;
 
 #if defined(__x86_64__) || defined(__aarch64__)
-const int kPageSize = 4 * kKiB;
+constexpr int kPageSize = 4 * kKiB;
 #else
 #error Please define kPageSize for the current architecture
 #endif
@@ -89,7 +89,7 @@ constexpr T roundUp(T x, size_t n) {
   return roundDown(x + n - 1, n);
 }
 
-const int kCoFlagsAnyGenerator =
+constexpr int kCoFlagsAnyGenerator =
     CO_ASYNC_GENERATOR | CO_COROUTINE | CO_GENERATOR | CO_ITERABLE_COROUTINE;
 
 // If stable pointers are enabled (with a call to setUseStablePointers(true))

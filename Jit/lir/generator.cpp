@@ -2574,7 +2574,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // TODO(emacs): If we manage to optimize leaf calls to a series of
         // non-deopting instructions, remove BeginInlinedFunction and
         // EndInlinedFunction completely.
-        if (py_debug) {
+        if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         auto instr = static_cast<const BeginInlinedFunction*>(&i);
@@ -2627,7 +2627,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             "Store {}, __asm_tstate, {}",
             callee_shadow_frame,
             offsetof(PyThreadState, shadow_frame));
-        if (py_debug) {
+        if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         break;
@@ -2635,7 +2635,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kEndInlinedFunction: {
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
-        if (py_debug) {
+        if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         // callee_shadow_frame <- tstate.shadow_frame
@@ -2679,7 +2679,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendLabel(GetSafeLabelName());
         bbb.AppendInvoke(JITRT_UnlinkFrame, "__asm_tstate");
         bbb.AppendLabel(done);
-        if (py_debug) {
+        if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         break;

@@ -535,7 +535,7 @@ void doShadowStackWalk(PyThreadState* tstate, FrameHandler handler) {
 // Invoke handler for each frame on the shadow stack
 void walkShadowStack(PyThreadState* tstate, FrameHandler handler) {
   doShadowStackWalk(tstate, handler);
-  if (py_debug) {
+  if (kPyDebug) {
     assertShadowCallStackConsistent(tstate);
   }
 }
