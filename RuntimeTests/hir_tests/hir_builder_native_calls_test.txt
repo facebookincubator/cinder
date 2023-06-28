@@ -6,12 +6,12 @@ NativeInvokeBasic
 from __static__ import native, int64, box
 
 @native("libc.so.6")
-def labs(i: int64) -> int64:
+def abs(i: int32) -> int32:
     pass
 
 def test(i: int) -> int:
-    j: int64 = int64(i)
-    return box(labs(j))
+    j: int32 = int32(i)
+    return box(abs(j))
 
 ---
 fun jittestmodule:test {
@@ -24,7 +24,7 @@ fun jittestmodule:test {
       }
     }
     v0 = RefineType<Long> v0
-    v2 = PrimitiveUnbox<CInt64> v0
+    v2 = PrimitiveUnbox<CInt32> v0
     v3 = IsNegativeAndErrOccurred v2 {
       FrameState {
         NextInstrOffset 8
@@ -32,8 +32,8 @@ fun jittestmodule:test {
       }
     }
     v1 = Assign v2
-    v4 = CallStatic<labs@0xdeadbeef, 1> v1
-    v5 = PrimitiveBox<CInt64> v4 {
+    v4 = CallStatic<abs@0xdeadbeef, 1> v1
+    v5 = PrimitiveBox<CInt32> v4 {
       FrameState {
         NextInstrOffset 16
         Locals<2> v0 v1
