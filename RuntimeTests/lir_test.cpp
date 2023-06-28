@@ -480,8 +480,8 @@ fun foo {
   auto lir_expected = fmt::format(
       R"(
 # CondBranchCheckType<1, 3, Tuple> v1
-       %5:Object = Call {0}({0:#x}):Object, %4:Object
-                   CondBranch %5:Object, BB%7, BB%9
+         %5:8bit = Call {0}({0:#x}):64bit, %4:Object
+                   CondBranch %5:8bit, BB%7, BB%9
 )",
       reinterpret_cast<uint64_t>(__Invoke_PyTuple_Check));
   EXPECT_NE(ss.str().find(lir_expected.c_str()), std::string::npos);

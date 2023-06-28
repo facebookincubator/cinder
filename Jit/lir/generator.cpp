@@ -45,6 +45,8 @@ using namespace jit::hir;
 
 namespace jit::lir {
 
+namespace {
+
 // These functions call their counterparts and convert its output from int (32
 // bits) to uint64_t (64 bits). This is solely because the code generator cannot
 // support an operand size other than 64 bits at this moment. A future diff will
@@ -69,8 +71,6 @@ extern "C" PyObject* __Invoke_PyList_Extend(
 
   return none_val;
 }
-
-namespace {
 
 void emitVectorCall(
     BasicBlockBuilder& bbb,
@@ -101,6 +101,100 @@ void finishYield(
   }
   instr->addOperands(Imm{hir_instr->live_regs().size()});
   instr->addOperands(Imm{bbb.makeDeoptMetadata()});
+}
+
+// Checks if a type has reasonable == semantics, that is that
+// object identity implies equality when compared by Python.  This
+// is true for most types, but not true for floats where nan is
+// not equal to nan.  But it is true for container types containing
+// those floats where PyObject_RichCompareBool is used and it short
+// circuits on object identity.
+bool isTypeWithReasonablePointerEq(Type t) {
+  return t <= TArray || t <= TBytesExact || t <= TDictExact ||
+      t <= TListExact || t <= TSetExact || t <= TTupleExact ||
+      t <= TTypeExact || t <= TLongExact || t <= TBool || t <= TFunc ||
+      t <= TGen || t <= TNoneType || t <= TSlice;
+}
+
+int bytes_from_cint_type(Type type) {
+  if (type <= TCInt8 || type <= TCUInt8) {
+    return 1;
+  } else if (type <= TCInt16 || type <= TCUInt16) {
+    return 2;
+  } else if (type <= TCInt32 || type <= TCUInt32) {
+    return 3;
+  } else if (type <= TCInt64 || type <= TCUInt64) {
+    return 4;
+  }
+  JIT_ABORT("bad primitive int type: (%d)", type);
+  // NOTREACHED
+}
+
+#define FOREACH_FAST_BUILTIN(V) \
+  V(Long)                       \
+  V(List)                       \
+  V(Tuple)                      \
+  V(Bytes)                      \
+  V(Unicode)                    \
+  V(Dict)                       \
+  V(Type)
+
+#define INVOKE_CHECK(name)                                       \
+  extern "C" uint64_t __Invoke_Py##name##_Check(PyObject* obj) { \
+    int result = Py##name##_Check(obj);                          \
+    return result == 0 ? 0 : 1;                                  \
+  }
+
+FOREACH_FAST_BUILTIN(INVOKE_CHECK)
+
+#undef INVOKE_CHECK
+
+Instruction*
+emitSubclassCheck(BasicBlockBuilder& bbb, hir::Register* obj, Type type) {
+  // Fast path: a subset of builtin types that have Py_TPFLAGS
+  uint64_t fptr = 0;
+#define GET_FPTR(name)                                            \
+  if (type <= T##name) {                                          \
+    fptr = reinterpret_cast<uint64_t>(__Invoke_Py##name##_Check); \
+  } else
+  FOREACH_FAST_BUILTIN(GET_FPTR) {
+    JIT_ABORT("unsupported subclass check in CondBranchCheckType");
+  }
+#undef GET_FPTR
+  return bbb.appendInstr(
+      Instruction::kCall,
+      OutVReg{OperandBase::k8bit},
+      // TODO(T140174965): This should be MemImm.
+      Imm{fptr},
+      obj);
+}
+
+#undef FOREACH_FAST_BUILTIN
+
+ssize_t shadowFrameOffsetBefore(const InlineBase* instr) {
+  return -instr->inlineDepth() * ssize_t{kJITShadowFrameSize};
+}
+
+ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
+  return shadowFrameOffsetBefore(instr) - ssize_t{kJITShadowFrameSize};
+}
+
+// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
+// a limited set of inputs.
+uint8_t multiplierFromSize(int num_bytes) {
+  switch (num_bytes) {
+    case 1:
+      return 0;
+    case 2:
+      return 1;
+    case 4:
+      return 2;
+    case 8:
+      return 3;
+    default:
+      break;
+  }
+  JIT_ABORT("unexpected num_bytes %d", num_bytes);
 }
 
 } // namespace
@@ -479,98 +573,6 @@ void LIRGenerator::MakeDecref(
 
   bbb.AppendInvoke(JITRT_Dealloc, obj);
   bbb.AppendLabel(end_decref);
-}
-
-// Checks if a type has reasonable == semantics, that is that
-// object identity implies equality when compared by Python.  This
-// is true for most types, but not true for floats where nan is
-// not equal to nan.  But it is true for container types containing
-// those floats where PyObject_RichCompareBool is used and it short
-// circuits on object identity.
-bool isTypeWithReasonablePointerEq(Type t) {
-  return t <= TArray || t <= TBytesExact || t <= TDictExact ||
-      t <= TListExact || t <= TSetExact || t <= TTupleExact ||
-      t <= TTypeExact || t <= TLongExact || t <= TBool || t <= TFunc ||
-      t <= TGen || t <= TNoneType || t <= TSlice;
-}
-
-static int bytes_from_cint_type(Type type) {
-  if (type <= TCInt8 || type <= TCUInt8) {
-    return 1;
-  } else if (type <= TCInt16 || type <= TCUInt16) {
-    return 2;
-  } else if (type <= TCInt32 || type <= TCUInt32) {
-    return 3;
-  } else if (type <= TCInt64 || type <= TCUInt64) {
-    return 4;
-  }
-  JIT_ABORT("bad primitive int type: (%d)", type);
-  // NOTREACHED
-}
-
-#define FOREACH_FAST_BUILTIN(V) \
-  V(Long)                       \
-  V(List)                       \
-  V(Tuple)                      \
-  V(Bytes)                      \
-  V(Unicode)                    \
-  V(Dict)                       \
-  V(Type)
-
-#define INVOKE_CHECK(name)                                       \
-  extern "C" uint64_t __Invoke_Py##name##_Check(PyObject* obj) { \
-    int result = Py##name##_Check(obj);                          \
-    return result == 0 ? 0 : 1;                                  \
-  }
-
-FOREACH_FAST_BUILTIN(INVOKE_CHECK)
-
-#undef INVOKE_CHECK
-
-static void emitSubclassCheck(
-    BasicBlockBuilder& bbb,
-    std::string dst,
-    Register* obj,
-    Type type) {
-  // Fast path: a subset of builtin types that have Py_TPFLAGS
-  uint64_t fptr = 0;
-#define GET_FPTR(name)                                            \
-  if (type <= T##name) {                                          \
-    fptr = reinterpret_cast<uint64_t>(__Invoke_Py##name##_Check); \
-  } else
-  FOREACH_FAST_BUILTIN(GET_FPTR) {
-    JIT_ABORT("unsupported subclass check in CondBranchCheckType");
-  }
-#undef GET_FPTR
-  bbb.AppendCode("Call {}, {:#x}, {}", dst, fptr, obj);
-}
-
-#undef FOREACH_FAST_BUILTIN
-
-static ssize_t shadowFrameOffsetBefore(const InlineBase* instr) {
-  return -instr->inlineDepth() * ssize_t{kJITShadowFrameSize};
-}
-
-static ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
-  return shadowFrameOffsetBefore(instr) - ssize_t{kJITShadowFrameSize};
-}
-
-// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
-// a limited set of inputs.
-static uint8_t multiplierFromSize(int num_bytes) {
-  switch (num_bytes) {
-    case 1:
-      return 0;
-    case 2:
-      return 1;
-    case 4:
-      return 2;
-    case 8:
-      return 3;
-    default:
-      break;
-  }
-  JIT_ABORT("unexpected num_bytes %d", num_bytes);
 }
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
@@ -1192,27 +1194,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kCondBranchCheckType: {
         auto& instr = static_cast<const CondBranchCheckType&>(i);
         auto type = instr.type();
-        auto eq_res_var = GetSafeTempName();
+        Instruction* eq_res_var = nullptr;
         if (type.isExact()) {
-          auto type_var = GetSafeTempName();
-          bbb.AppendCode(
-              "Load {}, {}, {}",
+          Instruction* reg = bbb.getDefInstr(instr.reg());
+          constexpr int32_t kOffset = offsetof(PyObject, ob_type);
+          Instruction* type_var =
+              bbb.appendInstr(Instruction::kMove, OutVReg{}, Ind{reg, kOffset});
+          eq_res_var = bbb.appendInstr(
+              Instruction::kEqual,
+              OutVReg{OperandBase::k8bit},
               type_var,
-              instr.reg(),
-              offsetof(PyObject, ob_type));
-          bbb.AppendCode(
-              "Equal {}, {}, {:#x}",
-              eq_res_var,
-              type_var,
-              reinterpret_cast<uint64_t>(instr.type().uniquePyType()));
+              Imm{reinterpret_cast<uint64_t>(type.uniquePyType())});
         } else {
-          emitSubclassCheck(bbb, eq_res_var, instr.GetOperand(0), type);
+          eq_res_var = emitSubclassCheck(bbb, instr.GetOperand(0), type);
         }
-        bbb.AppendCode(
-            "CondBranch {}, {}, {}",
-            eq_res_var,
-            instr.true_bb()->id,
-            instr.false_bb()->id);
+        bbb.appendInstr(Instruction::kCondBranch, eq_res_var);
         break;
       }
       case Opcode::kDeleteAttr: {
