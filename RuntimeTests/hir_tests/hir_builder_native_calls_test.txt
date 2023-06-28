@@ -3,7 +3,7 @@ HIRBuilderNativeCallsTest
 ---
 NativeInvokeBasic
 ---
-from __static__ import native, int64, box
+from __static__ import native, int32, box
 
 @native("libc.so.6")
 def abs(i: int32) -> int32:
