@@ -4047,11 +4047,12 @@ _PyClassLoader_ResolveMethod(PyObject *path)
     /* TODO: Should we gracefully handle when there are two
      * classes with the same name? */
     PyObject *slot_index_obj = PyDict_GetItem(classloader_cache, path);
-    if (slot_index_obj == NULL && classloader_init_slot(path)) {
+    if (slot_index_obj == NULL) {
+      if (classloader_init_slot(path)) {
         return -1;
+      }
+      slot_index_obj = PyDict_GetItem(classloader_cache, path);
     }
-
-    slot_index_obj = PyDict_GetItem(classloader_cache, path);
     return PyLong_AS_LONG(slot_index_obj);
 }
 
