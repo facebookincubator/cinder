@@ -432,12 +432,13 @@ bool Preloader::preload() {
       }
       case INVOKE_FUNCTION:
       case INVOKE_METHOD: {
-        BorrowedRef<PyObject> descr = PyTuple_GetItem(constArg(bc_instr), 0);
+        BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         auto& map = bc_instr.opcode() == INVOKE_FUNCTION ? func_targets_
                                                          : meth_targets_;
-        auto target = resolve_target_descr(descr, bc_instr.opcode());
+        std::unique_ptr<InvokeTarget> target =
+            resolve_target_descr(descr, bc_instr.opcode());
         if (target) {
-          map.emplace(descr, resolve_target_descr(descr, bc_instr.opcode()));
+          map.emplace(descr, std::move(target));
           break;
         } else {
           return false;
