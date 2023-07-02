@@ -112,6 +112,11 @@ typedef CiStackWalkDirective (*CiWalkStackCallback)(void *data,
                                                     PyCodeObject *code,
                                                     int lineno);
 
+typedef CiStackWalkDirective (*CiWalkAsyncStackCallback)(void *data,
+                                                    PyObject *fqname,
+                                                    PyCodeObject *code,
+                                                    int lineno);
+
 /*
  * Walk the stack, invoking cb for each entry with the supplied data parameter
  * as its first argument.
@@ -119,7 +124,7 @@ typedef CiStackWalkDirective (*CiWalkStackCallback)(void *data,
  * The return value of cb controls whether or not stack walking continues.
  */
 CiAPI_FUNC(void) Ci_WalkStack(PyThreadState *tstate, CiWalkStackCallback cb, void *data);
-CiAPI_FUNC(void) Ci_WalkAsyncStack(PyThreadState *tstate, CiWalkStackCallback cb, void *data);
+CiAPI_FUNC(void) Ci_WalkAsyncStack(PyThreadState *tstate, CiWalkAsyncStackCallback cb, void *data);
 
 CiAPI_FUNC(PyObject *) CiCoro_New_NoFrame(PyThreadState *tstate, PyCodeObject *code);
 CiAPI_FUNC(PyObject *) CiAsyncGen_New_NoFrame(PyCodeObject *code);

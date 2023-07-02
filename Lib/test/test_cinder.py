@@ -2051,10 +2051,12 @@ async def g0():
 
 asyncio.run(g0())
         """
-        g = {}
+        g = {"__name__": "module1"}
         exec(code, g)
         last_frames = g["result"][-3:]
-        self.assertEqual(last_frames, [("g0", 14), ("f1", 7), ("f2", 11)])
+        self.assertEqual(
+            last_frames, [("module1:g0", 14), ("module1:f1", 7), ("module1:f2", 11)]
+        )
 
     def test_get_stack_with_lineno_2(self):
         # use code string to have deterministic line numbers
@@ -2079,10 +2081,18 @@ async def g1():
 
 asyncio.run(g0())
         """
-        g = {}
+        g = {"__name__": "module1"}
         exec(code, g)
         last_frames = g["result"][-4:]
-        self.assertEqual(last_frames, [("g0", 15), ("g1", 18), ("f1", 8), ("f2", 12)])
+        self.assertEqual(
+            last_frames,
+            [
+                ("module1:g0", 15),
+                ("module1:g1", 18),
+                ("module1:f1", 8),
+                ("module1:f2", 12),
+            ],
+        )
 
 
 class Rendez:

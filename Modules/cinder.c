@@ -442,13 +442,16 @@ typedef struct {
 
 static CiStackWalkDirective frame_data_collector(
     void *data,
+    PyObject *fqname,
     PyCodeObject *code,
     int lineno)
 {
     StackWalkState *state = (StackWalkState*)data;
-    PyObject *qualname = ((PyCodeObject *)code)->co_qualname;
-    if (!qualname || !PyUnicode_Check(qualname)) {
-        qualname = ((PyCodeObject *)code)->co_name;
+    if (fqname == NULL) {
+        fqname = ((PyCodeObject *)code)->co_qualname;
+        if (!fqname || !PyUnicode_Check(fqname)) {
+            fqname = ((PyCodeObject *)code)->co_name;
+        }
     }
     PyObject *t = PyTuple_New(2);
     if (t == NULL) {
@@ -459,8 +462,8 @@ static CiStackWalkDirective frame_data_collector(
         Py_DECREF(t);
         goto fail;
     }
-    PyTuple_SET_ITEM(t, 0, qualname);
-    Py_INCREF(qualname);
+    PyTuple_SET_ITEM(t, 0, fqname);
+    Py_INCREF(fqname);
 
     // steals ref
     PyTuple_SET_ITEM(t, 1, lineNoObj);
