@@ -1413,11 +1413,12 @@ static PyObject* deopt_gen(PyObject*, PyObject* gen) {
   Py_RETURN_FALSE;
 }
 
-static void deopt_gen_visitor(PyObject* obj, void*) {
+static int deopt_gen_visitor(PyObject* obj, void*) {
   if (PyGen_Check(obj) || PyCoro_CheckExact(obj) ||
       PyAsyncGen_CheckExact(obj)) {
     deopt_gen_impl(reinterpret_cast<PyGenObject*>(obj));
   }
+  return 1;
 }
 
 static PyObject* after_fork_child(PyObject*, PyObject*) {
@@ -2201,7 +2202,7 @@ int _PyJIT_Finalize() {
 
   // Deopt all JIT generators, since JIT generators reference code and other
   // metadata that we will be freeing later in this function.
-  _PyGC_VisitObjects(deopt_gen_visitor, nullptr);
+  PyUnstable_GC_VisitObjects(deopt_gen_visitor, nullptr);
 
   if (g_dump_stats) {
     dump_jit_stats();

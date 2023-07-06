@@ -884,7 +884,6 @@ _PyGC_Dump
 _PyGC_DumpShutdownStats
 PyGC_Enable
 PyGC_IsEnabled
-_PyGC_VisitObjects
 Py_GenericAlias
 Py_GenericAliasType
 _PyGen_FetchStopIterationValue
@@ -1988,6 +1987,7 @@ _PyUnicode_XStrip
 _PyUnion_Type
 _Py_union_type_or
 Py_UniversalNewlineFgets
+PyUnstable_GC_VisitObjects
 PyUnstable_PerfMapState_Fini
 PyUnstable_PerfMapState_Init
 PyUnstable_WritePerfMapEntry
