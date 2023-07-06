@@ -179,7 +179,6 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kHintType:
     case Opcode::kSnapshot:
     case Opcode::kIncref:
-    case Opcode::kInitFunction:
     case Opcode::kReturn:
     case Opcode::kSetCellItem:
     case Opcode::kSetFunctionAttr:

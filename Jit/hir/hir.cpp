@@ -222,7 +222,6 @@ bool Instr::isReplayable() const {
     case Opcode::kInPlaceOp:
     case Opcode::kIncref:
     case Opcode::kInitialYield:
-    case Opcode::kInitFunction:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeStaticFunction:
     case Opcode::kInvokeMethod:

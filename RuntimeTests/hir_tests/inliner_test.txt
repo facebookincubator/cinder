@@ -349,7 +349,6 @@ fun jittestmodule:test {
       }
     }
     SetFunctionAttr<func_closure> v14 v17
-    InitFunction v17
     v20:Object = VectorCall<0> v17 {
       FrameState {
         NextInstrOffset 20
@@ -379,7 +378,6 @@ fun jittestmodule:test {
         Locals<1> v5
       }
     }
-    InitFunction v8
     v11:Object = VectorCall<0> v8 {
       FrameState {
         NextInstrOffset 12

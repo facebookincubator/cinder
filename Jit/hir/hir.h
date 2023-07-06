@@ -267,7 +267,6 @@ struct FrameState {
   V(ImportName)                        \
   V(InPlaceOp)                         \
   V(Incref)                            \
-  V(InitFunction)                      \
   V(InitialYield)                      \
   V(IntBinaryOp)                       \
   V(PrimitiveBoxBool)                  \
@@ -1267,9 +1266,6 @@ DEFINE_SIMPLE_INSTR(
     HasOutput,
     Operands<2>,
     DeoptBase);
-
-// Calls PyEntry_Init(func)
-DEFINE_SIMPLE_INSTR(InitFunction, (TFunc), Operands<1>);
 
 // Takes a list as operand 0
 // Takes an item as operand 1

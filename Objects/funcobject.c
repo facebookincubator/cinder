@@ -6,7 +6,6 @@
 #include "pycore_object.h"        // _PyObject_GC_UNTRACK()
 #include "pycore_pyerrors.h"      // _PyErr_Occurred()
 #include "structmember.h"         // PyMemberDef
-#include "Jit/pyjit.h"
 
 #include "cinder/exports.h"
 
@@ -173,11 +172,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_weakreflist = NULL;
     op->func_module = module;
     op->func_annotations = NULL;
-#ifdef ENABLE_CINDERX
-    op->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
-#else
     op->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
-#endif
 
     _PyObject_GC_TRACK(op);
     handle_func_event(PyFunction_EVENT_CREATE, op, NULL);
@@ -739,10 +734,6 @@ func_new_impl(PyTypeObject *type, PyCodeObject *code, PyObject *globals,
         Py_INCREF(closure);
         newfunc->func_closure = closure;
     }
-
-#ifdef ENABLE_CINDERX
-    PyEntry_init(newfunc);
-#endif
 
     return (PyObject *)newfunc;
 }

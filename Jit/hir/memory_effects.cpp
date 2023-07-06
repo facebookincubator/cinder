@@ -50,7 +50,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
     case Opcode::kMakeDict:
-    case Opcode::kMakeFunction:
     case Opcode::kMakeSet:
     case Opcode::kMakeTupleFromList:
     case Opcode::kPrimitiveCompare:
@@ -180,9 +179,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kXDecref:
       return {false, AEmpty, {1, 1}, AManagedHeapAny};
 
-    case Opcode::kInitFunction:
-      // InitFunction mostly writes to a bunch of func fields we don't track,
-      // but it can also invoke the JIT which may at some point have effects
+    case Opcode::kMakeFunction:
+      // MakeFunction can invoke the JIT which may at some point have effects
       // worth tracking.
       return commonEffects(inst, AOther);
 

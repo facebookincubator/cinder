@@ -1714,6 +1714,17 @@ static int install_jit_audit_hook() {
   return -1;
 }
 
+static int init_funcs_visitor(PyObject* obj, void*) {
+  if (PyFunction_Check(obj)) {
+    PyEntry_init((PyFunctionObject*)obj);
+  }
+  return 1;
+}
+
+static void init_already_existing_funcs() {
+  PyUnstable_GC_VisitObjects(init_funcs_visitor, NULL);
+}
+
 static int install_jit_func_watcher() {
   int watcher_id = PyFunction_AddWatcher(_PyJIT_FuncWatcher);
   if (watcher_id < 0) {
@@ -1901,6 +1912,8 @@ int _PyJIT_Initialize() {
       install_jit_func_watcher() < 0) {
     return -1;
   }
+
+  init_already_existing_funcs();
 
   jit_config.init_state = JIT_INITIALIZED;
   jit_config.is_enabled = 1;
@@ -2119,7 +2132,7 @@ int _PyJIT_FuncWatcher(
     PyObject* new_value) {
   switch (event) {
     case PyFunction_EVENT_CREATE:
-      // TODO move PyEntry_init setting out of funcobject.c
+      PyEntry_init(func);
       break;
     case PyFunction_EVENT_MODIFY_CODE:
       _PyJIT_FuncModified(func);

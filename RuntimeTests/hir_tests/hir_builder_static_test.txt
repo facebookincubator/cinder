@@ -1352,7 +1352,6 @@ fun jittestmodule:test {
     }
     SetFunctionAttr<func_closure> v7 v10
     SetFunctionAttr<func_annotations> v6 v10
-    InitFunction v10
     v1 = Assign v10
     v11 = LoadCellItem v2
     v11 = CheckVar<"a"> v11 {
