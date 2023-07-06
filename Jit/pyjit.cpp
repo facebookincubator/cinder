@@ -66,6 +66,7 @@ struct JitConfig {
   unsigned int auto_jit_threshold{0};
   int dict_watcher_id{-1};
   int func_watcher_id{-1};
+  int code_watcher_id{-1};
 };
 static JitConfig jit_config;
 
@@ -1714,6 +1715,24 @@ static int install_jit_audit_hook() {
   return -1;
 }
 
+static int install_jit_code_watcher() {
+  int watcher_id = PyCode_AddWatcher(_PyJIT_CodeWatcher);
+  if (watcher_id < 0) {
+    return -1;
+  }
+  jit_config.code_watcher_id = watcher_id;
+  return 0;
+}
+
+static void clear_jit_code_watcher() {
+  if (jit_config.code_watcher_id >= 0) {
+    if (PyCode_ClearWatcher(jit_config.code_watcher_id) < 0) {
+      PyErr_WriteUnraisable(Py_None);
+    }
+    jit_config.code_watcher_id = -1;
+  }
+}
+
 static int init_funcs_visitor(PyObject* obj, void*) {
   if (PyFunction_Check(obj)) {
     PyEntry_init((PyFunctionObject*)obj);
@@ -1778,6 +1797,7 @@ void _PyJIT_UnwatchDict(PyObject* dict) {
 int _PyJIT_InitializeSubInterp() {
   // HACK: for now assume we are the only watcher out there, so that we can just
   // keep track of a single watcher ID rather than one per interpreter.
+
   int prev_dict_watcher_id = jit_config.dict_watcher_id;
   JIT_CHECK(
       prev_dict_watcher_id >= 0,
@@ -1789,7 +1809,7 @@ int _PyJIT_InitializeSubInterp() {
       jit_config.dict_watcher_id == prev_dict_watcher_id,
       "Somebody else watching dicts?");
 
-  // dict watcher is always enabled; func watcher only if JIT is
+  // dict watcher is always enabled; others only if JIT is
   int prev_func_watcher_id = jit_config.func_watcher_id;
   if (prev_func_watcher_id >= 0) {
     if (install_jit_func_watcher() < 0) {
@@ -1798,6 +1818,16 @@ int _PyJIT_InitializeSubInterp() {
     JIT_CHECK(
         jit_config.func_watcher_id == prev_func_watcher_id,
         "Somebody else watching functions?");
+  }
+
+  int prev_code_watcher_id = jit_config.code_watcher_id;
+  if (prev_code_watcher_id >= 0) {
+    if (install_jit_code_watcher() < 0) {
+      return -1;
+    }
+    JIT_CHECK(
+        jit_config.code_watcher_id == prev_code_watcher_id,
+        "Somebody else watching code objects?");
   }
 
   return 0;
@@ -2183,6 +2213,13 @@ void _PyJIT_FuncDestroyed(PyFunctionObject* func) {
   }
 }
 
+int _PyJIT_CodeWatcher(PyCodeEvent event, PyCodeObject* co) {
+  if (event == PY_CODE_EVENT_DESTROY) {
+    _PyJIT_CodeDestroyed(co);
+  }
+  return 0;
+}
+
 void _PyJIT_CodeDestroyed(PyCodeObject* code) {
   if (_PyJIT_IsEnabled()) {
     auto code_obj = reinterpret_cast<PyObject*>(code);
@@ -2268,8 +2305,9 @@ int _PyJIT_Finalize() {
   }
 
   // now that we've released all references to Python funcs, it's safe to shut
-  // down the func watcher
+  // down the func and code watchers
   clear_jit_func_watcher();
+  clear_jit_code_watcher();
 
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)
