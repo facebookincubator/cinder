@@ -65,6 +65,7 @@ struct JitConfig {
   int hir_inliner_enabled{0};
   unsigned int auto_jit_threshold{0};
   int dict_watcher_id{-1};
+  int func_watcher_id{-1};
 };
 static JitConfig jit_config;
 
@@ -1712,6 +1713,24 @@ static int install_jit_audit_hook() {
   return -1;
 }
 
+static int install_jit_func_watcher() {
+  int watcher_id = PyFunction_AddWatcher(_PyJIT_FuncWatcher);
+  if (watcher_id < 0) {
+    return -1;
+  }
+  jit_config.func_watcher_id = watcher_id;
+  return 0;
+}
+
+static void clear_jit_func_watcher() {
+  if (jit_config.func_watcher_id >= 0) {
+    if (PyFunction_ClearWatcher(jit_config.func_watcher_id) < 0) {
+      PyErr_WriteUnraisable(Py_None);
+    }
+    jit_config.func_watcher_id = -1;
+  }
+}
+
 static int install_jit_dict_watcher() {
   int watcher_id = PyDict_AddWatcher(_PyJIT_DictWatcher);
   if (watcher_id < 0) {
@@ -1719,6 +1738,15 @@ static int install_jit_dict_watcher() {
   }
   jit_config.dict_watcher_id = watcher_id;
   return 0;
+}
+
+static void clear_jit_dict_watcher() {
+  if (jit_config.dict_watcher_id >= 0) {
+    if (PyDict_ClearWatcher(jit_config.dict_watcher_id) < 0) {
+      PyErr_WriteUnraisable(Py_None);
+    }
+    jit_config.dict_watcher_id = -1;
+  }
 }
 
 void _PyJIT_WatchDict(PyObject* dict) {
@@ -1736,26 +1764,37 @@ void _PyJIT_UnwatchDict(PyObject* dict) {
 }
 
 int _PyJIT_InitializeSubInterp() {
-  // HACK: for now we assume we are the only dict watcher out there, so that we
-  // can just keep track of a single dict watcher ID rather than one per
-  // interpreter.
-  int prev_watcher_id = jit_config.dict_watcher_id;
+  // HACK: for now assume we are the only watcher out there, so that we can just
+  // keep track of a single watcher ID rather than one per interpreter.
+  int prev_dict_watcher_id = jit_config.dict_watcher_id;
   JIT_CHECK(
-      prev_watcher_id >= 0,
+      prev_dict_watcher_id >= 0,
       "Initializing sub-interpreter without main interpreter?");
   if (install_jit_dict_watcher() < 0) {
     return -1;
   }
   JIT_CHECK(
-      jit_config.dict_watcher_id == prev_watcher_id,
+      jit_config.dict_watcher_id == prev_dict_watcher_id,
       "Somebody else watching dicts?");
+
+  // dict watcher is always enabled; func watcher only if JIT is
+  int prev_func_watcher_id = jit_config.func_watcher_id;
+  if (prev_func_watcher_id >= 0) {
+    if (install_jit_func_watcher() < 0) {
+      return -1;
+    }
+    JIT_CHECK(
+        jit_config.func_watcher_id == prev_func_watcher_id,
+        "Somebody else watching functions?");
+  }
+
   return 0;
 }
 
 int _PyJIT_Initialize() {
   // If we have data symbols which are public but not used within CPython code,
   // we need to ensure the linker doesn't GC the .data section containing them.
-  // We can do this by referencing at least symbol from that sourfe module.
+  // We can do this by referencing at least symbol from that source module.
   // In future versions of clang/gcc we may be able to eliminate this with
   // 'keep' and/or 'used' attributes.
   //
@@ -1857,7 +1896,8 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0) {
+  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0 ||
+      install_jit_func_watcher() < 0) {
     return -1;
   }
 
@@ -2072,6 +2112,34 @@ void _PyJIT_InstanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty) {
   }
 }
 
+int _PyJIT_FuncWatcher(
+    PyFunction_WatchEvent event,
+    PyFunctionObject* func,
+    PyObject* new_value) {
+  switch (event) {
+    case PyFunction_EVENT_CREATE:
+      // TODO move PyEntry_init setting out of funcobject.c
+      break;
+    case PyFunction_EVENT_MODIFY_CODE:
+      _PyJIT_FuncModified(func);
+      // having deopted the func, we want to immediately consider recompiling.
+      // func_set_code will assign this again later, but we do it early so
+      // PyEntry_init can consider the new code object now
+      Py_INCREF(new_value);
+      Py_XSETREF(func->func_code, new_value);
+      PyEntry_init(func);
+      break;
+    case PyFunction_EVENT_MODIFY_DEFAULTS:
+      break;
+    case PyFunction_EVENT_MODIFY_KWDEFAULTS:
+      break;
+    case PyFunction_EVENT_DESTROY:
+      _PyJIT_FuncDestroyed(func);
+      break;
+  }
+  return 0;
+}
+
 void _PyJIT_FuncModified(PyFunctionObject* func) {
   if (jit_ctx) {
     _PyJITContext_FuncModified(jit_ctx, func);
@@ -2175,6 +2243,10 @@ int _PyJIT_Finalize() {
     CodeAllocator::freeGlobalCodeAllocator();
   }
 
+  // now that we've released all references to Python funcs, it's safe to shut
+  // down the func watcher
+  clear_jit_func_watcher();
+
 #define CLEAR_STR(s) Py_CLEAR(s_str_##s);
   INTERNED_STRINGS(CLEAR_STR)
 #undef CLEAR_STR
@@ -2189,13 +2261,7 @@ int _PyJIT_Finalize() {
   Runtime::shutdown();
 
   // must happen after Runtime::shutdown() so that we've cleared dict caches
-  if (jit_config.dict_watcher_id >= 0) {
-    if (PyDict_ClearWatcher(jit_config.dict_watcher_id) < 0) {
-      PyErr_Print();
-      PyErr_Clear();
-    }
-    jit_config.dict_watcher_id = -1;
-  }
+  clear_jit_dict_watcher();
 
   return 0;
 }

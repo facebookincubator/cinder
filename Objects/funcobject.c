@@ -460,10 +460,6 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     handle_func_event(PyFunction_EVENT_MODIFY_CODE, op, value);
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
-#ifdef ENABLE_CINDERX
-    _PyJIT_FuncModified(op);
-    PyEntry_init(op);
-#endif
     return 0;
 }
 
@@ -554,14 +550,6 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
     handle_func_event(PyFunction_EVENT_MODIFY_DEFAULTS, op, value);
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
-#ifdef ENABLE_CINDERX
-    // JIT-compiled functions load their defaults at runtime if needed. Others
-    // need their entrypoint recomputed.
-    // TODO(T126790232): Don't load defaults at runtime and recompile as needed.
-    if (!_PyJIT_IsCompiled((PyObject *)op)) {
-        PyEntry_init(op);
-    }
-#endif
     return 0;
 }
 
@@ -783,9 +771,6 @@ func_clear(PyFunctionObject *op)
 static void
 func_dealloc(PyFunctionObject *op)
 {
-#ifdef ENABLE_CINDERX
-    _PyJIT_FuncDestroyed(op);
-#endif
     assert(Py_REFCNT(op) == 0);
     Py_SET_REFCNT(op, 1);
     handle_func_event(PyFunction_EVENT_DESTROY, op, NULL);

@@ -170,6 +170,14 @@ PyAPI_FUNC(int) _PyJIT_DictWatcher(
     PyObject* new_value);
 
 /*
+ * Func watcher callback; called on func creation/modification/deallocation.
+ */
+PyAPI_FUNC(int) _PyJIT_FuncWatcher(
+    PyFunction_WatchEvent event,
+    PyFunctionObject* func,
+    PyObject* new_value);
+
+/*
  * Informs the JIT that a type, function, or code object is being created,
  * modified, or destroyed.
  */
