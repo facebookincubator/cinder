@@ -136,6 +136,46 @@ PyCode_NewEmpty(const char *filename, const char *funcname, int firstlineno);
    use PyFrame_GetLineNumber() instead. */
 PyAPI_FUNC(int) PyCode_Addr2Line(PyCodeObject *, int);
 
+#define PY_FOREACH_CODE_EVENT(V) \
+    V(CREATE)                 \
+    V(DESTROY)
+
+typedef enum {
+    #define PY_DEF_EVENT(op) PY_CODE_EVENT_##op,
+    PY_FOREACH_CODE_EVENT(PY_DEF_EVENT)
+    #undef PY_DEF_EVENT
+} PyCodeEvent;
+
+
+/*
+ * A callback that is invoked for different events in a code object's lifecycle.
+ *
+ * The callback is invoked with a borrowed reference to co, after it is
+ * created and before it is destroyed.
+ *
+ * If the callback sets an exception, it must return -1. Otherwise
+ * it should return 0.
+ */
+typedef int (*PyCode_WatchCallback)(
+  PyCodeEvent event,
+  PyCodeObject* co);
+
+/*
+ * Register a per-interpreter callback that will be invoked for code object
+ * lifecycle events.
+ *
+ * Returns a handle that may be passed to PyCode_ClearWatcher on success,
+ * or -1 and sets an error if no more handles are available.
+ */
+PyAPI_FUNC(int) PyCode_AddWatcher(PyCode_WatchCallback callback);
+
+/*
+ * Clear the watcher associated with the watcher_id handle.
+ *
+ * Returns 0 on success or -1 if no watcher exists for the provided id.
+ */
+PyAPI_FUNC(int) PyCode_ClearWatcher(int watcher_id);
+
 /* for internal use only */
 struct _opaque {
     int computed_line;

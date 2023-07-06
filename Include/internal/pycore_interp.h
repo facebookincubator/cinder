@@ -7,6 +7,7 @@
 
 #include "pycore_atomic.h"        // _Py_atomic_address
 #include "pycore_ast_state.h"     // struct ast_state
+#include "pycore_code.h"          // CODE_MAX_WATCHERS
 #include "pycore_gil.h"           // struct _gil_runtime_state
 #include "pycore_gc.h"            // struct _gc_runtime_state
 #include "pycore_warnings.h"      // struct _warnings_runtime_state
@@ -297,6 +298,9 @@ struct _is {
     struct atexit_state atexit;
 
     PyObject *audit_hooks;
+    PyCode_WatchCallback code_watchers[CODE_MAX_WATCHERS];
+    // One bit is set for each non-NULL entry in code_watchers
+    uint8_t active_code_watchers;
 
     /* Small integers are preallocated in this array so that they
        can be shared.

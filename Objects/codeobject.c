@@ -14,6 +14,99 @@
 
 #include "Jit/pyjit.h"
 
+static PyObject* code_repr(PyCodeObject *co);
+
+static const char *
+code_event_name(PyCodeEvent event) {
+    switch (event) {
+        #define CASE(op)                \
+        case PY_CODE_EVENT_##op:         \
+            return "PY_CODE_EVENT_" #op;
+        PY_FOREACH_CODE_EVENT(CASE)
+        #undef CASE
+    }
+    Py_UNREACHABLE();
+}
+
+static void
+notify_code_watchers(PyCodeEvent event, PyCodeObject *co)
+{
+    assert(Py_REFCNT(co) > 0);
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    uint8_t bits = interp->active_code_watchers;
+    int i = 0;
+    while (bits) {
+        assert(i < CODE_MAX_WATCHERS);
+        if (bits & 1) {
+            PyCode_WatchCallback cb = interp->code_watchers[i];
+            // callback must be non-null if the watcher bit is set
+            assert(cb != NULL);
+            if (cb(event, co) < 0) {
+                // Don't risk resurrecting the object if an unraisablehook keeps
+                // a reference; pass a string as context.
+                PyObject *context = NULL;
+                PyObject *repr = code_repr(co);
+                if (repr) {
+                    context = PyUnicode_FromFormat(
+                        "%s watcher callback for %U",
+                        code_event_name(event), repr);
+                    Py_DECREF(repr);
+                }
+                if (context == NULL) {
+                    context = Py_NewRef(Py_None);
+                }
+                PyErr_WriteUnraisable(context);
+                Py_DECREF(context);
+            }
+        }
+        i++;
+        bits >>= 1;
+    }
+}
+
+int
+PyCode_AddWatcher(PyCode_WatchCallback callback)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+
+    for (int i = 0; i < CODE_MAX_WATCHERS; i++) {
+        if (!interp->code_watchers[i]) {
+            interp->code_watchers[i] = callback;
+            interp->active_code_watchers |= (1 << i);
+            return i;
+        }
+    }
+
+    PyErr_SetString(PyExc_RuntimeError, "no more code watcher IDs available");
+    return -1;
+}
+
+static inline int
+validate_watcher_id(PyInterpreterState *interp, int watcher_id)
+{
+    if (watcher_id < 0 || watcher_id >= CODE_MAX_WATCHERS) {
+        PyErr_Format(PyExc_ValueError, "Invalid code watcher ID %d", watcher_id);
+        return -1;
+    }
+    if (!interp->code_watchers[watcher_id]) {
+        PyErr_Format(PyExc_ValueError, "No code watcher set for ID %d", watcher_id);
+        return -1;
+    }
+    return 0;
+}
+
+int
+PyCode_ClearWatcher(int watcher_id)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (validate_watcher_id(interp, watcher_id) < 0) {
+        return -1;
+    }
+    interp->code_watchers[watcher_id] = NULL;
+    interp->active_code_watchers &= ~(1 << watcher_id);
+    return 0;
+}
+
 /* Holder for co_extra information */
 typedef struct {
     Py_ssize_t ce_size;
@@ -321,6 +414,7 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
     co->co_extra = NULL;
 
     co->co_qualname = NULL;
+    notify_code_watchers(PY_CODE_EVENT_CREATE, co);
     return co;
 }
 
@@ -643,6 +737,14 @@ code_dealloc(PyCodeObject *co)
 #ifdef ENABLE_CINDERX
     _PyJIT_CodeDestroyed(co);
 #endif
+    assert(Py_REFCNT(co) == 0);
+    Py_SET_REFCNT(co, 1);
+    notify_code_watchers(PY_CODE_EVENT_DESTROY, co);
+    if (Py_REFCNT(co) > 1) {
+        Py_SET_REFCNT(co, Py_REFCNT(co) - 1);
+        return;
+    }
+    Py_SET_REFCNT(co, 0);
 
     if (co->co_extra != NULL) {
         PyInterpreterState *interp = _PyInterpreterState_GET();

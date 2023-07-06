@@ -382,6 +382,7 @@ PyCMethod_New
 PyCMethod_Type
 _Py_c_neg
 PyCode_Addr2Line
+PyCode_AddWatcher
 _PyCodeCache_RefType
 PyCodec_BackslashReplaceErrors
 PyCodec_Decode
@@ -398,6 +399,7 @@ PyCodec_IncrementalEncoder
 _PyCodecInfo_GetIncrementalDecoder
 _PyCodecInfo_GetIncrementalEncoder
 PyCodec_KnownEncoding
+PyCode_ClearWatcher
 _PyCodec_Lookup
 PyCodec_LookupError
 _PyCodec_LookupTextEncoding
