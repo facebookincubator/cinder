@@ -502,13 +502,10 @@ func_set_qualname(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
                         "__qualname__ must be set to a string object");
         return -1;
     }
+    handle_func_event(PyFunction_EVENT_MODIFY_QUALNAME,
+                      (PyFunctionObject *)op, value);
     Py_INCREF(value);
     Py_XSETREF(op->func_qualname, value);
-#ifdef ENABLE_CINDERX
-    if (!_PyJIT_IsCompiled((PyObject *)op)) {
-        PyEntry_init(op);
-    }
-#endif
     return 0;
 }
 

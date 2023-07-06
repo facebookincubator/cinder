@@ -2134,6 +2134,16 @@ int _PyJIT_FuncWatcher(
       break;
     case PyFunction_EVENT_MODIFY_KWDEFAULTS:
       break;
+    case PyFunction_EVENT_MODIFY_QUALNAME:
+      // allow reconsideration of whether this function should be compiled
+      if (!_PyJIT_IsCompiled((PyObject*)func)) {
+        // func_set_qualname will assign this again, but we need to assign it
+        // now so that PyEntry_init can consider the new qualname
+        Py_INCREF(new_value);
+        Py_XSETREF(func->func_qualname, new_value);
+        PyEntry_init(func);
+      }
+      break;
     case PyFunction_EVENT_DESTROY:
       _PyJIT_FuncDestroyed(func);
       break;
