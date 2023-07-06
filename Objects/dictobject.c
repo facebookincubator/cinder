@@ -123,9 +123,6 @@ converting the dict to the combined table.
 #include "classloader.h"
 #include "cinder/exports.h"
 
-/* TODO(T113261295): Remove this once dict watchers are upstreamed. */
-#include "Jit/pyjit.h"
-
 /*[clinic input]
 class dict "PyDictObject *" "&PyDict_Type"
 [clinic start generated code]*/
