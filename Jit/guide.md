@@ -90,8 +90,9 @@ the body of `f()`.
 By default if the JIT is enabled, all functions are compiled. If a JIT list
 is provided, only functions on that list will be compiled. There is also an
 option to JIT compile all Static Python functions, even if not on the JIT
-list. Currently there is no option to automatically compile hot functions
-based on their observed call count at runtime.
+list. In addition, the JIT can automatically compile hot functions based on 
+their observed call count at runtime. The threshold used to automatically
+compile hot functions is configurable.
 
 These JIT options are set via `-X` options or environment variables; this
 configuration is initialized in the `initFlagProcessor()` function in
