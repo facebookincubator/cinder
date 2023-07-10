@@ -1086,6 +1086,10 @@ def _return_instance(cls):
     return cls()
 
 
+def _identity(x):
+    return x
+
+
 class CrashAtPickle(object):
     """Bad object that triggers a segfault at pickling time."""
     def __reduce__(self):
@@ -1262,6 +1266,22 @@ class ExecutorDeadlockTest:
         # Make sure the executor is eventually shutdown and do not leave
         # dangling threads
         executor_manager.join()
+
+    def test_shutdown_deadlock_blocked_pipe(self):
+        # Test that the pool calling shutdown with wait=True (or process exit)
+        # does not cause a deadlock if the queue feeding thread is blocked
+        # writing to the pipe
+        self.executor.shutdown(wait=True)
+        with self.executor_type(max_workers=1,
+                                mp_context=self.get_context()) as executor:
+            f = executor.submit(_crash)
+            # Exceed the pipe buffer size
+            f = executor.submit(_identity, "a" * 8192000)
+            # Make sure the executor has entered a broken state
+            with self.assertRaises(BrokenProcessPool):
+                f.result()
+            # Shouldn't block forever
+            executor.shutdown(wait=True)
 
 
 create_executor_tests(ExecutorDeadlockTest,

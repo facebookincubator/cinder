@@ -465,6 +465,12 @@ class _ExecutorManagerThread(threading.Thread):
         for p in self.processes.values():
             p.terminate()
 
+        # Close our read side of the pipe so that any attempts to write to it
+        # once all workers are killed fail with EPIPE. This prevents the queue
+        # feeder thread from becoming blocked if the pipe buffer is full and
+        # all workers have been killed.
+        self.call_queue._reader.close()
+
         # clean up resources
         self.join_executor_internals()
 
