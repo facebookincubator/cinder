@@ -5818,6 +5818,18 @@ type_get_version(PyObject *self, PyObject *type)
 }
 
 
+static PyObject *
+type_assign_version(PyObject *self, PyObject *type)
+{
+    if (!PyType_Check(type)) {
+        PyErr_SetString(PyExc_TypeError, "argument must be a type");
+        return NULL;
+    }
+    int res = PyUnstable_Type_AssignVersionTag((PyTypeObject *)type);
+    return PyLong_FromLong(res);
+}
+
+
 static PyObject *test_buildvalue_issue38913(PyObject *, PyObject *);
 static PyObject *getargs_s_hash_int(PyObject *, PyObject *, PyObject*);
 
@@ -6899,6 +6911,7 @@ static PyMethodDef TestMethods[] = {
     {"get_context_helpers_for_task", _get_context_helpers_for_task, METH_NOARGS},
     {"test_dict_has_unsafe_keys", test_dict_has_unsafe_keys, METH_NOARGS},
     {"type_get_version", type_get_version, METH_O, PyDoc_STR("type->tp_version_tag")},
+    {"type_assign_version", type_assign_version, METH_O, PyDoc_STR("PyUnstable_Type_AssignVersionTag")},
     {"add_dict_watcher", add_dict_watcher, METH_O},
     {"clear_dict_watcher", clear_dict_watcher, METH_O},
     {"watch_dict", watch_dict, METH_VARARGS},

@@ -564,3 +564,10 @@ PyAPI_FUNC(int) _PyTrash_cond(PyObject *op, destructor dealloc);
  * unconditionally */
 #define Py_TRASHCAN_SAFE_BEGIN(op) Py_TRASHCAN_BEGIN_CONDITION(op, 1)
 #define Py_TRASHCAN_SAFE_END(op) Py_TRASHCAN_END
+
+/* Attempt to assign a version tag to the given type.
+ *
+ * Returns 1 if the type already had a valid version tag or a new one was
+ * assigned, or 0 if a new tag could not be assigned.
+ */
+PyAPI_FUNC(int) PyUnstable_Type_AssignVersionTag(PyTypeObject *type);

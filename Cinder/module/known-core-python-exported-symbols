@@ -50,7 +50,6 @@ Ci_ThreadState_SetProfileInterpAll
 Ci_TupleHashItems
 Ci_Tuple_Repeat
 Ci_tuple_subscript
-Ci_Type_AssignVersionTag
 ClassDef_fields
 Delete_fields
 DictComp_fields
@@ -1992,6 +1991,7 @@ Py_UniversalNewlineFgets
 PyUnstable_GC_VisitObjects
 PyUnstable_PerfMapState_Fini
 PyUnstable_PerfMapState_Init
+PyUnstable_Type_AssignVersionTag
 PyUnstable_WritePerfMapEntry
 _Py_UTF8_Edit_Cost
 _Py_VaBuildStack

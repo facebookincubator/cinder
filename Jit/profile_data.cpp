@@ -414,7 +414,7 @@ void registerProfiledType(PyTypeObject* type) {
   PyDictKeysObject* old_keys = ht->ht_cached_keys;
   ht->ht_cached_keys = keys;
   PyType_Modified(type);
-  Ci_Type_AssignVersionTag(type);
+  PyUnstable_Type_AssignVersionTag(type);
   if (old_keys != nullptr) {
     _PyDictKeys_DecRef(old_keys);
   }

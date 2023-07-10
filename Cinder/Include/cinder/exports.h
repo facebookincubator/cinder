@@ -92,8 +92,6 @@ CiAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
 
 #define Ci_Py_TPFLAGS_FROZEN (1UL << 21)
 
-CiAPI_FUNC(int) Ci_Type_AssignVersionTag(PyTypeObject *);
-
 // Implementation in Python/bltinmodule.c
 CiAPI_FUNC(PyObject *) builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 

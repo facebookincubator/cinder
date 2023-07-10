@@ -522,8 +522,8 @@ assign_version_tag(struct type_cache *cache, PyTypeObject *type)
     return 1;
 }
 
-int
-Ci_Type_AssignVersionTag(PyTypeObject *type) {
+int PyUnstable_Type_AssignVersionTag(PyTypeObject *type)
+{
     return assign_version_tag(get_type_cache(), type);
 }
 

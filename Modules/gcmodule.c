@@ -2041,7 +2041,7 @@ immortalize_object(PyObject *obj, PyObject * /* unused */ args)
     }
 
     if (PyType_Check(obj)) {
-        Ci_Type_AssignVersionTag((PyTypeObject *)obj);
+        PyUnstable_Type_AssignVersionTag((PyTypeObject *)obj);
     }
     if (!_PyImmortal_RecursiveHeapWalk) {
       return 0;

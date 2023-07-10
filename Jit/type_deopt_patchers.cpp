@@ -47,7 +47,7 @@ bool shouldPatchForAttr(
     return true;
   }
 
-  return !Ci_Type_AssignVersionTag(new_ty);
+  return !PyUnstable_Type_AssignVersionTag(new_ty);
 }
 } // namespace
 

@@ -198,7 +198,7 @@ bool ensureVersionTag(BorrowedRef<PyTypeObject> type) {
     return true;
   }
   ThreadedCompileSerialize guard;
-  return Ci_Type_AssignVersionTag(type);
+  return PyUnstable_Type_AssignVersionTag(type);
 }
 
 } // namespace jit
