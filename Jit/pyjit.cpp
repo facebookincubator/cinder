@@ -1809,17 +1809,18 @@ int _PyJIT_InitializeSubInterp() {
       jit_config.dict_watcher_id == prev_dict_watcher_id,
       "Somebody else watching dicts?");
 
-  // dict watcher is always enabled; others only if JIT is
   int prev_func_watcher_id = jit_config.func_watcher_id;
-  if (prev_func_watcher_id >= 0) {
-    if (install_jit_func_watcher() < 0) {
-      return -1;
-    }
-    JIT_CHECK(
-        jit_config.func_watcher_id == prev_func_watcher_id,
-        "Somebody else watching functions?");
+  JIT_CHECK(
+      prev_func_watcher_id >= 0,
+      "Initializing sub-interpreter without main interpreter?");
+  if (install_jit_func_watcher() < 0) {
+    return -1;
   }
+  JIT_CHECK(
+      jit_config.func_watcher_id == prev_func_watcher_id,
+      "Somebody else watching functions?");
 
+  // dict and func watchers are always enabled; others only if JIT is
   int prev_code_watcher_id = jit_config.code_watcher_id;
   if (prev_code_watcher_id >= 0) {
     if (install_jit_code_watcher() < 0) {
@@ -1859,9 +1860,9 @@ int _PyJIT_Initialize() {
 
   initJitConfig_();
 
-  // install the dict watcher early (before even deciding if the JIT will be
-  // enabled) because shadowcode and Static Python also rely on it.
-  if (install_jit_dict_watcher() < 0) {
+  // install the dict and func watchers early (before even deciding if the JIT
+  // will be enabled) because shadowcode and Static Python also rely on them.
+  if (install_jit_dict_watcher() < 0 || install_jit_func_watcher() < 0) {
     return -1;
   }
 
@@ -1938,8 +1939,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0 ||
-      install_jit_func_watcher() < 0) {
+  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0) {
     return -1;
   }
 
