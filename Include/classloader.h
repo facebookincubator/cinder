@@ -46,17 +46,6 @@ typedef struct {
     _PyType_VTableEntry vt_entries[1];
 } _PyType_VTable;
 
-typedef struct _PyClassLoader_StaticCallReturn {
-  void* rax;
-  void* rdx;
-} _PyClassLoader_StaticCallReturn;
-
-
-typedef struct {
-    PyObject_HEAD;
-    PyObject *mt_original;
-} _PyClassLoader_MethodThunk;
-
 /**
     In order to ensure sanity of types at runtime, we need to check the return values
     of functions and ensure they remain compatible with the declared return type (even
@@ -65,7 +54,7 @@ typedef struct {
     This structure helps us do that.
 */
 typedef struct {
-    _PyClassLoader_MethodThunk rt_base;
+    PyObject_HEAD;
     PyTypeObject *rt_expected;
     PyObject *rt_name;
     int rt_optional;
@@ -433,9 +422,6 @@ CiAPI_FUNC(_PyTypedArgsInfo*) _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject 
 CiAPI_FUNC(int) _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
 CiAPI_FUNC(PyObject *) _PyClassLoader_Box(uint64_t value, int primitive_type);
-CiAPI_FUNC(uint64_t) _PyClassLoader_Unbox(PyObject *value, int primitive_type);
-
-
 
 static inline int
 _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
@@ -510,9 +496,14 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
     } else if (arg == NULL) {
         *error = 1;
     } else if (argtype & Ci_Py_SIG_TYPE_PARAM) {
-        if (!_PyClassLoader_CheckParamType(
-                ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype))) {
-            *error = 1;
+        if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
+            if (!_PyClassLoader_CheckParamType(
+                    ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype))) {
+                *error = 1;
+            }
+        } else {
+            assert(_PyClassLoader_CheckParamType(
+                ctx, arg, Ci_Py_SIG_TYPE_MASK(argtype)));
         }
         return arg;
     } else {
@@ -520,7 +511,11 @@ _PyClassLoader_ConvertArg(PyObject *ctx,
         case Ci_Py_SIG_OBJECT:
             return arg;
         case Ci_Py_SIG_STRING:
-            *error = !PyUnicode_Check(arg);
+            if (!(nargsf & Ci_Py_VECTORCALL_INVOKED_STATICALLY)) {
+                *error = !PyUnicode_Check(arg);
+            } else {
+                assert(PyUnicode_Check(arg));
+            }
             return arg;
         case Ci_Py_SIG_UINT8:
         case Ci_Py_SIG_UINT16:
@@ -725,8 +720,6 @@ typedef struct {
 CiAPI_FUNC(int) _Ci_StaticArray_Set(PyObject *array, Py_ssize_t index, PyObject *value);
 CiAPI_FUNC(PyObject*) _Ci_StaticArray_Get(PyObject *array, Py_ssize_t index);
 
-PyObject *
-_PyClassLoader_InvokeMethod(_PyType_VTable *vtable, Py_ssize_t slot, PyObject **args, Py_ssize_t nargsf);
 
 #endif
 

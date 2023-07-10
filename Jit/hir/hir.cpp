@@ -225,7 +225,6 @@ bool Instr::isReplayable() const {
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeStaticFunction:
     case Opcode::kInvokeMethod:
-    case Opcode::kInvokeMethodStatic:
     case Opcode::kIsInstance:
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:

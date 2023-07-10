@@ -598,6 +598,7 @@ Py_EndInterpreter
 Py_EnterRecursiveCall
 PyEntry_init
 PyEntry_LazyInit_dont_bolt
+_PyEntry_StaticEntry
 PyEnum_Type
 PyErr_BadArgument
 _PyErr_BadInternalCall

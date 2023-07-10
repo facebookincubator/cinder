@@ -26,6 +26,35 @@ static inline std::string GetId(const std::string& s) {
   return s;
 }
 
+static inline std::pair<std::string, Operand::DataType> GetIdAndType(
+    const std::string& name) {
+  static UnorderedMap<std::string_view, Operand::DataType> typeMap = {
+      {"CInt8", Operand::k8bit},
+      {"CUInt8", Operand::k8bit},
+      {"CBool", Operand::k8bit},
+      {"CInt16", Operand::k16bit},
+      {"CUInt16", Operand::k16bit},
+      {"CInt32", Operand::k32bit},
+      {"CUInt32", Operand::k32bit},
+      {"CInt64", Operand::k64bit},
+      {"CUInt64", Operand::k64bit},
+      {"CDouble", Operand::kDouble},
+  };
+  size_t colon;
+  Operand::DataType data_type = Operand::kObject;
+
+  if ((colon = name.find(':')) != std::string::npos) {
+    auto type = std::string_view(name).substr(colon + 1);
+    auto t = typeMap.find(type);
+    if (t != typeMap.end()) {
+      data_type = t->second;
+    }
+    return {name.substr(0, colon), data_type};
+  } else {
+    return {name, data_type};
+  }
+}
+
 BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
     : env_(env), func_(func) {
   cur_bb_ = GetBasicBlockByLabel("__main__");
