@@ -4,7 +4,7 @@
 
 #include "Python.h"
 
-#include "Jit/inline_cache.h"
+#include "Jit/global_cache.h"
 
 namespace jit {
 

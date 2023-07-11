@@ -38,6 +38,7 @@ JIT_SRCS = [
     "Jit/dict_watch.cpp",
     "Jit/disassembler.cpp",
     "Jit/frame.cpp",
+    "Jit/global_cache.cpp",
     "Jit/hir/hir.cpp",
     "Jit/hir/alias_class.cpp",
     "Jit/hir/analysis.cpp",

@@ -460,6 +460,7 @@ JIT_OBJS=       \
 		Jit/dict_watch.o \
 		Jit/disassembler.o \
 		Jit/frame.o \
+		Jit/global_cache.o \
 		Jit/hir/hir.o \
 		Jit/hir/alias_class.o \
 		Jit/hir/analysis.o \
@@ -1328,6 +1329,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/disassembler.h \
 		$(srcdir)/Jit/fixed_type_profiler.h \
 		$(srcdir)/Jit/frame.h \
+		$(srcdir)/Jit/global_cache.h \
 		$(srcdir)/Jit/hir/hir.h \
 		$(srcdir)/Jit/hir/alias_class.h \
 		$(srcdir)/Jit/hir/analysis.h \

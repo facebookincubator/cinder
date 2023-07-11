@@ -3,7 +3,7 @@
 #include "Jit/dict_watch.h"
 
 #include "Jit/codegen/gen_asm.h"
-#include "Jit/inline_cache.h"
+#include "Jit/global_cache.h"
 #include "Jit/pyjit.h"
 
 #include <set>

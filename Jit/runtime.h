@@ -8,6 +8,7 @@
 #include "Jit/debug_info.h"
 #include "Jit/deopt.h"
 #include "Jit/fixed_type_profiler.h"
+#include "Jit/global_cache.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
 #include "Jit/pyjit.h"

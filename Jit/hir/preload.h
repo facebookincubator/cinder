@@ -5,9 +5,9 @@
 #include "Python.h"
 #include "classloader.h"
 
+#include "Jit/global_cache.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/type.h"
-#include "Jit/inline_cache.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
 
