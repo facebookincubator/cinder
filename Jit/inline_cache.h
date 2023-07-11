@@ -7,6 +7,7 @@
 
 #include "Jit/jit_rt.h"
 #include "Jit/log.h"
+#include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
 
@@ -110,12 +111,22 @@ class AttributeCache {
   void typeChanged(PyTypeObject* type);
 
  protected:
+  std::span<AttributeMutator> entries();
+
   AttributeMutator* findEmptyEntry();
 
   void
   fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> name, BorrowedRef<> descr);
 
-  std::array<AttributeMutator, 1> entries_;
+  AttributeMutator entries_[0];
+};
+
+struct AttributeCacheSizeTrait {
+  static size_t size() {
+    auto base = sizeof(AttributeCache);
+    auto extra = sizeof(AttributeMutator) * _PyJIT_AttrCacheSize();
+    return base + extra;
+  }
 };
 
 // A cache for an individual StoreAttr instruction.

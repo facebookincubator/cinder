@@ -128,6 +128,12 @@ PyAPI_FUNC(int) _PyJIT_HotCodeSectionSize(void);
 PyAPI_FUNC(int) _PyJIT_ColdCodeSectionSize(void);
 
 /*
+ * Return the size (in number of entries) of the LoadAttr and StoreAttr inline
+ * caches used by the JIT.
+ */
+PyAPI_FUNC(uint32_t) _PyJIT_AttrCacheSize(void);
+
+/*
  * JIT compile func and patch its entry point.
  *
  * On success, positional only calls to func will use the JIT compiled version.

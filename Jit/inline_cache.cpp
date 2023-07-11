@@ -128,7 +128,7 @@ AttributeMutator::Kind AttributeMutator::get_kind() const {
 }
 
 AttributeCache::~AttributeCache() {
-  for (auto& entry : entries_) {
+  for (auto& entry : entries()) {
     if (entry.type() != nullptr) {
       ac_watcher.unwatch(entry.type(), this);
       entry.reset();
@@ -137,7 +137,7 @@ AttributeCache::~AttributeCache() {
 }
 
 void AttributeCache::typeChanged(PyTypeObject* type) {
-  for (auto& entry : entries_) {
+  for (auto& entry : entries()) {
     if (entry.type() == type) {
       entry.reset();
     }
@@ -199,12 +199,14 @@ void AttributeCache::fill(
   ac_watcher.watch(type, this);
 }
 
+std::span<AttributeMutator> AttributeCache::entries() {
+  return {entries_, _PyJIT_AttrCacheSize()};
+}
+
 AttributeMutator* AttributeCache::findEmptyEntry() {
-  auto it = std::find_if(
-      entries_.begin(), entries_.end(), [](const AttributeMutator& e) {
-        return e.isEmpty();
-      });
-  return it == entries_.end() ? nullptr : it;
+  auto it = std::ranges::find_if(
+      entries(), [](const AttributeMutator& e) { return e.isEmpty(); });
+  return it == entries().end() ? nullptr : &*it;
 }
 
 inline PyObject*
@@ -243,10 +245,8 @@ inline PyObject* AttributeMutator::getAttr(PyObject* obj, PyObject* name) {
     case AttributeMutator::Kind::kDescrOrClassVar:
       return descr_or_cvar_.getAttr(obj, name);
     default:
-      JIT_CHECK(
-          false,
-          "cannot invoke getAttr for attr of kind %d",
-          static_cast<int>(kind));
+      JIT_ABORT(
+          "Cannot invoke getAttr for attr of kind %d", static_cast<int>(kind));
   }
 }
 
@@ -520,7 +520,7 @@ PyObject* StoreAttrCache::invoke(
 PyObject*
 StoreAttrCache::doInvoke(PyObject* obj, PyObject* name, PyObject* value) {
   PyTypeObject* tp = Py_TYPE(obj);
-  for (auto& entry : entries_) {
+  for (auto& entry : entries()) {
     if (entry.type() == tp) {
       return entry.setAttr(obj, name, value);
     }
@@ -623,7 +623,7 @@ LoadAttrCache::invoke(LoadAttrCache* cache, PyObject* obj, PyObject* name) {
 
 PyObject* LoadAttrCache::doInvoke(PyObject* obj, PyObject* name) {
   PyTypeObject* tp = Py_TYPE(obj);
-  for (auto& entry : entries_) {
+  for (auto& entry : entries()) {
     if (entry.type() == tp) {
       return entry.getAttr(obj, name);
     }

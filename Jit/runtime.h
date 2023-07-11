@@ -480,12 +480,12 @@ class Runtime {
   // These SlabAreas hold data that is allocated at compile-time and likely to
   // change at runtime, and should be isolated from other data to avoid COW
   // casualties.
-  SlabArena<LoadAttrCache> load_attr_caches_;
+  SlabArena<LoadAttrCache, AttributeCacheSizeTrait> load_attr_caches_;
   SlabArena<LoadTypeAttrCache> load_type_attr_caches_;
   SlabArena<LoadMethodCache> load_method_caches_;
   SlabArena<LoadModuleMethodCache> load_module_method_caches_;
   SlabArena<LoadTypeMethodCache> load_type_method_caches_;
-  SlabArena<StoreAttrCache> store_attr_caches_;
+  SlabArena<StoreAttrCache, AttributeCacheSizeTrait> store_attr_caches_;
   SlabArena<void*> pointer_caches_;
 
   GlobalCacheMap global_caches_;

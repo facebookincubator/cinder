@@ -64,6 +64,7 @@ struct JitConfig {
   size_t cold_code_section_size{0};
   int hir_inliner_enabled{0};
   unsigned int auto_jit_threshold{0};
+  uint32_t attr_cache_size{1};
   int dict_watcher_id{-1};
   int func_watcher_id{-1};
   int code_watcher_id{-1};
@@ -648,6 +649,20 @@ void initFlagProcessor() {
           }
         },
         "Enable emitting code into multiple code sections.");
+
+    xarg_flag_processor.addOption(
+        "jit-attr-cache-size",
+        "PYTHONJITATTRCACHESIZE",
+        [](uint32_t entries) {
+          JIT_CHECK(
+              entries > 0 && entries <= 16,
+              "Using %d entries for attribute access inline "
+              "caches is not within the appropriate range",
+              entries);
+          jit_config.attr_cache_size = entries;
+        },
+        "Set the number of entries in the JIT's attribute access inline "
+        "caches");
 
     xarg_flag_processor.addOption(
         "jit-perfmap",
@@ -2006,6 +2021,10 @@ int _PyJIT_ColdCodeSectionSize() {
     return 0;
   }
   return jit_config.cold_code_section_size;
+}
+
+uint32_t _PyJIT_AttrCacheSize() {
+  return jit_config.attr_cache_size;
 }
 
 int _PyJIT_Enable() {
