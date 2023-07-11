@@ -1357,6 +1357,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/ref.h \
 		$(srcdir)/Jit/runtime.h \
 		$(srcdir)/Jit/runtime_support.h \
+		$(srcdir)/Jit/slab.h \
 		$(srcdir)/Jit/slab_arena.h \
 		$(srcdir)/Jit/stack.h \
 		$(srcdir)/Jit/strobelight_exports.h \

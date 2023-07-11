@@ -27,7 +27,7 @@ void checkData(BigArray* arr, char c) {
 TEST(SlabArenaTest, Allocate) {
   // Allocate at least two pages worth of structs and make sure they don't
   // overlap.
-  SlabArena<BigArray, 1> arena;
+  SlabArena<BigArray, ObjectSizeTrait<BigArray>, 1> arena;
 
   BigArray* a = arena.allocate();
   a->data.fill(0xa);
@@ -71,7 +71,7 @@ class Counter {
 TEST(SlabArenaTest, RunsDestructors) {
   int count = 0;
   {
-    SlabArena<Counter, 1> arena;
+    SlabArena<Counter, ObjectSizeTrait<Counter>, 1> arena;
 
     // Create at least two slabs full of structs
     const int kNumElems = kPageSize / sizeof(Counter) * 2;
@@ -85,7 +85,7 @@ TEST(SlabArenaTest, RunsDestructors) {
 }
 
 TEST(SlabArenaTest, Iterate) {
-  SlabArena<int, 1> arena;
+  SlabArena<int, ObjectSizeTrait<int>, 1> arena;
 
   for (UNUSED int value : arena) {
     FAIL() << "Arena should be empty";
