@@ -127,6 +127,12 @@ AttributeMutator::Kind AttributeMutator::get_kind() const {
   return static_cast<Kind>(type_ & kKindMask);
 }
 
+AttributeCache::AttributeCache() {
+  for (auto& entry : entries()) {
+    entry.reset();
+  }
+}
+
 AttributeCache::~AttributeCache() {
   for (auto& entry : entries()) {
     if (entry.type() != nullptr) {

@@ -106,6 +106,7 @@ class AttributeMutator {
 
 class AttributeCache {
  public:
+  AttributeCache();
   ~AttributeCache();
 
   void typeChanged(PyTypeObject* type);
