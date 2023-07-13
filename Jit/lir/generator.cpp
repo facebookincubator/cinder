@@ -890,61 +890,43 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kPrimitiveCompare: {
         auto instr = static_cast<const PrimitiveCompare*>(&i);
-        std::string op;
+        Instruction::Opcode op;
         switch (instr->op()) {
           case PrimitiveCompareOp::kEqual:
-            op = "Equal";
+            op = Instruction::kEqual;
             break;
           case PrimitiveCompareOp::kNotEqual:
-            op = "NotEqual";
+            op = Instruction::kNotEqual;
             break;
           case PrimitiveCompareOp::kGreaterThanUnsigned:
-            op = "GreaterThanUnsigned";
+            op = Instruction::kGreaterThanUnsigned;
             break;
           case PrimitiveCompareOp::kGreaterThan:
-            op = "GreaterThanSigned";
+            op = Instruction::kGreaterThanSigned;
             break;
           case PrimitiveCompareOp::kLessThanUnsigned:
-            op = "LessThanUnsigned";
+            op = Instruction::kLessThanUnsigned;
             break;
           case PrimitiveCompareOp::kLessThan:
-            op = "LessThanSigned";
+            op = Instruction::kLessThanSigned;
             break;
           case PrimitiveCompareOp::kGreaterThanEqualUnsigned:
-            op = "GreaterThanEqualUnsigned";
+            op = Instruction::kGreaterThanEqualUnsigned;
             break;
           case PrimitiveCompareOp::kGreaterThanEqual:
-            op = "GreaterThanEqualSigned";
+            op = Instruction::kGreaterThanEqualSigned;
             break;
           case PrimitiveCompareOp::kLessThanEqualUnsigned:
-            op = "LessThanEqualUnsigned";
+            op = Instruction::kLessThanEqualUnsigned;
             break;
           case PrimitiveCompareOp::kLessThanEqual:
-            op = "LessThanEqualSigned";
+            op = Instruction::kLessThanEqualSigned;
             break;
           default:
-            JIT_ABORT("not implemented %d", (int)instr->op());
+            JIT_ABORT("Not implemented %d", static_cast<int>(instr->op()));
             break;
         }
-
-        if (instr->left()->type() <= TCDouble ||
-            instr->right()->type() <= TCDouble) {
-          // Manually format the code string, otherwise registers with literal
-          // values end up being treated as immediates, and there's no way to
-          // load immediates in an XMM register.
-          auto codestr = fmt::format(
-              "{} {}, {}:{}, {}:{}",
-              op,
-              instr->dst(),
-              instr->left()->name(),
-              instr->left()->type().unspecialized(),
-              instr->right()->name(),
-              instr->right()->type().unspecialized());
-          bbb.AppendCode(codestr);
-        } else {
-          bbb.AppendCode(
-              "{} {} {} {}", op, instr->dst(), instr->left(), instr->right());
-        }
+        bbb.appendInstr(instr->dst(), op, instr->left(), instr->right());
         break;
       }
       case Opcode::kPrimitiveBoxBool: {
