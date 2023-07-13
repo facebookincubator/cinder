@@ -12,6 +12,8 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "clinic/codeobject.c.h"
 
+#include "Jit/pyjit.h"
+
 static PyObject* code_repr(PyCodeObject *co);
 
 static const char *
@@ -732,6 +734,9 @@ code_new_impl(PyTypeObject *type, int argcount, int posonlyargcount,
 static void
 code_dealloc(PyCodeObject *co)
 {
+#ifdef ENABLE_CINDERX
+    _PyJIT_CodeDestroyed(co);
+#endif
     assert(Py_REFCNT(co) == 0);
     Py_SET_REFCNT(co, 1);
     notify_code_watchers(PY_CODE_EVENT_DESTROY, co);

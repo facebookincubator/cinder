@@ -176,11 +176,6 @@ PyAPI_FUNC(int) _PyJIT_DictWatcher(
     PyObject* new_value);
 
 /*
- * Code watcher callback; called on creation/dealloc of a code object.
- */
-PyAPI_FUNC(int) _PyJIT_CodeWatcher(PyCodeEvent event, PyCodeObject* co);
-
-/*
  * Func watcher callback; called on func creation/modification/deallocation.
  */
 PyAPI_FUNC(int) _PyJIT_FuncWatcher(
