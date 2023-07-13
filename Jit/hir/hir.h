@@ -2186,23 +2186,22 @@ class INSTR_CLASS(PrimitiveUnaryOp, (TPrimitive), HasOutput, Operands<1>) {
   PrimitiveUnaryOpKind op_;
 };
 
-#define FOREACH_COMPARE_OP(V)          \
-  /* Begin rich comparison opcodes. */ \
-  V(LessThan)                          \
-  V(LessThanEqual)                     \
-  V(Equal)                             \
-  V(NotEqual)                          \
-  V(GreaterThan)                       \
-  V(GreaterThanEqual)                  \
-  /* End rich comparison opcodes. */   \
-  V(In)                                \
-  V(NotIn)                             \
-  V(Is)                                \
-  V(IsNot)                             \
-  V(ExcMatch)                          \
-  V(GreaterThanUnsigned)               \
-  V(GreaterThanEqualUnsigned)          \
-  V(LessThanUnsigned)                  \
+#define FOREACH_COMPARE_OP(V)                               \
+  /* Begin rich comparison opcodes. */                      \
+  V(LessThan)                                               \
+  V(LessThanEqual)                                          \
+  V(Equal)                                                  \
+  V(NotEqual)                                               \
+  V(GreaterThan)                                            \
+  V(GreaterThanEqual)                                       \
+  /* End rich comparison opcodes. */                        \
+  V(In)                                                     \
+  V(NotIn)                                                  \
+  /* Note: Is and IsNot are handled by PrimitiveCompare. */ \
+  V(ExcMatch)                                               \
+  V(GreaterThanUnsigned)                                    \
+  V(GreaterThanEqualUnsigned)                               \
+  V(LessThanUnsigned)                                       \
   V(LessThanEqualUnsigned)
 
 enum class CompareOp {

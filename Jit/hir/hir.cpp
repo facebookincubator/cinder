@@ -178,14 +178,6 @@ bool Instr::isReplayable() const {
     case Opcode::kWaitHandleLoadWaiter: {
       return true;
     }
-    case Opcode::kCompare: {
-      auto op = static_cast<const Compare*>(this)->op();
-      return op == CompareOp::kIs || op == CompareOp::kIsNot;
-    }
-    case Opcode::kCompareBool: {
-      auto op = static_cast<const CompareBool*>(this)->op();
-      return op == CompareOp::kIs || op == CompareOp::kIsNot;
-    }
     case Opcode::kBatchDecref:
     case Opcode::kBeginInlinedFunction:
     case Opcode::kBinaryOp:
@@ -197,9 +189,11 @@ bool Instr::isReplayable() const {
     case Opcode::kCallMethod:
     case Opcode::kCallStatic:
     case Opcode::kCallStaticRetVoid:
+    case Opcode::kCompare:
+    case Opcode::kCompareBool:
     case Opcode::kCondBranch:
-    case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
+    case Opcode::kCondBranchIterNotDone:
     case Opcode::kCopyDictWithoutKeys:
     case Opcode::kDecref:
     case Opcode::kDeleteAttr:

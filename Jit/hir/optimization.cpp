@@ -75,19 +75,6 @@ std::unique_ptr<Pass> PassRegistry::MakePass(const std::string& name) {
 Instr* DynamicComparisonElimination::ReplaceCompare(
     Compare* compare,
     IsTruthy* truthy) {
-  // For is/is not we can use CompareInt:
-  //  $truthy = CompareInt<Eq> $x $y
-  //  CondBranch<x, y> $truthy
-  // For other comparisons we can use ComapreBool.
-  if (compare->op() == CompareOp::kIs || compare->op() == CompareOp::kIsNot) {
-    return PrimitiveCompare::create(
-        truthy->GetOutput(),
-        (compare->op() == CompareOp::kIs) ? PrimitiveCompareOp::kEqual
-                                          : PrimitiveCompareOp::kNotEqual,
-        compare->GetOperand(0),
-        compare->GetOperand(1));
-  }
-
   return CompareBool::create(
       truthy->GetOutput(),
       compare->op(),

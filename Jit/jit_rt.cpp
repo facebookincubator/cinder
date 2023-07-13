@@ -1782,22 +1782,6 @@ int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op) {
   return PyObject_IsTrue(res);
 }
 
-PyObject* JITRT_CompareIs(PyObject* left, PyObject* right, int op) {
-  if (op == static_cast<int>(jit::hir::CompareOp::kIs)) {
-    if (left == right) {
-      Py_RETURN_TRUE;
-    }
-    Py_RETURN_FALSE;
-  }
-  if (op == static_cast<int>(jit::hir::CompareOp::kIsNot)) {
-    if (left != right) {
-      Py_RETURN_TRUE;
-    }
-    Py_RETURN_FALSE;
-  }
-  JIT_ABORT("bad comparison op %d", op);
-}
-
 /* perform a batch decref to the objects in args */
 void JITRT_BatchDecref(PyObject** args, int nargs) {
   for (int i = 0; i < nargs; i++) {

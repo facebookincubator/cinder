@@ -2100,9 +2100,12 @@ void HIRBuilder::emitIsOp(TranslationContext& tc, int oparg) {
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();
+  Register* unboxed_result = temps_.AllocateStack();
   Register* result = temps_.AllocateStack();
-  CompareOp op = oparg == 0 ? CompareOp::kIs : CompareOp::kIsNot;
-  tc.emit<Compare>(result, op, left, right, tc.frame);
+  auto op =
+      oparg == 0 ? PrimitiveCompareOp::kEqual : PrimitiveCompareOp::kNotEqual;
+  tc.emit<PrimitiveCompare>(unboxed_result, op, left, right);
+  tc.emit<PrimitiveBoxBool>(result, unboxed_result);
   stack.push(result);
 }
 

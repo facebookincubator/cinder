@@ -53,13 +53,9 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
-    v2 = Compare<Is> v0 v1 {
-      FrameState {
-        NextInstrOffset 6
-        Locals<2> v0 v1
-      }
-    }
-    Return v2
+    v2 = PrimitiveCompare<Equal> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
   }
 }
 ---
@@ -615,19 +611,15 @@ fun jittestmodule:test {
       }
     }
     v4 = LoadConst<NoneType>
-    v5 = Compare<Is> v3 v4 {
-      FrameState {
-        NextInstrOffset 8
-        Locals<3> v0 v1 v2
-      }
-    }
-    v6 = IsTruthy v5 {
+    v5 = PrimitiveCompare<Equal> v3 v4
+    v6 = PrimitiveBoxBool v5
+    v7 = IsTruthy v6 {
       FrameState {
         NextInstrOffset 10
         Locals<3> v0 v1 v2
       }
     }
-    CondBranch<1, 4> v6
+    CondBranch<1, 4> v7
   }
 
   bb 1 (preds 0) {
@@ -644,21 +636,21 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v7 = StoreAttr<0; "input"> v0 v1 {
+    v8 = StoreAttr<0; "input"> v0 v1 {
       FrameState {
         NextInstrOffset 16
         Locals<3> v0 v1 v2
       }
     }
-    v8 = LoadConst<ImmortalBool[True]>
+    v9 = LoadConst<ImmortalBool[True]>
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 20
         Locals<3> v0 v1 v2
-        Stack<1> v8
+        Stack<1> v9
       }
     }
-    v9 = StoreAttr<1; "packet_pending"> v0 v8 {
+    v10 = StoreAttr<1; "packet_pending"> v0 v9 {
       FrameState {
         NextInstrOffset 22
         Locals<3> v0 v1 v2
@@ -670,7 +662,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v10 = LoadAttr<2; "priority"> v0 {
+    v11 = LoadAttr<2; "priority"> v0 {
       FrameState {
         NextInstrOffset 26
         Locals<3> v0 v1 v2
@@ -680,29 +672,29 @@ fun jittestmodule:test {
       FrameState {
         NextInstrOffset 28
         Locals<3> v0 v1 v2
-        Stack<1> v10
+        Stack<1> v11
       }
     }
-    v11 = LoadAttr<2; "priority"> v2 {
+    v12 = LoadAttr<2; "priority"> v2 {
       FrameState {
         NextInstrOffset 30
         Locals<3> v0 v1 v2
-        Stack<1> v10
+        Stack<1> v11
       }
     }
-    v12 = Compare<GreaterThan> v10 v11 {
+    v13 = Compare<GreaterThan> v11 v12 {
       FrameState {
         NextInstrOffset 32
         Locals<3> v0 v1 v2
       }
     }
-    v13 = IsTruthy v12 {
+    v14 = IsTruthy v13 {
       FrameState {
         NextInstrOffset 34
         Locals<3> v0 v1 v2
       }
     }
-    CondBranch<2, 3> v13
+    CondBranch<2, 3> v14
   }
 
   bb 2 (preds 1) {
@@ -732,28 +724,28 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v14 = LoadMethod<3; "append_to"> v1 {
+    v15 = LoadMethod<3; "append_to"> v1 {
       FrameState {
         NextInstrOffset 46
         Locals<3> v0 v1 v2
       }
     }
-    v15 = GetSecondOutput<OptObject> v14
+    v16 = GetSecondOutput<OptObject> v15
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 48
         Locals<3> v0 v1 v2
-        Stack<2> v14 v15
+        Stack<2> v15 v16
       }
     }
-    v16 = LoadAttr<0; "input"> v0 {
+    v17 = LoadAttr<0; "input"> v0 {
       FrameState {
         NextInstrOffset 50
         Locals<3> v0 v1 v2
-        Stack<2> v14 v15
+        Stack<2> v15 v16
       }
     }
-    v17 = CallMethod<3> v14 v15 v16 {
+    v18 = CallMethod<3> v15 v16 v17 {
       FrameState {
         NextInstrOffset 52
         Locals<3> v0 v1 v2
@@ -1165,13 +1157,9 @@ fun jittestmodule:test {
       }
     }
     v1 = LoadConst<NoneType>
-    v2 = Compare<Is> v0 v1 {
-      FrameState {
-        NextInstrOffset 6
-        Locals<1> v0
-      }
-    }
-    Return v2
+    v2 = PrimitiveCompare<Equal> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
   }
 }
 ---
@@ -1190,13 +1178,9 @@ fun jittestmodule:test {
       }
     }
     v1 = LoadConst<NoneType>
-    v2 = Compare<IsNot> v0 v1 {
-      FrameState {
-        NextInstrOffset 6
-        Locals<1> v0
-      }
-    }
-    Return v2
+    v2 = PrimitiveCompare<NotEqual> v0 v1
+    v3 = PrimitiveBoxBool v2
+    Return v3
   }
 }
 ---

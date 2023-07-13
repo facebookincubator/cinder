@@ -521,11 +521,6 @@ int JITRT_NotContainsBool(PyObject* w, PyObject* v);
 
 int JITRT_RichCompareBool(PyObject* v, PyObject* w, int op);
 
-/* Check if `left is right` (op == CompareOp::kIs) or `left is not right` (op
- * == CompareOp::kIsNot), returning Py_True if the operation is true and
- * Py_False if the operation is false. It will never return nullptr. */
-PyObject* JITRT_CompareIs(PyObject* left, PyObject* right, int op);
-
 /* perform a batch decref to the objects in args */
 void JITRT_BatchDecref(PyObject** args, int nargs);
 

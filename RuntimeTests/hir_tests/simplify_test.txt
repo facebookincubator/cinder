@@ -646,16 +646,18 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v7:Nullptr = LoadConst<Nullptr>
-    v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
-    v11:NoneType = LoadConst<NoneType>
-    UseType<ImmortalLongExact[2]> v8
-    UseType<NoneType> v11
-    v16:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
-    UseType<ImmortalBool[False]> v16
-    v17:CInt32[0] = LoadConst<CInt32[0]>
-    v15:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
-    Return v15
+    v8:Nullptr = LoadConst<Nullptr>
+    v9:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:NoneType = LoadConst<NoneType>
+    UseType<ImmortalLongExact[2]> v9
+    UseType<NoneType> v12
+    v18:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v18
+    v19:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v19
+    v20:CInt32[0] = LoadConst<CInt32[0]>
+    v17:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    Return v17
   }
 }
 ---
@@ -670,16 +672,18 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
-    v8:Nullptr = LoadConst<Nullptr>
-    v9:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
-    v11:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
-    UseType<ImmortalLongExact[2]> v9
-    UseType<ImmortalLongExact[4]> v11
-    v19:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
-    UseType<ImmortalBool[False]> v19
-    v20:CInt32[0] = LoadConst<CInt32[0]>
-    v18:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
-    Return v18
+    v9:Nullptr = LoadConst<Nullptr>
+    v10:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
+    v12:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    UseType<ImmortalLongExact[2]> v10
+    UseType<ImmortalLongExact[4]> v12
+    v21:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v21
+    v22:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v22
+    v23:CInt32[0] = LoadConst<CInt32[0]>
+    v20:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    Return v20
   }
 }
 ---
@@ -1342,9 +1346,9 @@ def test(x, y):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v3:Object = LoadArg<0; "x">
-    v4:Object = LoadArg<1; "y">
-    v8:CBool = PrimitiveCompare<Equal> v3 v4
+    v4:Object = LoadArg<0; "x">
+    v5:Object = LoadArg<1; "y">
+    v8:CBool = PrimitiveCompare<Equal> v4 v5
     v9:Bool = PrimitiveBoxBool v8
     Return v9
   }
@@ -1357,9 +1361,9 @@ def test(x, y):
 ---
 fun jittestmodule:test {
   bb 0 {
-    v3:Object = LoadArg<0; "x">
-    v4:Object = LoadArg<1; "y">
-    v8:CBool = PrimitiveCompare<NotEqual> v3 v4
+    v4:Object = LoadArg<0; "x">
+    v5:Object = LoadArg<1; "y">
+    v8:CBool = PrimitiveCompare<NotEqual> v4 v5
     v9:Bool = PrimitiveBoxBool v8
     Return v9
   }

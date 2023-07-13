@@ -68,19 +68,21 @@ test(True, 1)
 ---
 fun jittestmodule:test {
   bb 0 {
-    v12:Object = LoadArg<0; "x">
-    v13:Object = LoadArg<1; "y">
-    v15:NoneType = LoadConst<NoneType>
-    v16:Bool = GuardType<Bool> v12 {
-      GuiltyReg v12
+    v13:Object = LoadArg<0; "x">
+    v14:Object = LoadArg<1; "y">
+    v16:NoneType = LoadConst<NoneType>
+    v17:Bool = GuardType<Bool> v13 {
+      GuiltyReg v13
     }
-    UseType<Bool> v16
-    UseType<NoneType> v15
-    v34:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
-    UseType<ImmortalBool[False]> v34
-    v35:CInt32[0] = LoadConst<CInt32[0]>
-    v33:NoneType = LoadConst<NoneType>
-    Return v33
+    UseType<Bool> v17
+    UseType<NoneType> v16
+    v36:CBool[false] = LoadConst<CBool[false]>
+    UseType<CBool[false]> v36
+    v37:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
+    UseType<ImmortalBool[False]> v37
+    v38:CInt32[0] = LoadConst<CInt32[0]>
+    v35:NoneType = LoadConst<NoneType>
+    Return v35
   }
 }
 ---

@@ -2,14 +2,14 @@ DynamicComparisonEliminationTest
 ---
 DynamicComparisonElimination
 ---
-IsBecomesComparison
+EqualBecomesCompareBool
 ---
 # HIR
 fun test {
   bb 0 {
     v0 = LoadArg<0>
     v1 = LoadArg<1>
-    v2 = Compare<Is> v0 v1
+    v2 = Compare<Equal> v0 v1
     v3 = IsTruthy v2
     CondBranch<1, 2> v3
   }
@@ -29,7 +29,11 @@ fun test {
   bb 0 {
     v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
-    v3:CBool = PrimitiveCompare<Equal> v0 v1
+    v3:CInt32 = CompareBool<Equal> v0 v1 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
     CondBranch<1, 2> v3
   }
 
@@ -44,14 +48,14 @@ fun test {
   }
 }
 ---
-IsNotBecomesComparison
+NotEqualBecomesCompareBool
 ---
 # HIR
 fun test {
   bb 0 {
     v0 = LoadArg<0>
     v1 = LoadArg<1>
-    v2 = Compare<IsNot> v0 v1
+    v2 = Compare<NotEqual> v0 v1
     v3 = IsTruthy v2
     CondBranch<1, 2> v3
   }
@@ -71,7 +75,11 @@ fun test {
   bb 0 {
     v0:Object = LoadArg<0>
     v1:Object = LoadArg<1>
-    v3:CBool = PrimitiveCompare<NotEqual> v0 v1
+    v3:CInt32 = CompareBool<NotEqual> v0 v1 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
     CondBranch<1, 2> v3
   }
 

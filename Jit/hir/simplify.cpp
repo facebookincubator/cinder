@@ -310,31 +310,6 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
   Register* left = instr->GetOperand(0);
   Register* right = instr->GetOperand(1);
   CompareOp op = instr->op();
-  if (op == CompareOp::kIs || op == CompareOp::kIsNot) {
-    Type left_t = left->type();
-    Type right_t = right->type();
-    if (!left_t.couldBe(right_t)) {
-      env.emit<UseType>(left, left_t);
-      env.emit<UseType>(right, right_t);
-      return env.emit<LoadConst>(
-          Type::fromObject(op == CompareOp::kIs ? Py_False : Py_True));
-    }
-    PyObject* left_t_obj = left_t.asObject();
-    PyObject* right_t_obj = right_t.asObject();
-    if (left_t_obj != nullptr && right_t_obj != nullptr) {
-      env.emit<UseType>(left, left_t);
-      env.emit<UseType>(right, right_t);
-      bool same_obj = left_t_obj == right_t_obj;
-      bool truthy = (op == CompareOp::kIs) == same_obj;
-      return env.emit<LoadConst>(Type::fromObject(truthy ? Py_True : Py_False));
-    }
-    auto cbool = env.emit<PrimitiveCompare>(
-        instr->op() == CompareOp::kIs ? PrimitiveCompareOp::kEqual
-                                      : PrimitiveCompareOp::kNotEqual,
-        instr->left(),
-        instr->right());
-    return env.emit<PrimitiveBoxBool>(cbool);
-  }
   if (left->isA(TNoneType) && right->isA(TNoneType)) {
     if (op == CompareOp::kEqual || op == CompareOp::kNotEqual) {
       env.emit<UseType>(left, TNoneType);
@@ -669,6 +644,9 @@ Register* simplifyPrimitiveCompare(Env& env, const PrimitiveCompare* instr) {
       return env.emit<LoadConst>(Type::fromCBool(
           instr->op() == PrimitiveCompareOp::kNotEqual ? !value : value));
     };
+    if (!left->type().couldBe(right->type())) {
+      return do_cbool(false);
+    }
     if (left->type().hasIntSpec() && right->type().hasIntSpec()) {
       return do_cbool(left->type().intSpec() == right->type().intSpec());
     }

@@ -1500,18 +1500,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               instr->left());
           break;
         }
-        if (instr->op() == CompareOp::kIs || instr->op() == CompareOp::kIsNot) {
-          // This case should generally not happen, since Compare<Is> and
-          // Compare<IsNot> can be rewritten into PrimitiveCompare. We keep it
-          // around because optimization passes should not impact correctness.
-          bbb.AppendCall(
-              instr->dst(),
-              JITRT_CompareIs,
-              instr->right(),
-              instr->left(),
-              static_cast<int>(instr->op()));
-          break;
-        }
         int op = static_cast<int>(instr->op());
         JIT_CHECK(op >= Py_LT, "invalid compare op %d", op);
         JIT_CHECK(op <= Py_GE, "invalid compare op %d", op);
@@ -1611,21 +1599,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               instr->right(),
               static_cast<int>(instr->op()));
         } else {
-          if (instr->op() == CompareOp::kIs ||
-              instr->op() == CompareOp::kIsNot) {
-            // This case should generally not happen, since CompareBool<Is> and
-            // CompareBool<IsNot> can be rewritten into PrimitiveCompare. We
-            // keep it around because optimization passes should not impact
-            // correctness.
-            Instruction* compare_result = bbb.appendInstr(
-                Instruction::kEqual,
-                OutVReg{OperandBase::k8bit},
-                instr->left(),
-                instr->right());
-            bbb.appendInstr(
-                instr->GetOutput(), Instruction::kZext, compare_result);
-            break;
-          }
           bbb.AppendCall(
               instr->dst(),
               JITRT_RichCompareBool,
@@ -2797,12 +2770,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           break;
         }
         case Opcode::kCompare: {
-          auto op = static_cast<const Compare&>(i).op();
-          if (op == CompareOp::kIs || op == CompareOp::kIsNot) {
-            // These are implemented using pointer equality and cannot
-            // throw.
-            break;
-          }
           emitExceptionCheck(*db, bbb);
           break;
         }
