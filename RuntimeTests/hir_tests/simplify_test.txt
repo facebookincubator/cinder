@@ -2212,6 +2212,67 @@ fun jittestmodule:test {
   }
 }
 ---
+PrimitiveCompareEqualBool
+---
+def test(x):
+  return (x is not None) == True
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Object = LoadArg<0; "x">
+    v8:NoneType = LoadConst<NoneType>
+    v9:CBool = PrimitiveCompare<NotEqual> v6 v8
+    v10:Bool = PrimitiveBoxBool v9
+    v11:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<Bool> v10
+    UseType<Bool> v11
+    v14:Bool = PrimitiveBoxBool v9
+    Return v14
+  }
+}
+---
+PrimitiveCompareNotEqualBool
+---
+def test(x):
+  return (x is not None) != True
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Object = LoadArg<0; "x">
+    v8:NoneType = LoadConst<NoneType>
+    v9:CBool = PrimitiveCompare<NotEqual> v6 v8
+    v10:Bool = PrimitiveBoxBool v9
+    v11:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    UseType<Bool> v10
+    UseType<Bool> v11
+    v13:CBool = PrimitiveCompare<NotEqual> v10 v11
+    v14:Bool = PrimitiveBoxBool v13
+    Return v14
+  }
+}
+---
+PrimitiveCompareLessThanBool
+---
+def test(x):
+  return (x is not None) < True
+---
+fun jittestmodule:test {
+  bb 0 {
+    v6:Object = LoadArg<0; "x">
+    v8:NoneType = LoadConst<NoneType>
+    v9:CBool = PrimitiveCompare<NotEqual> v6 v8
+    v10:Bool = PrimitiveBoxBool v9
+    v11:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
+    v12:Object = Compare<LessThan> v10 v11 {
+      FrameState {
+        NextInstrOffset 10
+        Locals<1> v6
+      }
+    }
+    Return v12
+  }
+}
+---
 LoadVarObjectSizeWithKnownTupleElidesEmitsLoadConst
 ---
 def test(a, b, c):

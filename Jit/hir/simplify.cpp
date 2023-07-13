@@ -318,6 +318,16 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
           Type::fromObject(op == CompareOp::kEqual ? Py_True : Py_False));
     }
   }
+  // Can compare booleans for equality with primitive operations.
+  if (left->isA(TBool) && right->isA(TBool) &&
+      (op == CompareOp::kEqual || op == CompareOp::kNotEqual)) {
+    if (auto prim_op = toPrimitiveCompareOp(op)) {
+      env.emit<UseType>(left, TBool);
+      env.emit<UseType>(right, TBool);
+      Register* result = env.emit<PrimitiveCompare>(*prim_op, left, right);
+      return env.emit<PrimitiveBoxBool>(result);
+    }
+  }
   // Emit LongCompare if both args are LongExact and the op is supported
   // between two longs.
   if (left->isA(TLongExact) && right->isA(TLongExact) &&

@@ -685,6 +685,33 @@ PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name) {
   JIT_ABORT("Invalid PrimitiveCompareOp '%s'", name);
 }
 
+std::optional<PrimitiveCompareOp> toPrimitiveCompareOp(CompareOp op) {
+  switch (op) {
+    case CompareOp::kLessThan:
+      return PrimitiveCompareOp::kLessThan;
+    case CompareOp::kLessThanEqual:
+      return PrimitiveCompareOp::kLessThanEqual;
+    case CompareOp::kLessThanUnsigned:
+      return PrimitiveCompareOp::kLessThanUnsigned;
+    case CompareOp::kLessThanEqualUnsigned:
+      return PrimitiveCompareOp::kLessThanEqualUnsigned;
+    case CompareOp::kEqual:
+      return PrimitiveCompareOp::kEqual;
+    case CompareOp::kNotEqual:
+      return PrimitiveCompareOp::kNotEqual;
+    case CompareOp::kGreaterThan:
+      return PrimitiveCompareOp::kGreaterThan;
+    case CompareOp::kGreaterThanEqual:
+      return PrimitiveCompareOp::kGreaterThanEqual;
+    case CompareOp::kGreaterThanUnsigned:
+      return PrimitiveCompareOp::kGreaterThanUnsigned;
+    case CompareOp::kGreaterThanEqualUnsigned:
+      return PrimitiveCompareOp::kGreaterThanEqualUnsigned;
+    default:
+      return std::nullopt;
+  }
+}
+
 constexpr std::array<std::string_view, kNumBinaryOpKinds> kBinaryOpNames = {
 #define OP_STR(NAME) #NAME,
     FOREACH_BINARY_OP_KIND(OP_STR)

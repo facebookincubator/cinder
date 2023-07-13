@@ -2459,6 +2459,9 @@ constexpr size_t kNumPrimitiveCompareOps =
 std::string_view GetPrimitiveCompareOpName(PrimitiveCompareOp op);
 PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name);
 
+// Convert a CompareOp into an equivalent PrimitiveCompareOp, if it exists.
+std::optional<PrimitiveCompareOp> toPrimitiveCompareOp(CompareOp op);
+
 class INSTR_CLASS(PrimitiveCompare, (), HasOutput, Operands<2>) {
  public:
   PrimitiveCompare(
