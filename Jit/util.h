@@ -49,6 +49,13 @@ constexpr bool kPyDebug =
     false;
 #endif
 
+constexpr bool kImmortalInstances =
+#ifdef Py_IMMORTAL_INSTANCES
+    true;
+#else
+    false;
+#endif
+
 struct jit_string_deleter {
   void operator()(jit_string_t* ss) const {
     ss_free(ss);

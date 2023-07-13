@@ -47,6 +47,17 @@ namespace jit::lir {
 
 namespace {
 
+constexpr size_t kRefcountOffset = offsetof(PyObject, ob_refcnt);
+
+// _Py_RefTotal is only defined when Py_REF_DEBUG is defined.
+const size_t kRefTotalAddr = reinterpret_cast<size_t>(
+#ifdef Py_REF_DEBUG
+    &_Py_RefTotal
+#else
+    nullptr
+#endif
+);
+
 // These functions call their counterparts and convert its output from int (32
 // bits) to uint64_t (64 bits). This is solely because the code generator cannot
 // support an operand size other than 64 bits at this moment. A future diff will
@@ -466,12 +477,11 @@ void LIRGenerator::MakeIncref(
     const hir::Instr& instr,
     bool xincref) {
   Register* obj = instr.GetOperand(0);
-#ifdef Py_IMMORTAL_INSTANCES
-  if (!obj->type().couldBe(TMortalObject)) {
-    // don't generate anything for immortal object
+
+  // Don't generate anything for immortal objects.
+  if (kImmortalInstances && !obj->type().couldBe(TMortalObject)) {
     return;
   }
-#endif
 
   auto end_incref = GetSafeLabelName();
   if (xincref) {
@@ -480,42 +490,31 @@ void LIRGenerator::MakeIncref(
     bbb.AppendLabel(cont);
   }
 
-  auto r1 = GetSafeTempName();
-  auto r0 = GetSafeTempName();
-#ifdef Py_IMMORTAL_INSTANCES
-  if (obj->type().couldBe(TImmortalObject)) {
+  // If this could be an immortal object then we need to load the refcount as a
+  // 32-bit integer to see if it overflows on increment, indicating that it's
+  // immortal.  For mortal objects the refcount is a regular 64-bit integer.
+  if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
     auto mortal = GetSafeLabelName();
-    bbb.AppendCode(
-        "Load {}:CUInt32, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
+    auto r1 = GetSafeTempName();
+    bbb.AppendCode("Load {}:CUInt32, {}, {:#x}", r1, obj, kRefcountOffset);
     bbb.AppendCode("Inc {}", r1);
     bbb.AppendCode("BranchE {}", end_incref);
-    bbb.AppendLabel(GetSafeLabelName());
-    bbb.AppendCode(
-        "Store {}, {}:CUInt32, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
-#ifdef Py_DEBUG
-    bbb.AppendCode(
-        "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-    bbb.AppendCode("Inc {}", r0);
-    bbb.AppendCode(
-        "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-#endif
     bbb.AppendLabel(mortal);
-    bbb.AppendLabel(end_incref);
-    return;
+    bbb.AppendCode("Store {}, {}:CUInt32, {:#x}", r1, obj, kRefcountOffset);
+  } else {
+    auto r1 = GetSafeTempName();
+    bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, kRefcountOffset);
+    bbb.AppendCode("Inc {}", r1);
+    bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, kRefcountOffset);
   }
-#endif
 
-#ifdef Py_DEBUG
-  bbb.AppendCode(
-      "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-  bbb.AppendCode("Inc {}", r0);
-  bbb.AppendCode(
-      "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-#endif
+  if (kRefTotalAddr != 0) {
+    auto r0 = GetSafeTempName();
+    bbb.AppendCode("Load {}, {:#x}", r0, kRefTotalAddr);
+    bbb.AppendCode("Inc {}", r0);
+    bbb.AppendCode("Store {}, {:#x}", r0, kRefTotalAddr);
+  }
 
-  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
-  bbb.AppendCode("Inc {}", r1);
-  bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
   bbb.AppendLabel(end_incref);
 }
 
@@ -525,12 +524,10 @@ void LIRGenerator::MakeDecref(
     bool xdecref) {
   Register* obj = instr.GetOperand(0);
 
-#ifdef Py_IMMORTAL_INSTANCES
-  if (!obj->type().couldBe(TMortalObject)) {
-    // don't generate anything for immortal object
+  // Don't generate anything for immortal objects.
+  if (kImmortalInstances && !obj->type().couldBe(TMortalObject)) {
     return;
   }
-#endif
 
   auto end_decref = GetSafeLabelName();
   if (xdecref) {
@@ -540,30 +537,25 @@ void LIRGenerator::MakeDecref(
   }
 
   auto r1 = GetSafeTempName();
+  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, kRefcountOffset);
 
-  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
-
-#ifdef Py_IMMORTAL_INSTANCES
-  if (obj->type().couldBe(TImmortalObject)) {
+  if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
     auto mortal = GetSafeLabelName();
     bbb.AppendCode("Test32 {}, {}", r1, r1);
     bbb.AppendCode("BranchS {}", end_decref);
     bbb.AppendLabel(mortal);
   }
-#endif
 
-#ifdef Py_DEBUG
-  auto r0 = GetSafeTempName();
-  bbb.AppendCode(
-      "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-  bbb.AppendCode("Dec {}", r0);
-  bbb.AppendCode(
-      "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(&_Py_RefTotal));
-#endif
+  if (kRefTotalAddr != 0) {
+    auto r0 = GetSafeTempName();
+    bbb.AppendCode("Load {}, {:#x}", r0, kRefTotalAddr);
+    bbb.AppendCode("Dec {}", r0);
+    bbb.AppendCode("Store {}, {:#x}", r0, kRefTotalAddr);
+  }
 
   auto dealloc = GetSafeLabelName();
   bbb.AppendCode("Dec {}", r1);
-  bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, offsetof(PyObject, ob_refcnt));
+  bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, kRefcountOffset);
 
   bbb.AppendCode("BranchNZ {}", end_decref);
   bbb.AppendLabel(dealloc);
