@@ -4,6 +4,22 @@ This is intended as a high-level description of the Cinder JIT. No component
 is explained in great detail, but it should offer an understanding of how the
 parts fit together and where to go looking in the source code for details.
 
+## Further reading
+
+If you'd like more detailed documentation on certain parts of the JIT, we have
+some available in `.md` files in `Jit/` and its subdirectories. If you're not
+sure where to start, we suggest reading through them in this order, roughly
+from less to more specific:
+
+- [Deoptimization](deoptimization.md): Also known as on-stack replacement,
+  deoptimization is how Cinder transfers execution from JIT-compiled code back
+  to the interpreter, usually to handle a rare, slow path.
+
+- [`hir::Type`](hir/type.md): An overview of HIR's type system.
+
+- [Refcount insertion](hir/refcount_insertion.md): An overview of the HIR
+  refcount insertion pass, how we handle object reference counts in the JIT.
+
 ## Overview
 
 The JIT compiles [Python bytecode][1] from a PyCodeObject down to x64
