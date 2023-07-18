@@ -112,8 +112,8 @@ compile hot functions is configurable.
 
 These JIT options are set via `-X` options or environment variables; this
 configuration is initialized in the `initFlagProcessor()` function in
-`Jit/pyjit.cpp`. Use the option `-X jit-help` for an explanation of the
-various options.
+[Jit/pyjit.cpp](pyjit.cpp). Use the option `-X jit-help` for an explanation of
+the various options.
 
 When a function is first called, if it should be JIT compiled we attempt to
 compile it (see `PyEntry_LazyInit` and related functions in
@@ -126,7 +126,7 @@ compiled) are compiled in a batch. If multi-threaded compilation is enabled,
 we first serially perform preloading for all functions in the batch (this
 requires the GIL and cannot be multi-threaded) and then spawn worker threads
 to do JIT compilation in parallel. See `disable_jit()` function in
-`Jit/pyjit.cpp` and related functions.
+[Jit/pyjit.cpp](pyjit.cpp) and related functions.
 
 ## Preloading
 
@@ -172,7 +172,7 @@ outputs of HIR instructions in lowering; these types will just be lost when
 types are flowed through HIR after SSA transformation. If type metadata from
 the Python bytecode needs to be preserved, it should be stored in a field on
 the relevant HIR instruction, and that field can be taken into account by
-`outputType()` in `Jit/hir/ssa.cpp` when types are flowed.
+`outputType()` in [Jit/hir/ssa.cpp](hir/ssa.cpp) when types are flowed.
 
 [3]: https://en.wikipedia.org/wiki/Intermediate_representation
 
@@ -180,19 +180,21 @@ the relevant HIR instruction, and that field can be taken into account by
 
 After lowering, HIR is converted into [SSA form][4] (in `Jit/hir/ssa.{h,cpp}`.)
 
-HIR is typed (see `Jit/hir/type.md`), and this step also flows types through
+HIR is typed (see [type.md](hir/type.md)), and this step also flows types through
 the SSA HIR.
 
-Other optimization passes are implemented in `Jit/hir/optimization.{h,cpp}`,
-and run by `jit::Compiler::runPasses` (see `Jit/compiler.cpp`).
+Other optimization passes are implemented in
+[Jit/hir/optimization.cpp](hir/optimization.cpp), and run by
+`jit::Compiler::runPasses` (see [Jit/compiler.cpp](compiler.cpp)).
 
 The last pass, `RefcountInsertion`, automatically inserts reference counting
 operations into the optimized SSA HIR as needed based on metadata about the
 reference-handling and memory effects of each HIR opcode. Reference-count
-insertion is implemented in `Jit/hir/refcount_insertion.cpp`; see
-`Jit/hir/refcount_insertion.md` for more details. Unlike optimization passes,
-the refcount-insertion pass is required for correctness and is not
-idempotent.
+insertion is implemented in
+[Jit/hir/refcount_insertion.cpp](hir/refcount_insertion.cpp); see
+[refcount_insertion.md](hir/refcount_insertion.md) for more details.  Unlike
+optimization passes, the refcount-insertion pass is required for correctness
+and is not idempotent.
 
 To see the final, optimized HIR for our function `f`, you can run::
 
@@ -235,18 +237,20 @@ fun __main__:f {
 ## Lowering to LIR
 
 The final HIR is then lowered to LIR, our lower-level intermediate
-representation, still in SSA form. Most of the LIR code lives in `Jit/lir/`,
-and lowering to it is implemented in `jit::lir::Generator` in
-`Jit/lir/generator.cpp`. Currently HIR is turned into a textual
-representation of LIR, which is then parsed into LIR instruction objects (in
-`Jit/lir/block_builder.cpp`), though we aim to eliminate the textual step.
+representation, still in SSA form. Most of the LIR code lives in
+[Jit/lir/](lir/), and lowering to it is implemented in `jit::lir::Generator` in
+[Jit/lir/generator.cpp](lir/generator.cpp). Currently HIR is turned into a
+textual representation of LIR, which is then parsed into LIR instruction
+objects (in [Jit/lir/block_builder.cpp](lir/block_builder.cpp)), though we aim
+to eliminate the textual step.
 
 ## Register allocation and LIR optimizations
 
-Register allocation is implemented in `Jit/lir/regalloc.cpp`. Other
-optimizations on LIR (some before and some after register allocation) are
-also implemented in the `Jit/lir/` directory. These are mostly
-coordinated in `jit::codegen::NativeGenerator::GetEntryPoint()`.
+Register allocation is implemented in
+[Jit/lir/regalloc.cpp](lir/regalloc.cpp). Other optimizations on LIR (some
+before and some after register allocation) are also implemented in the
+[Jit/lir/](lir/) directory. These are mostly coordinated in
+`jit::codegen::NativeGenerator::GetEntryPoint()`.
 
 To see the final LIR for our function, you can run
 `./python -X jit-list-file=<(echo "__main__:f") -X jit-dump-lir f.py`.
@@ -271,8 +275,9 @@ instructions as comments):
 
 ## Code generation
 
-x64 code generation is implemented in `Jit/codegen/autogen.cpp` and
-`Jit/codegen/gen_asm.cpp`.
+x64 code generation is implemented in
+[Jit/codegen/autogen.cpp](codegen/autogen.cpp) and
+[Jit/codegen/gen_asm.cpp](codegen/gen_asm.cpp).
 
 To see the final generated code for our function, you can run
 `./python -X jit-list-file=<(echo "__main__:f") -X jit-dump-asm f.py`.
