@@ -696,6 +696,7 @@ Type outputType(
     case Opcode::kGuard:
     case Opcode::kHintType:
     case Opcode::kIncref:
+    case Opcode::kInitFunction:
     case Opcode::kRaise:
     case Opcode::kRaiseAwaitableError:
     case Opcode::kRaiseStatic:

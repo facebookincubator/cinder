@@ -860,6 +860,7 @@ def test(x):
       }
     }
     SetFunctionAttr<func_defaults> v2 v5
+    InitFunction v5
     Snapshot {
       NextInstrOffset 10
       Locals<2> v0 v1

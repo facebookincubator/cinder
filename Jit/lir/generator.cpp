@@ -2345,6 +2345,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(ss.str());
         break;
       }
+      case Opcode::kInitFunction: {
+        auto instr = static_cast<const InitFunction*>(&i);
+
+        bbb.AppendInvoke(PyEntry_init, instr->GetOperand(0));
+        break;
+      }
       case Opcode::kMakeFunction: {
         auto instr = static_cast<const MakeFunction*>(&i);
         auto qualname = instr->GetOperand(0);
