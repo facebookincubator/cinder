@@ -68,10 +68,13 @@ struct JitConfig {
 };
 static JitConfig jit_config;
 
+#ifndef BUCK_BUILD
+// Meta's internal buck-based builds already define this function.
 // TODO(T130105107) Fix leak so we can remove this.
 extern "C" const char* __asan_default_options() {
   return "detect_leaks=0";
 }
+#endif
 
 void initJitConfig_() {
   jit_config = JitConfig();
