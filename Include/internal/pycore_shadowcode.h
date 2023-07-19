@@ -1530,12 +1530,9 @@ _PyShadow_StoreAttrSplitDictSet(_PyShadow_EvalState *shadow,
 
         INLINE_CACHE_RECORD_STAT(STORE_ATTR_SPLIT_DICT, hits);
 
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_MODIFIED, dictobj, entry->name, v);
-
         Py_INCREF(v);
         dictobj->ma_values[entry->splitoffset] = v;
-        dictobj->ma_version_tag = new_version;
+        _PyDict_IncVersionForSet(dictobj, entry->name, v);
 
         if (old_value == NULL) {
             dictobj->ma_used++;

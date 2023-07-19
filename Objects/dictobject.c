@@ -258,9 +258,56 @@ static PyObject* dict_iter(PyDictObject *dict);
 
 /*Global counter used to set ma_version_tag field of dictionary.
  * It is incremented each time that a dictionary is created and each
- * time that a dictionary is modified. */
-uint64_t _pydict_global_version = 0;
+ * time that a dictionary is modified.
+ *
+ * Modifications for JIT dict watching support: the global version is
+ * incremented by 2 with each modification, and the low bit is reserved to
+ * indicate dicts that are being watched. */
+static uint64_t pydict_global_version = 0;
 
+#define DICT_NEXT_VERSION() (pydict_global_version += 2)
+
+static const uint64_t PyDict_VERSION_WATCH_TAG = 1;
+
+#define DICT_NEXT_WATCHED_VERSION()                                           \
+    (DICT_NEXT_VERSION() | PyDict_VERSION_WATCH_TAG)
+
+#define UNLIKELY(x) __builtin_expect((x), 0)
+
+static inline int
+dict_is_watched(PyDictObject *dict)
+{
+    return (dict->ma_version_tag & PyDict_VERSION_WATCH_TAG) != 0;
+}
+
+static inline void
+dict_modify_key(PyDictObject *dict, PyObject *key, PyObject *new_value)
+{
+    if (UNLIKELY(dict_is_watched(dict))) {
+        dict->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+#ifdef ENABLE_CINDERX
+        _PyJIT_NotifyDictKey((PyObject *)dict, key, new_value);
+#endif
+    } else {
+        dict->ma_version_tag = DICT_NEXT_VERSION();
+    }
+}
+
+static inline void
+dict_set_lookup(PyDictObject *dict, dict_lookup_func new_lookup)
+{
+    if (UNLIKELY(dict_is_watched(dict))) {
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+#ifdef ENABLE_CINDERX
+        _PyJIT_NotifyDictUnwatch((PyObject *)dict);
+#endif
+        dict->ma_version_tag = DICT_NEXT_VERSION();
+    }
+    dict->ma_keys->dk_lookup = new_lookup;
+}
 
 #define DICT_HAS_DEFERRED(d) ( \
     ((PyDictObject *)(d))->ma_keys->dk_lookup == lookdict_with_lazy_imports || \
@@ -268,12 +315,37 @@ uint64_t _pydict_global_version = 0;
 
 #include "clinic/dictobject.c.h"
 
+void
+_PyDict_IncVersionForSet(PyDictObject *d, PyObject *key, PyObject *value)
+{
+    dict_modify_key(d, key, value);
+}
 
 int
-_PyDict_HasOnlyUnicodeKeys(PyObject *dict)
+_PyDict_CanWatch(PyObject *dict)
 {
     dict_lookup_func lookup = ((PyDictObject *)dict)->ma_keys->dk_lookup;
     return lookup != lookdict && lookup != lookdict_with_lazy_imports;
+}
+
+int
+_PyDict_IsWatched(PyObject *dict)
+{
+    return dict_is_watched((PyDictObject *)dict);
+}
+
+void
+_PyDict_Watch(PyObject *dict)
+{
+    assert(_PyDict_CanWatch(dict));
+    ((PyDictObject *)dict)->ma_version_tag |= PyDict_VERSION_WATCH_TAG;
+}
+
+void
+_PyDict_Unwatch(PyObject *dict)
+{
+    assert(_PyDict_IsWatched(dict));
+    ((PyDictObject *)dict)->ma_version_tag = DICT_NEXT_VERSION();
 }
 
 int
@@ -539,6 +611,7 @@ _PyDict_SetHasDeferredObjects(PyObject *dict)
 
     if (!DICT_HAS_DEFERRED(mp)) {
         if (mp->ma_keys->dk_lookup == lookdict) {
+            assert(!dict_is_watched(mp));
             mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
         }
         else
@@ -560,6 +633,7 @@ _PyDict_UnsetHasDeferredObjects(PyObject *dict)
 
     if (DICT_HAS_DEFERRED(mp)) {
         if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports) {
+            assert(!dict_is_watched(mp));
             mp->ma_keys->dk_lookup = lookdict;
         }
         else
@@ -1364,8 +1438,6 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
     }
 
     if (ix == DKIX_EMPTY) {
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_ADDED, mp, key, value);
         /* Insert into new slot. */
         assert(old_value == NULL);
         if (mp->ma_keys->dk_usable <= 0) {
@@ -1375,10 +1447,10 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
         }
         if (!PyUnicode_CheckExact(key)) {
             if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
-                mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
+                dict_set_lookup(mp, lookdict_with_lazy_imports);
             }
             else if (mp->ma_keys->dk_lookup != lookdict) {
-                mp->ma_keys->dk_lookup = lookdict;
+                dict_set_lookup(mp, lookdict);
             }
         }
         Py_ssize_t hashpos = find_empty_slot(mp->ma_keys, hash);
@@ -1394,20 +1466,18 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
             ep->me_value = value;
         }
         mp->ma_used++;
-        mp->ma_version_tag = new_version;
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
         if (PyLazyImport_CheckExact(value)) {
             _PyDict_SetHasDeferredObjects((PyObject *)mp);
         }
+        dict_modify_key(mp, key, value);
         assert(mp->ma_keys->dk_usable >= 0);
         ASSERT_CONSISTENT(mp);
         return 0;
     }
 
     if (old_value != value) {
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_MODIFIED, mp, key, value);
         if (_PyDict_HasSplitTable(mp)) {
             mp->ma_values[ix] = value;
             if (old_value == NULL) {
@@ -1423,7 +1493,7 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
         if (PyLazyImport_CheckExact(value)) {
             _PyDict_SetHasDeferredObjects((PyObject *)mp);
         }
-        mp->ma_version_tag = new_version;
+        dict_modify_key(mp, key, value);
     }
     Py_XDECREF(old_value); /* which **CAN** re-enter (see issue #22653) */
     ASSERT_CONSISTENT(mp);
@@ -1443,9 +1513,6 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
 {
     assert(mp->ma_keys == Py_EMPTY_KEYS);
 
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_ADDED, mp, key, value);
-
     PyDictKeysObject *newkeys = new_keys_object(PyDict_MINSIZE);
     if (newkeys == NULL) {
         return -1;
@@ -1456,10 +1523,10 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
 
     if (!PyUnicode_CheckExact(key)) {
         if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
-            mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
+            dict_set_lookup(mp, lookdict_with_lazy_imports);
         }
         else {
-            mp->ma_keys->dk_lookup = lookdict;
+            dict_set_lookup(mp, lookdict);
         }
     }
 
@@ -1477,7 +1544,7 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
     if (PyLazyImport_CheckExact(value)) {
         _PyDict_SetHasDeferredObjects((PyObject *)mp);
     }
-    mp->ma_version_tag = new_version;
+    dict_modify_key(mp, key, value);
     mp->ma_keys->dk_usable--;
     mp->ma_keys->dk_nentries++;
     return 0;
@@ -1990,7 +2057,7 @@ _PyDict_SetItem_KnownHash(PyObject *op, PyObject *key, PyObject *value,
 
 static int
 delitem_common(PyDictObject *mp, Py_hash_t hash, Py_ssize_t ix,
-               PyObject *old_value, uint64_t new_version)
+               PyObject *old_value)
 {
     PyObject *old_key;
     PyDictKeyEntry *ep;
@@ -1999,13 +2066,13 @@ delitem_common(PyDictObject *mp, Py_hash_t hash, Py_ssize_t ix,
     assert(hashpos >= 0);
 
     mp->ma_used--;
-    mp->ma_version_tag = new_version;
     ep = &DK_ENTRIES(mp->ma_keys)[ix];
     dictkeys_set_index(mp->ma_keys, hashpos, DKIX_DUMMY);
     ENSURE_ALLOWS_DELETIONS(mp);
     old_key = ep->me_key;
     ep->me_key = NULL;
     ep->me_value = NULL;
+    dict_modify_key(mp, old_key, NULL);
     Py_DECREF(old_key);
     Py_DECREF(old_value);
 
@@ -2059,9 +2126,7 @@ _PyDict_DelItem_KnownHash(PyObject *op, PyObject *key, Py_hash_t hash)
         assert(ix >= 0);
     }
 
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_DELETED, mp, key, NULL);
-    return delitem_common(mp, hash, ix, old_value, new_version);
+    return delitem_common(mp, hash, ix, old_value);
 }
 
 /* This function promises that the predicate -> deletion sequence is atomic
@@ -2111,11 +2176,8 @@ _PyDict_DelItemIf(PyObject *op, PyObject *key,
     hashpos = lookdict_index(mp->ma_keys, hash, ix);
     assert(hashpos >= 0);
 
-    if (res > 0) {
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_DELETED, mp, key, NULL);
-        return delitem_common(mp, hashpos, ix, old_value, new_version);
-    }
+    if (res > 0)
+        return delitem_common(mp, hashpos, ix, old_value);
     else
         return 0;
 }
@@ -2140,14 +2202,21 @@ PyDict_Clear(PyObject *op)
     oldvalues = mp->ma_values;
     if (oldvalues == empty_values)
         return;
+    if (UNLIKELY(dict_is_watched(mp))) {
+        mp->ma_version_tag = DICT_NEXT_WATCHED_VERSION();
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+#ifdef ENABLE_CINDERX
+        _PyJIT_NotifyDictClear((PyObject *)mp);
+#endif
+    } else {
+        mp->ma_version_tag = DICT_NEXT_VERSION();
+    }
     /* Empty the dict... */
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_CLEARED, mp, NULL, NULL);
     dictkeys_incref(Py_EMPTY_KEYS);
     mp->ma_keys = Py_EMPTY_KEYS;
     mp->ma_values = empty_values;
     mp->ma_used = 0;
-    mp->ma_version_tag = new_version;
     /* ...then clear the keys and values */
     if (oldvalues != NULL) {
         n = oldkeys->dk_nentries;
@@ -2308,20 +2377,17 @@ _PyDict_Pop_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject *d
         assert(ix >= 0);
     }
 
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_DELETED, mp, key, NULL);
-
     hashpos = lookdict_index(mp->ma_keys, hash, ix);
     assert(hashpos >= 0);
     assert(old_value != NULL);
     mp->ma_used--;
-    mp->ma_version_tag = new_version;
     dictkeys_set_index(mp->ma_keys, hashpos, DKIX_DUMMY);
     ep = &DK_ENTRIES(mp->ma_keys)[ix];
     ENSURE_ALLOWS_DELETIONS(mp);
     old_key = ep->me_key;
     ep->me_key = NULL;
     ep->me_value = NULL;
+    dict_modify_key(mp, old_key, NULL);
     Py_DECREF(old_key);
 
     ASSERT_CONSISTENT(mp);
@@ -2443,17 +2509,17 @@ Fail:
 static void
 dict_dealloc(PyDictObject *mp)
 {
-    assert(Py_REFCNT(mp) == 0);
-    Py_SET_REFCNT(mp, 1);
-    _PyDict_NotifyEvent(PyDict_EVENT_DEALLOCATED, mp, NULL, NULL);
-    if (Py_REFCNT(mp) > 1) {
-        Py_SET_REFCNT(mp, Py_REFCNT(mp) - 1);
-        return;
-    }
-    Py_SET_REFCNT(mp, 0);
     PyObject **values = mp->ma_values;
     PyDictKeysObject *keys = mp->ma_keys;
     Py_ssize_t i, n;
+
+    if (UNLIKELY(dict_is_watched(mp))) {
+        /* TODO(T113261295): Replace this with the generic hook once dict
+         * watchers are upstreamed. */
+#ifdef ENABLE_CINDERX
+        _PyJIT_NotifyDictUnwatch((PyObject *)mp);
+#endif
+    }
 
     /* bpo-31095: UnTrack is needed before calling any callbacks */
     PyObject_GC_UnTrack(mp);
@@ -3071,8 +3137,6 @@ dict_merge(PyObject *a, PyObject *b, int override)
                     other->ma_used == okeys->dk_nentries &&
                     (okeys->dk_size == PyDict_MINSIZE ||
                      USABLE_FRACTION(okeys->dk_size/2) < other->ma_used)) {
-                uint64_t new_version = _PyDict_NotifyEvent(
-                    PyDict_EVENT_CLONED, mp, b, NULL);
                 PyDictKeysObject *keys = clone_combined_dict_keys(other);
                 if (keys == NULL) {
                     return -1;
@@ -3088,7 +3152,14 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 }
 
                 mp->ma_used = other->ma_used;
-                mp->ma_version_tag = new_version;
+                if (UNLIKELY(dict_is_watched(mp))) {
+                  /* TODO(T113261295): Replace this with the generic hook once
+                   * dict watchers are upstreamed. */
+#ifdef ENABLE_CINDERX
+                    _PyJIT_NotifyDictUnwatch((PyObject *)mp);
+#endif
+                }
+                mp->ma_version_tag = DICT_NEXT_VERSION();
                 ASSERT_CONSISTENT(mp);
 
                 if (_PyObject_GC_IS_TRACKED(other) && !_PyObject_GC_IS_TRACKED(mp)) {
@@ -3562,8 +3633,6 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
 
     if (ix == DKIX_EMPTY) {
         PyDictKeyEntry *ep, *ep0;
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_ADDED, mp, key, defaultobj);
         value = defaultobj;
         if (mp->ma_keys->dk_usable <= 0) {
             if (insertion_resize(mp) < 0) {
@@ -3590,17 +3659,15 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
             ep->me_value = value;
         }
         mp->ma_used++;
-        mp->ma_version_tag = new_version;
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
         if (PyLazyImport_CheckExact(value)) {
             _PyDict_SetHasDeferredObjects((PyObject *)mp);
         }
+        dict_modify_key(mp, key, value);
         assert(mp->ma_keys->dk_usable >= 0);
     }
     else if (value == NULL) {
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_ADDED, mp, key, defaultobj);
         value = defaultobj;
         assert(_PyDict_HasSplitTable(mp));
         assert(ix == mp->ma_used);
@@ -3608,10 +3675,10 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
         MAINTAIN_TRACKING(mp, key, value);
         mp->ma_values[ix] = value;
         mp->ma_used++;
-        mp->ma_version_tag = new_version;
         if (PyLazyImport_CheckExact(value)) {
             _PyDict_SetHasDeferredObjects((PyObject *)mp);
         }
+        dict_modify_key(mp, key, value);
     }
 
     ASSERT_CONSISTENT(mp);
@@ -3721,21 +3788,19 @@ dict_popitem_impl(PyDictObject *self)
     assert(i >= 0);
 
     ep = &ep0[i];
-    PyObject *old_key = ep->me_key;
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_DELETED, self, old_key, NULL);
     j = lookdict_index(self->ma_keys, ep->me_hash, i);
     assert(j >= 0);
     assert(dictkeys_get_index(self->ma_keys, j) == i);
     dictkeys_set_index(self->ma_keys, j, DKIX_DUMMY);
 
+    PyObject *old_key = ep->me_key;
     PyObject *old_value = ep->me_value;
     ep->me_key = NULL;
     ep->me_value = NULL;
     /* We can't dk_usable++ since there is DKIX_DUMMY in indices */
     self->ma_keys->dk_nentries = i;
     self->ma_used--;
-    self->ma_version_tag = new_version;
+    dict_modify_key(self, old_key, NULL);
     ASSERT_CONSISTENT(self);
 
     if (DICT_HAS_DEFERRED(self)
@@ -6024,120 +6089,6 @@ _PyDictKeys_GetEntries(PyDictKeysObject *keys)
 {
     return DK_ENTRIES(keys);
 }
-
-static inline int
-validate_watcher_id(PyInterpreterState *interp, int watcher_id)
-{
-    if (watcher_id < 0 || watcher_id >= DICT_MAX_WATCHERS) {
-        PyErr_Format(PyExc_ValueError, "Invalid dict watcher ID %d", watcher_id);
-        return -1;
-    }
-    if (!interp->dict_watchers[watcher_id]) {
-        PyErr_Format(PyExc_ValueError, "No dict watcher set for ID %d", watcher_id);
-        return -1;
-    }
-    return 0;
-}
-
-int
-PyDict_Watch(int watcher_id, PyObject* dict)
-{
-    if (!PyDict_Check(dict)) {
-        PyErr_SetString(PyExc_ValueError, "Cannot watch non-dictionary");
-        return -1;
-    }
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (validate_watcher_id(interp, watcher_id)) {
-        return -1;
-    }
-    ((PyDictObject*)dict)->ma_version_tag |= (1LL << watcher_id);
-    return 0;
-}
-
-int
-PyDict_Unwatch(int watcher_id, PyObject* dict)
-{
-    if (!PyDict_Check(dict)) {
-        PyErr_SetString(PyExc_ValueError, "Cannot watch non-dictionary");
-        return -1;
-    }
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (validate_watcher_id(interp, watcher_id)) {
-        return -1;
-    }
-    ((PyDictObject*)dict)->ma_version_tag &= ~(1LL << watcher_id);
-    return 0;
-}
-
-int
-PyDict_AddWatcher(PyDict_WatchCallback callback)
-{
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-
-    for (int i = 0; i < DICT_MAX_WATCHERS; i++) {
-        if (!interp->dict_watchers[i]) {
-            interp->dict_watchers[i] = callback;
-            return i;
-        }
-    }
-
-    PyErr_SetString(PyExc_RuntimeError, "no more dict watcher IDs available");
-    return -1;
-}
-
-int
-PyDict_ClearWatcher(int watcher_id)
-{
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    if (validate_watcher_id(interp, watcher_id)) {
-        return -1;
-    }
-    interp->dict_watchers[watcher_id] = NULL;
-    return 0;
-}
-
-static const char *
-dict_event_name(PyDict_WatchEvent event) {
-    switch (event) {
-        #define CASE(op)                \
-        case PyDict_EVENT_##op:         \
-            return "PyDict_EVENT_" #op;
-        PY_FOREACH_DICT_EVENT(CASE)
-        #undef CASE
-    }
-    Py_UNREACHABLE();
-}
-
-void
-_PyDict_SendEvent(int watcher_bits,
-                  PyDict_WatchEvent event,
-                  PyDictObject *mp,
-                  PyObject *key,
-                  PyObject *value)
-{
-    PyInterpreterState *interp = _PyInterpreterState_GET();
-    for (int i = 0; i < DICT_MAX_WATCHERS; i++) {
-        if (watcher_bits & 1) {
-            PyDict_WatchCallback cb = interp->dict_watchers[i];
-            if (cb && (cb(event, (PyObject*)mp, key, value) < 0)) {
-                // We don't want to resurrect the dict by potentially having an
-                // unraisablehook keep a reference to it, so we don't pass the
-                // dict as context, just an informative string message.  Dict
-                // repr can call arbitrary code, so we invent a simpler version.
-                PyObject *context = PyUnicode_FromFormat(
-                    "%s watcher callback for <dict at %p>",
-                    dict_event_name(event), mp);
-                if (context == NULL) {
-                    context = Py_NewRef(Py_None);
-                }
-                PyErr_WriteUnraisable(context);
-                Py_DECREF(context);
-            }
-        }
-        watcher_bits >>= 1;
-    }
-}
-
 
 #ifdef ENABLE_CINDERX
 

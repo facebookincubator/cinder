@@ -295,8 +295,7 @@ GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
 }
 
 bool Preloader::canCacheGlobals() const {
-  return _PyDict_HasOnlyUnicodeKeys(builtins_) &&
-      _PyDict_HasOnlyUnicodeKeys(globals_);
+  return _PyDict_CanWatch(builtins_) && _PyDict_CanWatch(globals_);
 }
 
 BorrowedRef<> Preloader::global(int name_idx) const {
