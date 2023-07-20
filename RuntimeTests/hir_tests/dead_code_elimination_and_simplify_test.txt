@@ -13,10 +13,13 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v9:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v10:CInt32 = CallStatic<static_rand@0xdeadbeef, 0>
+    Snapshot
     v11:CInt64 = IntConvert<CInt64> v10
     v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
     v16:CInt64 = IntBinaryOp<FloorDivide> v11 v19
+    Snapshot
     v18:LongExact = PrimitiveBox<CInt64> v16 {
       FrameState {
         NextInstrOffset 22
@@ -41,7 +44,9 @@ def test() -> double:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v5:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
+    Snapshot
     v9:CDouble[1.23] = LoadConst<CDouble[1.23]>
     Return<CDouble> v9
   }

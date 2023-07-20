@@ -12,12 +12,15 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v9:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v10:CInt32 = CallStatic<static_rand@0xdeadbeef, 0>
+    Snapshot
     v11:CInt64 = IntConvert<CInt64> v10
     v12:MortalLongExact[2147483647] = LoadConst<MortalLongExact[2147483647]>
     v19:CInt64[2147483647] = LoadConst<CInt64[2147483647]>
     v20:CInt64[0] = LoadConst<CInt64[0]>
     v16:CInt64 = IntBinaryOp<FloorDivide> v11 v19
+    Snapshot
     v18:LongExact = PrimitiveBox<CInt64> v16 {
       FrameState {
         NextInstrOffset 22
@@ -45,20 +48,24 @@ def test() -> bool:
 fun jittestmodule:test {
   bb 0 {
     v8:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v9:CInt64[64] = LoadConst<CInt64[64]>
     v11:ImmortalLongExact[111] = LoadConst<ImmortalLongExact[111]>
     v18:CInt64[111] = LoadConst<CInt64[111]>
     v19:CInt64[0] = LoadConst<CInt64[0]>
     v15:CBool = PrimitiveCompare<LessThan> v9 v18
+    Snapshot
     CondBranch<1, 2> v15
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v16:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     Return v16
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v17:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     Return v17
   }
@@ -78,7 +85,9 @@ def test() -> double:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v5:MortalFloatExact[1.23] = LoadConst<MortalFloatExact[1.23]>
+    Snapshot
     v9:CDouble[1.23] = LoadConst<CDouble[1.23]>
     Return<CDouble> v9
   }
@@ -98,6 +107,7 @@ def test() -> uint8:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v5:ImmortalLongExact[42] = LoadConst<ImmortalLongExact[42]>
     v10:CUInt8[42] = LoadConst<CUInt8[42]>
     v11:CInt64[0] = LoadConst<CInt64[0]>
@@ -119,6 +129,7 @@ def test() -> int8:
 fun jittestmodule:test {
   bb 0 {
     v4:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v5:MortalLongExact[10000] = LoadConst<MortalLongExact[10000]>
     v7:CInt8 = PrimitiveUnbox<CInt8> v5
     v8:CInt64 = IsNegativeAndErrOccurred v7 {
@@ -141,6 +152,8 @@ def test(x: int):
 fun jittestmodule:test {
   bb 0 {
     v2:Long = LoadArg<0; "x", Long>
+    Snapshot
+    Snapshot
     Return v2
   }
 }
@@ -155,7 +168,9 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2:NoneType = LoadConst<NoneType>
+    Snapshot
     Return v2
   }
 }
@@ -170,6 +185,8 @@ def test(x: bool):
 fun jittestmodule:test {
   bb 0 {
     v2:Bool = LoadArg<0; "x", Bool>
+    Snapshot
+    Snapshot
     Return v2
   }
 }
@@ -184,12 +201,14 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "x">
+    Snapshot
     v4:Bool = Cast<Exact[bool]> v2 {
       FrameState {
         NextInstrOffset 6
         Locals<1> v2
       }
     }
+    Snapshot
     Return v4
   }
 }
@@ -204,6 +223,7 @@ fun jittestmodule:test {
   bb 0 {
     v15:TupleExact = LoadArg<0; "x", TupleExact>
     v16:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v18:CInt64[0] = LoadConst<CInt64[0]>
     Branch<4>
   }
@@ -216,6 +236,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v26:CInt32 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 8
@@ -227,12 +248,16 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v31:CInt64 = LoadField<ob_size@16, CInt64, borrowed> v15
+    Snapshot
     v32:CBool = PrimitiveCompare<GreaterThan> v31 v24
+    Snapshot
     CondBranch<2, 3> v32
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v34:LongExact = PrimitiveBox<CInt64> v24 {
       FrameState {
         NextInstrOffset 24
@@ -250,12 +275,15 @@ fun jittestmodule:test {
       }
     }
     v47:Object = LoadArrayItem<Offset[24]> v15 v46 v15
+    Snapshot
     v36:CInt64[1] = LoadConst<CInt64[1]>
     v37:CInt64 = IntBinaryOp<Add> v24 v36
+    Snapshot
     v40:OptObject = LoadGlobalCached<0; "print">
     v41:MortalObjectUser[builtin_function_or_method:print:0xdeadbeef] = GuardIs<0xdeadbeef> v40 {
       Descr 'LOAD_GLOBAL: print'
     }
+    Snapshot
     v43:Object = VectorCall<1> v41 v47 {
       FrameState {
         NextInstrOffset 42
@@ -263,10 +291,12 @@ fun jittestmodule:test {
         Stack<1> v15
       }
     }
+    Snapshot
     Branch<4>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v44:NoneType = LoadConst<NoneType>
     Return v44
   }
@@ -284,6 +314,7 @@ fun jittestmodule:test {
   bb 0 {
     v5:CInt64 = LoadArg<0; "x", CInt64>
     v6:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v7:LongExact = PrimitiveBox<CInt64> v5 {
       FrameState {
         NextInstrOffset 6

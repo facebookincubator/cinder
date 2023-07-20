@@ -13,6 +13,7 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
+    Snapshot
     v0 = CheckVar<"c"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -26,6 +27,7 @@ fun jittestmodule:test {
       }
     }
     v1 = RefineType<Long> v1
+    Snapshot
     Return v1
   }
 }
@@ -48,6 +50,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     v0 = CheckVar<"c"> v0 {
       FrameState {
         NextInstrOffset 6
@@ -126,11 +129,13 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 5, 6, 8) {
+    Snapshot
     v2 = Assign v3
     Branch<1>
   }
 
   bb 1 (preds 3) {
+    Snapshot
     Return v2
   }
 }
@@ -147,6 +152,7 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
+    Snapshot
     v0 = CheckVar<"c"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -161,6 +167,7 @@ fun jittestmodule:test {
       }
     }
     v2 = RefineType<Long> v2
+    Snapshot
     Return v2
   }
 }
@@ -178,6 +185,7 @@ def test(c: C):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
+    Snapshot
     v0 = CheckVar<"c"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -192,6 +200,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -210,6 +219,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "c", User[C]>
     v1 = LoadArg<1; "x", Long>
+    Snapshot
     v1 = CheckVar<"x"> v1 {
       FrameState {
         NextInstrOffset 4
@@ -225,6 +235,7 @@ fun jittestmodule:test {
     }
     v2 = LoadField<x@16, OptObject, owned> v0
     StoreField<x@16> v0 v1 v2
+    Snapshot
     v3 = LoadConst<NoneType>
     Return v3
   }
@@ -242,6 +253,7 @@ def test(x) -> C:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -254,6 +266,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -272,6 +285,7 @@ def test(x) -> Optional[C]:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -284,6 +298,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -297,6 +312,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v1 = LoadConst<CInt32[42]>
     v0 = Assign v1
     v2 = LoadConst<NoneType>
@@ -314,6 +330,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt32[42]>
     v0 = Assign v2
     v1 = Assign v0
@@ -333,11 +350,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<Add> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -355,11 +374,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<Subtract> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -377,11 +398,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<FloorDivide> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -399,11 +422,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<Multiply> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -421,11 +446,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<Or> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -443,11 +470,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<Xor> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -465,11 +494,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[100]>
     v1 = Assign v4
     v5 = IntBinaryOp<And> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -487,11 +518,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[5]>
     v1 = Assign v4
     v5 = IntBinaryOp<LShift> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -509,11 +542,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CInt64[2]>
     v1 = Assign v4
     v5 = IntBinaryOp<RShift> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -531,11 +566,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CUInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CUInt64[2]>
     v1 = Assign v4
     v5 = IntBinaryOp<RShiftUnsigned> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -553,11 +590,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CUInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CUInt64[2]>
     v1 = Assign v4
     v5 = IntBinaryOp<FloorDivideUnsigned> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -575,11 +614,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v3 = LoadConst<CUInt64[42]>
     v0 = Assign v3
     v4 = LoadConst<CUInt64[2]>
     v1 = Assign v4
     v5 = IntBinaryOp<ModuloUnsigned> v0 v1
+    Snapshot
     v2 = Assign v5
     v6 = LoadConst<NoneType>
     Return v6
@@ -598,20 +639,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CUInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<LessThanUnsigned> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -629,20 +674,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CUInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<GreaterThanUnsigned> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -660,20 +709,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CUInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<GreaterThanEqualUnsigned> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -691,20 +744,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CUInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CUInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<LessThanEqualUnsigned> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -722,20 +779,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<Equal> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -753,20 +814,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<NotEqual> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -784,20 +849,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<LessThan> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -815,20 +884,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<GreaterThan> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -846,20 +919,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<GreaterThanEqual> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -877,20 +954,24 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CInt64[42]>
     v0 = Assign v2
     v3 = LoadConst<CInt64[2]>
     v1 = Assign v3
     v4 = PrimitiveCompare<LessThanEqual> v0 v1
+    Snapshot
     CondBranch<1, 2> v4
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v5 = LoadConst<ImmortalLongExact[42]>
     Return v5
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -904,11 +985,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = MakeList<0> {
       FrameState {
         NextInstrOffset 4
       }
     }
+    Snapshot
     v1 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v2 = ListExtend v0 v1 {
       FrameState {
@@ -916,7 +999,9 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     v3 = LoadField<ob_size@16, CInt64, borrowed> v0
+    Snapshot
     v4 = PrimitiveBox<CInt64> v3 {
       FrameState {
         NextInstrOffset 12
@@ -936,6 +1021,7 @@ def test() -> str:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = LoadConst<MortalUnicodeExact["hello"]>
     v1 = LoadConst<ImmortalLongExact[123]>
     v2 = LoadConst<MortalFunc[function:0xdeadbeef]>
@@ -944,6 +1030,7 @@ fun jittestmodule:test {
         NextInstrOffset 10
       }
     }
+    Snapshot
     Return v3
   }
 }
@@ -963,6 +1050,7 @@ fun jittestmodule:test {
         NextInstrOffset 0
       }
     }
+    Snapshot
     v1 = LoadConst<MortalUnicodeExact["hello"]>
     v2 = LoadConst<ImmortalLongExact[123]>
     v3 = LoadConst<MortalFunc[function:0xdeadbeef]>
@@ -971,6 +1059,7 @@ fun jittestmodule:test {
         NextInstrOffset 12
       }
     }
+    Snapshot
     v5 = CallCFunc<_PyCoro_GetAwaitableIter> v4
     v5 = CheckExc v5 {
       FrameState {
@@ -994,6 +1083,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 0, 2) {
+    Snapshot
     v7 = LoadConst<NoneType>
     SetCurrentAwaiter v5
     v8 = YieldFrom v7 v5 {
@@ -1002,11 +1092,13 @@ fun jittestmodule:test {
         Stack<1> v5
       }
     }
+    Snapshot
     v1 = Assign v8
     Branch<1>
   }
 
   bb 1 (preds 3) {
+    Snapshot
     Return v1
   }
 }
@@ -1022,6 +1114,7 @@ def test() -> int:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v1 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v0 = Assign v1
     v2 = LoadConst<ImmortalLongExact[1]>
@@ -1037,11 +1130,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v4 = Assign v0
     Branch<3>
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v4 = GetTuple v0 {
       FrameState {
         NextInstrOffset 14
@@ -1053,6 +1148,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 1, 2) {
+    Snapshot
     v5 = LoadConst<CInt64[0]>
     v6 = PrimitiveBox<CInt64> v5 {
       FrameState {
@@ -1068,6 +1164,7 @@ fun jittestmodule:test {
         Stack<2> v2 v3
       }
     }
+    Snapshot
     v8 = Cast<str> v7 {
       FrameState {
         NextInstrOffset 18
@@ -1075,15 +1172,18 @@ fun jittestmodule:test {
         Stack<3> v2 v3 v4
       }
     }
+    Snapshot
     CondBranchCheckType<4, 5, Tuple> v4
   }
 
   bb 4 (preds 3) {
+    Snapshot
     v9 = Assign v4
     Branch<6>
   }
 
   bb 5 (preds 3) {
+    Snapshot
     v9 = GetTuple v4 {
       FrameState {
         NextInstrOffset 22
@@ -1095,6 +1195,7 @@ fun jittestmodule:test {
   }
 
   bb 6 (preds 4, 5) {
+    Snapshot
     v10 = LoadConst<CInt64[1]>
     v11 = PrimitiveBox<CInt64> v10 {
       FrameState {
@@ -1110,6 +1211,7 @@ fun jittestmodule:test {
         Stack<3> v2 v3 v8
       }
     }
+    Snapshot
     v13 = Cast<object> v12 {
       FrameState {
         NextInstrOffset 26
@@ -1117,15 +1219,18 @@ fun jittestmodule:test {
         Stack<4> v2 v3 v8 v9
       }
     }
+    Snapshot
     CondBranchCheckType<7, 8, Tuple> v9
   }
 
   bb 7 (preds 6) {
+    Snapshot
     v14 = Assign v9
     Branch<9>
   }
 
   bb 8 (preds 6) {
+    Snapshot
     v14 = GetTuple v9 {
       FrameState {
         NextInstrOffset 30
@@ -1137,6 +1242,7 @@ fun jittestmodule:test {
   }
 
   bb 9 (preds 7, 8) {
+    Snapshot
     v15 = LoadConst<CInt64[2]>
     v16 = PrimitiveBox<CInt64> v15 {
       FrameState {
@@ -1152,6 +1258,7 @@ fun jittestmodule:test {
         Stack<4> v2 v3 v8 v13
       }
     }
+    Snapshot
     v18 = Cast<object> v17 {
       FrameState {
         NextInstrOffset 34
@@ -1159,6 +1266,7 @@ fun jittestmodule:test {
         Stack<5> v2 v3 v8 v13 v14
       }
     }
+    Snapshot
     v19 = LoadConst<MortalFunc[function:0xdeadbeef]>
     v20 = InvokeStaticFunction<jittestmodule.x, 6, Long> v19 v2 v3 v8 v13 v18 {
       FrameState {
@@ -1166,6 +1274,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v20
   }
 }
@@ -1180,10 +1289,12 @@ def test(it) -> List:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "it">
+    Snapshot
     v1 = LoadGlobalCached<0; "sorted">
     v1 = GuardIs<0xdeadbeef> v1 {
       Descr 'LOAD_GLOBAL: sorted'
     }
+    Snapshot
     v0 = CheckVar<"it"> v0 {
       FrameState {
         NextInstrOffset 6
@@ -1197,6 +1308,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     v2 = RefineType<ListExact> v2
     Return v2
   }
@@ -1211,6 +1323,7 @@ def test() -> None:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v1 = LoadConst<CDouble[1.14]>
     v0 = Assign v1
     v2 = LoadConst<NoneType>
@@ -1229,11 +1342,13 @@ def test() -> float:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = LoadConst<CDouble[1.14]>
     v0 = Assign v2
     v3 = LoadConst<CDouble[2]>
     v1 = Assign v3
     v4 = DoubleBinaryOp<Add> v0 v1
+    Snapshot
     v5 = PrimitiveBox<CDouble> v4 {
       FrameState {
         NextInstrOffset 18
@@ -1254,12 +1369,14 @@ def test() -> int:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = TpAlloc<chklist[int]> {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v3 = MakeList<0> {
       FrameState {
         NextInstrOffset 8
@@ -1267,6 +1384,7 @@ fun jittestmodule:test {
         Stack<2> v2 v2
       }
     }
+    Snapshot
     v4 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v5 = ListExtend v3 v4 {
       FrameState {
@@ -1275,6 +1393,7 @@ fun jittestmodule:test {
         Stack<3> v2 v2 v3
       }
     }
+    Snapshot
     v6 = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
     v7 = VectorCallStatic<2> v6 v2 v3 {
       FrameState {
@@ -1283,6 +1402,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     v0 = Assign v2
     v8 = LoadConst<CInt64[2]>
     v1 = Assign v8
@@ -1300,6 +1420,7 @@ fun jittestmodule:test {
     }
     v10 = LoadField<ob_item@24, CPtr, borrowed> v0
     v11 = LoadArrayItem v10 v9 v0
+    Snapshot
     Return v11
   }
 }
@@ -1321,11 +1442,13 @@ fun jittestmodule:test {
         Cells<1> v2
       }
     }
+    Snapshot
     v4 = LoadConst<MortalUnicodeExact["return"]>
     v5 = LoadGlobalCached<0; "int">
     v5 = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: int'
     }
+    Snapshot
     v6 = MakeTuple<2> v4 v5 {
       FrameState {
         NextInstrOffset 8
@@ -1334,6 +1457,7 @@ fun jittestmodule:test {
         Stack<2> v4 v5
       }
     }
+    Snapshot
     v7 = MakeTuple<1> v2 {
       FrameState {
         NextInstrOffset 12
@@ -1342,6 +1466,7 @@ fun jittestmodule:test {
         Stack<2> v6 v2
       }
     }
+    Snapshot
     v8 = LoadConst<MortalCode["inner"]>
     v9 = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
     v10 = MakeFunction v9 v8 {
@@ -1355,6 +1480,7 @@ fun jittestmodule:test {
     SetFunctionAttr<func_closure> v7 v10
     SetFunctionAttr<func_annotations> v6 v10
     InitFunction v10
+    Snapshot
     v1 = Assign v10
     v11 = LoadCellItem v2
     v11 = CheckVar<"a"> v11 {
@@ -1364,6 +1490,7 @@ fun jittestmodule:test {
         Cells<1> v2
       }
     }
+    Snapshot
     v12 = Cast<int> v11 {
       FrameState {
         NextInstrOffset 24
@@ -1371,6 +1498,7 @@ fun jittestmodule:test {
         Cells<1> v2
       }
     }
+    Snapshot
     Return v12
   }
 }
@@ -1388,6 +1516,7 @@ def test(self : A):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self", User[A]>
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -1402,6 +1531,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     v1 = RefineType<List> v1
     v2 = LoadConst<ImmortalLongExact[1]>
     v3 = ListAppend v1 v2 {
@@ -1411,6 +1541,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
+    Snapshot
     v4 = LoadConst<NoneType>
     Return v4
   }
@@ -1426,7 +1557,9 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2 = CallStatic<static_rand@0xdeadbeef, 0>
+    Snapshot
     v3 = IntConvert<CInt64> v2
     v0 = Assign v3
     v4 = PrimitiveBox<CInt64> v0 {
@@ -1449,6 +1582,7 @@ def test(a: Array[int64]) -> int64:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a", Array>
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -1474,6 +1608,7 @@ fun jittestmodule:test {
     v7 = LoadConst<CInt64[24]>
     v5 = LoadFieldAddress v0 v7
     v6 = LoadArrayItem v5 v4 v0
+    Snapshot
     Return<CInt64> v6
   }
 }
@@ -1488,6 +1623,7 @@ def test(a: Array[int64]) -> None:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a", Array>
+    Snapshot
     v1 = LoadConst<CInt64[3]>
     v0 = CheckVar<"a"> v0 {
       FrameState {
@@ -1515,6 +1651,7 @@ fun jittestmodule:test {
     v7 = LoadConst<CInt64[24]>
     v6 = LoadFieldAddress v0 v7
     StoreArrayItem v6 v5 v1 v0
+    Snapshot
     v8 = LoadConst<NoneType>
     Return v8
   }

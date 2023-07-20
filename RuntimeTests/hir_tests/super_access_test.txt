@@ -14,11 +14,13 @@ fun jittestmodule:A.f {
     v2 = LoadCurrentFunc
     v3 = LoadField<func_closure@72, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
+    Snapshot
     v4 = LoadConst<ImmortalLongExact[1]>
     v5 = LoadGlobalCached<0; "super">
     v5 = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: super'
     }
+    Snapshot
     v6 = VectorCall<0> v5 {
       FrameState {
         NextInstrOffset 8
@@ -27,6 +29,7 @@ fun jittestmodule:A.f {
         Stack<1> v4
       }
     }
+    Snapshot
     v7 = StoreAttr<1; "x"> v6 v4 {
       FrameState {
         NextInstrOffset 10
@@ -34,6 +37,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
+    Snapshot
     v8 = LoadConst<NoneType>
     Return v8
   }
@@ -52,10 +56,12 @@ fun jittestmodule:A.f {
     v2 = LoadCurrentFunc
     v3 = LoadField<func_closure@72, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
+    Snapshot
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: super'
     }
+    Snapshot
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       FrameState {
@@ -65,6 +71,7 @@ fun jittestmodule:A.f {
         Stack<1> v4
       }
     }
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 8
@@ -80,6 +87,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
+    Snapshot
     Return v6
   }
 }
@@ -97,10 +105,12 @@ fun jittestmodule:A.f {
     v2 = LoadCurrentFunc
     v3 = LoadField<func_closure@72, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
+    Snapshot
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: super'
     }
+    Snapshot
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       FrameState {
@@ -110,6 +120,7 @@ fun jittestmodule:A.f {
         Stack<1> v4
       }
     }
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 8
@@ -125,6 +136,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
+    Snapshot
     v7 = LoadConst<ImmortalLongExact[1]>
     v8 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v9 = VectorCallKW<2> v6 v7 v8 {
@@ -134,6 +146,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
+    Snapshot
     v10 = LoadConst<NoneType>
     Return v10
   }
@@ -152,10 +165,12 @@ fun jittestmodule:A.f {
     v2 = LoadCurrentFunc
     v3 = LoadField<func_closure@72, Tuple, borrowed> v2
     v1 = LoadTupleItem<0> v3
+    Snapshot
     v4 = LoadGlobalCached<0; "super">
     v4 = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: super'
     }
+    Snapshot
     v5 = LoadCellItem v1
     v5 = CheckVar<"__class__"> v5 {
       FrameState {
@@ -165,6 +180,7 @@ fun jittestmodule:A.f {
         Stack<1> v4
       }
     }
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 8
@@ -181,6 +197,7 @@ fun jittestmodule:A.f {
       }
     }
     v7 = GetSecondOutput<OptObject> v6
+    Snapshot
     v8 = CallMethod<2> v6 v7 {
       FrameState {
         NextInstrOffset 12
@@ -188,6 +205,7 @@ fun jittestmodule:A.f {
         Cells<1> v1
       }
     }
+    Snapshot
     v9 = LoadConst<NoneType>
     Return v9
   }

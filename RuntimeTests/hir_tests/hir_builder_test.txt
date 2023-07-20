@@ -8,6 +8,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = LoadConst<NoneType>
     Return v0
   }
@@ -21,6 +22,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -40,6 +42,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -69,6 +72,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -85,12 +89,14 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v3 = LoadConst<MortalUnicodeExact["foo"]>
     v1 = Assign v3
     Branch<2>
   }
 
   bb 2 (preds 0, 1) {
+    Snapshot
     v1 = CheckVar<"b"> v1 {
       FrameState {
         NextInstrOffset 10
@@ -109,6 +115,7 @@ def test(self):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -121,6 +128,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -135,6 +143,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -151,11 +160,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v2 = LoadConst<ImmortalBool[True]>
     Return v2
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v3 = LoadConst<ImmortalBool[False]>
     Return v3
   }
@@ -172,6 +183,7 @@ fun jittestmodule:test {
     v1 = LoadArg<1; "x">
     v2 = LoadArg<2; "y">
     v3 = LoadArg<3; "z">
+    Snapshot
     v0 = CheckVar<"f"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -205,6 +217,7 @@ fun jittestmodule:test {
         Locals<4> v0 v1 v2 v3
       }
     }
+    Snapshot
     Return v4
   }
 }
@@ -217,6 +230,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v1 = LoadConst<ImmortalLongExact[100]>
     v0 = Assign v1
     v0 = CheckVar<"x"> v0 {
@@ -239,6 +253,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -255,12 +270,14 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v3 = LoadConst<ImmortalLongExact[100]>
     v1 = Assign v3
     Branch<2>
   }
 
   bb 2 (preds 0, 1) {
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 10
@@ -280,6 +297,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -296,6 +314,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v3 = LoadConst<ImmortalBool[True]>
     v1 = Assign v3
     v1 = CheckVar<"y"> v1 {
@@ -308,6 +327,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v4 = LoadConst<ImmortalBool[False]>
     v1 = Assign v4
     v1 = CheckVar<"y"> v1 {
@@ -330,6 +350,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -346,6 +367,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 6
@@ -363,6 +385,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 14
@@ -389,6 +412,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -407,6 +431,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 6
@@ -418,6 +443,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 1) {
+    Snapshot
     Return v3
   }
 }
@@ -431,6 +457,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -449,6 +476,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 6
@@ -460,6 +488,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 1) {
+    Snapshot
     Return v3
   }
 }
@@ -471,10 +500,12 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = LoadGlobalCached<0; "len">
     v0 = GuardIs<0xdeadbeef> v0 {
       Descr 'LOAD_GLOBAL: len'
     }
+    Snapshot
     Return v0
   }
 }
@@ -488,6 +519,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "val">
+    Snapshot
     v1 = CheckVar<"val"> v1 {
       FrameState {
         NextInstrOffset 2
@@ -507,6 +539,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v3 = LoadConst<NoneType>
     Return v3
   }
@@ -521,6 +554,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "f">
     v1 = LoadArg<1; "x">
+    Snapshot
     v0 = CheckVar<"f"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -540,6 +574,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v3 = LoadConst<NoneType>
     Return v3
   }
@@ -555,6 +590,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -571,11 +607,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v2 = LoadConst<ImmortalBool[True]>
     Return v2
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v3 = LoadConst<ImmortalBool[False]>
     Return v3
   }
@@ -598,6 +636,7 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "self">
     v1 = LoadArg<1; "p">
     v2 = LoadArg<2; "old">
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -610,6 +649,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v4 = LoadConst<NoneType>
     v5 = PrimitiveCompare<Equal> v3 v4
     v6 = PrimitiveBoxBool v5
@@ -623,6 +663,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v1 = CheckVar<"p"> v1 {
       FrameState {
         NextInstrOffset 12
@@ -642,6 +683,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v9 = LoadConst<ImmortalBool[True]>
     v0 = CheckVar<"self"> v0 {
       FrameState {
@@ -656,6 +698,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 24
@@ -668,6 +711,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v2 = CheckVar<"old"> v2 {
       FrameState {
         NextInstrOffset 28
@@ -682,12 +726,14 @@ fun jittestmodule:test {
         Stack<1> v11
       }
     }
+    Snapshot
     v13 = Compare<GreaterThan> v11 v12 {
       FrameState {
         NextInstrOffset 32
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v14 = IsTruthy v13 {
       FrameState {
         NextInstrOffset 34
@@ -698,6 +744,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 36
@@ -708,6 +755,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v2 = CheckVar<"old"> v2 {
       FrameState {
         NextInstrOffset 40
@@ -718,6 +766,7 @@ fun jittestmodule:test {
   }
 
   bb 4 (preds 0) {
+    Snapshot
     v1 = CheckVar<"p"> v1 {
       FrameState {
         NextInstrOffset 44
@@ -731,6 +780,7 @@ fun jittestmodule:test {
       }
     }
     v16 = GetSecondOutput<OptObject> v15
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 48
@@ -745,12 +795,14 @@ fun jittestmodule:test {
         Stack<2> v15 v16
       }
     }
+    Snapshot
     v18 = CallMethod<3> v15 v16 v17 {
       FrameState {
         NextInstrOffset 52
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v2 = CheckVar<"old"> v2 {
       FrameState {
         NextInstrOffset 56
@@ -771,6 +823,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -792,6 +845,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v8 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 4
@@ -802,6 +856,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 6
@@ -814,6 +869,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v3
     v0 = CheckVar<"x"> v0 {
       FrameState {
@@ -831,11 +887,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
 
   bb 3 (preds 0) {
+    Snapshot
     v5 = LoadConst<NoneType>
     Return v5
   }
@@ -852,6 +910,7 @@ def test(self):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
+    Snapshot
     v0 = CheckVar<"self"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -873,6 +932,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v5 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 10
@@ -883,12 +943,14 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 4, 5) {
+    Snapshot
     v3 = LoadConst<ImmortalLongExact[1]>
     v0 = Assign v3
     Branch<4>
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v2 = LoadConst<NoneType>
     Return v2
   }
@@ -903,6 +965,7 @@ def test(self):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "self">
+    Snapshot
     Branch<2>
   }
 
@@ -912,6 +975,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
+    Snapshot
     v3 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 2
@@ -922,6 +986,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 2, 3) {
+    Snapshot
     v1 = LoadConst<ImmortalLongExact[1]>
     v0 = Assign v1
     Branch<2>
@@ -936,6 +1001,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -949,6 +1015,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -961,6 +1028,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -974,6 +1042,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -986,6 +1055,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -999,6 +1069,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1011,6 +1082,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1024,6 +1096,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1036,6 +1109,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1049,6 +1123,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1061,6 +1136,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1074,6 +1150,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1087,6 +1164,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1106,6 +1184,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1119,6 +1198,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "s">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1138,6 +1218,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1150,6 +1231,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1171,6 +1253,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1193,6 +1276,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1212,6 +1296,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1225,6 +1310,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1244,6 +1330,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1257,6 +1344,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1276,6 +1364,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1289,6 +1378,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1308,6 +1398,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1321,6 +1412,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1340,6 +1432,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1353,6 +1446,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1372,6 +1466,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1385,6 +1480,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1404,6 +1500,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1417,6 +1514,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1436,6 +1534,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1449,6 +1548,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1468,6 +1568,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1481,6 +1582,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1500,6 +1602,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1513,6 +1616,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1532,6 +1636,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1545,6 +1650,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1564,6 +1670,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1577,6 +1684,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1596,6 +1704,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Return v2
   }
 }
@@ -1608,6 +1717,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1635,6 +1745,7 @@ fun jittestmodule:test {
         Stack<3> v0 v0 v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1647,6 +1758,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1674,6 +1786,7 @@ fun jittestmodule:test {
         Stack<3> v0 v0 v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1686,6 +1799,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1698,6 +1812,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1710,6 +1825,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1722,6 +1838,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1734,6 +1851,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1746,6 +1864,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1758,6 +1877,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1770,6 +1890,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -1784,6 +1905,7 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "c">
     v1 = LoadArg<1; "s">
     v2 = LoadArg<2; "v">
+    Snapshot
     v2 = CheckVar<"v"> v2 {
       FrameState {
         NextInstrOffset 2
@@ -1810,6 +1932,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
+    Snapshot
     v4 = LoadConst<NoneType>
     Return v4
   }
@@ -1824,6 +1947,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1843,6 +1967,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -1858,6 +1983,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1877,6 +2003,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -1892,6 +2019,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1911,6 +2039,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -1926,6 +2055,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1945,6 +2075,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -1960,6 +2091,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -1979,6 +2111,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -1994,6 +2127,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2013,6 +2147,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2028,6 +2163,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2047,6 +2183,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2062,6 +2199,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2081,6 +2219,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2096,6 +2235,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2115,6 +2255,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2130,6 +2271,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2149,6 +2291,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2164,6 +2307,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2183,6 +2327,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2198,6 +2343,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2217,6 +2363,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2230,6 +2377,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2243,12 +2391,14 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     v2 = InPlaceOp<Add> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<1> v0
       }
     }
+    Snapshot
     v0 = Assign v2
     v3 = LoadConst<NoneType>
     Return v3
@@ -2264,6 +2414,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "k">
     v1 = LoadArg<1; "v">
+    Snapshot
     v0 = CheckVar<"k"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2300,6 +2451,7 @@ fun jittestmodule:test {
         Stack<4> v0 v1 v2 v3
       }
     }
+    Snapshot
     Return v4
   }
 }
@@ -2311,6 +2463,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = LoadConst<MortalUnicodeExact["a value"]>
     v1 = LoadConst<MortalLongExact[48879]>
     v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
@@ -2334,6 +2487,7 @@ fun jittestmodule:test {
         Stack<2> v0 v1
       }
     }
+    Snapshot
     Return v3
   }
 }
@@ -2626,6 +2780,7 @@ fun jittestmodule:test {
     v253 = LoadArg<253; "a253">
     v254 = LoadArg<254; "a254">
     v255 = LoadArg<255; "a255">
+    Snapshot
     v257 = LoadConst<ImmortalLongExact[1]>
     v10 = Assign v257
     v258 = LoadConst<MortalLongExact[1337]>
@@ -2648,6 +2803,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2663,12 +2819,14 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     v4 = BinaryOp<Subscript> v0 v3 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v0
       }
     }
+    Snapshot
     Return v4
   }
 }
@@ -2681,6 +2839,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2697,12 +2856,14 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     v5 = BinaryOp<Subscript> v0 v4 {
       FrameState {
         NextInstrOffset 12
         Locals<1> v0
       }
     }
+    Snapshot
     Return v5
   }
 }
@@ -2716,6 +2877,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v1 = CheckVar<"b"> v1 {
       FrameState {
         NextInstrOffset 2
@@ -2746,6 +2908,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     Branch<2>
   }
 
@@ -2755,6 +2918,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
+    Snapshot
     v1 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 2
@@ -2773,6 +2937,7 @@ def test(xs):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "xs">
+    Snapshot
     v0 = CheckVar<"xs"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2785,6 +2950,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Branch<4>
   }
 
@@ -2794,6 +2960,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v8 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 4
@@ -2805,6 +2972,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v3 = InvokeIterNext v2 {
       FrameState {
         NextInstrOffset 6
@@ -2816,11 +2984,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v1 = Assign v3
     v4 = LoadGlobalCached<0; "print">
     v4 = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: print'
     }
+    Snapshot
     v1 = CheckVar<"x"> v1 {
       FrameState {
         NextInstrOffset 12
@@ -2835,10 +3005,12 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     Branch<4>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v6 = LoadConst<NoneType>
     Return v6
   }
@@ -2852,12 +3024,14 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v2 = MakeList<0> {
       FrameState {
         NextInstrOffset 2
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -2872,6 +3046,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     Branch<4>
   }
 
@@ -2881,6 +3056,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v7 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 6
@@ -2892,6 +3068,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v4 = InvokeIterNext v3 {
       FrameState {
         NextInstrOffset 8
@@ -2903,6 +3080,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v1 = Assign v4
     v1 = CheckVar<"i"> v1 {
       FrameState {
@@ -2918,11 +3096,14 @@ fun jittestmodule:test {
         Stack<2> v2 v3
       }
     }
+    Snapshot
     Branch<4>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v1 = LoadConst<Nullptr>
+    Snapshot
     Return v2
   }
 }
@@ -2937,6 +3118,7 @@ def test(a):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -2950,6 +3132,7 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     v3 = LoadConst<MortalCode["nested"]>
     v4 = LoadConst<MortalUnicodeExact["test.<locals>.nested"]>
     v5 = MakeFunction v4 v3 {
@@ -2961,6 +3144,7 @@ fun jittestmodule:test {
     }
     SetFunctionAttr<func_defaults> v2 v5
     InitFunction v5
+    Snapshot
     v1 = Assign v5
     v1 = CheckVar<"nested"> v1 {
       FrameState {
@@ -2989,9 +3173,11 @@ fun jittestmodule:test {
         Cells<1> v1
       }
     }
+    Snapshot
     v3 = LoadConst<ImmortalLongExact[1]>
     v4 = StealCellItem v1
     SetCellItem v1 v3 v4
+    Snapshot
     v5 = MakeTuple<1> v1 {
       FrameState {
         NextInstrOffset 8
@@ -3000,6 +3186,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
+    Snapshot
     v6 = LoadConst<MortalCode["g"]>
     v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v8 = MakeFunction v7 v6 {
@@ -3012,6 +3199,7 @@ fun jittestmodule:test {
     }
     SetFunctionAttr<func_closure> v5 v8
     InitFunction v8
+    Snapshot
     v0 = Assign v8
     v0 = CheckVar<"g"> v0 {
       FrameState {
@@ -3041,6 +3229,7 @@ fun jittestmodule:test {
         Cells<1> v2
       }
     }
+    Snapshot
     v4 = MakeTuple<1> v2 {
       FrameState {
         NextInstrOffset 4
@@ -3049,6 +3238,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     v5 = LoadConst<MortalCode["g"]>
     v6 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v7 = MakeFunction v6 v5 {
@@ -3061,6 +3251,7 @@ fun jittestmodule:test {
     }
     SetFunctionAttr<func_closure> v4 v7
     InitFunction v7
+    Snapshot
     v1 = Assign v7
     v1 = CheckVar<"g"> v1 {
       FrameState {
@@ -3091,6 +3282,7 @@ fun jittestmodule:test {
         Cells<1> v3
       }
     }
+    Snapshot
     v5 = MakeTuple<1> v3 {
       FrameState {
         NextInstrOffset 4
@@ -3099,6 +3291,7 @@ fun jittestmodule:test {
         Stack<1> v3
       }
     }
+    Snapshot
     v6 = LoadConst<MortalCode["g"]>
     v7 = LoadConst<MortalUnicodeExact["test.<locals>.g"]>
     v8 = MakeFunction v7 v6 {
@@ -3111,6 +3304,7 @@ fun jittestmodule:test {
     }
     SetFunctionAttr<func_closure> v5 v8
     InitFunction v8
+    Snapshot
     v1 = Assign v8
     v1 = CheckVar<"g"> v1 {
       FrameState {
@@ -3126,6 +3320,7 @@ fun jittestmodule:test {
         Cells<1> v3
       }
     }
+    Snapshot
     v10 = GetIter v9 {
       FrameState {
         NextInstrOffset 18
@@ -3133,6 +3328,7 @@ fun jittestmodule:test {
         Cells<1> v3
       }
     }
+    Snapshot
     v5 = Assign v10
     Branch<4>
   }
@@ -3143,6 +3339,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v14 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 18
@@ -3155,6 +3352,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v11 = InvokeIterNext v5 {
       FrameState {
         NextInstrOffset 20
@@ -3168,11 +3366,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v2 = Assign v6
     Branch<4>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v12 = LoadConst<NoneType>
     Return v12
   }
@@ -3186,6 +3386,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = LoadConst<NoneType>
     Return v0
   }
@@ -3203,6 +3404,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -3216,6 +3418,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v4 = IsTruthy v3 {
       FrameState {
         NextInstrOffset 8
@@ -3231,6 +3434,7 @@ fun jittestmodule:test {
   }
 
   bb 7 (preds 6) {
+    Snapshot
     v16 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 8
@@ -3241,6 +3445,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 6, 7) {
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 10
@@ -3260,6 +3465,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v6 = IsTruthy v5 {
       FrameState {
         NextInstrOffset 16
@@ -3270,11 +3476,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v8 = LoadConst<NoneType>
     Return v8
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 22
@@ -3288,6 +3496,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = Assign v10
     v0 = CheckVar<"x"> v0 {
       FrameState {
@@ -3302,6 +3511,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v13 = IsTruthy v12 {
       FrameState {
         NextInstrOffset 36
@@ -3312,11 +3522,13 @@ fun jittestmodule:test {
   }
 
   bb 4 (preds 3) {
+    Snapshot
     v14 = LoadConst<NoneType>
     Return v14
   }
 
   bb 5 (preds 0) {
+    Snapshot
     v7 = LoadConst<NoneType>
     Return v7
   }
@@ -3332,6 +3544,7 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "x">
+    Snapshot
     v2 = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
     v3 = GetIter v2 {
       FrameState {
@@ -3339,6 +3552,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v2 = Assign v3
     Branch<6>
   }
@@ -3349,6 +3563,7 @@ fun jittestmodule:test {
   }
 
   bb 7 (preds 6) {
+    Snapshot
     v10 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 4
@@ -3360,6 +3575,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 6, 7) {
+    Snapshot
     v4 = InvokeIterNext v2 {
       FrameState {
         NextInstrOffset 6
@@ -3372,6 +3588,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v1 = Assign v3
     v1 = CheckVar<"i"> v1 {
       FrameState {
@@ -3394,6 +3611,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     v6 = IsTruthy v5 {
       FrameState {
         NextInstrOffset 16
@@ -3405,11 +3623,13 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
+    Snapshot
     v8 = LoadConst<NoneType>
     Return v8
   }
 
   bb 5 (preds 1) {
+    Snapshot
     v7 = LoadConst<NoneType>
     Return v7
   }
@@ -3422,6 +3642,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v1 = LoadConst<ImmortalLongExact[0]>
     v2 = LoadConst<NoneType>
     v3 = ImportName<0; "test_import"> v2 v1 {
@@ -3430,6 +3651,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     v0 = Assign v3
     v4 = LoadConst<NoneType>
     Return v4
@@ -3465,6 +3687,7 @@ test.__code__ = type(c)(
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -3477,6 +3700,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     Return v1
   }
 }
@@ -3491,6 +3715,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     Branch<7>
   }
 
@@ -3500,6 +3725,7 @@ fun jittestmodule:test {
   }
 
   bb 8 (preds 7) {
+    Snapshot
     v12 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 2
@@ -3510,12 +3736,14 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 7, 8) {
+    Snapshot
     v2 = MakeList<0> {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v3 = LoadGlobal<0; "warnopts"> {
       FrameState {
         NextInstrOffset 6
@@ -3523,6 +3751,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     v4 = GetIter v3 {
       FrameState {
         NextInstrOffset 8
@@ -3530,6 +3759,7 @@ fun jittestmodule:test {
         Stack<1> v2
       }
     }
+    Snapshot
     v3 = Assign v4
     Branch<9>
   }
@@ -3540,6 +3770,7 @@ fun jittestmodule:test {
   }
 
   bb 10 (preds 9) {
+    Snapshot
     v14 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 8
@@ -3551,6 +3782,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 9, 10) {
+    Snapshot
     v5 = InvokeIterNext v3 {
       FrameState {
         NextInstrOffset 10
@@ -3563,6 +3795,7 @@ fun jittestmodule:test {
   }
 
   bb 3 (preds 2) {
+    Snapshot
     v0 = Assign v4
     v6 = LoadConst<MortalUnicodeExact["-W%s"]>
     v0 = CheckVar<"o"> v0 {
@@ -3579,6 +3812,7 @@ fun jittestmodule:test {
         Stack<2> v2 v3
       }
     }
+    Snapshot
     v8 = ListAppend v2 v7 {
       FrameState {
         NextInstrOffset 20
@@ -3586,11 +3820,14 @@ fun jittestmodule:test {
         Stack<2> v2 v3
       }
     }
+    Snapshot
     Branch<9>
   }
 
   bb 4 (preds 2) {
+    Snapshot
     v0 = LoadConst<Nullptr>
+    Snapshot
     v1 = Assign v2
     v1 = CheckVar<"args"> v1 {
       FrameState {
@@ -3608,6 +3845,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v10 = LoadConst<NoneType>
     Return v10
   }
@@ -3623,6 +3861,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     Branch<4>
   }
 
@@ -3632,6 +3871,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v7 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 2
@@ -3642,18 +3882,21 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v1 = LoadGlobal<0; "foo"> {
       FrameState {
         NextInstrOffset 4
         Locals<1> v0
       }
     }
+    Snapshot
     v2 = VectorCall<0> v1 {
       FrameState {
         NextInstrOffset 6
         Locals<1> v0
       }
     }
+    Snapshot
     v0 = Assign v2
     v0 = CheckVar<"x"> v0 {
       FrameState {
@@ -3668,6 +3911,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
+    Snapshot
     v5 = IsTruthy v4 {
       FrameState {
         NextInstrOffset 16
@@ -3678,6 +3922,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v0 = CheckVar<"x"> v0 {
       FrameState {
         NextInstrOffset 18
@@ -3698,6 +3943,7 @@ fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "a">
     v1 = LoadArg<1; "b">
+    Snapshot
     v0 = CheckVar<"a"> v0 {
       FrameState {
         NextInstrOffset 2
@@ -3711,6 +3957,7 @@ fun jittestmodule:test {
         Locals<4> v0 v1 v2 v3
       }
     }
+    Snapshot
     v2 = Assign v5
     v1 = CheckVar<"b"> v1 {
       FrameState {
@@ -3725,6 +3972,7 @@ fun jittestmodule:test {
         Locals<4> v0 v1 v2 v3
       }
     }
+    Snapshot
     v3 = Assign v7
     v8 = LoadConst<NoneType>
     Return v8
@@ -3746,6 +3994,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     v0 = CheckVar<"asyncgen"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -3758,6 +4007,7 @@ fun jittestmodule:test {
         Locals<2> v0 v1
       }
     }
+    Snapshot
     Branch<6>
   }
 
@@ -3767,6 +4017,7 @@ fun jittestmodule:test {
   }
 
   bb 7 (preds 6) {
+    Snapshot
     v13 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 8
@@ -3781,6 +4032,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 6, 7) {
+    Snapshot
     v4 = GetANext v3 {
       FrameState {
         NextInstrOffset 10
@@ -3791,6 +4043,7 @@ fun jittestmodule:test {
         }
       }
     }
+    Snapshot
     v5 = LoadConst<NoneType>
     SetCurrentAwaiter v4
     v6 = YieldFromHandleStopAsyncIteration v5 v4 {
@@ -3808,11 +4061,13 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     v7 = LoadEvalBreaker
     CondBranch<5, 4> v7
   }
 
   bb 5 (preds 2) {
+    Snapshot
     v8 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 16
@@ -3827,11 +4082,13 @@ fun jittestmodule:test {
   }
 
   bb 4 (preds 2, 5) {
+    Snapshot
     v1 = Assign v4
     v9 = LoadGlobalCached<0; "print">
     v9 = GuardIs<0xdeadbeef> v9 {
       Descr 'LOAD_GLOBAL: print'
     }
+    Snapshot
     v1 = CheckVar<"y"> v1 {
       FrameState {
         NextInstrOffset 22
@@ -3846,10 +4103,12 @@ fun jittestmodule:test {
         Stack<1> v3
       }
     }
+    Snapshot
     Branch<6>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     v11 = LoadConst<NoneType>
     Return v11
   }
@@ -3862,11 +4121,13 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v0 = MakeSet {
       FrameState {
         NextInstrOffset 2
       }
     }
+    Snapshot
     v1 = LoadConst<MortalObjectUser[frozenset:0xdeadbeef]>
     v2 = SetUpdate v0 v1 {
       FrameState {
@@ -3874,6 +4135,7 @@ fun jittestmodule:test {
         Stack<1> v0
       }
     }
+    Snapshot
     Return v0
   }
 }
@@ -3888,6 +4150,7 @@ fun jittestmodule:test {
     v0 = LoadArg<0; "x">
     v1 = LoadArg<1; "y">
     v2 = LoadArg<2; "args", TupleExact>
+    Snapshot
     v2 = CheckVar<"args"> v2 {
       FrameState {
         NextInstrOffset 2
@@ -3909,6 +4172,7 @@ fun jittestmodule:test {
     v1 = LoadArg<1; "y">
     v2 = LoadArg<2; "kwonly">
     v3 = LoadArg<3; "args", TupleExact>
+    Snapshot
     v3 = CheckVar<"args"> v3 {
       FrameState {
         NextInstrOffset 2

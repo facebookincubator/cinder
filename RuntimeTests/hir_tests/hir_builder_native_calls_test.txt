@@ -17,6 +17,7 @@ def test(i: int) -> int:
 fun jittestmodule:test {
   bb 0 {
     v0 = LoadArg<0; "i", Long>
+    Snapshot
     v0 = CheckVar<"i"> v0 {
       FrameState {
         NextInstrOffset 4
@@ -33,6 +34,7 @@ fun jittestmodule:test {
     }
     v1 = Assign v2
     v4 = CallStatic<abs@0xdeadbeef, 1> v1
+    Snapshot
     v5 = PrimitiveBox<CInt32> v4 {
       FrameState {
         NextInstrOffset 16

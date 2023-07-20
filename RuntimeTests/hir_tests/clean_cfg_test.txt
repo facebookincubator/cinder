@@ -59,6 +59,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v7:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v8:Bottom = CheckVar<"a"> v7 {
       FrameState {
         NextInstrOffset 2

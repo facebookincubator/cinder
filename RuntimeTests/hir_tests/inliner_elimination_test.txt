@@ -15,14 +15,17 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2:OptObject = LoadGlobalCached<0; "foo">
     v3:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v2 {
       Descr 'LOAD_GLOBAL: foo'
     }
+    Snapshot
     v9:Object = LoadField<func_code@48, Object, borrowed> v3
     v10:MortalCode["foo"] = GuardIs<0xdeadbeef> v9 {
     }
     v7:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    Snapshot
     Return v7
   }
 }
@@ -40,27 +43,33 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:OptObject = LoadGlobalCached<0; "foo">
     v6:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: foo'
     }
+    Snapshot
     v16:Object = LoadField<func_code@48, Object, borrowed> v6
     v17:MortalCode["foo"] = GuardIs<0xdeadbeef> v16 {
     }
     v14:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    Snapshot
     v8:OptObject = LoadGlobalCached<1; "bar">
     v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: bar'
     }
+    Snapshot
     v22:Object = LoadField<func_code@48, Object, borrowed> v9
     v23:MortalCode["bar"] = GuardIs<0xdeadbeef> v22 {
     }
     v20:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    Snapshot
     UseType<LongExact> v14
     UseType<LongExact> v20
     UseType<ImmortalLongExact[3]> v14
     UseType<ImmortalLongExact[4]> v20
     v25:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
+    Snapshot
     Return v25
   }
 }
@@ -75,10 +84,12 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v4:OptObject = LoadGlobalCached<0; "add">
     v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: add'
     }
+    Snapshot
     v6:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     v19:Object = LoadField<func_code@48, Object, borrowed> v5
@@ -87,13 +98,16 @@ fun jittestmodule:test {
     BeginInlinedFunction<jittestmodule:add> {
       NextInstrOffset 8
     }
+    Snapshot
     v17:Object = BinaryOp<Add> v6 v7 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v6 v7
       }
     }
+    Snapshot
     EndInlinedFunction
+    Snapshot
     Return v17
   }
 }

@@ -79,10 +79,7 @@ void HIRPrinter::Print(std::ostream& os, const BasicBlock& block) {
   os << " {\n";
   Indent();
   for (auto& instr : block) {
-    if (instr.IsSnapshot() && !show_snapshots_) {
-      continue;
-    }
-    Print(os, instr);
+    Print(os, instr, full_snapshots_);
     os << std::endl;
   }
   Dedent();
@@ -703,7 +700,10 @@ static std::string format_immediates(const Instr& instr) {
   JIT_ABORT("invalid opcode %d", static_cast<int>(instr.opcode()));
 }
 
-void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
+void HIRPrinter::Print(
+    std::ostream& os,
+    const Instr& instr,
+    bool full_snapshots) {
   Indented(os);
   if (Register* dst = instr.GetOutput()) {
     os << dst->name();
@@ -727,6 +727,9 @@ void HIRPrinter::Print(std::ostream& os, const Instr& instr) {
     }
   }
 
+  if (instr.IsSnapshot() && !full_snapshots) {
+    return;
+  }
   auto fs = get_frame_state(instr);
   auto db = instr.asDeoptBase();
   if (db != nullptr) {
@@ -1090,6 +1093,10 @@ void JSONPrinter::Print(
   result["time_ns"] = time_ns;
   result["blocks"] = Print(func.cfg);
   passes.push_back(result);
+}
+
+void DebugPrint(const Function& func) {
+  HIRPrinter(true).Print(std::cout, func);
 }
 
 void DebugPrint(const CFG& cfg) {

@@ -17,10 +17,12 @@ test(A())
 fun jittestmodule:test {
   bb 0 {
     v5:User[A] = LoadArg<0; "self", User[A]>
+    Snapshot
     v6:CBool[true] = LoadConst<CBool[true]>
     v8:Nullptr = LoadConst<Nullptr>
     UseType<CBool> v6
     StoreField<_field@16> v5 v6 v8
+    Snapshot
     v10:NoneType = LoadConst<NoneType>
     Return v10
   }
@@ -39,11 +41,13 @@ test(1)
 fun jittestmodule:test {
   bb 0 {
     v6:Object = LoadArg<0; "a">
+    Snapshot
     v8:CInt32 = LoadEvalBreaker
     CondBranch<3, 2> v8
   }
 
   bb 3 (preds 0) {
+    Snapshot
     v9:CInt32 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 8
@@ -58,6 +62,7 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 0, 3) {
+    Snapshot
     v12:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v13:LongExact = GuardType<LongExact> v6 {
       GuiltyReg v6
@@ -69,6 +74,7 @@ fun jittestmodule:test {
         Stack<1> v13
       }
     }
+    Snapshot
     Return v13
   }
 }

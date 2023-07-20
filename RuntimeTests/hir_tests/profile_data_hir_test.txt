@@ -12,6 +12,7 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "c">
     v4:Object = LoadArg<1; "i">
+    Snapshot
     v7:TupleExact = GuardType<TupleExact> v3 {
       GuiltyReg v3
     }
@@ -28,6 +29,7 @@ fun jittestmodule:test {
       }
     }
     v12:Object = LoadArrayItem<Offset[24]> v7 v11 v7
+    Snapshot
     Return v12
   }
 }
@@ -47,12 +49,14 @@ fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "c">
     v4:Object = LoadArg<1; "i">
+    Snapshot
     v7:Object = BinaryOp<Subscript> v3 v4 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v3 v4
       }
     }
+    Snapshot
     Return v7
   }
 }
@@ -70,6 +74,7 @@ fun jittestmodule:test {
   bb 0 {
     v13:Object = LoadArg<0; "x">
     v14:Object = LoadArg<1; "y">
+    Snapshot
     v16:NoneType = LoadConst<NoneType>
     v17:Bool = GuardType<Bool> v13 {
       GuiltyReg v13
@@ -81,6 +86,7 @@ fun jittestmodule:test {
     v37:ImmortalBool[False] = LoadConst<ImmortalBool[False]>
     UseType<ImmortalBool[False]> v37
     v38:CInt32[0] = LoadConst<CInt32[0]>
+    Snapshot
     v35:NoneType = LoadConst<NoneType>
     Return v35
   }
@@ -100,16 +106,19 @@ test([])
 fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "iterable">
+    Snapshot
     v4:OptObject = LoadGlobalCached<0; "callee">
     v5:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v4 {
       Descr 'LOAD_GLOBAL: callee'
     }
+    Snapshot
     v7:Object = CallEx v5 v3 {
       FrameState {
         NextInstrOffset 6
         Locals<1> v3
       }
     }
+    Snapshot
     Return v7
   }
 }
@@ -132,10 +141,12 @@ fun jittestmodule:test {
   bb 0 {
     v6:Object = LoadArg<0; "iterable">
     v7:Object = LoadArg<1; "mapping">
+    Snapshot
     v8:OptObject = LoadGlobalCached<0; "callee">
     v9:MortalFunc[function:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: callee'
     }
+    Snapshot
     v11:MortalDictExact = MakeDict<0> {
       FrameState {
         NextInstrOffset 6
@@ -143,6 +154,7 @@ fun jittestmodule:test {
         Stack<2> v9 v6
       }
     }
+    Snapshot
     v13:CInt32 = DictMerge v11 v7 v9 {
       FrameState {
         NextInstrOffset 10
@@ -150,12 +162,14 @@ fun jittestmodule:test {
         Stack<3> v9 v6 v11
       }
     }
+    Snapshot
     v14:Object = CallExKw v9 v6 v11 {
       FrameState {
         NextInstrOffset 12
         Locals<2> v6 v7
       }
     }
+    Snapshot
     Return v14
   }
 }
@@ -180,12 +194,14 @@ fun jittestmodule:test {
     v4:Object = LoadArg<0; "f">
     v5:Object = LoadArg<1; "a">
     v6:Object = LoadArg<2; "b">
+    Snapshot
     v10:Object = VectorCall<2> v4 v5 v6 {
       FrameState {
         NextInstrOffset 8
         Locals<3> v4 v5 v6
       }
     }
+    Snapshot
     Return v10
   }
 }
@@ -208,6 +224,7 @@ test(C)
 fun jittestmodule:test {
   bb 0 {
     v5:Object = LoadArg<0; "f">
+    Snapshot
     v7:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v8:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v9:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
@@ -217,6 +234,7 @@ fun jittestmodule:test {
         Locals<1> v5
       }
     }
+    Snapshot
     Return v10
   }
 }
@@ -238,6 +256,7 @@ test(Point(1, 2))
 fun jittestmodule:test {
   bb 0 {
     v4:Object = LoadArg<0; "p">
+    Snapshot
     v6:ObjectUser[Point:Exact] = GuardType<ObjectUser[Point:Exact]> v4 {
       GuiltyReg v4
     }
@@ -254,6 +273,7 @@ fun jittestmodule:test {
         Locals<1> v6
       }
     }
+    Snapshot
     DeoptPatchpoint<0xdeadbeef> {
       Descr 'member descriptor attribute'
       GuiltyReg v6
@@ -268,6 +288,7 @@ fun jittestmodule:test {
         Stack<1> v15
       }
     }
+    Snapshot
     v11:LongExact = GuardType<LongExact> v15 {
       GuiltyReg v15
     }
@@ -282,6 +303,7 @@ fun jittestmodule:test {
         Locals<1> v6
       }
     }
+    Snapshot
     Return v18
   }
 }
@@ -301,6 +323,7 @@ test(Person("bob", 30))
 fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "p">
+    Snapshot
     v4:ObjectUser[Person:Exact] = GuardType<ObjectUser[Person:Exact]> v2 {
       GuiltyReg v2
     }
@@ -332,6 +355,7 @@ fun jittestmodule:test {
         Locals<1> v4
       }
     }
+    Snapshot
     Return v12
   }
 }
@@ -346,6 +370,7 @@ test(defaultdict(int))
 fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "o">
+    Snapshot
     v4:DictUser[collections.defaultdict:Exact] = GuardType<DictUser[collections.defaultdict:Exact]> v2 {
       GuiltyReg v2
     }
@@ -366,6 +391,7 @@ fun jittestmodule:test {
 
   bb 3 (preds 1, 2) {
     v9:Object = Phi<1, 2> v7 v8
+    Snapshot
     Return v9
   }
 }
@@ -385,6 +411,7 @@ test(C())
 fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "o">
+    Snapshot
     DeoptPatchpoint<0xdeadbeef> {
       Descr 'property attribute'
       GuiltyReg v2
@@ -396,6 +423,7 @@ fun jittestmodule:test {
         Locals<1> v2
       }
     }
+    Snapshot
     Return v7
   }
 }
@@ -418,6 +446,7 @@ test(C())
 fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "o">
+    Snapshot
     v4:ObjectUser[C:Exact] = GuardType<ObjectUser[C:Exact]> v2 {
       GuiltyReg v2
     }
@@ -439,6 +468,7 @@ fun jittestmodule:test {
         Locals<1> v4
       }
     }
+    Snapshot
     Return v9
   }
 }

@@ -15,8 +15,10 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    Snapshot
     Return v6
   }
 }
@@ -34,15 +36,19 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     v12:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    Snapshot
     v7:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     v16:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
+    Snapshot
     UseType<LongExact> v12
     UseType<LongExact> v16
     UseType<ImmortalLongExact[3]> v12
     UseType<ImmortalLongExact[4]> v16
     v19:ImmortalLongExact[7] = LoadConst<ImmortalLongExact[7]>
+    Snapshot
     Return v19
   }
 }
@@ -57,19 +63,23 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v4:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     v5:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:add> {
       NextInstrOffset 10
     }
+    Snapshot
     v16:Object = BinaryOp<Add> v4 v5 {
       FrameState {
         NextInstrOffset 8
         Locals<2> v4 v5
       }
     }
+    Snapshot
     EndInlinedFunction
+    Snapshot
     Return v16
   }
 }
@@ -90,19 +100,23 @@ def test() -> int8:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:ObjectUser[C:Exact] = TpAlloc<C> {
       FrameState {
         NextInstrOffset 4
       }
     }
+    Snapshot
     v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     v17:CInt8[4] = LoadConst<CInt8[4]>
     v19:Nullptr = LoadConst<Nullptr>
     UseType<CInt8> v17
     StoreField<foo@16> v5 v17 v19
     v21:NoneType = LoadConst<NoneType>
+    Snapshot
     v8:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     v28:CInt8 = LoadField<foo@16, CInt8, borrowed> v5
+    Snapshot
     Return<CInt8> v28
   }
 }

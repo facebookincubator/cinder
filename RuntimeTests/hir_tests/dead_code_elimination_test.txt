@@ -12,6 +12,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v3:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     Return v6
   }
@@ -29,6 +30,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v10:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v11:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     v13:ImmortalLongExact[0] = LoadConst<ImmortalLongExact[0]>
     v15:MortalTupleExact[tuple:0xdeadbeef] = LoadConst<MortalTupleExact[tuple:0xdeadbeef]>
@@ -38,6 +40,7 @@ fun jittestmodule:test {
         Locals<3> v11 v13 v10
       }
     }
+    Snapshot
     Branch<4>
   }
 
@@ -49,6 +52,7 @@ fun jittestmodule:test {
   }
 
   bb 5 (preds 4) {
+    Snapshot
     v23:CInt32 = RunPeriodicTasks {
       FrameState {
         NextInstrOffset 12
@@ -60,6 +64,7 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 4, 5) {
+    Snapshot
     v28:Object = InvokeIterNext v16 {
       FrameState {
         NextInstrOffset 14
@@ -71,10 +76,12 @@ fun jittestmodule:test {
   }
 
   bb 2 (preds 1) {
+    Snapshot
     Branch<4>
   }
 
   bb 3 (preds 1) {
+    Snapshot
     Return v11
   }
 }
@@ -89,6 +96,7 @@ def test():
 fun jittestmodule:test {
   bb 0 {
     v6:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v7:MortalCode["inner"] = LoadConst<MortalCode["inner"]>
     v8:MortalUnicodeExact["test.<locals>.inner"] = LoadConst<MortalUnicodeExact["test.<locals>.inner"]>
     v9:MortalFunc = MakeFunction v8 v7 {
@@ -98,12 +106,14 @@ fun jittestmodule:test {
       }
     }
     InitFunction v9
+    Snapshot
     v12:Object = VectorCall<0> v9 {
       FrameState {
         NextInstrOffset 12
         Locals<1> v9
       }
     }
+    Snapshot
     v13:NoneType = LoadConst<NoneType>
     Return v13
   }

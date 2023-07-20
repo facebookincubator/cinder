@@ -9,15 +9,18 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v4:MortalUnicodeExact["Hello"] = LoadConst<MortalUnicodeExact["Hello"]>
     UseType<MortalUnicodeExact> v4
     v5:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v6:MortalUnicodeExact["Hello"] = Assign v4
+    Snapshot
     v7:UnicodeExact = VectorCallStatic<1> v5 v4 {
       FrameState {
         NextInstrOffset 6
       }
     }
+    Snapshot
     Return v7
   }
 }
@@ -30,16 +33,19 @@ def test(seq):
 fun jittestmodule:test {
   bb 0 {
     v5:Object = LoadArg<0; "seq">
+    Snapshot
     v6:MortalUnicodeExact[","] = LoadConst<MortalUnicodeExact[","]>
     UseType<MortalUnicodeExact> v6
     v7:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v8:MortalUnicodeExact[","] = Assign v6
+    Snapshot
     v10:UnicodeExact = VectorCallStatic<2> v7 v6 v5 {
       FrameState {
         NextInstrOffset 8
         Locals<1> v5
       }
     }
+    Snapshot
     Return v10
   }
 }
@@ -58,6 +64,7 @@ fun jittestmodule:test {
     v9:Object = LoadArg<0; "seq">
     v10:Object = LoadArg<1; "use_comma">
     v11:Nullptr = LoadConst<Nullptr>
+    Snapshot
     v13:CInt32 = IsTruthy v10 {
       FrameState {
         NextInstrOffset 4
@@ -68,26 +75,31 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0) {
+    Snapshot
     v14:MortalUnicodeExact[","] = LoadConst<MortalUnicodeExact[","]>
     Branch<3>
   }
 
   bb 2 (preds 0) {
+    Snapshot
     v16:MortalUnicodeExact["."] = LoadConst<MortalUnicodeExact["."]>
     Branch<3>
   }
 
   bb 3 (preds 1, 2) {
     v20:MortalUnicodeExact = Phi<1, 2> v14 v16
+    Snapshot
     UseType<MortalUnicodeExact> v20
     v22:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v23:MortalUnicodeExact = Assign v20
+    Snapshot
     v25:UnicodeExact = VectorCallStatic<2> v22 v20 v9 {
       FrameState {
         NextInstrOffset 22
         Locals<3> v9 v10 v20
       }
     }
+    Snapshot
     Return v25
   }
 }
@@ -100,10 +112,12 @@ def test(name):
 fun jittestmodule:test {
   bb 0 {
     v8:Object = LoadArg<0; "name">
+    Snapshot
     v9:MortalUnicodeExact["{}.{}"] = LoadConst<MortalUnicodeExact["{}.{}"]>
     UseType<MortalUnicodeExact> v9
     v10:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v11:MortalUnicodeExact["{}.{}"] = Assign v9
+    Snapshot
     v14:Object = LoadMethod<1; "upper"> v8 {
       FrameState {
         NextInstrOffset 10
@@ -112,6 +126,7 @@ fun jittestmodule:test {
       }
     }
     v15:OptObject = GetSecondOutput<OptObject> v14
+    Snapshot
     v16:Object = CallMethod<2> v14 v15 {
       FrameState {
         NextInstrOffset 12
@@ -119,12 +134,14 @@ fun jittestmodule:test {
         Stack<3> v10 v11 v8
       }
     }
+    Snapshot
     v17:UnicodeExact = VectorCallStatic<3> v10 v9 v8 v16 {
       FrameState {
         NextInstrOffset 14
         Locals<1> v8
       }
     }
+    Snapshot
     Return v17
   }
 }
@@ -136,23 +153,28 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v7:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     UseType<MortalUnicodeExact> v7
     v8:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v9:MortalUnicodeExact["x"] = Assign v7
+    Snapshot
     v10:UnicodeExact = VectorCallStatic<1> v8 v7 {
       FrameState {
         NextInstrOffset 6
       }
     }
+    Snapshot
     UseType<UnicodeExact> v10
     v11:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v12:UnicodeExact = Assign v10
+    Snapshot
     v13:UnicodeExact = VectorCallStatic<1> v11 v10 {
       FrameState {
         NextInstrOffset 10
       }
     }
+    Snapshot
     Return v13
   }
 }
@@ -169,10 +191,12 @@ fun jittestmodule:test {
         NextInstrOffset 0
       }
     }
+    Snapshot
     v12:MortalUnicodeExact["Hello"] = LoadConst<MortalUnicodeExact["Hello"]>
     UseType<MortalUnicodeExact> v12
     v13:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v14:MortalUnicodeExact["Hello"] = Assign v12
+    Snapshot
     v15:UnicodeExact = VectorCallStatic<1, awaited> v13 v12 {
       FrameState {
         NextInstrOffset 8
@@ -240,10 +264,12 @@ fun jittestmodule:test {
 
   bb 3 (preds 5, 6, 8) {
     v26:Object = Phi<5, 6, 8> v18 v16 v25
+    Snapshot
     Branch<1>
   }
 
   bb 1 (preds 3) {
+    Snapshot
     Return v26
   }
 }
@@ -255,10 +281,12 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:OptObject = LoadGlobalCached<0; "str">
     v6:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v5 {
       Descr 'LOAD_GLOBAL: str'
     }
+    Snapshot
     UseType<Type> v6
     v11:OptType = LoadTypeMethodCacheEntryType<0>
     v12:CBool = PrimitiveCompare<Equal> v11 v6
@@ -282,12 +310,14 @@ fun jittestmodule:test {
   bb 3 (preds 1, 2) {
     v15:Object = Phi<1, 2> v13 v14
     v8:OptObject = GetSecondOutput<OptObject> v15
+    Snapshot
     v9:MortalUnicodeExact["Hello"] = LoadConst<MortalUnicodeExact["Hello"]>
     v10:Object = CallMethod<3> v15 v8 v9 {
       FrameState {
         NextInstrOffset 8
       }
     }
+    Snapshot
     Return v10
   }
 }
@@ -299,6 +329,7 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v4:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
     v5:Object = LoadMethod<0; "unknown"> v4 {
       FrameState {
@@ -306,11 +337,13 @@ fun jittestmodule:test {
       }
     }
     v6:OptObject = GetSecondOutput<OptObject> v5
+    Snapshot
     v7:Object = CallMethod<2> v5 v6 {
       FrameState {
         NextInstrOffset 6
       }
     }
+    Snapshot
     Return v7
   }
 }
@@ -322,10 +355,12 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:MortalBytesExact[''] = LoadConst<MortalBytesExact['']>
     UseType<MortalBytesExact> v5
     v6:MortalObjectUser[classmethod_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[classmethod_descriptor:0xdeadbeef]>
     v7:MortalBytesExact[''] = Assign v5
+    Snapshot
     v8:MortalUnicodeExact["FF"] = LoadConst<MortalUnicodeExact["FF"]>
     v10:ImmortalTypeExact[bytes:obj] = LoadConst<ImmortalTypeExact[bytes:obj]>
     v9:Object = VectorCallStatic<2> v6 v10 v8 {
@@ -333,6 +368,7 @@ fun jittestmodule:test {
         NextInstrOffset 8
       }
     }
+    Snapshot
     Return v9
   }
 }
@@ -344,16 +380,19 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v5:MortalUnicodeExact["%s"] = LoadConst<MortalUnicodeExact["%s"]>
     UseType<MortalUnicodeExact> v5
     v6:MortalObjectUser[wrapper_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[wrapper_descriptor:0xdeadbeef]>
     v7:MortalUnicodeExact["%s"] = Assign v5
+    Snapshot
     v8:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v9:Object = VectorCallStatic<2> v6 v5 v8 {
       FrameState {
         NextInstrOffset 8
       }
     }
+    Snapshot
     Return v9
   }
 }

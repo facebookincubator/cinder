@@ -14,12 +14,15 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 6
     }
+    Snapshot
     v6:ImmortalLongExact[4] = LoadConst<ImmortalLongExact[4]>
     EndInlinedFunction
+    Snapshot
     Return v6
   }
 }
@@ -35,18 +38,23 @@ def test():
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v4:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     v5:ImmortalLongExact[2] = LoadConst<ImmortalLongExact[2]>
     v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 10
     }
+    Snapshot
     UseType<LongExact> v4
     UseType<LongExact> v5
     UseType<ImmortalLongExact[1]> v4
     UseType<ImmortalLongExact[2]> v5
     v21:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    Snapshot
+    Snapshot
     EndInlinedFunction
+    Snapshot
     Return v21
   }
 }
@@ -64,12 +72,15 @@ def test() -> int8:
 ---
 fun jittestmodule:test {
   bb 0 {
+    Snapshot
     v2:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 6
     }
+    Snapshot
     v6:CInt8[4] = LoadConst<CInt8[4]>
     EndInlinedFunction
+    Snapshot
     Return<CInt8> v6
   }
 }
@@ -87,26 +98,32 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v3:Object = LoadArg<0; "x">
+    Snapshot
     v5:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:foo> {
       NextInstrOffset 8
       Locals<1> v3
     }
+    Snapshot
     v13:OptObject = LoadGlobalCached<0; "isinstance">
     v14:MortalObjectUser[builtin_function_or_method:isinstance:0xdeadbeef] = GuardIs<0xdeadbeef> v13 {
       Descr 'LOAD_GLOBAL: isinstance'
     }
+    Snapshot
     v16:OptObject = LoadGlobalCached<1; "bool">
     v17:ImmortalTypeExact[bool:obj] = GuardIs<0xdeadbeef> v16 {
       Descr 'LOAD_GLOBAL: bool'
     }
+    Snapshot
     v18:Object = VectorCall<2> v14 v3 v17 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v3
       }
     }
+    Snapshot
     EndInlinedFunction
+    Snapshot
     Return v18
   }
 }

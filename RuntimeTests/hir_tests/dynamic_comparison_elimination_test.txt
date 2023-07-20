@@ -103,14 +103,17 @@ def test(x):
 fun jittestmodule:test {
   bb 0 {
     v7:Object = LoadArg<0; "x">
+    Snapshot
     v8:OptObject = LoadGlobalCached<0; "isinstance">
     v9:MortalObjectUser[builtin_function_or_method:isinstance:0xdeadbeef] = GuardIs<0xdeadbeef> v8 {
       Descr 'LOAD_GLOBAL: isinstance'
     }
+    Snapshot
     v11:OptObject = LoadGlobalCached<1; "str">
     v12:ImmortalTypeExact[str:obj] = GuardIs<0xdeadbeef> v11 {
       Descr 'LOAD_GLOBAL: str'
     }
+    Snapshot
     v17:Type = LoadField<ob_type@8, Type, borrowed> v7
     v18:CBool = PrimitiveCompare<Equal> v17 v12
     CondBranch<1, 3> v18
@@ -127,11 +130,13 @@ fun jittestmodule:test {
   }
 
   bb 1 (preds 0, 3) {
+    Snapshot
     v15:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     Return v15
   }
 
   bb 2 (preds 3) {
+    Snapshot
     v16:NoneType = LoadConst<NoneType>
     Return v16
   }

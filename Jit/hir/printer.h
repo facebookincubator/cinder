@@ -18,15 +18,21 @@ namespace jit::hir {
 // using a custom streambuf for indentation and via overloads for <<.
 class HIRPrinter {
  public:
+  // Construct an HIRPrinter.
+  //
+  // If full_snapshots is false, Snapshot instructions printed as part of a
+  // BasicBlock, CFG, or Function, will be printed only as the opcode name,
+  // with no FrameState. When printing individual instructions, each caller can
+  // specify whether or not the full instruction should be printed.
   explicit HIRPrinter(
-      bool show_snapshots = false,
+      bool full_snapshots = false,
       const std::string line_prefix = "")
-      : show_snapshots_(show_snapshots), line_prefix_(line_prefix) {}
+      : full_snapshots_(full_snapshots), line_prefix_(line_prefix) {}
 
   void Print(std::ostream& os, const Function& func);
   void Print(std::ostream& os, const CFG& cfg);
   void Print(std::ostream& os, const BasicBlock& block);
-  void Print(std::ostream& os, const Instr& instr);
+  void Print(std::ostream& os, const Instr& instr, bool full_snapshots = true);
   void Print(std::ostream& os, const FrameState& state);
   void Print(std::ostream& os, const CFG& cfg, BasicBlock* start);
 
@@ -48,7 +54,7 @@ class HIRPrinter {
   std::ostream& Indented(std::ostream& os);
 
   int indent_level_{0};
-  bool show_snapshots_{false};
+  bool full_snapshots_{false};
   std::string line_prefix_;
 };
 
@@ -92,6 +98,7 @@ inline std::ostream& operator<<(std::ostream& os, const FrameState& state) {
   return os;
 }
 
+void DebugPrint(const Function& func);
 void DebugPrint(const CFG& cfg);
 void DebugPrint(const BasicBlock& block);
 void DebugPrint(const Instr& instr);
