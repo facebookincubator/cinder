@@ -22,6 +22,8 @@ from importlib.machinery import (
     SourceFileLoader,
     SourcelessFileLoader,
 )
+from os import getenv, makedirs
+from os.path import dirname, isdir
 from py_compile import (
     _get_default_invalidation_mode,
     PycInvalidationMode,
@@ -167,6 +169,7 @@ class StrictModuleTestingPatchProxy:
                 "'" + object.__getattribute__(self, "module").__name__ + "'",
                 file=sys.stderr,
             )
+            # There's a test that depends on this being mocked out.
             os.abort()
 
 
@@ -203,12 +206,12 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.name = fullname
         self.path = path
         self.import_path: Iterable[str] = import_path or list(sys.path)
-        configured_stub_path = sys._xoptions.get(
-            "strict-module-stubs-path"
-        ) or os.getenv("PYTHONSTRICTMODULESTUBSPATH")
+        configured_stub_path = sys._xoptions.get("strict-module-stubs-path") or getenv(
+            "PYTHONSTRICTMODULESTUBSPATH"
+        )
         if stub_path is None:
             stub_path = configured_stub_path or DEFAULT_STUB_PATH
-        if stub_path and not os.path.isdir(stub_path):
+        if stub_path and not isdir(stub_path):
             raise ValueError(f"Strict module stubs path does not exist: {stub_path}")
         self.stub_path: str = stub_path
         self.allow_list_prefix: Iterable[str] = allow_list_prefix or []
@@ -483,12 +486,9 @@ def strict_compile(
         else:
             sys.stderr.write(py_exc.msg + "\n")
             return
-    try:
-        dirname = os.path.dirname(cfile)
-        if dirname:
-            os.makedirs(dirname)
-    except FileExistsError:
-        pass
+
+    makedirs(dirname(cfile), exist_ok=True)
+
     # Incomplete typeshed stub.  T54150924
     if invalidation_mode is None:
         # Incomplete typeshed stub.  T54150924
