@@ -1651,30 +1651,28 @@ static int register_fork_callback(BorrowedRef<> cinderjit_module) {
   return 0;
 }
 
-// TODO(T130105107) Fix the leak and remove this setup.
-//
-// Broken out for LSAN suppression. I really don't understand how this leaks as
-// all the strings in here are decrefed on shutdown. When I looked at this the
-// string leaking was 'HAVE_ARGUMENT' and nothing else. Tracing through with rr
-// it doesn't seem like anything else is trying to use this interned string
-// either. At least nothing that increfs it.
-// This is Deliberately not static/anonymously namespaced so it's an exposed
-// symbol.
+// Initialize some interned strings that can be used even when the JIT is off.
 int _PyJIT_InitializeInternedStrings() {
-  // Initialize some interned strings that can be used even when the JIT is
-  // off.
-#define INTERN_STR(s)                         \
-  s_str_##s = PyUnicode_InternFromString(#s); \
-  if (s_str_##s == nullptr) {                 \
-    return -1;                                \
+#define INTERN_STR(s)                                            \
+  if ((s_str_##s = PyUnicode_InternFromString(#s)) == nullptr) { \
+    return -1;                                                   \
   }
   INTERNED_STRINGS(INTERN_STR)
 #undef INTERN_STR
 
-#define MAKE_OPNAME(opname, opnum)                                   \
-  if ((s_opnames.at(opnum) = PyUnicode_InternFromString(#opname)) == \
-      nullptr) {                                                     \
-    return -1;                                                       \
+#define MAKE_OPNAME(opname, opnum)                                             \
+  /*                                                                           \
+   * HAVE_ARGUMENT is not a real opcode, it shares its value with              \
+   * STORE_NAME. It's the demarcation line between opcodes that take arguments \
+   * and those that don't.  If we tried to intern the "HAVE_ARGUMENT" string   \
+   * here, it would be leaked because the "STORE_NAME" string would silently   \
+   * replace it.                                                               \
+   */                                                                          \
+  if (opname != HAVE_ARGUMENT) {                                               \
+    if ((s_opnames.at(opnum) = PyUnicode_InternFromString(#opname)) ==         \
+        nullptr) {                                                             \
+      return -1;                                                               \
+    }                                                                          \
   }
   PY_OPCODES(MAKE_OPNAME)
 #undef MAKE_OPNAME
@@ -1688,6 +1686,20 @@ int _PyJIT_InitializeInternedStrings() {
 #undef HIR_OP
 
   return 0;
+}
+
+void _PyJIT_FinalizeInternedStrings() {
+#define CLEAR_STR(s) Py_CLEAR(s_str_##s);
+  INTERNED_STRINGS(CLEAR_STR)
+#undef CLEAR_STR
+
+  for (PyObject*& opname : s_opnames) {
+    Py_CLEAR(opname);
+  }
+
+  for (PyObject*& opname : s_hir_opnames) {
+    Py_CLEAR(opname);
+  }
 }
 
 // JIT audit event callback. For now, we only pay attention to when an object's
@@ -2151,16 +2163,7 @@ int _PyJIT_Finalize() {
     CodeAllocator::freeGlobalCodeAllocator();
   }
 
-#define CLEAR_STR(s) Py_CLEAR(s_str_##s);
-  INTERNED_STRINGS(CLEAR_STR)
-#undef CLEAR_STR
-
-  for (PyObject*& opname : s_opnames) {
-    Py_CLEAR(opname);
-  }
-  for (PyObject*& opname : s_hir_opnames) {
-    Py_CLEAR(opname);
-  }
+  _PyJIT_FinalizeInternedStrings();
 
   Runtime::shutdown();
   return 0;
