@@ -606,8 +606,8 @@ void initFlagProcessor() {
         "jit-dump-hir-passes-json",
         "PYTHONJITDUMPHIRPASSESJSON",
         [](std::string json_output_dir) {
-          g_dump_hir_passes_json = ::strdup(json_output_dir.c_str());
-          int mkdir_result = ::mkdir(g_dump_hir_passes_json, 0755);
+          g_dump_hir_passes_json = json_output_dir;
+          int mkdir_result = ::mkdir(g_dump_hir_passes_json.c_str(), 0755);
           JIT_CHECK(
               mkdir_result == 0 || errno == EEXIST,
               "could not make JSON directory");

@@ -44,7 +44,7 @@ class Annotations {
   // description.
   template <typename T>
   void add(T&& item, asmjit::x86::Builder* as, asmjit::BaseNode* start_cursor) {
-    if (!g_dump_asm && !g_dump_hir_passes_json) {
+    if (!g_dump_asm && g_dump_hir_passes_json.empty()) {
       return;
     }
     auto end_cursor = as->cursor();

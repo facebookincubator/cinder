@@ -294,7 +294,7 @@ void* NativeGenerator::getVectorcallEntry() {
       "Lowering into LIR",
       lir_func = lirgen.TranslateFunction())
 
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     lir::JSONPrinter lir_printer;
     (*json)["cols"].emplace_back(lir_printer.print(*lir_func, "Initial LIR"));
   }
@@ -330,7 +330,7 @@ void* NativeGenerator::getVectorcallEntry() {
       "Register Allocation",
       lsalloc.run())
 
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     lir::JSONPrinter lir_printer;
     (*json)["cols"].emplace_back(
         lir_printer.print(*lir_func, "Register-allocated LIR"));
@@ -1441,7 +1441,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       codeholder.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = codeholder.codeSize();
 
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     env_.annotations.disassembleJSON(*json, code_top, codeholder);
   }
 

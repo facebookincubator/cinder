@@ -199,7 +199,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
 
   PassConfig config = createConfig();
   std::unique_ptr<nlohmann::json> json{nullptr};
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     // TODO(emacs): For inlined functions, grab the sources from all the
     // different functions inlined.
     json.reset(new nlohmann::json());
@@ -232,7 +232,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     return nullptr;
   }
 
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     ngen->SetJSONOutput(json.get());
   }
 
@@ -256,7 +256,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   int stack_size = ngen->GetCompiledFunctionStackSize();
   int spill_stack_size = ngen->GetCompiledFunctionSpillStackSize();
 
-  if (g_dump_hir_passes_json != nullptr) {
+  if (!g_dump_hir_passes_json.empty()) {
     std::string filename =
         fmt::format("{}/function_{}.json", g_dump_hir_passes_json, fullname);
     JIT_DLOG("Dumping JSON for %s to %s", fullname, filename);
