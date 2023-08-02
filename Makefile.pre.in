@@ -2709,7 +2709,7 @@ endif
 
 test_strict_module: strict_module_tests
 	cd $(srcdir) && \
-		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` \
+		env PYTHONPATH=`cat $(abs_builddir)/pybuilddir.txt` $(ASAN_TEST_ENV_WITH_LSAN) \
 		ThirdParty/gtest-parallel/gtest-parallel \
 		$(abs_builddir)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
 

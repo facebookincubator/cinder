@@ -6,5 +6,4 @@ leak:PyArena_New
 leak:pymain_init
 leak:new_interpreter
 leak:Py_NewInterpreter
-# TODO(T130105576)
 leak:strictmod::
