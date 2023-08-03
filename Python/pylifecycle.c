@@ -1180,12 +1180,12 @@ init_interp_main(PyThreadState *tstate)
      */
 #ifdef ENABLE_CINDERX
     if (is_main_interp) {
-      int pj_jit_status = _PyJIT_Initialize();
-      if (pj_jit_status < 0) {
-        if (pj_jit_status == -2) {
+      int cinder_status = Cinder_Init();
+      if (cinder_status < 0) {
+        if (cinder_status == -2) {
           return PyStatus_Exit(0);
         }
-        Py_FatalError("Can't initialize jit");
+        Py_FatalError("Can't initialize Cinder");
       }
     }
 #endif
@@ -1973,7 +1973,7 @@ Py_FinalizeEx(void)
 #endif /* Py_TRACE_REFS */
 
 #ifdef ENABLE_CINDERX
-    _PyJIT_Finalize();
+    Cinder_Fini();
 #endif
 
     finalize_interp_clear(tstate);
@@ -2079,6 +2079,13 @@ new_interpreter(PyThreadState **tstate_p, int isolated_subinterpreter)
     if (_PyStatus_EXCEPTION(status)) {
         goto error;
     }
+
+#ifdef ENABLE_CINDERX
+    int cinder_status = Cinder_InitSubInterp();
+    if (cinder_status < 0) {
+        goto error;
+    }
+#endif
 
     status = pycore_interp_init(tstate);
     if (_PyStatus_EXCEPTION(status)) {

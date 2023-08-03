@@ -306,9 +306,12 @@ SplitMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
       }
     }
 
+    uint64_t new_version =
+        _PyDict_NotifyEvent(PyDict_EVENT_MODIFIED, dict, name, value);
+
     Py_INCREF(value);
     dict->ma_values[val_offset] = value;
-    _PyDict_IncVersionForSet(dict, name, value);
+    dict->ma_version_tag = new_version;
 
     if (old_value == nullptr) {
       dict->ma_used++;

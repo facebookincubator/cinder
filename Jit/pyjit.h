@@ -35,6 +35,20 @@ PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
  * otherwise.
  */
 
+/* Initialize Cinder global state.
+ *
+ * Initializes the JIT, and shared infrastructure such as watchers.
+ *
+ * Returns 0 on success or -1 on error.
+ */
+PyAPI_FUNC(int) Cinder_Init(void);
+
+/* Finalize Cinder global state.
+ *
+ * Returns 0 on success or -1 on error.
+ */
+PyAPI_FUNC(int) Cinder_Fini(void);
+
 /*
  * Initialize any global state required by the JIT.
  *
@@ -43,6 +57,13 @@ PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
  * Returns 0 on success or -1 on error.
  */
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
+
+/*
+ * Initialize per-subinterpreter Cinder state.
+ *
+ * Returns 0 on success or -1 on error.
+ */
+PyAPI_FUNC(int) Cinder_InitSubInterp(void);
 
 /*
  * Enable the global JIT.
@@ -152,6 +173,21 @@ PyAPI_FUNC(_PyJIT_Result) _PyJIT_CompileFunction(PyFunctionObject* func);
  * and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_RegisterFunction(PyFunctionObject* func);
+
+/*
+ * Watch or unwatch a dictionary.
+ */
+PyAPI_FUNC(void) _PyJIT_WatchDict(PyObject* dict);
+PyAPI_FUNC(void) _PyJIT_UnwatchDict(PyObject* dict);
+
+/*
+ * Dict watcher callback; called on modifications to any watched dict.
+ */
+PyAPI_FUNC(int) _Cinder_DictWatcher(
+    PyDict_WatchEvent event,
+    PyObject* dict,
+    PyObject* key,
+    PyObject* new_value);
 
 /*
  * Informs the JIT that a type, function, or code object is being created,
