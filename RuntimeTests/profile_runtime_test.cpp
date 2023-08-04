@@ -1,15 +1,15 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/profile_data.h"
+#include "Jit/runtime.h"
 
 #include "RuntimeTests/fixtures.h"
 
 using namespace jit;
 
-using ProfileDataTest = RuntimeTest;
+using ProfileRuntimeTest = RuntimeTest;
 
-TEST_F(ProfileDataTest, UnregistersTypeWithModifiedName) {
+TEST_F(ProfileRuntimeTest, UnregistersTypeWithModifiedName) {
   const char* src = R"(
 class MyType:
     bar = 12
@@ -19,14 +19,9 @@ def foo(o):
 
 foo(MyType())
 )";
-  std::string data;
-  ASSERT_NO_FATAL_FAILURE(runCodeAndCollectProfile(src, data));
+  ASSERT_NO_FATAL_FAILURE(runAndProfileCode(src));
 
-  std::istringstream stream{data};
-  ASSERT_TRUE(readProfileData(stream));
-  ASSERT_TRUE(runCode(src));
-
-  Ref<> my_type = getGlobal("MyType");
+  Ref<PyTypeObject> my_type = getGlobal("MyType");
   ASSERT_NE(my_type, nullptr);
 
   Ref<PyFunctionObject> foo(getGlobal("foo"));
@@ -48,20 +43,18 @@ foo(MyType())
   }
   ASSERT_NE(load_attr, -1);
 
-  const CodeProfileData* profile_data = getProfileData(foo_code);
-  ASSERT_NE(profile_data, nullptr);
-  PolymorphicTypes types = getProfiledTypes(*profile_data, load_attr);
+  auto& profile_runtime = Runtime::get()->profileRuntime();
+
+  auto types = profile_runtime.getProfiledTypes(foo_code, load_attr);
   ASSERT_EQ(types.size(), 1);
-  ASSERT_EQ(types[0].size(), 1);
-  ASSERT_EQ(types[0][0], my_type);
+  ASSERT_EQ(types[0], hir::Type::fromTypeExact(my_type));
 
   // Change MyType's name and check that it no longer shows up in
   // getProfiledTypes().
   auto new_name = Ref<>::steal(PyUnicode_FromString("YourType"));
   ASSERT_NE(new_name, nullptr);
   ASSERT_EQ(PyObject_SetAttrString(my_type, "__name__", new_name), 0);
-  types = getProfiledTypes(*profile_data, load_attr);
+  types = profile_runtime.getProfiledTypes(foo_code, load_attr);
   ASSERT_EQ(types.size(), 1);
-  ASSERT_EQ(types[0].size(), 1);
-  ASSERT_EQ(types[0][0], nullptr);
+  ASSERT_EQ(types[0], hir::TTop);
 }

@@ -72,7 +72,8 @@ class RuntimeTest : public ::testing::Test {
     return res != nullptr;
   }
 
-  void runCodeAndCollectProfile(const char* src, std::string& output);
+  // Run some code with profiling enabled, and save the resulting profile data.
+  void runAndProfileCode(const char* src);
 
   Ref<> compileAndGet(const char* src, const char* name) {
     if (!runCode(src)) {

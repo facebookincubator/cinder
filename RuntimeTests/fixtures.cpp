@@ -2,33 +2,34 @@
 
 #include "cinder/exports.h"
 
-#include "Jit/profile_data.h"
+#include "Jit/runtime.h"
 
 #include <sstream>
 
-void RuntimeTest::runCodeAndCollectProfile(
-    const char* src,
-    std::string& output) {
-  // Run the test body once with profiling enabled, save the resulting
-  // profile data, then tear down and set up again for a normal HIR test with
-  // the profile data.
+void RuntimeTest::runAndProfileCode(const char* src) {
+  // Disable the JIT temporarily so we get maximum coverage from the
+  // interpreter.
   int jit_enabled = _PyJIT_IsEnabled();
   _PyJIT_Disable();
   Ci_ThreadState_SetProfileInterpAll(1);
-  if (compile_static_) {
-    ASSERT_TRUE(runStaticCode(src));
-  } else {
-    ASSERT_TRUE(runCode(src));
-  }
-  std::stringstream data;
-  ASSERT_TRUE(jit::writeProfileData(data));
-  output = data.str();
 
-  TearDown();
-  SetUp();
+  ASSERT_TRUE(compile_static_ ? runStaticCode(src) : runCode(src));
+
+  // Capture the profile.
+  std::stringstream write_stream;
+  ASSERT_TRUE(jit::Runtime::get()->profileRuntime().serialize(write_stream));
+  std::string profile = write_stream.str();
+
+  Ci_ThreadState_SetProfileInterpAll(0);
   if (jit_enabled) {
     _PyJIT_Enable();
   }
+
+  // Load the profile now that the JIT has been re-enabled.  This is necessary
+  // to have the JIT make use of it (for now).
+  std::stringstream read_stream{profile};
+  ASSERT_TRUE(
+      jit::Runtime::get()->profileRuntime().deserialize(read_stream));
 }
 
 void HIRTest::TestBody() {
@@ -43,9 +44,7 @@ void HIRTest::TestBody() {
 
   if (use_profile_data_) {
     std::string data;
-    ASSERT_NO_FATAL_FAILURE(runCodeAndCollectProfile(src_.c_str(), data));
-    std::istringstream stream(data);
-    ASSERT_TRUE(jit::readProfileData(stream));
+    ASSERT_NO_FATAL_FAILURE(runAndProfileCode(src_.c_str()));
   }
 
   std::unique_ptr<Function> irfunc;

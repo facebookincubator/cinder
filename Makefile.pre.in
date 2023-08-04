@@ -485,7 +485,6 @@ JIT_OBJS=       \
 		Jit/live_type_map.o \
 		Jit/log.o \
 		Jit/perf_jitdump.o \
-		Jit/profile_data.o \
 		Jit/profile_runtime.o \
 		Jit/pyjit.o \
 		Jit/runtime.o \
@@ -1356,7 +1355,6 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/jit_rt.h \
 		$(srcdir)/Jit/jit_time_log.h \
 		$(srcdir)/Jit/perf_jitdump.h \
-		$(srcdir)/Jit/profile_data.h \
 		$(srcdir)/Jit/profile_runtime.h \
 		$(srcdir)/Jit/ref.h \
 		$(srcdir)/Jit/runtime.h \
@@ -2641,7 +2639,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_DIR}/lir_test.o \
 	${RUNTIME_TESTS_DIR}/live_type_map_test.o \
 	${RUNTIME_TESTS_DIR}/main.o \
-	${RUNTIME_TESTS_DIR}/profile_data_test.o \
+	${RUNTIME_TESTS_DIR}/profile_runtime_test.o \
 	${RUNTIME_TESTS_DIR}/ref_test.o \
 	${RUNTIME_TESTS_DIR}/regalloc_test.o \
 	${RUNTIME_TESTS_DIR}/sanity_test.o \

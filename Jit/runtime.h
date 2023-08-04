@@ -485,6 +485,8 @@ class Runtime {
   DeoptStats deopt_stats_;
   GuardFailureCallback guard_failure_callback_;
 
+  // Note: Ideally this would be separate from JIT metadata.  It should be
+  // usable even when the JIT is fully reset.
   ProfileRuntime profile_runtime_;
 
   // References to Python objects held by this Runtime

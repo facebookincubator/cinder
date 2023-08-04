@@ -151,6 +151,7 @@ class HIRBuilder {
   void emitProfiledTypes(
       TranslationContext& tc,
       const ProfileRuntime& profile_runtime,
+      const CodeKey& codeKey,
       const BytecodeInstruction& bc_instr);
 
   void emitBinaryOp(

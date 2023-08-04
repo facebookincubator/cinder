@@ -6,7 +6,7 @@
 #include "Jit/jit_list.h"
 #include "Jit/lir/inliner.h"
 #include "Jit/perf_jitdump.h"
-#include "Jit/profile_data.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/pyjit.h"
 
 #include "RuntimeTests/fixtures.h"

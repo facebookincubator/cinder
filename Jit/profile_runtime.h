@@ -24,6 +24,11 @@ struct CodeProfile {
   int64_t total_hits{0};
 };
 
+// A CodeKey is an opaque value that uniquely identifies a specific code
+// object. It may include information about the name, file path, and contents
+// of the code object.
+using CodeKey = std::string;
+
 class ProfileRuntime {
  public:
   using ProfileMap = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
@@ -42,6 +47,11 @@ class ProfileRuntime {
   std::vector<hir::Type> getProfiledTypes(
       BorrowedRef<PyCodeObject> code,
       BCOffset bc_off) const;
+
+  // Variant of getProfiledTypes() that takes an opaque code key instead of a
+  // code object.
+  std::vector<hir::Type> getProfiledTypes(const CodeKey& code, BCOffset bc_off)
+      const;
 
   // Record a type profile for an instruction and its current Python stack.
   void profileInstr(
@@ -92,6 +102,9 @@ class ProfileRuntime {
   bool deserialize(const std::string& filename);
   bool deserialize(std::istream& stream);
 
+  // Compute an opaque code key from a code object.
+  CodeKey codeKey(BorrowedRef<PyCodeObject> code) const;
+
   // Clear any loaded or collected profile data.
   void clear();
 
@@ -104,8 +117,29 @@ class ProfileRuntime {
  private:
   DISALLOW_COPY_AND_ASSIGN(ProfileRuntime);
 
+  // Profiling information for a PyCodeObject.  This is different from
+  // `CodeProfile` in that it only holds profiling information from a file, it
+  // doesn't hold any counters.
+  using CodeProfileData =
+      UnorderedMap<BCOffset, std::vector<std::vector<std::string>>>;
+
+  void readVersion2(std::istream& stream);
+  void readVersion3(std::istream& stream);
+  void readVersion4(std::istream& stream);
+  std::pair<size_t, size_t> writeVersion4(std::ostream& stream) const;
+
   // Profiles captured while executing code.
   ProfileMap profiles_;
+
+  // Profiles loaded from a file.
+  UnorderedMap<CodeKey, CodeProfileData> loaded_profiles_;
+
+  // Tracks split dict keys for profiled types.
+  UnorderedMap<std::string, std::vector<std::string>> type_dict_keys_;
+
+  // Pattern to strip from filenames while computing CodeKeys.
+  std::regex strip_pattern_;
+
   bool can_profile_{true};
 };
 

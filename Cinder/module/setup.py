@@ -63,7 +63,6 @@ JIT_SRCS = [
     "Jit/live_type_map.cpp",
     "Jit/log.cpp",
     "Jit/perf_jitdump.cpp",
-    "Jit/profile_data.cpp",
     "Jit/profile_runtime.cpp",
     "Jit/pyjit.cpp",
     "Jit/runtime.cpp",

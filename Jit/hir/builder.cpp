@@ -640,6 +640,7 @@ BasicBlock* HIRBuilder::buildHIRImpl(
 void HIRBuilder::emitProfiledTypes(
     TranslationContext& tc,
     const ProfileRuntime& profile_runtime,
+    const CodeKey& code_key,
     const BytecodeInstruction& bc_instr) {
   if (bc_instr.opcode() == CALL_METHOD) {
     // TODO(T107300350): Ignore profiling data for CALL_METHOD because we lie
@@ -648,7 +649,7 @@ void HIRBuilder::emitProfiledTypes(
   }
 
   std::vector<Type> types =
-      profile_runtime.getProfiledTypes(tc.frame.code, bc_instr.offset());
+      profile_runtime.getProfiledTypes(code_key, bc_instr.offset());
 
   if (types.empty() || types.size() > tc.frame.stack.size()) {
     // The types are either absent or invalid (e.g., from a different version
@@ -765,6 +766,7 @@ void HIRBuilder::translate(
   std::unordered_set<BasicBlock*> loop_headers;
 
   auto const& profile_runtime = Runtime::get()->profileRuntime();
+  auto code_key = profile_runtime.codeKey(tc.frame.code);
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());
@@ -791,7 +793,7 @@ void HIRBuilder::translate(
       BytecodeInstruction bc_instr = *bc_it;
       tc.setCurrentInstr(bc_instr);
 
-      emitProfiledTypes(tc, profile_runtime, bc_instr);
+      emitProfiledTypes(tc, profile_runtime, code_key, bc_instr);
 
       // Translate instruction
       switch (bc_instr.opcode()) {
