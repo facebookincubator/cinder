@@ -486,6 +486,7 @@ JIT_OBJS=       \
 		Jit/log.o \
 		Jit/perf_jitdump.o \
 		Jit/profile_data.o \
+		Jit/profile_runtime.o \
 		Jit/pyjit.o \
 		Jit/runtime.o \
 		Jit/runtime_support.o \
@@ -1356,6 +1357,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/jit_time_log.h \
 		$(srcdir)/Jit/perf_jitdump.h \
 		$(srcdir)/Jit/profile_data.h \
+		$(srcdir)/Jit/profile_runtime.h \
 		$(srcdir)/Jit/ref.h \
 		$(srcdir)/Jit/runtime.h \
 		$(srcdir)/Jit/runtime_support.h \

@@ -162,6 +162,10 @@ void Runtime::mlockProfilerDependencies() {
   code_runtimes_.mlock();
 }
 
+ProfileRuntime& Runtime::profileRuntime() {
+  return profile_runtime_;
+}
+
 Ref<> Runtime::pageInProfilerDependencies() {
   ThreadedCompileSerialize guard;
   Ref<> qualnames = Ref<>::steal(PyList_New(0));
@@ -296,10 +300,6 @@ InlineCacheStats Runtime::getAndClearLoadTypeMethodCacheStats() {
     cache.clearCacheStats();
   }
   return stats;
-}
-
-TypeProfiles& Runtime::typeProfiles() {
-  return type_profiles_;
 }
 
 void Runtime::setGuardFailureCallback(Runtime::GuardFailureCallback cb) {

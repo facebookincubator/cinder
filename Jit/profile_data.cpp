@@ -8,9 +8,8 @@
 #include "Jit/containers.h"
 #include "Jit/hir/type.h"
 #include "Jit/live_type_map.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/ref.h"
-
-#include <zlib.h>
 
 #include <fstream>
 #include <type_traits>
@@ -19,23 +18,12 @@ namespace jit {
 
 std::regex profileDataStripPattern;
 
-uint32_t hashBytecode(PyCodeObject* code) {
-  uint32_t crc = crc32(0, nullptr, 0);
-  BorrowedRef<> bc = code->co_code;
-  if (!PyBytes_Check(bc)) {
-    return crc;
-  }
-
-  char* buffer;
-  Py_ssize_t len;
-  if (PyBytes_AsStringAndSize(bc, &buffer, &len) < 0) {
-    return crc;
-  }
-
-  return crc32(crc, reinterpret_cast<unsigned char*>(buffer), len);
-}
-
 namespace {
+
+// A CodeKey is an opaque value that uniquely identifies a specific code
+// object. It may include information about the name, file path, and contents
+// of the code object.
+using CodeKey = std::string;
 
 const uint64_t kMagicHeader = 0x7265646e6963;
 constexpr uint32_t kThisPyVersion = PY_VERSION_HEX >> 16;
@@ -52,6 +40,15 @@ LiveTypeMap s_live_types;
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 #error Integers in profile data files are little endian.
 #endif
+
+CodeKey codeKey(PyCodeObject* code) {
+  const std::string filename = std::regex_replace(
+      unicodeAsString(code->co_filename), profileDataStripPattern, "");
+  const int firstlineno = code->co_firstlineno;
+  const std::string qualname = codeQualname(code);
+  uint32_t hash = hashBytecode(code);
+  return fmt::format("{}:{}:{}:{}", filename, firstlineno, qualname, hash);
+}
 
 template <typename T>
 T read(std::istream& stream) {
@@ -105,11 +102,13 @@ void readVersion2(std::istream& stream) {
   }
 }
 
-void writeVersion4(std::ostream& stream, const TypeProfiles& profiles) {
+void writeVersion4(
+    std::ostream& stream,
+    const ProfileRuntime& profile_runtime) {
   ProfileData data;
   std::unordered_set<BorrowedRef<PyTypeObject>> dict_key_types;
 
-  for (auto& [code_obj, code_profile] : profiles) {
+  for (auto& [code_obj, code_profile] : profile_runtime) {
     CodeProfileData code_data;
     for (auto& profile_pair : code_profile.typed_hits) {
       const TypeProfiler& profile = *profile_pair.second;
@@ -294,7 +293,7 @@ bool writeProfileData(std::ostream& stream) {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     write<uint64_t>(stream, kMagicHeader);
     write<uint32_t>(stream, 4);
-    writeVersion4(stream, Runtime::get()->typeProfiles());
+    writeVersion4(stream, Runtime::get()->profileRuntime());
   } catch (const std::runtime_error& e) {
     JIT_LOG("Failed to write profile data to stream: %s", e.what());
     return false;
@@ -334,25 +333,6 @@ PolymorphicTypes getProfiledTypes(
 
 bool hasPrimedDictKeys(BorrowedRef<PyTypeObject> type) {
   return s_live_types.hasPrimedDictKeys(type);
-}
-
-std::string codeKey(PyCodeObject* code) {
-  const std::string filename = std::regex_replace(
-      unicodeAsString(code->co_filename), profileDataStripPattern, "");
-  const int firstlineno = code->co_firstlineno;
-  const std::string qualname = codeQualname(code);
-  uint32_t hash = hashBytecode(code);
-  return fmt::format("{}:{}:{}:{}", filename, firstlineno, qualname, hash);
-}
-
-std::string codeQualname(PyCodeObject* code) {
-  if (code->co_qualname != nullptr) {
-    return unicodeAsString(code->co_qualname);
-  }
-  if (code->co_name != nullptr) {
-    return unicodeAsString(code->co_name);
-  }
-  return "<unknown>";
 }
 
 int numCachedKeys(BorrowedRef<PyTypeObject> type) {

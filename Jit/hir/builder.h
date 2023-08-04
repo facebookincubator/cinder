@@ -8,7 +8,7 @@
 #include "Jit/bytecode_offsets.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/preload.h"
-#include "Jit/profile_data.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/stack.h"
 #include "Jit/util.h"
 
@@ -150,7 +150,7 @@ class HIRBuilder {
       const TranslationContext& tc);
   void emitProfiledTypes(
       TranslationContext& tc,
-      const CodeProfileData& profile_data,
+      const ProfileRuntime& profile_runtime,
       const BytecodeInstruction& bc_instr);
 
   void emitBinaryOp(

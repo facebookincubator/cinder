@@ -7,6 +7,8 @@
 #include "Jit/log.h"
 #include "Jit/ref.h"
 
+#include <zlib.h>
+
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -199,6 +201,32 @@ bool ensureVersionTag(BorrowedRef<PyTypeObject> type) {
   }
   ThreadedCompileSerialize guard;
   return PyUnstable_Type_AssignVersionTag(type);
+}
+
+uint32_t hashBytecode(BorrowedRef<PyCodeObject> code) {
+  uint32_t crc = crc32(0, nullptr, 0);
+  BorrowedRef<> bc = code->co_code;
+  if (!PyBytes_Check(bc)) {
+    return crc;
+  }
+
+  char* buffer;
+  Py_ssize_t len;
+  if (PyBytes_AsStringAndSize(bc, &buffer, &len) < 0) {
+    return crc;
+  }
+
+  return crc32(crc, reinterpret_cast<unsigned char*>(buffer), len);
+}
+
+std::string codeQualname(BorrowedRef<PyCodeObject> code) {
+  if (code->co_qualname != nullptr) {
+    return unicodeAsString(code->co_qualname);
+  }
+  if (code->co_name != nullptr) {
+    return unicodeAsString(code->co_name);
+  }
+  return "<unknown>";
 }
 
 } // namespace jit

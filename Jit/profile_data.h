@@ -16,9 +16,6 @@ namespace jit {
 // Pattern to strip from filenames while computing CodeKeys.
 extern std::regex profileDataStripPattern;
 
-// Return a crc32 checksum of the bytecode for the given code object.
-uint32_t hashBytecode(PyCodeObject* code);
-
 // Load serialized profile data from the given filename or stream, returning
 // true on success.
 //
@@ -55,18 +52,6 @@ PolymorphicTypes getProfiledTypes(const CodeProfileData& data, BCOffset bc_off);
 // Check whether the given type has split dict keys primed from profile data,
 // which implies that they are unlikely to change at runtime.
 bool hasPrimedDictKeys(BorrowedRef<PyTypeObject> type);
-
-// A CodeKey is an opaque value that uniquely identifies a specific code
-// object. It may include information about the name, file path, and contents
-// of the code object.
-using CodeKey = std::string;
-
-// Return the code key for the given code object.
-CodeKey codeKey(PyCodeObject* code);
-
-// Return the qualname of the given code object, falling back to its name or
-// "<unknown>" if not set.
-std::string codeQualname(PyCodeObject* code);
 
 // Return the number of cached split dict keys in the given type.
 int numCachedKeys(BorrowedRef<PyTypeObject> type);

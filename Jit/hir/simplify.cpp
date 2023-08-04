@@ -7,7 +7,7 @@
 #include "Jit/hir/optimization.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
-#include "Jit/profile_data.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/runtime.h"
 #include "Jit/type_deopt_patchers.h"
 
@@ -747,7 +747,9 @@ Register* simplifyLoadAttrSplitDict(
     return nullptr;
   }
   BorrowedRef<PyHeapTypeObject> ht(type);
-  if (ht->ht_cached_keys == nullptr || !hasPrimedDictKeys(type)) {
+  auto& profile_runtime = Runtime::get()->profileRuntime();
+  if (ht->ht_cached_keys == nullptr ||
+      !profile_runtime.hasPrimedDictKeys(type)) {
     return nullptr;
   }
   PyDictKeysObject* keys = ht->ht_cached_keys;

@@ -64,6 +64,7 @@ JIT_SRCS = [
     "Jit/log.cpp",
     "Jit/perf_jitdump.cpp",
     "Jit/profile_data.cpp",
+    "Jit/profile_runtime.cpp",
     "Jit/pyjit.cpp",
     "Jit/runtime.cpp",
     "Jit/runtime_support.cpp",

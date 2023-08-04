@@ -24,7 +24,7 @@
 #include "Jit/lir/inliner.h"
 #include "Jit/log.h"
 #include "Jit/perf_jitdump.h"
-#include "Jit/profile_data.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/ref.h"
 #include "Jit/runtime.h"
 #include "Jit/strobelight_exports.h"
@@ -493,7 +493,9 @@ void initFlagProcessor() {
             "PYTHONJITPROFILESTRIPPATTERN",
             [](const std::string& pattern) {
               try {
-                profileDataStripPattern = pattern;
+                auto& profile_runtime =
+                    jit::Runtime::get()->profileRuntime();
+                profile_runtime.setStripPattern(std::regex{pattern});
               } catch (const std::regex_error& ree) {
                 JIT_LOG(
                     "Bad profile strip pattern '%s': %s", pattern, ree.what());
@@ -1838,7 +1840,8 @@ int _PyJIT_Initialize() {
 
   if (!read_profile_file.empty()) {
     JIT_LOG("Loading profile data from %s", read_profile_file);
-    if (!readProfileData(read_profile_file)) {
+    auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+    if (!profile_runtime.deserialize(read_profile_file)) {
       return -1;
     }
   }
@@ -2066,7 +2069,8 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
 }
 
 void _PyJIT_TypeCreated(PyTypeObject* type) {
-  registerProfiledType(type);
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  profile_runtime.registerType(type);
 }
 
 void _PyJIT_TypeModified(PyTypeObject* type) {
@@ -2082,7 +2086,8 @@ void _PyJIT_TypeModified(PyTypeObject* type) {
 void _PyJIT_TypeNameModified(PyTypeObject* type) {
   // We assume that this is a very rare case, and simply give up on tracking
   // the type if it happens.
-  unregisterProfiledType(type);
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  profile_runtime.unregisterType(type);
   if (auto rt = Runtime::getUnchecked()) {
     rt->notifyTypeModified(type, type);
   }
@@ -2092,7 +2097,8 @@ void _PyJIT_TypeDestroyed(PyTypeObject* type) {
   if (jit_ctx) {
     _PyJITContext_TypeDestroyed(jit_ctx, type);
   }
-  unregisterProfiledType(type);
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  profile_runtime.unregisterType(type);
   if (auto rt = Runtime::getUnchecked()) {
     rt->notifyTypeModified(type, nullptr);
   }
@@ -2171,11 +2177,13 @@ int _PyJIT_Finalize() {
     dump_jit_stats();
   }
 
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
   if (!g_write_profile_file.empty()) {
-    writeProfileData(g_write_profile_file.c_str());
+    profile_runtime.serialize(g_write_profile_file);
     g_write_profile_file.clear();
   }
-  clearProfileData();
+
+  profile_runtime.clear();
 
   if (!g_write_compiled_functions_file.empty()) {
     dump_jit_compiled_functions(g_write_compiled_functions_file);
@@ -2361,150 +2369,13 @@ void _PyJIT_ProfileCurrentInstr(
     PyObject** stack_top,
     int opcode,
     int oparg) {
-  auto profile_stack = [&](auto... stack_offsets) {
-    CodeProfile& code_profile =
-        jit::Runtime::get()
-            ->typeProfiles()[Ref<PyCodeObject>::create(frame->f_code)];
-    int opcode_offset = frame->f_lasti * sizeof(_Py_CODEUNIT);
-
-    auto pair = code_profile.typed_hits.emplace(opcode_offset, nullptr);
-    if (pair.second) {
-      constexpr int kProfilerRows = 4;
-      pair.first->second =
-          TypeProfiler::create(kProfilerRows, sizeof...(stack_offsets));
-    }
-    auto get_type = [&](int offset) {
-      PyObject* obj = stack_top[-(offset + 1)];
-      return obj != nullptr ? Py_TYPE(obj) : nullptr;
-    };
-    pair.first->second->recordTypes(get_type(stack_offsets)...);
-  };
-
-  // TODO(T127457244): Centralize the information about which stack inputs are
-  // interesting for which opcodes.
-  switch (opcode) {
-    case BEFORE_ASYNC_WITH:
-    case DELETE_ATTR:
-    case END_ASYNC_FOR:
-    case FOR_ITER:
-    case GET_AITER:
-    case GET_ANEXT:
-    case GET_AWAITABLE:
-    case GET_ITER:
-    case GET_LEN:
-    case GET_YIELD_FROM_ITER:
-    case JUMP_IF_FALSE_OR_POP:
-    case JUMP_IF_TRUE_OR_POP:
-    case LIST_TO_TUPLE:
-    case LOAD_ATTR:
-    case LOAD_FIELD:
-    case LOAD_METHOD:
-    case MATCH_MAPPING:
-    case MATCH_SEQUENCE:
-    case POP_JUMP_IF_FALSE:
-    case POP_JUMP_IF_TRUE:
-    case RETURN_VALUE:
-    case SETUP_WITH:
-    case STORE_DEREF:
-    case STORE_GLOBAL:
-    case UNARY_INVERT:
-    case UNARY_NEGATIVE:
-    case UNARY_NOT:
-    case UNARY_POSITIVE:
-    case UNPACK_EX:
-    case UNPACK_SEQUENCE:
-    case YIELD_FROM:
-    case YIELD_VALUE: {
-      profile_stack(0);
-      break;
-    }
-    case BINARY_ADD:
-    case BINARY_AND:
-    case BINARY_FLOOR_DIVIDE:
-    case BINARY_LSHIFT:
-    case BINARY_MATRIX_MULTIPLY:
-    case BINARY_MODULO:
-    case BINARY_MULTIPLY:
-    case BINARY_OR:
-    case BINARY_POWER:
-    case BINARY_RSHIFT:
-    case BINARY_SUBSCR:
-    case BINARY_SUBTRACT:
-    case BINARY_TRUE_DIVIDE:
-    case BINARY_XOR:
-    case COMPARE_OP:
-    case CONTAINS_OP:
-    case COPY_DICT_WITHOUT_KEYS:
-    case DELETE_SUBSCR:
-    case DICT_MERGE:
-    case DICT_UPDATE:
-    case INPLACE_ADD:
-    case INPLACE_AND:
-    case INPLACE_FLOOR_DIVIDE:
-    case INPLACE_LSHIFT:
-    case INPLACE_MATRIX_MULTIPLY:
-    case INPLACE_MODULO:
-    case INPLACE_MULTIPLY:
-    case INPLACE_OR:
-    case INPLACE_POWER:
-    case INPLACE_RSHIFT:
-    case INPLACE_SUBTRACT:
-    case INPLACE_TRUE_DIVIDE:
-    case INPLACE_XOR:
-    case IS_OP:
-    case JUMP_IF_NOT_EXC_MATCH:
-    case LIST_APPEND:
-    case LIST_EXTEND:
-    case MAP_ADD:
-    case MATCH_KEYS:
-    case SET_ADD:
-    case SET_UPDATE:
-    case STORE_ATTR:
-    case STORE_FIELD: {
-      profile_stack(1, 0);
-      break;
-    }
-    case MATCH_CLASS:
-    case RERAISE:
-    case STORE_SUBSCR: {
-      profile_stack(2, 1, 0);
-      break;
-    }
-    case CALL_FUNCTION: {
-      profile_stack(oparg);
-      break;
-    };
-    case CALL_FUNCTION_EX: {
-      // There's always an iterable of args but if the lowest bit is set then
-      // there is also a mapping of kwargs. Also profile the callee.
-      if (oparg & 0x01) {
-        profile_stack(2, 1, 0);
-      } else {
-        profile_stack(1, 0);
-      }
-      break;
-    }
-    case CALL_FUNCTION_KW: {
-      // There is a names tuple on top of the args pushed onto the stack that
-      // the oparg does not take into account.
-      profile_stack(oparg + 1);
-      break;
-    }
-    case CALL_METHOD: {
-      profile_stack(oparg + 1, oparg);
-      break;
-    }
-    case WITH_EXCEPT_START: {
-      // TOS6 is a function to call; the other values aren't interesting.
-      profile_stack(6);
-    }
-  }
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  profile_runtime.profileInstr(frame, stack_top, opcode, oparg);
 }
 
 void _PyJIT_CountProfiledInstrs(PyCodeObject* code, Py_ssize_t count) {
-  jit::Runtime::get()
-      ->typeProfiles()[Ref<PyCodeObject>::create(code)]
-      .total_hits += count;
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  profile_runtime.countProfiledInstrs(code, count);
 }
 
 namespace {
@@ -2607,8 +2478,8 @@ void append_item(
   env.profiled_hits += count_raw;
 }
 
-void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
-  for (auto& code_pair : profiles) {
+void build_profile(ProfileEnv& env, ProfileRuntime& profile_runtime) {
+  for (auto& code_pair : profile_runtime) {
     start_code(env, code_pair.first);
     const CodeProfile& code_profile = code_pair.second;
 
@@ -2642,6 +2513,7 @@ void build_profile(ProfileEnv& env, TypeProfiles& profiles) {
 }
 
 Ref<> make_type_metadata(ProfileEnv& env) {
+  auto& profile_runtime = Runtime::get()->profileRuntime();
   auto all_meta = Ref<>::steal(check(PyList_New(0)));
 
   for (auto const& pair : env.type_name_cache) {
@@ -2649,12 +2521,11 @@ Ref<> make_type_metadata(ProfileEnv& env) {
     if (ty == nullptr) {
       continue;
     }
-    int num_keys = numCachedKeys(ty);
-    if (num_keys == 0) {
+    if (profile_runtime.numCachedKeys(ty) == 0) {
       continue;
     }
     auto key_list = Ref<>::steal(check(PyList_New(0)));
-    enumerateCachedKeys(
+    profile_runtime.enumerateCachedKeys(
         ty, [&](BorrowedRef<> key) { check(PyList_Append(key_list, key)); });
 
     auto normals = Ref<>::steal(check(PyDict_New()));
@@ -2674,13 +2545,13 @@ Ref<> make_type_metadata(ProfileEnv& env) {
 } // namespace
 
 PyObject* _PyJIT_GetAndClearTypeProfiles() {
-  auto& profiles = jit::Runtime::get()->typeProfiles();
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
   ProfileEnv env;
   Ref<> result;
 
   try {
     init_env(env);
-    build_profile(env, profiles);
+    build_profile(env, profile_runtime);
     result = Ref<>::steal(check(PyDict_New()));
     check(PyDict_SetItem(result, s_str_profile, env.stats_list));
     check(PyDict_SetItem(result, s_str_type_metadata, make_type_metadata(env)));
@@ -2688,12 +2559,13 @@ PyObject* _PyJIT_GetAndClearTypeProfiles() {
     return nullptr;
   }
 
-  profiles.clear();
+  profile_runtime.clear();
   return result.release();
 }
 
 void _PyJIT_ClearTypeProfiles() {
-  jit::Runtime::get()->typeProfiles().clear();
+  auto& profile_runtime = Runtime::get()->profileRuntime();
+  profile_runtime.clear();
 }
 
 PyFrameObject* _PyJIT_GetFrame(PyThreadState* tstate) {

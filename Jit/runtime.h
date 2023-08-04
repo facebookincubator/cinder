@@ -11,11 +11,11 @@
 #include "Jit/global_cache.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/pyjit.h"
 #include "Jit/slab_arena.h"
 #include "Jit/symbolizer.h"
 #include "Jit/threaded_compile.h"
-#include "Jit/type_profiler.h"
 #include "Jit/util.h"
 
 #include <optional>
@@ -272,16 +272,6 @@ struct DeoptStat {
 // Map from DeoptMetadata index to stats about that deopt point.
 using DeoptStats = std::unordered_map<std::size_t, DeoptStat>;
 
-// Profiling information for a PyCodeObject. Includes the total number of
-// bytecodes executed and type profiles for certain opcodes, keyed by bytecode
-// offset.
-struct CodeProfile {
-  UnorderedMap<BCOffset, std::unique_ptr<TypeProfiler>> typed_hits;
-  int64_t total_hits;
-};
-
-using TypeProfiles = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
-
 using InlineCacheStats = std::vector<CacheStats>;
 
 class Builtins {
@@ -373,8 +363,6 @@ class Runtime {
   InlineCacheStats getAndClearLoadMethodCacheStats();
   InlineCacheStats getAndClearLoadTypeMethodCacheStats();
 
-  TypeProfiles& typeProfiles();
-
   using GuardFailureCallback = std::function<void(const DeoptMetadata&)>;
 
   // Add a function to be called when deoptimization occurs due to guard
@@ -436,6 +424,8 @@ class Runtime {
     return builtins_;
   }
 
+  ProfileRuntime& profileRuntime();
+
   // Some profilers need to walk the code_rt->code->qualname chain for jitted
   // functions on the call stack. The JIT rarely touches this memory and, as a
   // result, the OS may page it out. Out of process profilers (i.e. those that
@@ -495,7 +485,7 @@ class Runtime {
   DeoptStats deopt_stats_;
   GuardFailureCallback guard_failure_callback_;
 
-  TypeProfiles type_profiles_;
+  ProfileRuntime profile_runtime_;
 
   // References to Python objects held by this Runtime
   std::unordered_set<Ref<PyObject>> references_;

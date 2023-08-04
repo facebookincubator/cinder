@@ -20,6 +20,7 @@
 #include "Jit/hir/preload.h"
 #include "Jit/hir/ssa.h"
 #include "Jit/hir/type.h"
+#include "Jit/profile_runtime.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
@@ -638,7 +639,7 @@ BasicBlock* HIRBuilder::buildHIRImpl(
 
 void HIRBuilder::emitProfiledTypes(
     TranslationContext& tc,
-    const CodeProfileData& profile_data,
+    const ProfileRuntime& profile_runtime,
     const BytecodeInstruction& bc_instr) {
   if (bc_instr.opcode() == CALL_METHOD) {
     // TODO(T107300350): Ignore profiling data for CALL_METHOD because we lie
@@ -646,15 +647,14 @@ void HIRBuilder::emitProfiledTypes(
     return;
   }
 
-  const PolymorphicTypes types =
-      getProfiledTypes(profile_data, bc_instr.offset());
-  if (types.empty() || types[0].size() > tc.frame.stack.size()) {
+  std::vector<Type> types =
+      profile_runtime.getProfiledTypes(tc.frame.code, bc_instr.offset());
+
+  if (types.empty() || types.size() > tc.frame.stack.size()) {
     // The types are either absent or invalid (e.g., from a different version
     // of the code than what we're running now).
     return;
   }
-
-  const std::vector<BorrowedRef<PyTypeObject>> first_profile = types[0];
 
   // TODO(T115140951): Add a more robust method of determining what type
   // information differs between interpreter runs and static JITted bytecode
@@ -668,7 +668,7 @@ void HIRBuilder::emitProfiledTypes(
   // Except for a few special cases, all instructions profile all of their
   // inputs, with deeper stack elements first.
   // TODO(T127457244): Centralize this information.
-  ssize_t stack_idx = first_profile.size() - 1;
+  ssize_t stack_idx = types.size() - 1;
   if (bc_instr.opcode() == CALL_FUNCTION) {
     stack_idx = bc_instr.oparg();
   } else if (
@@ -678,32 +678,13 @@ void HIRBuilder::emitProfiledTypes(
   } else if (bc_instr.opcode() == WITH_EXCEPT_START) {
     stack_idx = 6;
   }
-  if (types.size() == 1) {
-    for (auto type : first_profile) {
-      if (type != nullptr) {
-        Register* value = tc.frame.stack.top(stack_idx);
-        GuardType* guard =
-            tc.emit<GuardType>(value, Type::fromTypeExact(type), value);
-        guard->setGuiltyReg(value);
-      }
-      stack_idx--;
+  for (auto& type : types) {
+    if (type != TTop) {
+      Register* value = tc.frame.stack.top(stack_idx);
+      GuardType* guard = tc.emit<GuardType>(value, type, value);
+      guard->setGuiltyReg(value);
     }
-  } else {
-    ProfiledTypes all_types;
-    for (auto type_vec : types) {
-      std::vector<Type> types;
-      for (auto type : type_vec) {
-        if (type != nullptr) {
-          types.emplace_back(Type::fromTypeExact(type));
-        }
-      }
-      all_types.emplace_back(types);
-    }
-    std::vector<Register*> args;
-    for (size_t i = 0; i < first_profile.size(); i++) {
-      args.emplace_back(tc.frame.stack.top(stack_idx - i));
-    }
-    tc.emit<HintType>(args.size(), all_types, args);
+    stack_idx--;
   }
 }
 
@@ -783,11 +764,7 @@ void HIRBuilder::translate(
   std::unordered_set<BasicBlock*> processed;
   std::unordered_set<BasicBlock*> loop_headers;
 
-  const CodeProfileData* profile_data = getProfileData(tc.frame.code);
-  JIT_DLOG(
-      "Found types for %d locations within %s.",
-      profile_data ? profile_data->size() : 0,
-      irfunc.fullname);
+  auto const& profile_runtime = Runtime::get()->profileRuntime();
 
   while (!queue.empty()) {
     auto tc = std::move(queue.front());
@@ -814,9 +791,7 @@ void HIRBuilder::translate(
       BytecodeInstruction bc_instr = *bc_it;
       tc.setCurrentInstr(bc_instr);
 
-      if (profile_data != nullptr) {
-        emitProfiledTypes(tc, *profile_data, bc_instr);
-      }
+      emitProfiledTypes(tc, profile_runtime, bc_instr);
 
       // Translate instruction
       switch (bc_instr.opcode()) {
