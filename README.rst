@@ -295,7 +295,7 @@ which in the JIT become direct loads/stores from/to a fixed memory offset in
 the object, with none of the indirection of a ``LOAD_ATTR`` or
 ``STORE_ATTR``. Classes also gain vtables of their methods, for use by the
 ``INVOKE_*`` opcodes mentioned below. The runtime support for these features
-is located in ``Include/classloader.h`` and ``Python/classloader.c``.
+is located in ``StaticPython/classloader.h`` and ``StaticPython/classloader.c``.
 
 A static Python function begins with a new ``CHECK_ARGS`` opcode which checks
 that the supplied arguments' types match the type annotations, and raises

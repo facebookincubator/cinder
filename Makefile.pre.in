@@ -527,6 +527,11 @@ I386_DASM_OBJS = \
 		ThirdParty/i386-dis/dis-buf.o
 
 ##########################################################################
+# Static Python
+STATICPYTHON_OBJS=       \
+		StaticPython/classloader.o
+
+##########################################################################
 # Strict Modules
 STRICTM_OBJS=       \
 		StrictModules/Compiler/analyzed_module.o \
@@ -687,9 +692,9 @@ ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
 BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
 ifeq ($(BUILD_CINDERX_SRCS), yes)
 	CINDERX_OBJS = \
-		Python/classloader.o \
 		$(ASMJIT_OBJS) \
 		$(JIT_OBJS)    \
+		$(STATICPYTHON_OBJS) \
 		$(STRICTM_OBJS) \
 		$(I386_DASM_OBJS)
 else
@@ -1408,6 +1413,9 @@ JIT_HEADERS= \
 		$(JIT_PRIVATE_HEADERS) \
 		$(JIT_PUBLIC_HEADERS)
 
+STATICPYTHON_HEADERS= \
+		$(srcdir)/StaticPython/classloader.h \
+
 STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/ref.h \
 		$(srcdir)/Jit/util.h \
@@ -1488,7 +1496,6 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/bytesobject.h \
 		$(srcdir)/Include/cellobject.h \
 		$(srcdir)/Include/ceval.h \
-		$(srcdir)/Include/classloader.h \
 		$(srcdir)/Include/classobject.h \
 		$(srcdir)/Include/code.h \
 		$(srcdir)/Include/codecs.h \
@@ -1648,13 +1655,14 @@ PYTHON_HEADERS= \
 		\
 		$(CINDER_HEADERS) \
 		$(JIT_HEADERS) \
-		$(JIT_PUBLIC_HEADERS) \
+		$(STATICPYTHON_HEADERS) \
 		$(STRICTM_HEADERS) \
-		$(STRICTM_PUBLIC_HEADERS)
 
 $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
 
 $(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
+
+$(STATICPYTHON_OBJS): $(STATICPYTHON_HEADERS) $(JIT_HEADERS) $(CINDER_HEADERS) $(PYTHON_HEADERS)
 
 $(STRICTM_OBJS): $(STRICTM_HEADERS)
 

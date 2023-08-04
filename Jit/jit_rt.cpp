@@ -4,8 +4,8 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "StaticPython/classloader.h"
 #include "cinder/exports.h"
-#include "classloader.h"
 #include "frameobject.h"
 #include "listobject.h"
 #include "object.h"

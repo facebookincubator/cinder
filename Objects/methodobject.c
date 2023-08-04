@@ -2,13 +2,17 @@
 /* Method object implementation */
 
 #include "Python.h"
-#include "cinder/exports.h"
-#include "classloader.h"
 #include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_object.h"
 #include "pycore_pyerrors.h"
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "structmember.h"         // PyMemberDef
+
+#ifdef ENABLE_CINDERX
+#include "cinder/exports.h"
+
+#include "StaticPython/classloader.h"
+#endif
 
 /* undefine macro trampoline to PyCFunction_NewEx */
 #undef PyCFunction_New
@@ -65,7 +69,11 @@ PyCMethod_New(PyMethodDef *ml, PyObject *self, PyObject *module, PyTypeObject *c
     Ci_PyTypedMethodDef *sig;
 #endif
     switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
-                            METH_O | METH_KEYWORDS | METH_METHOD | Ci_METH_TYPED))
+                            METH_O | METH_KEYWORDS | METH_METHOD
+#ifdef ENABLE_CINDERX
+                            | Ci_METH_TYPED
+#endif
+            ))
     {
         case METH_VARARGS:
         case METH_VARARGS | METH_KEYWORDS:
@@ -236,6 +244,8 @@ meth_get__text_signature__(PyCFunctionObject *m, void *closure)
     return _PyType_GetTextSignatureFromInternalDoc(m->m_ml->ml_name, m->m_ml->ml_doc);
 }
 
+#ifdef ENABLE_CINDERX
+
 static int
 Ci_populate_type_info(PyObject *arg_info, int argtype)
 {
@@ -389,6 +399,8 @@ Ci_meth_get__typed_signature__(PyCFunctionObject *m, void *closure)
     return Ci_PyMethodDef_GetTypedSignature(m->m_ml);
 }
 
+#endif
+
 static PyObject *
 meth_get__doc__(PyCFunctionObject *m, void *closure)
 {
@@ -463,7 +475,9 @@ static PyGetSetDef meth_getsets [] = {
     {"__qualname__", (getter)meth_get__qualname__, NULL, NULL},
     {"__self__", (getter)meth_get__self__, NULL, NULL},
     {"__text_signature__", (getter)meth_get__text_signature__, NULL, NULL},
+#ifdef ENABLE_CINDERX
     {"__typed_signature__", (getter)Ci_meth_get__typed_signature__, NULL, NULL},
+#endif
     {0}
 };
 

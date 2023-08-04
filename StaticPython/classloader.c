@@ -1,17 +1,21 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
-#include "cinder/exports.h"
-#include "classloader.h"
 #include "descrobject.h"
 #include "dictobject.h"
 #include "object.h"
 #include "opcode.h"
 #include "pyerrors.h"
 #include "structmember.h"
-#include "Jit/pyjit.h"
 #include "pycore_object.h"  // PyHeapType_CINDER_EXTRA
 #include "pycore_tuple.h" // _PyTuple_FromArray
 #include "pycore_unionobject.h"
+
+#include "cinder/exports.h"
+
+#include "Jit/pyjit.h"
+
+#include "StaticPython/classloader.h"
+
 #include <dlfcn.h>
 
 static PyObject *classloader_cache;

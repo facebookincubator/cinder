@@ -29,7 +29,6 @@
 #include "pycore_sysmodule.h"     // _PySys_Audit()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 
-#include "Jit/pyjit.h"
 #include "code.h"
 #include "dictobject.h"
 #include "frameobject.h"
@@ -37,8 +36,13 @@
 #include "pydtrace.h"
 #include "setobject.h"
 #include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
+
 #include "cinder/exports.h"
-#include "classloader.h"
+
+#ifdef ENABLE_CINDERX
+#include "Jit/pyjit.h"
+#include "StaticPython/classloader.h"
+#endif
 
 #include <ctype.h>
 

@@ -2,12 +2,15 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
-#include "classloader.h"
 #include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_object.h"        // _PyObject_GC_UNTRACK()
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "structmember.h"         // PyMemberDef
+
+#ifdef ENABLE_CINDERX
+#include "StaticPython/classloader.h"
+#endif
 
 _Py_IDENTIFIER(getattr);
 
@@ -1106,7 +1109,11 @@ PyDescr_NewMethod(PyTypeObject *type, PyMethodDef *method)
     Ci_PyTypedMethodDef *sig;
 #endif
     switch (method->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
-                                METH_O | METH_KEYWORDS | METH_METHOD | Ci_METH_TYPED))
+                                METH_O | METH_KEYWORDS | METH_METHOD
+#ifdef ENABLE_CINDERX
+                                | Ci_METH_TYPED
+#endif
+            ))
     {
         case METH_VARARGS:
             vectorcall = method_vectorcall_VARARGS;

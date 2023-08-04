@@ -6,7 +6,10 @@
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_moduleobject.h"  // _PyModule_GetDef()
 #include "structmember.h"         // PyMemberDef
-#include "classloader.h"          // _PyClassLoader_UpdateModuleName
+
+#ifdef ENABLE_CINDERX
+#include "StaticPython/classloader.h"          // _PyClassLoader_UpdateModuleName
+#endif
 
 static Py_ssize_t max_module_number;
 

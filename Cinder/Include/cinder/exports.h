@@ -92,6 +92,15 @@ CiAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
 
 #define Ci_Py_TPFLAGS_FROZEN (1UL << 21)
 
+typedef struct {
+    PyObject *init_func;
+} Ci_PyType_CinderExtra;
+
+#define Ci_PyHeapType_CINDER_EXTRA(etype) \
+    ((Ci_PyType_CinderExtra *)(((char *)etype) +  \
+      Py_TYPE(etype)->tp_basicsize + \
+      Py_SIZE(etype) * sizeof(PyMemberDef)))
+
 // Implementation in Python/bltinmodule.c
 CiAPI_FUNC(PyObject *) builtin_next(PyObject *self, PyObject *const *args, Py_ssize_t nargs);
 

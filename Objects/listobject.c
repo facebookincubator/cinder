@@ -5,7 +5,12 @@
 #include "pycore_interp.h"        // PyInterpreterState.list
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "pycore_tuple.h"         // _PyTuple_FromArray()
-#include "classloader.h"
+
+#include "cinder/exports.h"
+
+#ifdef ENABLE_CINDERX
+#include "StaticPython/classloader.h"
+#endif
 
 #ifdef STDC_HEADERS
 #include <stddef.h>

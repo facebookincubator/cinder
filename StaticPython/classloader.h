@@ -70,15 +70,6 @@ typedef struct {
     int getter_doc;
 } Ci_propertyobject;
 
-typedef struct {
-    PyObject *init_func;
-} Ci_PyType_CinderExtra;
-
-#define Ci_PyHeapType_CINDER_EXTRA(etype) \
-    ((Ci_PyType_CinderExtra *)(((char *)etype) +  \
-      Py_TYPE(etype)->tp_basicsize + \
-      Py_SIZE(etype) * sizeof(PyMemberDef)))
-
 #define Ci_METH_TYPED 0x0400
 
 /* Flag marks this as optional */

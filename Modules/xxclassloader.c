@@ -1,11 +1,12 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 #include "Python.h"
 #include "cinder/exports.h"
-#include "classloader.h"
 #include "structmember.h"
 #include "pycore_initconfig.h"
 #include "pycore_interp.h"
 #include "pycore_pystate.h" // _PyInterpreterState_GET()
+
+#include "StaticPython/classloader.h"
 
 PyDoc_STRVAR(xxclassloader__doc__,
              "xxclassloader contains helpers for testing the class loader\n");

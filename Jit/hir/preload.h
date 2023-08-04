@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Python.h"
-#include "classloader.h"
+#include "StaticPython/classloader.h"
 
 #include "Jit/global_cache.h"
 #include "Jit/hir/hir.h"

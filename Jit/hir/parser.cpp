@@ -2,7 +2,7 @@
 
 #include "Jit/hir/parser.h"
 
-#include "classloader.h"
+#include "StaticPython/classloader.h"
 #include "pycore_tuple.h"
 
 #include "Jit/hir/hir.h"

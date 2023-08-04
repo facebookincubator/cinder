@@ -14,7 +14,8 @@
 #include "pycore_tuple.h"
 #include "structmember.h"
 #include "pycore_object.h"
-#include "classloader.h"
+
+#include "StaticPython/classloader.h"
 
 PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");

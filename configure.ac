@@ -5671,6 +5671,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     Jit/hir \
     Jit/lir \
     RuntimeTests \
+    StaticPython \
     StrictModules \
     StrictModules/Compiler \
     StrictModules/Objects \

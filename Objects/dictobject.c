@@ -120,11 +120,12 @@ converting the dict to the combined table.
 #include "pycore_pystate.h"  // _PyThreadState_GET()
 #include "dict-common.h"
 #include "stringlib/eq.h"    // unicode_eq()
-#include "classloader.h"
+
 #include "cinder/exports.h"
 
-/* TODO(T113261295): Remove this once dict watchers are upstreamed. */
-#include "Jit/pyjit.h"
+#ifdef ENABLE_CINDERX
+#include "StaticPython/classloader.h"
+#endif
 
 /*[clinic input]
 class dict "PyDictObject *" "&PyDict_Type"

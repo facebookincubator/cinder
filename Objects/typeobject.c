@@ -14,10 +14,12 @@
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
 #include "pycore_shadowcode.h"
-#include "classloader.h"
+
 #include "cinder/exports.h"
+
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
+#include "StaticPython/classloader.h"
 #endif
 
 #include <ctype.h>
@@ -4481,6 +4483,7 @@ type_dealloc(PyTypeObject *type)
     }
     Py_XDECREF(et->ht_module);
 
+#ifdef ENABLE_CINDERX
     if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
         _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
         for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
@@ -4488,11 +4491,14 @@ type_dealloc(PyTypeObject *type)
         }
         Py_XDECREF(gti->gti_gtd);
     } else {
+#endif
         /* A type's tp_doc is heap allocated, unlike the tp_doc slots
          * of most other objects.  It's okay to cast it to char *.
          */
         PyObject_Free((char *)type->tp_doc);
+#ifdef ENABLE_CINDERX
     }
+#endif
 
     Py_TYPE(type)->tp_free((PyObject *)type);
 }
@@ -4688,6 +4694,7 @@ type_traverse(PyTypeObject *type, visitproc visit, void *arg)
        in cycles; tp_subclasses is a list of weak references,
        and slots is a tuple of strings. */
 
+#ifdef ENABLE_CINDERX
     if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
         _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
         Py_VISIT(gti->gti_gtd);
@@ -4695,6 +4702,7 @@ type_traverse(PyTypeObject *type, visitproc visit, void *arg)
             Py_VISIT(gti->gti_inst[i].gtp_type);
         }
     }
+#endif
     return 0;
 }
 
@@ -4748,6 +4756,7 @@ type_clear(PyTypeObject *type)
 
     Py_CLEAR(type->tp_mro);
 
+#ifdef ENABLE_CINDERX
     if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
         _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
         Py_CLEAR(gti->gti_gtd);
@@ -4755,6 +4764,7 @@ type_clear(PyTypeObject *type)
             Py_CLEAR(gti->gti_inst[i].gtp_type);
         }
     }
+#endif
 
     return 0;
 }
