@@ -575,6 +575,30 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
       }
       return env.emit<LoadArrayItem>(array, adjusted_idx, lhs, offset, TObject);
     }
+    if (lhs_type <= TUnicodeExact && rhs_type <= TLongExact &&
+        lhs_type.hasObjectSpec() && rhs_type.hasObjectSpec()) {
+      Py_ssize_t idx = PyLong_AsSsize_t(rhs_type.objectSpec());
+      Py_ssize_t n = PyUnicode_GetLength(lhs_type.objectSpec());
+
+      if (idx < -n || idx >= n) {
+        return nullptr;
+      }
+
+      if (idx < 0) {
+        idx += n;
+      }
+
+      ThreadedCompileSerialize guard;
+      Py_UCS4 c = PyUnicode_ReadChar(lhs_type.objectSpec(), idx);
+      PyObject* substr = PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, &c, 1);
+      PyUnicode_InternInPlace(&substr);
+      Ref<> result = Ref<>::steal(substr);
+
+      env.emit<UseType>(lhs, TUnicodeExact);
+      env.emit<UseType>(rhs, TLongExact);
+      return env.emit<LoadConst>(
+          Type::fromObject(env.func.env.addReference(result)));
+    }
   }
   if (lhs->isA(TLongExact) && rhs->isA(TLongExact)) {
     // All binary ops on TLong's return mutable so can be freely simplified with

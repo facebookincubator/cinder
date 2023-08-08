@@ -336,6 +336,96 @@ fun test {
   }
 }
 ---
+BinaryOpSubscriptConstStringConstLong
+---
+def test():
+  s = "foobar"
+  i = 3
+  return s[i]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    Snapshot
+    v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
+    v8:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    UseType<UnicodeExact> v6
+    UseType<LongExact> v8
+    v13:MortalUnicodeExact["b"] = LoadConst<MortalUnicodeExact["b"]>
+    Snapshot
+    Return v13
+  }
+}
+---
+BinaryOpSubscriptConstStringConstNegativeLong
+---
+def test():
+  s = "foobar"
+  i = -2
+  return s[i]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    Snapshot
+    v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
+    v8:ImmortalLongExact[-2] = LoadConst<ImmortalLongExact[-2]>
+    UseType<UnicodeExact> v6
+    UseType<LongExact> v8
+    v13:MortalUnicodeExact["a"] = LoadConst<MortalUnicodeExact["a"]>
+    Snapshot
+    Return v13
+  }
+}
+---
+BinaryOpSubscriptConstStringConstOutOfBoundsLong
+---
+def test():
+  s = "foobar"
+  i = 6
+  return s[i]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    Snapshot
+    v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
+    v8:ImmortalLongExact[6] = LoadConst<ImmortalLongExact[6]>
+    v12:Object = BinaryOp<Subscript> v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Snapshot
+    Return v12
+  }
+}
+---
+BinaryOpSubscriptConstStringConstNegativeOutOfBoundsLong
+---
+def test():
+  s = "foobar"
+  i = -7
+  return s[i]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v5:Nullptr = LoadConst<Nullptr>
+    Snapshot
+    v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
+    v8:MortalLongExact[-7] = LoadConst<MortalLongExact[-7]>
+    v12:Object = BinaryOp<Subscript> v6 v8 {
+      FrameState {
+        NextInstrOffset 14
+        Locals<2> v6 v8
+      }
+    }
+    Snapshot
+    Return v12
+  }
+}
+---
 CondBranchOfIsTruthyWithNoneRemovesCondBranch
 ---
 # HIR
