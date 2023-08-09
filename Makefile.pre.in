@@ -328,7 +328,7 @@ ASAN_TEST_ENV_WITH_LSAN= @ASAN_TEST_ENV_WITH_LSAN@
 
 ENABLE_CINDERX_SO=@ENABLE_CINDERX_SO@
 ifeq ($(ENABLE_CINDERX_SO), yes)
-	CINDERX_SO=$(abs_srcdir)/Cinder/module/build/cinderx.$(SOABI).so
+	CINDERX_SO=$(abs_srcdir)/CinderX/build/cinderx.$(SOABI).so
 else
 	CINDERX_SO=
 endif
@@ -836,7 +836,7 @@ clinic: check-clean-src $(srcdir)/Modules/_blake2/blake2s_impl.c
 
 .PHONY: $(CINDERX_SO)
 $(CINDERX_SO):
-	$(abs_srcdir)/Cinder/module/build.sh
+	$(abs_srcdir)/CinderX/build.sh
 
 # Build the interpreter
 $(BUILDPYTHON):	Programs/python.o $(LIBRARY_DEPS) $(CINDERX_SO)

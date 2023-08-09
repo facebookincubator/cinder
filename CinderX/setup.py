@@ -14,8 +14,8 @@ from concurrent.futures import ThreadPoolExecutor
 MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 THIRD_PARTY_DIR = os.path.realpath(f"{MODULE_DIR}/ThirdParty")
-CINDER_DIR = os.path.realpath(f"{MODULE_DIR}/..")
-PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/../../")
+PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
+CINDER_DIR = os.path.realpath(f"{PYTHON_DIR}/Cinder/")
 
 INCLUDE_DIRS = [
     f"{CINDER_DIR}/Include",
