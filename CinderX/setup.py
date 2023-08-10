@@ -27,6 +27,10 @@ INCLUDE_DIRS = [
     f"{THIRD_PARTY_DIR}/parallel-hashmap",
 ]
 
+CINDER_SRCS = [
+    "Cinder/cinder.cpp",
+]
+
 JIT_SRCS = [
     "Jit/bitvector.cpp",
     "Jit/bytecode.cpp",
@@ -216,7 +220,14 @@ STATICPYTHON_SRCS = [
     "StaticPython/classloader.c",
 ]
 
-ALL_SRCS = JIT_SRCS + I386_DASM_SRCS + ASMJIT_SRCS + STRICTM_SRCS + STATICPYTHON_SRCS
+ALL_SRCS = (
+    CINDER_SRCS +
+    JIT_SRCS +
+    I386_DASM_SRCS +
+    ASMJIT_SRCS +
+    STRICTM_SRCS +
+    STATICPYTHON_SRCS
+)
 
 # Monkey-patch the ability to compile C++ files (but not C files) with
 # -std=c++20 and perform compilation in parallel.

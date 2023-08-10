@@ -15,7 +15,9 @@
 #include "pycore_sysmodule.h"     // _PySys_ClearAuditHooks()
 #include "pycore_traceback.h"     // _Py_DumpTracebackThreads()
 
-#include "Jit/pyjit.h"
+#ifdef ENABLE_CINDERX
+#include "cinder/cinder.h"
+#endif
 
 #include <locale.h>               // setlocale()
 

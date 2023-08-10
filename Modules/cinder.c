@@ -2,6 +2,7 @@
 #include "Python.h"
 
 #include "boolobject.h"
+#include "cinder/cinder.h"
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
@@ -549,7 +550,7 @@ watch_sys_modules(PyObject *self, PyObject *obj)
     if (modules == NULL) {
       Py_RETURN_NONE;
     }
-    _PyJIT_WatchDict(modules);
+    Cinder_WatchDict(modules);
     Py_DECREF(modules);
     Py_RETURN_NONE;
 }

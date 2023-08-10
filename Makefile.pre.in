@@ -448,6 +448,11 @@ PYTHON_OBJS=	\
 		$(MACHDEP_OBJS) \
 
 ##########################################################################
+# Cinder
+CINDER_OBJS=       \
+		Cinder/cinder.o
+
+##########################################################################
 # Jit
 JIT_OBJS=       \
 		Jit/bitvector.o \
@@ -693,6 +698,7 @@ BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
 ifeq ($(BUILD_CINDERX_SRCS), yes)
 	CINDERX_OBJS = \
 		$(ASMJIT_OBJS) \
+		$(CINDER_OBJS) \
 		$(JIT_OBJS)    \
 		$(STATICPYTHON_OBJS) \
 		$(STRICTM_OBJS) \
@@ -1480,6 +1486,7 @@ STRICTM_HEADERS = \
 		$(STRICTM_PUBLIC_HEADERS)
 
 CINDER_HEADERS= \
+		$(srcdir)/Cinder/Include/cinder/cinder.h \
 		$(srcdir)/Cinder/Include/cinder/exports.h
 
 I386_DASM_HEADERS = \
@@ -1659,6 +1666,8 @@ PYTHON_HEADERS= \
 		$(STRICTM_HEADERS) \
 
 $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
+
+$(CINDER_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
 
 $(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
 
