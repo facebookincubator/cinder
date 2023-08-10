@@ -4363,10 +4363,6 @@ main_loop:
                 func->func_defaults = POP();
             }
 
-#ifdef ENABLE_CINDERX
-            PyEntry_init(func);
-#endif
-
             PUSH((PyObject *)func);
             DISPATCH();
         }

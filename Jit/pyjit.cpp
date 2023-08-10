@@ -1739,7 +1739,7 @@ static int install_jit_audit_hook() {
 int _PyJIT_Initialize() {
   // If we have data symbols which are public but not used within CPython code,
   // we need to ensure the linker doesn't GC the .data section containing them.
-  // We can do this by referencing at least symbol from that sourfe module.
+  // We can do this by referencing at least symbol from that source module.
   // In future versions of clang/gcc we may be able to eliminate this with
   // 'keep' and/or 'used' attributes.
   //

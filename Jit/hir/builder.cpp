@@ -2917,7 +2917,6 @@ void HIRBuilder::emitMakeFunction(
     tc.emit<SetFunctionAttr>(defaults, func, FunctionAttr::kDefaults);
   }
 
-  tc.emit<InitFunction>(func);
   tc.frame.stack.push(func);
 }
 

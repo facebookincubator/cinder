@@ -105,7 +105,6 @@ fun jittestmodule:test {
         Locals<1> v6
       }
     }
-    InitFunction v9
     Snapshot
     v12:Object = VectorCall<0> v9 {
       FrameState {

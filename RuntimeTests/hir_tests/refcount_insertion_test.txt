@@ -808,7 +808,6 @@ fun jittestmodule:test {
     }
     Decref v14
     SetFunctionAttr<func_closure> v20 v23
-    InitFunction v23
     Return v23
   }
 }
@@ -1125,7 +1124,6 @@ fun jittestmodule:test {
         Locals<7> v19 v19 v19 v19 v19 v19 v19
       }
     }
-    InitFunction v22
     v24:MortalCode["<lambda>"] = LoadConst<MortalCode["<lambda>"]>
     v25:MortalUnicodeExact["test.<locals>.<lambd"...] = LoadConst<MortalUnicodeExact["test.<locals>.<lambd"...]>
     v26:MortalFunc = MakeFunction v25 v24 {
@@ -1135,7 +1133,6 @@ fun jittestmodule:test {
         Locals<7> v22 v19 v19 v19 v19 v19 v19
       }
     }
-    InitFunction v26
     v29:Object = VectorCall<0> v22 {
       LiveValues<3> unc:v19 o:v22 o:v26
       FrameState {

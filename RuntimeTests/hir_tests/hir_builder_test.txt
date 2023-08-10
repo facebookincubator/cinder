@@ -3143,7 +3143,6 @@ fun jittestmodule:test {
       }
     }
     SetFunctionAttr<func_defaults> v2 v5
-    InitFunction v5
     Snapshot
     v1 = Assign v5
     v1 = CheckVar<"nested"> v1 {
@@ -3198,7 +3197,6 @@ fun jittestmodule:test {
       }
     }
     SetFunctionAttr<func_closure> v5 v8
-    InitFunction v8
     Snapshot
     v0 = Assign v8
     v0 = CheckVar<"g"> v0 {
@@ -3250,7 +3248,6 @@ fun jittestmodule:test {
       }
     }
     SetFunctionAttr<func_closure> v4 v7
-    InitFunction v7
     Snapshot
     v1 = Assign v7
     v1 = CheckVar<"g"> v1 {
@@ -3303,7 +3300,6 @@ fun jittestmodule:test {
       }
     }
     SetFunctionAttr<func_closure> v5 v8
-    InitFunction v8
     Snapshot
     v1 = Assign v8
     v1 = CheckVar<"g"> v1 {

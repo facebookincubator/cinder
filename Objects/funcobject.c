@@ -6,7 +6,6 @@
 #include "pycore_object.h"        // _PyObject_GC_UNTRACK()
 #include "pycore_pyerrors.h"      // _PyErr_Occurred()
 #include "structmember.h"         // PyMemberDef
-#include "Jit/pyjit.h"
 
 #include "cinder/exports.h"
 
@@ -173,11 +172,7 @@ PyFunction_NewWithQualName(PyObject *code, PyObject *globals, PyObject *qualname
     op->func_weakreflist = NULL;
     op->func_module = module;
     op->func_annotations = NULL;
-#ifdef ENABLE_CINDERX
-    op->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
-#else
     op->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
-#endif
 
     _PyObject_GC_TRACK(op);
     handle_func_event(PyFunction_EVENT_CREATE, op, NULL);
@@ -460,10 +455,6 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
     handle_func_event(PyFunction_EVENT_MODIFY_CODE, op, value);
     Py_INCREF(value);
     Py_XSETREF(op->func_code, value);
-#ifdef ENABLE_CINDERX
-    _PyJIT_FuncModified(op);
-    PyEntry_init(op);
-#endif
     return 0;
 }
 
@@ -510,11 +501,6 @@ func_set_qualname(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
                       (PyFunctionObject *)op, value);
     Py_INCREF(value);
     Py_XSETREF(op->func_qualname, value);
-#ifdef ENABLE_CINDERX
-    if (!_PyJIT_IsCompiled((PyObject *)op)) {
-        PyEntry_init(op);
-    }
-#endif
     return 0;
 }
 
@@ -556,14 +542,6 @@ func_set_defaults(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
     handle_func_event(PyFunction_EVENT_MODIFY_DEFAULTS, op, value);
     Py_XINCREF(value);
     Py_XSETREF(op->func_defaults, value);
-#ifdef ENABLE_CINDERX
-    // JIT-compiled functions load their defaults at runtime if needed. Others
-    // need their entrypoint recomputed.
-    // TODO(T126790232): Don't load defaults at runtime and recompile as needed.
-    if (!_PyJIT_IsCompiled((PyObject *)op)) {
-        PyEntry_init(op);
-    }
-#endif
     return 0;
 }
 
@@ -757,10 +735,6 @@ func_new_impl(PyTypeObject *type, PyCodeObject *code, PyObject *globals,
         newfunc->func_closure = closure;
     }
 
-#ifdef ENABLE_CINDERX
-    PyEntry_init(newfunc);
-#endif
-
     return (PyObject *)newfunc;
 }
 
@@ -785,9 +759,6 @@ func_clear(PyFunctionObject *op)
 static void
 func_dealloc(PyFunctionObject *op)
 {
-#ifdef ENABLE_CINDERX
-    _PyJIT_FuncDestroyed(op);
-#endif
     assert(Py_REFCNT(op) == 0);
     Py_SET_REFCNT(op, 1);
     handle_func_event(PyFunction_EVENT_DESTROY, op, NULL);

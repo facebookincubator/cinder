@@ -253,7 +253,6 @@ static std::string format_immediates(const Instr& instr) {
     case Opcode::kGuard:
     case Opcode::kIncref:
     case Opcode::kInitialYield:
-    case Opcode::kInitFunction:
     case Opcode::kInvokeIterNext:
     case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
