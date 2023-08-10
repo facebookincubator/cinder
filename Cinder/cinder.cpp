@@ -154,5 +154,9 @@ int Cinder_InitSubInterp() {
       cinder_func_watcher_id == prev_func_watcher_id,
       "Somebody else watching functions?");
 
+  if (_PyJIT_InitializeSubInterp() < 0) {
+    return -1;
+  }
+
   return 0;
 }
