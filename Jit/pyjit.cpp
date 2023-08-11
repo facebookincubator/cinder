@@ -11,6 +11,7 @@
 
 #include "Jit/code_allocator.h"
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/config.h"
 #include "Jit/containers.h"
 #include "Jit/frame.h"
 #include "Jit/hir/builder.h"
@@ -49,48 +50,24 @@
 
 using namespace jit;
 
-struct JitConfig {
-  InitStateJitConfig init_state{JIT_NOT_INITIALIZED};
-
-  int is_enabled{0};
-  FrameModeJitConfig frame_mode{PY_FRAME};
-  int allow_jit_list_wildcards{0};
-  int compile_all_static_functions{0};
-  size_t batch_compile_workers{0};
-  int multithreaded_compile_test{0};
-  bool use_huge_pages{true};
-  bool multiple_code_sections{false};
-  size_t hot_code_section_size{0};
-  size_t cold_code_section_size{0};
-  int hir_inliner_enabled{0};
-  unsigned int auto_jit_threshold{0};
-  uint32_t attr_cache_size{1};
-  int code_watcher_id{-1};
-};
-static JitConfig jit_config;
-
-void initJitConfig_() {
-  jit_config = JitConfig();
-}
-
 int _PyJIT_IsJitConfigAllow_jit_list_wildcards() {
-  return jit_config.allow_jit_list_wildcards;
+  return getConfig().allow_jit_list_wildcards;
 }
 
 int _PyJIT_IsJitConfigCompile_all_static_functions() {
-  return jit_config.compile_all_static_functions;
+  return getConfig().compile_all_static_functions;
 }
 
 size_t _PyJIT_GetJitConfigBatch_compile_workers() {
-  return jit_config.batch_compile_workers;
+  return getConfig().batch_compile_workers;
 }
 
 int _PyJIT_IsJitConfigMultithreaded_compile_test() {
-  return jit_config.multithreaded_compile_test;
+  return getConfig().multithreaded_compile_test;
 }
 
 unsigned int _PyJIT_GetJitConfigAuto_jit_threshold() {
-  return jit_config.auto_jit_threshold;
+  return getConfig().auto_jit_threshold;
 }
 
 namespace {
@@ -278,7 +255,7 @@ void initFlagProcessor() {
         "PYTHONJITAUTO",
         [](unsigned int threshold) {
           use_jit = 1;
-          jit_config.auto_jit_threshold = threshold;
+          getMutableConfig().auto_jit_threshold = threshold;
         },
         "Enable auto-JIT mode, which compiles functions after the given "
         "threshold");
@@ -445,19 +422,19 @@ void initFlagProcessor() {
     xarg_flag_processor.addOption(
         "jit-disable-huge-pages",
         "PYTHONJITDISABLEHUGEPAGES",
-        [](std::string) { jit_config.use_huge_pages = false; },
+        [](std::string) { getMutableConfig().use_huge_pages = false; },
         "disable huge page support");
 
     xarg_flag_processor.addOption(
         "jit-enable-jit-list-wildcards",
         "PYTHONJITENABLEJITLISTWILDCARDS",
-        jit_config.allow_jit_list_wildcards,
+        getMutableConfig().allow_jit_list_wildcards,
         "allow wildcards in JIT list");
 
     xarg_flag_processor.addOption(
         "jit-all-static-functions",
         "PYTHONJITALLSTATICFUNCTIONS",
-        jit_config.compile_all_static_functions,
+        getMutableConfig().compile_all_static_functions,
         "JIT-compile all static functions");
 
     xarg_flag_processor
@@ -493,8 +470,7 @@ void initFlagProcessor() {
             "PYTHONJITPROFILESTRIPPATTERN",
             [](const std::string& pattern) {
               try {
-                auto& profile_runtime =
-                    jit::Runtime::get()->profileRuntime();
+                auto& profile_runtime = jit::Runtime::get()->profileRuntime();
                 profile_runtime.setStripPattern(std::regex{pattern});
               } catch (const std::regex_error& ree) {
                 JIT_LOG(
@@ -530,7 +506,7 @@ void initFlagProcessor() {
         "PYTHONJITSHADOWFRAME",
         [](int val) {
           if (use_jit) {
-            jit_config.frame_mode = val ? SHADOW_FRAME : PY_FRAME;
+            getMutableConfig().frame_mode = val ? SHADOW_FRAME : PY_FRAME;
           } else {
             warnJITOff("jit-shadow-frame");
           }
@@ -541,7 +517,7 @@ void initFlagProcessor() {
         .addOption(
             "jit-batch-compile-workers",
             "PYTHONJITBATCHCOMPILEWORKERS",
-            jit_config.batch_compile_workers,
+            getMutableConfig().batch_compile_workers,
             "set the number of batch compile workers to <COUNT>")
         .withFlagParamName("COUNT");
 
@@ -551,7 +527,7 @@ void initFlagProcessor() {
             "PYTHONJITMULTITHREADEDCOMPILETEST",
             [](int val) {
               if (use_jit) {
-                jit_config.multithreaded_compile_test = val;
+                getMutableConfig().multithreaded_compile_test = val;
               } else {
                 warnJITOff("jit-multithreaded-compile-test ");
               }
@@ -614,7 +590,7 @@ void initFlagProcessor() {
         "PYTHONJITMULTIPLECODESECTIONS",
         [](int val) {
           if (use_jit) {
-            jit_config.multiple_code_sections = val;
+            getMutableConfig().multiple_code_sections = val;
           } else {
             warnJITOff("jit-multiple-code-sections");
           }
@@ -626,7 +602,7 @@ void initFlagProcessor() {
         "PYTHONJITHOTCODESECTIONSIZE",
         [](size_t val) {
           if (use_jit) {
-            jit_config.hot_code_section_size = val;
+            getMutableConfig().hot_code_section_size = val;
           } else {
             warnJITOff("jit-hot-code-section-size");
           }
@@ -638,7 +614,7 @@ void initFlagProcessor() {
         "PYTHONJITCOLDCODESECTIONSIZE",
         [](size_t val) {
           if (use_jit) {
-            jit_config.cold_code_section_size = val;
+            getMutableConfig().cold_code_section_size = val;
           } else {
             warnJITOff("jit-cold-code-section-size");
           }
@@ -654,7 +630,7 @@ void initFlagProcessor() {
               "Using %d entries for attribute access inline "
               "caches is not within the appropriate range",
               entries);
-          jit_config.attr_cache_size = entries;
+          getMutableConfig().attr_cache_size = entries;
         },
         "Set the number of entries in the JIT's attribute access inline "
         "caches");
@@ -680,11 +656,11 @@ void initFlagProcessor() {
 
   xarg_flag_processor.setFlags(PySys_GetXOptions());
 
-  if (jit_config.auto_jit_threshold > 0 && jl_fn != "") {
+  if (getConfig().auto_jit_threshold > 0 && jl_fn != "") {
     JIT_LOG(
         "Warning: jit-auto and jit-list-file are both enabled; only functions "
         "on the jit-list will be compiled, and only after %u calls.",
-        jit_config.auto_jit_threshold);
+        getConfig().auto_jit_threshold);
   }
 }
 
@@ -794,12 +770,13 @@ static void multithread_compile_all() {
 
   g_threaded_compile_context.startCompile(std::move(live_compilation_units));
   std::vector<std::thread> worker_threads;
-  JIT_CHECK(jit_config.batch_compile_workers, "Zero workers for compile");
+  size_t batch_compile_workers = getConfig().batch_compile_workers;
+  JIT_CHECK(batch_compile_workers, "Zero workers for compile");
   {
     // Hold a lock while we create threads because IG production has magic to
     // wrap pthread_create() and run Python code before threads are created.
     ThreadedCompileSerialize guard;
-    for (size_t i = 0; i < jit_config.batch_compile_workers; i++) {
+    for (size_t i = 0; i < batch_compile_workers; i++) {
       worker_threads.emplace_back(compile_worker_thread);
     }
   }
@@ -817,7 +794,7 @@ static void multithread_compile_all() {
 }
 
 static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
-  if (!jit_config.multithreaded_compile_test) {
+  if (!getConfig().multithreaded_compile_test) {
     PyErr_SetString(
         PyExc_NotImplementedError, "multithreaded_compile_test not enabled");
     return nullptr;
@@ -840,7 +817,7 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
 }
 
 static PyObject* is_multithreaded_compile_test_enabled(PyObject*, PyObject*) {
-  if (jit_config.multithreaded_compile_test) {
+  if (getConfig().multithreaded_compile_test) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -861,7 +838,7 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
   if (nargs == 0 || args[0] == Py_True) {
     // Compile all of the pending functions/codes before shutting down
     std::chrono::time_point start = std::chrono::steady_clock::now();
-    if (jit_config.batch_compile_workers > 0) {
+    if (getConfig().batch_compile_workers > 0) {
       multithread_compile_all();
     } else {
       std::unordered_set<BorrowedRef<>> units;
@@ -1233,7 +1210,7 @@ static PyObject* get_compiled_spill_stack_size(
 }
 
 static PyObject* jit_frame_mode(PyObject* /* self */, PyObject*) {
-  return PyLong_FromLong(jit_config.frame_mode);
+  return PyLong_FromLong(getConfig().frame_mode);
 }
 
 static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
@@ -1601,7 +1578,7 @@ static int onJitListImpl(
     BorrowedRef<> qualname) {
   bool is_static = code->co_flags & CO_STATICALLY_COMPILED;
   if (g_jit_list == nullptr ||
-      (is_static && jit_config.compile_all_static_functions)) {
+      (is_static && getConfig().compile_all_static_functions)) {
     // There's no jit list or the function is static.
     return 1;
   }
@@ -1752,29 +1729,29 @@ static int install_jit_code_watcher() {
   if (watcher_id < 0) {
     return -1;
   }
-  jit_config.code_watcher_id = watcher_id;
+  getMutableConfig().code_watcher_id = watcher_id;
   return 0;
 }
 
 static void clear_jit_code_watcher() {
-  if (jit_config.code_watcher_id >= 0) {
-    if (PyCode_ClearWatcher(jit_config.code_watcher_id) < 0) {
+  if (getConfig().code_watcher_id >= 0) {
+    if (PyCode_ClearWatcher(getConfig().code_watcher_id) < 0) {
       PyErr_WriteUnraisable(Py_None);
     }
-    jit_config.code_watcher_id = -1;
+    getMutableConfig().code_watcher_id = -1;
   }
 }
 
 int _PyJIT_InitializeSubInterp() {
   // HACK: for now assume we are the only watcher out there, so that we can just
   // keep track of a single watcher ID rather than one per interpreter.
-  int prev_code_watcher_id = jit_config.code_watcher_id;
+  int prev_code_watcher_id = getConfig().code_watcher_id;
   if (prev_code_watcher_id >= 0) {
     if (install_jit_code_watcher() < 0) {
       return -1;
     }
     JIT_CHECK(
-        jit_config.code_watcher_id == prev_code_watcher_id,
+        getConfig().code_watcher_id == prev_code_watcher_id,
         "Somebody else watching code objects?");
   }
 
@@ -1797,7 +1774,7 @@ int _PyJIT_Initialize() {
               static_cast<uintptr_t>(0xf0),
       "Missing symbol");
 
-  if (jit_config.init_state == JIT_INITIALIZED) {
+  if (getConfig().init_state == JIT_INITIALIZED) {
     return 0;
   }
 
@@ -1805,7 +1782,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  initJitConfig_();
+  getMutableConfig() = Config{};
 
   initFlagProcessor();
 
@@ -1816,7 +1793,7 @@ int _PyJIT_Initialize() {
 
   std::unique_ptr<JITList> jit_list;
   if (!jl_fn.empty()) {
-    if (jit_config.allow_jit_list_wildcards) {
+    if (getConfig().allow_jit_list_wildcards) {
       jit_list = jit::WildcardJITList::create();
     } else {
       jit_list = jit::JITList::create();
@@ -1886,8 +1863,8 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  jit_config.init_state = JIT_INITIALIZED;
-  jit_config.is_enabled = 1;
+  getMutableConfig().init_state = JIT_INITIALIZED;
+  getMutableConfig().is_enabled = 1;
   g_jit_list = jit_list.release();
 
   total_compliation_time = 0.0;
@@ -1896,15 +1873,15 @@ int _PyJIT_Initialize() {
 }
 
 bool _PyJIT_UseHugePages() {
-  return jit_config.use_huge_pages;
+  return getConfig().use_huge_pages;
 }
 
 int _PyJIT_IsEnabled() {
-  return (jit_config.init_state == JIT_INITIALIZED) && jit_config.is_enabled;
+  return (getConfig().init_state == JIT_INITIALIZED) && getConfig().is_enabled;
 }
 
 int _PyJIT_IsInitialized() {
-  return (jit_config.init_state == JIT_INITIALIZED);
+  return (getConfig().init_state == JIT_INITIALIZED);
 }
 
 void _PyJIT_AfterFork_Child() {
@@ -1912,7 +1889,7 @@ void _PyJIT_AfterFork_Child() {
 }
 
 unsigned int _PyJIT_AutoJITThreshold() {
-  return jit_config.auto_jit_threshold;
+  return getConfig().auto_jit_threshold;
 }
 
 int _PyJIT_IsAutoJITEnabled() {
@@ -1920,49 +1897,49 @@ int _PyJIT_IsAutoJITEnabled() {
 }
 
 void _PyJIT_EnableHIRInliner() {
-  jit_config.hir_inliner_enabled = 1;
+  getMutableConfig().hir_inliner_enabled = 1;
 }
 
 void _PyJIT_DisableHIRInliner() {
-  jit_config.hir_inliner_enabled = 0;
+  getMutableConfig().hir_inliner_enabled = 0;
 }
 
 int _PyJIT_IsHIRInlinerEnabled() {
-  return jit_config.hir_inliner_enabled;
+  return getMutableConfig().hir_inliner_enabled;
 }
 
 int _PyJIT_MultipleCodeSectionsEnabled() {
-  return jit_config.multiple_code_sections;
+  return getConfig().multiple_code_sections;
 }
 
 int _PyJIT_HotCodeSectionSize() {
   if (!_PyJIT_MultipleCodeSectionsEnabled()) {
     return 0;
   }
-  return jit_config.hot_code_section_size;
+  return getConfig().hot_code_section_size;
 }
 
 int _PyJIT_ColdCodeSectionSize() {
   if (!_PyJIT_MultipleCodeSectionsEnabled()) {
     return 0;
   }
-  return jit_config.cold_code_section_size;
+  return getConfig().cold_code_section_size;
 }
 
 uint32_t _PyJIT_AttrCacheSize() {
-  return jit_config.attr_cache_size;
+  return getConfig().attr_cache_size;
 }
 
 int _PyJIT_Enable() {
-  if (jit_config.init_state != JIT_INITIALIZED) {
+  if (getConfig().init_state != JIT_INITIALIZED) {
     return 0;
   }
-  jit_config.is_enabled = 1;
+  getMutableConfig().is_enabled = 1;
   return 0;
 }
 
 void _PyJIT_Disable() {
-  jit_config.is_enabled = 0;
+  getMutableConfig().is_enabled = 0;
 }
 
 _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
@@ -2161,7 +2138,7 @@ static void dump_jit_compiled_functions(const std::string& filename) {
 int _PyJIT_Finalize() {
   // Disable the JIT first so nothing we do in here ends up attempting to
   // invoke the JIT while we're finalizing our data structures.
-  jit_config.is_enabled = 0;
+  getMutableConfig().is_enabled = 0;
 
   // Deopt all JIT generators, since JIT generators reference code and other
   // metadata that we will be freeing later in this function.
@@ -2189,7 +2166,7 @@ int _PyJIT_Finalize() {
   jit::Runtime::get()->clearDeoptStats();
   jit::Runtime::get()->releaseReferences();
 
-  if (jit_config.init_state == JIT_INITIALIZED) {
+  if (getMutableConfig().init_state == JIT_INITIALIZED) {
     delete g_jit_list;
     g_jit_list = nullptr;
 
@@ -2200,7 +2177,7 @@ int _PyJIT_Finalize() {
         jit_preloaders.empty(),
         "JIT cannot be finalized while multithreaded compilation is active");
 
-    jit_config.init_state = JIT_FINALIZED;
+    getMutableConfig().init_state = JIT_FINALIZED;
 
     JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
     delete jit_ctx;
@@ -2219,7 +2196,7 @@ int _PyJIT_Finalize() {
 }
 
 int _PyJIT_ShadowFrame() {
-  return jit_config.frame_mode == SHADOW_FRAME;
+  return getConfig().frame_mode == SHADOW_FRAME;
 }
 
 PyObject* _PyJIT_GenSend(

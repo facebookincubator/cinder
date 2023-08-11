@@ -87,6 +87,18 @@ Option& FlagProcessor::addOption(
 Option& FlagProcessor::addOption(
     const string cmdline_flag,
     const string environment_variable,
+    bool& variable_to_bind_to,
+    const string flag_description) {
+  function<void(int)> setter = [&variable_to_bind_to](int flag_value) {
+    variable_to_bind_to = static_cast<bool>(flag_value);
+  };
+  return addOption(
+      cmdline_flag, environment_variable, setter, flag_description);
+}
+
+Option& FlagProcessor::addOption(
+    const string cmdline_flag,
+    const string environment_variable,
     int& variable_to_bind_to,
     const string flag_description) {
   function<void(int)> setter = [&variable_to_bind_to](int flag_value) {

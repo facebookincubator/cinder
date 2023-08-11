@@ -18,9 +18,6 @@
 extern "C" {
 #endif
 
-enum InitStateJitConfig { JIT_NOT_INITIALIZED, JIT_INITIALIZED, JIT_FINALIZED };
-enum FrameModeJitConfig { PY_FRAME = 0, SHADOW_FRAME };
-
 /* Accessors for internal jit config */
 PyAPI_FUNC(int) _PyJIT_IsJitConfigAllow_jit_list_wildcards(void);
 PyAPI_FUNC(int) _PyJIT_IsJitConfigCompile_all_static_functions(void);

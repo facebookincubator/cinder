@@ -36,6 +36,7 @@ JIT_SRCS = [
     "Jit/bytecode.cpp",
     "Jit/code_allocator.cpp",
     "Jit/compiler.cpp",
+    "Jit/config.cpp",
     "Jit/debug_info.cpp",
     "Jit/deopt.cpp",
     "Jit/deopt_patcher.cpp",

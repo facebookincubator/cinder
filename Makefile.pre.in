@@ -459,6 +459,7 @@ JIT_OBJS=       \
 		Jit/bytecode.o \
 		Jit/code_allocator.o \
 		Jit/compiler.o \
+		Jit/config.o \
 		Jit/debug_info.o \
 		Jit/deopt.o \
 		Jit/deopt_patcher.o \
@@ -1332,6 +1333,7 @@ JIT_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/capsule.h \
 		$(srcdir)/Jit/code_allocator.h \
 		$(srcdir)/Jit/compiler.h \
+		$(srcdir)/Jit/config.h \
 		$(srcdir)/Jit/dataflow.h \
 		$(srcdir)/Jit/debug_info.h \
 		$(srcdir)/Jit/deopt.h \

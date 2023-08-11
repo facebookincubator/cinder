@@ -78,6 +78,11 @@ struct FlagProcessor {
   Option& addOption(
       const std::string cmdline_flag,
       const std::string environment_variable,
+      bool& variable_to_bind_to,
+      const std::string flag_description);
+  Option& addOption(
+      const std::string cmdline_flag,
+      const std::string environment_variable,
       int& variable_to_bind_to,
       const std::string flag_description);
   Option& addOption(
