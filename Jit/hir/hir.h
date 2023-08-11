@@ -7,6 +7,7 @@
 #include "opcode.h"
 
 #include "Jit/bytecode.h"
+#include "Jit/config.h"
 #include "Jit/deopt_patcher.h"
 #include "Jit/hir/register.h"
 #include "Jit/hir/type.h"
@@ -4333,11 +4334,6 @@ class Environment {
   int next_load_type_attr_cache_{0};
   int next_load_method_cache_{0};
   int next_load_type_method_cache_{0};
-};
-
-enum class FrameMode {
-  kNormal,
-  kShadow,
 };
 
 struct TypedArgument {

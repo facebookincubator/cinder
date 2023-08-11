@@ -119,7 +119,7 @@ struct Environ {
 
   UnorderedMap<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
 
-  hir::FrameMode frame_mode;
+  FrameMode frame_mode;
   int initial_yield_spill_size_{-1};
 
   int max_arg_buffer_size{0};

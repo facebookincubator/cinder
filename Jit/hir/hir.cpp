@@ -865,7 +865,7 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code) {
 void Function::setCode(BorrowedRef<PyCodeObject> code) {
   this->code.reset(code);
   uses_runtime_func = usesRuntimeFunc(code);
-  frameMode = _PyJIT_ShadowFrame() ? FrameMode::kShadow : FrameMode::kNormal;
+  frameMode = getConfig().frame_mode;
 }
 
 void Function::Print() const {

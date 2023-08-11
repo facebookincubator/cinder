@@ -174,7 +174,7 @@ class alignas(16) CodeRuntime {
       PyCodeObject* code,
       PyObject* builtins,
       PyObject* globals,
-      jit::hir::FrameMode frame_mode)
+      jit::FrameMode frame_mode)
       : frame_state_(code, builtins, globals), frame_mode_(frame_mode) {
     // TODO(T88040922): Until we work out something smarter, force code,
     // globals, and builtins objects for compiled functions to live as long as
@@ -184,7 +184,7 @@ class alignas(16) CodeRuntime {
     addReference(globals);
   }
 
-  CodeRuntime(PyFunctionObject* func, jit::hir::FrameMode frame_mode)
+  CodeRuntime(PyFunctionObject* func, jit::FrameMode frame_mode)
       : CodeRuntime(
             reinterpret_cast<PyCodeObject*>(func->func_code),
             func->func_builtins,
@@ -200,7 +200,7 @@ class alignas(16) CodeRuntime {
     return inlined_frame_states_.back().get();
   }
 
-  jit::hir::FrameMode frameMode() const {
+  jit::FrameMode frameMode() const {
     return frame_mode_;
   }
 
@@ -250,7 +250,7 @@ class alignas(16) CodeRuntime {
  private:
   RuntimeFrameState frame_state_;
   std::vector<std::unique_ptr<RuntimeFrameState>> inlined_frame_states_;
-  jit::hir::FrameMode frame_mode_;
+  jit::FrameMode frame_mode_;
 
   std::unordered_set<Ref<PyObject>> references_;
 

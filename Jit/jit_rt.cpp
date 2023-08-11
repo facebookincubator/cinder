@@ -1292,7 +1292,7 @@ static inline PyObject* make_gen_object(
     jit::CodeRuntime* code_rt,
     PyCodeObject* code) {
   PyGenObject* gen = nullptr;
-  if (_PyJIT_ShadowFrame()) {
+  if (jit::getConfig().frame_mode == jit::FrameMode::kShadow) {
     if (mode == MakeGenObjectMode::kCoroutine) {
       gen = reinterpret_cast<PyGenObject*>(CiCoro_New_NoFrame(tstate, code));
     } else if (mode == MakeGenObjectMode::kAsyncGenerator) {

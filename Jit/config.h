@@ -1,25 +1,27 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
+#pragma once
+
 #include <cstddef>
 #include <cstdint>
 
 namespace jit {
 
-enum InitStateConfig : uint8_t {
-  JIT_NOT_INITIALIZED,
-  JIT_INITIALIZED,
-  JIT_FINALIZED,
+enum class InitState : uint8_t {
+  kNotInitialized,
+  kInitialized,
+  kFinalized,
 };
 
-enum FrameModeConfig : uint8_t {
-  PY_FRAME,
-  SHADOW_FRAME,
+enum class FrameMode : uint8_t {
+  kNormal,
+  kShadow,
 };
 
 struct Config {
   bool is_enabled{false};
-  FrameModeConfig frame_mode{PY_FRAME};
-  InitStateConfig init_state{JIT_NOT_INITIALIZED};
+  FrameMode frame_mode{FrameMode::kNormal};
+  InitState init_state{InitState::kNotInitialized};
   bool allow_jit_list_wildcards{false};
   bool compile_all_static_functions{false};
   bool hir_inliner_enabled{false};
@@ -27,8 +29,12 @@ struct Config {
   bool multithreaded_compile_test{false};
   bool use_huge_pages{true};
   size_t batch_compile_workers{0};
+  // Sizes (in bytes) of the hot and cold code sections. Only applicable if
+  // multiple code sections are enabled.
   size_t cold_code_section_size{0};
   size_t hot_code_section_size{0};
+  // Size (in number of entries) of the LoadAttr and StoreAttr inline caches
+  // used by the JIT.
   uint32_t attr_cache_size{1};
   uint32_t auto_jit_threshold{0};
   int code_watcher_id{-1};

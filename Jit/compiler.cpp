@@ -4,6 +4,7 @@
 
 #include "Python.h"
 
+#include "Jit/config.h"
 #include "Jit/disassembler.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/builder.h"
@@ -140,7 +141,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
 
 PassConfig createConfig() {
   PassConfig result{PassConfig::kDefault};
-  if (_PyJIT_IsHIRInlinerEnabled()) {
+  if (getConfig().hir_inliner_enabled) {
     result = static_cast<PassConfig>(result | PassConfig::kEnableHIRInliner);
   }
   return result;

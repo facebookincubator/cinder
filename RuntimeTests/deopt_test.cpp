@@ -752,7 +752,7 @@ def test(n):
   auto arg1 = Ref<>::steal(PyLong_FromLong(10));
   PyObject* args[] = {arg1};
   auto result = Ref<>::steal(PyLong_FromLong(11));
-  _PyJIT_EnableHIRInliner();
+  getMutableConfig().hir_inliner_enabled = true;
   runTest(src, args, 1, result);
 }
 

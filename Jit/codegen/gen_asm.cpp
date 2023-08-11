@@ -13,6 +13,7 @@
 #include "Jit/codegen/autogen.h"
 #include "Jit/codegen/code_section.h"
 #include "Jit/codegen/gen_asm_utils.h"
+#include "Jit/config.h"
 #include "Jit/frame.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/hir.h"
@@ -89,7 +90,7 @@ void NativeGenerator::generateEpilogueUnlinkFrame(
       PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
       "Unexpected constants");
   bool might_have_heap_frame =
-      func_->canDeopt() || func_->frameMode == jit::hir::FrameMode::kNormal;
+      func_->canDeopt() || func_->frameMode == jit::FrameMode::kNormal;
   if (might_have_heap_frame) {
     as_->bt(
         x86::qword_ptr(scratch_reg, offsetof(_PyShadowFrame, data)),
@@ -220,7 +221,7 @@ void* NativeGenerator::getVectorcallEntry() {
   ThrowableErrorHandler eh;
   code.setErrorHandler(&eh);
 
-  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+  if (getConfig().multiple_code_sections) {
     Section* cold_text;
     code.newSection(
         &cold_text,
@@ -447,7 +448,7 @@ void NativeGenerator::linkOnStackShadowFrame(
     x86::Gp tstate_reg,
     x86::Gp scratch_reg) {
   const jit::hir::Function* func = GetFunction();
-  jit::hir::FrameMode frame_mode = func->frameMode;
+  jit::FrameMode frame_mode = func->frameMode;
   using namespace shadow_frame;
   x86::Mem shadow_stack_top_ptr = getStackTopPtr(tstate_reg);
   uintptr_t data =
@@ -456,7 +457,7 @@ void NativeGenerator::linkOnStackShadowFrame(
   as_->mov(scratch_reg, shadow_stack_top_ptr);
   as_->mov(kInFramePrevPtr, scratch_reg);
   // Set data
-  if (frame_mode == jit::hir::FrameMode::kNormal) {
+  if (frame_mode == jit::FrameMode::kNormal) {
     as_->mov(scratch_reg, x86::ptr(tstate_reg, offsetof(PyThreadState, frame)));
     static_assert(
         PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
@@ -470,7 +471,7 @@ void NativeGenerator::linkOnStackShadowFrame(
   // This is only necessary when in normal-frame mode because the frame is
   // already materialized on function entry. It is lazily filled when the frame
   // is materialized in shadow-frame mode.
-  if (frame_mode == jit::hir::FrameMode::kNormal) {
+  if (frame_mode == jit::FrameMode::kNormal) {
     as_->mov(scratch_reg, data);
     as_->mov(shadow_frame::kInFrameOrigDataPtr, scratch_reg);
   }

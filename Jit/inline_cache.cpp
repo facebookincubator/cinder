@@ -206,7 +206,7 @@ void AttributeCache::fill(
 }
 
 std::span<AttributeMutator> AttributeCache::entries() {
-  return {entries_, _PyJIT_AttrCacheSize()};
+  return {entries_, getConfig().attr_cache_size};
 }
 
 AttributeMutator* AttributeCache::findEmptyEntry() {

@@ -2,7 +2,7 @@
 
 #include "Jit/code_allocator.h"
 
-#include "Jit/pyjit.h"
+#include "Jit/config.h"
 #include "Jit/threaded_compile.h"
 
 #include <sys/mman.h>
@@ -32,9 +32,9 @@ CodeAllocator::~CodeAllocator() {}
 void CodeAllocator::makeGlobalCodeAllocator() {
   JIT_CHECK(
       s_global_code_allocator_ == nullptr, "Global allocator already set");
-  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+  if (getConfig().multiple_code_sections) {
     s_global_code_allocator_ = new MultipleSectionCodeAllocator;
-  } else if (_PyJIT_UseHugePages()) {
+  } else if (getConfig().use_huge_pages) {
     s_global_code_allocator_ = new CodeAllocatorCinder;
   } else {
     s_global_code_allocator_ = new CodeAllocatorAsmJit;
@@ -151,14 +151,14 @@ MultipleSectionCodeAllocator::~MultipleSectionCodeAllocator() {
 void MultipleSectionCodeAllocator::createSlabs() noexcept {
   // Linux's huge-page sizes are 2 MiB.
   const size_t kHugePageSize = 1024 * 1024 * 2;
-  size_t hot_section_size =
-      asmjit::Support::alignUp(_PyJIT_HotCodeSectionSize(), kHugePageSize);
+  size_t hot_section_size = asmjit::Support::alignUp(
+      getConfig().hot_code_section_size, kHugePageSize);
   JIT_CHECK(
       hot_section_size > 0,
       "Hot code section must have non-zero size when using multiple sections.");
   code_section_free_sizes_[CodeSection::kHot] = hot_section_size;
 
-  size_t cold_section_size = _PyJIT_ColdCodeSectionSize();
+  size_t cold_section_size = getConfig().cold_code_section_size;
   JIT_CHECK(
       cold_section_size > 0,
       "Cold code section must have non-zero size when using multiple "

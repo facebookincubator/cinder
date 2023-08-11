@@ -11,7 +11,6 @@
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/lir.h"
-#include "Jit/pyjit.h"
 #include "Jit/util.h"
 
 #include <asmjit/asmjit.h>

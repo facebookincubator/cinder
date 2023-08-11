@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "Jit/pyjit.h"
+#include "Jit/config.h"
 
 #include <asmjit/asmjit.h>
 
 #include <cstring>
+#include <vector>
 
 namespace jit::codegen {
 
@@ -46,7 +47,7 @@ class CodeSectionOverride {
       CodeHolderMetadata* metadata,
       CodeSection section)
       : as_{as}, code_{code}, metadata_{metadata} {
-    if (_PyJIT_MultipleCodeSectionsEnabled()) {
+    if (getConfig().multiple_code_sections) {
       previous_section_ = metadata->section_;
       metadata->section_ = section;
       as->section(code->sectionByName(codeSectionName(section)));
@@ -60,7 +61,7 @@ class CodeSectionOverride {
     if (as_ == nullptr || code_ == nullptr) {
       return;
     }
-    if (_PyJIT_MultipleCodeSectionsEnabled()) {
+    if (getConfig().multiple_code_sections) {
       as_->section(code_->sectionByName(codeSectionName(previous_section_)));
       metadata_->section_ = previous_section_;
     }

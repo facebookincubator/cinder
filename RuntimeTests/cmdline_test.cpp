@@ -268,7 +268,7 @@ TEST_F(CmdLineTest, BasicFlags) {
           L"jit-disable-huge-pages",
           "PYTHONJITDISABLEHUGEPAGES",
           []() {},
-          []() { ASSERT_FALSE(_PyJIT_UseHugePages()); }),
+          []() { ASSERT_FALSE(getConfig().use_huge_pages); }),
       0);
 
   ASSERT_EQ(
@@ -276,7 +276,7 @@ TEST_F(CmdLineTest, BasicFlags) {
           L"jit-enable-jit-list-wildcards",
           "PYTHONJITENABLEJITLISTWILDCARDS",
           []() {},
-          []() { ASSERT_EQ(_PyJIT_IsJitConfigAllow_jit_list_wildcards(), 1); }),
+          []() { ASSERT_TRUE(getConfig().allow_jit_list_wildcards); }),
       0);
 
   ASSERT_EQ(
@@ -284,9 +284,7 @@ TEST_F(CmdLineTest, BasicFlags) {
           L"jit-all-static-functions",
           "PYTHONJITALLSTATICFUNCTIONS",
           []() {},
-          []() {
-            ASSERT_EQ(_PyJIT_IsJitConfigCompile_all_static_functions(), 1);
-          }),
+          []() { ASSERT_TRUE(getConfig().compile_all_static_functions); }),
       0);
 
   ASSERT_EQ(
@@ -336,7 +334,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           L"jit-shadow-frame",
           "PYTHONJITSHADOWFRAME",
           []() {},
-          []() { ASSERT_FALSE(_PyJIT_ShadowFrame()); },
+          []() { ASSERT_NE(getConfig().frame_mode, FrameMode::kShadow); },
           false),
       0);
 
@@ -345,7 +343,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           L"jit-shadow-frame",
           "PYTHONJITSHADOWFRAME",
           []() {},
-          []() { ASSERT_TRUE(_PyJIT_ShadowFrame()); },
+          []() { ASSERT_EQ(getConfig().frame_mode, FrameMode::kShadow); },
           true),
       0);
 
@@ -355,7 +353,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_ShadowFrame) {
           L"jit-shadow-frame=0",
           "PYTHONJITSHADOWFRAME=0",
           []() {},
-          []() { ASSERT_FALSE(_PyJIT_ShadowFrame()); },
+          []() { ASSERT_NE(getConfig().frame_mode, FrameMode::kShadow); },
           true),
       0);
 }
@@ -366,9 +364,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_MultithreadCompile) {
           L"jit-multithreaded-compile-test",
           "PYTHONJITMULTITHREADEDCOMPILETEST",
           []() {},
-          []() {
-            ASSERT_EQ(_PyJIT_IsJitConfigMultithreaded_compile_test(), 0);
-          },
+          []() { ASSERT_FALSE(getConfig().multithreaded_compile_test); },
           false),
       0);
 
@@ -377,9 +373,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_MultithreadCompile) {
           L"jit-multithreaded-compile-test",
           "PYTHONJITMULTITHREADEDCOMPILETEST",
           []() {},
-          []() {
-            ASSERT_EQ(_PyJIT_IsJitConfigMultithreaded_compile_test(), 1);
-          },
+          []() { ASSERT_TRUE(getConfig().multithreaded_compile_test); },
           true),
       0);
 }
@@ -413,7 +407,7 @@ TEST_F(CmdLineTest, JITEnabledFlags_BatchCompileWorkers) {
           L"jit-batch-compile-workers=21",
           "PYTHONJITBATCHCOMPILEWORKERS=21",
           []() {},
-          []() { ASSERT_EQ(_PyJIT_GetJitConfigBatch_compile_workers(), 21); },
+          []() { ASSERT_EQ(getConfig().batch_compile_workers, 21); },
           true),
       0);
 }

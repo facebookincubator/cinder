@@ -18,12 +18,6 @@
 extern "C" {
 #endif
 
-/* Accessors for internal jit config */
-PyAPI_FUNC(int) _PyJIT_IsJitConfigAllow_jit_list_wildcards(void);
-PyAPI_FUNC(int) _PyJIT_IsJitConfigCompile_all_static_functions(void);
-PyAPI_FUNC(size_t) _PyJIT_GetJitConfigBatch_compile_workers(void);
-PyAPI_FUNC(int) _PyJIT_IsJitConfigMultithreaded_compile_test(void);
-
 /*
  * This defines the global public API for the JIT that is consumed by the
  * runtime.
@@ -68,14 +62,6 @@ PyAPI_FUNC(void) _PyJIT_Disable(void);
 PyAPI_FUNC(int) _PyJIT_IsEnabled(void);
 
 /*
- * Returns 1 if the JIT was ever successfully initialized, 0 otherwise.
- *
- * This could be 1 when _PyJIT_IsEnabled() is 0, if the JIT has since been
- * disabled.
- */
-PyAPI_FUNC(int) _PyJIT_IsInitialized(void);
-
-/*
  * After-fork callback for child processes. Performs any cleanup necessary for
  * per-process state, including handling of Linux perf pid maps.
  */
@@ -90,45 +76,6 @@ PyAPI_FUNC(int) _PyJIT_IsAutoJITEnabled(void);
  * Returns the threshold if auto-JIT is enabled and 0 otherwise.
  */
 PyAPI_FUNC(unsigned int) _PyJIT_AutoJITThreshold(void);
-
-/*
-   Enable the HIR inliner.
- */
-PyAPI_FUNC(void) _PyJIT_EnableHIRInliner(void);
-
-/*
-   Disable the HIR inliner.
- */
-PyAPI_FUNC(void) _PyJIT_DisableHIRInliner(void);
-
-/*
- * Returns 1 if the HIR inliner is enabled and 0 otherwise.
- */
-PyAPI_FUNC(int) _PyJIT_IsHIRInlinerEnabled(void);
-
-/*
- * Returns 1 if the JIT will split code emission across multiple sections and 0
- * otherwise.
- */
-PyAPI_FUNC(int) _PyJIT_MultipleCodeSectionsEnabled(void);
-
-/*
- * Returns the size (in bytes) of the hot code section. Returns 0 if multiple
- * code sections aren't enabled.
- */
-PyAPI_FUNC(int) _PyJIT_HotCodeSectionSize(void);
-
-/*
- * Returns the size (in bytes) of the hot code section. Returns 0 if multiple
- * code sections aren't enabled.
- */
-PyAPI_FUNC(int) _PyJIT_ColdCodeSectionSize(void);
-
-/*
- * Return the size (in number of entries) of the LoadAttr and StoreAttr inline
- * caches used by the JIT.
- */
-PyAPI_FUNC(uint32_t) _PyJIT_AttrCacheSize(void);
 
 /*
  * JIT compile func and patch its entry point.
@@ -194,12 +141,6 @@ PyAPI_FUNC(int) _PyJIT_Finalize(void);
  * Always returns 1 if the JIT list is not specified.
  */
 PyAPI_FUNC(int) _PyJIT_OnJitList(PyFunctionObject* func);
-
-/*
- * Returns a boolean indicating whether or not jitted functions should use a
- * shadow frame object by default instead of a full PyFrameObject.
- */
-PyAPI_FUNC(int) _PyJIT_ShadowFrame(void);
 
 /* Dict-watching callbacks, invoked by dictobject.c when appropriate. */
 
@@ -459,8 +400,7 @@ PyAPI_FUNC(void) _PyJIT_SetProfileNewInterpThreads(int);
 PyAPI_FUNC(int) _PyJIT_GetProfileNewInterpThreads(void);
 
 #ifdef __cplusplus
-bool _PyJIT_UseHugePages();
-} /* extern "C" */
+} // extern "C"
 #endif
 
 #ifdef __cplusplus

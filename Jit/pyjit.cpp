@@ -50,26 +50,6 @@
 
 using namespace jit;
 
-int _PyJIT_IsJitConfigAllow_jit_list_wildcards() {
-  return getConfig().allow_jit_list_wildcards;
-}
-
-int _PyJIT_IsJitConfigCompile_all_static_functions() {
-  return getConfig().compile_all_static_functions;
-}
-
-size_t _PyJIT_GetJitConfigBatch_compile_workers() {
-  return getConfig().batch_compile_workers;
-}
-
-int _PyJIT_IsJitConfigMultithreaded_compile_test() {
-  return getConfig().multithreaded_compile_test;
-}
-
-unsigned int _PyJIT_GetJitConfigAuto_jit_threshold() {
-  return getConfig().auto_jit_threshold;
-}
-
 namespace {
 // Extra information needed to compile a PyCodeObject.
 struct CodeData {
@@ -506,7 +486,8 @@ void initFlagProcessor() {
         "PYTHONJITSHADOWFRAME",
         [](int val) {
           if (use_jit) {
-            getMutableConfig().frame_mode = val ? SHADOW_FRAME : PY_FRAME;
+            getMutableConfig().frame_mode =
+                val ? FrameMode::kShadow : FrameMode::kNormal;
           } else {
             warnJITOff("jit-shadow-frame");
           }
@@ -566,7 +547,7 @@ void initFlagProcessor() {
         "PYTHONJITENABLEHIRINLINER",
         [](int val) {
           if (use_jit && val) {
-            _PyJIT_EnableHIRInliner();
+            getMutableConfig().hir_inliner_enabled = true;
           } else {
             warnJITOff("jit-enable-hir-inliner");
           }
@@ -1210,7 +1191,7 @@ static PyObject* get_compiled_spill_stack_size(
 }
 
 static PyObject* jit_frame_mode(PyObject* /* self */, PyObject*) {
-  return PyLong_FromLong(getConfig().frame_mode);
+  return PyLong_FromLong(static_cast<int>(getConfig().frame_mode));
 }
 
 static PyObject* get_supported_opcodes(PyObject* /* self */, PyObject*) {
@@ -1297,7 +1278,7 @@ static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
 }
 
 static PyObject* get_allocator_stats(PyObject*, PyObject*) {
-  if (!_PyJIT_UseHugePages()) {
+  if (!getConfig().use_huge_pages) {
     Py_RETURN_NONE;
   }
   auto stats = Ref<>::steal(PyDict_New());
@@ -1332,8 +1313,7 @@ static PyObject* get_allocator_stats(PyObject*, PyObject*) {
 }
 
 static PyObject* is_hir_inliner_enabled(PyObject* /* self */, PyObject*) {
-  int result = _PyJIT_IsHIRInlinerEnabled();
-  if (result) {
+  if (getConfig().hir_inliner_enabled) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -1349,12 +1329,12 @@ static PyObject* is_inline_cache_stats_collection_enabled(
 }
 
 static PyObject* enable_hir_inliner(PyObject* /* self */, PyObject*) {
-  _PyJIT_EnableHIRInliner();
+  getMutableConfig().hir_inliner_enabled = true;
   Py_RETURN_NONE;
 }
 
 static PyObject* disable_hir_inliner(PyObject* /* self */, PyObject*) {
-  _PyJIT_DisableHIRInliner();
+  getMutableConfig().hir_inliner_enabled = false;
   Py_RETURN_NONE;
 }
 
@@ -1774,7 +1754,7 @@ int _PyJIT_Initialize() {
               static_cast<uintptr_t>(0xf0),
       "Missing symbol");
 
-  if (getConfig().init_state == JIT_INITIALIZED) {
+  if (getConfig().init_state == InitState::kInitialized) {
     return 0;
   }
 
@@ -1863,7 +1843,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  getMutableConfig().init_state = JIT_INITIALIZED;
+  getMutableConfig().init_state = InitState::kInitialized;
   getMutableConfig().is_enabled = 1;
   g_jit_list = jit_list.release();
 
@@ -1872,16 +1852,9 @@ int _PyJIT_Initialize() {
   return 0;
 }
 
-bool _PyJIT_UseHugePages() {
-  return getConfig().use_huge_pages;
-}
-
 int _PyJIT_IsEnabled() {
-  return (getConfig().init_state == JIT_INITIALIZED) && getConfig().is_enabled;
-}
-
-int _PyJIT_IsInitialized() {
-  return (getConfig().init_state == JIT_INITIALIZED);
+  return (getConfig().init_state == InitState::kInitialized) &&
+      getConfig().is_enabled;
 }
 
 void _PyJIT_AfterFork_Child() {
@@ -1896,42 +1869,8 @@ int _PyJIT_IsAutoJITEnabled() {
   return _PyJIT_AutoJITThreshold() > 0;
 }
 
-void _PyJIT_EnableHIRInliner() {
-  getMutableConfig().hir_inliner_enabled = 1;
-}
-
-void _PyJIT_DisableHIRInliner() {
-  getMutableConfig().hir_inliner_enabled = 0;
-}
-
-int _PyJIT_IsHIRInlinerEnabled() {
-  return getMutableConfig().hir_inliner_enabled;
-}
-
-int _PyJIT_MultipleCodeSectionsEnabled() {
-  return getConfig().multiple_code_sections;
-}
-
-int _PyJIT_HotCodeSectionSize() {
-  if (!_PyJIT_MultipleCodeSectionsEnabled()) {
-    return 0;
-  }
-  return getConfig().hot_code_section_size;
-}
-
-int _PyJIT_ColdCodeSectionSize() {
-  if (!_PyJIT_MultipleCodeSectionsEnabled()) {
-    return 0;
-  }
-  return getConfig().cold_code_section_size;
-}
-
-uint32_t _PyJIT_AttrCacheSize() {
-  return getConfig().attr_cache_size;
-}
-
 int _PyJIT_Enable() {
-  if (getConfig().init_state != JIT_INITIALIZED) {
+  if (getConfig().init_state != InitState::kInitialized) {
     return 0;
   }
   getMutableConfig().is_enabled = 1;
@@ -2166,7 +2105,7 @@ int _PyJIT_Finalize() {
   jit::Runtime::get()->clearDeoptStats();
   jit::Runtime::get()->releaseReferences();
 
-  if (getMutableConfig().init_state == JIT_INITIALIZED) {
+  if (getMutableConfig().init_state == InitState::kInitialized) {
     delete g_jit_list;
     g_jit_list = nullptr;
 
@@ -2177,7 +2116,7 @@ int _PyJIT_Finalize() {
         jit_preloaders.empty(),
         "JIT cannot be finalized while multithreaded compilation is active");
 
-    getMutableConfig().init_state = JIT_FINALIZED;
+    getMutableConfig().init_state = InitState::kFinalized;
 
     JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
     delete jit_ctx;
@@ -2193,10 +2132,6 @@ int _PyJIT_Finalize() {
   Runtime::shutdown();
 
   return 0;
-}
-
-int _PyJIT_ShadowFrame() {
-  return getConfig().frame_mode == SHADOW_FRAME;
 }
 
 PyObject* _PyJIT_GenSend(
@@ -2542,7 +2477,7 @@ void _PyJIT_ClearTypeProfiles() {
 }
 
 PyFrameObject* _PyJIT_GetFrame(PyThreadState* tstate) {
-  if (_PyJIT_IsInitialized()) {
+  if (getConfig().init_state == InitState::kInitialized) {
     return jit::materializeShadowCallStack(tstate);
   }
   return tstate->frame;

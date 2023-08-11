@@ -5,14 +5,15 @@
 #include "Python.h"
 #include "StaticPython/classloader.h"
 
+#include "Jit/config.h"
 #include "Jit/jit_rt.h"
 #include "Jit/log.h"
-#include "Jit/pyjit.h"
 #include "Jit/ref.h"
 #include "Jit/util.h"
 
 #include <array>
 #include <memory>
+#include <span>
 #include <unordered_map>
 
 namespace jit {
@@ -125,7 +126,7 @@ class AttributeCache {
 struct AttributeCacheSizeTrait {
   static size_t size() {
     auto base = sizeof(AttributeCache);
-    auto extra = sizeof(AttributeMutator) * _PyJIT_AttrCacheSize();
+    auto extra = sizeof(AttributeMutator) * getConfig().attr_cache_size;
     return base + extra;
   }
 };

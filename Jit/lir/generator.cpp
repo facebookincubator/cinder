@@ -13,6 +13,7 @@
 #include "pystate.h"
 
 #include "Jit/codegen/x86_64.h"
+#include "Jit/config.h"
 #include "Jit/containers.h"
 #include "Jit/deopt.h"
 #include "Jit/frame.h"
@@ -559,7 +560,7 @@ void LIRGenerator::MakeDecref(
 
   bbb.AppendCode("BranchNZ {}", end_decref);
   bbb.AppendLabel(dealloc);
-  if (_PyJIT_MultipleCodeSectionsEnabled()) {
+  if (getConfig().multiple_code_sections) {
     bbb.SetBlockSection(dealloc, codegen::CodeSection::kCold);
   }
 
@@ -2506,7 +2507,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // This is only necessary when in normal-frame mode because the frame
         // is already materialized on function entry. It is lazily filled when
         // the frame is materialized in shadow-frame mode.
-        if (func_->frameMode == jit::hir::FrameMode::kNormal) {
+        if (func_->frameMode == jit::FrameMode::kNormal) {
           bbb.AppendCode(
               "Store {}, {}, {}",
               data_reg,
