@@ -1527,6 +1527,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->GetOperand(1));
         break;
       }
+      case Opcode::kUnicodeSubscr: {
+        auto instr = static_cast<const UnicodeSubscr*>(&i);
+
+        bbb.AppendCall(
+            instr->dst(),
+            PyUnicode_Type.tp_as_sequence->sq_item,
+            instr->GetOperand(0),
+            instr->GetOperand(1));
+        break;
+      }
       case Opcode::kCompareBool: {
         auto instr = static_cast<const CompareBool*>(&i);
 

@@ -173,6 +173,7 @@ bool Instr::isReplayable() const {
     case Opcode::kStealCellItem:
     case Opcode::kUnicodeCompare:
     case Opcode::kUnicodeConcat:
+    case Opcode::kUnicodeSubscr:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:
     case Opcode::kWaitHandleLoadWaiter: {

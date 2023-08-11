@@ -61,6 +61,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kUnicodeCompare:
     case Opcode::kUnicodeConcat:
     case Opcode::kUnicodeRepeat:
+    case Opcode::kUnicodeSubscr:
     case Opcode::kUnreachable:
     case Opcode::kUseType:
     case Opcode::kWaitHandleLoadCoroOrResult:

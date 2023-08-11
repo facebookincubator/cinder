@@ -426,6 +426,111 @@ fun jittestmodule:test {
   }
 }
 ---
+BinaryOpSubscriptUnicodeSubscr
+---
+import os
+
+def test():
+    local_str = "foobar" if os.argv else "thudgrunt"
+    local_int = 3 if os.argv else 5
+    return local_str[local_int]
+---
+fun jittestmodule:test {
+  bb 0 {
+    v13:Nullptr = LoadConst<Nullptr>
+    Snapshot
+    v14:OptObject = LoadGlobalCached<0; "os">
+    v15:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v14 {
+      Descr 'LOAD_GLOBAL: os'
+    }
+    Snapshot
+    v16:Object = LoadAttr<1; "argv"> v15 {
+      FrameState {
+        NextInstrOffset 4
+        Locals<2> v13 v13
+      }
+    }
+    Snapshot
+    v17:CInt32 = IsTruthy v16 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v13 v13
+      }
+    }
+    CondBranch<1, 2> v17
+  }
+
+  bb 1 (preds 0) {
+    Snapshot
+    v18:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
+    Branch<3>
+  }
+
+  bb 2 (preds 0) {
+    Snapshot
+    v20:MortalUnicodeExact["thudgrunt"] = LoadConst<MortalUnicodeExact["thudgrunt"]>
+    Branch<3>
+  }
+
+  bb 3 (preds 1, 2) {
+    v22:MortalUnicodeExact = Phi<1, 2> v18 v20
+    Snapshot
+    v26:OptObject = LoadGlobalCached<0; "os">
+    v27:MortalObjectUser[module:0xdeadbeef] = GuardIs<0xdeadbeef> v26 {
+      Descr 'LOAD_GLOBAL: os'
+    }
+    Snapshot
+    v28:Object = LoadAttr<1; "argv"> v27 {
+      FrameState {
+        NextInstrOffset 18
+        Locals<2> v22 v13
+      }
+    }
+    Snapshot
+    v29:CInt32 = IsTruthy v28 {
+      FrameState {
+        NextInstrOffset 20
+        Locals<2> v22 v13
+      }
+    }
+    CondBranch<4, 5> v29
+  }
+
+  bb 4 (preds 3) {
+    Snapshot
+    v30:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
+    Branch<6>
+  }
+
+  bb 5 (preds 3) {
+    Snapshot
+    v32:ImmortalLongExact[5] = LoadConst<ImmortalLongExact[5]>
+    Branch<6>
+  }
+
+  bb 6 (preds 4, 5) {
+    v34:ImmortalLongExact = Phi<4, 5> v30 v32
+    Snapshot
+    UseType<UnicodeExact> v22
+    UseType<LongExact> v34
+    v41:CInt64 = PrimitiveUnbox<CInt64> v34
+    v42:CInt64 = CheckSequenceBounds v22 v41 {
+      FrameState {
+        NextInstrOffset 34
+        Locals<2> v22 v34
+      }
+    }
+    v43:UnicodeExact = UnicodeSubscr v22 v42 {
+      FrameState {
+        NextInstrOffset 34
+        Locals<2> v22 v34
+      }
+    }
+    Snapshot
+    Return v43
+  }
+}
+---
 CondBranchOfIsTruthyWithNoneRemovesCondBranch
 ---
 # HIR

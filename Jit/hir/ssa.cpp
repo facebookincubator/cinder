@@ -674,7 +674,8 @@ Type outputType(
     }
 
     case Opcode::kUnicodeConcat:
-    case Opcode::kUnicodeRepeat: {
+    case Opcode::kUnicodeRepeat:
+    case Opcode::kUnicodeSubscr: {
       return TUnicodeExact;
     }
 

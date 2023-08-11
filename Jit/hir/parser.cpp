@@ -367,6 +367,10 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     auto left = ParseRegister();
     auto right = ParseRegister();
     NEW_INSTR(UnicodeRepeat, dst, left, right, FrameState{});
+  } else if (opcode == "UnicodeSubscr") {
+    auto left = ParseRegister();
+    auto right = ParseRegister();
+    NEW_INSTR(UnicodeSubscr, dst, left, right, FrameState{});
   } else if (opcode == "IntConvert") {
     expect("<");
     Type type = Type::parse(env_, GetNextToken());

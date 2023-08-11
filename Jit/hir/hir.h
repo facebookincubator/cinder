@@ -346,6 +346,7 @@ struct FrameState {
   V(UnicodeCompare)                    \
   V(UnicodeConcat)                     \
   V(UnicodeRepeat)                     \
+  V(UnicodeSubscr)                     \
   V(UnpackExToTuple)                   \
   V(Unreachable)                       \
   V(UseType)                           \
@@ -2318,6 +2319,13 @@ DEFINE_SIMPLE_INSTR(
 
 DEFINE_SIMPLE_INSTR(
     UnicodeRepeat,
+    (TUnicodeExact, TCInt64),
+    HasOutput,
+    Operands<2>,
+    DeoptBase)
+
+DEFINE_SIMPLE_INSTR(
+    UnicodeSubscr,
     (TUnicodeExact, TCInt64),
     HasOutput,
     Operands<2>,
