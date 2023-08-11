@@ -1764,10 +1764,12 @@ _PyTuple_Resize
 PyTuple_SetItem
 PyTuple_Size
 PyTuple_Type
+PyType_AddWatcher
 _PyType_CalculateMetaclass
 _PyType_CheckConsistency
 PyType_ClearCache
 _PyType_ClearNoShadowingInstances
+PyType_ClearWatcher
 PyType_FromModuleAndSpec
 PyType_FromSpec
 PyType_FromSpecWithBases
@@ -1789,6 +1791,8 @@ PyType_Ready
 _PyType_SetNoShadowingInstances
 _PyTypes_InitSlotDefs
 PyType_Type
+PyType_Unwatch
+PyType_Watch
 _Py_Uid_Converter
 PyUnicode_Append
 PyUnicode_AppendAndDel

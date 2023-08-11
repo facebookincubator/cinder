@@ -388,6 +388,94 @@ _PyType_ClearNoShadowingInstances(PyTypeObject *type, PyObject *value)
     PyType_Modified(type);
 }
 
+int
+PyType_AddWatcher(PyType_WatchCallback callback)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+
+    for (int i = 0; i < TYPE_MAX_WATCHERS; i++) {
+        if (!interp->type_watchers[i]) {
+            interp->type_watchers[i] = callback;
+            return i;
+        }
+    }
+
+    PyErr_SetString(PyExc_RuntimeError, "no more type watcher IDs available");
+    return -1;
+}
+
+static inline int
+validate_watcher_id(PyInterpreterState *interp, int watcher_id)
+{
+    if (watcher_id < 0 || watcher_id >= TYPE_MAX_WATCHERS) {
+        PyErr_Format(PyExc_ValueError, "Invalid type watcher ID %d", watcher_id);
+        return -1;
+    }
+    if (!interp->type_watchers[watcher_id]) {
+        PyErr_Format(PyExc_ValueError, "No type watcher set for ID %d", watcher_id);
+        return -1;
+    }
+    return 0;
+}
+
+int
+PyType_ClearWatcher(int watcher_id)
+{
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (validate_watcher_id(interp, watcher_id) < 0) {
+        return -1;
+    }
+    interp->type_watchers[watcher_id] = NULL;
+    return 0;
+}
+
+static int assign_version_tag(struct type_cache *cache, PyTypeObject *type);
+
+// Steal bits 32-39 of tp_flags for watched bits, since we can't safely add a
+// new field to PyTypeObject in Cinder 3.10 (we'd get junk data for it for every
+// static PyTypeObject in an extension that we don't recompile). These bits are
+// available to us since CPython supports 32-bit architectures (so only uses up
+// to bit 31), but Cinder only supports 64 bits (so bits 32-63 are present and
+// unused). This is a temporary hack for 3.10 that shouldn't be ported to 3.12.
+#if SIZEOF_LONG >= 8
+#define TP_WATCHED(type) (*((unsigned char *)(&(type->tp_flags)) + 4))
+#else
+#error "No space for type watched bits; Cinder 3.10 only supports 64-bit platforms."
+#endif
+
+int
+PyType_Watch(int watcher_id, PyObject* obj)
+{
+    if (!PyType_Check(obj)) {
+        PyErr_SetString(PyExc_ValueError, "Cannot watch non-type");
+        return -1;
+    }
+    PyTypeObject *type = (PyTypeObject *)obj;
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (validate_watcher_id(interp, watcher_id) < 0) {
+        return -1;
+    }
+    // ensure we will get a callback on the next modification
+    assign_version_tag(&interp->type_cache, type);
+    TP_WATCHED(type) |= (1 << watcher_id);
+    return 0;
+}
+
+int
+PyType_Unwatch(int watcher_id, PyObject* obj)
+{
+    if (!PyType_Check(obj)) {
+        PyErr_SetString(PyExc_ValueError, "Cannot watch non-type");
+        return -1;
+    }
+    PyTypeObject *type = (PyTypeObject *)obj;
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    if (validate_watcher_id(interp, watcher_id)) {
+        return -1;
+    }
+    TP_WATCHED(type) &= ~(1 << watcher_id);
+    return 0;
+}
 
 void
 PyType_Modified(PyTypeObject *type)
@@ -425,6 +513,25 @@ PyType_Modified(PyTypeObject *type)
             }
         }
     }
+
+    // Notify registered type watchers, if any
+    if (TP_WATCHED(type)) {
+        PyInterpreterState *interp = _PyInterpreterState_GET();
+        int bits = TP_WATCHED(type);
+        int i = 0;
+        while (bits) {
+            assert(i < TYPE_MAX_WATCHERS);
+            if (bits & 1) {
+                PyType_WatchCallback cb = interp->type_watchers[i];
+                if (cb && (cb(type) < 0)) {
+                    PyErr_WriteUnraisable((PyObject *)type);
+                }
+            }
+            i++;
+            bits >>= 1;
+        }
+    }
+
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
 #ifdef ENABLE_CINDERX

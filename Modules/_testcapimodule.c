@@ -6265,6 +6265,128 @@ get_dict_watcher_events(PyObject *self, PyObject *Py_UNUSED(args))
     return Py_NewRef(g_dict_watch_events);
 }
 
+// Test type watchers
+static PyObject *g_type_modified_events;
+static int g_type_watchers_installed;
+
+static int
+type_modified_callback(PyTypeObject *type)
+{
+    assert(PyList_Check(g_type_modified_events));
+    if(PyList_Append(g_type_modified_events, (PyObject *)type) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
+static int
+type_modified_callback_wrap(PyTypeObject *type)
+{
+    assert(PyList_Check(g_type_modified_events));
+    PyObject *list = PyList_New(0);
+    if (list == NULL) {
+        return -1;
+    }
+    if (PyList_Append(list, (PyObject *)type) < 0) {
+        Py_DECREF(list);
+        return -1;
+    }
+    if (PyList_Append(g_type_modified_events, list) < 0) {
+        Py_DECREF(list);
+        return -1;
+    }
+    Py_DECREF(list);
+    return 0;
+}
+
+static int
+type_modified_callback_error(PyTypeObject *type)
+{
+    PyErr_SetString(PyExc_RuntimeError, "boom!");
+    return -1;
+}
+
+static PyObject *
+add_type_watcher(PyObject *self, PyObject *kind)
+{
+    int watcher_id;
+    assert(PyLong_Check(kind));
+    long kind_l = PyLong_AsLong(kind);
+    if (kind_l == 2) {
+        watcher_id = PyType_AddWatcher(type_modified_callback_wrap);
+    }
+    else if (kind_l == 1) {
+        watcher_id = PyType_AddWatcher(type_modified_callback_error);
+    }
+    else {
+        watcher_id = PyType_AddWatcher(type_modified_callback);
+    }
+    if (watcher_id < 0) {
+        return NULL;
+    }
+    if (!g_type_watchers_installed) {
+        assert(!g_type_modified_events);
+        if (!(g_type_modified_events = PyList_New(0))) {
+            return NULL;
+        }
+    }
+    g_type_watchers_installed++;
+    return PyLong_FromLong(watcher_id);
+}
+
+static PyObject *
+clear_type_watcher(PyObject *self, PyObject *watcher_id)
+{
+    if (PyType_ClearWatcher(PyLong_AsLong(watcher_id))) {
+        return NULL;
+    }
+    g_type_watchers_installed--;
+    if (!g_type_watchers_installed) {
+        assert(g_type_modified_events);
+        Py_CLEAR(g_type_modified_events);
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+get_type_modified_events(PyObject *self, PyObject *Py_UNUSED(args))
+{
+    if (!g_type_modified_events) {
+        PyErr_SetString(PyExc_RuntimeError, "no watchers active");
+        return NULL;
+    }
+    return Py_NewRef(g_type_modified_events);
+}
+
+static PyObject *
+watch_type(PyObject *module, PyObject *args)
+{
+    int watcher_id;
+    PyObject *type;
+    if (!PyArg_ParseTuple(args, "iO", &watcher_id, &type)) {
+        return NULL;
+    }
+    if (PyType_Watch(watcher_id, type)) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+unwatch_type(PyObject *module, PyObject *args)
+{
+    int watcher_id;
+    PyObject *type;
+    if (!PyArg_ParseTuple(args, "iO", &watcher_id, &type)) {
+        return NULL;
+    }
+    if (PyType_Unwatch(watcher_id, type)) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+
 // Test code object watching
 
 #define NUM_CODE_WATCHERS 2
@@ -6925,6 +7047,11 @@ static PyMethodDef TestMethods[] = {
     {"watch_dict", watch_dict, METH_VARARGS},
     {"unwatch_dict", unwatch_dict, METH_VARARGS},
     {"get_dict_watcher_events", get_dict_watcher_events, METH_NOARGS},
+    {"add_type_watcher", add_type_watcher, METH_O},
+    {"clear_type_watcher", clear_type_watcher, METH_O},
+    {"watch_type", watch_type, METH_VARARGS},
+    {"unwatch_type", unwatch_type, METH_VARARGS},
+    {"get_type_modified_events", get_type_modified_events, METH_NOARGS},
     {"add_code_watcher", add_code_watcher, METH_O},
     {"clear_code_watcher", clear_code_watcher, METH_O},
     {"get_code_watcher_num_created_events",

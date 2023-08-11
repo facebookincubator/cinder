@@ -565,6 +565,14 @@ PyAPI_FUNC(int) _PyTrash_cond(PyObject *op, destructor dealloc);
 #define Py_TRASHCAN_SAFE_BEGIN(op) Py_TRASHCAN_BEGIN_CONDITION(op, 1)
 #define Py_TRASHCAN_SAFE_END(op) Py_TRASHCAN_END
 
+#define TYPE_MAX_WATCHERS 8
+
+typedef int(*PyType_WatchCallback)(PyTypeObject *);
+PyAPI_FUNC(int) PyType_AddWatcher(PyType_WatchCallback callback);
+PyAPI_FUNC(int) PyType_ClearWatcher(int watcher_id);
+PyAPI_FUNC(int) PyType_Watch(int watcher_id, PyObject *type);
+PyAPI_FUNC(int) PyType_Unwatch(int watcher_id, PyObject *type);
+
 /* Attempt to assign a version tag to the given type.
  *
  * Returns 1 if the type already had a valid version tag or a new one was

@@ -298,6 +298,7 @@ struct _is {
     struct atexit_state atexit;
 
     PyObject *audit_hooks;
+    PyType_WatchCallback type_watchers[TYPE_MAX_WATCHERS];
     PyCode_WatchCallback code_watchers[CODE_MAX_WATCHERS];
     // One bit is set for each non-NULL entry in code_watchers
     uint8_t active_code_watchers;
