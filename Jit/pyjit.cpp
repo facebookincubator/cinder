@@ -1984,9 +1984,6 @@ void _PyJIT_TypeCreated(PyTypeObject* type) {
 }
 
 void _PyJIT_TypeModified(PyTypeObject* type) {
-  if (jit_ctx) {
-    _PyJITContext_TypeModified(jit_ctx, type);
-  }
   if (auto rt = Runtime::getUnchecked()) {
     rt->notifyTypeModified(type, type);
   }
@@ -2004,9 +2001,6 @@ void _PyJIT_TypeNameModified(PyTypeObject* type) {
 }
 
 void _PyJIT_TypeDestroyed(PyTypeObject* type) {
-  if (jit_ctx) {
-    _PyJITContext_TypeDestroyed(jit_ctx, type);
-  }
   auto& profile_runtime = jit::Runtime::get()->profileRuntime();
   profile_runtime.unregisterType(type);
   if (auto rt = Runtime::getUnchecked()) {

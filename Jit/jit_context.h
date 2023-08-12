@@ -144,17 +144,6 @@ void _PyJITContext_FuncDestroyed(
     BorrowedRef<PyFunctionObject> func);
 
 /*
- * Callbacks invoked by the runtime when a PyTypeObject is modified or
- * destroyed.
- */
-void _PyJITContext_TypeModified(
-    _PyJITContext* ctx,
-    BorrowedRef<PyTypeObject> type);
-void _PyJITContext_TypeDestroyed(
-    _PyJITContext* ctx,
-    BorrowedRef<PyTypeObject> type);
-
-/*
  * Return whether or not this context compiled the supplied function.
  *
  * Return 1 if so, 0 if not, and -1 if an error occurred.

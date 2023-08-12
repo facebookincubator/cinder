@@ -223,10 +223,6 @@ void _PyJITContext_FuncDestroyed(
   ctx->compiled_funcs.erase(func);
 }
 
-void _PyJITContext_TypeModified(_PyJITContext*, BorrowedRef<PyTypeObject>) {}
-
-void _PyJITContext_TypeDestroyed(_PyJITContext*, BorrowedRef<PyTypeObject>) {}
-
 int _PyJITContext_DidCompile(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
