@@ -1,6 +1,7 @@
 /* Type object implementation */
 
 #include "Python.h"
+#include "Shadowcode/shadowcode.h"
 #include "dictobject.h"
 #include "pycore_bytes_methods.h"
 #include "pycore_call.h"
@@ -13,7 +14,6 @@
 #include "pycore_unionobject.h"   // _Py_union_type_or
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
-#include "pycore_shadowcode.h"
 
 #include "cinder/exports.h"
 

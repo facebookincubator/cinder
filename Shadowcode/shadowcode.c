@@ -13,13 +13,16 @@
 
 #include "Jit/pyjit.h"
 #include "Python.h"
-#include "pycore_shadowcode.h"
+#include "Shadowcode/shadowcode.h"
 #include "pycore_moduleobject.h"
-#include "wordcode_helpers.h"
 #include "structmember.h"
 #include "structmember.h"
 #include <stddef.h>
 #include "cinder/exports.h"
+
+// This relies on Python internals.
+#include "opcode.h"
+#include "Python/wordcode_helpers.h"
 
 #define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
 #define _PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)

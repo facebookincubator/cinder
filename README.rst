@@ -151,7 +151,7 @@ Shadowcode
 interpreter. It observes particular optimizable cases in the execution of
 generic Python opcodes and (for hot functions) dynamically replaces those
 opcodes with specialized versions. The core of shadowcode lives in
-``Python/shadowcode.c``, though the implementations for the specialized
+``Shadowcode/shadowcode.c``, though the implementations for the specialized
 bytecodes are in ``Python/ceval.c`` with the rest of the eval loop.
 Shadowcode-specific tests are in ``Lib/test/test_shadowcode.py``.
 

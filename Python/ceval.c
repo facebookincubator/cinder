@@ -12,6 +12,7 @@
 #define PY_LOCAL_AGGRESSIVE
 
 #include "Python.h"
+#include "Shadowcode/shadowcode.h"
 #include "pycore_abstract.h"      // _PyIndex_Check()
 #include "pycore_call.h"          // _PyObject_FastCallDictTstate()
 #include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
@@ -25,7 +26,6 @@
 #include "pycore_pymem.h"         // _PyMem_IsPtrFreed()
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_shadow_frame.h"  // _PyShadowFrame_{PushInterp,Pop}
-#include "pycore_shadowcode.h"
 #include "pycore_sysmodule.h"     // _PySys_Audit()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 

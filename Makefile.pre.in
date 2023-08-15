@@ -429,7 +429,6 @@ PYTHON_OBJS=	\
 		Python/pythonrun.o \
 		Python/pytime.o \
 		Python/bootstrap_hash.o \
-		Python/shadowcode.o \
 		Python/structmember.o \
 		Python/symtable.o \
 		Python/sysmodule.o \
@@ -531,6 +530,11 @@ JIT_OBJS=       \
 I386_DASM_OBJS = \
 		ThirdParty/i386-dis/i386-dis.o \
 		ThirdParty/i386-dis/dis-buf.o
+
+##########################################################################
+# Shadowcode
+SHADOWCODE_OBJS=       \
+        Shadowcode/shadowcode.o
 
 ##########################################################################
 # Static Python
@@ -715,6 +719,7 @@ LIBRARY_OBJS_OMIT_FROZEN=	\
 		$(PARSER_OBJS) \
 		$(OBJECT_OBJS) \
 		$(PYTHON_OBJS) \
+		$(SHADOWCODE_OBJS) \
 		$(CINDERX_OBJS) \
 		$(MODULE_OBJS) \
 		$(MODOBJS)
@@ -1421,6 +1426,9 @@ JIT_HEADERS= \
 		$(JIT_PRIVATE_HEADERS) \
 		$(JIT_PUBLIC_HEADERS)
 
+SHADOWCODE_HEADERS= \
+		$(srcdir)/Shadowcode/shadowcode.h
+
 STATICPYTHON_HEADERS= \
 		$(srcdir)/StaticPython/classloader.h \
 
@@ -1650,7 +1658,6 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/internal/pycore_runtime.h \
 		$(srcdir)/Include/internal/pycore_shadow_frame.h \
 		$(srcdir)/Include/internal/pycore_shadow_frame_struct.h \
-		$(srcdir)/Include/internal/pycore_shadowcode.h \
 		$(srcdir)/Include/internal/pycore_structseq.h \
 		$(srcdir)/Include/internal/pycore_symtable.h \
 		$(srcdir)/Include/internal/pycore_sysmodule.h \
@@ -1664,6 +1671,7 @@ PYTHON_HEADERS= \
 		\
 		$(CINDER_HEADERS) \
 		$(JIT_HEADERS) \
+		$(SHADOWCODE_HEADERS) \
 		$(STATICPYTHON_HEADERS) \
 		$(STRICTM_HEADERS) \
 
@@ -1672,6 +1680,8 @@ $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEAD
 $(CINDER_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
 
 $(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
+
+$(SHADOWCODE_OBJS): $(SHADOWCODE_HEADERS) $(PYTHON_HEADERS)
 
 $(STATICPYTHON_OBJS): $(STATICPYTHON_HEADERS) $(JIT_HEADERS) $(CINDER_HEADERS) $(PYTHON_HEADERS)
 
