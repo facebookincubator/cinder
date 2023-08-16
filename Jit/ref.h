@@ -257,3 +257,16 @@ struct std::hash<Ref<T>> {
     return hasher(ref.get());
   }
 };
+
+template <typename T>
+struct TransparentRefHasher {
+  using is_transparent = void;
+
+  size_t operator()(const BorrowedRef<T>& ref) const {
+    return std::hash<BorrowedRef<T>>{}(ref);
+  }
+
+  size_t operator()(const Ref<T>& ref) const {
+    return std::hash<Ref<T>>{}(ref);
+  }
+};

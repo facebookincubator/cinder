@@ -31,7 +31,11 @@ using CodeKey = std::string;
 
 class ProfileRuntime {
  public:
-  using ProfileMap = std::unordered_map<Ref<PyCodeObject>, CodeProfile>;
+  using ProfileMap = std::unordered_map<
+      Ref<PyCodeObject>,
+      CodeProfile,
+      TransparentRefHasher<PyCodeObject>,
+      std::equal_to<>>;
 
   using iterator = ProfileMap::iterator;
   using const_iterator = ProfileMap::const_iterator;
@@ -48,10 +52,12 @@ class ProfileRuntime {
       BorrowedRef<PyCodeObject> code,
       BCOffset bc_off) const;
 
-  // Variant of getProfiledTypes() that takes an opaque code key instead of a
+  // Variant of getProfiledTypes() that takes an opaque code key of a
   // code object.
-  std::vector<hir::Type> getProfiledTypes(const CodeKey& code, BCOffset bc_off)
-      const;
+  std::vector<hir::Type> getProfiledTypes(
+      BorrowedRef<PyCodeObject> code,
+      const CodeKey& code_key,
+      BCOffset bc_off) const;
 
   // Record a type profile for an instruction and its current Python stack.
   void profileInstr(
@@ -122,6 +128,9 @@ class ProfileRuntime {
   // doesn't hold any counters.
   using CodeProfileData =
       UnorderedMap<BCOffset, std::vector<std::vector<std::string>>>;
+
+  std::vector<hir::Type> getLoadedProfiledTypes(CodeKey code, BCOffset bc_off)
+      const;
 
   void readVersion2(std::istream& stream);
   void readVersion3(std::istream& stream);

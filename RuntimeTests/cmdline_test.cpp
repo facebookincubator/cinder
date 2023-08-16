@@ -494,12 +494,13 @@ TEST_F(CmdLineTest, WriteProfile) {
   const wchar_t* xarg = makeWideChar(
       const_cast<char*>(("jit-write-profile=" + list_file).c_str()));
 
+  // Just the profile output file isn't enough to enable profiling.
   ASSERT_EQ(
       try_flag_and_envvar_effect(
           xarg,
           const_cast<char*>(("PYTHONJITWRITEPROFILE=" + list_file).c_str()),
           []() { _PyJIT_SetProfileNewInterpThreads(0); },
-          []() { ASSERT_EQ(_PyJIT_GetProfileNewInterpThreads(), 1); }),
+          []() { ASSERT_EQ(_PyJIT_GetProfileNewInterpThreads(), 0); }),
       0);
 
   delete[] xarg;

@@ -1796,17 +1796,13 @@ int _PyJIT_Initialize() {
     }
   }
 
-  if (!write_profile_file.empty() || jit_profile_interp == 1) {
-    if (use_jit) {
-      use_jit = 0;
-      JIT_LOG("Keeping JIT disabled to enable interpreter profiling.");
-    }
+  if (jit_profile_interp) {
     _PyJIT_SetProfileNewInterpThreads(true);
     Ci_ThreadState_SetProfileInterpAll(1);
     Ci_RuntimeState_SetProfileInterpPeriod(jit_profile_interp_period);
-    if (!write_profile_file.empty()) {
-      g_write_profile_file = write_profile_file;
-    }
+  }
+  if (!write_profile_file.empty()) {
+    g_write_profile_file = write_profile_file;
   }
 
   if (use_jit) {

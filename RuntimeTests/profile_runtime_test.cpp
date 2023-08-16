@@ -9,7 +9,7 @@ using namespace jit;
 
 using ProfileRuntimeTest = RuntimeTest;
 
-TEST_F(ProfileRuntimeTest, UnregistersTypeWithModifiedName) {
+TEST_F(ProfileRuntimeTest, BasicProfileExample) {
   const char* src = R"(
 class MyType:
     bar = 12
@@ -48,13 +48,4 @@ foo(MyType())
   auto types = profile_runtime.getProfiledTypes(foo_code, load_attr);
   ASSERT_EQ(types.size(), 1);
   ASSERT_EQ(types[0], hir::Type::fromTypeExact(my_type));
-
-  // Change MyType's name and check that it no longer shows up in
-  // getProfiledTypes().
-  auto new_name = Ref<>::steal(PyUnicode_FromString("YourType"));
-  ASSERT_NE(new_name, nullptr);
-  ASSERT_EQ(PyObject_SetAttrString(my_type, "__name__", new_name), 0);
-  types = profile_runtime.getProfiledTypes(foo_code, load_attr);
-  ASSERT_EQ(types.size(), 1);
-  ASSERT_EQ(types[0], hir::TTop);
 }

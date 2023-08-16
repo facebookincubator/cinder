@@ -65,11 +65,49 @@ std::string readStr(std::istream& stream) {
 std::vector<hir::Type> ProfileRuntime::getProfiledTypes(
     BorrowedRef<PyCodeObject> code,
     BCOffset bc_off) const {
-  return getProfiledTypes(codeKey(code), bc_off);
+  return getProfiledTypes(code, codeKey(code), bc_off);
 }
 
 std::vector<hir::Type> ProfileRuntime::getProfiledTypes(
-    const CodeKey& code,
+    BorrowedRef<PyCodeObject> code,
+    const CodeKey& code_key,
+    BCOffset bc_off) const {
+  // Always prioritize profiles loaded from a file.
+  auto loaded_types = getLoadedProfiledTypes(code_key, bc_off);
+  if (!loaded_types.empty()) {
+    return loaded_types;
+  }
+
+  auto code_it = profiles_.find(code);
+  if (code_it == profiles_.end()) {
+    return {};
+  }
+  auto& code_profile = code_it->second;
+
+  auto type_profiler_it = code_profile.typed_hits.find(bc_off);
+  if (type_profiler_it == code_profile.typed_hits.end()) {
+    return {};
+  }
+
+  // Ignore polymorphic bytecodes, for now.
+  auto& type_profiler = type_profiler_it->second;
+  if (type_profiler->empty() || type_profiler->isPolymorphic()) {
+    return {};
+  }
+
+  // PyTypeObject -> hir::Type.
+  std::vector<hir::Type> result;
+  for (int col = 0; col < type_profiler->cols(); ++col) {
+    auto py_type = type_profiler->type(0, col);
+    auto hir_type =
+        py_type != nullptr ? hir::Type::fromTypeExact(py_type) : hir::TTop;
+    result.emplace_back(hir_type);
+  }
+  return result;
+}
+
+std::vector<hir::Type> ProfileRuntime::getLoadedProfiledTypes(
+    CodeKey code,
     BCOffset bc_off) const {
   auto code_it = loaded_profiles_.find(code);
   if (code_it == loaded_profiles_.end()) {
@@ -256,7 +294,10 @@ void ProfileRuntime::countProfiledInstrs(
 }
 
 bool ProfileRuntime::hasPrimedDictKeys(BorrowedRef<PyTypeObject> type) const {
-  return s_live_types.hasPrimedDictKeys(type);
+  // If we have never loaded a serialized profile, then we assume that types
+  // will always have primed dict keys.  The simplifier already checks whether
+  // the type has cached keys.
+  return loaded_profiles_.empty() || s_live_types.hasPrimedDictKeys(type);
 }
 
 int ProfileRuntime::numCachedKeys(BorrowedRef<PyTypeObject> type) const {

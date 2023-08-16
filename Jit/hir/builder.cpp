@@ -648,8 +648,8 @@ void HIRBuilder::emitProfiledTypes(
     return;
   }
 
-  std::vector<Type> types =
-      profile_runtime.getProfiledTypes(code_key, bc_instr.offset());
+  std::vector<Type> types = profile_runtime.getProfiledTypes(
+      tc.frame.code, code_key, bc_instr.offset());
 
   if (types.empty() || types.size() > tc.frame.stack.size()) {
     // The types are either absent or invalid (e.g., from a different version
