@@ -1,7 +1,7 @@
 # If updating this please also upload a new version of the container image.
 # Details in https://fburl.com/wiki/0rzdo9ht
 
-FROM fedora:32
+FROM fedora:38
 
 LABEL org.opencontainers.image.source https://github.com/facebookincubator/cinder
 
