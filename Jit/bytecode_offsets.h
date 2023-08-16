@@ -36,26 +36,6 @@ class BCOffsetBase {
     return value_;
   }
 
-  // Comparison operators.
-
-  constexpr auto operator<=>(const T& other) const {
-    return operator<=>(other.value());
-  }
-
-  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
-  constexpr auto operator<=>(const TInt& other) const {
-    return value() <=> other;
-  }
-
-  constexpr bool operator==(const T& other) const {
-    return operator==(other.value());
-  }
-
-  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
-  constexpr bool operator==(const TInt& other) const {
-    return value() == other;
-  }
-
   // Arithmetic operators.
   T operator+(Py_ssize_t other) const {
     return T{value() + other};
@@ -131,6 +111,26 @@ class BCOffset : public BCOffsetBase<BCOffset> {
 
   BCOffset(BCIndex idx);
 
+  // Comparison operators.
+
+  constexpr std::strong_ordering operator<=>(const BCOffset& other) const {
+    return operator<=>(other.value());
+  }
+
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr std::strong_ordering operator<=>(const TInt& other) const {
+    return value() <=> other;
+  }
+
+  constexpr bool operator==(const BCOffset& other) const {
+    return operator==(other.value());
+  }
+
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr bool operator==(const TInt& other) const {
+    return value() == other;
+  }
+
   BCIndex asIndex() const;
 };
 
@@ -139,6 +139,26 @@ class BCIndex : public BCOffsetBase<BCIndex> {
   using BCOffsetBase::BCOffsetBase;
 
   BCIndex(BCOffset offset);
+
+  // Comparison operators.
+
+  constexpr std::strong_ordering operator<=>(const BCIndex& other) const {
+    return operator<=>(other.value());
+  }
+
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr std::strong_ordering operator<=>(const TInt& other) const {
+    return value() <=> other;
+  }
+
+  constexpr bool operator==(const BCIndex& other) const {
+    return operator==(other.value());
+  }
+
+  template <class TInt, class = std::enable_if_t<std::is_integral_v<TInt>>>
+  constexpr bool operator==(const TInt& other) const {
+    return value() == other;
+  }
 
   BCOffset asOffset() const;
 };
