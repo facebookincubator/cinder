@@ -1,7 +1,6 @@
 #include <stdbool.h>
 
 #include "Python.h"
-#include "Shadowcode/shadowcode.h"
 #include "code.h"
 #include "opcode.h"
 #include "pymem.h"
@@ -11,6 +10,10 @@
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "clinic/codeobject.c.h"
+
+#ifdef ENABLE_CINDERX
+#include "Shadowcode/shadowcode.h"
+#endif
 
 static PyObject* code_repr(PyCodeObject *co);
 
@@ -755,7 +758,10 @@ code_dealloc(PyCodeObject *co)
 
         PyMem_Free(co_extra);
     }
+
+#ifdef ENABLE_CINDERX
     _PyShadow_ClearCache((PyObject *)co); /* facebook t39538061 */
+#endif
 
     Py_XDECREF(co->co_code);
     Py_XDECREF(co->co_consts);
@@ -790,6 +796,7 @@ code_sizeof(PyCodeObject *co, PyObject *Py_UNUSED(args))
         res += sizeof(_PyCodeObjectExtra) +
                (co_extra->ce_size-1) * sizeof(co_extra->ce_extras[0]);
     }
+#ifdef ENABLE_CINDERX
     if (co->co_mutable->shadow != NULL) {
         _PyShadowCode *shadow = co->co_mutable->shadow;
         res += sizeof(_PyShadowCode);
@@ -801,6 +808,7 @@ code_sizeof(PyCodeObject *co, PyObject *Py_UNUSED(args))
         res += sizeof(_FieldCache) * shadow->field_cache_size;
         res += sizeof(_Py_CODEUNIT) * shadow->len;
     }
+#endif
     return PyLong_FromSsize_t(res);
 }
 

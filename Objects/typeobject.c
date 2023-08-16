@@ -1,7 +1,6 @@
 /* Type object implementation */
 
 #include "Python.h"
-#include "Shadowcode/shadowcode.h"
 #include "dictobject.h"
 #include "pycore_bytes_methods.h"
 #include "pycore_call.h"
@@ -19,6 +18,7 @@
 
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
+#include "Shadowcode/shadowcode.h"
 #include "StaticPython/classloader.h"
 #endif
 

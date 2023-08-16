@@ -12,7 +12,6 @@
 #define PY_LOCAL_AGGRESSIVE
 
 #include "Python.h"
-#include "Shadowcode/shadowcode.h"
 #include "pycore_abstract.h"      // _PyIndex_Check()
 #include "pycore_call.h"          // _PyObject_FastCallDictTstate()
 #include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
@@ -41,6 +40,7 @@
 
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
+#include "Shadowcode/shadowcode.h"
 #include "StaticPython/classloader.h"
 #endif
 
@@ -1734,7 +1734,9 @@ Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
     return Ci_Super_Lookup(type, self, name, NULL, meth_found);
 }
 
+#ifdef ENABLE_CINDERX
 #define PYSHADOW_INIT_THRESHOLD 50
+#endif
 
 PyObject* _Py_HOT_FUNCTION
 _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
@@ -1765,7 +1767,9 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     const _Py_CODEUNIT *first_instr;
     PyObject *names;
     PyObject *consts;
+#ifdef ENABLE_CINDERX
     _PyShadow_EvalState shadow = {}; /* facebook T39538061 */
+#endif
 
 #ifdef LLTRACE
     _Py_IDENTIFIER(__ltrace__);
@@ -1849,6 +1853,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     if (PyDTrace_FUNCTION_ENTRY_ENABLED())
         dtrace_function_entry(f);
 
+#ifdef ENABLE_CINDERX
     /* facebook begin t39538061 */
     /* Initialize the inline cache after the code object is "hot enough" */
     if (!tstate->profile_interp && co->co_mutable->shadow == NULL &&
@@ -1861,6 +1866,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
         }
     }
     /* facebook end t39538061 */
+#endif
 
     names = co->co_names;
     consts = co->co_consts;
@@ -1871,6 +1877,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     assert(PyBytes_GET_SIZE(co->co_code) % sizeof(_Py_CODEUNIT) == 0);
     assert(_Py_IS_ALIGNED(PyBytes_AS_STRING(co->co_code), sizeof(_Py_CODEUNIT)));
 
+#ifdef ENABLE_CINDERX
     /* facebook begin t39538061 */
     shadow.code = co;
     shadow.first_instr = &first_instr;
@@ -1884,6 +1891,9 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
         first_instr = (_Py_CODEUNIT *)PyBytes_AS_STRING(co->co_code);
     }
     /* facebook end t39538061 */
+#else
+    first_instr = (_Py_CODEUNIT *) PyBytes_AS_STRING(co->co_code);
+#endif
 
     /*
        f->f_lasti refers to the index of the last instruction,
@@ -2328,10 +2338,14 @@ main_loop:
             INLINE_CACHE_INCR("binary_subscr_types", type_names);
 
 #endif
+#ifdef ENABLE_CINDERX
             res = shadow.shadow == NULL
                       ? PyObject_GetItem(container, sub)
                       : _PyShadow_BinarySubscrWithCache(
                             &shadow, next_instr, container, sub, oparg);
+#else
+            res = PyObject_GetItem(container, sub);
+#endif
             Py_DECREF(container);
             Py_DECREF(sub);
             SET_TOP(res);
@@ -3000,6 +3014,7 @@ main_loop:
             PyObject *name = GETITEM(names, oparg);
             PyObject *owner = TOP();
             PyObject *v = SECOND();
+#ifdef ENABLE_CINDERX
 #ifdef INLINE_CACHE_PROFILE
             _PyShadow_LogLocation(&shadow, next_instr, "STORE_ATTR");
             char type_name[81];
@@ -3009,12 +3024,17 @@ main_loop:
                      Py_TYPE(owner)->tp_name);
             _PyShadow_LogLocation(&shadow, next_instr, type_name);
 #endif
+#endif
             int err;
             STACK_SHRINK(2);
+#ifdef ENABLE_CINDERX
             err = shadow.shadow == NULL
                       ? PyObject_SetAttr(owner, name, v)
                       : _PyShadow_StoreAttrWithCache(
                             &shadow, next_instr, owner, name, v);
+#else
+            err = PyObject_SetAttr(owner, name, v);
+#endif
             Py_DECREF(v);
             Py_DECREF(owner);
             if (err != 0)
@@ -3141,6 +3161,7 @@ main_loop:
                     goto error;
                 }
 
+#ifdef ENABLE_CINDERX
                 if (shadow.shadow != NULL) {
                     _PyShadow_InitGlobal(&shadow,
                                          next_instr,
@@ -3148,6 +3169,7 @@ main_loop:
                                          f->f_builtins,
                                          name);
                 }
+#endif
 
                 Py_INCREF(v);
                 /* facebook end */
@@ -3548,10 +3570,14 @@ main_loop:
         case TARGET(LOAD_ATTR): {
             PyObject *name = GETITEM(names, oparg);
             PyObject *owner = TOP();
+#ifdef ENABLE_CINDERX
             PyObject *res = shadow.shadow == NULL
                                 ? PyObject_GetAttr(owner, name)
                                 : _PyShadow_LoadAttrWithCache(
                                       &shadow, next_instr, owner, name);
+#else
+            PyObject *res = PyObject_GetAttr(owner, name);
+#endif
             Py_DECREF(owner);
             SET_TOP(res);
             if (res == NULL)
@@ -4123,10 +4149,14 @@ main_loop:
             PyObject *obj = TOP();
             PyObject *meth = NULL;
 
+#ifdef ENABLE_CINDERX
             int meth_found = shadow.shadow == NULL
                                  ? _PyObject_GetMethod(obj, name, &meth)
                                  : _PyShadow_LoadMethodWithCache(
                                        &shadow, next_instr, obj, name, &meth);
+#else
+            int meth_found = _PyObject_GetMethod(obj, name, &meth);
+#endif
 
             if (meth == NULL) {
                 /* Most likely attribute wasn't found. */
@@ -8233,10 +8263,12 @@ static unsigned int count_calls(PyCodeObject* code) {
   // sets -X jit-auto above the PYSHADOW_INIT_THRESHOLD, we still have to keep
   // counting.
   unsigned int ncalls = code->co_mutable->ncalls;
+#ifdef ENABLE_CINDERX
   if (ncalls > PYSHADOW_INIT_THRESHOLD) {
     ncalls++;
     code->co_mutable->ncalls = ncalls;
   }
+#endif
   return ncalls;
 }
 

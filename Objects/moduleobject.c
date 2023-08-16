@@ -1593,6 +1593,4 @@ PyTypeObject PyStrictModule_Type = {
     PyStrictModule_New,                         /* tp_new */
     PyObject_GC_Del,                            /* tp_free */
 };
-
-Py_ssize_t strictmodule_dictoffset = offsetof(PyStrictModuleObject, globals);
 #endif // ENABLE_CINDERX

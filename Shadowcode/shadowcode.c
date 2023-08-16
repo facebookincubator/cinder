@@ -1341,7 +1341,7 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
 #ifdef ENABLE_CINDERX
     /* Inline _PyObject_GetDictPtr */
     if (PyType_IsSubtype(tp, &PyStrictModule_Type)) {
-        dictoffset = strictmodule_dictoffset;
+        dictoffset = offsetof(PyStrictModuleObject, globals);
     } else
 #endif
     {

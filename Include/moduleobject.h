@@ -97,8 +97,6 @@ extern int _PyModule_IsExtension(PyObject *obj);
 
 #if !defined(Py_LIMITED_API)
 
-extern Py_ssize_t strictmodule_dictoffset;
-
 CiAPI_FUNC(int) strictmodule_is_unassigned(PyObject *dict, PyObject *name);
 CiAPI_FUNC(PyObject *) PyStrictModule_GetOriginal(PyObject *obj, PyObject *name);
 CiAPI_FUNC(int) _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);

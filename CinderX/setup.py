@@ -217,6 +217,10 @@ STRICTM_SRCS = [
     "StrictModules/error_sink.cpp",
 ]
 
+SHADOWCODE_SRCS = [
+    "Shadowcode/shadowcode.c",
+]
+
 STATICPYTHON_SRCS = [
     "StaticPython/classloader.c",
 ]
@@ -226,6 +230,7 @@ ALL_SRCS = (
     JIT_SRCS +
     I386_DASM_SRCS +
     ASMJIT_SRCS +
+    SHADOWCODE_SRCS +
     STRICTM_SRCS +
     STATICPYTHON_SRCS
 )
