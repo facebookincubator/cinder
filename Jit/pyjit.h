@@ -36,13 +36,6 @@ extern "C" {
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
 
 /*
- * Initialize the JIT in a new sub-interpreter.
- *
- * Returns 0 on success or -1 on error.
- */
-PyAPI_FUNC(int) _PyJIT_InitializeSubInterp(void);
-
-/*
  * Enable the global JIT.
  *
  * _PyJIT_Initialize must be called before calling this.

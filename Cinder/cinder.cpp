@@ -7,6 +7,7 @@
 static int cinder_dict_watcher_id = -1;
 static int cinder_type_watcher_id = -1;
 static int cinder_func_watcher_id = -1;
+static int cinder_code_watcher_id = -1;
 
 static int cinder_dict_watcher(
     PyDict_WatchEvent event,
@@ -141,6 +142,26 @@ static int cinder_install_func_watcher() {
   return 0;
 }
 
+// actually including shadowcode.h from cpp throws lots of errors
+extern "C" void _PyShadow_ClearCache(PyObject *co);
+
+static int cinder_code_watcher(PyCodeEvent event, PyCodeObject* co) {
+  if (event == PY_CODE_EVENT_DESTROY) {
+    _PyShadow_ClearCache((PyObject *)co);
+    _PyJIT_CodeDestroyed(co);
+  }
+  return 0;
+}
+
+static int cinder_install_code_watcher() {
+  int watcher_id = PyCode_AddWatcher(cinder_code_watcher);
+  if (watcher_id < 0) {
+    return -1;
+  }
+  cinder_code_watcher_id = watcher_id;
+  return 0;
+}
+
 int Cinder_Init() {
   if (cinder_install_dict_watcher() < 0) {
     return -1;
@@ -149,6 +170,9 @@ int Cinder_Init() {
     return -1;
   }
   if (cinder_install_func_watcher() < 0) {
+    return -1;
+  }
+  if (cinder_install_code_watcher() < 0) {
     return -1;
   }
   init_already_existing_funcs();
@@ -195,9 +219,16 @@ int Cinder_InitSubInterp() {
       cinder_func_watcher_id == prev_func_watcher_id,
       "Somebody else watching functions?");
 
-  if (_PyJIT_InitializeSubInterp() < 0) {
+  int prev_code_watcher_id = cinder_code_watcher_id;
+  JIT_CHECK(
+      prev_code_watcher_id >= 0,
+      "Initializing sub-interpreter without main interpreter?");
+  if (cinder_install_code_watcher() < 0) {
     return -1;
   }
+  JIT_CHECK(
+      cinder_code_watcher_id == prev_code_watcher_id,
+      "Somebody else watching code objects?");
 
   return 0;
 }

@@ -759,10 +759,6 @@ code_dealloc(PyCodeObject *co)
         PyMem_Free(co_extra);
     }
 
-#ifdef ENABLE_CINDERX
-    _PyShadow_ClearCache((PyObject *)co); /* facebook t39538061 */
-#endif
-
     Py_XDECREF(co->co_code);
     Py_XDECREF(co->co_consts);
     Py_XDECREF(co->co_names);

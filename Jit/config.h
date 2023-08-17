@@ -37,7 +37,6 @@ struct Config {
   // used by the JIT.
   uint32_t attr_cache_size{1};
   uint32_t auto_jit_threshold{0};
-  int code_watcher_id{-1};
 };
 
 // Get the JIT's current config object.

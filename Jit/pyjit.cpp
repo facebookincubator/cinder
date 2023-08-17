@@ -1697,47 +1697,6 @@ static int install_jit_audit_hook() {
   return -1;
 }
 
-static int jit_code_watcher(PyCodeEvent event, PyCodeObject* co) {
-  if (event == PY_CODE_EVENT_DESTROY) {
-    _PyJIT_CodeDestroyed(co);
-  }
-  return 0;
-}
-
-static int install_jit_code_watcher() {
-  int watcher_id = PyCode_AddWatcher(jit_code_watcher);
-  if (watcher_id < 0) {
-    return -1;
-  }
-  getMutableConfig().code_watcher_id = watcher_id;
-  return 0;
-}
-
-static void clear_jit_code_watcher() {
-  if (getConfig().code_watcher_id >= 0) {
-    if (PyCode_ClearWatcher(getConfig().code_watcher_id) < 0) {
-      PyErr_WriteUnraisable(Py_None);
-    }
-    getMutableConfig().code_watcher_id = -1;
-  }
-}
-
-int _PyJIT_InitializeSubInterp() {
-  // HACK: for now assume we are the only watcher out there, so that we can just
-  // keep track of a single watcher ID rather than one per interpreter.
-  int prev_code_watcher_id = getConfig().code_watcher_id;
-  if (prev_code_watcher_id >= 0) {
-    if (install_jit_code_watcher() < 0) {
-      return -1;
-    }
-    JIT_CHECK(
-        getConfig().code_watcher_id == prev_code_watcher_id,
-        "Somebody else watching code objects?");
-  }
-
-  return 0;
-}
-
 int _PyJIT_Initialize() {
   // If we have data symbols which are public but not used within CPython code,
   // we need to ensure the linker doesn't GC the .data section containing them.
@@ -1834,8 +1793,7 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
-  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0 ||
-      install_jit_code_watcher() < 0) {
+  if (install_jit_audit_hook() < 0 || register_fork_callback(mod) < 0) {
     return -1;
   }
 
@@ -2116,8 +2074,6 @@ int _PyJIT_Finalize() {
   }
 
   _PyJIT_FinalizeInternedStrings();
-
-  clear_jit_code_watcher();
 
   Runtime::shutdown();
 
