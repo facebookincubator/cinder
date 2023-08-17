@@ -18,7 +18,6 @@
 
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
-#include "Shadowcode/shadowcode.h"
 #include "StaticPython/classloader.h"
 #endif
 
@@ -534,10 +533,6 @@ PyType_Modified(PyTypeObject *type)
 
     type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
     type->tp_version_tag = 0; /* 0 is not a valid version tag */
-#ifdef ENABLE_CINDERX
-    _PyShadow_TypeModified(type);
-    _PyJIT_TypeModified(type);
-#endif
 }
 
 static void

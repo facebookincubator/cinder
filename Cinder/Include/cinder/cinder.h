@@ -36,6 +36,12 @@ PyAPI_FUNC(int) Cinder_InitSubInterp(void);
 PyAPI_FUNC(void) Cinder_WatchDict(PyObject* dict);
 PyAPI_FUNC(void) Cinder_UnwatchDict(PyObject* dict);
 
+/*
+ * Watch or unwatch a type.
+ */
+PyAPI_FUNC(void) Cinder_WatchType(PyTypeObject* type);
+PyAPI_FUNC(void) Cinder_UnwatchType(PyTypeObject* type);
+
 
 #ifdef __cplusplus
 } /* extern "C" */

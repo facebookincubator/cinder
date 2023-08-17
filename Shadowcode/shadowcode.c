@@ -18,6 +18,7 @@
 #include "structmember.h"
 #include "structmember.h"
 #include <stddef.h>
+#include "cinder/cinder.h"
 #include "cinder/exports.h"
 
 // This relies on Python internals.
@@ -455,6 +456,10 @@ _PyShadow_NewCache(PyObject *from)
     Py_DECREF(args);
     if (new == NULL) {
         return NULL;
+    }
+
+    if (PyType_Check(from)) {
+        Cinder_WatchType((PyTypeObject *)from);
     }
 
     return (PyCodeCacheRef *)new;

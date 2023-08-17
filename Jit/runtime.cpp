@@ -2,6 +2,7 @@
 
 #include "Jit/runtime.h"
 
+#include "cinder/cinder.h"
 #include "internal/pycore_interp.h"
 
 #include "Jit/type_deopt_patchers.h"
@@ -352,6 +353,7 @@ std::optional<std::string> symbolize(const void* func) {
 void Runtime::watchType(
     BorrowedRef<PyTypeObject> type,
     TypeDeoptPatcher* patcher) {
+  Cinder_WatchType(type);
   type_deopt_patchers_[type].emplace_back(patcher);
 }
 
@@ -372,6 +374,7 @@ void Runtime::notifyTypeModified(
 
   if (remaining_patchers.empty()) {
     type_deopt_patchers_.erase(it);
+    // don't unwatch type; shadowcode may still be watching it
   } else {
     it->second = std::move(remaining_patchers);
   }

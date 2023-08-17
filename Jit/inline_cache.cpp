@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 // clang-format off
+#include "cinder/cinder.h"
 #include "cinder/exports.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_object.h"
@@ -27,6 +28,7 @@ struct TypeWatcher {
   std::unordered_map<BorrowedRef<PyTypeObject>, std::unordered_set<T*>> caches;
 
   void watch(BorrowedRef<PyTypeObject> type, T* cache) {
+    Cinder_WatchType(type);
     caches[type].emplace(cache);
   }
 
@@ -36,6 +38,7 @@ struct TypeWatcher {
       return;
     }
     it->second.erase(cache);
+    // don't unwatch type; shadowcode may still be watching it
   }
 
   void typeChanged(BorrowedRef<PyTypeObject> type) {

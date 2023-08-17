@@ -5,6 +5,7 @@
 #include "Jit/pyjit.h"
 
 static int cinder_dict_watcher_id = -1;
+static int cinder_type_watcher_id = -1;
 static int cinder_func_watcher_id = -1;
 
 static int cinder_dict_watcher(
@@ -54,6 +55,32 @@ void Cinder_UnwatchDict(PyObject* dict) {
     PyErr_Print();
     JIT_ABORT("Unable to unwatch dict.");
   }
+}
+
+// actually including shadowcode.h from cpp throws lots of errors
+extern "C" void _PyShadow_TypeModified(PyTypeObject *type);
+
+static int cinder_type_watcher(PyTypeObject* type) {
+  _PyShadow_TypeModified(type);
+  _PyJIT_TypeModified(type);
+  return 0;
+}
+
+static int cinder_install_type_watcher() {
+  int watcher_id = PyType_AddWatcher(cinder_type_watcher);
+  if (watcher_id < 0) {
+    return -1;
+  }
+  cinder_type_watcher_id = watcher_id;
+  return 0;
+}
+
+void Cinder_WatchType(PyTypeObject* type) {
+  PyType_Watch(cinder_type_watcher_id, (PyObject *)type);
+}
+
+void Cinder_UnwatchType(PyTypeObject* type) {
+  PyType_Unwatch(cinder_type_watcher_id, (PyObject *)type);
 }
 
 static int cinder_func_watcher(
@@ -118,6 +145,9 @@ int Cinder_Init() {
   if (cinder_install_dict_watcher() < 0) {
     return -1;
   }
+  if (cinder_install_type_watcher() < 0) {
+    return -1;
+  }
   if (cinder_install_func_watcher() < 0) {
     return -1;
   }
@@ -142,6 +172,17 @@ int Cinder_InitSubInterp() {
   JIT_CHECK(
       cinder_dict_watcher_id == prev_dict_watcher_id,
       "Somebody else watching dicts?");
+
+  int prev_type_watcher_id = cinder_type_watcher_id;
+  JIT_CHECK(
+      prev_type_watcher_id >= 0,
+      "Initializing sub-interpreter without main interpreter?");
+  if (cinder_install_type_watcher() < 0) {
+    return -1;
+  }
+  JIT_CHECK(
+      cinder_type_watcher_id == prev_type_watcher_id,
+      "Somebody else watching types?");
 
   int prev_func_watcher_id = cinder_func_watcher_id;
   JIT_CHECK(
