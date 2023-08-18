@@ -283,7 +283,49 @@ void ProfileRuntime::profileInstr(
     case WITH_EXCEPT_START: {
       // TOS6 is a function to call; the other values aren't interesting.
       profile_stack(6);
+      break;
     }
+
+    // The below are all shadow bytecodes that will be removed with 3.12.
+    case LOAD_ATTR_DICT_DESCR:
+    case LOAD_ATTR_DICT_NO_DESCR:
+    case LOAD_ATTR_MODULE:
+    case LOAD_ATTR_NO_DICT_DESCR:
+    case LOAD_ATTR_POLYMORPHIC:
+    case LOAD_ATTR_SLOT:
+    case LOAD_ATTR_SPLIT_DICT:
+    case LOAD_ATTR_SPLIT_DICT_DESCR:
+    case LOAD_ATTR_S_MODULE:
+    case LOAD_ATTR_TYPE:
+    case LOAD_ATTR_UNCACHABLE:
+    case LOAD_METHOD_DICT_DESCR:
+    case LOAD_METHOD_DICT_METHOD:
+    case LOAD_METHOD_MODULE:
+    case LOAD_METHOD_NO_DICT_DESCR:
+    case LOAD_METHOD_NO_DICT_METHOD:
+    case LOAD_METHOD_SPLIT_DICT_DESCR:
+    case LOAD_METHOD_SPLIT_DICT_METHOD:
+    case LOAD_METHOD_S_MODULE:
+    case LOAD_METHOD_TYPE:
+    case LOAD_METHOD_TYPE_METHODLIKE:
+    case LOAD_METHOD_UNCACHABLE:
+    case LOAD_METHOD_UNSHADOWED_METHOD:
+    case LOAD_PRIMITIVE_FIELD:
+      profile_stack(0);
+      break;
+    case BINARY_SUBSCR_DICT:
+    case BINARY_SUBSCR_DICT_STR:
+    case BINARY_SUBSCR_LIST:
+    case BINARY_SUBSCR_TUPLE:
+    case BINARY_SUBSCR_TUPLE_CONST_INT:
+    case STORE_ATTR_DESCR:
+    case STORE_ATTR_DICT:
+    case STORE_ATTR_SLOT:
+    case STORE_ATTR_SPLIT_DICT:
+    case STORE_ATTR_UNCACHABLE:
+    case STORE_PRIMITIVE_FIELD:
+      profile_stack(1, 0);
+      break;
   }
 }
 
