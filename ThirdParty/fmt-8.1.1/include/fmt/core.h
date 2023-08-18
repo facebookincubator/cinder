@@ -1703,14 +1703,14 @@ FMT_CONSTEXPR auto make_arg(const T& value) -> basic_format_arg<Context> {
 template <bool IS_PACKED, typename Context, type, typename T,
           FMT_ENABLE_IF(IS_PACKED)>
 FMT_CONSTEXPR FMT_INLINE auto make_arg(T&& val) -> value<Context> {
-  const auto& arg = arg_mapper<Context>().map(std::forward<T>(val));
+  using arg_type = remove_cvref_t<decltype(arg_mapper<Context>().map(std::forward<T>(val)))>;
 
   constexpr bool formattable_char =
-      !std::is_same<decltype(arg), const unformattable_char&>::value;
+      !std::is_same<arg_type, const unformattable_char&>::value;
   static_assert(formattable_char, "Mixing character types is disallowed.");
 
   constexpr bool formattable_const =
-      !std::is_same<decltype(arg), const unformattable_const&>::value;
+      !std::is_same<arg_type, const unformattable_const&>::value;
   static_assert(formattable_const, "Cannot format a const argument.");
 
   // Formatting of arbitrary pointers is disallowed. If you want to output
@@ -1718,17 +1718,17 @@ FMT_CONSTEXPR FMT_INLINE auto make_arg(T&& val) -> value<Context> {
   // forbids formatting of "[const] volatile char *" which is printed as bool
   // by iostreams.
   constexpr bool formattable_pointer =
-      !std::is_same<decltype(arg), const unformattable_pointer&>::value;
+      !std::is_same<arg_type, const unformattable_pointer&>::value;
   static_assert(formattable_pointer,
                 "Formatting of non-void pointers is disallowed.");
 
   constexpr bool formattable =
-      !std::is_same<decltype(arg), const unformattable&>::value;
+      !std::is_same<arg_type, const unformattable&>::value;
   static_assert(
       formattable,
       "Cannot format an argument. To make type T formattable provide a "
       "formatter<T> specialization: https://fmt.dev/latest/api.html#udt");
-  return {arg};
+  return {arg_mapper<Context>().map(std::forward<T>(val))};
 }
 
 template <bool IS_PACKED, typename Context, type, typename T,

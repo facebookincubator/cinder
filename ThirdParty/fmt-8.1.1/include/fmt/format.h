@@ -355,6 +355,8 @@ FMT_INLINE void assume(bool condition) {
   (void)condition;
 #if FMT_HAS_BUILTIN(__builtin_assume)
   __builtin_assume(condition);
+#elif FMT_GCC_VERSION
+  if (!condition) __builtin_unreachable();
 #endif
 }
 
@@ -789,9 +791,9 @@ FMT_CONSTEXPR20 void basic_memory_buffer<T, SIZE, Allocator>::grow(
   T* old_data = this->data();
   T* new_data =
       std::allocator_traits<Allocator>::allocate(alloc_, new_capacity);
+  detail::assume(this->size() <= new_capacity);
   // The following code doesn't throw, so the raw pointer above doesn't leak.
-  std::uninitialized_copy(old_data, old_data + this->size(),
-                          detail::make_checked(new_data, new_capacity));
+  std::uninitialized_copy_n(old_data, this->size(), new_data);
   this->set(new_data, new_capacity);
   // deallocate must not throw according to the standard, but even if it does,
   // the buffer already uses the new storage and will deallocate it in
