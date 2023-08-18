@@ -91,7 +91,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     std::generate(
         args.begin(),
         args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+        std::bind(std::mem_fn(&HIRParser::ParseRegister), this));
 
     if (opcode == "VectorCall") {
       instruction = newInstr<VectorCall>(num_args + 1, dst, is_awaited);
@@ -170,7 +170,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     std::generate(
         args.begin(),
         args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+        std::bind(std::mem_fn(&HIRParser::ParseRegister), this));
     instruction = newInstr<MakeList>(nvalues, dst, args);
   } else if (opcode == "MakeTuple") {
     expect("<");
@@ -180,7 +180,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     std::generate(
         args.begin(),
         args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+        std::bind(std::mem_fn(&HIRParser::ParseRegister), this));
     instruction = newInstr<MakeTuple>(nvalues, dst, args);
   } else if (opcode == "MakeSet") {
     NEW_INSTR(MakeSet, dst);
@@ -228,7 +228,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     std::generate(
         args.begin(),
         args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+        std::bind(std::mem_fn(&HIRParser::ParseRegister), this));
     instruction = newInstr<CallMethod>(args.size(), dst, is_awaited);
     for (std::size_t i = 0; i < args.size(); i++) {
       instruction->SetOperand(i, args[i]);
@@ -540,7 +540,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     std::generate(
         args.begin(),
         args.end(),
-        std::bind(std::mem_fun(&HIRParser::ParseRegister), this));
+        std::bind(std::mem_fn(&HIRParser::ParseRegister), this));
     NEW_INSTR(HintType, num_args, types, args);
   } else if (opcode == "RefineType") {
     expect("<");
