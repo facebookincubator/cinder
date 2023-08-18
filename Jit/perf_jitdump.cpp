@@ -268,7 +268,7 @@ std::tuple<const void*, unsigned int, const char*> parseJitEntry(
   // Extract the hexadecimal code size
   const char* code_size_str =
       entry_view.substr(space_pos_1 + 1, space_pos_2).data();
-  uint32_t code_size;
+  uint32_t code_size = 0;
   std::from_chars(
       code_size_str,
       code_size_str + (space_pos_2 - space_pos_1 - 1),
