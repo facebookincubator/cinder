@@ -31,11 +31,7 @@ using CodeKey = std::string;
 
 class ProfileRuntime {
  public:
-  using ProfileMap = std::unordered_map<
-      Ref<PyCodeObject>,
-      CodeProfile,
-      TransparentRefHasher<PyCodeObject>,
-      std::equal_to<>>;
+  using ProfileMap = std::map<Ref<PyCodeObject>, CodeProfile, std::less<>>;
 
   using iterator = ProfileMap::iterator;
   using const_iterator = ProfileMap::const_iterator;
