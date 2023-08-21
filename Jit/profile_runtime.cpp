@@ -11,6 +11,8 @@
 #include "Jit/live_type_map.h"
 #include "Jit/log.h"
 
+#include <folly/tracing/StaticTracepoint.h>
+
 #include <fstream>
 #include <istream>
 #include <ostream>
@@ -149,6 +151,14 @@ void ProfileRuntime::profileInstr(
   }
 
   auto profile_stack = [&](auto... stack_offsets) {
+    FOLLY_SDT(
+        python,
+        profile_bytecode,
+        codeQualname(frame->f_code).c_str(),
+        frame->f_lasti,
+        opcode,
+        oparg);
+
     CodeProfile& code_profile =
         profiles_[Ref<PyCodeObject>::create(frame->f_code)];
     int opcode_offset = frame->f_lasti * sizeof(_Py_CODEUNIT);

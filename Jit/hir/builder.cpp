@@ -25,6 +25,8 @@
 #include "Jit/ref.h"
 #include "Jit/threaded_compile.h"
 
+#include <folly/tracing/StaticTracepoint.h>
+
 #include <algorithm>
 #include <deque>
 #include <memory>
@@ -681,6 +683,15 @@ void HIRBuilder::emitProfiledTypes(
   }
   for (auto& type : types) {
     if (type != TTop) {
+      FOLLY_SDT(
+          python,
+          guard_from_profile,
+          codeQualname(tc.frame.code).c_str(),
+          bc_instr.offset().value(),
+          bc_instr.opcode(),
+          bc_instr.oparg(),
+          type.toString().c_str());
+
       Register* value = tc.frame.stack.top(stack_idx);
       GuardType* guard = tc.emit<GuardType>(value, type, value);
       guard->setGuiltyReg(value);

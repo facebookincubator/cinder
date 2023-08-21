@@ -117,7 +117,7 @@ PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdi
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_srcdir)/Cinder/Include
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/folly -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_srcdir)/Cinder/Include
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
