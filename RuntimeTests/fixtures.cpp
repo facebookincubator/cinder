@@ -12,10 +12,12 @@ void RuntimeTest::runAndProfileCode(const char* src) {
   int jit_enabled = _PyJIT_IsEnabled();
   _PyJIT_Disable();
   Ci_ThreadState_SetProfileInterpAll(1);
+  Ci_RuntimeState_SetProfileInterpPeriod(1);
 
   ASSERT_TRUE(compile_static_ ? runStaticCode(src) : runCode(src));
 
   Ci_ThreadState_SetProfileInterpAll(0);
+  Ci_RuntimeState_SetProfileInterpPeriod(0);
   if (jit_enabled) {
     _PyJIT_Enable();
   }

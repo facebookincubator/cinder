@@ -1944,6 +1944,7 @@ class TestInterpProfiling(unittest.TestCase):
             for i in range(c):
                 r += a * b
 
+        cinder.set_profile_interp_period(1)
         was_enabled_before = cinder.set_profile_interp(True)
         repetitions = 101
         result = workload(1, 2, repetitions)

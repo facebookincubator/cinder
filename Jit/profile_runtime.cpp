@@ -64,6 +64,22 @@ std::string readStr(std::istream& stream) {
 
 } // namespace
 
+bool ProfileRuntime::isCandidate(BorrowedRef<PyCodeObject> code) const {
+  return candidates_.contains(code);
+}
+
+size_t ProfileRuntime::numCandidates() const {
+  return candidates_.size();
+}
+
+void ProfileRuntime::markCandidate(BorrowedRef<PyCodeObject> code) {
+  candidates_.emplace(code);
+}
+
+void ProfileRuntime::unmarkCandidate(BorrowedRef<PyCodeObject> code) {
+  candidates_.erase(code);
+}
+
 std::vector<hir::Type> ProfileRuntime::getProfiledTypes(
     BorrowedRef<PyCodeObject> code,
     BCOffset bc_off) const {
@@ -516,6 +532,7 @@ bool ProfileRuntime::deserialize(std::istream& stream) {
 
 void ProfileRuntime::clear() {
   profiles_.clear();
+  candidates_.clear();
   loaded_profiles_.clear();
   s_live_types.clear();
 

@@ -962,7 +962,7 @@ _PyEval_InitState(struct _ceval_state *ceval)
 #endif
 
     ceval->profile_instr_counter = 0;
-    ceval->profile_instr_period = 1;
+    ceval->profile_instr_period = 0;
 
     return 0;
 }
@@ -1866,6 +1866,11 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
         }
     }
     /* facebook end t39538061 */
+
+    int profiling_candidate = 0;
+    if (tstate->profile_interp) {
+      profiling_candidate = _PyJIT_IsProfilingCandidate(co);
+    }
 #endif
 
     names = co->co_names;
@@ -1997,11 +2002,26 @@ main_loop:
 
 #ifdef ENABLE_CINDERX
         struct _ceval_state *ceval = &tstate->interp->ceval;
-        if (tstate->profile_interp &&
-            ++ceval->profile_instr_counter == ceval->profile_instr_period) {
+
+        if (tstate->profile_interp != 0) {
+          int do_profile = 0;
+
+          // Profile if we're we've hit the global sampling period.
+          if (ceval->profile_instr_period > 0 &&
+              ++ceval->profile_instr_counter == ceval->profile_instr_period) {
             ceval->profile_instr_counter = 0;
+            do_profile = 1;
+          }
+
+          // Profile if the code object has been marked as hot by AutoJIT.
+          if (profiling_candidate) {
+            do_profile = 1;
+          }
+
+          if (do_profile) {
             profiled_instrs++;
             try_profile_next_instr(f, stack_pointer, next_instr - 1);
+          }
         }
 #endif
 
@@ -8278,15 +8298,46 @@ PyEntry_AutoJIT(PyFunctionObject *func,
                 Py_ssize_t nargsf,
                 PyObject *kwnames) {
     PyCodeObject* code = (PyCodeObject*)func->func_code;
-    if (count_calls(code) > _PyJIT_AutoJITThreshold()) {
-        if (_PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
-            func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
-            PyEntry_initnow(func);
-        }
-        assert(func->vectorcall != (vectorcallfunc)PyEntry_AutoJIT);
-        return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
+
+    unsigned ncalls = count_calls(code);
+    unsigned hot_threshold = _PyJIT_AutoJITThreshold();
+    unsigned jit_threshold = hot_threshold + _PyJIT_AutoJITProfileThreshold();
+
+    // If the function is found to be hot then register it to be profiled, and
+    // enable interpreter profiling if it's not already enabled.
+    if (ncalls == hot_threshold && hot_threshold != jit_threshold) {
+      _PyJIT_MarkProfilingCandidate(code);
+      PyThreadState *tstate = _PyThreadState_GET();
+      if (!tstate->profile_interp) {
+        tstate->profile_interp = 1;
+        tstate->cframe->use_tracing = _Py_ThreadStateHasTracing(tstate);
+      }
     }
-    return _PyFunction_Vectorcall((PyObject *)func, stack, nargsf, kwnames);
+
+    if (ncalls <= jit_threshold) {
+      return _PyFunction_Vectorcall((PyObject *)func, stack, nargsf, kwnames);
+    }
+
+    // Function is about to be compiled, can stop profiling it now.  Disable
+    // interpreter profiling if this is the last profiling candidate and we're
+    // not profiling all bytecodes globally.
+    if (hot_threshold != jit_threshold) {
+      _PyJIT_UnmarkProfilingCandidate(code);
+      PyThreadState *tstate = _PyThreadState_GET();
+      if (tstate->profile_interp &&
+          tstate->interp->ceval.profile_instr_period == 0 &&
+          _PyJIT_NumProfilingCandidates() == 0) {
+        tstate->profile_interp = 0;
+        tstate->cframe->use_tracing = _Py_ThreadStateHasTracing(tstate);
+      }
+    }
+
+    if (_PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
+      func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
+      PyEntry_initnow(func);
+    }
+    assert(func->vectorcall != (vectorcallfunc)PyEntry_AutoJIT);
+    return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
 }
 
 void
@@ -8675,8 +8726,8 @@ static inline void try_profile_next_instr(PyFrameObject* f,
             break;
         }
         default: {
-          _PyJIT_ProfileCurrentInstr(f, stack_pointer, opcode, oparg);
-          break;
+            _PyJIT_ProfileCurrentInstr(f, stack_pointer, opcode, oparg);
+            break;
         }
     }
 }

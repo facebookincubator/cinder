@@ -210,7 +210,7 @@ static int jit_help = 0;
 static std::string read_profile_file;
 static std::string write_profile_file;
 static int jit_profile_interp = 0;
-static int jit_profile_interp_period = 1;
+static int jit_profile_interp_period = 0;
 static std::string jl_fn;
 
 static void warnJITOff(const char* flag) {
@@ -239,6 +239,14 @@ void initFlagProcessor() {
         },
         "Enable auto-JIT mode, which compiles functions after the given "
         "threshold");
+    xarg_flag_processor.addOption(
+        "jit-auto-profile",
+        "PYTHONJITAUTOPROFILE",
+        [](unsigned threshold) {
+          getMutableConfig().auto_jit_profile_threshold = threshold;
+        },
+        "Combined with -X jit-auto, configure the runtime to type profile each "
+        "function for a number of calls before compiling it");
 
     xarg_flag_processor.addOption(
         "jit-debug",
@@ -1815,8 +1823,12 @@ void _PyJIT_AfterFork_Child() {
   perf::afterForkChild();
 }
 
-unsigned int _PyJIT_AutoJITThreshold() {
+unsigned _PyJIT_AutoJITThreshold() {
   return getConfig().auto_jit_threshold;
+}
+
+unsigned _PyJIT_AutoJITProfileThreshold() {
+  return getConfig().auto_jit_profile_threshold;
 }
 
 int _PyJIT_IsAutoJITEnabled() {
@@ -2216,6 +2228,26 @@ PyObject* _PyJIT_GetBuiltins(PyThreadState* tstate) {
     return _PyShadowFrame_GetPyFrame(shadow_frame)->f_builtins;
   }
   return getRuntimeFrameState(shadow_frame)->builtins();
+}
+
+int _PyJIT_IsProfilingCandidate(PyCodeObject* code) {
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  return profile_runtime.isCandidate(code);
+}
+
+unsigned _PyJIT_NumProfilingCandidates(void) {
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  return profile_runtime.numCandidates();
+}
+
+void _PyJIT_MarkProfilingCandidate(PyCodeObject* code) {
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  return profile_runtime.markCandidate(code);
+}
+
+void _PyJIT_UnmarkProfilingCandidate(PyCodeObject* code) {
+  auto& profile_runtime = jit::Runtime::get()->profileRuntime();
+  return profile_runtime.unmarkCandidate(code);
 }
 
 void _PyJIT_ProfileCurrentInstr(

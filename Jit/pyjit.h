@@ -66,9 +66,17 @@ PyAPI_FUNC(void) _PyJIT_AfterFork_Child(void);
 PyAPI_FUNC(int) _PyJIT_IsAutoJITEnabled(void);
 
 /*
- * Returns the threshold if auto-JIT is enabled and 0 otherwise.
+ * Get the number of calls needed to mark a function for compilation by AutoJIT.
+ * Returns 0 when AutoJIT is disabled.
  */
-PyAPI_FUNC(unsigned int) _PyJIT_AutoJITThreshold(void);
+PyAPI_FUNC(unsigned) _PyJIT_AutoJITThreshold(void);
+
+/*
+ * Get the number of calls needed to profile hot functions when using AutoJIT.
+ * This is added on top of the normal threshold.  Returns 0 when AutoJIT is
+ * disabled.
+ */
+PyAPI_FUNC(unsigned) _PyJIT_AutoJITProfileThreshold(void);
 
 /*
  * JIT compile func and patch its entry point.
@@ -347,6 +355,26 @@ PyAPI_FUNC(PyObject*) _PyJIT_GetGlobals(PyThreadState* tstate);
  * associated with tstate.
  */
 PyAPI_FUNC(PyObject*) _PyJIT_GetBuiltins(PyThreadState* tstate);
+
+/*
+ * Check if a code object should be profiled for type information.
+ */
+PyAPI_FUNC(int) _PyJIT_IsProfilingCandidate(PyCodeObject* code);
+
+/*
+ * Count the number of code objects currently marked as profiling candidates.
+ */
+PyAPI_FUNC(unsigned) _PyJIT_NumProfilingCandidates(void);
+
+/*
+ * Mark a code object as a good candidate for type profiling.
+ */
+PyAPI_FUNC(void) _PyJIT_MarkProfilingCandidate(PyCodeObject* code);
+
+/*
+ * Unmark a code object as a good candidate for type profiling
+ */
+PyAPI_FUNC(void) _PyJIT_UnmarkProfilingCandidate(PyCodeObject* code);
 
 /*
  * Record a type profile for the current instruction.

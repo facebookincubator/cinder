@@ -38,6 +38,19 @@ class ProfileRuntime {
 
   ProfileRuntime() = default;
 
+  // Check if a code object should be profiled for type information.
+  bool isCandidate(BorrowedRef<PyCodeObject> code) const;
+
+  // Count the the number of code objects currently marked as profiling
+  // candidates.
+  size_t numCandidates() const;
+
+  // Mark a code object as a good candidate for type profiling.
+  void markCandidate(BorrowedRef<PyCodeObject> code);
+
+  // Unmark a code object as a good candidate for type profiling.
+  void unmarkCandidate(BorrowedRef<PyCodeObject> code);
+
   // For a given code object and bytecode offset, get the types that the runtime
   // believes are the most likely to show up.  Will be empty if there is not
   // enough profiling data, or if the bytecode is polymorphic.
@@ -135,6 +148,10 @@ class ProfileRuntime {
 
   // Profiles captured while executing code.
   ProfileMap profiles_;
+
+  // Code objects that are being profiled for typing information for all of
+  // their bytecode instructions.
+  UnorderedSet<BorrowedRef<PyCodeObject>> candidates_;
 
   // Profiles loaded from a file.
   UnorderedMap<CodeKey, CodeProfileData> loaded_profiles_;
