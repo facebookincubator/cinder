@@ -22,9 +22,7 @@ import weakref
 
 from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_SUPPRESS_JIT
 
-from compiler.static import StaticCodeGenerator
 from contextlib import contextmanager
-from importlib import is_lazy_imports_enabled
 from pathlib import Path
 from textwrap import dedent
 
@@ -41,8 +39,6 @@ try:
 except ImportError:
     from test_compiler.test_static.common import StaticTestBase
     from test_compiler.test_strict.test_loader import base_sandbox, sandbox
-
-from contextlib import contextmanager
 
 try:
     import cinderjit
@@ -1388,15 +1384,14 @@ class LoadGlobalCacheTests(unittest.TestCase):
             del builtins.__dict__[42]
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(
-        is_lazy_imports_enabled(),
-        "Test relevant only when running with lazy imports enabled",
-    )
+    @cinder_support.runInSubprocess
     def test_preload_side_effect_modifies_globals(self):
         with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
+                    import importlib
+                    importlib.set_lazy_imports(True)
                     from tmp_b import B
 
                     A = 1
@@ -1456,16 +1451,14 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertEqual(relevant_deopts, [])
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(
-        is_lazy_imports_enabled(),
-        "Test relevant only when running with lazy imports enabled",
-    )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_globals_unwatchable(self):
         with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
+                    import importlib
+                    importlib.set_lazy_imports(True)
                     from tmp_b import B
 
                     A = 1
@@ -1500,16 +1493,14 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
     @failUnlessHasOpcodes("LOAD_GLOBAL")
-    @unittest.skipUnless(
-        is_lazy_imports_enabled(),
-        "Test relevant only when running with lazy imports enabled",
-    )
     @cinder_support.runInSubprocess
     def test_preload_side_effect_makes_builtins_unwatchable(self):
         with cinder_support.temp_sys_path() as tmp:
             (tmp / "tmp_a.py").write_text(
                 dedent(
                     """
+                    import importlib
+                    importlib.set_lazy_imports(True)
                     from tmp_b import B
 
                     def get_a():
