@@ -1717,7 +1717,7 @@ int _PyJIT_Initialize() {
   JIT_CHECK(
       reinterpret_cast<uintptr_t>(&__strobe_CodeRuntime_py_code) !=
               static_cast<uintptr_t>(0xf0) &&
-          reinterpret_cast<uintptr_t>(&StrictModuleLoader_Type) !=
+          reinterpret_cast<uintptr_t>(&Ci_StrictModuleLoader_Type) !=
               static_cast<uintptr_t>(0xf0),
       "Missing symbol");
 

@@ -84,7 +84,7 @@ static PyObject* create_AnalysisResult_Helper(
     PyObject* errors) {
   StrictModuleAnalysisResult* self;
   self = (StrictModuleAnalysisResult*)PyObject_GC_New(
-      StrictModuleAnalysisResult, &StrictModuleAnalysisResult_Type);
+      StrictModuleAnalysisResult, &Ci_StrictModuleAnalysisResult_Type);
   self->valid_module = valid_module;
   self->module_name = module_name;
   self->file_name = file_name;
@@ -217,7 +217,7 @@ static PyMemberDef AnalysisResult_members[] = {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-PyTypeObject StrictModuleAnalysisResult_Type = {
+PyTypeObject Ci_StrictModuleAnalysisResult_Type = {
     PyVarObject_HEAD_INIT(
         NULL,
         0) "strictmodule.StrictModuleAnalysisResult", /* tp_name */
@@ -745,7 +745,7 @@ static PyMethodDef StrictModuleLoader_methods[] = {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-PyTypeObject StrictModuleLoader_Type = {
+PyTypeObject Ci_StrictModuleLoader_Type = {
     PyVarObject_HEAD_INIT(
         NULL,
         0) "strictmodule.StrictModuleLoader", /* tp_name */

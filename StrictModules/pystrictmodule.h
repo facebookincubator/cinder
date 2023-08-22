@@ -25,8 +25,8 @@ typedef struct {
   PyObject* errors;
 } StrictModuleAnalysisResult;
 
-CiAPI_DATA(PyTypeObject) StrictModuleLoader_Type;
-CiAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
+CiAPI_DATA(PyTypeObject) Ci_StrictModuleLoader_Type;
+CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
 
 #define Ci_MUTABLE_DECORATOR "<mutable>"
 #define Ci_EXTRA_SLOTS_DECORATOR "<extra_slots>"
@@ -46,7 +46,7 @@ CiAPI_DATA(PyTypeObject) StrictModuleAnalysisResult_Type;
 #define Ci_STUB_KIND_MASK_STRICT 0b001
 
 #define StrictModuleLoaderObject_Check(v) \
-  (Py_TYPE(v) == &StrictModuleLoader_Type)
+  (Py_TYPE(v) == &Ci_StrictModuleLoader_Type)
 
 #ifdef __cplusplus
 }

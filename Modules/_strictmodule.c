@@ -12,21 +12,21 @@ extern "C" {
 PyDoc_STRVAR(strictmodule_doc, "Strict Module related types and methods");
 
 static int strictmodule_exec(PyObject *m) {
-  if (PyType_Ready(&StrictModuleLoader_Type) < 0)
+  if (PyType_Ready(&Ci_StrictModuleLoader_Type) < 0)
     goto fail;
-  if (PyType_Ready(&StrictModuleAnalysisResult_Type) < 0)
+  if (PyType_Ready(&Ci_StrictModuleAnalysisResult_Type) < 0)
     goto fail;
 
-  Py_INCREF(&StrictModuleLoader_Type);
+  Py_INCREF(&Ci_StrictModuleLoader_Type);
   if (PyModule_AddObject(m, "StrictModuleLoader",
-                         (PyObject *)&StrictModuleLoader_Type) < 0) {
-      Py_DECREF(&StrictModuleLoader_Type);
+                         (PyObject *)&Ci_StrictModuleLoader_Type) < 0) {
+      Py_DECREF(&Ci_StrictModuleLoader_Type);
       return -1;
   }
-  Py_INCREF(&StrictModuleAnalysisResult_Type);
+  Py_INCREF(&Ci_StrictModuleAnalysisResult_Type);
   if (PyModule_AddObject(m, "StrictAnalysisResult",
-                         (PyObject *)&StrictModuleAnalysisResult_Type) < 0) {
-      Py_DECREF(&StrictModuleAnalysisResult_Type);
+                         (PyObject *)&Ci_StrictModuleAnalysisResult_Type) < 0) {
+      Py_DECREF(&Ci_StrictModuleAnalysisResult_Type);
       return -1;
   }
   PyObject *val;

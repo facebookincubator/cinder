@@ -82,6 +82,9 @@ CiAPI_DATA(int) (*Ci_List_APPEND)(PyListObject *list, PyObject *item);
 CiAPI_FUNC(PyObject *) Ci_List_Repeat(PyListObject *, Py_ssize_t);
 CiAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
 
+CiAPI_DATA(PyTypeObject) Ci_StrictModuleLoader_Type;
+CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
+
 // Originally in Include/object.h
 #define Ci_Py_TPFLAG_CPYTHON_ALLOCATED (1UL << 2)
 #define Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED (1UL << 3)
