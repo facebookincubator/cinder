@@ -1529,6 +1529,37 @@ class LoadGlobalCacheTests(unittest.TestCase):
             if cinderjit:
                 self.assertTrue(cinderjit.is_jit_compiled(tmp_a.get_a))
 
+    @cinder_support.runInSubprocess
+    def test_lazy_import_after_global_cached(self):
+        with cinder_support.temp_sys_path() as tmp:
+            (tmp / "tmp_a.py").write_text(
+                dedent(
+                    """
+                    import importlib
+                    importlib.set_lazy_imports(True)
+                    from tmp_b import B
+
+                    def f():
+                        return B
+
+                    for _ in range(51):
+                        f()
+
+                    from tmp_b import B
+                    """
+                )
+            )
+            (tmp / "tmp_b.py").write_text(
+                dedent(
+                    """
+                    B = 3
+                    """
+                )
+            )
+            import tmp_a
+
+            self.assertEqual(tmp_a.f(), 3)
+
 
 class ClosureTests(unittest.TestCase):
     @cinder_support.failUnlessJITCompiled

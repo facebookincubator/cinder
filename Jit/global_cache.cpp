@@ -40,6 +40,10 @@ void GlobalCache::update(
     PyObject* new_value,
     std::vector<GlobalCache>& to_disable) const {
   PyObject* builtins = key().builtins;
+  if (new_value && PyLazyImport_CheckExact(new_value)) {
+    to_disable.emplace_back(*this);
+    return;
+  }
   if (dict == key().globals) {
     if (new_value == nullptr && key().globals != builtins) {
       if (!_PyDict_HasOnlyUnicodeKeys(builtins)) {
