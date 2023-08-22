@@ -1,6 +1,9 @@
 #!/bin/bash
 
-ROOT=$(git rev-parse --show-toplevel)
+ROOT=$(
+  git rev-parse --is-inside-work-tree 2>&1 >/dev/null &&
+  git rev-parse --show-toplevel ||
+  hg root)
 MODULE_DIR=$(readlink -f "$(dirname "$0")")
 PYTHON_FOR_CINDERX_BUILD_DIR="$ROOT/build_cinderx_venv"
 VENV_DIR="$PYTHON_FOR_CINDERX_BUILD_DIR/venv"
