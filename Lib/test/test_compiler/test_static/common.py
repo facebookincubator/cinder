@@ -22,6 +22,7 @@ from compiler.static.module_table import ModuleTable
 from compiler.static.types import Value
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler as StrictCompiler
+from compiler.strict.loader import init_static_python
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from functools import wraps
@@ -238,6 +239,10 @@ class TestErrors:
 
 
 class StaticTestBase(CompilerTest):
+    @classmethod
+    def setUpClass(cls):
+        init_static_python()
+
     def shortDescription(self):
         return None
 

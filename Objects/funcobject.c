@@ -428,14 +428,6 @@ func_set_code(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored))
         return -1;
     }
 
-    /* TODO(T122481814): Hook _PyJIT_FuncModified instead of having custom code
-     * in CPython */
-    if (((PyCodeObject*)op->func_code)->co_flags & CO_STATICALLY_COMPILED) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "Cannot modify __code__ of Static Python function");
-        return -1;
-    }
-
     if (PySys_Audit("object.__setattr__", "OsO",
                     op, "__code__", value) < 0) {
         return -1;

@@ -8,8 +8,8 @@ import builtins
 import importlib._bootstrap_external
 import os
 import sys
-
 from cinder import StrictModule, watch_sys_modules
+
 from enum import Enum
 from importlib.abc import Loader
 from importlib.machinery import (
@@ -44,8 +44,9 @@ from typing import (
     Type,
 )
 
+from _static import install_sp_audit_hook
+
 from ..consts import CO_STATICALLY_COMPILED
-from ..strict import _static_module_ported
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
 from .track_import_call import tracker
@@ -343,9 +344,6 @@ class StrictSourceFileLoader(SourceFileLoader):
 
         return code
 
-    def _ensure_static_python_builtins_enabled(self) -> None:
-        watch_sys_modules()
-
     def exec_module(self, module: ModuleType) -> None:
         # This ends up being slightly convoluted, because create_module
         # gets called, then source_to_code gets called, so we don't know if
@@ -383,7 +381,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 "<init-cached-properties>": self.init_cached_properties,
             }
             if code.co_flags & CO_STATICALLY_COMPILED:
-                self._ensure_static_python_builtins_enabled()
+                init_static_python()
                 new_dict["<imported-from>"] = code.co_consts[-1]
 
             new_dict.update(module.__dict__)
@@ -513,6 +511,15 @@ def strict_compile(
     # pyre-fixme[16]: `StrictSourceFileLoader` has no attribute `_cache_bytecode`.
     loader._cache_bytecode(file, cfile, bytecode)
     return cfile
+
+
+def init_static_python() -> None:
+    """Idempotent global initialization of Static Python.
+
+    Should be called at least once if any Static modules/functions exist.
+    """
+    watch_sys_modules()
+    install_sp_audit_hook()
 
 
 def install() -> None:

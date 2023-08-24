@@ -1562,6 +1562,57 @@ PyObject* clear_dlsym_cache(PyObject *Py_UNUSED(module)) {
     Py_RETURN_NONE;
 }
 
+static int sp_audit_hook(const char* event, PyObject* args, void* data) {
+  if (strcmp(event, "object.__setattr__") != 0 || PyTuple_GET_SIZE(args) != 3) {
+    return 0;
+  }
+  PyObject *name = PyTuple_GET_ITEM(args, 1);
+  if (!PyUnicode_Check(name) ||
+      PyUnicode_CompareWithASCIIString(name, "__code__") != 0) {
+    return 0;
+  }
+
+  PyObject *obj = PyTuple_GET_ITEM(args, 0);
+  if (!PyFunction_Check(obj)) {
+    return 0;
+  }
+  PyFunctionObject *func = (PyFunctionObject *)obj;
+  if (((PyCodeObject *)func->func_code)->co_flags & CO_STATICALLY_COMPILED) {
+    PyErr_SetString(PyExc_RuntimeError, "Cannot modify __code__ of Static Python function");
+    return -1;
+  }
+  return 0;
+}
+
+static int sp_audit_hook_installed = 0;
+
+static PyObject *install_sp_audit_hook(PyObject *mod) {
+  if (sp_audit_hook_installed) {
+    Py_RETURN_NONE;
+  }
+  void* kData = NULL;
+  if (PySys_AddAuditHook(sp_audit_hook, kData) < 0) {
+    return NULL;
+  }
+
+  // PySys_AddAuditHook() can fail to add the hook but still return 0 if an
+  // existing audit function aborts the sys.addaudithook event. Since we rely
+  // on it for correctness, walk the linked list of audit functions and make
+  // sure ours is there.
+  _PyRuntimeState* runtime = &_PyRuntime;
+  for (_Py_AuditHookEntry* e = runtime->audit_hook_head; e != NULL;
+       e = e->next) {
+    if (e->hookCFunction == sp_audit_hook && e->userData == kData) {
+      sp_audit_hook_installed = 1;
+      Py_RETURN_NONE;
+    }
+  }
+
+  PyErr_SetString(PyExc_RuntimeError, "Could not install Static Python audit hook");
+  return NULL;
+}
+
+
 static PyMethodDef static_methods[] = {
     {"set_type_code", (PyCFunction)(void(*)(void))set_type_code, METH_FASTCALL, ""},
     {"rand", (PyCFunction)&static_rand_def, Ci_METH_TYPED, ""},
@@ -1589,6 +1640,7 @@ static PyMethodDef static_methods[] = {
     {"_sizeof_dlsym_cache", (PyCFunction)(void(*)(void))sizeof_dlsym_cache, METH_FASTCALL, ""},
     {"_clear_dlopen_cache", (PyCFunction)(void(*)(void))clear_dlopen_cache, METH_FASTCALL, ""},
     {"_clear_dlsym_cache", (PyCFunction)(void(*)(void))clear_dlsym_cache, METH_FASTCALL, ""},
+    {"install_sp_audit_hook", (PyCFunction)(void(*)(void))install_sp_audit_hook, METH_NOARGS, ""},
     {}
 };
 
