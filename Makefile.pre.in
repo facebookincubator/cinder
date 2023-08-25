@@ -328,7 +328,7 @@ ASAN_TEST_ENV_WITH_LSAN= @ASAN_TEST_ENV_WITH_LSAN@
 
 ENABLE_CINDERX_SO=@ENABLE_CINDERX_SO@
 ifeq ($(ENABLE_CINDERX_SO), yes)
-	CINDERX_SO=$(abs_srcdir)/CinderX/build/cinderx.$(SOABI).so
+	CINDERX_SO=$(abs_srcdir)/CinderX/build/_cinderx.$(SOABI).so
 else
 	CINDERX_SO=
 endif

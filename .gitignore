@@ -167,3 +167,4 @@ pyembed_includes
 .sphinx-build/
 .cache/
 build_cinderx_venv/
+CinderX/build/

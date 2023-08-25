@@ -31,6 +31,10 @@ CINDER_SRCS = [
     "Cinder/cinder.cpp",
 ]
 
+CINDERX_SRCS = [
+    "_cinderx.cpp",
+]
+
 JIT_SRCS = [
     "Jit/bitvector.cpp",
     "Jit/bytecode.cpp",
@@ -227,6 +231,7 @@ STATICPYTHON_SRCS = [
 
 ALL_SRCS = (
     CINDER_SRCS +
+    CINDERX_SRCS +
     JIT_SRCS +
     I386_DASM_SRCS +
     ASMJIT_SRCS +
@@ -281,14 +286,13 @@ setuptools.setup(
     cmdclass={"build_ext": CinderBuildExt},
     ext_modules=[
         setuptools.Extension(
-            "cinderx",
+            "_cinderx",
             sources=ALL_SRCS,
             include_dirs=INCLUDE_DIRS,
             define_macros=[("FMT_HEADER_ONLY", 1), ("Py_BUILD_CORE", None)],
             extra_compile_args=["-Wno-ambiguous-reversed-operator"],
         )
     ],
-    package_dir={"": "src"},
-    packages=setuptools.find_packages(where="src"),
+    packages=setuptools.find_packages(),
     python_requires="==3.10.*",
 )
