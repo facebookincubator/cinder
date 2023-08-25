@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ROOT=$(
-  git rev-parse --is-inside-work-tree 2>&1 >/dev/null &&
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
   git rev-parse --show-toplevel ||
   hg root)
 MODULE_DIR=$(readlink -f "$(dirname "$0")")
