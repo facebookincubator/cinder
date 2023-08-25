@@ -186,8 +186,12 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
     if (!target->container_is_immutable) {
       target->indirect_ptr =
           _PyClassLoader_GetIndirectPtr(descr, target->callable, container);
-      JIT_CHECK(
-          target->indirect_ptr != NULL, "%s indirect_ptr is null", repr(descr));
+      if (target->indirect_ptr == nullptr) {
+        if (PyErr_Occurred()) {
+          PyErr_WriteUnraisable(descr);
+        }
+        JIT_ABORT("indirect_ptr null for %s (stale bytecode?)", repr(descr));
+      }
     }
   }
 
