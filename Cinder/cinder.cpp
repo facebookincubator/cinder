@@ -22,6 +22,7 @@ static int cinder_dict_watcher(
         _PyJIT_NotifyDictUnwatch(dict);
       } else {
         _PyJIT_NotifyDictKey(dict, key, new_value);
+        _PyClassLoader_NotifyDictChange((PyDictObject *)dict, key);
       }
       break;
     case PyDict_EVENT_CLEARED:

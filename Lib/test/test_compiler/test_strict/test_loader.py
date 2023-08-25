@@ -117,9 +117,9 @@ ALLOW_LIST = ["_collections_abc"]
 
 
 @contextmanager
-def write_bytecode() -> Generator[None, None, None]:
+def write_bytecode(enable: bool = True) -> Generator[None, None, None]:
     orig = sys.dont_write_bytecode
-    sys.dont_write_bytecode = False
+    sys.dont_write_bytecode = not enable
     try:
         yield
     finally:
@@ -199,12 +199,17 @@ class Sandbox(base_sandbox.Sandbox):
         )
 
     @contextmanager
-    def in_strict_module(
-        self, *module_names: str
-    ) -> Generator[TModule | List[TModule], None, None]:
+    def isolated_strict_loader(self) -> Generator[None, None, None]:
         with file_loader(
             STRICT_LOADER
         ), restore_sys_modules(), restore_strict_modules():
+            yield
+
+    @contextmanager
+    def in_strict_module(
+        self, *module_names: str
+    ) -> Generator[TModule | List[TModule], None, None]:
+        with self.isolated_strict_loader():
             yield self.import_modules(*module_names)
 
     def strict_from_code(self, code: str) -> TModule | List[TModule]:
@@ -2722,3 +2727,55 @@ class StrictLoaderTest(StrictTestBase):
                     TypeError, "type 'C' has been frozen and cannot be modified"
                 ):
                     mod_a.C.something = 100
+
+    def test_clear_classloader_cache_on_aborted_import(self):
+        flagcode = """
+            val = True
+
+            def maybe_throw(c):
+                if val:
+                    # ensure we populate the classloader cache with this version of C
+                    import other
+                    other.f(c)
+                    raise ImportError("this module fails to import")
+        """
+        modcode = """
+            import __static__
+            from __strict__ import allow_side_effects
+            from flag import maybe_throw
+
+            class C:
+                pass
+
+            maybe_throw(C())
+        """
+        othercode = """
+            from __future__ import annotations
+            import __static__
+            from __strict__ import allow_side_effects
+
+            import mod
+
+            def f(c: mod.C):
+                return c
+        """
+        self.sbx.write_file("other.py", othercode)
+        self.sbx.write_file("mod.py", modcode)
+        self.sbx.write_file("flag.py", flagcode)
+
+        with self.sbx.isolated_strict_loader(), write_bytecode(False):
+            # import bad version of 'mod' to populate class loader cache and then roll back import
+            with self.assertRaisesRegex(ImportError, "this module fails to import"):
+                import mod
+            import flag
+
+            flag.val = False
+            import mod, other
+
+            c = mod.C()
+
+            # if we have the bad classloader cache still, this call will fail
+            # because the instance we are passing in is an instance of the new
+            # version of the C class, but the argument check will be against the
+            # old version of the C class from the failed import
+            self.assertIs(other.f(c), c)
