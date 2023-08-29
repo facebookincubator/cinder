@@ -2042,6 +2042,7 @@ LIBSUBDIRS=	asyncio \
 		$(XMLLIBSUBDIRS) \
 		xmlrpc \
 		zoneinfo \
+		cinderx \
 		compiler compiler/static __static__ \
 		compiler/strict compiler/strict/rewriter __strict__ \
 		compiler/strict/stubs compiler/strict/stubs/asyncio compiler/strict/stubs/collections

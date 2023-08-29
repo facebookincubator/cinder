@@ -1,0 +1,1 @@
+../_strictmodule.pyi
