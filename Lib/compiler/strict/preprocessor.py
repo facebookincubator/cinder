@@ -6,7 +6,7 @@ import ast
 from ast import AST, Call, Constant, Name
 from typing import List, Optional, Tuple, TypeVar
 
-from _strictmodule import (
+from cinderx.strictmodule import (
     CACHED_PROP_DECORATOR,
     ENABLE_SLOTS_DECORATOR,
     EXTRA_SLOTS_DECORATOR,

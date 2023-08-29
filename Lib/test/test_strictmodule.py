@@ -4,7 +4,7 @@ import ast
 import unittest
 from textwrap import dedent
 
-from _strictmodule import StrictModuleLoader, StrictAnalysisResult
+from cinderx.strictmodule import StrictModuleLoader, StrictAnalysisResult
 
 
 class StrictModuleTest(unittest.TestCase):

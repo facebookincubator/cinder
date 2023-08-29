@@ -41,7 +41,7 @@ from _static import (
     TYPED_UINT64,
     TYPED_UINT8,
 )
-from _strictmodule import (
+from cinderx.strictmodule import (
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
     StrictAnalysisResult,

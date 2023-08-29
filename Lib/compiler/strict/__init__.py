@@ -20,7 +20,7 @@ from types import CodeType
 from typing import Any, cast, Dict, final, List, Mapping, Optional
 
 try:
-    from _strictmodule import MUTABLE_DECORATOR
+    from cinderx.strictmodule import MUTABLE_DECORATOR
 except ModuleNotFoundError:
     MUTABLE_DECORATOR = None
 

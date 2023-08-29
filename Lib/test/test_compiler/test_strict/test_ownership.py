@@ -3,7 +3,7 @@ from __future__ import annotations
 from textwrap import dedent
 from typing import final, List, Sequence, Tuple
 
-from _strictmodule import StrictModuleLoader
+from cinderx.strictmodule import StrictModuleLoader
 
 from .common import StrictTestBase
 

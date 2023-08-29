@@ -23,7 +23,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from _strictmodule import (
+from cinderx.strictmodule import (
     NONSTRICT_MODULE_KIND,
     STATIC_MODULE_KIND,
     StrictAnalysisResult,
@@ -45,7 +45,7 @@ else:
     from __static__ import __build_cinder_class__
 
 if TYPE_CHECKING:
-    from _strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
+    from cinderx.strictmodule import IStrictModuleLoader, StrictModuleLoaderFactory
 
 
 def getSymbolTable(mod: StrictAnalysisResult) -> PythonSymbolTable:
