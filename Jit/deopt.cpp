@@ -9,6 +9,8 @@
 #include "Jit/runtime.h"
 #include "Jit/util.h"
 
+#include <folly/tracing/StaticTracepoint.h>
+
 #include <bit>
 #include <shared_mutex>
 
@@ -133,6 +135,28 @@ Ref<> profileDeopt(
     std::size_t deopt_idx,
     const DeoptMetadata& meta,
     const MemoryView& mem) {
+  BorrowedRef<PyCodeObject> code = meta.code();
+  BCOffset bc_off = meta.instr_offset();
+
+  // Bytecode offset will be negative if the interpreter wants to resume
+  // executing at the start of the function.  Report a negative/invalid opcode
+  // for that case.
+  int opcode = -1;
+  if (bc_off.value() >= 0) {
+    char* raw_code = PyBytes_AS_STRING(code->co_code);
+    BytecodeInstruction bc_instr{
+        reinterpret_cast<_Py_CODEUNIT*>(raw_code), bc_off};
+    opcode = bc_instr.opcode();
+  }
+
+  FOLLY_SDT(
+      python,
+      deopt,
+      deoptReasonName(meta.reason),
+      codeQualname(code).c_str(),
+      bc_off.value(),
+      opcode);
+
   const LiveValue* live_val = meta.getGuiltyValue();
   Ref<> guilty_obj = live_val == nullptr ? nullptr : mem.readOwned(*live_val);
   Runtime::get()->recordDeopt(deopt_idx, guilty_obj.get());

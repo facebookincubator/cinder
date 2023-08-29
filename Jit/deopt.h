@@ -152,9 +152,24 @@ struct DeoptMetadata {
   // Why we are de-opting
   DeoptReason reason{DeoptReason::kUnhandledException};
 
+  BCOffset instr_offset() const {
+    /* This is tricky: For guard failures, the `next_instr_offset` points to the
+       instruction itself, but for exceptions, the next_instr_offset is the
+       subsequent instruction. We need to pull the instruction pointer back by 1
+       in the non-guard failure cases to point to the right instruction in the
+       deopt lineno calculation. */
+    auto const& frame = frame_meta[inline_depth()];
+    return reason == DeoptReason::kGuardFailure ? frame.next_instr_offset
+                                                : frame.instr_offset();
+  }
+
+  BorrowedRef<PyCodeObject> code() const {
+    return frame_meta[inline_depth()].code;
+  }
+
   // If part of an inlined function, the depth into the call stack that this
   // code *would* be (1, 2, 3, ...). If not inlined, 0.
-  int inline_depth() const {
+  size_t inline_depth() const {
     return frame_meta.size() - 1;
   }
 

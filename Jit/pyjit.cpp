@@ -1079,19 +1079,12 @@ Ref<> make_deopt_stats() {
 
   for (auto& pair : runtime->deoptStats()) {
     const DeoptMetadata& meta = runtime->getDeoptMetadata(pair.first);
-    const DeoptFrameMetadata& frame_meta = meta.frame_meta[meta.inline_depth()];
     const DeoptStat& stat = pair.second;
+    const DeoptFrameMetadata& frame_meta = meta.frame_meta[meta.inline_depth()];
     BorrowedRef<PyCodeObject> code = frame_meta.code;
 
     auto func_qualname = code->co_qualname;
-    /* This is tricky: For guard failures, the `next_instr_offset` points to the
-       instruction itself, but for exceptions, the next_instr_offset is the
-       subsequent instruction. We need to pull the instruction pointer back by 1
-       in the non-guard failure cases to point to the right instruction in the
-       deopt lineno calculation. */
-    BCOffset line_offset = meta.reason == DeoptReason::kGuardFailure
-        ? frame_meta.next_instr_offset
-        : frame_meta.instr_offset();
+    BCOffset line_offset = meta.instr_offset();
     int lineno_raw = code->co_linetable != nullptr
         ? PyCode_Addr2Line(code, line_offset.value())
         : -1;
