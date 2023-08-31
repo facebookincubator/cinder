@@ -39,14 +39,14 @@ from __static__ import (
 from typing import Generic, Optional, TypeVar, Union, Dict
 
 try:
-    import _static
+    from cinderx import static
 except ImportError:
-    _static = None
+    static = None
 
 
 class StaticTests(unittest.TestCase):
     def test_chkdict(self):
-        tgt = dict if _static is None else _static.chkdict
+        tgt = dict if static is None else static.chkdict
         self.assertIs(CheckedDict, tgt)
         self.assertIs(chkdict, tgt)
 

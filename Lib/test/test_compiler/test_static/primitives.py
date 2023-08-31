@@ -26,9 +26,9 @@ from types import FunctionType
 
 from unittest import skip, skipIf
 
-import _static
+import cinderx.static
 
-from _static import TYPED_INT16, TYPED_INT32, TYPED_INT64
+from cinderx.static import TYPED_INT16, TYPED_INT32, TYPED_INT64
 
 from .common import bad_ret_type, PRIM_NAME_TO_TYPE, StaticTestBase, type_mismatch
 

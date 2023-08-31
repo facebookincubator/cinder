@@ -39,8 +39,8 @@ from .type_code import (
 )
 
 try:
-    import _static
-    from _static import (
+    from cinderx import static
+    from cinderx.static import (
         __build_cinder_class__,
         chkdict,
         chklist,
@@ -58,7 +58,7 @@ try:
 except ImportError:
     RAND_MAX = (1 << 31) - 1
     __build_cinder_class__ = __build_class__
-    _static = None
+    static = None
 
     chkdict = dict
     chklist = list
@@ -456,7 +456,7 @@ class ExcContextDecorator:
         # This will replace the vector call entry point with a C implementation.
         # We still want to return a function object because various things check
         # for functions or if an object is a co-routine.
-        return _static.make_context_decorator_wrapper(self, _no_profile_inner, func)
+        return static.make_context_decorator_wrapper(self, _no_profile_inner, func)
 
 
 ExcContextDecorator._recreate_cm = make_recreate_cm(ExcContextDecorator)
