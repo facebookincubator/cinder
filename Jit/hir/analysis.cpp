@@ -87,6 +87,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kPrimitiveUnbox:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
+    case Opcode::kInvokeMethodStatic:
     case Opcode::kInvokeStaticFunction:
     case Opcode::kIsInstance:
     case Opcode::kIsNegativeAndErrOccurred:
