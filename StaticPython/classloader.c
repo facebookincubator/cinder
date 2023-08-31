@@ -2241,12 +2241,12 @@ type_vtable_setslot_typecheck(PyTypeObject *decltype,
             vtable->vt_entries[slot].vte_entry =
                 (vectorcallfunc)type_vtable_coroutine_dont_bolt;
         }
-    } else if (PyFunction_Check(value)) {
-        vtable->vt_entries[slot].vte_entry =
-            (vectorcallfunc)type_vtable_func_overridable_dont_bolt;
     } else if (PyTuple_Check(name) && classloader_is_property_tuple((PyTupleObject *)name)) {
         vtable->vt_entries[slot].vte_entry =
             (vectorcallfunc)type_vtable_nonfunc_property_dont_bolt;
+    } else if (PyFunction_Check(value)) {
+        vtable->vt_entries[slot].vte_entry =
+            (vectorcallfunc)type_vtable_func_overridable_dont_bolt;
     } else if (classmethod) {
         PyObject *tuple = PyTuple_New(2);
         if (tuple == NULL) {

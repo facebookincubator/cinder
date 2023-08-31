@@ -240,17 +240,138 @@ class InvokeTests(StaticTestBase):
         self.assertInBytecode(x, "INVOKE_METHOD", ((("foo", "B", ("f", "fget")), 0)))
 
         with self.in_strict_module(codestr) as mod:
+
             class D(mod.D):
                 f: int = 42
-
 
             d = D()
             self.assertEqual(mod.x(d), 42)
             self.assertEqual(mod.x(d), 42)
 
+    def test_invoke_cached_mixed_overrides(
+        self,
+    ):
+        base_prop = """
+            class B:
+                @property
+                def f(self) -> int:
+                    return 0
+        """
+
+        base_async_prop = """
+            class B:
+                @property
+                def f(self) -> int:
+                    return 0
+        """
+
+        base_cachedprop = """
+            from cinder import cached_property
+            class B:
+                @cached_property
+                def f(self) -> int:
+                    return 0
+        """
+
+        base_td = """
+            class B:
+                f: int = 0
+        """
+
+        derived_prop = """
+            class D(B):
+                @property
+                def f(self) -> int:
+                    return 42
+        """
+
+        derived_cachedprop = """
+            from cinder import cached_property
+            class D(B):
+                @cached_property
+                def f(self) -> int:
+                    return 42
+        """
+
+        derived_td = """
+            class D(B):
+                f: int = 42
+        """
+
+        caller = """
+            def x(c: B):
+                return c.f
+        """
+
+        for base in [base_prop, base_cachedprop, base_td]:
+            for derived in [derived_prop, derived_td, derived_cachedprop]:
+                for nonstatic_subclass in [False, "td", "cached_prop", "prop"]:
+                    for base_class_names in [
+                        ("D", "B") if nonstatic_subclass else None
+                    ]:
+                        with self.subTest(
+                            base=base,
+                            derived=derived,
+                            nonstatic_subclass=nonstatic_subclass,
+                            base_class_names=base_class_names,
+                        ):
+                            codestr = f"""
+                                {base}
+                                {derived}
+                                {caller}
+                            """
+
+                            self.mixed_override_test(
+                                codestr, nonstatic_subclass, base_class_names
+                            )
+
+    def mixed_override_test(self, test_case, nonstatic_subclass, base_class_names):
+        code = self.compile(test_case, modname="foo")
+        x = self.find_code(code, "x")
+        self.assertInBytecode(x, "INVOKE_METHOD", ((("foo", "B", ("f", "fget")), 0)))
+
+        with self.in_strict_module(test_case) as mod:
+            expected = 42
+            if nonstatic_subclass:
+                expected = 100
+                for bc_name in base_class_names:
+                    base_class = getattr(mod, bc_name)
+                    if nonstatic_subclass == "td":
+
+                        class D2(base_class):
+                            f: int = 100
+
+                    elif nonstatic_subclass == "cached_prop":
+
+                        class D2(base_class):
+                            @cached_property
+                            def f(self):
+                                return 100
+
+                    elif nonstatic_subclass == "prop":
+
+                        class D2(base_class):
+                            @property
+                            def f(self):
+
+                                return 100
+
+                    else:
+                        raise Exception("unexpected test case")
+
+                    d = D2()
+                    self.assertEqual(mod.x(d), 100)
+                    self.assertEqual(mod.x(d), 100)
+            else:
+                d = mod.D()
+
+                self.assertEqual(mod.x(d), 42)
+                self.assertEqual(mod.x(d), 42)
+
     def test_invoke_primitive_property(self):
         codestr = """
             from __static__ import int64, box
+
 
             class C:
                 @property
