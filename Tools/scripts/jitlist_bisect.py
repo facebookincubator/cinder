@@ -19,6 +19,11 @@ def write_jitlist(jitlist):
             print(func, file=file)
 
 
+def read_jitlist(jit_list_file):
+    with open(jit_list_file, "r") as file:
+        return [line.strip() for line in file.readlines()]
+
+
 def run_with_jitlist(command, jitlist):
     write_jitlist(jitlist)
 
@@ -106,7 +111,7 @@ def bisect_impl(command, fixed, jitlist, indent=""):
     return jitlist
 
 
-def run_bisect(command):
+def run_bisect(command, jit_list_file):
     prev_arg = ""
     for arg in command:
         if arg.startswith("-Xjit-log-file") or (
@@ -118,7 +123,10 @@ def run_bisect(command):
             )
         prev_arg = arg
 
-    jitlist = get_compiled_funcs(command)
+    if jit_list_file is None:
+        jitlist = get_compiled_funcs(command)
+    else:
+        jitlist = read_jitlist(jit_list_file)
 
     logging.info("Verifying jit-list")
     if run_with_jitlist(command, jitlist):
@@ -139,6 +147,7 @@ def parse_args():
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
+    parser.add_argument("--initial-jit-list-file", help="initial jitlist file (default: auto-detect the initial jit list)", default=None)
     parser.add_argument("command", nargs=argparse.REMAINDER)
 
     return parser.parse_args()
@@ -148,7 +157,7 @@ def main():
     args = parse_args()
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level)
-    run_bisect(args.command)
+    run_bisect(args.command, args.jit_list_file)
 
 
 if __name__ == "__main__":
