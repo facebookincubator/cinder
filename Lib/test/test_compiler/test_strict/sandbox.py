@@ -37,9 +37,7 @@ _SandboxT = TypeVar("_SandboxT", bound=Sandbox)
 @contextmanager
 def file_loader(loader: object) -> Generator[None, None, None]:
     orig_hooks = sys.path_hooks[:]
-    sys.path_hooks[:] = [
-        FileFinder.path_hook(loader)  # pyre-ignore[6]: Loader type isn't expose
-    ]
+    sys.path_hooks[:] = [FileFinder.path_hook(loader)]
     sys.path_importer_cache.clear()
     try:
         yield

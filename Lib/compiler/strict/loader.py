@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import builtins
 
-# pyre-ignore[21]: There's no stub for this one.
 import importlib._bootstrap_external
 import os
 import sys
