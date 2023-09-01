@@ -148,8 +148,10 @@ if TYPE_CHECKING:
     from .type_binder import BindingScope, TypeBinder
 
 try:
-    # pyre-ignore[21]: unknown module
-    from xxclassloader import spamobj
+    # Instead of a direct import, we assign 'spamobj' to hint the type to Pyre.
+    import xxclassloader
+
+    spamobj = xxclassloader.spamobj
 except ImportError:
     spamobj = None
 

@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from . import Static38CodeGenerator
 
 try:
-    import xxclassloader  # pyre-ignore[21]: unknown module
+    import xxclassloader
 except ImportError:
     xxclassloader = None
 
