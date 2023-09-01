@@ -1,22 +1,30 @@
 import ast
 from _symtable import symtable
-from typing import Callable, List, Protocol
+from typing import Any, Callable, List, Protocol
 
-NONSTRICT_MODULE_KIND: int = ...
-STATIC_MODULE_KIND: int = ...
-STRICT_MODULE_KIND: int = ...
-STUB_KIND_MASK_ALLOWLIST: int = ...
-STUB_KIND_MASK_NONE: int = ...
-STUB_KIND_MASK_STRICT: int = ...
-STUB_KIND_MASK_TYPING: int = ...
-
-MUTABLE_DECORATOR: str = ...
-LOOSE_SLOTS_DECORATOR: str = ...
-EXTRA_SLOTS_DECORATOR: str = ...
-ENABLE_SLOTS_DECORATOR: str = ...
-CACHED_PROP_DECORATOR: str = ...
+CACHED_PROP_DECORATOR: str
+ENABLE_SLOTS_DECORATOR: str
+EXTRA_SLOTS_DECORATOR: str
+LOOSE_SLOTS_DECORATOR: str
+MUTABLE_DECORATOR: str
+NONSTRICT_MODULE_KIND: int
+STATIC_MODULE_KIND: int
+STRICT_MODULE_KIND: int
+STUB_KIND_MASK_ALLOWLIST: int
+STUB_KIND_MASK_NONE: int
+STUB_KIND_MASK_STRICT: int
+STUB_KIND_MASK_TYPING: int
 
 class StrictAnalysisResult:
+    ast: ast.Module
+    ast_preprocessed: ast.Module
+    errors: List[StrictModuleError]
+    file_name: str
+    is_valid: bool
+    module_kind: int
+    module_name: str
+    stub_kind: int
+    symtable: symtable
     def __init__(
         self,
         _module_name: str,
@@ -29,15 +37,6 @@ class StrictAnalysisResult:
         _errors: List[StrictModuleError],
         /,
     ) -> None: ...
-    module_name: str
-    file_name: str
-    module_kind: int
-    stub_kind: int
-    ast: ast.Module
-    ast_preprocessed: ast.Module
-    symtable: symtable
-    errors: List[StrictModuleError]
-    is_valid: bool
 
 class IStrictModuleLoader(Protocol):
     def check(self, _mod_name: str, /) -> StrictAnalysisResult: ...
@@ -65,6 +64,10 @@ class StrictModuleLoader(IStrictModuleLoader):
         _disable_analysis: bool = False,
         /,
     ) -> None: ...
+    def delete_module(self, name: str) -> bool: ...
+    def get_analyzed_count(self) -> int: ...
+    def set_force_strict(self, force: bool) -> bool: ...
+    def set_force_strict_by_name(self, *args, **kwargs) -> Any: ...
 
 StrictModuleLoaderFactory = Callable[
     [List[str], str, List[str], List[str], bool, List[str], bool, bool],
