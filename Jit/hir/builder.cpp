@@ -1590,13 +1590,9 @@ void HIRBuilder::emitAnyCall(
       // inside this BytecodeInstructionBlock. This may not be the case if the
       // 'await' is shared as in 'await (x if y else z)'.
       bc_it.remainingInstrs() >= 3 &&
+      // note: this .at() doesn't skip EXTENDED_ARG, but GET_AWAITABLE is never
+      // preceded by EXTENDED_ARG, since it has no oparg
       bc_instrs.at(idx + 1).opcode() == GET_AWAITABLE;
-  JIT_CHECK(
-      !is_awaited ||
-          (bc_instrs.at(idx + 2).opcode() == LOAD_CONST &&
-           bc_instrs.at(idx + 3).opcode() == YIELD_FROM),
-      "GET_AWAITABLE should always be followed by LOAD_CONST and "
-      "YIELD_FROM");
   bool call_used_is_awaited = true;
   switch (bc_instr.opcode()) {
     case CALL_FUNCTION: {
@@ -1646,9 +1642,15 @@ void HIRBuilder::emitAnyCall(
     emitGetAwaitable(cfg, tc, prev_prev_op, bc_instr.opcode());
 
     ++bc_it;
+    JIT_CHECK(
+        bc_it->opcode() == LOAD_CONST,
+        "GET_AWAITABLE should always be followed by LOAD_CONST");
     emitLoadConst(tc, *bc_it);
 
     ++bc_it;
+    JIT_CHECK(
+        bc_it->opcode() == YIELD_FROM,
+        "GET_AWAITABLE should always be followed by LOAD_CONST+YIELD_FROM");
     emitYieldFrom(tc, out);
     tc.emit<Branch>(post_await_block.block);
 
