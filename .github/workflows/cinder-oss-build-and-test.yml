@@ -101,7 +101,7 @@ jobs:
         if: |
           github.repository == env.CINDER_EXPLORER_AUTO_DEPLOY_REPO &&
           github.ref == env.CINDER_EXPLORER_AUTO_DEPLOY_BRANCH
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           role-to-assume: ${{ secrets.AWS_CINDER_EXPLORER_BOT_DEPLOYER_ARN }}
           role-session-name: UpdateCinderExplorer
