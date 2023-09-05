@@ -13,7 +13,6 @@ from dis import dis
 from . import pycodegen, static
 
 try:
-    # pyre-ignore[21]: Could not find a module corresponding to import `cinder`.
     from cinder import StrictModule
 except ImportError:
     StrictModule = None
