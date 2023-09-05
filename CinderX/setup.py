@@ -35,6 +35,7 @@ CINDERX_SRCS = [
     "_cinderx.cpp",
     "_static.c",
     "_strictmodule.c",
+    "cinder.c",
 ]
 
 JIT_SRCS = [
