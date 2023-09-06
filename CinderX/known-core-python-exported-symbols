@@ -44,6 +44,7 @@ Ci_PyWaitHandle_Release
 Ci_PyWaitHandle_Type
 Ci_RuntimeState_SetProfileInterpPeriod
 Ci_set_attribute_error_context
+Ci_StaticFunction_Vectorcall
 Ci_SuperLookupMethodOrAttr
 Ci_ThreadState_SetProfileInterp
 Ci_ThreadState_SetProfileInterpAll

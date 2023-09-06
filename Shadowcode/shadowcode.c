@@ -2567,6 +2567,7 @@ _PyShadow_InitCache(PyCodeObject *co)
 
     cache_init(&shadow->l1_cache);
     cache_init(&shadow->cast_cache);
+    shadow->arg_checks = NULL;
 
     co->co_mutable->shadow = shadow;
     return 0;
@@ -2633,6 +2634,7 @@ _PyShadowCode_Free(_PyShadowCode *shadow)
         }
         PyMem_Free(shadow->cast_cache.items);
     }
+    Py_XDECREF(shadow->arg_checks);
     if (shadow->field_caches != NULL) {
         PyMem_Free(shadow->field_caches);
     }

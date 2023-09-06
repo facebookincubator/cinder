@@ -1298,7 +1298,7 @@ VTABLE_THUNK(type_vtable_func_overridable)
 static inline int
 is_static_entry(vectorcallfunc func)
 {
-    return func == (vectorcallfunc)_PyFunction_Vectorcall;
+    return func == (vectorcallfunc)Ci_StaticFunction_Vectorcall;
 }
 
 void set_entry_from_func(_PyType_VTableEntry *entry, PyFunctionObject *func) {

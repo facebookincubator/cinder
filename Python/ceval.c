@@ -5816,91 +5816,6 @@ main_loop:
         }
 
         case TARGET(CHECK_ARGS): {
-            PyObject *checks = GETITEM(consts, oparg);
-            if (shadow.shadow != NULL) {
-                _PyTypedArgsInfo *shadow_value = _PyClassLoader_GetTypedArgsInfo(co, 0);
-                if (shadow_value != NULL) {
-                    int offset =
-                        _PyShadow_CacheCastType(&shadow, (PyObject *)shadow_value);
-                    if (offset != -1) {
-                        _PyShadow_PatchByteCode(
-                            &shadow, next_instr, CHECK_ARGS_CACHED, offset);
-                    }
-                    Py_DECREF(shadow_value);
-                }
-            }
-
-            PyObject *local;
-            PyObject *type_descr;
-            PyTypeObject *type;
-            int optional;
-            int exact;
-            for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
-                local = PyTuple_GET_ITEM(checks, i);
-                type_descr = PyTuple_GET_ITEM(checks, i + 1);
-                long idx = PyLong_AsLong(local);
-                PyObject *val;
-                // Look in freevars if necessary
-                if (idx < 0) {
-                    assert(!_PyErr_Occurred(tstate));
-                    val = PyCell_GET(freevars[-(idx + 1)]);
-                } else {
-                    val = fastlocals[idx];
-                }
-
-                type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
-                if (type == NULL) {
-                    goto error;
-                }
-
-                int primitive = _PyClassLoader_GetTypeCode(type);
-                if (primitive == TYPED_BOOL) {
-                    optional = 0;
-                    Py_DECREF(type);
-                    type = &PyBool_Type;
-                    Py_INCREF(type);
-                } else if (primitive <= TYPED_INT64) {
-                    optional = 0;
-                    Py_DECREF(type);
-                    type = &PyLong_Type;
-                    Py_INCREF(type);
-                } else if (primitive == TYPED_DOUBLE) {
-                    optional = 0;
-                    Py_DECREF(type);
-                    type = &PyFloat_Type;
-                    Py_INCREF(type);
-                } else {
-                    assert(primitive == TYPED_OBJECT);
-                }
-
-                if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
-                    PyErr_Format(
-                        PyExc_TypeError,
-                        "%U expected '%s' for argument %U, got '%s'",
-                        co->co_name,
-                        type->tp_name,
-                        idx < 0 ?
-                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
-                            PyTuple_GetItem(co->co_varnames, idx),
-                        Py_TYPE(val)->tp_name);
-                    Py_DECREF(type);
-                    goto error;
-                }
-
-                Py_DECREF(type);
-
-                if (primitive <= TYPED_INT64) {
-                    size_t value;
-                    if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
-                        PyErr_SetString(
-                            PyExc_OverflowError,
-                            "int overflow"
-                        );
-                        goto error;
-                    }
-                }
-            }
-
             DISPATCH();
         }
 
@@ -6384,46 +6299,6 @@ main_loop:
         }
 
         case TARGET(CHECK_ARGS_CACHED): {
-            _PyTypedArgsInfo *checks =
-                (_PyTypedArgsInfo *)_PyShadow_GetCastType(&shadow, oparg);
-            for (int i = 0; i < Py_SIZE(checks); i++) {
-                _PyTypedArgInfo *check = &checks->tai_args[i];
-                long idx = check->tai_argnum;
-                PyObject *val;
-                // Look in freevars if necessary
-                if (idx < 0) {
-                  assert(!_PyErr_Occurred(tstate));
-                  val = PyCell_GET(freevars[-(idx + 1)]);
-                } else {
-                  val = fastlocals[idx];
-                }
-
-                if (!_PyObject_TypeCheckOptional(val, check->tai_type, check->tai_optional, check->tai_exact)) {
-                    PyErr_Format(
-                        PyExc_TypeError,
-                        "%U expected '%s' for argument %U, got '%s'",
-                        co->co_name,
-                        check->tai_type->tp_name,
-                        idx < 0 ?
-                            PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
-                            PyTuple_GetItem(co->co_varnames, idx),
-                        Py_TYPE(val)->tp_name);
-                    goto error;
-                }
-
-                if (check->tai_primitive_type != TYPED_OBJECT) {
-                    size_t value;
-                    if (!_PyClassLoader_OverflowCheck(val, check->tai_primitive_type, &value)) {
-                        PyErr_SetString(
-                            PyExc_OverflowError,
-                            "int overflow"
-                        );
-
-                        goto error;
-                    }
-                }
-            }
-
             DISPATCH();
         }
 
@@ -8222,12 +8097,214 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     return retval;
 }
 
+int _Ci_CheckArgs(PyThreadState *tstate, PyFrameObject *f, PyCodeObject *co) {
+    // In the future we can use co_extra to store the cached arg info
+    PyObject **freevars = (f->f_localsplus + f->f_code->co_nlocals);
+    PyObject **fastlocals = f->f_localsplus;
+    PyObject *consts = co->co_consts;
+    if (co->co_mutable->shadow == NULL) {
+        // This funciton hasn't been optimized yet, we'll do it the slow way.
+        _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(co->co_code);
+        PyObject* checks = GETITEM(consts, _Py_OPARG(rawcode[0]));
+        PyObject *local;
+        PyObject *type_descr;
+        PyTypeObject *type;
+        int optional;
+        int exact;
+        for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
+            local = PyTuple_GET_ITEM(checks, i);
+            type_descr = PyTuple_GET_ITEM(checks, i + 1);
+            long idx = PyLong_AsLong(local);
+            PyObject *val;
+            // Look in freevars if necessary
+            if (idx < 0) {
+                assert(!_PyErr_Occurred(tstate));
+                val = PyCell_GET(freevars[-(idx + 1)]);
+            } else {
+                val = fastlocals[idx];
+            }
+
+            type = _PyClassLoader_ResolveType(type_descr, &optional, &exact);
+            if (type == NULL) {
+                return -1;
+            }
+
+            int primitive = _PyClassLoader_GetTypeCode(type);
+            if (primitive == TYPED_BOOL) {
+                optional = 0;
+                Py_DECREF(type);
+                type = &PyBool_Type;
+                Py_INCREF(type);
+            } else if (primitive <= TYPED_INT64) {
+                optional = 0;
+                Py_DECREF(type);
+                type = &PyLong_Type;
+                Py_INCREF(type);
+            } else if (primitive == TYPED_DOUBLE) {
+                optional = 0;
+                Py_DECREF(type);
+                type = &PyFloat_Type;
+                Py_INCREF(type);
+            } else {
+                assert(primitive == TYPED_OBJECT);
+            }
+
+            if (!_PyObject_TypeCheckOptional(val, type, optional, exact)) {
+                PyErr_Format(
+                    PyExc_TypeError,
+                    "%U expected '%s' for argument %U, got '%s'",
+                    co->co_name,
+                    type->tp_name,
+                    idx < 0 ?
+                        PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
+                        PyTuple_GetItem(co->co_varnames, idx),
+                    Py_TYPE(val)->tp_name);
+                Py_DECREF(type);
+                return -1;
+            }
+
+            Py_DECREF(type);
+
+            if (primitive <= TYPED_INT64) {
+                size_t value;
+                if (!_PyClassLoader_OverflowCheck(val, primitive, &value)) {
+                    PyErr_SetString(
+                        PyExc_OverflowError,
+                        "int overflow"
+                    );
+                    return -1;
+                }
+            }
+        }
+        return 0;
+    }
+
+    _PyTypedArgsInfo *checks = (_PyTypedArgsInfo *)co->co_mutable->shadow->arg_checks;
+    if (checks == NULL) {
+        // Shadow code is initialized, but we haven't cached the checks yet...
+        checks = _PyClassLoader_GetTypedArgsInfo(co, 0);
+        if (checks == NULL) {
+            return -1;
+        }
+        co->co_mutable->shadow->arg_checks = (PyObject *)checks;
+    }
+
+    for (int i = 0; i < Py_SIZE(checks); i++) {
+        _PyTypedArgInfo *check = &checks->tai_args[i];
+        long idx = check->tai_argnum;
+        PyObject *val;
+        // Look in freevars if necessary
+        if (idx < 0) {
+            assert(!_PyErr_Occurred(tstate));
+            val = PyCell_GET(freevars[-(idx + 1)]);
+        } else {
+            val = fastlocals[idx];
+        }
+
+        if (!_PyObject_TypeCheckOptional(val, check->tai_type, check->tai_optional, check->tai_exact)) {
+            PyErr_Format(
+                PyExc_TypeError,
+                "%U expected '%s' for argument %U, got '%s'",
+                co->co_name,
+                check->tai_type->tp_name,
+                idx < 0 ?
+                    PyTuple_GetItem(co->co_cellvars, -(idx + 1)) :
+                    PyTuple_GetItem(co->co_varnames, idx),
+                Py_TYPE(val)->tp_name);
+            return -1;
+        }
+
+        if (check->tai_primitive_type != TYPED_OBJECT) {
+            size_t value;
+            if (!_PyClassLoader_OverflowCheck(val, check->tai_primitive_type, &value)) {
+                PyErr_SetString(
+                    PyExc_OverflowError,
+                    "int overflow"
+                );
+
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+PyObject *
+_CiStaticEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
+               PyObject *locals,
+               PyObject* const* args, size_t argcountf,
+               PyObject *kwnames)
+{
+    Py_ssize_t argcount = PyVectorcall_NARGS(argcountf);
+    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(argcountf);
+    PyFrameObject *f = _PyEval_MakeFrameVector(
+        tstate, con, locals, args, argcount, kwnames);
+    if (f == NULL) {
+        return NULL;
+    }
+
+    PyCodeObject *co = (PyCodeObject*)con->fc_code;
+    assert(co->co_flags & CO_STATICALLY_COMPILED);
+    if (_Ci_CheckArgs(tstate, f, co) < 0) {
+        Py_DECREF(f);
+        return NULL;
+    }
+
+    const int co_flags = ((PyCodeObject *)con->fc_code)->co_flags;
+    if (awaited && (co_flags & CO_COROUTINE)) {
+        return _PyEval_EvalEagerCoro(tstate, f, f->f_code->co_name, con->fc_qualname);
+    }
+    if (co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
+        return make_coro(con, f);
+    }
+    PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);
+
+    /* decref'ing the frame can cause __del__ methods to get invoked,
+       which can call back into Python.  While we're done with the
+       current Python frame (f), the associated C stack is still in use,
+       so recursion_depth must be boosted for the duration.
+    */
+    if (Py_REFCNT(f) > 1) {
+        Py_DECREF(f);
+        _PyObject_GC_TRACK(f);
+    }
+    else {
+        ++tstate->recursion_depth;
+        Py_DECREF(f);
+        --tstate->recursion_depth;
+    }
+    return retval;
+}
+
+PyObject *
+Ci_StaticFunction_Vectorcall(PyObject *func, PyObject* const* stack,
+                       size_t nargsf, PyObject *kwnames)
+{
+    assert(PyFunction_Check(func));
+    PyFrameConstructor *f = PyFunction_AS_FRAME_CONSTRUCTOR(func);
+    Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(nargsf);
+    assert(nargs >= 0);
+    PyThreadState *tstate = _PyThreadState_GET();
+    assert(nargs == 0 || stack != NULL);
+    if (((PyCodeObject *)f->fc_code)->co_flags & CO_OPTIMIZED) {
+        return _CiStaticEval_Vector(tstate, f, NULL, stack, nargs | awaited, kwnames);
+    }
+    else {
+        return _CiStaticEval_Vector(tstate, f, f->fc_globals, stack, nargs | awaited, kwnames);
+    }
+}
+
 void
 PyEntry_initnow(PyFunctionObject *func)
 {
     // Check that func hasn't already been initialized.
     assert(func->vectorcall == (vectorcallfunc)PyEntry_LazyInit);
-    func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    if (((PyCodeObject *)func->func_code)->co_flags & CO_STATICALLY_COMPILED) {
+        func->vectorcall = (vectorcallfunc)Ci_StaticFunction_Vectorcall;
+    } else {
+        func->vectorcall = (vectorcallfunc)_PyFunction_Vectorcall;
+    }
 }
 
 PyObject *

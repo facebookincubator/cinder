@@ -174,6 +174,7 @@ typedef struct _PyShadowCode {
 
     _ShadowCache l1_cache;
     _ShadowCache cast_cache;
+    PyObject* arg_checks;
 
     _PyShadow_InstanceAttrEntry ***polymorphic_caches;
     Py_ssize_t polymorphic_caches_size;
