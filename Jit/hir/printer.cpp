@@ -893,7 +893,6 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case BUILD_CHECKED_LIST:
     case BUILD_CHECKED_MAP:
     case CAST:
-    case CHECK_ARGS:
     case INVOKE_FUNCTION:
     case INVOKE_METHOD:
     case LOAD_ATTR_SUPER:

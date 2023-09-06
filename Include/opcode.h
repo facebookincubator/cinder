@@ -159,7 +159,6 @@ extern "C" {
   X(JUMP_IF_NONZERO_OR_POP,          185) \
   X(FAST_LEN,                        186) \
   X(CONVERT_PRIMITIVE,               187) \
-  X(CHECK_ARGS,                      188) \
   X(INVOKE_NATIVE,                   189) \
   X(LOAD_CLASS,                      190) \
   X(BUILD_CHECKED_MAP,               191) \
@@ -181,7 +180,6 @@ extern "C" {
   X(INVOKE_FUNCTION_CACHED,          211) \
   X(INVOKE_FUNCTION_INDIRECT_CACHED, 212) \
   X(BUILD_CHECKED_MAP_CACHED,        213) \
-  X(CHECK_ARGS_CACHED,               214) \
   X(PRIMITIVE_STORE_FAST,            215) \
   X(CAST_CACHED_OPTIONAL,            216) \
   X(CAST_CACHED,                     217) \

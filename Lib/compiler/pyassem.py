@@ -785,7 +785,6 @@ class PyFlowGraph(FlowGraph):
         "STORE_FIELD": _convert_LOAD_CONST,
         "CAST": _convert_LOAD_CONST,
         "TP_ALLOC": _convert_LOAD_CONST,
-        "CHECK_ARGS": _convert_LOAD_CONST,
         "BUILD_CHECKED_MAP": _convert_LOAD_CONST,
         "BUILD_CHECKED_LIST": _convert_LOAD_CONST,
         "PRIMITIVE_LOAD_CONST": _convert_LOAD_CONST,

@@ -297,7 +297,7 @@ the object, with none of the indirection of a ``LOAD_ATTR`` or
 ``INVOKE_*`` opcodes mentioned below. The runtime support for these features
 is located in ``StaticPython/classloader.h`` and ``StaticPython/classloader.c``.
 
-A static Python function begins with a new ``CHECK_ARGS`` opcode which checks
+A static Python function begins with a hidden prologue which checks
 that the supplied arguments' types match the type annotations, and raises
 ``TypeError`` if not. Calls from a static Python function to another static
 Python function will skip this opcode (since the types are already validated

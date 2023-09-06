@@ -125,7 +125,8 @@ class Preloader {
   const InvokeTarget& invokeMethodTarget(BorrowedRef<> descr) const;
   const NativeTarget& invokeNativeTarget(BorrowedRef<> target) const;
 
-  // get the type from CHECK_ARGS for the given locals index, or TObject
+  // get the type from argument check info for the given locals index, or
+  // TObject
   Type checkArgType(long local_idx) const;
 
   // get value for global at given name index

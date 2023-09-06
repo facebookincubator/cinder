@@ -85,7 +85,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
 
 /* Helper function to report an error when the arguments aren't correct for
  * a static function call.  Dispatches to the eval loop to let the normal
- CHECK_ARGS run and then report the error */
+ * argument checking prologue run and then report the error */
 PyObject* JITRT_ReportStaticArgTypecheckErrors(
     PyObject* func,
     PyObject** args,

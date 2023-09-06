@@ -1055,43 +1055,6 @@ class VerifierOpArgTests(VerifierTests):
             code,
         )
 
-    def test_CHECK_ARGS_with_valid_oparg_index_is_successful(self):
-        code = self.compile_helper(
-            "", bytecodes=[(op.opcode.CHECK_ARGS, 0)], consts=((1, 3),), stacksize=1
-        )
-        self.assertTrue(Verifier.validate_code(code))
-
-    def test_CHECK_ARGS_oparg_type_can_be_any_tuple(self):
-        code = self.compile_helper(
-            "", bytecodes=[(op.opcode.CHECK_ARGS, 0)], consts=(tuple(),), stacksize=1
-        )
-        self.assertTrue(Verifier.validate_code(code))
-
-    def test_CHECK_ARGS_oparg_type_cannot_be_non_tuple(self):
-        code = self.compile_helper(
-            "", bytecodes=[(op.opcode.CHECK_ARGS, 0)], consts=(object(),), stacksize=1
-        )
-        self.assertRaisesRegex(
-            VerificationError,
-            "Incorrect oparg type of object, expected tuple for operation CHECK_ARGS @ offset 0",
-            Verifier.validate_code,
-            code,
-        )
-
-    def test_CHECK_ARGS_with_invalid_oparg_index_raises_exception(self):
-        code = self.compile_helper(
-            "",
-            bytecodes=[(op.opcode.LOAD_CONST, 0), (op.opcode.CHECK_ARGS, 1)],
-            consts=(3,),
-            stacksize=2,
-        )
-        self.assertRaisesRegex(
-            VerificationError,
-            "Argument index 1 out of bounds for size 1 for operation CHECK_ARGS @ offset 2",
-            Verifier.validate_code,
-            code,
-        )
-
     def test_PRIMITIVE_LOAD_CONST_with_valid_oparg_index_is_successful(self):
         code = self.compile_helper(
             "",

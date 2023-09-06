@@ -409,9 +409,6 @@ bool Preloader::preload() {
         }
         break;
       }
-      case CHECK_ARGS: {
-        break;
-      }
       case BUILD_CHECKED_LIST:
       case BUILD_CHECKED_MAP: {
         BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);

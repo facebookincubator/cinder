@@ -269,9 +269,6 @@ jabs_op("JUMP_IF_NONZERO_OR_POP", 185, cinderx=True)
 def_op("FAST_LEN", 186, cinderx=True)
 def_op("CONVERT_PRIMITIVE", 187, cinderx=True)
 
-def_op("CHECK_ARGS", 188, cinderx=True)
-hasconst.append(188)
-
 def_op("LOAD_CLASS", 190, cinderx=True)
 hasconst.append(190)
 
@@ -305,7 +302,7 @@ shadow_op("LOAD_METHOD_S_MODULE", 210)
 shadow_op("INVOKE_FUNCTION_CACHED", 211)
 shadow_op("INVOKE_FUNCTION_INDIRECT_CACHED", 212)
 shadow_op("BUILD_CHECKED_MAP_CACHED", 213)
-shadow_op("CHECK_ARGS_CACHED", 214)
+
 shadow_op("PRIMITIVE_STORE_FAST", 215)
 shadow_op("CAST_CACHED_OPTIONAL", 216)
 shadow_op("CAST_CACHED", 217)

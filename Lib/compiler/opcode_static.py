@@ -36,8 +36,6 @@ opcode.jabs_op("JUMP_IF_ZERO_OR_POP", 184)
 opcode.jabs_op("JUMP_IF_NONZERO_OR_POP", 185)
 opcode.def_op("FAST_LEN", 186)
 opcode.def_op("CONVERT_PRIMITIVE", 187)
-opcode.def_op("CHECK_ARGS", 188)
-opcode.hasconst.add(188)
 opcode.def_op("INVOKE_NATIVE", 189)
 opcode.hasconst.add(189)
 opcode.def_op("LOAD_CLASS", 190)
@@ -87,7 +85,6 @@ opcode.stack_effects.update(
     JUMP_IF_NONZERO_OR_POP=lambda oparg, jmp=0: 0 if jmp else -1,
     FAST_LEN=0,
     CONVERT_PRIMITIVE=0,
-    CHECK_ARGS=0,
     LOAD_CLASS=1,
     BUILD_CHECKED_MAP=lambda oparg, jmp: 1 - 2 * oparg[1],
     SEQUENCE_GET=-1,

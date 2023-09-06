@@ -5815,10 +5815,6 @@ main_loop:
             DISPATCH();
         }
 
-        case TARGET(CHECK_ARGS): {
-            DISPATCH();
-        }
-
         case TARGET(LOAD_CLASS): {
             PyObject *type_descr = GETITEM(consts, oparg);
             int optional;
@@ -6295,10 +6291,6 @@ main_loop:
             }
 
             Ci_BUILD_DICT(map_size);
-            DISPATCH();
-        }
-
-        case TARGET(CHECK_ARGS_CACHED): {
             DISPATCH();
         }
 

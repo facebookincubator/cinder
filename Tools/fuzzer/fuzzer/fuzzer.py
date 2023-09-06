@@ -179,7 +179,6 @@ class Fuzzer(pycodegen.CinderCodeGenerator):
         "PRIMITIVE_BOX",
         "PRIMITIVE_UNBOX",
         "TP_ALLOC",
-        "CHECK_ARGS",
         "BUILD_CHECKED_MAP",
         "BUILD_CHECKED_LIST",
         "PRIMITIVE_LOAD_CONST",

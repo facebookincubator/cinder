@@ -59,11 +59,9 @@ Here, `LOAD_ATTR` is a CPU bottleneck, because of the number of ways of
 looking up Python attributes. Static Python however, knows that `a` is a
 slot of class C, so it generates this bytecode instead::
 
-    5           0 CHECK_ARGS               1 ((0, ('__main__', 'A')))
-
-    6           2 LOAD_FAST                0 (instance)
-                4 LOAD_FIELD               2 (('__main__', 'A', 'a'))
-                6 RETURN_VALUE
+    6           0 LOAD_FAST                0 (instance)
+                2 LOAD_FIELD               2 (('__main__', 'A', 'a'))
+                4 RETURN_VALUE
 
 With the static compiler, the `LOAD_ATTR` is now `LOAD_FIELD`. Within the
 JIT, this opcode is compiled to these three machine instructions::
@@ -73,10 +71,10 @@ JIT, this opcode is compiled to these three machine instructions::
     je     0x7fc1d9836daa
 
 Compared with the `standard Python attribute lookup`_, this is way faster!
-The tradeoff is, we need to have the ``CHECK_ARGS`` in place, so that we only
-look into the memory location when the type is correct. These checks are
-extremely fast, and omitted when the caller function is also part of a Static
-Python module.
+The tradeoff is, at runtime there's a hidden prologue verifying the argument
+types, so that we only look into the memory location when the type is correct.
+These checks are extremely fast, and omitted when the caller function is also
+part of a Static Python module.
 
 .. _standard Python attribute lookup: https://github.com/python/cpython/blob/b38b2fa0218911ccc20d576ff504f39c9c9d47ec/Objects/object.c#L910
 
@@ -219,11 +217,11 @@ of dynamic, unknown type.)
 Similarly, ``CheckedList`` is just like a Python list, except its contained type
 is enforced at runtime.
 
-(You may be wondering why ``CHECK_ARGS`` described above doesn’t fully validate
-the contained types of e.g. a Python dict passed as an argument to a Static
-Python function, so that we can trust them. The answer is that it’s far too
-expensive to do this in general, since it is necessarily ``O(n)`` in the size of
-the container.)
+(You may be wondering why the hidden prologue described above doesn’t fully
+validate the contained types of e.g. a Python dict passed as an argument to a
+Static Python function, so that we can trust them. The answer is that it’s far
+too expensive to do this in general, since it is necessarily ``O(n)`` in the
+size of the container.)
 
 ``from __static__ import Array, Vector``
 ----------------------------------------

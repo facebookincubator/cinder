@@ -91,7 +91,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     CALL_FUNCTION_KW,
     CALL_METHOD,
     CAST,
-    CHECK_ARGS,
     COMPARE_OP,
     CONVERT_PRIMITIVE,
     CONTAINS_OP,
@@ -423,7 +422,6 @@ static bool should_snapshot(
     // These instructions only modify frame state and are always safe to
     // replay. We don't snapshot these in order to limit the amount of
     // unnecessary metadata in the lowered IR.
-    case CHECK_ARGS:
     case CONVERT_PRIMITIVE:
     case DUP_TOP:
     case DUP_TOP_TWO:
@@ -1207,10 +1205,6 @@ void HIRBuilder::translate(
           emitTpAlloc(tc, bc_instr);
           break;
         }
-        case CHECK_ARGS: {
-          // check args is handled in the prologue
-          break;
-        }
         case STORE_FIELD: {
           emitStoreField(tc, bc_instr);
           break;
@@ -1326,11 +1320,7 @@ void HIRBuilder::translate(
           // functions. This should be fine as long as we can't de-opt after the
           // function is started but before GEN_START. This check ensures this.
           JIT_DCHECK(
-              bc_instr.index() == 0 ||
-                  (bc_instr.index() == 1 &&
-                   bc_instrs.begin()->opcode() == CHECK_ARGS),
-              "GEN_START must be first instruction, or preceded only by "
-              "CHECK_ARGS");
+              bc_instr.index() == 0, "GEN_START must be first instruction");
           break;
         }
         case DICT_UPDATE: {

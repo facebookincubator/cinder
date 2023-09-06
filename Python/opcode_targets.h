@@ -279,11 +279,7 @@ static void *opcode_targets[256] = {
 #else
     &&_unknown_opcode,
 #endif
-#ifdef ENABLE_CINDERX
-    &&TARGET_CHECK_ARGS,
-#else
     &&_unknown_opcode,
-#endif
 #ifdef ENABLE_CINDERX
     &&TARGET_INVOKE_NATIVE,
 #else
@@ -385,11 +381,7 @@ static void *opcode_targets[256] = {
 #else
     &&_unknown_opcode,
 #endif
-#ifdef ENABLE_CINDERX
-    &&TARGET_CHECK_ARGS_CACHED,
-#else
     &&_unknown_opcode,
-#endif
 #ifdef ENABLE_CINDERX
     &&TARGET_PRIMITIVE_STORE_FAST,
 #else
