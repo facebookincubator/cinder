@@ -343,6 +343,37 @@ bool Preloader::preload() {
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
     return_type_ = to_jit_type(
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
+    BorrowedRef<PyTupleObject> checks = reinterpret_cast<PyTupleObject*>(
+        _PyClassLoader_GetCodeArgumentTypeDescrs(code_));
+    for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
+      long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));
+      if (local < 0) {
+        // A negative value for local indicates that it's a cell
+        JIT_CHECK(
+            code_->co_cell2arg != nullptr,
+            "no cell2arg but negative local %ld",
+            local);
+        long arg = code_->co_cell2arg[-1 * (local + 1)];
+        JIT_CHECK(
+            arg != CO_CELL_NOT_AN_ARG, "cell not an arg for local %ld", local);
+        local = arg;
+      }
+      PyTypeOpt pytype_opt =
+          resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
+      JIT_CHECK(
+          std::get<0>(pytype_opt) !=
+              reinterpret_cast<PyTypeObject*>(&PyObject_Type),
+          "shouldn't generate type checks for object");
+      Type type = to_jit_type(pytype_opt);
+      check_arg_types_.emplace(local, type);
+      check_arg_pytypes_.emplace(local, std::move(pytype_opt));
+      if (type <= TPrimitive) {
+        has_primitive_args_ = true;
+        if (local == 0) {
+          has_primitive_first_arg_ = true;
+        }
+      }
+    }
   }
 
   jit::BytecodeInstructionBlock bc_instrs{code_};
@@ -379,39 +410,6 @@ bool Preloader::preload() {
         break;
       }
       case CHECK_ARGS: {
-        BorrowedRef<PyTupleObject> checks =
-            reinterpret_cast<PyTupleObject*>(constArg(bc_instr).get());
-        for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
-          long local = PyLong_AsLong(PyTuple_GET_ITEM(checks, i));
-          if (local < 0) {
-            // A negative value for local indicates that it's a cell
-            JIT_CHECK(
-                code_->co_cell2arg != nullptr,
-                "no cell2arg but negative local %ld",
-                local);
-            long arg = code_->co_cell2arg[-1 * (local + 1)];
-            JIT_CHECK(
-                arg != CO_CELL_NOT_AN_ARG,
-                "cell not an arg for local %ld",
-                local);
-            local = arg;
-          }
-          PyTypeOpt pytype_opt =
-              resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
-          JIT_CHECK(
-              std::get<0>(pytype_opt) !=
-                  reinterpret_cast<PyTypeObject*>(&PyObject_Type),
-              "shouldn't generate type checks for object");
-          Type type = to_jit_type(pytype_opt);
-          check_arg_types_.emplace(local, type);
-          check_arg_pytypes_.emplace(local, std::move(pytype_opt));
-          if (type <= TPrimitive) {
-            has_primitive_args_ = true;
-            if (local == 0) {
-              has_primitive_first_arg_ = true;
-            }
-          }
-        }
         break;
       }
       case BUILD_CHECKED_LIST:

@@ -190,6 +190,8 @@ CiAPI_FUNC(PyObject *)
 _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func);
 CiAPI_FUNC(PyObject *)
 _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject *code);
+CiAPI_FUNC(PyObject *)
+_PyClassLoader_GetCodeArgumentTypeDescrs(PyCodeObject *code);
 
 /* Checks whether any method in the members dict overrides a final method in the base type. This
    API explicitly takes in a base_type and members_dict instead of a type object as it is used

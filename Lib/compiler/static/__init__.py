@@ -305,7 +305,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         arg_types = self._get_arg_types(func, func_args, graph)
         graph.emit("CHECK_ARGS", arg_types)
         ret_type = self._get_return_type(func)
-        graph.extra_consts.append(ret_type.type_descr)
+        graph.extra_consts.append((arg_types, ret_type.type_descr))
         return graph
 
     def _get_return_type(self, func: FuncOrLambda | CompNode) -> Class:

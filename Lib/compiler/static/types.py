@@ -5603,6 +5603,7 @@ class Dataclass(Class):
         code_gen: Static38CodeGenerator,
         func: str,
         args: Tuple[str, ...],
+        check_args: Tuple[...],
         return_type_descr: TypeDescr,
     ) -> PyFlowGraph38Static:
         scope = FunctionScope(func, code_gen.cur_mod, code_gen.scope.klass)
@@ -5617,7 +5618,7 @@ class Dataclass(Class):
             firstline=node.lineno,
         )
         graph.setFlag(CO_STATICALLY_COMPILED)
-        graph.extra_consts.append(return_type_descr)
+        graph.extra_consts.append((check_args, return_type_descr))
         return graph
 
     def emit_method(
@@ -5644,6 +5645,7 @@ class Dataclass(Class):
             code_gen,
             method_name,
             ("self", "other"),
+            (0, self.inexact_type().type_descr),
             self.type_env.object.type_descr,
         )
         false = graph.newBlock()
@@ -5689,7 +5691,12 @@ class Dataclass(Class):
             msg = "cannot assign to field "
 
         graph = self.flow_graph(
-            node, code_gen, method_name, args, self.type_env.none.type_descr
+            node,
+            code_gen,
+            method_name,
+            args,
+            (0, self.inexact_type().type_descr, 1, self.type_env.str.type_descr),
+            self.type_env.none.type_descr,
         )
         error = graph.newBlock()
         super_call = graph.newBlock()
@@ -5744,7 +5751,12 @@ class Dataclass(Class):
         code_gen: Static38CodeGenerator,
     ) -> None:
         graph = self.flow_graph(
-            node, code_gen, "__hash__", ("self",), self.type_env.int.type_descr
+            node,
+            code_gen,
+            "__hash__",
+            ("self",),
+            (0, self.inexact_type().type_descr),
+            self.type_env.int.type_descr,
         )
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_GLOBAL", "hash")
@@ -5773,19 +5785,21 @@ class Dataclass(Class):
     ) -> None:
         self_name = "__dataclass_self__" if "self" in self.fields else "self"
 
-        graph = self.flow_graph(
-            node,
-            code_gen,
-            "__init__",
-            args=(self_name, *self.init_fields),
-            return_type_descr=self.type_env.none.type_descr,
-        )
-
         args = [0, self.inexact_type().type_descr]
         for i, field in enumerate(self.init_fields.values()):
             if field.default_factory is None:
                 args.append(i + 1)
                 args.append(field.unwrapped_descr)
+
+        graph = self.flow_graph(
+            node,
+            code_gen,
+            "__init__",
+            args=(self_name, *self.init_fields),
+            check_args=tuple(args),
+            return_type_descr=self.type_env.none.type_descr,
+        )
+
         graph.emit("CHECK_ARGS", tuple(args))
 
         for name, field in self.true_fields.items():
@@ -5861,7 +5875,12 @@ class Dataclass(Class):
         code_gen: Static38CodeGenerator,
     ) -> None:
         graph = self.flow_graph(
-            node, code_gen, "__repr__", ("self",), self.type_env.str.type_descr
+            node,
+            code_gen,
+            "__repr__",
+            ("self",),
+            (0, self.inexact_type().type_descr),
+            self.type_env.str.type_descr,
         )
         graph.emit("CHECK_ARGS", (0, self.inexact_type().type_descr))
         graph.emit("LOAD_FAST", "self")

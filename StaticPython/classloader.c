@@ -2117,8 +2117,21 @@ _PyClassLoader_GetReturnTypeDescr(PyFunctionObject *func)
 PyObject *
 _PyClassLoader_GetCodeReturnTypeDescr(PyCodeObject* code)
 {
-    return PyTuple_GET_ITEM(
+    // last element of consts is ((arg_checks, ...), ret_type)
+    PyObject *static_type_info = PyTuple_GET_ITEM(
         code->co_consts, PyTuple_GET_SIZE(code->co_consts) - 1);
+
+    return PyTuple_GET_ITEM(static_type_info, 1);
+}
+
+PyObject *
+_PyClassLoader_GetCodeArgumentTypeDescrs(PyCodeObject* code)
+{
+    // last element of consts is ((arg_checks, ...), ret_type)
+    PyObject *static_type_info = PyTuple_GET_ITEM(
+        code->co_consts, PyTuple_GET_SIZE(code->co_consts) - 1);
+
+    return PyTuple_GET_ITEM(static_type_info, 0);
 }
 
 static int
@@ -5303,8 +5316,7 @@ PyTypeObject _PyTypedArgsInfo_Type = {
 };
 
 _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfo(PyCodeObject *code, int only_primitives) {
-    _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(code->co_code);
-    PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
+    PyObject* checks = _PyClassLoader_GetCodeArgumentTypeDescrs(code);
 
     int count;
     if (only_primitives) {
@@ -5401,8 +5413,7 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyOb
 }
 
 int _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code) {
-  _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(code->co_code);
-  PyObject* checks = PyTuple_GET_ITEM(code->co_consts, _Py_OPARG(rawcode[0]));
+  PyObject* checks = _PyClassLoader_GetCodeArgumentTypeDescrs(code);
   for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
     PyObject* type_descr = PyTuple_GET_ITEM(checks, i + 1);
 

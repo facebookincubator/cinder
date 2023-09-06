@@ -8101,11 +8101,9 @@ int _Ci_CheckArgs(PyThreadState *tstate, PyFrameObject *f, PyCodeObject *co) {
     // In the future we can use co_extra to store the cached arg info
     PyObject **freevars = (f->f_localsplus + f->f_code->co_nlocals);
     PyObject **fastlocals = f->f_localsplus;
-    PyObject *consts = co->co_consts;
     if (co->co_mutable->shadow == NULL) {
         // This funciton hasn't been optimized yet, we'll do it the slow way.
-        _Py_CODEUNIT* rawcode = (_Py_CODEUNIT *)PyBytes_AS_STRING(co->co_code);
-        PyObject* checks = GETITEM(consts, _Py_OPARG(rawcode[0]));
+        PyObject* checks = _PyClassLoader_GetCodeArgumentTypeDescrs(co);
         PyObject *local;
         PyObject *type_descr;
         PyTypeObject *type;
