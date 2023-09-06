@@ -8029,16 +8029,24 @@ box_primitive(int type, Py_ssize_t value)
     }
 }
 
+PyObject *
+_CiStaticEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
+               PyObject *locals,
+               PyObject* const* args, size_t argcountf,
+               PyObject *kwnames, int check_args);
+
 PyObject *_Py_HOT_FUNCTION
-_PyFunction_CallStatic(PyFunctionObject *func,
+Ci_PyFunction_CallStatic(PyFunctionObject *func,
                        PyObject* const* args,
                        Py_ssize_t nargsf,
                        PyObject *kwnames)
 {
     assert(PyFunction_Check(func));
+#ifdef Py_DEBUG
     PyCodeObject *co = (PyCodeObject *)func->func_code;
 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
+#endif
     assert(nargs == 0 || args != NULL);
     PyFrameConstructor *con = PyFunction_AS_FRAME_CONSTRUCTOR(func);
     PyThreadState *tstate = _PyThreadState_GET();
@@ -8051,40 +8059,7 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     assert(co->co_flags & CO_OPTIMIZED);
     assert(kwnames == NULL);
 
-    // the rest of this is _PyEval_Vector plus skipping CHECK_ARGS
-
-    // we could save some unnecessary checks by copying in
-    // and simplifying _PyEval_MakeFrameVector instead of calling it
-    PyFrameObject *f = _PyEval_MakeFrameVector(
-        tstate, con, NULL, args, nargs, kwnames);
-    if (f == NULL) {
-        return NULL;
-    }
-
-    Py_ssize_t awaited = Ci_Py_AWAITED_CALL(nargsf);
-    if (awaited && (co->co_flags & CO_COROUTINE)) {
-        return _PyEval_EvalEagerCoro(tstate, f, func->func_name, func->func_qualname);
-    }
-    if (co->co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
-        return make_coro(con, f);
-    }
-    PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);
-
-    /* decref'ing the frame can cause __del__ methods to get invoked,
-       which can call back into Python.  While we're done with the
-       current Python frame (f), the associated C stack is still in use,
-       so recursion_depth must be boosted for the duration.
-    */
-    if (Py_REFCNT(f) > 1) {
-        Py_DECREF(f);
-        _PyObject_GC_TRACK(f);
-    }
-    else {
-        ++tstate->recursion_depth;
-        Py_DECREF(f);
-        --tstate->recursion_depth;
-    }
-    return retval;
+    return _CiStaticEval_Vector(tstate, con, NULL, args, nargsf, NULL, 0);
 }
 
 int _Ci_CheckArgs(PyThreadState *tstate, PyFrameObject *f, PyCodeObject *co) {
@@ -8221,7 +8196,7 @@ PyObject *
 _CiStaticEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
                PyObject *locals,
                PyObject* const* args, size_t argcountf,
-               PyObject *kwnames)
+               PyObject *kwnames, int check_args)
 {
     Py_ssize_t argcount = PyVectorcall_NARGS(argcountf);
     Py_ssize_t awaited = Ci_Py_AWAITED_CALL(argcountf);
@@ -8233,7 +8208,7 @@ _CiStaticEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
 
     PyCodeObject *co = (PyCodeObject*)con->fc_code;
     assert(co->co_flags & CO_STATICALLY_COMPILED);
-    if (_Ci_CheckArgs(tstate, f, co) < 0) {
+    if (check_args && _Ci_CheckArgs(tstate, f, co) < 0) {
         Py_DECREF(f);
         return NULL;
     }
@@ -8276,10 +8251,10 @@ Ci_StaticFunction_Vectorcall(PyObject *func, PyObject* const* stack,
     PyThreadState *tstate = _PyThreadState_GET();
     assert(nargs == 0 || stack != NULL);
     if (((PyCodeObject *)f->fc_code)->co_flags & CO_OPTIMIZED) {
-        return _CiStaticEval_Vector(tstate, f, NULL, stack, nargs | awaited, kwnames);
+        return _CiStaticEval_Vector(tstate, f, NULL, stack, nargs | awaited, kwnames, 1);
     }
     else {
-        return _CiStaticEval_Vector(tstate, f, f->fc_globals, stack, nargs | awaited, kwnames);
+        return _CiStaticEval_Vector(tstate, f, f->fc_globals, stack, nargs | awaited, kwnames, 1);
     }
 }
 

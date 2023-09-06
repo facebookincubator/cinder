@@ -1178,7 +1178,7 @@ VTABLE_THUNK(type_vtable_descr)
 __attribute__((__used__)) PyObject *
 vtable_static_function_vectorcall(PyObject *state, PyObject **args, Py_ssize_t nargsf)
 {
-    return _PyFunction_CallStatic((PyFunctionObject *)state, args, nargsf, NULL);
+    return Ci_PyFunction_CallStatic((PyFunctionObject *)state, args, nargsf, NULL);
 }
 
 
@@ -1634,7 +1634,7 @@ VTABLE_THUNK(type_vtable_func_missing)
     the functions entry point hasn't yet been initialized.
 
     If it has been initialized and is being handled by the interpreter loop it'll go
-    through the single _PyFunction_CallStatic entry point. Otherwise it'll just use
+    through the single Ci_PyFunction_CallStatic entry point. Otherwise it'll just use
     the function entry point, which should be JITed.
 */
 // TODO: Drop name argument

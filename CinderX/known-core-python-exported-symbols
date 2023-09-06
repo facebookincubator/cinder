@@ -31,6 +31,7 @@ Ci_match_keys
 Ci_module_lookupattro
 Ci_PyClassMethod_GetFunc
 Ci_PyDict_ForceCombined
+Ci_PyFunction_CallStatic
 Ci_PyGen_IsSuspended
 Ci_PyGen_MarkJustStartedGenAsCompleted
 Ci_PyMethodDef_GetTypedSignature
@@ -860,7 +861,6 @@ PyFrozenSet_Type
 _Py_fstat
 _Py_fstat_noraise
 PyFunction_AddWatcher
-_PyFunction_CallStatic
 PyFunction_ClearWatcher
 PyFunction_GetAnnotations
 PyFunction_GetClosure

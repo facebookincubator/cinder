@@ -2907,7 +2907,7 @@ class EagerCoroutineDispatch(StaticTestBase):
         async def await_x() -> None:
             await x()
 
-        # Exercise call path through _PyFunction_CallStatic
+        # Exercise call path through Ci_PyFunction_CallStatic
         async def await_await_x() -> None:
             await await_x()
 

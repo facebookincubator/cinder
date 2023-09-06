@@ -18,3 +18,9 @@ CiAPI_FUNC(PyObject *) Ci_PyVectorcall_Call_WithFlags(
 CiAPI_FUNC(PyObject *)
 Ci_StaticFunction_Vectorcall(PyObject *func, PyObject* const* stack,
                        size_t nargsf, PyObject *kwnames);
+
+CiAPI_FUNC(PyObject *)
+Ci_PyFunction_CallStatic(PyFunctionObject *func,
+                                 PyObject* const* args,
+                                 Py_ssize_t nargsf,
+                                 PyObject *kwnames);
