@@ -8068,8 +8068,6 @@ _PyFunction_CallStatic(PyFunctionObject *func,
     if (f == NULL) {
         return NULL;
     }
-    assert(((unsigned char *)PyBytes_AS_STRING(co->co_code))[0] == CHECK_ARGS);
-    f->f_lasti = 0; /* skip CHECK_ARGS */
 
     Py_ssize_t awaited = Ci_Py_AWAITED_CALL(nargsf);
     if (awaited && (co->co_flags & CO_COROUTINE)) {

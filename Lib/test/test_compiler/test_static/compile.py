@@ -78,7 +78,7 @@ def init_xxclassloader():
             d = {}
 
             # __class_getitem__ doesn't properly re-write the code so
-            # we want CHECK_ARGS to not check for the plain generic type
+            # we want argument checks to not check for the plain generic type
             def foo(self: object, t: T, u: U) -> str:
                 return str(t) + str(u)
 
@@ -2105,7 +2105,7 @@ class StaticCompilationTests(StaticTestBase):
         module = self.compile(codestr)
         self.assertInBytecode(module, "INVOKE_FUNCTION")
         x = self.find_code(module)
-        self.assertInBytecode(x, "CHECK_ARGS", ())
+        self.assertEqual(self.get_arg_check_types(x), ())
 
     def test_dict_invoke(self):
         codestr = """
@@ -2144,7 +2144,7 @@ class StaticCompilationTests(StaticTestBase):
         module = self.compile(codestr)
         self.assertInBytecode(module, "INVOKE_FUNCTION")
         x = self.find_code(module)
-        self.assertInBytecode(x, "CHECK_ARGS", ())
+        self.assertEqual(self.get_arg_check_types(x), ())
 
     def test_verify_kwdefaults_too_many(self):
         codestr = """
@@ -2524,7 +2524,7 @@ class StaticCompilationTests(StaticTestBase):
                 pass
         """
         f = self.find_code(self.compile(codestr))
-        self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "int")))
+        self.assertEqual(self.get_arg_check_types(f), (0, ("builtins", "int")))
 
     def test_field_refcount(self):
         codestr = """
@@ -4058,7 +4058,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (0, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, ".*expected 'str' for argument x, got 'int'"
             ):
@@ -4071,7 +4071,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (1, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (1, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, ".*expected 'str' for argument y, got 'int'"
             ):
@@ -4084,8 +4084,9 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(
-                f, "CHECK_ARGS", (0, ("builtins", "int"), 1, ("builtins", "str"))
+            self.assertEqual(
+                self.get_arg_check_types(f),
+                (0, ("builtins", "int"), 1, ("builtins", "str")),
             )
             with self.assertRaisesRegex(
                 TypeError, ".*expected 'str' for argument y, got 'int'"
@@ -4099,8 +4100,9 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(
-                f, "CHECK_ARGS", (0, ("builtins", "int"), 1, ("builtins", "str"))
+            self.assertEqual(
+                self.get_arg_check_types(f),
+                (0, ("builtins", "int"), 1, ("builtins", "str")),
             )
             with self.assertRaisesRegex(
                 TypeError, ".*expected 'str' for argument y, got 'int'"
@@ -4114,7 +4116,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (1, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (1, ("builtins", "str")))
             for i in range(100):
                 self.assertEqual(f("abc", "abc"), 42)
             with self.assertRaisesRegex(
@@ -4129,7 +4131,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (0, ("builtins", "str")))
             for i in range(100):
                 self.assertEqual(f("abc"), 42)
             with self.assertRaisesRegex(
@@ -4144,7 +4146,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", ())
+            self.assertEqual(self.get_arg_check_types(f), ())
             self.assertEqual(f("abc"), 42)
 
     def test_method_prologue_kwonly(self):
@@ -4154,7 +4156,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (0, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (0, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, "f expected 'str' for argument x, got 'int'"
             ):
@@ -4167,7 +4169,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (1, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (1, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, "f expected 'str' for argument y, got 'object'"
             ):
@@ -4180,7 +4182,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (1, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (1, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, "f expected 'str' for argument y, got 'object'"
             ):
@@ -4193,7 +4195,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", (1, ("builtins", "str")))
+            self.assertEqual(self.get_arg_check_types(f), (1, ("builtins", "str")))
             with self.assertRaisesRegex(
                 TypeError, "f expected 'str' for argument y, got 'object'"
             ):
@@ -4206,7 +4208,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             f = mod.f
-            self.assertInBytecode(f, "CHECK_ARGS", ())
+            self.assertEqual(self.get_arg_check_types(f), ())
             f(x=42)
 
     def test_package_no_parent(self):
@@ -4217,8 +4219,8 @@ class StaticCompilationTests(StaticTestBase):
         """
         with self.in_module(codestr, name="package_no_parent.child") as mod:
             C = mod.C
-            self.assertInBytecode(
-                C.f, "CHECK_ARGS", (0, ("package_no_parent.child", "C"))
+            self.assertEqual(
+                self.get_arg_check_types(C.f), (0, ("package_no_parent.child", "C"))
             )
             self.assertEqual(C().f(), 42)
 
@@ -4471,7 +4473,9 @@ class StaticCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             C = mod.C
             x = C("abc")
-            self.assertInBytecode(C.__eq__, "CHECK_ARGS", (0, (mod.__name__, "C")))
+            self.assertEqual(
+                self.get_arg_check_types(C.__eq__), (0, (mod.__name__, "C"))
+            )
             self.assertNotEqual(x, x)
 
     def test_ret_type_cast(self):

@@ -50,11 +50,11 @@ fun jittestmodule:test {
     Snapshot
     v9:CInt32 = RunPeriodicTasks {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 6
         Locals<1> v6
         Stack<1> v6
         BlockStack {
-          Opcode 122 HandlerOff 18 StackLevel 0
+          Opcode 122 HandlerOff 16 StackLevel 0
         }
       }
     }
@@ -69,7 +69,7 @@ fun jittestmodule:test {
     }
     v15:Object = InPlaceOp<Add> v13 v12 {
       FrameState {
-        NextInstrOffset 14
+        NextInstrOffset 12
         Locals<1> v13
         Stack<1> v13
       }

@@ -316,6 +316,11 @@ class StaticTestBase(CompilerTest):
             code_gen.visit(tree)
         return TestErrors(self, code, errors.errors, errors.warnings)
 
+    def get_arg_check_types(self, func: FunctionType | CodeType) -> Tuple:
+        if isinstance(func, CodeType):
+            return func.co_consts[-1][0]
+        return func.__code__.co_consts[-1][0]
+
     @contextmanager
     def type_error_ctx(
         self,

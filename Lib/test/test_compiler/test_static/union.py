@@ -406,7 +406,7 @@ class UnionCompilationTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             f = mod.f
             # no arg check for the union, it's just dynamic
-            self.assertInBytecode(f, "CHECK_ARGS", ())
+            self.assertEqual(self.get_arg_check_types(f), ())
             # so we do have to check the return value
             self.assertInBytecode(f, "CAST", ("builtins", "int"))
             # runtime type error comes from return, not argument

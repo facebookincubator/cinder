@@ -68,12 +68,12 @@ fun jittestmodule:test {
     v5:MortalUnicodeExact["x"] = LoadConst<MortalUnicodeExact["x"]>
     v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
     BeginInlinedFunction<jittestmodule:add> {
-      NextInstrOffset 10
+      NextInstrOffset 8
     }
     Snapshot
     v16:Object = BinaryOp<Add> v4 v5 {
       FrameState {
-        NextInstrOffset 8
+        NextInstrOffset 6
         Locals<2> v4 v5
       }
     }
@@ -103,7 +103,7 @@ fun jittestmodule:test {
     Snapshot
     v5:ObjectUser[C:Exact] = TpAlloc<C> {
       FrameState {
-        NextInstrOffset 4
+        NextInstrOffset 2
       }
     }
     Snapshot

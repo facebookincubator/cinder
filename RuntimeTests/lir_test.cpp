@@ -154,7 +154,7 @@ BB %3 - preds: %0 - succs: %9
 # v6:FloatExact = PrimitiveBox<CDouble> v4 {{
 #   LiveValues<1> double:v4
 #   FrameState {{
-#     NextInstrOffset 10
+#     NextInstrOffset 8
 #     Locals<1> v4
 #   }}
 # }}

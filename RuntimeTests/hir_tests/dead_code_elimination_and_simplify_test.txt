@@ -22,7 +22,7 @@ fun jittestmodule:test {
     Snapshot
     v18:LongExact = PrimitiveBox<CInt64> v16 {
       FrameState {
-        NextInstrOffset 22
+        NextInstrOffset 20
         Locals<1> v16
       }
     }

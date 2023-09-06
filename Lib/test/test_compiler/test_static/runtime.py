@@ -1628,7 +1628,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args(self):
         """
-        Tests whether CHECK_ARGS can handle variables which are in a Cell,
+        Tests whether argument checks can handle variables which are in a Cell,
         and are a positional arg at index 0.
         """
 
@@ -1649,7 +1649,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_2(self):
         """
-        Tests whether CHECK_ARGS can handle multiple variables which are in a Cell,
+        Tests whether argument checks can handle multiple variables which are in a Cell,
         and are positional args.
         """
 
@@ -1675,7 +1675,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_3(self):
         """
-        Tests whether CHECK_ARGS can handle variables which are in a Cell,
+        Tests whether argument checks can handle variables which are in a Cell,
         and are a positional arg at index > 0.
         """
 
@@ -1700,7 +1700,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_4(self):
         """
-        Tests whether CHECK_ARGS can handle variables which are in a Cell,
+        Tests whether argument checks can handle variables which are in a Cell,
         and are a kwarg at index 0.
         """
 
@@ -1721,7 +1721,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_5(self):
         """
-        Tests whether CHECK_ARGS can handle variables which are in a Cell,
+        Tests whether argument checks can handle variables which are in a Cell,
         and are a kw-only arg.
         """
         codestr = """
@@ -1742,7 +1742,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_6(self):
         """
-        Tests whether CHECK_ARGS can handle variables which are in a Cell,
+        Tests whether argument checks can handle variables which are in a Cell,
         and are a pos-only arg.
         """
         codestr = """
@@ -1763,7 +1763,7 @@ class StaticRuntimeTests(StaticTestBase):
 
     def test_check_args_7(self):
         """
-        Tests whether CHECK_ARGS can handle multiple variables which are in a Cell,
+        Tests whether argument checks can handle multiple variables which are in a Cell,
         and are a mix of positional, pos-only and kw-only args.
         """
 

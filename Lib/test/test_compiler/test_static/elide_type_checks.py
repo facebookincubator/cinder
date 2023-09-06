@@ -9,15 +9,6 @@ except ImportError:
 
 
 class ElideTypeChecksTests(StaticTestBase):
-    def test_check_args_precedes_gen_start(self) -> None:
-        codestr = """
-            async def f():
-                pass
-        """
-        with self.in_module(codestr) as mod:
-            self.assertInBytecode(mod.f, "CHECK_ARGS", (), index=0)
-            self.assertInBytecode(mod.f, "GEN_START", 1, index=1)
-
     @unittest.skipIf(cinderjit is None, "JIT disabled")
     def test_invoke_function_skips_arg_type_checks(self) -> None:
         codestr = """

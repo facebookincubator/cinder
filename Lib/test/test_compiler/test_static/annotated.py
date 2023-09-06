@@ -254,8 +254,8 @@ class AnnotatedTests(StaticTestBase):
                 pass
         """
         with self.in_module(codestr) as mod:
-            self.assertInBytecode(
-                mod.foo, "CHECK_ARGS", (0, (mod.__name__, "C", "!", "?"))
+            self.assertEqual(
+                self.get_arg_check_types(mod.foo), (0, (mod.__name__, "C", "!", "?"))
             )
             self.assertEqual(mod.foo(mod.C()), None)
             self.assertEqual(mod.foo(None), None)
