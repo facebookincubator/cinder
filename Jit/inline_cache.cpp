@@ -6,6 +6,7 @@
 #include "Python.h"
 
 #include "Jit/codegen/gen_asm.h"
+#include "Jit/containers.h"
 #include "Jit/util.h"
 
 #include <algorithm>
@@ -25,7 +26,7 @@ namespace {
 
 template <class T>
 struct TypeWatcher {
-  std::unordered_map<BorrowedRef<PyTypeObject>, std::unordered_set<T*>> caches;
+  jit::UnorderedMap<BorrowedRef<PyTypeObject>, std::unordered_set<T*>> caches;
 
   void watch(BorrowedRef<PyTypeObject> type, T* cache) {
     Cinder_WatchType(type);

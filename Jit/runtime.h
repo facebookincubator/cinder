@@ -270,7 +270,7 @@ struct DeoptStat {
 };
 
 // Map from DeoptMetadata index to stats about that deopt point.
-using DeoptStats = std::unordered_map<std::size_t, DeoptStat>;
+using DeoptStats = jit::UnorderedMap<std::size_t, DeoptStat>;
 
 using InlineCacheStats = std::vector<CacheStats>;
 

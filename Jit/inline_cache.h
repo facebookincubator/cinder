@@ -6,6 +6,7 @@
 #include "StaticPython/classloader.h"
 
 #include "Jit/config.h"
+#include "Jit/containers.h"
 #include "Jit/jit_rt.h"
 #include "Jit/log.h"
 #include "Jit/ref.h"
@@ -324,4 +325,4 @@ struct FunctionEntryCacheValue {
 };
 
 using FunctionEntryCacheMap =
-    std::unordered_map<PyFunctionObject*, FunctionEntryCacheValue>;
+    jit::UnorderedMap<PyFunctionObject*, FunctionEntryCacheValue>;

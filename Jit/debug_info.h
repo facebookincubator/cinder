@@ -6,6 +6,7 @@
 #include "frameobject.h"
 
 #include "Jit/bytecode_offsets.h"
+#include "Jit/containers.h"
 #include "Jit/ref.h"
 
 #include <asmjit/asmjit.h>
@@ -144,7 +145,7 @@ class DebugInfo {
 
   // Index into the graph, keyed by address in the generated code
   // TODO(mpage): Store this in a vector sorted by address.
-  std::unordered_map<uintptr_t, LocNode> addr_locs_;
+  jit::UnorderedMap<uintptr_t, LocNode> addr_locs_;
 };
 
 } // namespace jit
