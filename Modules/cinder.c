@@ -618,6 +618,23 @@ get_arg0_from_pyframe(PyObject *module, PyObject **args, Py_ssize_t nargs) {
   Py_RETURN_NONE;
 }
 
+static PyObject*
+get_awaiter_frame(PyObject *self, PyObject *Py_UNUSED(args)) {
+    _PyShadowFrame* shadow_frame = PyThreadState_GET()->shadow_frame;
+    _PyShadowFrame* awaiter_frame   = _PyShadowFrame_GetAwaiterFrame(shadow_frame);
+    if (!awaiter_frame) {
+        Py_RETURN_NONE;
+    } else if (_PyShadowFrame_GetPtrKind(awaiter_frame) != PYSF_PYFRAME) {
+        // Awaiter frame fetch not supported (e.g. JIT-ed functions)
+        PyErr_SetString(PyExc_NotImplementedError, "Fetching awaiter frame is not supported.");
+        return NULL;
+    } else {
+        PyFrameObject *pyframe = _PyShadowFrame_GetPyFrame(awaiter_frame);
+        Py_INCREF(pyframe);
+        return (PyObject *)pyframe;
+    }
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"debug_break",
      cinder_debug_break,
@@ -733,6 +750,10 @@ static struct PyMethodDef cinder_module_methods[] = {
         METH_FASTCALL,
         "Walks the call stack searching for Python frame with name that matches frame_name parameter. "
         "Returns first argument from the frame or None if frame was not found"},
+    {"_get_awaiter_frame",
+        get_awaiter_frame,
+        METH_NOARGS,
+        "Get the awaiter frame of the current executing task"},
     {NULL, NULL} /* sentinel */
 };
 

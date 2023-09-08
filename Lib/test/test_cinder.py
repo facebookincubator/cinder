@@ -30,14 +30,21 @@ from textwrap import dedent
 
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
+from unittest.mock import patch
 
 import _testcindercapi
 
 from test import cinder_support, libregrtest
-from test.cinder_support import get_await_stack, verify_stack
+from test.cinder_support import CINDERJIT_ENABLED, get_await_stack, verify_stack
 from test.support.script_helper import assert_python_ok, make_script
 
 from test.test_asyncio.test_futures import CFutureTests
+
+try:
+    import cinderjit
+except:
+
+    cinderjit = None
 
 
 class NoWayError(Exception):
@@ -2030,6 +2037,39 @@ class TestWaitForAwaiter(unittest.TestCase):
         self.assertIs(await_stacks[0][1].cr_code, waiter.__code__)
         self.assertIs(await_stacks[1][0].cr_code, asyncio.tasks.wait_for.__code__)
         self.assertIs(await_stacks[1][1].cr_code, waiter.__code__)
+
+
+class TestAwaiterFrame(unittest.TestCase):
+    def setUp(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.loop = loop
+
+    def tearDown(self):
+        self.loop.close()
+        asyncio.set_event_loop_policy(None)
+
+    @async_test
+    async def test_get_awaiter_frame(self):
+        def f1():
+            awaiter_frame = cinder._get_awaiter_frame()
+            self.assertIsNone(awaiter_frame)
+
+        async def f2():
+            await asyncio.sleep(0)
+            if CINDERJIT_ENABLED and cinderjit.jit_frame_mode() == 1:
+                with self.assertRaises(NotImplementedError) as context:
+                    cinder._get_awaiter_frame()
+
+                self.assertEqual(
+                    str(context.exception), "Fetching awaiter frame is not supported."
+                )
+            else:
+                awaiter_frame = cinder._get_awaiter_frame()
+                self.assertIs(awaiter_frame.f_code.co_name, "test_get_awaiter_frame")
+
+        f1()
+        await asyncio.gather(f2())
 
 
 class TestStackWithLineno(unittest.TestCase):
