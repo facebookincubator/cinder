@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <unordered_set>
 
 // clang-format off
 #include "cinder/cinder.h"
@@ -26,7 +25,7 @@ namespace {
 
 template <class T>
 struct TypeWatcher {
-  jit::UnorderedMap<BorrowedRef<PyTypeObject>, std::unordered_set<T*>> caches;
+  jit::UnorderedMap<BorrowedRef<PyTypeObject>, jit::UnorderedSet<T*>> caches;
 
   void watch(BorrowedRef<PyTypeObject> type, T* cache) {
     Cinder_WatchType(type);
@@ -47,7 +46,7 @@ struct TypeWatcher {
     if (it == caches.end()) {
       return;
     }
-    std::unordered_set<T*> to_notify = std::move(it->second);
+    jit::UnorderedSet<T*> to_notify = std::move(it->second);
     caches.erase(it);
     for (T* cache : to_notify) {
       cache->typeChanged(type);
