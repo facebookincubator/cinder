@@ -47,12 +47,10 @@ from .runtime import (
     strict_slots,
 )
 
-from .track_import_call import tracker
-
 # Increment this whenever we change the output of the strict modules
 # interpreter. It must stay below 32768 (15 bits), because we use the high bit
 # to encode strictness of the module.
-MAGIC_NUMBER = 47
+MAGIC_NUMBER = 48
 
 
 DEFAULT_STUB_PATH = os.path.dirname(__file__) + "/stubs"
@@ -68,7 +66,6 @@ def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:
         "strict_slots": strict_slots,
         "mutable": mutable,
         "_mark_cached_property": _mark_cached_property,
-        "track_import_call": tracker.register,
     }
 
     return {

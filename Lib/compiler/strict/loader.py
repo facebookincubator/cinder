@@ -48,7 +48,6 @@ from _static import install_sp_audit_hook
 from ..consts import CO_STATICALLY_COMPILED
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
-from .track_import_call import tracker
 
 
 # Force immediate resolution of Compiler in case it's deferred from Lazy Imports
@@ -191,7 +190,6 @@ class StrictSourceFileLoader(SourceFileLoader):
         allow_list_exact: Optional[Iterable[str]] = None,
         enable_patching: bool = False,
         log_source_load: Optional[Callable[[str, Optional[str], bool], None]] = None,
-        track_import_call: bool = False,
         init_cached_properties: Optional[
             Callable[
                 [Mapping[str, str | Tuple[str, bool]]],
@@ -223,7 +221,6 @@ class StrictSourceFileLoader(SourceFileLoader):
         ] = log_source_load
         self.bytecode_found = False
         self.bytecode_path: Optional[str] = None
-        self.track_import_call = track_import_call
         self.init_cached_properties = init_cached_properties
         self.log_time_func = log_time_func
         self.use_py_compiler = use_py_compiler
@@ -333,7 +330,6 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.name,
                 opt,
                 submodule_search_locations,
-                self.track_import_call,
                 force_strict=force,
             )
             self.strict = is_valid_strict
@@ -367,9 +363,6 @@ class StrictSourceFileLoader(SourceFileLoader):
         if cached and spec and spec.cached:
             spec.cached = cached
 
-        if self.track_import_call:
-            tracker.enter_import()
-
         if self.strict:
             if spec is None:
                 raise ImportError(f"Missing module spec for {module.__name__}")
@@ -391,9 +384,6 @@ class StrictSourceFileLoader(SourceFileLoader):
             exec(code, new_dict)
         else:
             exec(code, module.__dict__)
-
-        if self.track_import_call:
-            tracker.exit_import()
 
 
 def add_strict_tag(path: str, enable_patching: bool) -> str:

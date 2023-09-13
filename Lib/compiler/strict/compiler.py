@@ -100,7 +100,6 @@ class Compiler(StaticCompiler):
         self.raise_on_error = raise_on_error
         self.log_time_func = log_time_func
         self.enable_patching = enable_patching
-        self.track_import_call: bool = False
         self.not_static: Set[str] = set()
         self.use_py_compiler = use_py_compiler
         self.original_builtins: Dict[str, object] = dict(__builtins__)
@@ -147,7 +146,6 @@ class Compiler(StaticCompiler):
             name,
             optimize=optimize,
             is_static=True,
-            track_import_call=self.track_import_call,
             builtins=self.original_builtins,
         )
 
@@ -164,7 +162,6 @@ class Compiler(StaticCompiler):
         name: str,
         optimize: int,
         submodule_search_locations: Optional[List[str]] = None,
-        track_import_call: bool = False,
         force_strict: bool = False,
     ) -> Tuple[CodeType | None, bool]:
         if force_strict:
@@ -195,13 +192,9 @@ class Compiler(StaticCompiler):
         if not is_valid_strict:
             code = self._compile_basic(name, mod.ast, filename, optimize)
         elif mod.module_kind == STATIC_MODULE_KIND:
-            code = self._compile_static(
-                mod, filename, name, optimize, track_import_call
-            )
+            code = self._compile_static(mod, filename, name, optimize)
         else:
-            code = self._compile_strict(
-                mod, filename, name, optimize, track_import_call
-            )
+            code = self._compile_strict(mod, filename, name, optimize)
 
         return code, is_valid_strict
 
@@ -222,7 +215,6 @@ class Compiler(StaticCompiler):
         filename: str,
         name: str,
         optimize: int,
-        track_import_call: bool,
     ) -> CodeType:
         symbols = getSymbolTable(mod)
         tree = rewrite(
@@ -231,7 +223,6 @@ class Compiler(StaticCompiler):
             filename,
             name,
             optimize=optimize,
-            track_import_call=track_import_call,
             builtins=self.original_builtins,
         )
         return strict_compile(name, filename, tree, optimize, self.original_builtins)
@@ -242,9 +233,7 @@ class Compiler(StaticCompiler):
         filename: str,
         name: str,
         optimize: int,
-        track_import_call: bool,
     ) -> CodeType | None:
-        self.track_import_call = track_import_call
         root = self.ast_cache.get(name)
         if root is None:
             root = self._get_rewritten_ast(name, mod, mod.ast_preprocessed, optimize)

@@ -23,7 +23,6 @@ from compiler.strict.loader import (
     StrictSourceFileLoader,
 )
 from compiler.strict.runtime import set_freeze_enabled
-from compiler.strict.track_import_call import TrackImportCall
 from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from os import path
@@ -96,7 +95,6 @@ STRICT_LOADER_ENABLE_IMPORT_CALL_TRACKING: Tuple[
         fullname,
         path,
         sys.path,
-        track_import_call=True,
     ),
     SOURCE_SUFFIXES,
 )
@@ -2323,88 +2321,6 @@ class StrictLoaderTest(StrictTestBase):
         with self.assertRaises(AttributeError):
             d = mod.D()
             d.y = 1
-
-    def test_import_call_tracking_enabled(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                def f(g):
-                    return g
-            """,
-        )
-        self.sbx.write_file(
-            "b.py",
-            """
-                import __strict__
-                from a import f
-                @f
-                def g():
-                    pass
-            """,
-        )
-        tracker = TrackImportCall()
-        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
-            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
-        ), patch.dict(
-            FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(
-            True
-        ):
-            __import__("b")
-            self.assertIn("a", tracker.tracked_modules)
-            self.assertEqual(len(tracker.tracked_modules), 1)
-
-    def test_import_call_tracking_enabled_not_toplevel(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                def f(g):
-                    return g
-            """,
-        )
-        tracker = TrackImportCall()
-        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
-            FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), patch.dict(
-            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(
-            True
-        ):
-            a = __import__("a")
-            self.assertEqual(a.f(1), 1)
-            self.assertEqual(len(tracker.tracked_modules), 0)
-
-    def test_import_call_tracking_disabled(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                def f(g):
-                    return g
-            """,
-        )
-        self.sbx.write_file(
-            "b.py",
-            """
-                import __strict__
-                from a import f
-                @f
-                def g():
-                    pass
-            """,
-        )
-        tracker = TrackImportCall()
-        with patch("compiler.strict.loader.tracker", tracker), patch.dict(
-            FIXED_MODULES["strict_modules"], {"track_import_call": tracker.register}
-        ), patch.dict(
-            FIXED_MODULES["__strict__"], {"track_import_call": tracker.register}
-        ), self.sbx.with_import_call_tracking(
-            False
-        ):
-            __import__("b")
-            self.assertEqual(len(tracker.tracked_modules), 0)
 
     def test_cross_module_first_analysis_wins(self) -> None:
         self.sbx.write_file(

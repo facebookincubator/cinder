@@ -32,8 +32,6 @@ class RewriterTestCase(StrictTestWithCheckerBase):
         builtins: Dict[str, Any] = __builtins__,
         modules: Optional[Dict[str, Dict[str, Any]]] = None,
         globals: Optional[Dict[str, Any]] = None,
-        track_import_call: bool = False,
-        import_call_tracker: Optional[Set[str]] = None,
     ) -> StrictModule:
         code = dedent(code)
         root = ast.parse(code)
@@ -47,7 +45,6 @@ class RewriterTestCase(StrictTestWithCheckerBase):
             filename,
             name,
             builtins=builtins,
-            track_import_call=track_import_call,
         )
         c = strict_compile(name, filename, root)
 
@@ -60,16 +57,11 @@ class RewriterTestCase(StrictTestWithCheckerBase):
         def strict_slots(typ: Type[object]) -> Type[object]:
             return typ
 
-        def track_import_call(mod: str) -> None:
-            if import_call_tracker is not None:
-                import_call_tracker.add(mod)
-
         fixed_modules = modules or dict(FIXED_MODULES)
         fixed_modules.update(
             __strict__={
                 "freeze_type": freeze_type,
                 "loose_slots": loose_slots,
-                "track_import_call": track_import_call,
                 "strict_slots": strict_slots,
             }
         )
@@ -846,33 +838,3 @@ except Exception as min:
         mod = self.compile_to_strict(code)
         self.assertEqual(mod.x, 2)
         self.assertFalse(hasattr(mod, "min"))
-
-    def test_insert_track_import_call(self) -> None:
-        """
-        track import call is inserted to top of function
-        """
-        code = """
-        def f():
-            pass
-        """
-        tracker = set()
-        mod = self.compile_to_strict(
-            code, track_import_call=True, import_call_tracker=tracker
-        )
-        mod.f()
-        self.assertIn("foo", tracker)
-
-    async def test_insert_track_import_call_async(self) -> None:
-        """
-        track import call is inserted to top of function
-        """
-        code = """
-        async def f():
-            pass
-        """
-        tracker = set()
-        mod = self.compile_to_strict(
-            code, track_import_call=True, import_call_tracker=tracker
-        )
-        await mod.f()
-        self.assertIn("foo", tracker)

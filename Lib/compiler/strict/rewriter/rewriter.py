@@ -206,7 +206,6 @@ class StrictModuleRewriter:
         optimize: int,
         builtins: ModuleType | Mapping[str, object] = __builtins__,
         is_static: bool = False,
-        track_import_call: bool = False,
     ) -> None:
         if not isinstance(builtins, dict):
             builtins = builtins.__dict__
@@ -226,7 +225,6 @@ class StrictModuleRewriter:
         # Top-level statements in the returned code object...
         self.code_stmts: List[stmt] = []
         self.is_static = is_static
-        self.track_import_call = track_import_call
 
     def transform(self) -> ast.Module:
         original_first_node = self.root.body[0] if self.root.body else None
@@ -239,7 +237,6 @@ class StrictModuleRewriter:
         mod = ast.Module(
             [
                 *self.get_future_imports(),
-                *self.load_helpers(),
                 *self.transform_body(),
             ]
         )
@@ -251,42 +248,6 @@ class StrictModuleRewriter:
 
         mod.type_ignores = []
         return mod
-
-    def load_helpers(self) -> Iterable[stmt]:
-        helpers = []
-        # no need to load <track-import-call> if body is empty
-        if self.track_import_call and self.root.body:
-            helpers.append(
-                lineinfo(
-                    make_assign(
-                        [lineinfo(ast.Name("<strict-modules>", ast.Store()))],
-                        lineinfo(
-                            ast.Subscript(
-                                lineinfo(ast.Name("<fixed-modules>", ast.Load())),
-                                lineinfo(ast.Index(lineinfo(Constant("__strict__")))),
-                                ast.Load(),
-                            )
-                        ),
-                    )
-                )
-            )
-            helpers.append(
-                lineinfo(
-                    make_assign(
-                        [lineinfo(ast.Name("<track-import-call>", ast.Store()))],
-                        lineinfo(
-                            ast.Subscript(
-                                lineinfo(ast.Name("<strict-modules>", ast.Load())),
-                                lineinfo(
-                                    ast.Index(lineinfo(Constant("track_import_call")))
-                                ),
-                                ast.Load(),
-                            )
-                        ),
-                    )
-                ),
-            )
-        return helpers
 
     def get_future_imports(self) -> Iterable[stmt]:
         if self.visitor.future_imports:
@@ -319,7 +280,6 @@ class StrictModuleRewriter:
             self.visitor.global_dels,
             self.visitor.future_imports,
             self.is_static,
-            self.track_import_call,
         )
 
     def transform_body(self) -> Iterable[stmt]:
@@ -341,7 +301,6 @@ def rewrite(
     optimize: int = -1,
     builtins: ModuleType | Mapping[str, object] = __builtins__,
     is_static: bool = False,
-    track_import_call: bool = False,
 ) -> Module:
     return StrictModuleRewriter(
         root,
@@ -352,7 +311,6 @@ def rewrite(
         optimize,
         builtins,
         is_static=is_static,
-        track_import_call=track_import_call,
     ).transform()
 
 
@@ -764,14 +722,12 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         global_dels: Set[str],
         future_imports: Set[alias],
         is_static: bool,
-        track_import_call: bool,
     ) -> None:
         super().__init__(symbols, ALL_INDICATORS)
         symbols.scope_factory = self.make_scope
         self.modname = modname
         self.future_imports = future_imports
         self.is_static = is_static
-        self.track_import_call = track_import_call
 
     def make_scope(
         self,
@@ -982,22 +938,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
     def mangle_cached_prop(self, name: str) -> str:
         return "_" + name + "_impl"
 
-    def _create_track_import_call(
-        self, location_node: FunctionDef | AsyncFunctionDef
-    ) -> ast.Expr:
-        return lineinfo(
-            ast.Expr(
-                lineinfo(
-                    Call(
-                        lineinfo(ast.Name("<track-import-call>", ctx=ast.Load())),
-                        [lineinfo(ast.Constant(self.modname))],
-                        [],
-                    )
-                ),
-            ),
-            target=location_node,
-        )
-
     def visit_FunctionDef(self, node: FunctionDef) -> TTransformedStmt:
         outer_scope = self.scopes.scopes[-1].scope_data
         orig_node = node
@@ -1010,9 +950,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         res: TTransformedStmt = node
 
         self.check_cached_prop(node, scope_data, outer_scope)
-
-        if self.track_import_call:
-            node.body.insert(0, self._create_track_import_call(node))
 
         return res
 
@@ -1027,9 +964,6 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
 
         orig_name = node.name
         self.check_cached_prop(node, scope_data, outer_scope)
-
-        if self.track_import_call:
-            node.body.insert(0, self._create_track_import_call(node))
 
         return node
 
