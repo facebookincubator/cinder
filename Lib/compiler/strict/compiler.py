@@ -117,7 +117,7 @@ class Compiler(StaticCompiler):
         if mod.is_valid and name not in self.modules and len(mod.errors) == 0:
             modKind = mod.module_kind
             if modKind == STATIC_MODULE_KIND:
-                root = mod.ast_preprocessed
+                root = mod.ast
                 stubKind = mod.stub_kind
                 if STUB_KIND_MASK_TYPING & stubKind:
                     root = remove_annotations(root)
@@ -167,6 +167,7 @@ class Compiler(StaticCompiler):
         if force_strict:
             self.logger.debug(f"Forcibly treating module {name} as strict")
             self.loader.set_force_strict_by_name(name)
+        # TODO(pilleye): Only call this when no side effect analysis is requested
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []
         )
@@ -218,7 +219,7 @@ class Compiler(StaticCompiler):
     ) -> CodeType:
         symbols = getSymbolTable(mod)
         tree = rewrite(
-            mod.ast_preprocessed,
+            mod.ast,
             symbols,
             filename,
             name,
@@ -236,7 +237,7 @@ class Compiler(StaticCompiler):
     ) -> CodeType | None:
         root = self.ast_cache.get(name)
         if root is None:
-            root = self._get_rewritten_ast(name, mod, mod.ast_preprocessed, optimize)
+            root = self._get_rewritten_ast(name, mod, mod.ast, optimize)
         code = None
 
         try:

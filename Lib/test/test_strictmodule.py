@@ -43,13 +43,6 @@ class StrictModuleTest(unittest.TestCase):
             + "ClassDef(name='C', bases=[], keywords=[], body=[Pass()], "
             + "decorator_list=[Name(id='strict_slots', ctx=Load())])], type_ignores=[])",
         )
-        self.assertEqual(
-            ast.dump(res.ast_preprocessed),
-            "Module(body=[Import(names=[alias(name='__strict__')]),"
-            + " ImportFrom(module='__strict__', names=[alias(name='strict_slots')], level=0),"
-            + " ClassDef(name='C', bases=[], keywords=[], body=[Pass()],"
-            + " decorator_list=[Name(id='strict_slots', ctx=Load()), Name(id='<enable_slots>', ctx=Load())])], type_ignores=[])",
-        )
 
 
 if __name__ == "__main__":

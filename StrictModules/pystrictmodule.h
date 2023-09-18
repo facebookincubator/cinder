@@ -20,7 +20,6 @@ typedef struct {
   int module_kind;
   int stub_kind;
   PyObject* ast;
-  PyObject* ast_preprocessed;
   PyObject* symtable;
   PyObject* errors;
 } StrictModuleAnalysisResult;

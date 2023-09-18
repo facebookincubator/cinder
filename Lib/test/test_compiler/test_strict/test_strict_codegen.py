@@ -750,7 +750,6 @@ class StrictCheckedCompilationTests(StrictTestWithCheckerBase):
             c = C()
             self.assertEqual(c.f, 1)
             self.assertEqual(c.f, 1)
-            self.assertEqual(C.__slots__, ("f",))
 
 
 if __name__ == "__main__":

@@ -664,7 +664,6 @@ class StaticTestsStrictModuleLoader:
             mod_kind,
             stub_kind,
             tree,
-            tree,
             symbols._table,
             [],
         )

@@ -1577,7 +1577,7 @@ class StrictLoaderTest(StrictTestBase):
                 pass
         """
         mod = self.sbx.strict_from_code(code)
-        self.assertEqual(mod.C.__slots__, ("__orig_class__",))
+        self.assertEqual(mod.C.__slots__, ())
 
     def test_ordered_keys(self) -> None:
         code = """
@@ -1721,7 +1721,6 @@ class StrictLoaderTest(StrictTestBase):
         mod = self.sbx.strict_import("a")
         C, D, E = mod.C, mod.D, mod.E
         with with_warn_handler() as warnings:
-            self.assertIn("__loose_slots__", C.__slots__)
             c = C()
             c.foo = 42
             self.assertEqual(
@@ -1804,11 +1803,6 @@ class StrictLoaderTest(StrictTestBase):
         mod = self.sbx.strict_import("a")
         D1, D2, E1, E2, F1, F2 = mod.D1, mod.D2, mod.E1, mod.E2, mod.F1, mod.F2
         with with_warn_handler() as warnings:
-            self.assertIn("__loose_slots__", D1.__slots__)
-            self.assertIn("__loose_slots__", D2.__slots__)
-            self.assertNotIn("__dict__", D1.__slots__)
-            self.assertIn("__dict__", D2.__slots__)
-
             d1 = D1()
             d1.foo = 42
             self.assertIn(
@@ -1871,87 +1865,6 @@ class StrictLoaderTest(StrictTestBase):
             a = C()
             a.foo = 42
             self.assertEqual(warnings, [])
-
-    def test_cached_property_x(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                from __strict__ import _mark_cached_property, strict_slots
-                called = 0
-                def dec(x):
-                    _mark_cached_property(x, False, dec)
-                    return x
-
-                @strict_slots
-                class C:
-                    @dec
-                    def f(self):
-                        global called
-                        called += 1
-                        return 42
-            """,
-        )
-        mod = self.sbx.strict_import("a")
-        a = mod.C()
-        self.assertEqual(a.f, 42)
-        self.assertEqual(mod.called, 1)
-        self.assertEqual(a.f, 42)
-        self.assertEqual(mod.called, 1)
-
-        self.assertFalse(hasattr(a, "__dict__"))
-
-    def test_cached_property_mark_async(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                from __strict__ import _mark_cached_property, strict_slots
-                called = 0
-                def dec(x):
-                    _mark_cached_property(x, True, dec)
-                    return x
-
-                @strict_slots
-                class C:
-                    @dec
-                    def f(self):
-                        global called
-                        called += 1
-                        return 42
-            """,
-        )
-        with self.assertRaises(ValueError):
-            self.sbx.strict_import("a")
-
-    def test_cached_property_private(self) -> None:
-        self.sbx.write_file(
-            "a.py",
-            """
-                import __strict__
-                from __strict__ import _mark_cached_property, strict_slots
-                called = 0
-                def dec(x):
-                    _mark_cached_property(x, False, dec)
-                    return x
-
-                @strict_slots
-                class C:
-                    @dec
-                    def __f(self):
-                        global called
-                        called += 1
-                        return 42
-            """,
-        )
-        mod = self.sbx.strict_import("a")
-        a = mod.C()
-        self.assertEqual(a._C__f, 42)
-        self.assertEqual(mod.called, 1)
-        self.assertEqual(a._C__f, 42)
-        self.assertEqual(mod.called, 1)
-
-        self.assertFalse(hasattr(a, "__dict__"))
 
     def test_cached_property_ownership(self) -> None:
         self.sbx.write_file(
@@ -2238,8 +2151,6 @@ class StrictLoaderTest(StrictTestBase):
         # a is not created as a strict module, but b is
         self.assertNotEqual(type(a), StrictModule)
         self.assertEqual(type(b), StrictModule)
-        self.assertFalse(hasattr(a.A, "__slots__"))
-        self.assertTrue(hasattr(b.B, "__slots__"))
         self.assertEqual(b.y, 1)
 
     def test_relative_import(self) -> None:
@@ -2284,43 +2195,6 @@ class StrictLoaderTest(StrictTestBase):
         )
         a = self.sbx.strict_import("a")
         self.assertFalse(hasattr(a.C, "__slots__"))
-
-    def test_primitive_subclass(self) -> None:
-        """subclasses of int, set and tuple are not auto-slotified"""
-        self.sbx.write_file(
-            "a.py",
-            """
-            import __strict__
-            from __strict__ import strict_slots
-            @strict_slots
-            class A(int):
-                x = 1
-
-            @strict_slots
-            class B(set):
-                x = 1
-
-            @strict_slots
-            class C(tuple):
-                x = 1
-
-            @strict_slots
-            class D(dict):
-                x = 1
-            """,
-        )
-        mod = self.sbx.strict_import("a")
-        self.assertFalse(hasattr(mod.A, "__slots__"))
-        self.assertFalse(hasattr(mod.B, "__slots__"))
-        self.assertFalse(hasattr(mod.C, "__slots__"))
-        self.assertTrue(hasattr(mod.D, "__slots__"))
-        self.assertEqual(mod.A.x, 1)
-        self.assertEqual(mod.B.x, 1)
-        self.assertEqual(mod.C.x, 1)
-        self.assertEqual(mod.D.x, 1)
-        with self.assertRaises(AttributeError):
-            d = mod.D()
-            d.y = 1
 
     def test_cross_module_first_analysis_wins(self) -> None:
         self.sbx.write_file(

@@ -17,7 +17,6 @@ STUB_KIND_MASK_TYPING: int
 
 class StrictAnalysisResult:
     ast: ast.Module
-    ast_preprocessed: ast.Module
     errors: List[StrictModuleError]
     file_name: str
     is_valid: bool
@@ -32,7 +31,6 @@ class StrictAnalysisResult:
         _mod_kind: int,
         _stub_kind: int,
         _ast: ast.Module,
-        _ast_preprocessed: ast.Module,
         _symtable: symtable,
         _errors: List[StrictModuleError],
         /,

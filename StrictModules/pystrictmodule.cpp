@@ -21,7 +21,6 @@ static PyObject* AnalysisResult_new(PyTypeObject* type, PyObject*, PyObject*) {
   self->module_kind = 0;
   self->stub_kind = 0;
   self->ast = NULL;
-  self->ast_preprocessed = NULL;
   self->symtable = NULL;
   self->errors = NULL;
   return (PyObject*)self;
@@ -36,19 +35,17 @@ static int AnalysisResult_init(
   int module_kind;
   int stub_kind;
   PyObject* ast;
-  PyObject* ast_preprocessed;
   PyObject* symtable;
   PyObject* errors;
 
   if (!PyArg_ParseTuple(
           args,
-          "UUiiOOOO",
+          "UUiiOOO",
           &module_name,
           &file_name,
           &module_kind,
           &stub_kind,
           &ast,
-          &ast_preprocessed,
           &symtable,
           &errors)) {
     return -1;
@@ -62,8 +59,6 @@ static int AnalysisResult_init(
   self->stub_kind = stub_kind;
   self->ast = ast;
   Py_INCREF(self->ast);
-  self->ast_preprocessed = ast_preprocessed;
-  Py_INCREF(self->ast_preprocessed);
   self->symtable = symtable;
   Py_INCREF(self->symtable);
   self->errors = errors;
@@ -79,7 +74,6 @@ static PyObject* create_AnalysisResult_Helper(
     int module_kind,
     int stub_kind,
     PyObject* ast,
-    PyObject* ast_preprocessed,
     PyObject* symtable,
     PyObject* errors) {
   StrictModuleAnalysisResult* self;
@@ -91,7 +85,6 @@ static PyObject* create_AnalysisResult_Helper(
   self->module_kind = module_kind;
   self->stub_kind = stub_kind;
   self->ast = ast;
-  self->ast_preprocessed = ast_preprocessed;
   self->symtable = symtable;
   self->errors = errors;
   PyObject_GC_Track(self);
@@ -107,14 +100,13 @@ static PyObject* create_AnalysisResult(
     Py_INCREF(module_name);
     Py_INCREF(errors);
     return create_AnalysisResult_Helper(
-        0, module_name, NULL, 0, 0, NULL, NULL, NULL, errors);
+        0, module_name, NULL, 0, 0, NULL, NULL, errors);
   }
   // all interface functions return new references
   PyObject* filename = StrictAnalyzedModule_GetFilename(mod);
   int mod_kind = StrictAnalyzedModule_GetModuleKind(mod);
   int stub_kind = StrictAnalyzedModule_GetStubKind(mod);
   PyObject* ast = StrictAnalyzedModule_GetAST(mod, arena, 0);
-  PyObject* ast_preprocessed = StrictAnalyzedModule_GetAST(mod, arena, 1);
   PyObject* symtable = StrictAnalyzedModule_GetSymtable(mod);
   Py_INCREF(module_name);
   Py_INCREF(errors);
@@ -125,7 +117,6 @@ static PyObject* create_AnalysisResult(
       mod_kind,
       stub_kind,
       ast,
-      ast_preprocessed,
       symtable,
       errors);
 }
@@ -136,7 +127,6 @@ static void AnalysisResult_dealloc(StrictModuleAnalysisResult* self) {
     Py_XDECREF(self->module_name);
     Py_XDECREF(self->file_name);
     Py_XDECREF(self->ast);
-    Py_XDECREF(self->ast_preprocessed);
     Py_XDECREF(self->symtable);
     Py_XDECREF(self->errors);
     PyObject_GC_Del(self);
@@ -150,7 +140,6 @@ static int AnalysisResult_traverse(
   Py_VISIT(self->module_name);
   Py_VISIT(self->file_name);
   Py_VISIT(self->ast);
-  Py_VISIT(self->ast_preprocessed);
   Py_VISIT(self->symtable);
   Py_VISIT(self->errors);
   return 0;
@@ -160,7 +149,6 @@ static int AnalysisResult_clear(StrictModuleAnalysisResult* self) {
   Py_CLEAR(self->module_name);
   Py_CLEAR(self->file_name);
   Py_CLEAR(self->ast);
-  Py_CLEAR(self->ast_preprocessed);
   Py_CLEAR(self->symtable);
   Py_CLEAR(self->errors);
   return 0;
@@ -197,11 +185,6 @@ static PyMemberDef AnalysisResult_members[] = {
      offsetof(StrictModuleAnalysisResult, ast),
      READONLY,
      "original AST of the module"},
-    {"ast_preprocessed",
-     T_OBJECT,
-     offsetof(StrictModuleAnalysisResult, ast_preprocessed),
-     READONLY,
-     "preprocessed AST of the module"},
     {"symtable",
      T_OBJECT,
      offsetof(StrictModuleAnalysisResult, symtable),
