@@ -89,6 +89,7 @@ class Preloader {
         func->func_builtins,
         funcFullname(func)));
     if (!preloader->preload()) {
+      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
       return nullptr;
     }
     return preloader;
@@ -102,6 +103,7 @@ class Preloader {
     auto preloader = std::unique_ptr<Preloader>(
         new Preloader(nullptr, code, globals, builtins, fullname));
     if (!preloader->preload()) {
+      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
       return nullptr;
     }
     return preloader;

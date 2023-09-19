@@ -8276,8 +8276,15 @@ PyEntry_LazyInit(PyFunctionObject *func,
                  Py_ssize_t nargsf,
                  PyObject *kwnames)
 {
-  if (!_PyJIT_IsEnabled() || _PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
+  if (!_PyJIT_IsEnabled()) {
     PyEntry_initnow(func);
+  } else {
+    _PyJIT_Result result = _PyJIT_CompileFunction(func);
+    if (result == PYJIT_RESULT_PYTHON_EXCEPTION) {
+        return NULL;
+    } else if (result != PYJIT_RESULT_OK) {
+        PyEntry_initnow(func);
+    }
   }
   assert(func->vectorcall != (vectorcallfunc)PyEntry_LazyInit);
   return func->vectorcall((PyObject *)func, stack, nargsf, kwnames);
@@ -8338,7 +8345,10 @@ PyEntry_AutoJIT(PyFunctionObject *func,
       }
     }
 
-    if (_PyJIT_CompileFunction(func) != PYJIT_RESULT_OK) {
+    _PyJIT_Result result = _PyJIT_CompileFunction(func);
+    if (result == PYJIT_RESULT_PYTHON_EXCEPTION) {
+        return NULL;
+    } else if (result != PYJIT_RESULT_OK) {
       func->vectorcall = (vectorcallfunc)PyEntry_LazyInit;
       PyEntry_initnow(func);
     }

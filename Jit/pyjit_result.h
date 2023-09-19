@@ -9,7 +9,7 @@ extern "C" {
 
 /* Status codes for the result of JIT attempts. */
 typedef enum {
-  PYJIT_RESULT_OK,
+  PYJIT_RESULT_OK = 0,
 
   /*
    * We cannot specialize the input.
@@ -27,7 +27,11 @@ typedef enum {
      or give up as best fits the case. */
   PYJIT_RESULT_RETRY,
 
-  PYJIT_RESULT_UNKNOWN_ERROR
+  PYJIT_RESULT_UNKNOWN_ERROR,
+
+  /* The JIT raised a Python exception, like a deferred object failing to be
+     resolved during preloading. */
+  PYJIT_RESULT_PYTHON_EXCEPTION = -1
 } _PyJIT_Result;
 
 #ifdef __cplusplus

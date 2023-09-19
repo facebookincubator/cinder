@@ -153,7 +153,7 @@ CompilationResult compileCode(
   auto preloader =
       jit::hir::Preloader::getPreloader(code, globals, builtins, fullname);
   if (!preloader) {
-    return {nullptr, PYJIT_RESULT_UNKNOWN_ERROR};
+    return {nullptr, PYJIT_RESULT_PYTHON_EXCEPTION};
   }
   return compilePreloader(ctx, *preloader);
 }

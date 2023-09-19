@@ -877,6 +877,8 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     case PYJIT_NOT_INITIALIZED:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_NOT_INITIALIZED");
       return nullptr;
+    case PYJIT_RESULT_PYTHON_EXCEPTION:
+      return nullptr;
   }
   PyErr_SetString(PyExc_RuntimeError, "Unhandled compilation result");
   return nullptr;

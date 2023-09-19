@@ -397,6 +397,9 @@ bool Preloader::preload() {
             // isn't in globals.
             PyDict_GetItem(builtins_, name);
           }
+          if (PyErr_Occurred()) {
+            return false;
+          }
           // The above dict fetches may have had side effects that mean globals
           // are no longer cacheable, so recheck that.
           if (canCacheGlobals()) {
