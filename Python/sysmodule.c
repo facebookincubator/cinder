@@ -1822,6 +1822,18 @@ sys_getallocatedblocks_impl(PyObject *module)
     return _Py_GetAllocatedBlocks();
 }
 
+/*[clinic input]
+sys.getallocatedbytes -> Py_ssize_t
+
+Return the currently allocated memory in bytes.
+[clinic start generated code]*/
+
+static Py_ssize_t
+sys_getallocatedbytes_impl(PyObject *module)
+/*[clinic end generated code: output=0a3da1951d3cde0d input=86d27b65df67866f]*/
+{
+    return _Py_GetAllocatedBytes();
+}
 
 /*[clinic input]
 sys._getframe
@@ -2048,7 +2060,7 @@ Dectivate the perf profiler trampoline.
 
 static PyObject *
 sys_deactivate_stack_trampoline_impl(PyObject *module)
-/*[clinic end generated code: output=b50da25465df0ef1 input=491f4fc1ed615736]*/
+/*[clinic end generated code: output=b50da25465df0ef1 input=9cc4ced2b5384d91]*/
 {
 #ifdef PY_HAVE_PERF_TRAMPOLINE
     if  (_PyPerfTrampoline_Init(0) < 0) {
@@ -2068,7 +2080,7 @@ Returns *True* if the perf profiler trampoline is active.
 
 static PyObject *
 sys_is_stack_trampoline_active_impl(PyObject *module)
-/*[clinic end generated code: output=ab2746de0ad9d293 input=061fa5776ac9dd59]*/
+/*[clinic end generated code: output=ab2746de0ad9d293 input=659d230cbf52bb19]*/
 {
 #ifdef PY_HAVE_PERF_TRAMPOLINE
     if (_PyIsPerfTrampolineActive()) {
@@ -2183,6 +2195,7 @@ static PyMethodDef sys_methods[] = {
     SYS_GETDEFAULTENCODING_METHODDEF
     SYS_GETDLOPENFLAGS_METHODDEF
     SYS_GETALLOCATEDBLOCKS_METHODDEF
+    SYS_GETALLOCATEDBYTES_METHODDEF
 #ifdef DYNAMIC_EXECUTION_PROFILE
     {"getdxp",          _Py_GetDXProfile, METH_VARARGS},
 #endif

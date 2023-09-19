@@ -896,6 +896,7 @@ PyGen_Type
 _PyGen_yf
 _Py_get_387controlword
 _Py_GetAllocatedBlocks
+_Py_GetAllocatedBytes
 Py_GetArgcArgv
 _Py_get_blocking
 Py_GetBuildInfo

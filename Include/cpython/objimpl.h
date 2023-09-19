@@ -55,6 +55,9 @@
 /* This function returns the number of allocated memory blocks, regardless of size */
 PyAPI_FUNC(Py_ssize_t) _Py_GetAllocatedBlocks(void);
 
+/* This function returns the total allocated memory in bytes */
+PyAPI_FUNC(Py_ssize_t) _Py_GetAllocatedBytes(void);
+
 /* Macros */
 #ifdef WITH_PYMALLOC
 PyAPI_FUNC(int) _PyObject_DebugMallocStats(FILE *out);

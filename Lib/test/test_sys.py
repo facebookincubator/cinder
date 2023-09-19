@@ -876,6 +876,36 @@ class SysModuleTest(unittest.TestCase):
         c = sys.getallocatedblocks()
         self.assertIn(c, range(b - 50, b + 50))
 
+    @unittest.skipUnless(hasattr(sys, "getallocatedbytes"),
+                         "sys.getallocatedbytes unavailable on this build")
+    def test_getallocatedbytes(self):
+        a = sys.getallocatedbytes()
+        self.assertIs(type(a), int)
+        self.assertGreater(a, 0)
+        gc.collect()
+        b = sys.getallocatedbytes()
+        self.assertLessEqual(b, a)
+        # raw memory
+        o = "." * 1000000
+        z = sys.getsizeof(o)
+        gc.collect()
+        c = sys.getallocatedbytes()
+        self.assertGreater(c - b + 100, z - 100)
+        del o
+        gc.collect()
+        d = sys.getallocatedbytes()
+        self.assertGreater(c - d + 100, z - 100)
+        # small objects memory
+        o = [f"{i:^4}" for i in range(1000)]
+        z = sys.getsizeof(o) + sys.getsizeof(o[0]) * len(o)
+        gc.collect()
+        e = sys.getallocatedbytes()
+        self.assertGreater(e - d + 100, z - 100)
+        del o
+        gc.collect()
+        f = sys.getallocatedbytes()
+        self.assertGreater(e - f + 100, z - 100)
+
     def test_is_finalizing(self):
         self.assertIs(sys.is_finalizing(), False)
         # Don't use the atexit module because _Py_Finalizing is only set

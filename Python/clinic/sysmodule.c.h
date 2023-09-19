@@ -791,6 +791,34 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(sys_getallocatedbytes__doc__,
+"getallocatedbytes($module, /)\n"
+"--\n"
+"\n"
+"Return the currently allocated memory in bytes.");
+
+#define SYS_GETALLOCATEDBYTES_METHODDEF    \
+    {"getallocatedbytes", (PyCFunction)sys_getallocatedbytes, METH_NOARGS, sys_getallocatedbytes__doc__},
+
+static Py_ssize_t
+sys_getallocatedbytes_impl(PyObject *module);
+
+static PyObject *
+sys_getallocatedbytes(PyObject *module, PyObject *Py_UNUSED(ignored))
+{
+    PyObject *return_value = NULL;
+    Py_ssize_t _return_value;
+
+    _return_value = sys_getallocatedbytes_impl(module);
+    if ((_return_value == -1) && PyErr_Occurred()) {
+        goto exit;
+    }
+    return_value = PyLong_FromSsize_t(_return_value);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(sys__getframe__doc__,
 "_getframe($module, depth=0, /)\n"
 "--\n"
@@ -1109,4 +1137,4 @@ sys__deactivate_opcache(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef SYS_GETANDROIDAPILEVEL_METHODDEF
     #define SYS_GETANDROIDAPILEVEL_METHODDEF
 #endif /* !defined(SYS_GETANDROIDAPILEVEL_METHODDEF) */
-/*[clinic end generated code: output=6230a1e3a4415744 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=afddb20df4a1be45 input=a9049054013a1b77]*/

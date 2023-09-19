@@ -1,4 +1,5 @@
 #include "Python.h"
+#include "pycore_atomic.h"        // _Py_atomic_int
 #include "pycore_pymem.h"         // _PyTraceMalloc_Config
 
 #include <stdbool.h>
@@ -6,6 +7,9 @@
 
 /* Defined in tracemalloc.c */
 extern void _PyMem_DumpTraceback(int fd, const void *ptr);
+
+
+static _Py_atomic_int raw_allocated_bytes;
 
 
 /* Python's malloc wrappers (see pymem.h) */
@@ -62,6 +66,27 @@ static void _PyMem_SetupDebugHooksDomain(PyMemAllocatorDomain domain);
 #  define _Py_NO_SANITIZE_MEMORY
 #endif
 
+#ifdef MS_WINDOWS
+#  include <malloc.h>
+#elif defined(__linux__)
+#  include <malloc.h>
+#elif defined(__APPLE__)
+#  include <malloc/malloc.h>
+#endif
+
+static inline size_t
+raw_malloc_size(void *p) {
+#ifdef MS_WINDOWS
+    return _msize(p);
+#elif defined(__linux__)
+    return malloc_usable_size(p);
+#elif defined(__APPLE__)
+    return malloc_size(p);
+#else
+    return 0;
+#endif
+}
+
 #ifdef WITH_PYMALLOC
 
 #ifdef MS_WINDOWS
@@ -96,7 +121,10 @@ _PyMem_RawMalloc(void *ctx, size_t size)
        To solve these problems, allocate an extra byte. */
     if (size == 0)
         size = 1;
-    return malloc(size);
+    void* ptr = malloc(size);
+    if (ptr != NULL)
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+    return ptr;
 }
 
 static void *
@@ -110,7 +138,10 @@ _PyMem_RawCalloc(void *ctx, size_t nelem, size_t elsize)
         nelem = 1;
         elsize = 1;
     }
-    return calloc(nelem, elsize);
+    void* ptr = calloc(nelem, elsize);
+    if (ptr != NULL)
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+    return ptr;
 }
 
 static void *
@@ -118,13 +149,21 @@ _PyMem_RawRealloc(void *ctx, void *ptr, size_t size)
 {
     if (size == 0)
         size = 1;
-    return realloc(ptr, size);
+    size_t oldsize = raw_malloc_size(ptr);
+    ptr = realloc(ptr, size);
+    if (ptr != NULL) {
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+        _Py_atomic_fetch_sub_relaxed(&raw_allocated_bytes, oldsize);
+    }
+    return ptr;
 }
 
 static void
 _PyMem_RawFree(void *ctx, void *ptr)
 {
+    size_t size = raw_malloc_size(ptr);
     free(ptr);
+    _Py_atomic_fetch_sub_relaxed(&raw_allocated_bytes, size);
 }
 
 
@@ -1265,6 +1304,28 @@ _Py_GetAllocatedBlocks(void)
     return n;
 }
 
+Py_ssize_t
+_Py_GetAllocatedBytes(void) {
+    Py_ssize_t n = _Py_atomic_load_relaxed(&raw_allocated_bytes);
+    /* add up allocated blocks for used pools */
+    for (uint i = 0; i < maxarenas; ++i) {
+        /* Skip arenas which are not allocated. */
+        if (arenas[i].address == 0) {
+            continue;
+        }
+        uintptr_t base = (uintptr_t)_Py_ALIGN_UP(arenas[i].address, POOL_SIZE);
+
+        /* visit every pool in the arena */
+        assert(base <= (uintptr_t) arenas[i].pool_address);
+        for (; base < (uintptr_t) arenas[i].pool_address; base += POOL_SIZE) {
+            poolp p = (poolp)base;
+            n += (p->ref.count * INDEX2SIZE(p->szidx));
+        }
+    }
+    return n;
+}
+
+
 #if WITH_PYMALLOC_RADIX_TREE
 /*==========================================================================*/
 /* radix tree for tracking arena usage
@@ -2339,8 +2400,12 @@ _Py_GetAllocatedBlocks(void)
     return 0;
 }
 
-#endif /* WITH_PYMALLOC */
+Py_ssize_t
+_Py_GetAllocatedBytes(void) {
+    return _Py_atomic_load_relaxed(&raw_allocated_bytes);
+}
 
+#endif /* WITH_PYMALLOC */
 
 /*==========================================================================*/
 /* A x-platform debugging allocator.  This doesn't manage memory directly,
