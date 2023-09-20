@@ -187,29 +187,6 @@ class ModuleLoaderTest : public PythonTest {
       const char* name) {
     return findModule(name, nullptr);
   }
-
-  Ref<> getPreprocessedASTDump(
-      const std::string& source,
-      const std::string& filename,
-      const std::string& modName) {
-    auto loader = getLoader("", "");
-    loader->loadStrictModuleModule();
-
-    auto mod = loader->loadModuleFromSource(source, modName, filename, {});
-    PyArena* arena = loader->getArena();
-    auto astPreprocessed = mod->getPyAst(true, arena);
-
-    Ref<> astMod = Ref<>::steal(PyImport_ImportModule("ast"));
-    EXPECT_TRUE(astMod != nullptr);
-    Ref<> astDumpFunc = Ref<>::steal(PyObject_GetAttrString(astMod, "dump"));
-    EXPECT_NE(astDumpFunc, nullptr);
-
-    Ref<> astPreprocessedStrObj = Ref<>::steal(PyObject_CallFunctionObjArgs(
-        astDumpFunc, astPreprocessed.get(), nullptr));
-
-    EXPECT_NE(astPreprocessedStrObj, nullptr);
-    return astPreprocessedStrObj;
-  }
 };
 
 class ModuleLoaderComparisonTest : public ModuleLoaderTest {

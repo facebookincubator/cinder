@@ -579,7 +579,6 @@ STRICTM_OBJS=       \
 		StrictModules/symbol_table.o \
 		StrictModules/analyzer.o \
 		StrictModules/ast_visitor.o \
-		StrictModules/ast_preprocessor.o \
 		StrictModules/parser_util.o \
 		StrictModules/strict_module_checker_interface.o \
 		StrictModules/scope.o \
@@ -1474,7 +1473,6 @@ STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/StrictModules/symbol_table.h \
 		$(srcdir)/StrictModules/ast_visitor.h \
 		$(srcdir)/StrictModules/analyzer.h \
-		$(srcdir)/StrictModules/ast_preprocessor.h \
 		$(srcdir)/StrictModules/parser_util.h \
 		$(srcdir)/StrictModules/strict_module_checker_interface.h \
 		$(srcdir)/StrictModules/scope.h \

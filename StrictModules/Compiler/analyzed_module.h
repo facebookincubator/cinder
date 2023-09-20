@@ -72,7 +72,7 @@ class AnalyzedModule {
     return astToResults_.get();
   }
 
-  Ref<> getPyAst(bool preprocess, PyArena* arena);
+  Ref<> getPyAst(PyArena* arena);
 
   const ModuleInfo& getModuleInfo() const {
     return *modInfo_;

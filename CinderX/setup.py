@@ -215,7 +215,6 @@ STRICTM_SRCS = [
     "StrictModules/symbol_table.cpp",
     "StrictModules/analyzer.cpp",
     "StrictModules/ast_visitor.cpp",
-    "StrictModules/ast_preprocessor.cpp",
     "StrictModules/parser_util.cpp",
     "StrictModules/strict_module_checker_interface.cpp",
     "StrictModules/scope.cpp",

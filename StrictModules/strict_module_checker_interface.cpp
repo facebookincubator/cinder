@@ -3,7 +3,6 @@
 
 #include "StrictModules/Compiler/abstract_module_loader.h"
 #include "StrictModules/Compiler/analyzed_module.h"
-#include "StrictModules/ast_preprocessor.h"
 #include "StrictModules/pycore_dependencies.h"
 
 #include <string>
@@ -239,11 +238,10 @@ PyArena* StrictModuleChecker_GetArena(StrictModuleChecker* checker) {
 
 PyObject* StrictAnalyzedModule_GetAST(
     StrictAnalyzedModule* mod,
-    PyArena* arena,
-    int preprocess) {
+    PyArena* arena) {
   strictmod::compiler::AnalyzedModule* module =
       reinterpret_cast<strictmod::compiler::AnalyzedModule*>(mod);
-  Ref<> result = module->getPyAst(preprocess, arena);
+  Ref<> result = module->getPyAst(arena);
   return result.release();
 }
 

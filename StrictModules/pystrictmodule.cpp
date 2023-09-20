@@ -106,7 +106,7 @@ static PyObject* create_AnalysisResult(
   PyObject* filename = StrictAnalyzedModule_GetFilename(mod);
   int mod_kind = StrictAnalyzedModule_GetModuleKind(mod);
   int stub_kind = StrictAnalyzedModule_GetStubKind(mod);
-  PyObject* ast = StrictAnalyzedModule_GetAST(mod, arena, 0);
+  PyObject* ast = StrictAnalyzedModule_GetAST(mod, arena);
   PyObject* symtable = StrictAnalyzedModule_GetSymtable(mod);
   Py_INCREF(module_name);
   Py_INCREF(errors);

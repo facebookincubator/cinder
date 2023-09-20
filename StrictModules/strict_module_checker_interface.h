@@ -129,16 +129,10 @@ PyArena* StrictModuleChecker_GetArena(StrictModuleChecker* checker);
 /** Retrieve the AST for a given module name
  *  If the module with given name is not yet checked,
  *  This will *not* trigger a check and NULL will be returned.
- *
- *  preprocess: if preprocess is true, indicator decorators will be
- *    added to the AST for further compiler usage. See preprocessor.h
- *  Note that preprocessing modifieds the mod_ty ast, and we should not
- *  call preprocess on already preprocessed ast
  */
 PyObject* StrictAnalyzedModule_GetAST(
     StrictAnalyzedModule* mod,
-    PyArena* arena,
-    int preprocess);
+    PyArena* arena);
 
 /** Retrieve the symtable for a given module name
  *  If the module with given name is not yet checked,
