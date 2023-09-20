@@ -33,7 +33,6 @@ from .common import (
     SymbolMap,
     SymbolScope,
 )
-from .preprocessor import ALL_INDICATORS
 from .rewriter.rewriter import SymbolVisitor
 
 CLASS_ATTR_CONFLICT_EXCEPTION = "ClassAttributesConflictException"
@@ -129,7 +128,6 @@ class ClassConflictChecker(SymbolVisitor[object, TransformerScope]):
                 symbol_map=symbol_map,
                 scope_factory=self.make_scope,
             ),
-            ALL_INDICATORS,
         )
         self.filename = filename
         self.flags = flags

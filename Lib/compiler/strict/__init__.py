@@ -19,11 +19,6 @@ from ast import (
 from types import CodeType
 from typing import Any, cast, Dict, final, List, Mapping, Optional
 
-try:
-    from cinderx.strictmodule import MUTABLE_DECORATOR
-except ModuleNotFoundError:
-    MUTABLE_DECORATOR = None
-
 from .. import consts, symbols
 from ..pyassem import PyFlowGraph, PyFlowGraphCinder
 from ..pycodegen import (
@@ -47,7 +42,7 @@ GLOBALS_HELPER_ALIAS = "<globals-helper>"
 
 
 def is_mutable(node: AST) -> bool:
-    return isinstance(node, Name) and node.id in (MUTABLE_DECORATOR, "mutable")
+    return isinstance(node, Name) and node.id in ("mutable")
 
 
 class FindClassDef(NodeVisitor):

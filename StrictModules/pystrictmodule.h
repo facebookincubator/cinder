@@ -27,12 +27,6 @@ typedef struct {
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleLoader_Type;
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
 
-#define Ci_MUTABLE_DECORATOR "<mutable>"
-#define Ci_EXTRA_SLOTS_DECORATOR "<extra_slots>"
-#define Ci_LOOSE_SLOTS_DECORATOR "<loose_slots>"
-#define Ci_ENABLE_SLOTS_DECORATOR "<enable_slots>"
-#define Ci_CACHED_PROP_DECORATOR "<cached_property>"
-
 // module kind
 #define Ci_NONSTRICT_MODULE_KIND 0
 #define Ci_STRICT_MODULE_KIND 1

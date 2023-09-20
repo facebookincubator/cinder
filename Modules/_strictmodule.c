@@ -39,11 +39,6 @@ static int strictmodule_exec(PyObject *m) {
     Py_DECREF(val);                                                            \
     return -1;                                                                 \
   }
-  SET_STR(MUTABLE_DECORATOR)
-  SET_STR(LOOSE_SLOTS_DECORATOR)
-  SET_STR(EXTRA_SLOTS_DECORATOR)
-  SET_STR(ENABLE_SLOTS_DECORATOR)
-  SET_STR(CACHED_PROP_DECORATOR)
 #undef SET_STR
 #define SET_LONG(name)                                                         \
   val = PyLong_FromLong(Ci_ ## name);                                          \

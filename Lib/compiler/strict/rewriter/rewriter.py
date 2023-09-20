@@ -60,15 +60,6 @@ from ..common import (
     SymbolMap,
     SymbolScope,
 )
-from ..preprocessor import (
-    ALL_INDICATORS,
-    get_cached_prop_value,
-    get_extra_slots,
-    is_indicator_dec,
-    is_loose_slots,
-    is_mutable,
-    is_strict_slots,
-)
 
 
 # We want to transform a module which looks something like:
@@ -219,9 +210,7 @@ class StrictModuleRewriter:
         self.builtins: Mapping[str, object] = builtins
         self.symbol_map: SymbolMap = get_symbol_map(root, table)
         scope: SymbolScope[None, None] = SymbolScope(table, None)
-        self.visitor = ImmutableVisitor(
-            ScopeStack(scope, symbol_map=self.symbol_map), ALL_INDICATORS
-        )
+        self.visitor = ImmutableVisitor(ScopeStack(scope, symbol_map=self.symbol_map))
         # Top-level statements in the returned code object...
         self.code_stmts: List[stmt] = []
         self.is_static = is_static
@@ -321,17 +310,16 @@ TScopeData = TypeVar("TData")
 
 class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
     def __init__(
-        self, scopes: ScopeStack[TVar, TScopeData], ignore_names: Iterable[str]
+        self, scopes: ScopeStack[TVar, TScopeData]
     ) -> None:
         self.scopes = scopes
-        self.ignore_names: Set[str] = set(ignore_names)
 
     @property
     def skip_annotations(self) -> bool:
         return False
 
     def is_global(self, name: str) -> bool:
-        return name not in self.ignore_names and self.scopes.is_global(name)
+        return self.scopes.is_global(name)
 
     def scope_for(self, name: str) -> SymbolScope[TVar, TScopeData]:
         return self.scopes.scope_for(name)
@@ -497,9 +485,9 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
 @final
 class ImmutableVisitor(SymbolVisitor[None, None]):
     def __init__(
-        self, scopes: ScopeStack[None, None], ignore_names: Iterable[str]
+        self, scopes: ScopeStack[None, None]
     ) -> None:
-        super().__init__(scopes, ignore_names)
+        super().__init__(scopes)
         self.globals: Set[str] = set()
         self.global_sets: Set[str] = set()
         self.global_dels: Set[str] = set()
@@ -639,21 +627,6 @@ class ClassScope(ScopeData):
         if node.value is None and isinstance(target, Name):
             self.instance_fields.add(target.id)
 
-    def visit_decorators(self, node: ClassDef | FunctionDef | AsyncFunctionDef) -> None:
-        for dec in node.decorator_list:
-            if is_indicator_dec(dec):
-                if is_strict_slots(dec):
-                    self.slots_enabled = True
-                elif is_loose_slots(dec):
-                    self.loose_slots = True
-                elif (extra_slots := get_extra_slots(dec)) is not None:
-                    self.extra_slots = extra_slots
-
-        node.decorator_list = [
-            d for d in node.decorator_list if (is_mutable(d) or not is_indicator_dec(d))
-        ]
-
-
 @final
 class FunctionScope(ScopeData):
     def __init__(self, node: AsyncFunctionDef | FunctionDef, parent: ScopeData) -> None:
@@ -697,18 +670,6 @@ class FunctionScope(ScopeData):
         ):
             self.assign_worker(node.targets, parent)
 
-    def visit_decorators(self, node: ClassDef | FunctionDef | AsyncFunctionDef) -> None:
-        for dec in node.decorator_list:
-            if is_indicator_dec(dec):
-                cached_prop_value = get_cached_prop_value(dec)
-                if cached_prop_value is not None:
-                    self.is_cached_prop = True
-                    self.cached_prop_value = cached_prop_value
-                    break
-        node.decorator_list = [
-            d for d in node.decorator_list if not is_indicator_dec(d)
-        ]
-
 
 @final
 class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
@@ -723,7 +684,7 @@ class ImmutableTransformer(SymbolVisitor[None, ScopeData], AstRewriter):
         future_imports: Set[alias],
         is_static: bool,
     ) -> None:
-        super().__init__(symbols, ALL_INDICATORS)
+        super().__init__(symbols)
         symbols.scope_factory = self.make_scope
         self.modname = modname
         self.future_imports = future_imports

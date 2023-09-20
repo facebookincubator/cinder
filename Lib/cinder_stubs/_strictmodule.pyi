@@ -2,11 +2,6 @@ import ast
 from _symtable import symtable
 from typing import Any, Callable, List, Protocol
 
-CACHED_PROP_DECORATOR: str
-ENABLE_SLOTS_DECORATOR: str
-EXTRA_SLOTS_DECORATOR: str
-LOOSE_SLOTS_DECORATOR: str
-MUTABLE_DECORATOR: str
 NONSTRICT_MODULE_KIND: int
 STATIC_MODULE_KIND: int
 STRICT_MODULE_KIND: int

@@ -10,7 +10,6 @@ from .test_rewriter import (
     ImmutableModuleTestCase,
     LazyLoadingTestCases,
     RewriterTestCase,
-    SlotificationTestCase,
 )
 from .test_strict_codegen import (
     StrictBuiltinCompilationTests,

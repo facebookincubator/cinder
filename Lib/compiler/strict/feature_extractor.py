@@ -58,7 +58,6 @@ from typing import (
 
 from ..symbols import ModuleScope, Scope, SymbolVisitor
 from .common import imported_name
-from .preprocessor import ALL_INDICATORS
 
 _IMPLICIT_GLOBALS = [
     "__name__",
@@ -77,11 +76,9 @@ class FeatureExtractor(SymbolVisitor):
         self,
         builtins: Dict[str, Any],
         future_flags: int,
-        ignore_names: Iterable[str] = ALL_INDICATORS,
     ) -> None:
         super().__init__(future_flags)
         self.builtins = builtins
-        self.ignore_names: Iterable[str] = ignore_names
         self.globals: Set[str] = set()
         self.global_sets: Set[str] = set()
         self.global_dels: Set[str] = set()

@@ -62,10 +62,7 @@ def make_fixed_modules() -> Mapping[str, Mapping[str, object]]:
         typing_members[name] = getattr(typing, name)
     strict_mod_members = {
         "freeze_type": freeze_type,
-        "loose_slots": loose_slots,
-        "strict_slots": strict_slots,
         "mutable": mutable,
-        "_mark_cached_property": _mark_cached_property,
     }
 
     return {
