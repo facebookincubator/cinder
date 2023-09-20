@@ -68,8 +68,8 @@ _PyShadowFrame_GetPyFrame(_PyShadowFrame *shadow_frame) {
   return (PyFrameObject *)_PyShadowFrame_GetPtr(shadow_frame);
 }
 
-int _PyShadowFrame_HasGen(_PyShadowFrame *shadow_frame);
-PyGenObject *_PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
+PyAPI_FUNC(int) _PyShadowFrame_HasGen(_PyShadowFrame *shadow_frame);
+PyAPI_FUNC(PyGenObject *) _PyShadowFrame_GetGen(_PyShadowFrame *shadow_frame);
 void _PyShadowFrame_DumpStack(PyThreadState* state);
 
 static inline uintptr_t _PyShadowFrame_MakeData(void *ptr,
@@ -132,11 +132,11 @@ static inline void *JITShadowFrame_GetRTPtr(JITShadowFrame *jit_sf) {
 }
 
 /* Return a borrowed reference to the code object for shadow_frame */
-PyCodeObject *_PyShadowFrame_GetCode(_PyShadowFrame *shadow_frame);
+PyAPI_FUNC(PyCodeObject *) _PyShadowFrame_GetCode(_PyShadowFrame *shadow_frame);
 
 
 /* Returns the fully qualified name of code running in the frame */
-PyObject *_PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
+PyAPI_FUNC(PyObject *) _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame *shadow_frame);
 
 
 /* Populates codeobject pointers in the given arrays. Meant to only be called
@@ -169,7 +169,7 @@ CiAPI_FUNC(int) _PyShadowFrame_WalkAndPopulate(
     int* sync_stack_len_out);
 
 /* Looks up the awaiter shadow frame (if any) from the given shadow frame */
-_PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame *shadow_frame);
+PyAPI_FUNC(_PyShadowFrame*) _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame *shadow_frame);
 
 #ifdef __cplusplus
 }
