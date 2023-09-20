@@ -780,6 +780,14 @@ ComplexExtendsException(PyExc_Exception, ImportError,
                         "module.");
 
 /*
+ *    ImportCycleError extends ImportError
+ */
+
+
+MiddlingExtendsException(PyExc_ImportError, ImportCycleError, ImportError,
+                         "Import produces a cycle.");
+
+/*
  *    ModuleNotFoundError extends ImportError
  */
 
@@ -2686,6 +2694,7 @@ _PyExc_Init(PyInterpreterState *interp)
     PRE_INIT(SystemExit);
     PRE_INIT(KeyboardInterrupt);
     PRE_INIT(ImportError);
+    PRE_INIT(ImportCycleError);
     PRE_INIT(ModuleNotFoundError);
     PRE_INIT(OSError);
     PRE_INIT(EOFError);
@@ -2821,6 +2830,7 @@ _PyBuiltins_AddExceptions(PyObject *bltinmod)
     POST_INIT(SystemExit);
     POST_INIT(KeyboardInterrupt);
     POST_INIT(ImportError);
+    POST_INIT(ImportCycleError);
     POST_INIT(ModuleNotFoundError);
     POST_INIT(OSError);
     INIT_ALIAS(EnvironmentError, OSError);

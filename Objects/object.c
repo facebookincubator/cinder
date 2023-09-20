@@ -1004,6 +1004,18 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
         }
         return 0;
     }
+#ifdef ENABLE_CINDERX
+    if (tp->tp_getattro == PyStrictModule_Type.tp_getattro) {
+        *result = Ci_strictmodule_lookupattro(v, name, 1);
+        if (*result != NULL) {
+            return 1;
+        }
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+#endif
     if (tp->tp_getattro != NULL) {
         *result = (*tp->tp_getattro)(v, name);
     }

@@ -2079,6 +2079,51 @@ _PyImport_ImportFrom(PyThreadState *tstate, PyObject *v, PyObject *name)
     return NULL;
 }
 
+static long
+_lazy_state_add(PyThreadState *tstate, PyObject *state_dict, PyObject *lazy_import, long num)
+ {
+    long long_value = 0;
+    PyObject *exc_type, *exc_value, *exc_tb;
+    PyErr_Fetch(&exc_type, &exc_value, &exc_tb);
+
+    PyObject *value = PyDict_GetItem(state_dict, lazy_import);
+    if (value != NULL) {
+        long_value = PyLong_AsLong(value);
+        if (long_value == -1 && _PyErr_Occurred(tstate)) {
+            goto error;
+        }
+    }
+    long_value += num;
+    assert(long_value >= 0);
+    if (long_value == 0) {
+        if (value != NULL) {
+            if (PyDict_DelItem(state_dict, lazy_import) < 0) {
+                long_value = -1;
+                goto error;
+            }
+        }
+    } else {
+        PyObject *new_value = PyLong_FromLong(long_value);
+        if (new_value == NULL) {
+            long_value = -1;
+            goto error;
+        }
+        if (PyDict_SetItem(state_dict, lazy_import, new_value) < 0) {
+            Py_DECREF(new_value);
+            long_value = -1;
+            goto error;
+        }
+        Py_DECREF(new_value);
+    }
+
+  error:
+    PyErr_Restore(exc_type, exc_value, exc_tb);
+    if (long_value == -1 && !_PyErr_Occurred(tstate)) {
+        PyErr_SetString(PyExc_RuntimeError, "lazy state not added correctly");
+    }
+    return long_value;
+}
+
 PyObject *
 _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int full)
 {
@@ -2090,6 +2135,21 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int
     assert(state_dict != NULL);
 
     PyLazyImportObject *lz = (PyLazyImportObject *)lazy_import;
+
+    long lvalue = _lazy_state_add(tstate, state_dict, lazy_import, 1);
+    if (lvalue < 0) {
+        return NULL;
+    }
+    if (lvalue > 10) {
+        PyObject *name = _PyLazyImport_GetName(lazy_import);
+        PyObject *errmsg = PyUnicode_FromFormat("cannot import name %R "
+                                                "(most likely due to a circular import)",
+                                                name);
+        PyErr_SetImportErrorSubclass(PyExc_ImportCycleError, errmsg, lz->lz_from, NULL);
+        Py_XDECREF(errmsg);
+        Py_XDECREF(name);
+        goto error;
+    }
 
     Py_ssize_t dot = -1;
     if (!full && lz->lz_attr != NULL) {
@@ -2109,21 +2169,13 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int
                 goto error;
             }
             Py_INCREF(lz->lz_attr);
-            if (PyTuple_SetItem(fromlist, 0, lz->lz_attr) < 0) {
-                goto error;
-            }
+            PyTuple_SET_ITEM(fromlist, 0, lz->lz_attr);
         } else {
             Py_INCREF(lz->lz_attr);
             fromlist = lz->lz_attr;
         }
     }
     PyObject *globals = _PyEval_GetGlobals(tstate);
-    PyObject *zero = _PyLong_GetZero(); // borrowed reference
-
-    if (PyDict_Contains(state_dict, lazy_import)) {
-        goto error;
-    }
-    PyDict_SetItem(state_dict, lazy_import, _PyLong_GetOne());
 
     if (full) {
         obj = _PyImport_ImportName(lz->lz_builtins,
@@ -2131,7 +2183,7 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int
                                    globals,
                                    lz->lz_from,
                                    fromlist,
-                                   zero);
+                                   _PyLong_GetZero());
     } else {
         PyObject *name = PyUnicode_Substring(lz->lz_from, 0, dot);
         if (name == NULL) {
@@ -2142,7 +2194,7 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int
                                    globals,
                                    name,
                                    fromlist,
-                                   zero);
+                                   _PyLong_GetZero());
         Py_DECREF(name);
     }
 
@@ -2159,25 +2211,27 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import, int
         }
     }
 
-    if (PyDict_DelItem(state_dict, lazy_import) < 0) {
-        Py_XDECREF(obj);
-        obj = NULL;
-        goto error;
-    }
-
-    if (obj != NULL) {
-        if (PyLazyImport_CheckExact(obj)) {
-            PyObject *value = _PyImport_LoadLazyImportTstate(tstate, obj, 0);
-            Py_DECREF(obj);
-            if (value == NULL) {
-                goto error;
-            }
-            obj = value;
+    if (PyLazyImport_CheckExact(obj)) {
+        PyObject *new_obj = _PyImport_LoadLazyImportTstate(tstate, obj, 0);
+        if (new_obj == NULL) {
+            goto error;
         }
-        assert(!PyLazyImport_CheckExact(obj));
+        Py_DECREF(obj);
+        obj = new_obj;
     }
+    assert(!PyLazyImport_CheckExact(obj));
+
+    goto ok;
 
   error:
+    Py_XDECREF(obj);
+    obj = NULL;
+
+  ok:
+    if (_lazy_state_add(tstate, state_dict, lazy_import, -1) < 0) {
+        Py_XDECREF(obj);
+        obj = NULL;
+    }
     Py_XDECREF(fromlist);
     return obj;
 }

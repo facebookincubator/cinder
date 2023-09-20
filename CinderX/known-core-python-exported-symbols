@@ -46,6 +46,7 @@ Ci_PyWaitHandle_Type
 Ci_RuntimeState_SetProfileInterpPeriod
 Ci_set_attribute_error_context
 Ci_StaticFunction_Vectorcall
+Ci_strictmodule_lookupattro
 Ci_SuperLookupMethodOrAttr
 Ci_ThreadState_SetProfileInterp
 Ci_ThreadState_SetProfileInterpAll
@@ -756,6 +757,7 @@ PyExc_FileNotFoundError
 PyExc_FloatingPointError
 PyExc_FutureWarning
 PyExc_GeneratorExit
+PyExc_ImportCycleError
 PyExc_ImportError
 PyExc_ImportWarning
 PyExc_IndentationError

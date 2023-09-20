@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import _imp
 import dis
 import gc
 import io
@@ -2568,3 +2569,34 @@ class StrictLoaderTest(StrictTestBase):
             # version of the C class, but the argument check will be against the
             # old version of the C class from the failed import
             self.assertIs(other.f(c), c)
+
+    def test_strict_lazy_import_cycle(self):
+        self.sbx.write_file(
+            "mod/__init__.py",
+            """
+            import __strict__
+            from . import version
+            """,
+        )
+        self.sbx.write_file(
+            "mod/version.py",
+            """
+            import __strict__
+            VERSION = 1
+            """,
+        )
+        self.sbx.write_file(
+            "entry.py",
+            """
+            from mod import version
+            v = version.VERSION
+            """,
+        )
+        for lazy in [True, False]:
+            with self.subTest(lazy=lazy):
+                orig = _imp._set_lazy_imports(lazy)
+                try:
+                    mod = self.sbx.strict_import("entry")
+                finally:
+                    _imp._set_lazy_imports(*orig)
+                self.assertEqual(mod.v, 1)

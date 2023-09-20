@@ -760,6 +760,9 @@ Ci_module_lookupattro_impl(PyModuleObject *m, PyObject *name, int suppress)
     }
     if (suppress) {
         if (PyErr_Occurred()) {
+            if (PyErr_ExceptionMatches(PyExc_ImportCycleError)) {
+                PyErr_Clear();
+            }
             return NULL;
         }
     }
@@ -1389,7 +1392,7 @@ static PyObject * strictmodule_patch_delete(PyObject *self, PyObject *args)
 
 
 static PyObject *
-strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
+Ci_strictmodule_lookupattro_impl(PyStrictModuleObject *m, PyObject *name, int suppress)
 {
     PyObject *attr;
     if (Py_TYPE(m) != &PyStrictModule_Type || !PyUnicode_Check(name)) {
@@ -1426,7 +1429,8 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
                     Py_INCREF(attr);
                     return attr;
                 } else if (PyErr_Occurred()) {
-                    if (suppress && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                    if (suppress && (PyErr_ExceptionMatches(PyExc_AttributeError) ||
+                                     PyErr_ExceptionMatches(PyExc_ImportCycleError))) {
                         PyErr_Clear();
                     }
                     return NULL;
@@ -1503,7 +1507,13 @@ strictmodule_lookupattro(PyStrictModuleObject *m, PyObject *name, int suppress)
 static PyObject *
 strictmodule_getattro(PyStrictModuleObject *m, PyObject *name)
 {
-    return strictmodule_lookupattro(m, name, 0);
+    return Ci_strictmodule_lookupattro_impl(m, name, 0);
+}
+
+PyObject*
+Ci_strictmodule_lookupattro(PyObject *m, PyObject *name, int suppress)
+{
+    return Ci_strictmodule_lookupattro_impl((PyStrictModuleObject*)m, name, 1);
 }
 
 static int
