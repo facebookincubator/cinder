@@ -258,10 +258,6 @@ get_type_cache(void)
 static void
 type_cache_clear(struct type_cache *cache, PyObject *value)
 {
-#ifdef ENABLE_CINDERX
-    _PyClassLoader_ClearCache();
-#endif
-
     for (Py_ssize_t i = 0; i < (1 << MCACHE_SIZE_EXP); i++) {
         struct type_cache_entry *entry = &cache->hashtable[i];
         entry->version = 0;

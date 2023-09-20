@@ -181,6 +181,7 @@ int Cinder_Init() {
 }
 
 int Cinder_Fini() {
+  _PyClassLoader_ClearCache();
   return _PyJIT_Finalize();
 }
 
