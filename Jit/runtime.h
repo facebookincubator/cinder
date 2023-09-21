@@ -443,7 +443,7 @@ class Runtime {
   }
 
   // When type is modified or an instance of type has __class__ assigned to,
-  // call patcher->patch() if patcher->shouldPatch(new_ty) returns true.
+  // call patcher->maybePatch(new_ty).
   void watchType(BorrowedRef<PyTypeObject> type, TypeDeoptPatcher* patcher);
 
   // Callback for when a type is modified or destroyed. lookup_type should be
