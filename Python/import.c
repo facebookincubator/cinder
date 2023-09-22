@@ -1694,7 +1694,10 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
                 goto error;
             }
             if (PyDict_CheckExact(parent_dict)) {
-                if (!has_lazy_submodule(parent_module, child)) {
+                int res = has_lazy_submodule(parent_module, child);
+                if (res < 0) {
+                    goto error;
+                } else if (!res) {
                     PyObject *lazy_module_attr = _PyLazyImport_New(builtins, parent, child);
                     if (lazy_module_attr == NULL) {
                         goto error;
@@ -2839,7 +2842,10 @@ _imp__maybe_set_parent_attribute_impl(PyObject *module,
         goto error;
     }
     if (PyDict_CheckExact(parent_dict)) {
-        if (has_lazy_submodule(parent_module, child)) {
+        int res = has_lazy_submodule(parent_module, child);
+        if (res < 0) {
+            goto error;
+        } else if (res) {
             PyObject *attr = _PyDict_GetItemKeepLazy(parent_dict, child);
             if (attr == NULL) {
                 if (PyErr_Occurred()) {
@@ -2903,7 +2909,10 @@ _imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
             Py_ssize_t pos = 0;
             Py_hash_t hash;
             while (_PySet_NextEntry(lazy_submodules, &pos, &attr_name, &hash)) {
-                if (!has_lazy_submodule(child_module, attr_name)) {
+                int res = has_lazy_submodule(child_module, attr_name);
+                if (res < 0) {
+                    goto error;
+                } else if (!res) {
                     if (child_dict == NULL) {
                         child_dict = _PyObject_GetAttrId(child_module, &PyId___dict__);
                         if (child_dict == NULL) {
