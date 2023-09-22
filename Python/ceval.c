@@ -3711,9 +3711,9 @@ main_loop:
             PyObject *level = TOP();
             PyObject *res;
 
-            if (_PyImport_IsLazyImportsEnabled(tstate)
-                && f->f_globals == f->f_locals
-                && f->f_iblock == 0) {
+            if (f->f_globals == f->f_locals &&
+                f->f_iblock == 0 &&
+                _PyImport_IsLazyImportsEnabled(tstate)) {
                 res = _PyImport_LazyImportName(f->f_builtins,
                                                f->f_globals,
                                                f->f_locals == NULL ? Py_None : f->f_locals,
