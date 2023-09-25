@@ -24,7 +24,9 @@ class int "PyObject *" "&PyLong_Type"
 #define NSMALLNEGINTS           _PY_NSMALLNEGINTS
 #define NSMALLPOSINTS           _PY_NSMALLPOSINTS
 
+#ifdef Py_IMMORTAL_INSTANCES
 static PyObject* SMALL_INTS[NSMALLNEGINTS + NSMALLPOSINTS];
+#endif
 
 _Py_IDENTIFIER(little);
 _Py_IDENTIFIER(big);
@@ -46,6 +48,9 @@ get_small_int(sdigit ival)
 {
     assert(IS_SMALL_INT(ival));
     PyObject *v = __PyLong_GetSmallInt_internal(ival);
+#ifndef Py_IMMORTAL_INSTANCES
+    Py_INCREF(v);
+#endif
     return v;
 }
 
@@ -5769,6 +5774,7 @@ _PyLong_Init(PyInterpreterState *interp)
         sdigit ival = (sdigit)i - NSMALLNEGINTS;
         int size = (ival < 0) ? -1 : ((ival == 0) ? 0 : 1);
 
+#ifdef Py_IMMORTAL_INSTANCES
         PyLongObject* v = (PyLongObject*)SMALL_INTS[i];
         if (v == NULL) {
             v = _PyLong_New(1);
@@ -5780,6 +5786,16 @@ _PyLong_Init(PyInterpreterState *interp)
             v->ob_digit[0] = (digit)abs(ival);
             Py_SET_REFCNT(v, kImmortalInitialCount);
         }
+#else
+        PyLongObject *v = _PyLong_New(1);
+        if (!v) {
+            return -1;
+         }
+
+        Py_SET_SIZE(v, size);
+        v->ob_digit[0] = (digit)abs(ival);
+#endif
+
         interp->small_ints[i] = v;
     }
     interp->int_max_str_digits = _Py_global_config_int_max_str_digits;

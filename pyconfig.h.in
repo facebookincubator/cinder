@@ -1428,11 +1428,11 @@
 /* Define if you want to coerce the C locale to a UTF-8 based locale */
 #undef PY_COERCE_C_LOCALE
 
-/* Define to 1 if you have the perf trampoline. */
-#undef PY_HAVE_PERF_TRAMPOLINE
-
 /* Define to printf format modifier for Py_ssize_t */
 #undef PY_FORMAT_SIZE_T
+
+/* Define to 1 if you have the perf trampoline. */
+#undef PY_HAVE_PERF_TRAMPOLINE
 
 /* Default cipher suites list for ssl module. 1: Python's preferred selection,
    2: leave OpenSSL defaults untouched, 0: custom string */
@@ -1450,6 +1450,9 @@
 /* Define hash algorithm for str, bytes and memoryview. SipHash24: 1, FNV: 2,
    externally defined: 0 */
 #undef Py_HASH_ALGORITHM
+
+/* Define if you want to enable immortal instances */
+#undef Py_IMMORTAL_INSTANCES
 
 /* Define if you want to enable tracing references for debugging purpose */
 #undef Py_TRACE_REFS
@@ -1705,3 +1708,4 @@
 #endif
 
 #endif /*Py_PYCONFIG_H*/
+

@@ -512,8 +512,6 @@ PyAPI_FUNC(void) _PyDebug_PrintTotalRefs(void);
 #define _Py_DEC_REFTOTAL
 #endif /* Py_REF_DEBUG */
 
-#define Py_IMMORTAL_INSTANCES
-
 /* Immortalizing causes the instance to not participate in reference counting.
  * The object will be kept alive until the runtime finalization.
  * This avoids an unnecessary copy-on-write for applications that share
@@ -594,6 +592,10 @@ static inline __attribute__((always_inline)) int _Py_IsImmortal(PyObject* ob) {
 static const Py_ssize_t kImmortalInitialCount = 1;
 
 #define Py_SET_REFCNT(op, refcnt)  (((PyObject *)op)->ob_refcnt = refcnt)
+
+static inline __attribute__((always_inline)) int _Py_IsImmortal(PyObject* Py_UNUSED(ob)) {
+    return 0;
+}
 
 #endif // !Py_IMMORTAL_INSTANCES
 
@@ -796,7 +798,11 @@ PyAPI_FUNC(int) Py_IsNone(PyObject *x);
 #define Py_IsNone(x) Py_Is((x), Py_None)
 
 /* Macro for returning Py_None from a function */
+#ifdef Py_IMMORTAL_INSTANCES
 #define Py_RETURN_NONE return Py_None
+#else
+#define Py_RETURN_NONE return Py_NewRef(Py_None)
+#endif
 
 /*
 Py_NotImplemented is a singleton used to signal that an operation is
@@ -806,7 +812,11 @@ PyAPI_DATA(PyObject) _Py_NotImplementedStruct; /* Don't use this directly */
 #define Py_NotImplemented (&_Py_NotImplementedStruct)
 
 /* Macro for returning Py_NotImplemented from a function */
+#ifdef Py_IMMORTAL_INSTANCES
 #define Py_RETURN_NOTIMPLEMENTED return Py_NotImplemented
+#else
+#define Py_RETURN_NOTIMPLEMENTED return Py_NewRef(Py_NotImplemented)
+#endif
 
 /* Rich comparison opcodes */
 #define Py_LT 0

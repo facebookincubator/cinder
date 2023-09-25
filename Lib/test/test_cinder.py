@@ -30,6 +30,7 @@ from textwrap import dedent
 
 from types import CodeType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
+from unittest import skipIf
 from unittest.mock import patch
 
 import _testcindercapi
@@ -2596,6 +2597,7 @@ class WalkShadowFramesTest(unittest.TestCase):
         verify_stack(self, sync_stack[::-1], ["_run", "a2", "a1"])
 
 
+@skipIf(not hasattr(gc, "is_immortal"), "no immortal")
 class GCImmortalizeTests(unittest.TestCase):
     # These tests need to be run in a separate process since gc.immortalize_heap
     # is irreversible. Once called all objects on the heap become uncleanable

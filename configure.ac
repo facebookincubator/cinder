@@ -2669,6 +2669,21 @@ AC_SUBST(BLDSHARED)
 AC_SUBST(CCSHARED)
 AC_SUBST(LINKFORSHARED)
 
+# --with-immortalization
+AC_MSG_CHECKING(for --with-immortalization)
+AC_ARG_WITH(immortalization,
+            AS_HELP_STRING([--with-immortalization], [enable immortalization of objects (default is yes)]),
+            [],
+            [with_immortalization="yes"])
+
+if test "$with_immortalization" != "no"
+then
+    AC_DEFINE(Py_IMMORTAL_INSTANCES, 1,
+      [Define if you want to enable immortal instances])
+fi
+AC_MSG_RESULT($with_immortalization)
+AC_SUBST(Py_IMMORTAL_INSTANCES)
+
 # SHLIB_SUFFIX is the extension of shared libraries `(including the dot!)
 # -- usually .so, .sl on HP-UX, .dll on Cygwin
 AC_MSG_CHECKING(the extension of shared libraries)
@@ -2685,6 +2700,7 @@ if test -z "$SHLIB_SUFFIX"; then
 	esac
 fi
 AC_MSG_RESULT($SHLIB_SUFFIX)
+
 
 # LDSHARED is the ld *command* used to create shared library
 # -- "cc -G" on SunOS 5.x.
@@ -6075,6 +6091,7 @@ else
   AC_MSG_RESULT(no);
 fi],
 [AC_MSG_RESULT(no)])
+
 
 # --with-static-libpython
 STATIC_LIBPYTHON=1

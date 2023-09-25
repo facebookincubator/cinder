@@ -677,6 +677,7 @@ TZPATH
 PERF_TRAMPOLINE_OBJ
 SHLIBS
 CFLAGSFORSHARED
+Py_IMMORTAL_INSTANCES
 LINKFORSHARED
 CCSHARED
 BLDSHARED
@@ -808,6 +809,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -847,6 +849,7 @@ enable_address_sanitizer_logging
 with_memory_sanitizer
 with_undefined_behavior_sanitizer
 with_thread_sanitizer
+with_immortalization
 with_hash_algorithm
 with_tzpath
 with_libs
@@ -936,6 +939,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1188,6 +1192,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1325,7 +1338,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1478,6 +1491,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1537,8 +1551,8 @@ Optional Features:
                           use big digits (30 or 15 bits) for Python longs
                           (default is system-dependent)]
   --disable-test-modules  don't build nor install test modules
-  --enable-cinderx-so   build CinderX features into a .so
-  --disable-cinderx     build core with Cinder features marked for
+  --enable-cinderx-so     build CinderX features into a .so
+  --disable-cinderx       build core with Cinder features marked for
                           modularization
 
 Optional Packages:
@@ -1571,6 +1585,7 @@ Optional Packages:
                           enable UndefinedBehaviorSanitizer undefined
                           behaviour detector, 'ubsan' (default is no)
   --with-thread-sanitizer enable ThreadSanitizer (tsan)
+  --with-immortalization  enable immortalization of objects (default is yes)
   --with-hash-algorithm=[fnv|siphash24]
                           select hash algorithm for use in Python/pyhash.c
                           (default is SipHash24)
@@ -9725,6 +9740,28 @@ fi
 
 
 
+# --with-immortalization
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --with-immortalization" >&5
+$as_echo_n "checking for --with-immortalization... " >&6; }
+
+# Check whether --with-immortalization was given.
+if test "${with_immortalization+set}" = set; then :
+  withval=$with_immortalization;
+else
+  with_immortalization="yes"
+fi
+
+
+if test "$with_immortalization" != "no"
+then
+
+$as_echo "#define Py_IMMORTAL_INSTANCES 1" >>confdefs.h
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $with_immortalization" >&5
+$as_echo "$with_immortalization" >&6; }
+
+
 # SHLIB_SUFFIX is the extension of shared libraries `(including the dot!)
 # -- usually .so, .sl on HP-UX, .dll on Cygwin
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking the extension of shared libraries" >&5
@@ -9743,6 +9780,7 @@ if test -z "$SHLIB_SUFFIX"; then
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SHLIB_SUFFIX" >&5
 $as_echo "$SHLIB_SUFFIX" >&6; }
+
 
 # LDSHARED is the ld *command* used to create shared library
 # -- "cc -G" on SunOS 5.x.
@@ -10037,7 +10075,6 @@ if test "x$perf_trampoline" = xyes; then :
 $as_echo "#define PY_HAVE_PERF_TRAMPOLINE 1" >>confdefs.h
 
   PERF_TRAMPOLINE_OBJ=Objects/asm_trampoline.o
-
     if test "x$Py_DEBUG" = xtrue; then :
 
     as_fn_append BASECFLAGS " -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
@@ -17265,6 +17302,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     StrictModules/Tests \
     ThirdParty/googletest-1.8.1/googletest \
     ThirdParty/i386-dis \
+    ThirdParty/asmjit/src/asmjit/arm \
     ThirdParty/asmjit/src/asmjit/core \
     ThirdParty/asmjit/src/asmjit/x86 \
     ThirdParty/asmjit/src/asmjit/arm"
@@ -18107,6 +18145,7 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
+
 
 
 # --with-static-libpython
