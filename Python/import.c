@@ -1648,6 +1648,7 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
         }
         Py_DECREF(lazy_submodules);
     }
+    PyObject *filter = tstate->interp->eager_imports;
     while (1) {
         Py_ssize_t dot = PyUnicode_FindChar(name, '.', 0, PyUnicode_GET_LENGTH(name), -1);
         if (dot < 0) {
@@ -1657,6 +1658,11 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
         if (parent == NULL) {
             goto error;
         }
+        if (filter != NULL && PySequence_Contains(filter, parent)) {
+            ret = 0; /* If the direct parent is eager, load eagerly */
+            goto end;
+        }
+        filter = NULL;
         Py_XDECREF(child);
         child = PyUnicode_Substring(name, dot + 1, PyUnicode_GET_LENGTH(name));
         if (child == NULL) {
