@@ -157,7 +157,7 @@ def main():
     args = parse_args()
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level)
-    run_bisect(args.command, args.jit_list_file)
+    run_bisect(args.command, args.initial_jit_list_file)
 
 
 if __name__ == "__main__":
