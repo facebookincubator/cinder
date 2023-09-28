@@ -8,6 +8,7 @@ import unittest
 import sys
 import dis
 import io
+import os
 import re
 import types
 import contextlib
@@ -159,6 +160,26 @@ def bug1333982(x=[]):
 bug1333982 = compile_and_get(bug1333982_str, "bug1333982")
 
 dis_bug1333982 = """\
+%3d           0 LOAD_ASSERTION_ERROR
+              2 LOAD_CONST               2 (<code object <listcomp> at 0x..., file "%s", line %d>)
+              4 LOAD_CONST               3 ('bug1333982.<locals>.<listcomp>')
+              6 MAKE_FUNCTION            0
+              8 LOAD_FAST                0 (x)
+             10 GET_ITER
+             12 CALL_FUNCTION            1
+
+%3d          14 LOAD_CONST               4 (1)
+
+%3d          16 BINARY_ADD
+             18 CALL_FUNCTION            1
+             20 RAISE_VARARGS            1
+""" % (bug1333982.__code__.co_firstlineno + 1,
+       __file__,
+       bug1333982.__code__.co_firstlineno + 1,
+       bug1333982.__code__.co_firstlineno + 2,
+       bug1333982.__code__.co_firstlineno + 1)
+
+dis_bug1333982_with_inline_comprehensions = """\
 %3d           0 LOAD_ASSERTION_ERROR
               2 BUILD_LIST               0
               4 LOAD_FAST                0 (x)
@@ -464,6 +485,25 @@ dis_nested_0 = """\
 
 dis_nested_1 = """%s
 Disassembly of <code object foo at 0x..., file "%s", line %d>:
+%3d           0 LOAD_CLOSURE             0 (x)
+              2 BUILD_TUPLE              1
+              4 LOAD_CONST               1 (<code object <listcomp> at 0x..., file "%s", line %d>)
+              6 LOAD_CONST               2 ('_h.<locals>.foo.<locals>.<listcomp>')
+              8 MAKE_FUNCTION            8 (closure)
+             10 LOAD_DEREF               1 (y)
+             12 GET_ITER
+             14 CALL_FUNCTION            1
+             16 RETURN_VALUE
+""" % (dis_nested_0,
+       __file__,
+       _h.__code__.co_firstlineno + 1,
+       _h.__code__.co_firstlineno + 3,
+       __file__,
+       _h.__code__.co_firstlineno + 3,
+)
+
+dis_nested_1_with_inline_comprehensions = """%s
+Disassembly of <code object foo at 0x..., file "%s", line %d>:
 %3d           0 BUILD_LIST               0
               2 LOAD_DEREF               0 (y)
               4 GET_ITER
@@ -484,6 +524,7 @@ Disassembly of <code object foo at 0x..., file "%s", line %d>:
 
 
 class DisTests(unittest.TestCase):
+    _inline_comprehensions = os.getenv("PYTHONINLINECOMPREHENSIONS")
 
     maxDiff = None
 
@@ -551,7 +592,10 @@ class DisTests(unittest.TestCase):
         if not __debug__:
             self.skipTest('need asserts, run without -O')
 
-        self.do_disassembly_test(bug1333982, dis_bug1333982)
+        if self._inline_comprehensions:
+            self.do_disassembly_test(bug1333982, dis_bug1333982_with_inline_comprehensions)
+        else:
+            self.do_disassembly_test(bug1333982, dis_bug1333982)
 
     def test_bug_42562(self):
         self.do_disassembly_test(bug42562, dis_bug42562)
@@ -693,7 +737,10 @@ class DisTests(unittest.TestCase):
             self.assertEqual(dis, expected)
 
         check(dis_nested_0, depth=0)
-        check(dis_nested_1, depth=1)
+        if self._inline_comprehensions:
+            check(dis_nested_1_with_inline_comprehensions, depth=1)
+        else:
+            check(dis_nested_1, depth=1)
 
 
 class DisWithFileTests(DisTests):

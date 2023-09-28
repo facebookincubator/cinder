@@ -449,8 +449,8 @@ _PyAST_Compile(mod_ty mod, PyObject *filename, PyCompilerFlags *flags,
         goto finally;
     }
 
-    const char *envval = getenv("PYTHONNOINLINECOMPREHENSIONS");
-    int inline_comprehensions = !envval || envval[0] == '\0';
+    const char *envval = getenv("PYTHONINLINECOMPREHENSIONS");
+    int inline_comprehensions = envval && envval[0] != '\0';
     c.c_st = _PySymtable_BuildEx(mod, filename, c.c_future, inline_comprehensions);
     if (c.c_st == NULL) {
         if (!PyErr_Occurred())

@@ -727,9 +727,7 @@ class CinderFunctionScope(FunctionScope):
     def __init__(self, name, module, klass=None, lineno=0):
         super().__init__(name=name, module=module, klass=klass, lineno=lineno)
         self._inlinable_comprehensions = []
-        self._inline_comprehensions = not os.environ.get(
-            "PYTHONNOINLINECOMPREHENSIONS", None
-        )
+        self._inline_comprehensions = os.getenv("PYTHONINLINECOMPREHENSIONS")
 
     def add_comprehension(self, comp):
         if self._inline_comprehensions:

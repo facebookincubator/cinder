@@ -2653,8 +2653,8 @@ class GCImmortalizeTests(unittest.TestCase):
 
 class DisableComprehensionInliningTest(unittest.TestCase):
     def test_disable_inlining(self):
-        for disable_inlining, pycompiler in product([True, False], repeat=2):
-            with self.subTest(disable_inlining=disable_inlining, pycompiler=pycompiler):
+        for enable_inlining, pycompiler in product([True, False], repeat=2):
+            with self.subTest(enable_inlining=enable_inlining, pycompiler=pycompiler):
                 with TemporaryDirectory() as root_str:
                     root = Path(root_str)
                     modname = "discomp"
@@ -2670,14 +2670,14 @@ class DisableComprehensionInliningTest(unittest.TestCase):
                     env = os.environ.copy()
                     if pycompiler:
                         cmd.extend(["-X", "usepycompiler"])
-                    if disable_inlining:
-                        env["PYTHONNOINLINECOMPREHENSIONS"] = "1"
+                    if enable_inlining:
+                        env["PYTHONINLINECOMPREHENSIONS"] = "1"
                     cmd.extend(
                         ["-c", f"from {modname} import f; import dis; dis.dis(f)"]
                     )
                     output = subprocess.check_output(cmd, env=env, cwd=root_str)
                     assert_method = (
-                        self.assertIn if disable_inlining else self.assertNotIn
+                        self.assertNotIn if enable_inlining else self.assertIn
                     )
                     assert_method(b"<listcomp", output)
 

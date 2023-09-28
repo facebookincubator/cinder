@@ -117,6 +117,8 @@ class TracedClass(object):
 
 
 class TestLineCounts(unittest.TestCase):
+    _inline_comprehensions = os.getenv("PYTHONINLINECOMPREHENSIONS")
+
     """White-box testing of line-counting, via runfunc"""
     def setUp(self):
         self.addCleanup(sys.settrace, sys.gettrace())
@@ -187,7 +189,15 @@ class TestLineCounts(unittest.TestCase):
             (self.my_py_filename, firstlineno_calling + 2): 11,
             (self.my_py_filename, firstlineno_called + 1): 10,
             (self.my_py_filename, firstlineno_calling + 3): 1,
+        } if self._inline_comprehensions else {
+            (self.my_py_filename, firstlineno_calling + 1): 1,
+            # List comprehensions work differently in 3.x, so the count
+            # below changed compared to 2.x.
+            (self.my_py_filename, firstlineno_calling + 2): 12,
+            (self.my_py_filename, firstlineno_calling + 3): 1,
+            (self.my_py_filename, firstlineno_called + 1): 10,
         }
+
         self.assertEqual(self.tracer.results().counts, expected)
 
     def test_traced_decorated_function(self):

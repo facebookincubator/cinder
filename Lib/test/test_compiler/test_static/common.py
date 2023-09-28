@@ -5,6 +5,7 @@ import asyncio
 import builtins
 import cinder
 import gc
+import os
 import re
 import symtable
 import sys
@@ -239,6 +240,8 @@ class TestErrors:
 
 
 class StaticTestBase(CompilerTest):
+    _inline_comprehensions = os.getenv("PYTHONINLINECOMPREHENSIONS")
+
     @classmethod
     def setUpClass(cls):
         init_static_python()
