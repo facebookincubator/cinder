@@ -1,6 +1,6 @@
 {
   "logger": "/usr/local/bin/scribe_cat",
-  "version": "60a66e6d1f0689a9c93490a5be07f326e1e788ba",
+  "version": "ee7c7d4eb7b6ed907d939983b23511b8c5bb3b03",
   "source_directories": [
     "Lib/cinderx",
     "Tools/scripts/facebook/perf",
