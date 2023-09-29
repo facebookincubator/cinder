@@ -411,8 +411,10 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
 
   // Make a generator object to be returned by the epilogue.
   as->lea(x86::rdi, x86::ptr(env->gen_resume_entry_label));
-  JIT_CHECK(env->spill_size % kPointerSize == 0, "Bad spill alignment");
-  as->mov(x86::rdx, (env->spill_size / kPointerSize) + 1);
+  JIT_CHECK(
+      env->shadow_frames_and_spill_size % kPointerSize == 0,
+      "Bad spill alignment");
+  as->mov(x86::rdx, env->shadow_frames_and_spill_size / kPointerSize);
   as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt));
   JIT_CHECK(instr->origin()->IsInitialYield(), "expected InitialYield");
   PyCodeObject* code = static_cast<const hir::InitialYield*>(instr->origin())
@@ -445,12 +447,13 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rdi, scratch_r);
 
   // Store variables spilled by this point to generator.
-  int frame_size = sizeof(FrameHeader);
-  as->lea(x86::rsi, x86::ptr(x86::rbp, -frame_size));
-  as->sub(x86::rdi, frame_size);
-  int current_spill_bytes = env->initial_yield_spill_size_ - frame_size;
+  // Point rsi at the top word of the current spill space.
+  as->lea(x86::rsi, x86::ptr(x86::rbp, -kPointerSize));
+  // Point rdi at the top word of the generator's spill space.
+  as->sub(x86::rdi, kPointerSize);
+  int current_spill_bytes = env->initial_yield_spill_size_;
   JIT_CHECK(current_spill_bytes % kPointerSize == 0, "Bad spill alignment");
-  as->mov(x86::rcx, (current_spill_bytes / kPointerSize) + 1);
+  as->mov(x86::rcx, current_spill_bytes / kPointerSize);
   as->std();
   as->rep().movsq();
   as->cld();

@@ -42,7 +42,7 @@ class BackendTest : public RuntimeTest {
     LinearScanAllocator lsalloc(lir_func);
     lsalloc.run();
 
-    environ.spill_size = lsalloc.getSpillSize();
+    environ.shadow_frames_and_spill_size = lsalloc.getFrameSize();
     environ.changed_regs = lsalloc.getChangedRegs();
 
     PostRegAllocRewrite post_rewrite(lir_func, &environ);
@@ -61,7 +61,7 @@ class BackendTest : public RuntimeTest {
     auto saved_regs = environ.changed_regs & CALLEE_SAVE_REGS;
     int saved_regs_size = saved_regs.count() * 8;
 
-    int allocate_stack = std::max(environ.spill_size, 8);
+    int allocate_stack = std::max(environ.shadow_frames_and_spill_size, 8);
     if ((allocate_stack + saved_regs_size + arg_buffer_size) % 16 != 0) {
       allocate_stack += 8;
     }

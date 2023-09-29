@@ -337,7 +337,7 @@ void* NativeGenerator::getVectorcallEntry() {
         lir_printer.print(*lir_func, "Register-allocated LIR"));
   }
 
-  env_.spill_size = lsalloc.getSpillSize();
+  env_.shadow_frames_and_spill_size = lsalloc.getFrameSize();
   env_.changed_regs = lsalloc.getChangedRegs();
   env_.exit_label = as_->newLabel();
   env_.exit_for_yield_label = as_->newLabel();
@@ -401,7 +401,7 @@ void* NativeGenerator::getVectorcallEntry() {
 
   JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = static_cast<int>(code.codeSize());
-  env_.code_rt->set_frame_size(env_.frame_size);
+  env_.code_rt->set_frame_size(env_.stack_frame_size);
   return vectorcall_entry_;
 }
 
@@ -421,7 +421,7 @@ int NativeGenerator::GetCompiledFunctionSize() const {
 }
 
 int NativeGenerator::GetCompiledFunctionStackSize() const {
-  return env_.frame_size;
+  return env_.stack_frame_size;
 }
 
 int NativeGenerator::GetCompiledFunctionSpillStackSize() const {
@@ -517,7 +517,7 @@ void NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   int saved_regs_size = saved_regs.count() * 8;
   // Make sure we have at least one word for scratch in the epilogue.
-  spill_stack_size_ = env_.spill_size;
+  spill_stack_size_ = env_.shadow_frames_and_spill_size;
   // The frame header size and inlined shadow frames are already included in
   // env_.spill_size.
   int spill_stack = std::max(spill_stack_size_, 8);
@@ -547,7 +547,7 @@ void NativeGenerator::setupFrameAndSaveCallerRegisters(x86::Gp tstate_reg) {
     as_->sub(x86::rsp, arg_buffer_size);
   }
 
-  env_.frame_size = spill_stack + saved_regs_size + arg_buffer_size;
+  env_.stack_frame_size = spill_stack + saved_regs_size + arg_buffer_size;
 }
 
 x86::Gp get_arg_location(int arg) {
@@ -1905,7 +1905,10 @@ void NativeGenerator::generateAssemblyBody(const asmjit::CodeHolder& code) {
 }
 
 int NativeGenerator::calcFrameHeaderSize(const hir::Function* func) {
-  return func == nullptr ? 0 : sizeof(FrameHeader);
+  if (func == nullptr || func->code->co_flags & kCoFlagsAnyGenerator) {
+    return 0;
+  }
+  return sizeof(FrameHeader);
 }
 
 // calcMaxInlineDepth must work with nullptr HIR functions because it's valid

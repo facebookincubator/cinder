@@ -891,7 +891,7 @@ int LinearScanAllocator::getStackSlot(const Operand* operand) {
   }
 
   if (free_stack_slots_.empty()) {
-    max_stack_slot_ -= 8;
+    max_stack_slot_ -= kPointerSize;
     slot = max_stack_slot_;
   } else {
     slot = free_stack_slots_.back();

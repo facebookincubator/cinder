@@ -28,15 +28,17 @@ struct Environ {
   // and generateEpilogue().
   PhyRegisterSet changed_regs{0};
 
-  // Size of the stack frame.
-  int frame_size{-1};
+  // The size of all data stored on the C stack: shadow frames, spilled values,
+  // saved callee-saved registers, and space for stack arguments to called
+  // functions.
+  int stack_frame_size{-1};
+
+  // A subset of stack_frame_size: only the shadow frames and spilled values.
+  int shadow_frames_and_spill_size{0};
 
   // Offset from the base of the frame to the last callee-saved register stored
   // on the stack.
   int last_callee_saved_reg_off{-1};
-
-  // Space used to spill values by VariableManager.
-  int spill_size{0};
 
   // Various Labels that span major sections of the function.
   asmjit::Label static_arg_typecheck_failed_label;

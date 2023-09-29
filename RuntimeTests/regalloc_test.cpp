@@ -242,7 +242,7 @@ BB %28
   lsallocator.linearScan();
   ASSERT_FALSE(lsallocator.allocated_.empty());
 
-  ASSERT_GT(lsallocator.getSpillSize(), 0)
+  ASSERT_GT(lsallocator.getFrameSize(), 0)
       << "Incorrect results - no registers have been spilled.";
 
   std::vector<LiveInterval*> intervals;

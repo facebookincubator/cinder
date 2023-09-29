@@ -156,7 +156,9 @@ class LinearScanAllocator {
     return changed_regs_;
   }
 
-  int getSpillSize() const {
+  // Return the number of bytes that should be allocated below the base
+  // pointer, including zero or more shadow frames and any needed spill space.
+  int getFrameSize() const {
     return -max_stack_slot_;
   }
 
@@ -184,8 +186,6 @@ class LinearScanAllocator {
   UnorderedMap<const lir::Operand*, LIRLocation> vreg_global_last_use_;
 
   int initial_max_stack_slot_;
-  // stack slot number always starts from -8, and it's up to the code generator
-  // to translate stack slot number into the form of (RBP - offset).
   int max_stack_slot_;
   std::vector<int> free_stack_slots_;
 

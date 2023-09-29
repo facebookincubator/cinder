@@ -37,15 +37,15 @@ class TypeDeoptPatcher;
 // While the content of spill data is arbitrary depending on the function, we
 // also have a few items of data about the current generator we want to access
 // quickly. We can do this via positive offsets from RBP into the
-// GenSuspendDataFooter struct defined below.
+// GenDataFooter struct defined below.
 //
 // Together the spill data and GenDataFooter make up the complete JIT-specific
-// data needed for a generator. PyGenObject::gi_jit_data points to the _top_ of
-// the spill data (i.e. at the start of the footer). This allows us to easily
-// set RBP to the pointer value on generator resume.
+// data needed for a generator. PyGenObject::gi_jit_data points above the _top_
+// of the spill data (i.e. at the start of the footer). This allows us to
+// easily set RBP to the pointer value on generator resume.
 //
 // The base address of the complete heap allocated suspend data is:
-//   PyGenObject::gi_jit_data - GenDataFooter::spill_words
+//   PyGenObject::gi_jit_data - GenDataFooter::spillWords
 typedef struct _GenDataFooter {
   // Tools which examine/walk the stack expect the following two values to be
   // ahead of RBP.
