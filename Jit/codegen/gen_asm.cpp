@@ -839,20 +839,21 @@ void NativeGenerator::generatePrologue(
   }
 
   // Args are now validated, setup frame
-  auto frame_cursor = as_->cursor();
-  as_->bind(setup_frame);
-
   constexpr auto kFuncPtrReg = x86::rdi;
   constexpr auto kArgsReg = x86::r10;
   constexpr auto kArgsPastSixReg = kArgsReg;
 
+  asmjit::BaseNode* frame_cursor = as_->cursor();
+  as_->bind(setup_frame);
   loadOrGenerateLinkFrame(
       x86::r11,
       {
           {x86::rdi, kFuncPtrReg}, // func
           {x86::rsi, kArgsReg} // args
       });
+  env_.addAnnotation("Link frame", frame_cursor);
 
+  asmjit::BaseNode* load_args_cursor = as_->cursor();
   // Move arguments into their expected registers and then
   // use r10 as the base for additional args.
   bool has_extra_args = false;
@@ -875,6 +876,7 @@ void NativeGenerator::generatePrologue(
         kArgsPastSixReg,
         x86::ptr(kArgsReg, (ARGUMENT_REGS.size() - 1) * sizeof(void*)));
   }
+  env_.addAnnotation("Load arguments", load_args_cursor);
 
   // Finally allocate the saved space required for the actual function
   auto native_entry_cursor = as_->cursor();
@@ -882,7 +884,6 @@ void NativeGenerator::generatePrologue(
 
   setupFrameAndSaveCallerRegisters(x86::r11);
 
-  env_.addAnnotation("Link frame", frame_cursor);
   env_.addAnnotation("Native entry", native_entry_cursor);
 }
 
