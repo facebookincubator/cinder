@@ -32,7 +32,7 @@ jobs:
       # Build and push the "build" image (only using sha, since it didn't pass tests yet)
       - name: Extract metadata for pre-test Cinder Docker image
         id: buildmeta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.CINDER_BUILD_IMAGE_NAME }}
           # we publish the [untested] image using the branch + sha (e.g. "cinder-3.10.162db45") for debuggability
@@ -52,7 +52,7 @@ jobs:
         run: docker run --rm -w /cinder/build ${{ steps.buildmeta.outputs.tags }} ./oss-cinder-test.sh
       - name: Extract metadata for tested Cinder Docker image push
         id: runtimemeta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.CINDER_RUNTIME_IMAGE_NAME }}
           # once the tests pass, we publish the runtime image using the sha and branch name (e.g. "cinder-3.10")
@@ -75,7 +75,7 @@ jobs:
       # Also build and push Cinder Explorer image if tests passed
       - name: Extract metadata for Cinder Explorer app Docker image push
         id: explorermeta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.CINDER_EXPLORER_IMAGE_NAME }}
           # publish the explorer image using the sha and branch name
