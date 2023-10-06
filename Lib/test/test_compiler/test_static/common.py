@@ -23,6 +23,7 @@ from compiler.static.module_table import ModuleTable
 from compiler.static.types import Value
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import Compiler as StrictCompiler
+from compiler.strict.flag_extractor import Flags
 from compiler.strict.loader import init_static_python
 from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
@@ -287,12 +288,21 @@ class StaticTestBase(CompilerTest):
         )
 
     def compile_strict(
-        self, codestr, modname="<module>", optimize=0, enable_patching=False
+        self,
+        codestr,
+        modname="<module>",
+        optimize=0,
+        enable_patching=False,
+        override_flags=None,
     ):
         compiler = self.get_strict_compiler(enable_patching=enable_patching)
 
         code, is_valid_strict = compiler.load_compiled_module_from_source(
-            self.clean_code(codestr), f"{modname}.py", modname, optimize
+            self.clean_code(codestr),
+            f"{modname}.py",
+            modname,
+            optimize,
+            override_flags=override_flags,
         )
         assert is_valid_strict
         return code
@@ -474,7 +484,11 @@ class StaticTestBase(CompilerTest):
         old_setting = set_freeze_enabled(freeze)
         try:
             compiled = self.compile_strict(
-                code, name, optimize, enable_patching=enable_patching
+                code,
+                name,
+                optimize,
+                enable_patching=enable_patching,
+                override_flags=Flags(is_strict=True, is_static=True),
             )
             if dump_bytecode:
                 dis(compiled)
@@ -661,7 +675,7 @@ class StaticTestsStrictModuleLoader:
     ) -> StrictAnalysisResult:
         tree = ast.parse(source)
         symbols = symtable.symtable(source, filename, "exec")
-        return StrictAnalysisResult(
+        result = StrictAnalysisResult(
             modname,
             filename,
             mod_kind,
@@ -670,3 +684,7 @@ class StaticTestsStrictModuleLoader:
             symbols._table,
             [],
         )
+        return result
+
+    def set_force_strict_by_name(self, name: str):
+        pass

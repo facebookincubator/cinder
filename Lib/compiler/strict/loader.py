@@ -48,6 +48,7 @@ from _static import install_sp_audit_hook
 from ..consts import CO_STATICALLY_COMPILED
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
 from .compiler import Compiler, TIMING_LOGGER_TYPE
+from .flag_extractor import Flags
 
 
 # Force immediate resolution of Compiler in case it's deferred from Lazy Imports
@@ -330,7 +331,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 self.name,
                 opt,
                 submodule_search_locations,
-                force_strict=force,
+                override_flags=Flags(is_strict=force),
             )
             self.strict = is_valid_strict
             assert code is not None

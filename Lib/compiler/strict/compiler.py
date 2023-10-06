@@ -37,6 +37,7 @@ from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerato
 from . import _static_module_ported, strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
+from .flag_extractor import FlagExtractor
 from .rewriter import remove_annotations, rewrite
 
 if _static_module_ported:
@@ -162,20 +163,20 @@ class Compiler(StaticCompiler):
         name: str,
         optimize: int,
         submodule_search_locations: Optional[List[str]] = None,
-        force_strict: bool = False,
+        override_flags: Optional[Flags] = None,
     ) -> Tuple[CodeType | None, bool]:
-        if force_strict:
+        if override_flags and override_flags.is_strict:
             self.logger.debug(f"Forcibly treating module {name} as strict")
             self.loader.set_force_strict_by_name(name)
         # TODO(pilleye): Only call this when no side effect analysis is requested
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []
         )
+        flags = FlagExtractor().get_flags(ast.parse(source)).merge(override_flags)
+
         errors = mod.errors
         is_valid_strict = (
-            mod.is_valid
-            and len(errors) == 0
-            and (force_strict or (mod.module_kind != NONSTRICT_MODULE_KIND))
+            mod.is_valid and len(errors) == 0 and (flags.is_static or flags.is_strict)
         )
         if errors and self.raise_on_error:
             # if raise on error, just raise the first error
@@ -192,7 +193,7 @@ class Compiler(StaticCompiler):
 
         if not is_valid_strict:
             code = self._compile_basic(name, mod.ast, filename, optimize)
-        elif mod.module_kind == STATIC_MODULE_KIND:
+        elif flags.is_static:
             code = self._compile_static(mod, filename, name, optimize)
         else:
             code = self._compile_strict(mod, filename, name, optimize)

@@ -781,6 +781,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_strict_module(self) -> None:
         code = """
+            import __static__
             def f(a):
                 x: bool = a
         """
@@ -790,6 +791,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_strict_module_constant(self) -> None:
         code = """
+            import __static__
             def f(a):
                 x: bool = a
         """
@@ -799,6 +801,7 @@ class StaticCompilationTests(StaticTestBase):
 
     def test_strict_module_isinstance(self):
         code = """
+            import __static__
             from typing import Optional
 
             def foo(tval: Optional[object]) -> str:

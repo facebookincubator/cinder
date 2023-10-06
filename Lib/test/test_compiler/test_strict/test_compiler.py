@@ -1,4 +1,7 @@
+import ast
+
 from compiler.strict.common import DEFAULT_STUB_PATH
+from compiler.strict.flag_extractor import FlagExtractor
 from textwrap import dedent
 from typing import final, Optional, Sequence
 
@@ -229,41 +232,58 @@ class GetModuleKindTest(StrictTestBase):
     def _get_kind(self, code: str, mod_name: str = "mod"):
         code = dedent(code)
         compiler = StrictModuleLoader([], "", [], [], True)
+        module = compiler.check_source(code, f"{mod_name}.py", mod_name, [])
+
+        return module.module_kind, module.errors
+
+    def _get_kind_and_flags(self, code: str, mod_name: str = "mod"):
+        code = dedent(code)
+        compiler = StrictModuleLoader([], "", [], [], True)
 
         module = compiler.check_source(code, f"{mod_name}.py", mod_name, [])
         self.assertTrue(module.is_valid)
-        return module.module_kind, module.errors
+
+        flags = FlagExtractor().get_flags(ast.parse(code))
+        return module.module_kind, module.errors, flags
 
     def test_strict_flag(self):
         code = """
         import __strict__
         x = 1
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 1)
+        self.assertTrue(flags.is_strict)
+        self.assertFalse(flags.is_static)
 
     def test_static_flag(self):
         code = """
         import __static__
         x = 1
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 2)
+        self.assertTrue(flags.is_static)
+        self.assertFalse(flags.is_strict)
 
     def test_no_flag(self):
         code = """
         x = 1
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 0)
+        self.assertFalse(flags.is_static)
+        self.assertFalse(flags.is_strict)
 
     def test_flag_after_doc(self):
         code = """
         '''First docstring.'''
         import __strict__
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 1)
+        self.assertTrue(flags.is_strict)
+        self.assertFalse(flags.is_static)
 
     def test_flag_after_doc_comment(self):
         code = """
@@ -271,21 +291,34 @@ class GetModuleKindTest(StrictTestBase):
         # comment
         import __strict__
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 1)
+        self.assertTrue(flags.is_strict)
+        self.assertFalse(flags.is_static)
 
     def test_flag_after_future_import(self):
         code = """
         from __future__ import annotations
         import __strict__
         """
-        kind, _ = self._get_kind(code)
+        kind, _, flags = self._get_kind_and_flags(code)
         self.assertEqual(kind, 1)
+        self.assertTrue(flags.is_strict)
+        self.assertFalse(flags.is_static)
 
     def test_flag_in_functions(self):
         code = """
         def f():
             import __strict__
+        """
+        kind, _ = self._get_kind(code)
+        self.assertEqual(kind, 0)
+
+    def test_flag_in_class(self):
+        code = """
+        class Foo:
+            import __strict__
+            pass
         """
         kind, _ = self._get_kind(code)
         self.assertEqual(kind, 0)
