@@ -6,6 +6,7 @@ import ast
 import builtins
 import logging
 import os
+import symtable
 import sys
 from contextlib import nullcontext
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
@@ -184,7 +185,7 @@ class Compiler(StaticCompiler):
             error = errors[0]
             raise StrictModuleError(error[0], error[1], error[2], error[3])
         elif is_valid_strict:
-            symbols = getSymbolTable(mod)
+            symbols = symtable.symtable(source, filename, "exec")
             try:
                 check_class_conflict(pyast, filename, symbols)
             except StrictModuleError as e:
