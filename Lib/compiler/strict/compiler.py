@@ -169,10 +169,11 @@ class Compiler(StaticCompiler):
             self.logger.debug(f"Forcibly treating module {name} as strict")
             self.loader.set_force_strict_by_name(name)
         # TODO(pilleye): Only call this when no side effect analysis is requested
+        pyast = ast.parse(source)
         mod = self.loader.check_source(
             source, filename, name, submodule_search_locations or []
         )
-        flags = FlagExtractor().get_flags(ast.parse(source)).merge(override_flags)
+        flags = FlagExtractor().get_flags(pyast).merge(override_flags)
 
         errors = mod.errors
         is_valid_strict = (
@@ -185,14 +186,14 @@ class Compiler(StaticCompiler):
         elif is_valid_strict:
             symbols = getSymbolTable(mod)
             try:
-                check_class_conflict(mod.ast, filename, symbols)
+                check_class_conflict(pyast, filename, symbols)
             except StrictModuleError as e:
                 if self.raise_on_error:
                     raise
                 mod.errors.append((e.msg, e.filename, e.lineno, e.col))
 
         if not is_valid_strict:
-            code = self._compile_basic(name, mod.ast, filename, optimize)
+            code = self._compile_basic(name, pyast, filename, optimize)
         elif flags.is_static:
             code = self._compile_static(mod, filename, name, optimize)
         else:
