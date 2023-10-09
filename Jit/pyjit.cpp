@@ -884,6 +884,10 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
   return nullptr;
 }
 
+static PyObject* auto_jit_threshold(PyObject* /* self */, PyObject*) {
+  return PyLong_FromLong(getConfig().auto_jit_threshold);
+}
+
 int _PyJIT_IsCompiled(PyObject* func) {
   if (jit_ctx == nullptr) {
     return 0;
@@ -1406,6 +1410,11 @@ static PyMethodDef jit_methods[] = {
      METH_FASTCALL,
      "Disable the jit."},
     {"disassemble", disassemble, METH_O, "Disassemble JIT compiled functions"},
+    {"auto_jit_threshold",
+     auto_jit_threshold,
+     METH_NOARGS,
+     "Return the current AutoJIT threshold, only makes sense when the JIT is "
+     "enabled."},
     {"is_jit_compiled",
      is_jit_compiled,
      METH_O,

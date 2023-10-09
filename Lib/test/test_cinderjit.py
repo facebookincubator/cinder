@@ -203,7 +203,12 @@ class GetFrameLineNumberTests(unittest.TestCase):
                 return 1
 
             f()
+
+            # Depending on which JIT mode is being used, f might not have been
+            # compiled on the first call, but it will be after `force_compile`.
+            cinderjit.force_compile(f)
             assert cinderjit.is_jit_compiled(f)
+
             cinderjit.disable()
             f()
         """
@@ -897,6 +902,8 @@ class LoadModuleMethodCacheTests(unittest.TestCase):
             )
             import tmp_b
 
+            cinderjit.force_compile(tmp_b.test)
+
             self.assertEqual(tmp_b.test(), 3)
             self.assertTrue(cinderjit.is_jit_compiled(tmp_b.test))
             self.assertTrue(
@@ -1419,6 +1426,10 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 cinderjit.clear_runtime_stats()
             import tmp_a
 
+            # Force the compilation if this is running with AutoJIT.
+            if cinderjit:
+                cinderjit.force_compile(tmp_a.get_a)
+
             # What happens on the first call is kinda undefined in principle
             # given lazy imports; somebody could previously have imported B
             # (not in this specific test, but in principle), or not, so the
@@ -1483,9 +1494,14 @@ class LoadGlobalCacheTests(unittest.TestCase):
                 ),
                 encoding="utf8",
             )
+
             if cinderjit:
                 cinderjit.clear_runtime_stats()
             import tmp_a
+
+            # Force the compilation if this is running with AutoJIT.
+            if cinderjit:
+                cinderjit.force_compile(tmp_a.get_a)
 
             tmp_a.get_a()
             self.assertEqual(tmp_a.get_a(), 5)
@@ -1523,6 +1539,10 @@ class LoadGlobalCacheTests(unittest.TestCase):
             if cinderjit:
                 cinderjit.clear_runtime_stats()
             import tmp_a
+
+            # Force the compilation if this is running with AutoJIT.
+            if cinderjit:
+                cinderjit.force_compile(tmp_a.get_a)
 
             tmp_a.get_a()
             self.assertEqual(tmp_a.get_a(), 5)
@@ -1795,9 +1815,9 @@ class JITCompileCrasherRegressionTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             gc.immortalize_heap()
-            foo = mod.Foo(True)
             if cinderjit:
-                self.assertTrue(cinderjit.is_jit_compiled(mod.Foo.__init__))
+                cinderjit.force_compile(mod.Foo.__init__)
+            foo = mod.Foo(True)
 
     def test_restore_materialized_parent_pyframe_in_gen_throw(self):
         # This reproduces a bug that causes the top frame in the shadow stack
@@ -1883,7 +1903,7 @@ class JITCompileCrasherRegressionTests(StaticTestBase):
         with self.assertRaises(asyncio.CancelledError):
             asyncio.run(main())
 
-        if cinderjit:
+        if cinderjit and cinderjit.auto_jit_threshold() <= 1:
             self.assertTrue(cinderjit.is_jit_compiled(a))
             self.assertTrue(cinderjit.is_jit_compiled(b))
             self.assertTrue(cinderjit.is_jit_compiled(c.__wrapped__))
@@ -2942,7 +2962,7 @@ class EagerCoroutineDispatch(StaticTestBase):
                 coro.send(None)
             coro.close()
             self.assertFalse(mod.x.last_awaited())
-            if cinderjit:
+            if cinderjit and cinderjit.auto_jit_threshold() <= 1:
                 self.assertTrue(cinderjit.is_jit_compiled(mod.await_x))
                 self.assertTrue(cinderjit.is_jit_compiled(mod.call_x))
 
@@ -2980,7 +3000,7 @@ class EagerCoroutineDispatch(StaticTestBase):
                 coro.send(None)
             coro.close()
             self.assertFalse(awaited_capturer.last_awaited())
-            if cinderjit:
+            if cinderjit and cinderjit.auto_jit_threshold() <= 1:
                 self.assertTrue(cinderjit.is_jit_compiled(mod.await_x))
                 self.assertTrue(cinderjit.is_jit_compiled(mod.call_x))
 
@@ -4081,7 +4101,7 @@ class RegressionTests(StaticTestBase):
             testfunc = mod.testfunc
             self.assertTrue(testfunc())
 
-            if cinderjit:
+            if cinderjit and cinderjit.auto_jit_threshold() <= 1:
                 self.assertTrue(cinderjit.is_jit_compiled(testfunc))
 
 
@@ -4119,7 +4139,9 @@ class CinderJitModuleTests(StaticTestBase):
             self.assertTrue(g())
 
             self.assertFalse(cinderjit.is_jit_compiled(f))
-            self.assertTrue(cinderjit.is_jit_compiled(g))
+
+            if cinderjit.auto_jit_threshold() <= 1:
+                self.assertTrue(cinderjit.is_jit_compiled(g))
 
     @unittest.skipIf(
         not cinderjit or not cinderjit.is_hir_inliner_enabled(),
@@ -4142,7 +4164,9 @@ class CinderJitModuleTests(StaticTestBase):
             self.assertTrue(g())
 
             self.assertFalse(cinderjit.is_jit_compiled(f))
-            self.assertTrue(cinderjit.is_jit_compiled(g))
+
+            if cinderjit.auto_jit_threshold() <= 1:
+                self.assertTrue(cinderjit.is_jit_compiled(g))
 
             self.assertEqual(cinderjit.get_num_inlined_functions(g), 1)
 
@@ -5258,7 +5282,7 @@ class LoadMethodEliminationTests(unittest.TestCase):
     def test_multiple_call_method_same_load_method(self):
         self.assertEqual(self.lme_test_func(), "1")
         self.assertEqual(self.lme_test_func(True), "1 flag")
-        if cinderjit:
+        if cinderjit and cinderjit.auto_jit_threshold() <= 1:
             self.assertTrue(is_jit_compiled(LoadMethodEliminationTests.lme_test_func))
 
 
@@ -5271,7 +5295,9 @@ class HIROpcodeCountTests(unittest.TestCase):
         def func():
             return f1() + f1()
 
+        cinderjit.force_compile(func)
         self.assertEqual(func(), 10)
+
         ops = cinderjit.get_function_hir_opcode_counts(func)
         self.assertIsInstance(ops, dict)
         self.assertEqual(ops.get("Return"), 1)

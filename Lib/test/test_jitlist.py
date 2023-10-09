@@ -50,9 +50,11 @@ class JitListTest(unittest.TestCase):
         self.assertIn(func.__qualname__, py_funcs[__name__])
         self.assertNotIn(_no_jit_function.__qualname__, py_funcs[__name__])
         meth(None)
-        self.assertTrue(cinderjit.is_jit_compiled(meth))
+        if cinderjit.auto_jit_threshold() <= 1:
+            self.assertTrue(cinderjit.is_jit_compiled(meth))
         func()
-        self.assertTrue(cinderjit.is_jit_compiled(func))
+        if cinderjit.auto_jit_threshold() <= 1:
+            self.assertTrue(cinderjit.is_jit_compiled(func))
         _no_jit_function()
         self.assertFalse(cinderjit.is_jit_compiled(_no_jit_function))
 
@@ -67,7 +69,8 @@ class JitListTest(unittest.TestCase):
         self.assertIn(code_obj.co_firstlineno, py_code_objs[code_obj.co_name][thisfile])
         self.assertNotIn(_no_jit_function.__code__.co_name, py_code_objs)
         _jit_function_2()
-        self.assertTrue(cinderjit.is_jit_compiled(_jit_function_2))
+        if cinderjit.auto_jit_threshold() <= 1:
+            self.assertTrue(cinderjit.is_jit_compiled(_jit_function_2))
         _no_jit_function()
         self.assertFalse(cinderjit.is_jit_compiled(_no_jit_function))
 
@@ -84,7 +87,9 @@ class JitListTest(unittest.TestCase):
         self.assertFalse(cinderjit.is_jit_compiled(inner_func))
         inner_func.__qualname__ += "_foo"
         self.assertEqual(inner_func(), 24)
-        self.assertTrue(cinderjit.is_jit_compiled(inner_func))
+
+        if cinderjit.auto_jit_threshold() <= 1:
+            self.assertTrue(cinderjit.is_jit_compiled(inner_func))
 
 
 if __name__ == "__main__":
