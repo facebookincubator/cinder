@@ -1800,11 +1800,18 @@ define RUN_TESTCINDERJIT
 	# $(ASAN_TEST_ENV)$(TESTPYTHON) -X jit $(1) -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 $(srcdir)/Lib/test/multithreaded_compile_test.py $(TESTOPTS)
 endef
 
+define RUN_TESTCINDERJIT_AUTOPROFILE
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit-auto=1000 -X jit-auto-profile=10 -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
+endef
+
 testcinder_jit: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,)
 
 testcinder_jit_profile: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT_PROFILE,)
+
+testcinder_jit_auto_profile: @DEF_MAKE_RULE@ platform
+	$(call RUN_TESTCINDERJIT_AUTOPROFILE,)
 
 testcinder_jit_shadowframe: @DEF_MAKE_RULE@ platform
 	$(call RUN_TESTCINDERJIT,-X jit-shadow-frame)
