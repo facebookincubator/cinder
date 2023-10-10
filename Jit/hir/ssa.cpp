@@ -517,6 +517,10 @@ Type outputType(
       if (binop.op() == BinaryOpKind::kTrueDivide) {
         return TFloatExact;
       }
+      if (binop.op() == BinaryOpKind::kPower) {
+        // Will be floating-point for negative exponents.
+        return TFloatExact | TLongExact;
+      }
       return TLongExact;
     }
     case Opcode::kLongCompare:
