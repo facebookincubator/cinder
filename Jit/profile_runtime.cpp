@@ -343,7 +343,6 @@ void ProfileRuntime::profileInstr(
     case BINARY_SUBSCR_DICT_STR:
     case BINARY_SUBSCR_LIST:
     case BINARY_SUBSCR_TUPLE:
-    case BINARY_SUBSCR_TUPLE_CONST_INT:
     case STORE_ATTR_DESCR:
     case STORE_ATTR_DICT:
     case STORE_ATTR_SLOT:
@@ -351,6 +350,11 @@ void ProfileRuntime::profileInstr(
     case STORE_ATTR_UNCACHABLE:
     case STORE_PRIMITIVE_FIELD:
       profile_stack(1, 0);
+      break;
+    case BINARY_SUBSCR_TUPLE_CONST_INT:
+      // This instruction replaces a LOAD_CONST and a BINARY_SUBSCR.  The index
+      // field is stored within the oparg instead of on the stack.
+      profile_stack(0);
       break;
   }
 }
