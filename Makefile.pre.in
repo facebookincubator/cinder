@@ -1801,11 +1801,11 @@ define RUN_TESTCINDERJIT
 endef
 
 define RUN_TESTCINDERJITAUTO
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit-auto=1000 -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit-auto=200 -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 endef
 
 define RUN_TESTCINDERJIT_AUTOPROFILE
-	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit-auto=1000 -X jit-auto-profile=10 -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
+	$(ASAN_TEST_ENV)$(TESTPYTHON) -X usepycompiler -X jit-auto=200 -X jit-auto-profile=2 -X jit-enable-inline-cache-stats-collection $(1) $(JIT_TEST_RUNNER) $(TESTOPTS)
 endef
 
 testcinder_jit: @DEF_MAKE_RULE@ platform
