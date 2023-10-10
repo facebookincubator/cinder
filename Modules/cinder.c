@@ -439,13 +439,15 @@ get_call_stack(PyObject *self, PyObject *args) {
 typedef struct {
     PyObject *list;
     int hasError;
+    int collectFrame;
 } StackWalkState;
 
 static CiStackWalkDirective frame_data_collector(
     void *data,
     PyObject *fqname,
     PyCodeObject *code,
-    int lineno)
+    int lineno,
+    PyObject *pyframe)
 {
     StackWalkState *state = (StackWalkState*)data;
     if (fqname == NULL) {
@@ -454,7 +456,7 @@ static CiStackWalkDirective frame_data_collector(
             fqname = ((PyCodeObject *)code)->co_name;
         }
     }
-    PyObject *t = PyTuple_New(2);
+    PyObject *t = PyTuple_New(2 + state->collectFrame);
     if (t == NULL) {
         goto fail;
     }
@@ -468,6 +470,15 @@ static CiStackWalkDirective frame_data_collector(
 
     // steals ref
     PyTuple_SET_ITEM(t, 1, lineNoObj);
+
+    if (state->collectFrame) {
+        PyObject *o = pyframe;
+        if (!o) {
+            o = Py_None;
+        }
+        PyTuple_SET_ITEM(t, 2, o);
+        Py_INCREF(o);
+    }
     int failed = PyList_Append(state->list, t);
     Py_DECREF(t);
     if (!failed) {
@@ -479,17 +490,27 @@ fail:
 }
 
 static PyObject*
-get_entire_call_stack_as_qualnames_with_lineno(PyObject *self, PyObject *Py_UNUSED(args)) {
+collect_stack(int collectFrame) {
     PyObject *stack = PyList_New(0);
     if (stack == NULL) {
         return NULL;
     }
-    StackWalkState state = { .list=stack, .hasError = 0 };
+    StackWalkState state = { .list=stack, .hasError = 0, .collectFrame = collectFrame };
     Ci_WalkAsyncStack(PyThreadState_GET(), frame_data_collector, &state);
     if (state.hasError || (PyList_Reverse(stack) != 0)) {
         Py_CLEAR(stack);
     }
     return stack;
+}
+
+static PyObject*
+get_entire_call_stack_as_qualnames_with_lineno(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return collect_stack(0);
+}
+
+static PyObject*
+get_entire_call_stack_as_qualnames_with_lineno_and_frame(PyObject *self, PyObject *Py_UNUSED(args)) {
+    return collect_stack(1);
 }
 
 static PyObject*
@@ -705,7 +726,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      "Set the period, in bytecode instructions, for interpreter profiling."},
     {"get_and_clear_type_profiles",
      get_and_clear_type_profiles,
-     METH_NOARGS,
+    METH_NOARGS,
      "Get and clear accumulated interpreter type profiles."},
     {"get_and_clear_type_profiles_with_metadata",
      get_and_clear_type_profiles_with_metadata,
@@ -741,6 +762,10 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_entire_call_stack_as_qualnames_with_lineno,
         METH_NOARGS,
         "Return the current stack as a list of tuples (qualname, lineno)."},
+    {"_get_entire_call_stack_as_qualnames_with_lineno_and_frame",
+        get_entire_call_stack_as_qualnames_with_lineno_and_frame,
+        METH_NOARGS,
+        "Return the current stack as a list of tuples (qualname, lineno, PyFrame | None)."},
     {"watch_sys_modules",
         watch_sys_modules,
         METH_NOARGS,

@@ -28,7 +28,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 
-from types import CodeType, FunctionType, GeneratorType, ModuleType
+from types import CodeType, FrameType, FunctionType, GeneratorType, ModuleType
 from typing import List, Tuple
 from unittest import skipIf
 from unittest.mock import patch
@@ -2107,6 +2107,7 @@ from cinder import _get_entire_call_stack_as_qualnames_with_lineno
 import asyncio
 
 result = None
+
 async def f1():
     await asyncio.sleep(0)
     return await f2()
@@ -2129,10 +2130,94 @@ asyncio.run(g0())
         self.assertEqual(
             last_frames,
             [
-                ("module1:g0", 15),
-                ("module1:g1", 18),
-                ("module1:f1", 8),
-                ("module1:f2", 12),
+                ("module1:g0", 16),
+                ("module1:g1", 19),
+                ("module1:f1", 9),
+                ("module1:f2", 13),
+            ],
+        )
+
+    @unittest.skipIf(not cinderjit, "Tests functionality on cinderjit module")
+    def test_get_stack_with_lineno_3(self):
+        # use code string to have deterministic line numbers
+        code = """
+from cinder import _get_entire_call_stack_as_qualnames_with_lineno_and_frame
+from cinderjit import jit_suppress
+from test import cinder_support
+
+import asyncio
+
+result = None
+
+@cinder_support.failUnlessJITCompiled
+async def f1():
+    return await f2()
+
+@jit_suppress
+async def f2():
+    global result
+    result = _get_entire_call_stack_as_qualnames_with_lineno_and_frame()
+
+@cinder_support.failUnlessJITCompiled
+async def g0():
+    return await f1();
+
+asyncio.run(g0())
+        """
+        g = {"__name__": "module1"}
+        exec(code, g)
+        m, l, f = g["result"][-1]
+        self.assertEqual((m, l), ("module1:f2", 17))
+        self.assertIsInstance(f, FrameType)
+        self.assertEqual(f.f_code.co_name, "f2")
+        self.assertEqual(
+            g["result"][-3:-1], [("module1:g0", 21, None), ("module1:f1", 12, None)]
+        )
+
+    @unittest.skipIf(not cinderjit, "Tests functionality on cinderjit module")
+    def test_get_stack_with_lineno_4(self):
+        # use code string to have deterministic line numbers
+        code = """
+from cinder import _get_entire_call_stack_as_qualnames_with_lineno_and_frame
+from cinderjit import jit_suppress
+from test import cinder_support
+
+import asyncio
+
+result = None
+@cinder_support.failUnlessJITCompiled
+async def f1():
+    await asyncio.sleep(0)
+    return await f2()
+
+@jit_suppress
+async def f2():
+    global result
+    result = _get_entire_call_stack_as_qualnames_with_lineno_and_frame()
+
+@cinder_support.failUnlessJITCompiled
+async def g0():
+    return await g1();
+
+@cinder_support.failUnlessJITCompiled
+async def g1():
+    return await asyncio.gather(f1())
+
+asyncio.run(g0())
+        """
+        g = {"__name__": "module1"}
+        exec(code, g)
+        m, l, f = g["result"][-1]
+        self.assertEqual((m, l), ("module1:f2", 17))
+        self.assertIsInstance(f, FrameType)
+        self.assertEqual(f.f_code.co_name, "f2")
+
+        self.assertEqual(
+            g["result"][-4:-1],
+            [
+                ("module1:g0", 21, None),
+                ("module1:g1", 25, None),
+                ("module1:f1", 12, None),
             ],
         )
 

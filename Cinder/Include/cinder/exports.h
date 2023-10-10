@@ -126,7 +126,8 @@ typedef CiStackWalkDirective (*CiWalkStackCallback)(void *data,
 typedef CiStackWalkDirective (*CiWalkAsyncStackCallback)(void *data,
                                                     PyObject *fqname,
                                                     PyCodeObject *code,
-                                                    int lineno);
+                                                    int lineno,
+                                                    PyObject* pyFrame);
 
 /*
  * Walk the stack, invoking cb for each entry with the supplied data parameter

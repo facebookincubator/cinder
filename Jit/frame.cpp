@@ -542,7 +542,8 @@ void walkShadowStack(PyThreadState* tstate, FrameHandler handler) {
 
 // Called during stack walking for each item on the async stack. Returns false
 // to terminate stack walking.
-using AsyncFrameHandler = std::function<bool(PyObject*, const CodeObjLoc&)>;
+using AsyncFrameHandler =
+    std::function<bool(PyObject*, const CodeObjLoc&, PyObject*)>;
 
 // Invoke handler for each shadow frame on the async stack.
 void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
@@ -554,7 +555,8 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
     switch (owner) {
       case PYSF_INTERP: {
         PyFrameObject* py_frame = _PyShadowFrame_GetPyFrame(shadow_frame);
-        if (!handler(qualname.get(), CodeObjLoc(py_frame))) {
+        if (!handler(
+                qualname.get(), CodeObjLoc(py_frame), (PyObject*)py_frame)) {
           return;
         }
         break;
@@ -564,7 +566,7 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
         // single chunk, starting with innermost inlined frame.
         UnitState unit_state = getUnitState(shadow_frame);
         for (auto it = unit_state.rbegin(); it != unit_state.rend(); ++it) {
-          if (!handler(qualname.get(), it->loc)) {
+          if (!handler(qualname.get(), it->loc, nullptr)) {
             return;
           }
         }
@@ -797,13 +799,14 @@ int _PyShadowFrame_WalkAndPopulate(
   *sync_stack_len_out = 0;
 
   // First walk the async stack
-  jit::walkAsyncShadowStack(tstate, [&](PyObject*, const jit::CodeObjLoc& loc) {
-    int idx = *async_stack_len_out;
-    async_stack[idx] = loc.code;
-    async_linenos[idx] = loc.lineNo();
-    (*async_stack_len_out)++;
-    return *async_stack_len_out < array_capacity;
-  });
+  jit::walkAsyncShadowStack(
+      tstate, [&](PyObject*, const jit::CodeObjLoc& loc, PyObject* /*unused*/) {
+        int idx = *async_stack_len_out;
+        async_stack[idx] = loc.code;
+        async_linenos[idx] = loc.lineNo();
+        (*async_stack_len_out)++;
+        return *async_stack_len_out < array_capacity;
+      });
 
   // Next walk the sync stack
   jit::walkShadowStack(
@@ -830,8 +833,9 @@ void Ci_WalkAsyncStack(
     CiWalkAsyncStackCallback cb,
     void* data) {
   jit::walkAsyncShadowStack(
-      tstate, [&](PyObject* qualname, const jit::CodeObjLoc& loc) {
-        return cb(data, qualname, loc.code, loc.lineNo()) ==
+      tstate,
+      [&](PyObject* qualname, const jit::CodeObjLoc& loc, PyObject* pyFrame) {
+        return cb(data, qualname, loc.code, loc.lineNo(), pyFrame) ==
             CI_SWD_CONTINUE_STACK_WALK;
       });
 }
