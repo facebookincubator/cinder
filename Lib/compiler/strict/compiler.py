@@ -287,7 +287,7 @@ class Compiler(StaticCompiler):
                 e.lineno or 1,
                 0,
             )
-            mod.errors.append(err)
+
             if self.raise_on_error:
                 raise err
 
