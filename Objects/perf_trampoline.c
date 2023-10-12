@@ -124,6 +124,7 @@ any DWARF information available for them).
 #include "pycore_ceval.h"
 #include "frameobject.h"
 #include "pycore_interp.h"
+#include "Jit/pyjit.h"
 
 typedef enum {
     PERF_STATUS_FAILED = -1,  // Perf trampoline is in an invalid state
@@ -180,6 +181,7 @@ static perf_status_t perf_status = PERF_STATUS_NO_INIT;
 static Py_ssize_t extra_code_index = -1;
 static code_arena_t *code_arena;
 static trampoline_api_t trampoline_api;
+static Py_ssize_t persist_after_fork = 0;
 
 static void
 perf_map_write_entry(void *state, const void *code_addr,
@@ -299,6 +301,24 @@ compile_trampoline(void)
     }
     assert(code_arena->size_left <= code_arena->size);
     return code_arena_new_code(code_arena);
+}
+
+int PyUnstable_PerfTrampoline_CompileCode(PyCodeObject *co)
+{
+    py_trampoline f = NULL;
+    assert(extra_code_index != -1);
+    int ret = _PyCode_GetExtra((PyObject *)co, extra_code_index, (void **)&f);
+    if (ret != 0 || f == NULL) {
+        py_trampoline new_trampoline = compile_trampoline();
+        if (new_trampoline == NULL) {
+            return 0;
+        }
+        trampoline_api.write_state(trampoline_api.state, new_trampoline,
+                                   code_arena->code_size, co);
+        return _PyCode_SetExtra((PyObject *)co, extra_code_index,
+                         (void *)new_trampoline);
+    }
+    return 0;
 }
 
 static PyObject *
@@ -422,16 +442,34 @@ _PyPerfTrampoline_Fini(void)
     return 0;
 }
 
+int
+PyUnstable_PerfTrampoline_SetPersistAfterFork(int enable){
+#ifdef PY_HAVE_PERF_TRAMPOLINE
+    persist_after_fork = enable;
+    return persist_after_fork;
+#endif
+    return 0;
+}
+
 PyStatus
 _PyPerfTrampoline_AfterFork_Child(void)
 {
 #ifdef PY_HAVE_PERF_TRAMPOLINE
-    // Restart trampoline in file in child.
-    int was_active = _PyIsPerfTrampolineActive();
-    _PyPerfTrampoline_Fini();
     PyUnstable_PerfMapState_Fini();
-    if (was_active) {
-        _PyPerfTrampoline_Init(1);
+    if (persist_after_fork){
+        char filename[256];
+        pid_t parent_pid = getppid();
+        snprintf(filename, sizeof(filename), "/tmp/perf-%d.map", parent_pid);
+        if(PyUnstable_CopyPerfMapFile(filename) != 0){
+            return PyStatus_Error("Failed to copy perf map file.");
+        }
+    } else {
+        // Restart trampoline in file in child.
+        int was_active = _PyIsPerfTrampolineActive();
+        _PyPerfTrampoline_Fini();
+        if (was_active) {
+            _PyPerfTrampoline_Init(1);
+        }
     }
 #endif
     return PyStatus_Ok();

@@ -12,5 +12,6 @@ test_compiler_sbs_stdlib_6
 test_compiler_sbs_stdlib_7
 test_compiler_sbs_stdlib_8
 test_compiler_sbs_stdlib_9
+test_perf_profiler_precompile.py
 test_shadowcode
 test_strictmodule

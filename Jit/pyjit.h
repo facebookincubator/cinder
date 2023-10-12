@@ -431,6 +431,9 @@ PyAPI_FUNC(int) _PyJIT_IsDisassemblySyntaxIntel(void);
 PyAPI_FUNC(void) _PyJIT_SetProfileNewInterpThreads(int);
 PyAPI_FUNC(int) _PyJIT_GetProfileNewInterpThreads(void);
 
+PyAPI_FUNC(int) _PyPerfTrampoline_IsPreforkCompilationEnabled(void);
+PyAPI_FUNC(void) _PyPerfTrampoline_CompilePerfTrampolinePreFork(void);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

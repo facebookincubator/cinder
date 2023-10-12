@@ -656,6 +656,20 @@ get_awaiter_frame(PyObject *self, PyObject *Py_UNUSED(args)) {
     }
 }
 
+static PyObject*
+compile_perf_trampoline_pre_fork(PyObject *self, PyObject *Py_UNUSED(args)) {
+    _PyPerfTrampoline_CompilePerfTrampolinePreFork();
+    Py_RETURN_NONE;
+}
+
+static PyObject*
+is_compile_perf_trampoline_pre_fork_enabled(PyObject *self, PyObject *Py_UNUSED(args)) {
+    if(_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"debug_break",
      cinder_debug_break,
@@ -779,6 +793,14 @@ static struct PyMethodDef cinder_module_methods[] = {
         get_awaiter_frame,
         METH_NOARGS,
         "Get the awaiter frame of the current executing task"},
+    {"_compile_perf_trampoline_pre_fork",
+        compile_perf_trampoline_pre_fork,
+        METH_NOARGS,
+        "Compile perf-trampoline entries before forking"},
+    {"_is_compile_perf_trampoline_pre_fork_enabled",
+        is_compile_perf_trampoline_pre_fork_enabled,
+        METH_NOARGS,
+        "Return whether compile perf-trampoline entries before fork is enabled or not"},
     {NULL, NULL} /* sentinel */
 };
 

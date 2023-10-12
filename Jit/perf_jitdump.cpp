@@ -398,6 +398,16 @@ void copyFileInfo(FileInfo& info) {
   info = {};
 
   if (parent_filename.starts_with("/tmp/perf-") &&
+      parent_filename.ends_with(".map") &&
+      _PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+    JIT_LOG(
+        "File %s has already been copied to %s by the perf trampoline, "
+        "skipping copy.",
+        parent_filename,
+        child_filename);
+    return;
+  } else if (
+      parent_filename.starts_with("/tmp/perf-") &&
       parent_filename.ends_with(".map") && isPerfTrampolineActive()) {
     if (!copyJitEntries(parent_filename)) {
       JIT_LOG(

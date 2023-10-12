@@ -38,6 +38,7 @@ struct Config {
   uint32_t attr_cache_size{1};
   uint32_t auto_jit_threshold{0};
   uint32_t auto_jit_profile_threshold{0};
+  bool compile_perf_trampoline_prefork{false};
 };
 
 // Get the JIT's current config object.

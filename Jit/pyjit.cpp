@@ -78,6 +78,10 @@ static JITList* g_jit_list{nullptr};
 // Function and code objects ("units") registered for compilation.
 static std::unordered_set<BorrowedRef<>> jit_reg_units;
 
+// Function and code objects ("units") registered for pre-fork perf-trampoline
+// compilation.
+static std::unordered_set<BorrowedRef<>> perf_trampoline_reg_units;
+
 // Only set during preloading. Used to keep track of functions that were
 // deleted as a side effect of preloading.
 using UnitDeletedCallback = std::function<void(PyObject*)>;
@@ -641,6 +645,12 @@ void initFlagProcessor() {
 
     xarg_flag_processor.addOption(
         "jit-help", "", jit_help, "print all available JIT flags and exits");
+
+    xarg_flag_processor.addOption(
+        "perf-trampoline-prefork-compilation",
+        "PERFTRAMPOLINEPREFORKCOMPILATION",
+        getMutableConfig().compile_perf_trampoline_prefork,
+        "Compile perf trampoline pre-fork");
   }
 
   xarg_flag_processor.setFlags(PySys_GetXOptions());
@@ -686,6 +696,19 @@ static void compile_worker_thread() {
     }
   }
   JIT_DLOG("Finished compile worker in thread %d", std::this_thread::get_id());
+}
+
+static void compile_perf_trampoline_entries() {
+  for (const auto& unit : perf_trampoline_reg_units) {
+    if (PyFunction_Check(unit)) {
+      PyFunctionObject* func = (PyFunctionObject*)unit.get();
+      if (PyUnstable_PerfTrampoline_CompileCode(
+              reinterpret_cast<PyCodeObject*>(func->func_code)) == -1) {
+        JIT_LOG("Failed to compile perf trampoline entry");
+      }
+    }
+  }
+  perf_trampoline_reg_units.clear();
 }
 
 static void multithread_compile_all() {
@@ -1916,6 +1939,9 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
   }
 
   if (!_PyJIT_IsEnabled()) {
+    if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+      perf_trampoline_reg_units.emplace(reinterpret_cast<PyObject*>(func));
+    }
     return 0;
   }
 
@@ -1926,6 +1952,8 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
   if (_PyJIT_OnJitList(func)) {
     jit_reg_units.emplace(reinterpret_cast<PyObject*>(func));
     result = 1;
+  } else if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+    perf_trampoline_reg_units.emplace(reinterpret_cast<PyObject*>(func));
   }
 
   // If we have an active jit-list, scan this function's code object for any
@@ -2479,4 +2507,15 @@ void _PyJIT_SetProfileNewInterpThreads(int enabled) {
 
 int _PyJIT_GetProfileNewInterpThreads(void) {
   return profile_new_interp_threads;
+}
+
+int _PyPerfTrampoline_IsPreforkCompilationEnabled() {
+  return getConfig().compile_perf_trampoline_prefork;
+}
+
+void _PyPerfTrampoline_CompilePerfTrampolinePreFork(void) {
+  if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+    PyUnstable_PerfTrampoline_SetPersistAfterFork(1);
+    compile_perf_trampoline_entries();
+  }
 }
