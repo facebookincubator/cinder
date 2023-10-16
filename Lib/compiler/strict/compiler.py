@@ -115,25 +115,33 @@ class Compiler(StaticCompiler):
         if name in self.not_static:
             return None
 
-        mod = self.loader.check(name)
-        if mod.is_valid and name not in self.modules and len(mod.errors) == 0:
-            modKind = mod.module_kind
-            if modKind == STATIC_MODULE_KIND:
-                root = mod.ast
-                stubKind = mod.stub_kind
-                if STUB_KIND_MASK_TYPING & stubKind:
+        source, filename = self._get_source(name)
+        if source is None:
+            return None
+
+        pyast = ast.parse(source)
+        flags = FlagExtractor().get_flags(pyast)
+
+        valid_if_strict = True
+        if flags.is_strict:
+            mod = self.loader.check(name)
+            valid_if_strict = mod.is_valid and not mod.errors
+
+        if valid_if_strict and name not in self.modules:
+            if flags.is_static:
+                symbols = symtable.symtable(source, filename, "exec")
+                root = pyast
+
+                if filename.endswith(".pyi"):
                     root = remove_annotations(root)
-                root = self._get_rewritten_ast(
-                    name, root, getSymbolTable(mod), mod.file_name, optimize
-                )
+
+                root = self._get_rewritten_ast(name, root, symbols, filename, optimize)
                 log = self.log_time_func
                 ctx = (
-                    log()(name, mod.file_name, "declaration_visit")
-                    if log
-                    else nullcontext()
+                    log()(name, filename, "declaration_visit") if log else nullcontext()
                 )
                 with ctx:
-                    root = self.add_module(name, mod.file_name, root, optimize)
+                    root = self.add_module(name, filename, root, optimize)
             else:
                 self.not_static.add(name)
 
@@ -197,6 +205,34 @@ class Compiler(StaticCompiler):
         else:
             code = self._compile_strict(pyast, symbols, filename, name, optimize)
             return (code, is_valid_strict)
+
+    def _get_source(
+        self,
+        name: str,
+    ) -> (Union[bytes, str], str):
+        module_path = name.replace(".", os.sep)
+
+        for path in self.import_path:
+            filename = module_path + ".py"
+            py_path = os.path.join(path, filename)
+            if os.path.exists(py_path):
+                with open(py_path, "rb") as f:
+                    return f.read(), filename
+
+            filename = module_path + os.sep + "__init__.py"
+            py_path = os.path.join(path, filename)
+            if os.path.exists(py_path):
+                with open(py_path, "rb") as f:
+                    return f.read(), filename
+
+        for path in self.import_path:
+            filename = module_path + ".pyi"
+            py_path = os.path.join(path, filename)
+            if os.path.exists(py_path):
+                with open(py_path, "rb") as f:
+                    return f.read(), filename
+
+        return None, None
 
     def _strict_analyze(
         self,
