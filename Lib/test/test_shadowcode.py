@@ -11,6 +11,7 @@ from collections import UserDict
 from test.support.script_helper import assert_python_ok, run_python_until_end
 from unittest import skipIf
 from test.cinder_support import CINDERJIT_ENABLED
+from types import FunctionType
 import cinder
 from cinder import (
     cached_property,
@@ -3090,6 +3091,40 @@ def f(x):
 
         with self.assertRaises(AttributeError):
             f(C, True)
+
+    def test_load_method_function_no_attr(self):
+        """Invalidating a cache and picking up a new cache from a type
+        needs to check that the type has the descriptor"""
+        class C:
+            def getdoc(self): return 'doc'
+
+
+        def f(x, z):
+            if x:
+                z.getdoc()
+            else:
+                z.getdoc()
+
+        # Setup valid cache entries, we want 2 so that we can replace
+        # one with a new cache, and then re-use the cache entry on
+        # a second call.
+        a = C()
+        for i in range(REPETITION):
+            f(True, a)
+            f(False, a)
+
+        # Force creation of the type cache for FunctionType.getdoc
+        try:
+            f(False, FunctionType)
+        except AttributeError:
+            pass
+
+        # Then attempt to re-use it in another cache
+        try:
+            f(True, FunctionType)
+        except AttributeError:
+            pass
+
 
 if __name__ == "__main__":
     unittest.main()

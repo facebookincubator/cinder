@@ -1823,6 +1823,10 @@ _PyShadow_LoadMethodFromType(_PyShadow_EvalState *state,
     entry = _PyShadow_GetCacheForAttr(cache, name);
     if (entry != NULL && _PyShadow_IsCacheValid(entry)) {
         /* We have an existing valid cache, re-use it */
+        if (((_PyShadow_InstanceAttrEntry *)entry)->value == NULL) {
+            return 0;
+        }
+
         Py_INCREF(entry);
         goto run_entry;
     }
