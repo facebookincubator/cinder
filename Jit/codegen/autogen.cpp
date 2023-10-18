@@ -447,16 +447,15 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   emitStoreGenYieldPoint(as, env, instr, resume_label, x86::rdi, scratch_r);
 
   // Store variables spilled by this point to generator.
-  // Point rsi at the top word of the current spill space.
-  as->lea(x86::rsi, x86::ptr(x86::rbp, -kPointerSize));
-  // Point rdi at the top word of the generator's spill space.
-  as->sub(x86::rdi, kPointerSize);
-  int current_spill_bytes = env->initial_yield_spill_size_;
-  JIT_CHECK(current_spill_bytes % kPointerSize == 0, "Bad spill alignment");
-  as->mov(x86::rcx, current_spill_bytes / kPointerSize);
-  as->std();
+  int spill_bytes = env->initial_yield_spill_size_;
+  JIT_CHECK(spill_bytes % kPointerSize == 0, "Bad spill alignment");
+
+  // Point rsi at the bottom word of the current spill space.
+  as->lea(x86::rsi, x86::ptr(x86::rbp, -spill_bytes));
+  // Point rdi at the bottom word of the generator's spill space.
+  as->sub(x86::rdi, spill_bytes);
+  as->mov(x86::rcx, spill_bytes / kPointerSize);
   as->rep().movsq();
-  as->cld();
 
   // Jump to bottom half of epilogue
   as->jmp(env->hard_exit_label);
