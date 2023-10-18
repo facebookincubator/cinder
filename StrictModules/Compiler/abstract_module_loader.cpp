@@ -113,12 +113,11 @@ std::pair<ModuleKind, ShouldAnalyze> getModuleKindFromStmts(
           if (modKind == std::nullopt) {
             modKind = tempModKind;
             goto loop_continue;
+          } else if (modKind == ModuleKind::kStrict) {
+            modKind = tempModKind;
+            goto loop_continue;
           } else {
-            modInfo->setFlagError(
-                stmt->lineno,
-                stmt->col_offset,
-                "strict flag must be at top of module");
-            return {ModuleKind::kNonStrict, should_analyze};
+            goto loop_continue;
           }
         }
       }
