@@ -66,10 +66,10 @@ void LiveTypeMap::clear() {
   // wouldn't be notified about their (re-)creation.
   JIT_DCHECK(
       name_to_type_.size() == type_to_name_.size(), "Maps should be same size");
-  for (auto it = name_to_type_.begin(); it != name_to_type_.end();) {
-    if (PyType_HasFeature(it->second, Py_TPFLAGS_HEAPTYPE)) {
-      type_to_name_.erase(it->second);
-      it = name_to_type_.erase(it);
+  for (auto it = type_to_name_.begin(); it != type_to_name_.end();) {
+    if (PyType_HasFeature(it->first, Py_TPFLAGS_HEAPTYPE)) {
+      name_to_type_.erase(it->second);
+      it = type_to_name_.erase(it);
     } else {
       ++it;
     }
