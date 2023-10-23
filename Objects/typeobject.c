@@ -18,7 +18,6 @@
 #include "cinder/exports.h"
 
 #ifdef ENABLE_CINDERX
-#include "Jit/pyjit.h"
 #include "StaticPython/classloader.h"
 #endif
 
@@ -731,9 +730,10 @@ type_set_name(PyTypeObject *type, PyObject *value, void *context)
         return -1;
     }
 
-#ifdef ENABLE_CINDERX
-    _PyJIT_TypeNameModified(type);
-#endif
+    if (Ci_hook_type_name_modified) {
+        Ci_hook_type_name_modified(type);
+    }
+
     type->tp_name = tp_name;
     Py_INCREF(value);
     Py_SETREF(((PyHeapTypeObject*)type)->ht_name, value);
@@ -5345,9 +5345,7 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
                 return -1;
             }
         }
-#ifdef ENABLE_CINDERX
         _PyType_ClearNoShadowingInstances(newto, NULL);
-#endif
 
         return 0;
     }

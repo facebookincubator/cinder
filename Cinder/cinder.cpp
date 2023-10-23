@@ -178,6 +178,7 @@ static void init_already_existing_types() {
 int Cinder_Init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
+  Ci_hook_type_name_modified = _PyJIT_TypeNameModified;
   init_already_existing_types();
 
   if (cinder_install_dict_watcher() < 0) {
