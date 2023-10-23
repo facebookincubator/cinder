@@ -6,6 +6,7 @@
 # 'testcinder_jit_profile' make target.
 
 import os
+import sys
 import threading
 import unittest
 from collections import Counter
@@ -103,6 +104,33 @@ class BinaryOpTests(ProfileTest):
         if TESTING:
             with self.assertDeopts({}):
                 self.assertEqual(do_pow(2, 8), 256)
+
+    def assert_index_error(self):
+        return self.assertRaisesRegex(
+            IndexError, "cannot fit 'int' into an index-sized integer"
+        )
+
+    def test_raising_str_subscr(self):
+        s = "abcdefu"
+        with self.assert_index_error():
+            return s[sys.maxsize + 1]
+
+    def test_raising_list_subscr(self):
+        l = [1, 2, 3]
+        with self.assert_index_error():
+            return l[sys.maxsize + 1]
+
+    def test_raising_tuple_subscr(self):
+        t = (1, 2, 3)
+        with self.assert_index_error():
+            return t[sys.maxsize + 1]
+
+    def test_raising_str_repeat(self):
+        s = "123"
+        with self.assertRaisesRegex(
+            OverflowError, "cannot fit 'int' into an index-sized integer"
+        ):
+            return s * (sys.maxsize + 1)
 
 
 class NewThreadTests(ProfileTest):

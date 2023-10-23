@@ -1784,6 +1784,7 @@ void JITRT_BatchDecref(PyObject** args, int nargs) {
 }
 
 Py_ssize_t JITRT_CheckSequenceBounds(PyObject* s, Py_ssize_t i) {
+  JIT_DCHECK(!PyErr_Occurred(), "called with error set");
   i = i < 0 ? i + Py_SIZE(s) : i;
   if (i < 0 || i >= Py_SIZE(s)) {
     PyErr_SetString(PyExc_IndexError, "index out of range");

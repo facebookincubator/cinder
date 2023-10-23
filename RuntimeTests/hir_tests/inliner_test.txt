@@ -134,19 +134,20 @@ fun jittestmodule:test {
     Snapshot
     UseType<ListExact> v8
     UseType<LongExact> v15
-    v33:CInt64[1] = LoadConst<CInt64[1]>
-    v30:CInt64 = CheckSequenceBounds v8 v33 {
+    v34:CInt64[1] = LoadConst<CInt64[1]>
+    v35:CInt64[0] = LoadConst<CInt64[0]>
+    v31:CInt64 = CheckSequenceBounds v8 v34 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v8 v15
       }
     }
-    v31:CPtr = LoadField<ob_item@24, CPtr, borrowed> v8
-    v32:Object = LoadArrayItem v31 v30 v8
+    v32:CPtr = LoadField<ob_item@24, CPtr, borrowed> v8
+    v33:Object = LoadArrayItem v32 v31 v8
     Snapshot
     EndInlinedFunction
     Snapshot
-    Return v32
+    Return v33
   }
 }
 ---

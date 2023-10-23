@@ -268,6 +268,7 @@ struct FrameState {
   V(ImportName)                        \
   V(InPlaceOp)                         \
   V(Incref)                            \
+  V(IndexUnbox)                        \
   V(InitialYield)                      \
   V(IntBinaryOp)                       \
   V(PrimitiveBoxBool)                  \
@@ -2622,6 +2623,21 @@ class INSTR_CLASS(PrimitiveUnbox, (), HasOutput, Operands<1>) {
 
  private:
   Type type_;
+};
+
+// Similar to PrimitiveUnbox, but uses PyNumber_AsSsize_t() instead of
+// PyLong_AsSize_t() for a different exception and message on overflow.
+class INSTR_CLASS(IndexUnbox, (TLong), HasOutput, Operands<1>) {
+ public:
+  IndexUnbox(Register* dst, Register* value, PyObject* exc = PyExc_IndexError)
+      : InstrT(dst, value), exc_(exc) {}
+
+  PyObject* exception() const {
+    return exc_;
+  }
+
+ private:
+  PyObject* exc_;
 };
 
 class CondBranchBase : public Instr {

@@ -39,15 +39,21 @@ fun test {
     }
     UseType<ListExact> v2
     UseType<LongExact> v3
-    v7:CInt64 = PrimitiveUnbox<CInt64> v3
-    v8:CInt64 = CheckSequenceBounds v2 v7 {
+    v7:CInt64 = IndexUnbox<IndexError> v3
+    v8:CInt64 = IsNegativeAndErrOccurred v7 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
       }
     }
-    v9:CPtr = LoadField<ob_item@24, CPtr, borrowed> v2
-    v10:Object = LoadArrayItem v9 v8 v2
+    v9:CInt64 = CheckSequenceBounds v2 v7 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v0 v1
+      }
+    }
+    v10:CPtr = LoadField<ob_item@24, CPtr, borrowed> v2
+    v11:Object = LoadArrayItem v10 v9 v2
     v6:NoneType = LoadConst<NoneType>
     Return v6
   }

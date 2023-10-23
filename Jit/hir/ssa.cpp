@@ -639,6 +639,9 @@ Type outputType(
       auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
       return unbox.type();
     }
+    case Opcode::kIndexUnbox: {
+      return TCInt64;
+    }
 
     // Check opcodes return a copy of their input that is statically known to
     // not be null.

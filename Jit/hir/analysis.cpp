@@ -80,6 +80,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kImportFrom:
     case Opcode::kImportName:
     case Opcode::kInPlaceOp:
+    case Opcode::kIndexUnbox:
     case Opcode::kInitialYield:
     case Opcode::kIntBinaryOp:
     case Opcode::kIntConvert:

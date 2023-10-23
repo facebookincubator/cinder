@@ -264,17 +264,18 @@ fun jittestmodule:test {
     v12:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     UseType<ListExact> v7
     UseType<LongExact> v12
-    v18:CInt64[1] = LoadConst<CInt64[1]>
-    v15:CInt64 = CheckSequenceBounds v7 v18 {
+    v19:CInt64[1] = LoadConst<CInt64[1]>
+    v20:CInt64[0] = LoadConst<CInt64[0]>
+    v16:CInt64 = CheckSequenceBounds v7 v19 {
       FrameState {
         NextInstrOffset 14
         Locals<1> v7
       }
     }
-    v16:CPtr = LoadField<ob_item@24, CPtr, borrowed> v7
-    v17:Object = LoadArrayItem v16 v15 v7
+    v17:CPtr = LoadField<ob_item@24, CPtr, borrowed> v7
+    v18:Object = LoadArrayItem v17 v16 v7
     Snapshot
-    Return v17
+    Return v18
   }
 }
 ---
@@ -325,14 +326,19 @@ fun test {
     v3:LongExact = RefineType<LongExact> v1
     UseType<TupleExact> v2
     UseType<LongExact> v3
-    v5:CInt64 = PrimitiveUnbox<CInt64> v3
-    v6:CInt64 = CheckSequenceBounds v2 v5 {
+    v5:CInt64 = IndexUnbox<IndexError> v3
+    v6:CInt64 = IsNegativeAndErrOccurred v5 {
       FrameState {
         NextInstrOffset 0
       }
     }
-    v7:Object = LoadArrayItem<Offset[24]> v2 v6 v2
-    Return v7
+    v7:CInt64 = CheckSequenceBounds v2 v5 {
+      FrameState {
+        NextInstrOffset 0
+      }
+    }
+    v8:Object = LoadArrayItem<Offset[24]> v2 v7 v2
+    Return v8
   }
 }
 ---
@@ -349,8 +355,8 @@ fun jittestmodule:test {
     Snapshot
     v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
     v8:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
-    UseType<UnicodeExact> v6
-    UseType<LongExact> v8
+    UseType<MortalUnicodeExact["foobar"]> v6
+    UseType<ImmortalLongExact[3]> v8
     v13:MortalUnicodeExact["b"] = LoadConst<MortalUnicodeExact["b"]>
     Snapshot
     Return v13
@@ -370,8 +376,8 @@ fun jittestmodule:test {
     Snapshot
     v6:MortalUnicodeExact["foobar"] = LoadConst<MortalUnicodeExact["foobar"]>
     v8:ImmortalLongExact[-2] = LoadConst<ImmortalLongExact[-2]>
-    UseType<UnicodeExact> v6
-    UseType<LongExact> v8
+    UseType<MortalUnicodeExact["foobar"]> v6
+    UseType<ImmortalLongExact[-2]> v8
     v13:MortalUnicodeExact["a"] = LoadConst<MortalUnicodeExact["a"]>
     Snapshot
     Return v13
@@ -513,21 +519,27 @@ fun jittestmodule:test {
     Snapshot
     UseType<UnicodeExact> v22
     UseType<LongExact> v34
-    v41:CInt64 = PrimitiveUnbox<CInt64> v34
-    v42:CInt64 = CheckSequenceBounds v22 v41 {
+    v41:CInt64 = IndexUnbox<IndexError> v34
+    v42:CInt64 = IsNegativeAndErrOccurred v41 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v22 v34
       }
     }
-    v43:UnicodeExact = UnicodeSubscr v22 v42 {
+    v43:CInt64 = CheckSequenceBounds v22 v41 {
+      FrameState {
+        NextInstrOffset 34
+        Locals<2> v22 v34
+      }
+    }
+    v44:UnicodeExact = UnicodeSubscr v22 v43 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v22 v34
       }
     }
     Snapshot
-    Return v43
+    Return v44
   }
 }
 ---
@@ -1800,7 +1812,7 @@ fun test {
     v2:Object = LoadArg<1>
     v3:UnicodeExact = RefineType<UnicodeExact> v1
     v4:LongExact = RefineType<LongExact> v2
-    v6:CInt64 = PrimitiveUnbox<CInt64> v4
+    v6:CInt64 = IndexUnbox<OverflowError> v4
     v7:CInt64 = IsNegativeAndErrOccurred v6 {
       FrameState {
         NextInstrOffset 0
@@ -2158,11 +2170,12 @@ fun jittestmodule:test {
     v17:ImmortalLongExact[1] = LoadConst<ImmortalLongExact[1]>
     UseType<TupleExact> v14
     UseType<LongExact> v17
-    v22:CInt64[1] = LoadConst<CInt64[1]>
+    v23:CInt64[1] = LoadConst<CInt64[1]>
+    v24:CInt64[0] = LoadConst<CInt64[0]>
     UseType<MortalTupleExact> v14
-    UseType<CInt64[1]> v22
+    UseType<CInt64[1]> v23
     UseType<TupleExact> v14
-    UseType<CInt64[1]> v22
+    UseType<CInt64[1]> v23
     Snapshot
     Return v8
   }
@@ -2192,16 +2205,17 @@ fun jittestmodule:test {
     v17:ImmortalLongExact[3] = LoadConst<ImmortalLongExact[3]>
     UseType<TupleExact> v14
     UseType<LongExact> v17
-    v22:CInt64[3] = LoadConst<CInt64[3]>
-    v20:CInt64 = CheckSequenceBounds v14 v22 {
+    v23:CInt64[3] = LoadConst<CInt64[3]>
+    v24:CInt64[0] = LoadConst<CInt64[0]>
+    v21:CInt64 = CheckSequenceBounds v14 v23 {
       FrameState {
         NextInstrOffset 16
         Locals<4> v7 v8 v9 v14
       }
     }
-    v21:Object = LoadArrayItem<Offset[24]> v14 v20 v14
+    v22:Object = LoadArrayItem<Offset[24]> v14 v21 v14
     Snapshot
-    Return v21
+    Return v22
   }
 }
 ---

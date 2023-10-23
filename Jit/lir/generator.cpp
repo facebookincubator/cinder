@@ -1065,6 +1065,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         break;
       }
+      case Opcode::kIndexUnbox: {
+        auto instr = static_cast<const IndexUnbox*>(&i);
+        bbb.AppendCall(
+            instr->dst(),
+            PyNumber_AsSsize_t,
+            instr->GetOperand(0),
+            instr->exception());
+        break;
+      }
       case Opcode::kPrimitiveUnaryOp: {
         auto instr = static_cast<const PrimitiveUnaryOp*>(&i);
         switch (instr->op()) {

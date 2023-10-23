@@ -21,16 +21,22 @@ fun jittestmodule:test {
     }
     UseType<TupleExact> v7
     UseType<LongExact> v8
-    v10:CInt64 = PrimitiveUnbox<CInt64> v8
-    v11:CInt64 = CheckSequenceBounds v7 v10 {
+    v10:CInt64 = IndexUnbox<IndexError> v8
+    v11:CInt64 = IsNegativeAndErrOccurred v10 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v7 v8
       }
     }
-    v12:Object = LoadArrayItem<Offset[24]> v7 v11 v7
+    v12:CInt64 = CheckSequenceBounds v7 v10 {
+      FrameState {
+        NextInstrOffset 6
+        Locals<2> v7 v8
+      }
+    }
+    v13:Object = LoadArrayItem<Offset[24]> v7 v12 v7
     Snapshot
-    Return v12
+    Return v13
   }
 }
 ---

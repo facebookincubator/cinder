@@ -561,7 +561,8 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
       // representation of the type, which should be analagous to Py_ssize_t.
       env.emit<UseType>(lhs, lhs->isA(TListExact) ? TListExact : TTupleExact);
       env.emit<UseType>(rhs, TLongExact);
-      Register* right_index = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+      Register* right_index = env.emit<IndexUnbox>(rhs);
+      env.emit<IsNegativeAndErrOccurred>(right_index, *instr->frameState());
       Register* adjusted_idx =
           env.emit<CheckSequenceBounds>(lhs, right_index, *instr->frameState());
       ssize_t offset = offsetof(PyTupleObject, ob_item);
@@ -579,6 +580,10 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
       if (lhs_type.hasObjectSpec() && rhs_type.hasObjectSpec()) {
         // Constant propagation
         Py_ssize_t idx = PyLong_AsSsize_t(rhs_type.objectSpec());
+        if (idx == -1 && PyErr_Occurred()) {
+          PyErr_Clear();
+          return nullptr;
+        }
         Py_ssize_t n = PyUnicode_GetLength(lhs_type.objectSpec());
 
         if (idx < -n || idx >= n) {
@@ -593,17 +598,22 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
         Py_UCS4 c = PyUnicode_ReadChar(lhs_type.objectSpec(), idx);
         PyObject* substr =
             PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, &c, 1);
+        if (substr == nullptr) {
+          return nullptr;
+        }
         PyUnicode_InternInPlace(&substr);
         Ref<> result = Ref<>::steal(substr);
 
-        env.emit<UseType>(lhs, TUnicodeExact);
-        env.emit<UseType>(rhs, TLongExact);
+        // Use exact types since we're relying on the object specializations.
+        env.emit<UseType>(lhs, lhs_type);
+        env.emit<UseType>(rhs, rhs_type);
         return env.emit<LoadConst>(
             Type::fromObject(env.func.env.addReference(result)));
       } else {
         env.emit<UseType>(lhs, TUnicodeExact);
         env.emit<UseType>(rhs, TLongExact);
-        Register* unboxed_idx = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+        Register* unboxed_idx = env.emit<IndexUnbox>(rhs);
+        env.emit<IsNegativeAndErrOccurred>(unboxed_idx, *instr->frameState());
         Register* adjusted_idx = env.emit<CheckSequenceBounds>(
             lhs, unboxed_idx, *instr->frameState());
         return env.emit<UnicodeSubscr>(lhs, adjusted_idx, *instr->frameState());
@@ -624,7 +634,7 @@ Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
   }
   if ((lhs->isA(TUnicodeExact) && rhs->isA(TLongExact)) &&
       (instr->op() == BinaryOpKind::kMultiply)) {
-    Register* unboxed_rhs = env.emit<PrimitiveUnbox>(rhs, TCInt64);
+    Register* unboxed_rhs = env.emit<IndexUnbox>(rhs, PyExc_OverflowError);
     env.emit<IsNegativeAndErrOccurred>(unboxed_rhs, *instr->frameState());
     return env.emit<UnicodeRepeat>(lhs, unboxed_rhs, *instr->frameState());
   }
@@ -717,50 +727,49 @@ Register* simplifyPrimitiveBoxBool(Env& env, const PrimitiveBoxBool* instr) {
   return nullptr;
 }
 
-Register* simplifyPrimitiveUnbox(Env& env, const PrimitiveUnbox* instr) {
-  Register* unboxed_value = instr->GetOperand(0);
-  if (unboxed_value->instr()->IsPrimitiveBox()) {
+Register* simplifyUnbox(Env& env, const Instr* instr) {
+  Register* input_value = instr->GetOperand(0);
+  Type output_type = instr->GetOutput()->type();
+  if (input_value->instr()->IsPrimitiveBox()) {
     // Simplify unbox(box(x)) -> x
-    const PrimitiveBox* box =
-        static_cast<PrimitiveBox*>(unboxed_value->instr());
-    if (box->type() == instr->type()) {
+    const auto box = static_cast<PrimitiveBox*>(input_value->instr());
+    if (box->type() == output_type) {
       // We can't optimize away the potential overflow in unboxing.
       return box->GetOperand(0);
     }
   }
-  Type unbox_output_type = instr->GetOutput()->type();
   // Ensure that we are dealing with either a integer or a double.
-  Type unboxed_value_type = unboxed_value->type();
-  if (!(unboxed_value_type.hasObjectSpec())) {
+  Type input_value_type = input_value->type();
+  if (!(input_value_type.hasObjectSpec())) {
     return nullptr;
   }
-  PyObject* value = unboxed_value_type.objectSpec();
-  if (unbox_output_type <= (TCSigned | TCUnsigned)) {
+  PyObject* value = input_value_type.objectSpec();
+  if (output_type <= (TCSigned | TCUnsigned)) {
     if (!PyLong_Check(value)) {
       return nullptr;
     }
     int overflow = 0;
     long number =
-        PyLong_AsLongAndOverflow(unboxed_value_type.objectSpec(), &overflow);
+        PyLong_AsLongAndOverflow(input_value_type.objectSpec(), &overflow);
     if (overflow != 0) {
       return nullptr;
     }
-    if (unbox_output_type <= TCSigned) {
-      if (!Type::CIntFitsType(number, unbox_output_type)) {
+    if (output_type <= TCSigned) {
+      if (!Type::CIntFitsType(number, output_type)) {
         return nullptr;
       }
-      return env.emit<LoadConst>(Type::fromCInt(number, unbox_output_type));
+      return env.emit<LoadConst>(Type::fromCInt(number, output_type));
     } else {
-      if (!Type::CUIntFitsType(number, unbox_output_type)) {
+      if (!Type::CUIntFitsType(number, output_type)) {
         return nullptr;
       }
-      return env.emit<LoadConst>(Type::fromCUInt(number, unbox_output_type));
+      return env.emit<LoadConst>(Type::fromCUInt(number, output_type));
     }
-  } else if (unbox_output_type <= TCDouble) {
+  } else if (output_type <= TCDouble) {
     if (!PyFloat_Check(value)) {
       return nullptr;
     }
-    double number = PyFloat_AS_DOUBLE(unboxed_value_type.objectSpec());
+    double number = PyFloat_AS_DOUBLE(input_value_type.objectSpec());
     return env.emit<LoadConst>(Type::fromCDouble(number));
   }
   return nullptr;
@@ -1315,9 +1324,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kPrimitiveBoxBool:
       return simplifyPrimitiveBoxBool(
           env, static_cast<const PrimitiveBoxBool*>(instr));
+    case Opcode::kIndexUnbox:
     case Opcode::kPrimitiveUnbox:
-      return simplifyPrimitiveUnbox(
-          env, static_cast<const PrimitiveUnbox*>(instr));
+      return simplifyUnbox(env, instr);
 
     case Opcode::kIsNegativeAndErrOccurred:
       return simplifyIsNegativeAndErrOccurred(

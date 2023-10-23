@@ -41,6 +41,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kGetSecondOutput:
     case Opcode::kGuardType:
     case Opcode::kHintType:
+    case Opcode::kIndexUnbox:
     case Opcode::kIntBinaryOp:
     case Opcode::kIntConvert:
     case Opcode::kIsNegativeAndErrOccurred:

@@ -529,6 +529,11 @@ static std::string format_immediates(const Instr& instr) {
       const auto& unbox = static_cast<const PrimitiveUnbox&>(instr);
       return fmt::format("{}", unbox.type());
     }
+    case Opcode::kIndexUnbox: {
+      const auto& unbox = static_cast<const IndexUnbox&>(instr);
+      return fmt::format(
+          "{}", reinterpret_cast<PyTypeObject*>(unbox.exception())->tp_name);
+    }
     case Opcode::kLoadGlobalCached: {
       const auto& load = static_cast<const LoadGlobalCached&>(instr);
       return format_name(load, load.name_idx());

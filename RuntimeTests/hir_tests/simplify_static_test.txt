@@ -230,7 +230,7 @@ fun jittestmodule:test {
 
   bb 4 (preds 0, 2) {
     v24:CInt64 = Phi<0, 2> v18 v37
-    v25:OptObject = Phi<0, 2> v16 v47
+    v25:OptObject = Phi<0, 2> v16 v48
     v21:CInt32 = LoadEvalBreaker
     CondBranch<5, 1> v21
   }
@@ -267,14 +267,21 @@ fun jittestmodule:test {
     }
     UseType<TupleExact> v15
     UseType<LongExact> v34
-    v46:CInt64 = CheckSequenceBounds v15 v24 {
+    v46:CInt64 = IsNegativeAndErrOccurred v24 {
       FrameState {
         NextInstrOffset 24
         Locals<3> v15 v24 v25
         Stack<1> v15
       }
     }
-    v47:Object = LoadArrayItem<Offset[24]> v15 v46 v15
+    v47:CInt64 = CheckSequenceBounds v15 v24 {
+      FrameState {
+        NextInstrOffset 24
+        Locals<3> v15 v24 v25
+        Stack<1> v15
+      }
+    }
+    v48:Object = LoadArrayItem<Offset[24]> v15 v47 v15
     Snapshot
     v36:CInt64[1] = LoadConst<CInt64[1]>
     v37:CInt64 = IntBinaryOp<Add> v24 v36
@@ -284,10 +291,10 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: print'
     }
     Snapshot
-    v43:Object = VectorCall<1> v41 v47 {
+    v43:Object = VectorCall<1> v41 v48 {
       FrameState {
         NextInstrOffset 40
-        Locals<3> v15 v37 v47
+        Locals<3> v15 v37 v48
         Stack<1> v15
       }
     }
