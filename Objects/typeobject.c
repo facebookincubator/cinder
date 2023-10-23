@@ -14,6 +14,7 @@
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
 
+#include "cinderhooks.h"
 #include "cinder/exports.h"
 
 #ifdef ENABLE_CINDERX
@@ -3472,9 +3473,9 @@ type_new_impl(type_new_ctx *ctx)
     }
 
     assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERX
-    _PyJIT_TypeCreated(type);
-#endif
+    if (Ci_hook_type_created) {
+        Ci_hook_type_created(type);
+    }
     return (PyObject *)type;
 
 error:
@@ -4546,15 +4547,9 @@ type_getattr(PyTypeObject *type, const char *name)
 static void
 type_dealloc(PyTypeObject *type)
 {
-#ifdef ENABLE_CINDERX
-    /* TODO(T113261512): Move this logic into the JIT callback.
-     *
-     * Don't tell the JIT about types that are destroyed before they were fully
-     * constructed.  */
-    if (PyType_HasFeature(type, Py_TPFLAGS_READY)) {
-        _PyJIT_TypeDestroyed(type);
+    if (Ci_hook_type_destroyed) {
+        Ci_hook_type_destroyed(type);
     }
-#endif
 
     PyHeapTypeObject *et;
     PyObject *tp, *val, *tb;
@@ -6950,13 +6945,11 @@ PyType_Ready(PyTypeObject *type)
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERX
-    if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-      /* type_new_impl() has more work to do on heap types; only tell the JIT
+    if (Ci_hook_type_created && !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
+      /* type_new_impl() has more work to do on heap types; only tell the callback
        * about static types right here. */
-      _PyJIT_TypeCreated(type);
+      Ci_hook_type_created(type);
     }
-#endif
     return 0;
 }
 

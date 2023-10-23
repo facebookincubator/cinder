@@ -396,6 +396,7 @@ PYTHON_OBJS=	\
 		Python/ast_unparse.o \
 		Python/bltinmodule.o \
 		@CEVAL_MAYBE_PROBED@ \
+		Python/cinderhooks.o \
 		Python/codecs.o \
 		Python/compile.o \
 		Python/context.o \
@@ -1510,6 +1511,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/bytearrayobject.h \
 		$(srcdir)/Include/bytesobject.h \
 		$(srcdir)/Include/cellobject.h \
+		$(srcdir)/Include/cinderhooks.h \
 		$(srcdir)/Include/ceval.h \
 		$(srcdir)/Include/classobject.h \
 		$(srcdir)/Include/code.h \

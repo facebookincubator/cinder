@@ -1,6 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
+#include "cinderhooks.h"
 #include "cinder/cinder.h"
 #include "Jit/pyjit.h"
 
@@ -163,7 +164,22 @@ static int cinder_install_code_watcher() {
   return 0;
 }
 
+static int init_types_visitor(PyObject* obj, void*) {
+  if (PyType_Check(obj) && PyType_HasFeature((PyTypeObject*)obj, Py_TPFLAGS_READY)) {
+    _PyJIT_TypeCreated((PyTypeObject*)obj);
+  }
+  return 1;
+}
+
+static void init_already_existing_types() {
+  PyUnstable_GC_VisitObjects(init_types_visitor, NULL);
+}
+
 int Cinder_Init() {
+  Ci_hook_type_created = _PyJIT_TypeCreated;
+  Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
+  init_already_existing_types();
+
   if (cinder_install_dict_watcher() < 0) {
     return -1;
   }

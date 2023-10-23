@@ -1977,6 +1977,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
 }
 
 void _PyJIT_TypeCreated(PyTypeObject* type) {
+  JIT_DCHECK(PyType_HasFeature(type, Py_TPFLAGS_READY), "type not ready");
   auto& profile_runtime = jit::Runtime::get()->profileRuntime();
   profile_runtime.registerType(type);
 }
