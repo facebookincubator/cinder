@@ -573,7 +573,7 @@ class LoadAttrTests(ProfileTest):
                         ("description", "member descriptor attribute"),
                         (
                             "guilty_type",
-                            "test.cinderjit_profile_test:OtherFakeSlotType",
+                            "test_cinderx.cinderjit_profile_test:OtherFakeSlotType",
                         ),
                     ): 1
                 }

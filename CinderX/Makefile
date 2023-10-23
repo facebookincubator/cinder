@@ -25,8 +25,8 @@ define RUN_CINDER_TEST_RUNNER
 endef
 
 define RUN_TESTCINDERJIT_PROFILE
-	CINDER_JIT_PROFILE_TEST_PROFILING=1 $(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-profile-interp -X jit-profile-interp-period=1 -X jit-write-profile=cinderjit_profile_test.types $(1) -mtest -v cinderjit_profile_test
-	$(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-read-profile=cinderjit_profile_test.types -X jit $(1) -mtest -v cinderjit_profile_test
+	CINDER_JIT_PROFILE_TEST_PROFILING=1 $(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-profile-interp -X jit-profile-interp-period=1 -X jit-write-profile=cinderjit_profile_test.types $(1) -munittest -v test_cinderx.cinderjit_profile_test
+	$(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-read-profile=cinderjit_profile_test.types -X jit $(1) -munittest -v test_cinderx.cinderjit_profile_test
 	rm cinderjit_profile_test.types
 endef
 

@@ -18,7 +18,7 @@ from types import CodeType
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Type
 from unittest import skip
 
-from test.test_compiler.common import CompilerTest
+from test_cinderx.test_compiler.common import CompilerTest
 
 
 class StrictTestBase(CompilerTest):

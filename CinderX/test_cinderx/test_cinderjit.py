@@ -369,7 +369,7 @@ class InlineCacheStatsTests(unittest.TestCase):
         load_method_stats = stats["load_method_stats"]
         relevant_load_method_stats = list(
             filter(
-                lambda stat: "Lib/test/test_cinderjit" in stat["filename"]
+                lambda stat: "test_cinderjit" in stat["filename"]
                 and stat["method"] == "trigger_load_method_with_stats",
                 load_method_stats,
             )
@@ -380,7 +380,7 @@ class InlineCacheStatsTests(unittest.TestCase):
         self.assertEqual(
             load_method_cache_misses,
             {
-                "test.test_cinderjit:BinOps.mul": {
+                "test_cinderx.test_cinderjit:BinOps.mul": {
                     "count": 1,
                     "reason": "Uncategorized",
                 },
@@ -436,7 +436,7 @@ class InlinedFunctionLineNumberTests(unittest.TestCase):
             {
                 "num_inlined_functions": 2,
                 "failure_stats": {
-                    "HasVarargs": {"test.test_cinderjit:func_with_varargs"}
+                    "HasVarargs": {"test_cinderx.test_cinderjit:func_with_varargs"}
                 },
             },
             stats,
