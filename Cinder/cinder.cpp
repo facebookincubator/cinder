@@ -4,6 +4,7 @@
 #include "cinderhooks.h"
 #include "cinder/cinder.h"
 #include "Jit/pyjit.h"
+#include "StaticPython/classloader.h"
 
 static int cinder_dict_watcher_id = -1;
 static int cinder_type_watcher_id = -1;
@@ -179,6 +180,8 @@ int Cinder_Init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
   Ci_hook_type_name_modified = _PyJIT_TypeNameModified;
+  Ci_hook_type_pre_setattr = _PyClassLoader_InitTypeForPatching;
+  Ci_hook_type_setattr = _PyClassLoader_UpdateSlot;
   init_already_existing_types();
 
   if (cinder_install_dict_watcher() < 0) {

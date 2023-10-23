@@ -4405,15 +4405,9 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         existing = PyDict_GetItem(type->tp_dict, name);
         Py_XINCREF(existing);
     }
-#ifdef ENABLE_CINDERX
-    if (type->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED) {
-        /* We're running in an environment where we're patching types.  Prepare
-         * the type for tracking patches if it hasn't already been prepared */
-        if (_PyClassLoader_InitTypeForPatching(type)) {
-            return -1;
-        }
+    if (Ci_hook_type_pre_setattr) {
+        Ci_hook_type_pre_setattr(type);
     }
-#endif
     res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL);
     if (res == 0) {
         /* Clear the VALID_VERSION flag of 'type' and all its
@@ -4428,9 +4422,8 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         }
         _PyType_ClearNoShadowingInstances(type, value);
        assert(_PyType_CheckConsistency(type));
-#ifdef ENABLE_CINDERX
-       if (existing != value) {
-            int slotupdate_res = _PyClassLoader_UpdateSlot(type, name, value);
+       if (Ci_hook_type_setattr && existing != value) {
+            int slotupdate_res = Ci_hook_type_setattr(type, name, value);
             if (slotupdate_res == -1) {
                 // We failed to update the slot, so restore the existing value
                 int revert_res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, existing, NULL);
@@ -4441,7 +4434,6 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
             }
             res = res || slotupdate_res;
         }
-#endif
     }
     Py_XDECREF(existing);
     Py_DECREF(name);

@@ -2455,6 +2455,9 @@ int
 get_func_or_special_callable(PyTypeObject *type, PyObject *name, PyObject **result);
 
 int _PyClassLoader_InitTypeForPatching(PyTypeObject *type) {
+    if (!(type->tp_flags & Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED)) {
+        return 0;
+    }
     _PyType_VTable *vtable = (_PyType_VTable *)type->tp_cache;
     if (vtable != NULL && vtable->vt_original != NULL) {
         return 0;
