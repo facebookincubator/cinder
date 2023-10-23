@@ -1,3 +1,23 @@
+# TODO(T62830617): These contain individual tests that rely on features
+# that are unsupported by the JIT. Manually disable the failing tests when
+# the JIT is enabled.
+test_builtin
+test_compile
+test_decimal
+test_inspect
+test_rlcompleter
+test_signal
+# These probably won't ever work under the JIT
+test_cprofile
+test_pdb
+test_profile
+test_sys_setprofile
+test_sys_settrace
+test_trace
+test_bdb
+# multithreaded_compile_test requires special -X options
+multithreaded_compile_test
+
 # TODO(T87011403): Infinite recursion
 test.test_exceptions.ExceptionTests.testInfiniteRecursion
 test.test_exceptions.ExceptionTests.test_badisinstance

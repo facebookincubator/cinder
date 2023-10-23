@@ -1,0 +1,11 @@
+# Some tests exercises features which don't play well with RR so exclude them
+# when RR is enabled.
+test_io
+test_subprocess
+test_time
+test_posix
+test_fcntl
+test_multiprocessing_fork
+test_multiprocessing_forkserver
+test_multiprocessing_spawn
+test_eintr

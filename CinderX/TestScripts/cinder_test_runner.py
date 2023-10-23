@@ -1,20 +1,14 @@
 # Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-# This file provides a test runner for running the Python regression test suite
-# under JIT backends. Currently, when we run the test suite under the JIT, we
-# compile each function as it is created. While this provides a large surface
-# area to test the JIT on, it can be quite slow. Notably, the GCC backend takes
-# over an hour to run through the test suite sequentially.
 #
-# In order to speed things up, we divide the test suite across many worker
-# processes. Unfortunately we cannot use the parallel test running strategy
-# used by the existing regrtest module. It spawns a fresh worker for each test,
-# which is prohibitively expensive when using the GCC backend as we end up
-# recompiling all the support code that is imported each time the worker starts
-# up (this can take a minute or two). Instead, we run multiple tests in each
-# worker in order to amortize the initial startup costs.
+# A modified version of the regrtest system which runs multiple tests per
+# instance of a parallel worker. This compensates for JIT compilation,
+# particularly for debug builds, is a huge overhead. So, we amortize initial
+# startup costs.
 #
-# Most of the test running code is stolen from the regrtest module. We override
-# just enough to allow us to inject our own parallel test runner.
+# We also have a few Cinder/Meta-specific tweaks. E.g. some logic for selecting
+# tests to skip under certain test conditions like JIT, or hooking into our
+# internal logging systems, etc.
+
 import argparse
 import json
 import multiprocessing
@@ -41,6 +35,8 @@ from test import support
 from test.support import os_helper
 from test.libregrtest.main import Regrtest
 from test.libregrtest.runtest import (
+    NOTTESTS,
+    STDTESTS,
     findtests,
     runtest,
     ChildError,
@@ -63,7 +59,7 @@ WORKER_PATH = os.path.abspath(__file__)
 # Respawn workers after they have run this many tests
 WORKER_RESPAWN_INTERVAL = 10
 
-JIT_RUNNER_LOG_DIR = "/tmp/jit_test_runner_logs"
+CINDER_RUNNER_LOG_DIR = "/tmp/cinder_test_runner_logs"
 
 # Tests that don't play nicely when run in parallel with other tests
 TESTS_TO_SERIALIZE = {
@@ -340,7 +336,7 @@ def start_worker(
     if use_rr:
         # RR gets upset if it's not allowed to create a directory itself so we
         # make a temporary directory and then let it create another inside.
-        rr_trace_dir = tempfile.mkdtemp(prefix="rr-", dir=JIT_RUNNER_LOG_DIR)
+        rr_trace_dir = tempfile.mkdtemp(prefix="rr-", dir=CINDER_RUNNER_LOG_DIR)
         rr_trace_dir += "/d"
         cmd = RR_RECORD_BASE_CMD + [f"--recording-dir={rr_trace_dir}"] + cmd
     if worker_timeout != 0:
@@ -358,6 +354,7 @@ def manage_worker(
     testq: queue.Queue,
     resultq: queue.Queue,
     worker_timeout: int,
+    worker_respawn_interval: int,
     use_rr: bool,
 ) -> None:
     """Spawn and manage a subprocess to execute tests.
@@ -393,7 +390,7 @@ def manage_worker(
                 worker = start_worker(ns, worker_timeout, use_rr)
         else:
             resultq.put(result)
-            if worker.ncompleted == WORKER_RESPAWN_INTERVAL:
+            if worker.ncompleted == worker_respawn_interval:
                 # Respawn workers periodically to avoid oom-ing the machine
                 worker.shutdown()
                 worker = start_worker(ns, worker_timeout, use_rr)
@@ -417,22 +414,24 @@ def log_err(msg: str) -> None:
     sys.stderr.flush()
 
 
-class JITRegrtest(Regrtest):
+class CinderRegrtest(Regrtest):
     def __init__(
         self,
         logfile: IO,
         log_to_scuba: bool,
         worker_timeout: int,
+        worker_respawn_interval: int,
         success_on_test_errors: bool,
         use_rr: bool,
         recording_metadata_path: str,
         no_retry_on_test_errors: bool,
     ):
         Regrtest.__init__(self)
-        self._jit_regr_runner_logfile = logfile
+        self._cinder_regr_runner_logfile = logfile
         self._log_to_scuba = log_to_scuba
         self._success_on_test_errors = success_on_test_errors
         self._worker_timeout = worker_timeout
+        self._worker_respawn_interval = worker_respawn_interval
         self._use_rr = use_rr
         self._recording_metadata_path = recording_metadata_path
         self._no_retry_on_test_errors = no_retry_on_test_errors
@@ -474,6 +473,7 @@ class JITRegrtest(Regrtest):
                     testq,
                     resultq,
                     self._worker_timeout,
+                    self._worker_respawn_interval,
                     self._use_rr),
             )
             t.start()
@@ -497,9 +497,9 @@ class JITRegrtest(Regrtest):
                     print(
                         f"Running test '{msg.test_name}' on worker "
                         f"{msg.worker_pid}",
-                        file=self._jit_regr_runner_logfile,
+                        file=self._cinder_regr_runner_logfile,
                     )
-                    self._jit_regr_runner_logfile.flush()
+                    self._cinder_regr_runner_logfile.flush()
                 elif isinstance(msg, TestComplete):
                     ntests_remaining -= 1
                     self._ntests_done += 1
@@ -567,7 +567,10 @@ class JITRegrtest(Regrtest):
         self.ns.fail_env_changed = True
         setup_tests(self.ns)
 
-        self.find_tests(tests)
+        if tests is None:
+            self._setupDefaultCinderTests()
+        else:
+            self.find_tests(tests)
 
         replay_infos = self.run_tests()
 
@@ -594,6 +597,68 @@ class JITRegrtest(Regrtest):
             if self.ns.fail_env_changed and self.environment_changed:
                 sys.exit(3)
         sys.exit(0)
+
+    def _setupDefaultCinderTests(self) -> List:
+        skip_list_files = ["devserver_skip_tests.txt", "cinder_skip_test.txt"]
+
+        if support.check_sanitizer(address=True):
+            skip_list_files.append("asan_skip_tests.txt")
+
+        if self._use_rr:
+            skip_list_files.append("rr_skip_tests.txt")
+
+        if sysconfig.get_config_var('ENABLE_CINDERX') != 1:
+            skip_list_files.append("no_cinderx_skip_tests.txt")
+
+        try:
+            import cinderjit
+            skip_list_files.append("cinder_jit_ignore_tests.txt")
+        except ImportError:
+            pass
+
+        if self.ns.huntrleaks:
+            skip_list_files.append("refleak_skip_tests.txt")
+
+        # This is all just awful. There are several ways tests can be included
+        # or excluded in libregrtest and we need to fiddle with all of them:
+        #
+        # self.ns.ignore_tests - a list of patterns for precise test names to
+        #    dynamically ignore as they are encountered. All test suite modules
+        #    are still loaded and processed. Normally populated by --ignorefile.
+        #
+        # NOTTESTS - global set of test modules to completely skip, normally
+        #    populated by -x followed by a list of test modules.
+        #
+        # STDTESTS - global set of test files to always included which seems to
+        #    take precedence over NOTTESTS.
+        if self.ns.ignore_tests is None:
+            self.ns.ignore_tests = []
+        stdtest_set = set(STDTESTS)
+        nottests = NOTTESTS.copy()
+        for skip_file in skip_list_files:
+            with open(os.path.join(os.path.dirname(__file__), skip_file)) as fp:
+                for line in fp:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if len({".", "*"} & set(line)):
+                        self.ns.ignore_tests.append(line)
+                    else:
+                        stdtest_set.discard(line)
+                        nottests.add(line)
+
+        # Initial set of tests are the core Python/Cinder ones
+        tests = ["test." + t for t in findtests(None, list(stdtest_set), nottests)]
+
+        # Add CinderX tests
+        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
+        self.ns.testdir = cinderx_dir
+        sys.path.append(cinderx_dir)
+        cinderx_tests = findtests(
+                os.path.join(cinderx_dir, "test_cinderx"), list(), nottests)
+        tests.extend("test_cinderx." + t for t in cinderx_tests)
+
+        self.selected = tests
 
     def _writeResultsToScuba(self) -> None:
         template = {
@@ -631,59 +696,6 @@ class JITRegrtest(Regrtest):
             sc_proc.wait()
 
 
-def read_skip_tests():
-    with open(
-        os.path.join(os.path.dirname(__file__), "devserver_skip_tests.txt"),
-        "r",
-    ) as file:
-        yield from file.read().splitlines()
-    if support.check_sanitizer(address=True):
-        with open(
-            os.path.join(os.path.dirname(__file__), "asan_skip_tests.txt"),
-            "r",
-        ) as file:
-            yield from file.read().splitlines()
-
-
-TESTS_TO_SKIP = {
-    # TODO(T62830617): These contain individual tests that rely on features
-    # that are unsupported by the JIT. Manually disable the failing tests when
-    # the JIT is enabled.
-    "test_builtin",
-    "test_compile",
-    "test_decimal",
-    "test_inspect",
-    "test_rlcompleter",
-    "test_signal",
-    # These probably won't ever work under the JIT
-    "test_cprofile",
-    "test_pdb",
-    "test_profile",
-    "test_sys_setprofile",
-    "test_sys_settrace",
-    "test_trace",
-    "test_bdb",
-    # multithreaded_compile_test requires special -X options
-    "multithreaded_compile_test",
-    # Some tests don't work in our environment, JIT or not.
-    *read_skip_tests(),
-}
-
-# Some tests exercises features which don't play well with RR so exclude them
-# when RR is enabled.
-RR_TESTS_TO_SKIP = {
-    "test_io",
-    "test_subprocess",
-    "test_time",
-    "test_posix",
-    "test_fcntl",
-    "test_multiprocessing_fork",
-    "test_multiprocessing_forkserver",
-    "test_multiprocessing_spawn",
-    "test_eintr",
-}
-
-
 def worker_main(args):
     ns_dict = json.loads(args.ns)
     ns = types.SimpleNamespace(**ns_dict)
@@ -692,24 +704,17 @@ def worker_main(args):
 
 
 def dispatcher_main(args):
-    if args.test:
-        tests = args.test
-    else:
-        all_tests = findtests()
-        test_set = set(all_tests) - TESTS_TO_SKIP
-        if args.use_rr:
-            test_set -= RR_TESTS_TO_SKIP
-        tests = list(test_set)
-    pathlib.Path(JIT_RUNNER_LOG_DIR).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(CINDER_RUNNER_LOG_DIR).mkdir(parents=True, exist_ok=True)
     try:
         with tempfile.NamedTemporaryFile(
-            delete=False, mode="w+t", dir=JIT_RUNNER_LOG_DIR
+            delete=False, mode="w+t", dir=CINDER_RUNNER_LOG_DIR
         ) as logfile:
             print(f"Using scheduling log file {logfile.name}")
-            test_runner = JITRegrtest(
+            test_runner = CinderRegrtest(
                 logfile,
                 args.log_to_scuba,
                 args.worker_timeout,
+                args.worker_respawn_interval,
                 args.success_on_test_errors,
                 args.use_rr,
                 args.recording_metadata_path,
@@ -720,12 +725,12 @@ def dispatcher_main(args):
             # Put any args we didn't care about into sys.argv for
             # Regrtest.main().
             sys.argv[1:] = args.rest[1:]
-            test_runner.main(tests)
+            test_runner.main(args.test)
     finally:
         if args.use_rr:
             print(
                 "Consider cleaning out RR data with: "
-                f"rm -rf {JIT_RUNNER_LOG_DIR}/rr-*")
+                f"rm -rf {CINDER_RUNNER_LOG_DIR}/rr-*")
 
 
 def replay_main(args):
@@ -774,6 +779,12 @@ if __name__ == "__main__":
         type=int,
         help="Timeout for worker jobs (in seconds)",
         default=20 * 60,
+    )
+    dispatcher_parser.add_argument(
+        "--worker-respawn-interval",
+        type=int,
+        help="Number of jobs to run in a worker before respawning.",
+        default=WORKER_RESPAWN_INTERVAL,
     )
     dispatcher_parser.add_argument(
         "--use-rr",
