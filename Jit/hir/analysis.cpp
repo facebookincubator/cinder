@@ -71,8 +71,8 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kFillTypeAttrCache:
     case Opcode::kFillTypeMethodCache:
     case Opcode::kFormatValue:
-    case Opcode::kGetANext:
     case Opcode::kGetAIter:
+    case Opcode::kGetANext:
     case Opcode::kGetIter:
     case Opcode::kGetLength:
     case Opcode::kGetSecondOutput:
@@ -82,9 +82,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kInPlaceOp:
     case Opcode::kInitialYield:
     case Opcode::kIntBinaryOp:
-    case Opcode::kPrimitiveCompare:
     case Opcode::kIntConvert:
-    case Opcode::kPrimitiveUnbox:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
     case Opcode::kInvokeMethodStatic:
@@ -109,20 +107,20 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadGlobal:
     case Opcode::kLoadGlobalCached:
     case Opcode::kLoadMethod:
-    case Opcode::kLoadModuleMethod:
     case Opcode::kLoadMethodSuper:
+    case Opcode::kLoadModuleMethod:
     case Opcode::kLoadSplitDictItem:
     case Opcode::kLoadTupleItem:
     case Opcode::kLoadTypeAttrCacheItem:
-    case Opcode::kLoadTypeMethodCacheEntryValue:
     case Opcode::kLoadTypeMethodCacheEntryType:
+    case Opcode::kLoadTypeMethodCacheEntryValue:
     case Opcode::kLoadVarObjectSize:
-    case Opcode::kLongCompare:
     case Opcode::kLongBinaryOp:
+    case Opcode::kLongCompare:
     case Opcode::kMakeCell:
     case Opcode::kMakeCheckedDict:
-    case Opcode::kMakeDict:
     case Opcode::kMakeCheckedList:
+    case Opcode::kMakeDict:
     case Opcode::kMakeFunction:
     case Opcode::kMakeList:
     case Opcode::kMakeSet:
@@ -134,7 +132,9 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kPhi:
     case Opcode::kPrimitiveBox:
     case Opcode::kPrimitiveBoxBool:
+    case Opcode::kPrimitiveCompare:
     case Opcode::kPrimitiveUnaryOp:
+    case Opcode::kPrimitiveUnbox:
     case Opcode::kRepeatList:
     case Opcode::kRepeatTuple:
     case Opcode::kRunPeriodicTasks:
@@ -168,8 +168,8 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kBeginInlinedFunction:
     case Opcode::kBranch:
     case Opcode::kCondBranch:
-    case Opcode::kCondBranchIterNotDone:
     case Opcode::kCondBranchCheckType:
+    case Opcode::kCondBranchIterNotDone:
     case Opcode::kDecref:
     case Opcode::kDeleteAttr:
     case Opcode::kDeleteSubscr:
@@ -178,19 +178,19 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kEndInlinedFunction:
     case Opcode::kGuard:
     case Opcode::kHintType:
-    case Opcode::kSnapshot:
     case Opcode::kIncref:
+    case Opcode::kRaise:
+    case Opcode::kRaiseAwaitableError:
+    case Opcode::kRaiseStatic:
     case Opcode::kReturn:
     case Opcode::kSetCellItem:
     case Opcode::kSetFunctionAttr:
+    case Opcode::kSnapshot:
     case Opcode::kStoreField:
     case Opcode::kUnreachable:
+    case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
-    case Opcode::kRaiseAwaitableError:
-    case Opcode::kRaise:
-    case Opcode::kRaiseStatic:
-    case Opcode::kWaitHandleRelease:
       JIT_ABORT("Opcode %s has no output", instr.opname());
   }
   JIT_ABORT("Bad opcode %d", static_cast<int>(instr.opcode()));
