@@ -487,15 +487,19 @@ fun jittestmodule:test {
   bb 0 {
     v2:Object = LoadArg<0; "o">
     Snapshot
-    DeoptPatchpoint<0xdeadbeef> {
-      Descr 'property attribute'
+    v4:ObjectUser[C:Exact] = GuardType<ObjectUser[C:Exact]> v2 {
       GuiltyReg v2
     }
+    DeoptPatchpoint<0xdeadbeef> {
+      Descr 'property attribute'
+      GuiltyReg v4
+    }
+    UseType<ObjectUser[C:Exact]> v4
     v6:MortalFunc[function:0xdeadbeef] = LoadConst<MortalFunc[function:0xdeadbeef]>
-    v7:Object = VectorCall<1> v6 v2 {
+    v7:Object = VectorCall<1> v6 v4 {
       FrameState {
         NextInstrOffset 4
-        Locals<1> v2
+        Locals<1> v4
       }
     }
     Snapshot

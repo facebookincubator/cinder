@@ -921,6 +921,7 @@ Register* simplifyLoadAttrProperty(Env& env, const DescrInfo& info) {
   }
 
   emitTypeAttrDeoptPatcher(env, info, "property attribute");
+  env.emit<UseType>(info.receiver, info.type);
   Register* getter_obj = env.emit<LoadConst>(Type::fromObject(getter));
   auto call = env.emitRawInstr<VectorCall>(
       2,
