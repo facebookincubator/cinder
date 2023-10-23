@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -115,8 +116,15 @@ struct Reader {
   int line_num;
 };
 
-std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& path) {
+
+
+
+std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& suite_path) {
   std::ifstream file;
+
+  std::filesystem::path path = std::filesystem::path(__FILE__)
+      .parent_path().parent_path().append(suite_path);
+
   file.open(path);
   if (file.fail()) {
     err(path) << "Failed opening test data file: " << strerror(errno)

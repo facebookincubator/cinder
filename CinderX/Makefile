@@ -1,13 +1,19 @@
-# Possible external environment variables:
+#
+# Python-based test rules
+#
+
+# Required external environment variables:
+# TESTPYTHON - Python binary/command to use to run cinder_test_runner.py
+
+# Optional external environment variables:
 # JIT_TEST_RUNNER_ARGS - Arbitrary args to pass to cinder_test_runner.py
 # USE_RR - Setting this enables rr recording of test execution
 # RECORDING_METADATA_PATH - Use with above to set path to record metadata.
 # ASAN_TEST_ENV - Command prefix for environment variables when built with ASAN
-# TESTPYTHON - Python binary/command to use to run cinder_test_runner.py
 
 
 ifeq ($(TESTPYTHON),)
-$(error TESTPYTHON must be set to a python binary)
+TESTPYTHON=$(error TESTPYTHON must be set to a python binary)
 endif
 
 ifneq ($(strip $(USE_RR)),)
@@ -92,3 +98,166 @@ testcinder_jit_shadowframe_inliner:
 testcinder_jit_shadowframe_inliner_profile:
 	$(call RUN_TESTCINDERJIT_PROFILE,-X jit-shadow-frame -X jit-enable-hir-inliner)
 .PHONY: testcinder_jit_shadowframe_inliner_profile
+
+
+#
+# C++ Runtime/Strict Module rules
+#
+
+# Required environment variables:
+# abs_builddir - Absolute path of the CPython build (may be different from
+#     source for out-of-tree builds)
+# abs_srcdir - Absolute path of the CPython source.
+# CXX - C++ compiler
+# PYTHON_CONFIG_CMD - Shell snippet to run the generated python-config.py.
+# PY_CORE_CXXFLAGS - C++ build flags.
+# ASAN_TEST_ENV - ASAN env variables.
+# ASAN_TEST_ENV_WITH_LSAN - ASAN env variables.
+# PYTHONPATH - Python extension/stdlib search path.
+# TEST_LINK_FLAGS - Linker args used when linking
+# TESTPYTHON - Python binary. This is primarily used to run gtest-parallel as
+#    using the system Python gets confused when run out of the Cinder root.
+
+GTEST_DIR=ThirdParty/googletest-1.8.1/googletest
+GTEST_BUILD_DIR=$(abs_builddir)/CinderX/$(GTEST_DIR)
+GTEST_SRCDIR=$(CURDIR)/$(GTEST_DIR)
+RUNTIME_TESTS_DIR=RuntimeTests
+RUNTIME_TESTS_BUILD_DIR=$(abs_builddir)/CinderX/$(RUNTIME_TESTS_DIR)
+RUNTIME_TESTS_SRCDIR=$(CURDIR)/$(RUNTIME_TESTS_DIR)
+
+STRICTM_TESTS_DIR=StrictModules/Tests
+STRICTM_TESTS_BUILD_DIR=$(abs_builddir)/CinderX/$(STRICTM_TESTS_DIR)
+STRICTM_TESTS_SRCDIR=$(CURDIR)/$(STRICTM_TESTS_DIR)
+
+
+${GTEST_BUILD_DIR}/libgtest.a: ${GTEST_SRCDIR}/src/gtest-all.cc
+	$(CXX) -std=c++11 -isystem ${GTEST_SRCDIR}/include -I${GTEST_SRCDIR} -pthread -c $< -o ${GTEST_BUILD_DIR}/gtest-all.o
+	ar -rv $@ ${GTEST_BUILD_DIR}/gtest-all.o
+
+RUNTIME_TEST_HEADERS = \
+       ${RUNTIME_TESTS_SRCDIR}/fixtures.h \
+       ${RUNTIME_TESTS_SRCDIR}/testutil.h
+
+RUNTIME_TESTS_OBJS= \
+	${RUNTIME_TESTS_BUILD_DIR}/alias_class_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/backend_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/bitvector_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/block_canonicalizer_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/bytecode_offsets_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/bytecode_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/cmdline_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/copy_graph_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/dataflow_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/deopt_patcher_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/deopt_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/fixtures.o \
+	${RUNTIME_TESTS_BUILD_DIR}/gen_asm_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_analysis_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_copy_propagation_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_frame_state_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_guard_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_operand_type_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_parser_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_ssa_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/hir_type_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/inline_cache_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/intrusive_list_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/jit_context_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/jit_flag_processor_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/jit_list_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/jit_time_log_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_dce_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_inliner_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_postalloc_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_postgen_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_verify_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/lir_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/live_type_map_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/main.o \
+	${RUNTIME_TESTS_BUILD_DIR}/profile_runtime_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/ref_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/regalloc_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/sanity_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/slab_arena_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/testutil.o \
+	${RUNTIME_TESTS_BUILD_DIR}/type_profiler_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/util_test.o
+
+STRICTM_TEST_HEADERS = \
+    ${STRICTM_TESTS_SRCDIR}/test.h \
+	${STRICTM_TESTS_SRCDIR}/test_util.h
+
+STRICTM_TESTS_OBJS= \
+	${STRICTM_TESTS_BUILD_DIR}/parse_test.o \
+	${STRICTM_TESTS_BUILD_DIR}/analyzer_test.o \
+	${STRICTM_TESTS_BUILD_DIR}/module_loader_test.o \
+	${STRICTM_TESTS_BUILD_DIR}/scope_test.o \
+	${STRICTM_TESTS_BUILD_DIR}/test_util.o \
+	${STRICTM_TESTS_BUILD_DIR}/main.o
+
+$(RUNTIME_TESTS_OBJS): $(RUNTIME_TESTS_BUILD_DIR)/%.o: $(RUNTIME_TESTS_SRCDIR)/%.cpp
+
+pyembed_includes:
+	$(PYTHON_CONFIG_CMD) --includes > pyembed_includes
+
+$(RUNTIME_TESTS_OBJS): $(RUNTIME_TESTS_BUILD_DIR)/%.o: pyembed_includes $(RUNTIME_TEST_HEADERS)
+	$(CXX) $(PY_CORE_CXXFLAGS) $(shell cat pyembed_includes) \
+		-isystem $(CURDIR)/ThirdParty -isystem $(GTEST_SRCDIR)/include -c $(filter %.cpp,$^) -o $@
+
+$(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: $(STRICTM_TESTS_SRCDIR)/%.cpp
+
+$(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: pyembed_includes $(STRICTM_TEST_HEADERS)
+	$(CXX) $(PY_CORE_CXXFLAGS) $(shell cat pyembed_includes) \
+		-isystem $(CURDIR)/ThirdParty -isystem $(GTEST_SRCDIR)/include -c $(filter %.cpp,$^) -o $@
+
+$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests: ${GTEST_BUILD_DIR}/libgtest.a $(RUNTIME_TESTS_OBJS)
+	$(eval PYEMBED_LIBS := $$(shell $(PYTHON_CONFIG_CMD) --libs | sed -e "s/-lpython[^ ]*//"))
+	cd $(abs_builddir) && \
+		$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
+		$(RUNTIME_TESTS_OBJS) \
+		${GTEST_BUILD_DIR}/libgtest.a \
+		$(TEST_LINK_FLAGS) $(PYEMBED_LIBS) \
+		-o $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests -ggdb -rdynamic
+
+runtime_tests: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
+.PHONY: runtime_tests
+
+testruntime: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
+	cd $(abs_srcdir) && \
+		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
+		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
+.PHONY: testruntime
+
+testruntime_serial: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
+	cd $(abs_srcdir) && \
+		LD_LIBRARY_PATH=$(abs_builddir) \
+		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
+.PHONY: testruntime_serial
+
+$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests: ${GTEST_BUILD_DIR}/libgtest.a $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS)
+	$(eval PYEMBED_LIBS := $$(shell $(PYTHON_CONFIG_CMD) --libs | sed -e "s/-lpython[^ ]*//"))
+	cd $(abs_builddir) && \
+		$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
+		$(STRICTM_TESTS_OBJS) \
+		${GTEST_BUILD_DIR}/libgtest.a \
+		$(TEST_LINK_FLAGS) $(PYEMBED_LIBS) \
+		-o $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -ggdb -rdynamic
+
+strict_module_tests: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
+.PHONY: strict_module_tests
+
+STRICTM_ASAN_SKIP_TESTS=
+ifneq ($(strip $(ASAN_TEST_ENV)),)
+	STRICTM_ASAN_SKIP_TESTS = $(CURDIR)/TestScripts/strictm_asan_skip_tests.txt
+endif
+
+test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
+	cd $(abs_srcdir) && \
+		LD_LIBRARY_PATH=$(abs_builddir) \
+		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
+		$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
+.PHONY: test_strict_module
