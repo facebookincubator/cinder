@@ -460,6 +460,36 @@ perf_map_state_teardown(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(ignored))
     Py_RETURN_NONE;
 }
 
+static PyObject *
+compile_perf_trampoline_entry(PyObject *self, PyObject *args)
+{
+    PyObject *co;
+    if (!PyArg_ParseTuple(args, "O!", &PyCode_Type, &co)) {
+        return NULL;
+    }
+    int ret = PyUnstable_PerfTrampoline_CompileCode((PyCodeObject *)co);
+    if (ret != 0) {
+        PyErr_SetString(PyExc_AssertionError, "Failed to compile trampoline");
+        return NULL;
+    }
+    return PyLong_FromLong(ret);
+}
+
+static PyObject *
+perf_trampoline_set_persist_after_fork(PyObject *self, PyObject *args)
+{
+    int enable;
+    if (!PyArg_ParseTuple(args, "i", &enable)) {
+        return NULL;
+    }
+    int ret = PyUnstable_PerfTrampoline_SetPersistAfterFork(enable);
+    if (ret == 0) {
+        PyErr_SetString(PyExc_AssertionError, "Failed to set persist_after_fork");
+        return NULL;
+    }
+    return PyLong_FromLong(ret);
+}
+
 // These are used in native calling tests, ensure the compiler
 // doesn't hide or remove these symbols
 __attribute__((used))
@@ -490,6 +520,8 @@ static PyMethodDef TestMethods[] = {
     {"test_gc_visit_objects_exit_early", test_gc_visit_objects_exit_early, METH_NOARGS},
     {"write_perf_map_entry", write_perf_map_entry, METH_VARARGS},
     {"perf_map_state_teardown", perf_map_state_teardown, METH_NOARGS},
+    {"compile_perf_trampoline_entry", compile_perf_trampoline_entry, METH_VARARGS},
+    {"perf_trampoline_set_persist_after_fork", perf_trampoline_set_persist_after_fork, METH_VARARGS},
     {NULL, NULL} /* sentinel */
 };
 
