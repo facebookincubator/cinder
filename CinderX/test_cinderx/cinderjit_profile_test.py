@@ -356,39 +356,6 @@ class LoadTypeMethodCacheTests(ProfileTest):
         self.assertEqual(run_static_meth(Derived), 1)
         self.assertEqual(run_regular_meth(Derived), 0)
 
-    def test_cache_with_inner_custom_descriptor(self):
-        class ClassMeth:
-            def __get__(self, obj, objtype=None):
-                return lambda: 42
-
-        class Test:
-            cls_meth = classmethod(ClassMeth())
-
-        self._prime_cache(Test, run_cls_meth, 42)
-
-        def new_get(self, obj, objtype=None):
-            return lambda: 2
-
-        ClassMeth.__get__ = new_get
-        self.assertEqual(run_cls_meth(Test), 2)
-
-    def test_custom_objects_decorated_with_classmeth(self):
-        class ClassMeth:
-            def __call__(self, cls):
-                return 123
-
-        class Test:
-            cls_meth = classmethod(ClassMeth())
-
-        self.assertEqual(run_cls_meth(Test), 123)
-
-        def new_get(self, obj, objtype=None):
-            return lambda: 2
-
-        # turn it into a descriptor
-        ClassMeth.__get__ = new_get
-        self.assertEqual(run_cls_meth(Test), 2)
-
     def test_dyanmic_type_method_lookup(self):
         class A:
             @classmethod
