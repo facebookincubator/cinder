@@ -344,12 +344,23 @@ Register* simplifyCompare(Env& env, const Compare* instr) {
 }
 
 Register* simplifyCondBranch(Env& env, const CondBranch* instr) {
-  Type op_type = instr->GetOperand(0)->type();
-  if (op_type.hasIntSpec()) {
-    if (op_type.intSpec() == 0) {
-      return env.emit<Branch>(instr->false_bb());
+  Register* cond = instr->GetOperand(0);
+  Type cond_type = cond->type();
+  // Constant condition folds into an unconditional jump.
+  if (cond_type.hasIntSpec()) {
+    auto spec = cond_type.intSpec();
+    return env.emit<Branch>(spec ? instr->true_bb() : instr->false_bb());
+  }
+  // Common pattern of CondBranch getting its condition from an IntConvert,
+  // which had been simplified down from an IsTruthy.  Can forward the value
+  // only if it's being widened.  Narrowing an integer might change it from
+  // non-zero to zero.
+  if (cond->instr()->IsIntConvert()) {
+    auto convert = static_cast<IntConvert*>(cond->instr());
+    Register* src = convert->src();
+    if (convert->type().sizeInBytes() >= src->type().sizeInBytes()) {
+      return env.emit<CondBranch>(src, instr->true_bb(), instr->false_bb());
     }
-    return env.emit<Branch>(instr->true_bb());
   }
   return nullptr;
 }
@@ -1392,19 +1403,22 @@ void Simplify::Run(Function& irfunc) {
           JIT_CHECK(env.cursor != env.block->begin(), "Unexpected empty block");
           Instr& prev_instr = *std::prev(env.cursor);
           JIT_CHECK(
-              prev_instr.IsBranch(),
+              instr.opcode() == prev_instr.opcode() || prev_instr.IsBranch(),
               "The only supported simplification for CondBranch* is to a "
-              "Branch, got unexpected '%s'",
+              "Branch or a different CondBranch, got unexpected '%s'",
               prev_instr);
 
           // If we've optimized a CondBranchBase into a Branch, we also need to
           // remove any Phi references to the current block from the block that
           // we no longer visit.
-          auto cond = static_cast<CondBranchBase*>(&instr);
-          BasicBlock* new_dst = prev_instr.successor(0);
-          BasicBlock* old_branch_block =
-              cond->false_bb() == new_dst ? cond->true_bb() : cond->false_bb();
-          old_branch_block->removePhiPredecessor(cond->block());
+          if (prev_instr.IsBranch()) {
+            auto cond = static_cast<CondBranchBase*>(&instr);
+            BasicBlock* new_dst = prev_instr.successor(0);
+            BasicBlock* old_branch_block = cond->false_bb() == new_dst
+                ? cond->true_bb()
+                : cond->false_bb();
+            old_branch_block->removePhiPredecessor(cond->block());
+          }
         }
 
         instr.unlink();

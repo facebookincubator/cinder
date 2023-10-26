@@ -991,7 +991,7 @@ fun test {
     v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v10:CBool = PrimitiveCompare<Equal> v8 v9
     v11:CInt32 = IntConvert<CInt32> v10
-    CondBranch<2, 1> v11
+    CondBranch<2, 1> v10
   }
 
   bb 2 (preds 0) {
@@ -1054,7 +1054,7 @@ fun test {
     v9:ImmortalBool[True] = LoadConst<ImmortalBool[True]>
     v10:CBool = PrimitiveCompare<Equal> v8 v9
     v11:CInt32 = IntConvert<CInt32> v10
-    CondBranch<2, 1> v11
+    CondBranch<2, 1> v10
   }
 
   bb 2 (preds 0) {
