@@ -10,6 +10,8 @@
 #include "pycore_pymem.h"         // _PyMem_SetDefaultAllocator()
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "pycore_sysmodule.h"
+
+#include "cinderhooks.h"
 #include "cinder/exports.h"
 
 #include "Jit/pyjit.h"
@@ -686,11 +688,9 @@ new_threadstate(PyInterpreterState *interp, int init)
     HEAD_UNLOCK(runtime);
 
     tstate->profile_interp = 0;
-#ifdef ENABLE_CINDERX
-    if (_PyJIT_GetProfileNewInterpThreads()) {
-      Ci_ThreadState_SetProfileInterp(tstate, 1);
+    if (Ci_hook_JIT_GetProfileNewInterpThread != NULL && Ci_hook_JIT_GetProfileNewInterpThread()) {
+        Ci_ThreadState_SetProfileInterp(tstate, 1);
     }
-#endif
 
     return tstate;
 }
@@ -1115,11 +1115,14 @@ PyFrameObject*
 PyThreadState_GetFrame(PyThreadState *tstate)
 {
     assert(tstate != NULL);
-#ifdef ENABLE_CINDERX
-    PyFrameObject *frame = _PyJIT_GetFrame(tstate);
-#else
-    PyFrameObject *frame = tstate->frame;
-#endif
+
+    PyFrameObject *frame;
+    if (Ci_hook_JIT_GetFrame != NULL) {
+        frame = Ci_hook_JIT_GetFrame(tstate);
+    } else {
+        frame = tstate->frame;
+    }
+
     Py_XINCREF(frame);
     return frame;
 }

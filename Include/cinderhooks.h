@@ -11,8 +11,16 @@ CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_created;
 CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_destroyed;
 CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_name_modified;
 
-/* Hooks for Static Python. */
+typedef int (*Ci_HookType_JIT_GetProfileNewInterpThread)(void);
+CiAPI_DATA(Ci_HookType_JIT_GetProfileNewInterpThread)
+    Ci_hook_JIT_GetProfileNewInterpThread;
 
+/* Hooks for JIT Shadow frames*/
+
+typedef PyFrameObject *(*Ci_HookType_JIT_GetFrame)(PyThreadState *tstate);
+CiAPI_DATA(Ci_HookType_JIT_GetFrame) Ci_hook_JIT_GetFrame;
+
+/* Hooks for Static Python. */
 typedef int(*Ci_TypeRaisingCallback)(PyTypeObject *type);
 CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
 

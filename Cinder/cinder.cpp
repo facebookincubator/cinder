@@ -182,6 +182,9 @@ int Cinder_Init() {
   Ci_hook_type_name_modified = _PyJIT_TypeNameModified;
   Ci_hook_type_pre_setattr = _PyClassLoader_InitTypeForPatching;
   Ci_hook_type_setattr = _PyClassLoader_UpdateSlot;
+  Ci_hook_JIT_GetProfileNewInterpThread = _PyJIT_GetProfileNewInterpThreads;
+  Ci_hook_JIT_GetFrame = _PyJIT_GetFrame;
+
   init_already_existing_types();
 
   if (cinder_install_dict_watcher() < 0) {
