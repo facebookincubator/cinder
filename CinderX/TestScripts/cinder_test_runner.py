@@ -10,6 +10,8 @@
 # internal logging systems, etc.
 
 import argparse
+import functools
+import gc
 import json
 import multiprocessing
 import os
@@ -17,6 +19,7 @@ import os.path
 import pathlib
 import pickle
 import queue
+import resource
 import shlex
 import shutil
 import signal
@@ -28,11 +31,13 @@ import tempfile
 import threading
 import time
 import types
+import unittest
 
 from dataclasses import dataclass
 
 from test import support
 from test.support import os_helper
+from test.libregrtest.cmdline import Namespace
 from test.libregrtest.main import Regrtest
 from test.libregrtest.runtest import (
     NOTTESTS,
@@ -50,7 +55,7 @@ from test.libregrtest.runtest import (
 from test.libregrtest.runtest_mp import get_cinderjit_xargs
 from test.libregrtest.setup import setup_tests
 
-from typing import Dict, Iterable, IO, List, Optional
+from typing import Dict, Iterable, IO, List, Optional, Set, Tuple
 
 MAX_WORKERS = 64
 
@@ -414,7 +419,59 @@ def log_err(msg: str) -> None:
     sys.stderr.flush()
 
 
-class CinderRegrtest(Regrtest):
+def _setupCinderIgnoredTests(ns: Namespace, use_rr: bool) -> Tuple[List[str], Set[str]]:
+    skip_list_files = ["devserver_skip_tests.txt", "cinder_skip_test.txt"]
+
+    if support.check_sanitizer(address=True):
+        skip_list_files.append("asan_skip_tests.txt")
+
+    if use_rr:
+        skip_list_files.append("rr_skip_tests.txt")
+
+    if sysconfig.get_config_var('ENABLE_CINDERX') != 1:
+        skip_list_files.append("no_cinderx_skip_tests.txt")
+
+    try:
+        import cinderjit
+        skip_list_files.append("cinder_jit_ignore_tests.txt")
+    except ImportError:
+        pass
+
+    if ns.huntrleaks:
+        skip_list_files.append("refleak_skip_tests.txt")
+
+    # This is all just awful. There are several ways tests can be included
+    # or excluded in libregrtest and we need to fiddle with all of them:
+    #
+    # ns.ignore_tests - a list of patterns for precise test names to dynamically
+    #    ignore as they are encountered. All test suite modules are still loaded
+    #    and processed. Normally populated by --ignorefile.
+    #
+    # NOTTESTS - global set of test modules to completely skip, normally
+    #    populated by -x followed by a list of test modules.
+    #
+    # STDTESTS - global set of test files to always included which seems to
+    #    take precedence over NOTTESTS.
+    if ns.ignore_tests is None:
+        ns.ignore_tests = []
+    stdtest_set = set(STDTESTS)
+    nottests = NOTTESTS.copy()
+    for skip_file in skip_list_files:
+        with open(os.path.join(os.path.dirname(__file__), skip_file)) as fp:
+            for line in fp:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if len({".", "*"} & set(line)):
+                    ns.ignore_tests.append(line)
+                else:
+                    stdtest_set.discard(line)
+                    nottests.add(line)
+
+    return list(stdtest_set), nottests
+
+
+class MultiWorkerCinderRegrtest(Regrtest):
     def __init__(
         self,
         logfile: IO,
@@ -567,8 +624,14 @@ class CinderRegrtest(Regrtest):
         self.ns.fail_env_changed = True
         setup_tests(self.ns)
 
+        test_filters = _setupCinderIgnoredTests(self.ns, self._use_rr)
+
+        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
+        self.ns.testdir = cinderx_dir
+        sys.path.append(cinderx_dir)
+
         if tests is None:
-            self._setupDefaultCinderTests()
+            self._selectDefaultCinderTests(test_filters, cinderx_dir)
         else:
             self.find_tests(tests)
 
@@ -598,62 +661,13 @@ class CinderRegrtest(Regrtest):
                 sys.exit(3)
         sys.exit(0)
 
-    def _setupDefaultCinderTests(self) -> List:
-        skip_list_files = ["devserver_skip_tests.txt", "cinder_skip_test.txt"]
-
-        if support.check_sanitizer(address=True):
-            skip_list_files.append("asan_skip_tests.txt")
-
-        if self._use_rr:
-            skip_list_files.append("rr_skip_tests.txt")
-
-        if sysconfig.get_config_var('ENABLE_CINDERX') != 1:
-            skip_list_files.append("no_cinderx_skip_tests.txt")
-
-        try:
-            import cinderjit
-            skip_list_files.append("cinder_jit_ignore_tests.txt")
-        except ImportError:
-            pass
-
-        if self.ns.huntrleaks:
-            skip_list_files.append("refleak_skip_tests.txt")
-
-        # This is all just awful. There are several ways tests can be included
-        # or excluded in libregrtest and we need to fiddle with all of them:
-        #
-        # self.ns.ignore_tests - a list of patterns for precise test names to
-        #    dynamically ignore as they are encountered. All test suite modules
-        #    are still loaded and processed. Normally populated by --ignorefile.
-        #
-        # NOTTESTS - global set of test modules to completely skip, normally
-        #    populated by -x followed by a list of test modules.
-        #
-        # STDTESTS - global set of test files to always included which seems to
-        #    take precedence over NOTTESTS.
-        if self.ns.ignore_tests is None:
-            self.ns.ignore_tests = []
-        stdtest_set = set(STDTESTS)
-        nottests = NOTTESTS.copy()
-        for skip_file in skip_list_files:
-            with open(os.path.join(os.path.dirname(__file__), skip_file)) as fp:
-                for line in fp:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    if len({".", "*"} & set(line)):
-                        self.ns.ignore_tests.append(line)
-                    else:
-                        stdtest_set.discard(line)
-                        nottests.add(line)
-
+    def _selectDefaultCinderTests(
+            self, test_filters: Tuple[List[str], Set[str]], cinderx_dir: str) -> None:
+        stdtest, nottests = test_filters
         # Initial set of tests are the core Python/Cinder ones
-        tests = ["test." + t for t in findtests(None, list(stdtest_set), nottests)]
+        tests = ["test." + t for t in findtests(None, stdtest, nottests)]
 
         # Add CinderX tests
-        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
-        self.ns.testdir = cinderx_dir
-        sys.path.append(cinderx_dir)
         cinderx_tests = findtests(
                 os.path.join(cinderx_dir, "test_cinderx"), list(), nottests)
         tests.extend("test_cinderx." + t for t in cinderx_tests)
@@ -696,11 +710,108 @@ class CinderRegrtest(Regrtest):
             sc_proc.wait()
 
 
+# Patched version of test.libregrtest.runtest._runtest_inner2 which loads tests
+# using unittest.TestLoader.loadTestsFromName rather tna loadTestsFromModule.
+# This allows much finer grained control over what tests are run e.g.
+# test.test_asyncgen.AsyncGenTests.test_await_for_iteration.
+def _patched_runtest_inner2(ns: Namespace, tests_name: str) -> bool:
+    import test.libregrtest.runtest as runtest
+
+    loader = unittest.TestLoader()
+    tests = loader.loadTestsFromName(tests_name, None)
+    for error in loader.errors:
+        print(error, file=sys.stderr)
+    if loader.errors:
+        raise Exception("errors while loading tests")
+
+    if ns.huntrleaks:
+        from test.libregrtest.refleak import dash_R
+
+    test_runner = functools.partial(support.run_unittest, tests)
+
+    try:
+        with runtest.save_env(ns, tests_name):
+            if ns.huntrleaks:
+                # Return True if the test leaked references
+                refleak = dash_R(ns, tests_name, test_runner)
+            else:
+                test_runner()
+                refleak = False
+    finally:
+        runtest.cleanup_test_droppings(tests_name, ns.verbose)
+
+    support.gc_collect()
+
+    if gc.garbage:
+        support.environment_altered = True
+        runtest.print_warning(f"{test_name} created {len(gc.garbage)} "
+                      f"uncollectable object(s).")
+
+        # move the uncollectable objects somewhere,
+        # so we don't see them again
+        runtest.FOUND_GARBAGE.extend(gc.garbage)
+        gc.garbage.clear()
+
+    support.reap_children()
+
+    return refleak
+
+
+class UserSelectedCinderRegrtest(Regrtest):
+    def __init__(self):
+        Regrtest.__init__(self)
+
+    def _main(self, tests, kwargs):
+        import test.libregrtest.runtest as runtest
+        runtest._runtest_inner2 = _patched_runtest_inner2
+
+        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
+        sys.path.append(cinderx_dir)
+
+        self.ns.fail_env_changed = True
+        setup_tests(self.ns)
+
+        _setupCinderIgnoredTests(self.ns, False)
+
+        if not self.ns.verbose and not self.ns.huntrleaks:
+            # Test progress/status via dots etc. The maze of CPython test code
+            # makes it hard to do this without monkey-patching or writing a ton
+            # of new code.
+            from unittest import TextTestResult
+            old_init = TextTestResult.__init__
+
+            def force_dots_output(self, *args, **kwargs):
+                old_init(self, *args, **kwargs)
+                self.dots = True
+
+            TextTestResult.__init__ = force_dots_output
+
+        for t in tests:
+            self.accumulate_result(runtest.runtest(self.ns, t))
+
+        self.display_result()
+
+        self.finalize()
+        if self.bad:
+            sys.exit(2)
+        if self.interrupted:
+            sys.exit(130)
+        if self.ns.fail_env_changed and self.environment_changed:
+            sys.exit(3)
+        sys.exit(0)
+
+
 def worker_main(args):
     ns_dict = json.loads(args.ns)
     ns = types.SimpleNamespace(**ns_dict)
     with MessagePipe(args.cmd_fd, args.result_fd) as pipe:
         WorkReceiver(pipe).run(ns)
+
+
+def user_selected_main(args):
+    test_runner = UserSelectedCinderRegrtest()
+    sys.argv[1:] = args.rest[1:]
+    test_runner.main(args.test)
 
 
 def dispatcher_main(args):
@@ -710,7 +821,7 @@ def dispatcher_main(args):
             delete=False, mode="w+t", dir=CINDER_RUNNER_LOG_DIR
         ) as logfile:
             print(f"Using scheduling log file {logfile.name}")
-            test_runner = CinderRegrtest(
+            test_runner = MultiWorkerCinderRegrtest(
                 logfile,
                 args.log_to_scuba,
                 args.worker_timeout,
@@ -748,6 +859,11 @@ if __name__ == "__main__":
         sys.executable = os.path.realpath(sys.executable)
     except OSError:
         pass
+
+    # Equivalent of 'ulimit -s unlimited'.
+    resource.setrlimit(
+        resource.RLIMIT_STACK,
+        (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -814,6 +930,17 @@ if __name__ == "__main__":
     )
     dispatcher_parser.add_argument("rest", nargs=argparse.REMAINDER)
     dispatcher_parser.set_defaults(func=dispatcher_main)
+
+    user_selected_parser = subparsers.add_parser("test")
+    user_selected_parser.add_argument(
+        "-t",
+        "--test",
+        action="append",
+        required=True,
+        help="The name of a test to run (e.g. `test_math`). Can be supplied multiple times.",
+    )
+    user_selected_parser.add_argument("rest", nargs=argparse.REMAINDER)
+    user_selected_parser.set_defaults(func=user_selected_main)
 
     replay_parser = subparsers.add_parser("replay")
     replay_parser.add_argument(
