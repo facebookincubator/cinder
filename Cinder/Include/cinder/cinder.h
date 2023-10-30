@@ -24,13 +24,6 @@ PyAPI_FUNC(int) Cinder_Init(void);
 PyAPI_FUNC(int) Cinder_Fini(void);
 
 /*
- * Initialize per-subinterpreter Cinder state.
- *
- * Returns 0 on success or -1 on error.
- */
-PyAPI_FUNC(int) Cinder_InitSubInterp(void);
-
-/*
  * Watch or unwatch a dictionary.
  */
 PyAPI_FUNC(void) Cinder_WatchDict(PyObject* dict);

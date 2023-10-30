@@ -2082,13 +2082,6 @@ new_interpreter(PyThreadState **tstate_p, int isolated_subinterpreter)
         goto error;
     }
 
-#ifdef ENABLE_CINDERX
-    int cinder_status = Cinder_InitSubInterp();
-    if (cinder_status < 0) {
-        goto error;
-    }
-#endif
-
     status = pycore_interp_init(tstate);
     if (_PyStatus_EXCEPTION(status)) {
         goto error;

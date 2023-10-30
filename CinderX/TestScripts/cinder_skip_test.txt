@@ -1,1 +1,14 @@
 test.test_rlcompleter.TestRlcompleter.test_global_matches
+
+
+test.test__xxsubinterpreters.*
+test.test_ast.ModuleStateTests.test_subinterpreter
+test.test_atexit.SubinterpreterTest.*
+test.test_capi.SubinterpreterTest.*
+test.test_embed.AuditingTests.test_audit_subinterpreter
+test.test_embed.EmbeddingTests.test_subinterps_different_ids
+test.test_embed.EmbeddingTests.test_subinterps_distinct_state
+test.test_embed.EmbeddingTests.test_subinterps_main
+test.test_multibytecodec.Test_IncrementalEncoder.test_subinterp
+test.test_threading.SubinterpThreadingTests.*
+test.test_interpreters.*
