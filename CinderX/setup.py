@@ -229,6 +229,7 @@ SHADOWCODE_SRCS = [
 
 STATICPYTHON_SRCS = [
     "StaticPython/classloader.c",
+    "StaticPython/descrobject_vectorcall.c",
 ]
 
 ALL_SRCS = (
