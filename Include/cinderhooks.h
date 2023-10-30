@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "pystate.h" // PyThreadState
+
 /* Hooks needed by CinderX that have not been added to upstream. */
 
 /* Hooks for JIT type profiling. */
@@ -26,3 +28,9 @@ CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
 
 typedef int(*Ci_TypeAttrRaisingCallback)(PyTypeObject *type, PyObject *name, PyObject *value);
 CiAPI_DATA(Ci_TypeAttrRaisingCallback) Ci_hook_type_setattr;
+
+/* Wrappers to expose private functions for usage with hooks. */
+
+typedef void (*Cix_funcptr)(void);
+CiAPI_FUNC(Cix_funcptr)
+    Cix_method_enter_call(PyThreadState *tstate, PyObject *func);

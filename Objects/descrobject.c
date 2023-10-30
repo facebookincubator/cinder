@@ -1,6 +1,7 @@
 /* Descriptors -- a new, flexible way to describe attributes */
 
 #include "Python.h"
+#include "cinderhooks.h"
 #include "cinder/exports.h"
 #include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_object.h"        // _PyObject_GC_UNTRACK()
@@ -3075,3 +3076,9 @@ PyTypeObject PyAsyncCachedClassProperty_Type = {
 
 /* end fb T82701047 */
 #endif
+
+funcptr
+Cix_method_enter_call(PyThreadState *tstate, PyObject *func)
+{
+    return method_enter_call(tstate, func);
+}
