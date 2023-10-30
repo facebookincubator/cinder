@@ -29,6 +29,9 @@ CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
 typedef int(*Ci_TypeAttrRaisingCallback)(PyTypeObject *type, PyObject *name, PyObject *value);
 CiAPI_DATA(Ci_TypeAttrRaisingCallback) Ci_hook_type_setattr;
 
+typedef vectorcallfunc (*Ci_HookType_PyDescr_NewMethod)(PyMethodDef *method);
+CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
+
 /* Wrappers to expose private functions for usage with hooks. */
 
 typedef void (*Cix_funcptr)(void);

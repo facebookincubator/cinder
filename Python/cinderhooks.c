@@ -15,3 +15,4 @@ Ci_HookType_JIT_GetFrame Ci_hook_JIT_GetFrame = NULL;
 /* Static Python. */
 Ci_TypeRaisingCallback Ci_hook_type_pre_setattr = NULL;
 Ci_TypeAttrRaisingCallback Ci_hook_type_setattr = NULL;
+Ci_HookType_PyDescr_NewMethod Ci_hook_PyDescr_NewMethod = NULL;

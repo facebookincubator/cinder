@@ -9,11 +9,6 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "structmember.h"         // PyMemberDef
 
-#ifdef ENABLE_CINDERX
-#include "StaticPython/classloader.h"
-#include "StaticPython/descrobject_vectorcall.h"
-#endif
-
 _Py_IDENTIFIER(getattr);
 
 /*[clinic input]
@@ -920,66 +915,40 @@ PyObject *
 PyDescr_NewMethod(PyTypeObject *type, PyMethodDef *method)
 {
     /* Figure out correct vectorcall function to use */
-    vectorcallfunc vectorcall;
-#ifdef ENABLE_CINDERX
-    Ci_PyTypedMethodDef *sig;
-#endif
-    switch (method->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
-                                METH_O | METH_KEYWORDS | METH_METHOD
-#ifdef ENABLE_CINDERX
-                                | Ci_METH_TYPED
-#endif
-            ))
-    {
-        case METH_VARARGS:
-            vectorcall = method_vectorcall_VARARGS;
-            break;
-        case METH_VARARGS | METH_KEYWORDS:
-            vectorcall = method_vectorcall_VARARGS_KEYWORDS;
-            break;
-        case METH_FASTCALL:
-            vectorcall = method_vectorcall_FASTCALL;
-            break;
-        case METH_FASTCALL | METH_KEYWORDS:
-            vectorcall = method_vectorcall_FASTCALL_KEYWORDS;
-            break;
-        case METH_NOARGS:
-            vectorcall = method_vectorcall_NOARGS;
-            break;
-        case METH_O:
-            vectorcall = method_vectorcall_O;
-            break;
-        case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
-            vectorcall = method_vectorcall_FASTCALL_KEYWORDS_METHOD;
-            break;
-#ifdef ENABLE_CINDERX
-        case Ci_METH_TYPED:
-            sig = (Ci_PyTypedMethodDef *)method->ml_meth;
-            Py_ssize_t arg_cnt = 0;
-            while (sig->tmd_sig[arg_cnt] != NULL) {
-                arg_cnt++;
-            }
-            switch (arg_cnt) {
-                case 0:
-                    vectorcall = Ci_method_vectorcall_typed_0;
-                    break;
-                case 1:
-                    vectorcall = Ci_method_vectorcall_typed_1;
-                    break;
-                case 2:
-                    vectorcall = Ci_method_vectorcall_typed_2;
-                    break;
-                default:
-                    PyErr_Format(PyExc_SystemError,
-                                "%s() method: unsupported arg count %d for typed method", method->ml_name, arg_cnt);
-                    return NULL;
-            }
-            break;
-#endif
-        default:
-            PyErr_Format(PyExc_SystemError,
-                         "%s() method: bad call flags", method->ml_name);
-            return NULL;
+    vectorcallfunc vectorcall = NULL;
+    if (Ci_hook_PyDescr_NewMethod != NULL) {
+        vectorcall = Ci_hook_PyDescr_NewMethod(method);
+    }
+    if (vectorcall == NULL) {
+        switch (method->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
+                                    METH_O | METH_KEYWORDS | METH_METHOD))
+        {
+            case METH_VARARGS:
+                vectorcall = method_vectorcall_VARARGS;
+                break;
+            case METH_VARARGS | METH_KEYWORDS:
+                vectorcall = method_vectorcall_VARARGS_KEYWORDS;
+                break;
+            case METH_FASTCALL:
+                vectorcall = method_vectorcall_FASTCALL;
+                break;
+            case METH_FASTCALL | METH_KEYWORDS:
+                vectorcall = method_vectorcall_FASTCALL_KEYWORDS;
+                break;
+            case METH_NOARGS:
+                vectorcall = method_vectorcall_NOARGS;
+                break;
+            case METH_O:
+                vectorcall = method_vectorcall_O;
+                break;
+            case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
+                vectorcall = method_vectorcall_FASTCALL_KEYWORDS_METHOD;
+                break;
+            default:
+                PyErr_Format(PyExc_SystemError,
+                             "%s() method: bad call flags", method->ml_name);
+                return NULL;
+        }
     }
 
     PyMethodDescrObject *descr;

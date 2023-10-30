@@ -187,3 +187,33 @@ done:
     return (PyObject *)res;
 }
 
+vectorcallfunc
+Ci_PyDescr_NewMethod_METH_TYPED(PyMethodDef *method) {
+    if ((method->ml_flags & Ci_METH_TYPED) != Ci_METH_TYPED) {
+        return NULL;
+    }
+
+    vectorcallfunc vectorcall;
+    Ci_PyTypedMethodDef *sig = (Ci_PyTypedMethodDef *)method->ml_meth;
+    Py_ssize_t arg_cnt = 0;
+    while (sig->tmd_sig[arg_cnt] != NULL) {
+        arg_cnt++;
+    }
+    switch (arg_cnt) {
+        case 0:
+            vectorcall = Ci_method_vectorcall_typed_0;
+            break;
+        case 1:
+            vectorcall = Ci_method_vectorcall_typed_1;
+            break;
+        case 2:
+            vectorcall = Ci_method_vectorcall_typed_2;
+            break;
+        default:
+            PyErr_Format(PyExc_SystemError,
+                        "%s() method: unsupported arg count %d for typed method", method->ml_name, arg_cnt);
+            return NULL;
+    }
+    return vectorcall;
+}
+

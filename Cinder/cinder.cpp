@@ -5,6 +5,7 @@
 #include "cinder/cinder.h"
 #include "Jit/pyjit.h"
 #include "StaticPython/classloader.h"
+#include "StaticPython/descrobject_vectorcall.h"
 
 static int cinder_dict_watcher_id = -1;
 static int cinder_type_watcher_id = -1;
@@ -184,6 +185,7 @@ int Cinder_Init() {
   Ci_hook_type_setattr = _PyClassLoader_UpdateSlot;
   Ci_hook_JIT_GetProfileNewInterpThread = _PyJIT_GetProfileNewInterpThreads;
   Ci_hook_JIT_GetFrame = _PyJIT_GetFrame;
+  Ci_hook_PyDescr_NewMethod = Ci_PyDescr_NewMethod_METH_TYPED;
 
   init_already_existing_types();
 
