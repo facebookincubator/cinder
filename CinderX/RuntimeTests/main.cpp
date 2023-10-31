@@ -94,7 +94,16 @@ static void register_json_test(const char* path) {
   }
 }
 
+#ifndef BAKED_IN_PYTHONPATH
+#error "BAKED_IN_PYTHONPATH must be defined"
+#endif
+#define _QUOTE(x) #x
+#define QUOTE(x) _QUOTE(x)
+#define _BAKED_IN_PYTHONPATH QUOTE(BAKED_IN_PYTHONPATH)
+
 int main(int argc, char* argv[]) {
+  setenv("PYTHONPATH", _BAKED_IN_PYTHONPATH, 1);
+
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/clean_cfg_test.txt");
   register_test(

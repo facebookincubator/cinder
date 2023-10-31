@@ -196,19 +196,17 @@ STRICTM_TESTS_OBJS= \
 	${STRICTM_TESTS_BUILD_DIR}/test_util.o \
 	${STRICTM_TESTS_BUILD_DIR}/main.o
 
-$(RUNTIME_TESTS_OBJS): $(RUNTIME_TESTS_BUILD_DIR)/%.o: $(RUNTIME_TESTS_SRCDIR)/%.cpp
-
 pyembed_includes:
 	$(PYTHON_CONFIG_CMD) --includes > pyembed_includes
 
-$(RUNTIME_TESTS_OBJS): $(RUNTIME_TESTS_BUILD_DIR)/%.o: pyembed_includes $(RUNTIME_TEST_HEADERS)
+$(RUNTIME_TESTS_OBJS): $(RUNTIME_TESTS_BUILD_DIR)/%.o: pyembed_includes $(RUNTIME_TEST_HEADERS) $(RUNTIME_TESTS_SRCDIR)/%.cpp
 	$(CXX) $(PY_CORE_CXXFLAGS) $(shell cat pyembed_includes) \
+		-DBAKED_IN_PYTHONPATH=$(PYTHONPATH) \
 		-isystem $(CURDIR)/ThirdParty -isystem $(GTEST_SRCDIR)/include -c $(filter %.cpp,$^) -o $@
 
-$(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: $(STRICTM_TESTS_SRCDIR)/%.cpp
-
-$(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: pyembed_includes $(STRICTM_TEST_HEADERS)
+$(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: pyembed_includes $(STRICTM_TEST_HEADERS) $(STRICTM_TESTS_SRCDIR)/%.cpp
 	$(CXX) $(PY_CORE_CXXFLAGS) $(shell cat pyembed_includes) \
+		-DBAKED_IN_PYTHONPATH=$(PYTHONPATH) \
 		-isystem $(CURDIR)/ThirdParty -isystem $(GTEST_SRCDIR)/include -c $(filter %.cpp,$^) -o $@
 
 $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests: ${GTEST_BUILD_DIR}/libgtest.a $(RUNTIME_TESTS_OBJS)
@@ -225,7 +223,7 @@ runtime_tests: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 
 testruntime: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 	cd $(abs_srcdir) && \
-		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(ASAN_TEST_ENV_WITH_LSAN) \
 		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
 		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 .PHONY: testruntime
@@ -233,7 +231,7 @@ testruntime: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 testruntime_serial: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 	cd $(abs_srcdir) && \
 		LD_LIBRARY_PATH=$(abs_builddir) \
-		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(ASAN_TEST_ENV_WITH_LSAN) \
 		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 .PHONY: testruntime_serial
 
@@ -257,7 +255,7 @@ endif
 test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
 	cd $(abs_srcdir) && \
 		LD_LIBRARY_PATH=$(abs_builddir) \
-		PYTHONPATH=$(PYTHONPATH) $(ASAN_TEST_ENV_WITH_LSAN) \
+		$(ASAN_TEST_ENV_WITH_LSAN) \
 		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
 		$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
 .PHONY: test_strict_module

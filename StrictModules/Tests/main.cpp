@@ -38,7 +38,16 @@ static void register_test(const char* path, const char* ignorePath) {
   }
 }
 
+#ifndef BAKED_IN_PYTHONPATH
+#error "BAKED_IN_PYTHONPATH must be defined"
+#endif
+#define _QUOTE(x) #x
+#define QUOTE(x) _QUOTE(x)
+#define _BAKED_IN_PYTHONPATH QUOTE(BAKED_IN_PYTHONPATH)
+
 int main(int argc, char* argv[]) {
+  setenv("PYTHONPATH", _BAKED_IN_PYTHONPATH, 1);
+
   ::testing::InitGoogleTest(&argc, argv);
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
   if (argv0 == nullptr) {
