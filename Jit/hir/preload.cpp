@@ -127,7 +127,7 @@ static void fill_primitive_arg_types_builtin(
   }
 }
 
-static std::unique_ptr<InvokeTarget> resolve_target_descr(
+std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
     BorrowedRef<> descr,
     int opcode) {
   auto target = std::make_unique<InvokeTarget>();
@@ -135,7 +135,10 @@ static std::unique_ptr<InvokeTarget> resolve_target_descr(
   auto callable =
       Ref<>::steal(_PyClassLoader_ResolveFunction(descr, &container));
   if (callable == nullptr) {
-    JIT_LOG("unknown invoke target %s during preloading", repr(descr));
+    JIT_LOG(
+        "unknown invoke target %s during preloading %s",
+        repr(descr),
+        fullname());
     return nullptr;
   }
 
@@ -341,8 +344,16 @@ BorrowedRef<> Preloader::constArg(BytecodeInstruction& bc_instr) const {
 
 bool Preloader::preload() {
   if (code_->co_flags & CO_STATICALLY_COMPILED) {
-    return_type_ = to_jit_type(
-        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_)));
+    PyTypeOpt ret_type =
+        resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_));
+    if (std::get<0>(ret_type) == nullptr) {
+      JIT_LOG(
+          "unknown return type descr %s during preloading of %s",
+          repr(_PyClassLoader_GetCodeReturnTypeDescr(code_)),
+          fullname());
+      return false;
+    }
+    return_type_ = to_jit_type(ret_type);
     BorrowedRef<PyTupleObject> checks = reinterpret_cast<PyTupleObject*>(
         _PyClassLoader_GetCodeArgumentTypeDescrs(code_));
     for (int i = 0; i < PyTuple_GET_SIZE(checks); i += 2) {
@@ -360,6 +371,13 @@ bool Preloader::preload() {
       }
       PyTypeOpt pytype_opt =
           resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
+      if (std::get<0>(pytype_opt) == NULL) {
+        JIT_LOG(
+            "unknown type descr %s during preloading of %s",
+            repr(PyTuple_GET_ITEM(checks, i + 1)),
+            fullname());
+        return false;
+      }
       JIT_CHECK(
           std::get<0>(pytype_opt) !=
               reinterpret_cast<PyTypeObject*>(&PyObject_Type),
@@ -415,7 +433,15 @@ bool Preloader::preload() {
       case BUILD_CHECKED_LIST:
       case BUILD_CHECKED_MAP: {
         BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
-        types_.emplace(descr, resolve_type_descr(descr));
+        PyTypeOpt collection_type = resolve_type_descr(descr);
+        if (std::get<0>(collection_type) == nullptr) {
+          JIT_LOG(
+              "unknown collection type descr %s during preloading of %s",
+              repr(descr),
+              fullname());
+          return false;
+        }
+        types_.emplace(descr, std::move(collection_type));
         break;
       }
       case CAST:
@@ -423,7 +449,16 @@ bool Preloader::preload() {
       case REFINE_TYPE:
       case TP_ALLOC: {
         BorrowedRef<> descr = constArg(bc_instr);
-        types_.emplace(descr, resolve_type_descr(descr));
+        PyTypeOpt alloc_type = resolve_type_descr(descr);
+        if (std::get<0>(alloc_type) == nullptr) {
+          JIT_LOG(
+              "unknown %d type descr %s during preloading of %s",
+              bc_instr.opcode(),
+              repr(descr),
+              fullname());
+          return false;
+        }
+        types_.emplace(descr, std::move(alloc_type));
         break;
       }
       case LOAD_FIELD:

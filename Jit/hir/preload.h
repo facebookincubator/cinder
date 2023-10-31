@@ -170,6 +170,10 @@ class Preloader {
         bool(code_->co_flags & CO_VARKEYWORDS);
   }
 
+  std::unique_ptr<InvokeTarget> resolve_target_descr(
+      BorrowedRef<> descr,
+      int opcode);
+
  private:
   BorrowedRef<> constArg(BytecodeInstruction& bc_instr) const;
   GlobalCache getGlobalCache(BorrowedRef<> name) const;
