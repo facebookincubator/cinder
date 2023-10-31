@@ -1493,9 +1493,7 @@ _PyShadow_StoreAttrDescr(_PyShadow_EvalState *shadow,
 }
 
 static inline int
-_PyShadow_StoreAttrSplitDictSet(_PyShadow_EvalState *shadow,
-                                const _Py_CODEUNIT *next_instr,
-                                _PyShadow_InstanceAttrEntry *entry,
+_PyShadow_StoreAttrSplitDictSet(_PyShadow_InstanceAttrEntry *entry,
                                 PyObject *owner,
                                 PyObject *v)
 {
@@ -1560,8 +1558,7 @@ _PyShadow_StoreAttrSplitDict(_PyShadow_EvalState *shadow,
                              PyObject *v)
 {
     if (entry->type == Py_TYPE(owner)) {
-        return _PyShadow_StoreAttrSplitDictSet(
-            shadow, next_instr, entry, owner, v);
+        return _PyShadow_StoreAttrSplitDictSet(entry, owner, v);
     } else {
         STORE_ATTR_CACHE_MISS(STORE_ATTR_SPLIT_DICT, entry->type, v)
     }
@@ -1577,8 +1574,7 @@ _PyShadow_StoreAttrSplitDictMethod(_PyShadow_EvalState *shadow,
 {
     if (entry->type == Py_TYPE(owner)) {
         _PyType_ClearNoShadowingInstances(entry->type, entry->value);
-        return _PyShadow_StoreAttrSplitDictSet(
-            shadow, next_instr, entry, owner, v);
+        return _PyShadow_StoreAttrSplitDictSet(entry, owner, v);
     } else {
         STORE_ATTR_CACHE_MISS(STORE_ATTR_SPLIT_DICT_METHOD, entry->type, v)
     }
