@@ -89,9 +89,9 @@ struct PhyLocation {
       FOREACH_XMM(DECLARE_REG)
 #undef DECLARE_REG
       case REG_INVALID:
-        JIT_ABORTX("invalid register");
+        JIT_ABORT("Invalid register");
     }
-    JIT_ABORTX("unknown register %d", reg);
+    JIT_ABORT("Unknown register {}", reg);
   }
 
   std::string toString() const {

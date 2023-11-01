@@ -281,7 +281,7 @@ bool Instr::isReplayable() const {
       return false;
     }
   }
-  JIT_ABORTX("Bad opcode %d", static_cast<int>(opcode()));
+  JIT_ABORT("Bad opcode {}", static_cast<int>(opcode()));
 }
 
 void Instr::set_block(BasicBlock* block) {
@@ -665,7 +665,7 @@ CompareOp ParseCompareOpName(std::string_view name) {
       return static_cast<CompareOp>(i);
     }
   }
-  JIT_ABORTX("Invalid CompareOp '%s'", name);
+  JIT_ABORT("Invalid CompareOp '{}'", name);
 }
 
 constexpr std::array<std::string_view, kNumPrimitiveCompareOps>
@@ -685,7 +685,7 @@ PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name) {
       return static_cast<PrimitiveCompareOp>(i);
     }
   }
-  JIT_ABORTX("Invalid PrimitiveCompareOp '%s'", name);
+  JIT_ABORT("Invalid PrimitiveCompareOp '{}'", name);
 }
 
 std::optional<PrimitiveCompareOp> toPrimitiveCompareOp(CompareOp op) {
@@ -731,7 +731,7 @@ BinaryOpKind ParseBinaryOpName(std::string_view name) {
       return static_cast<BinaryOpKind>(i);
     }
   }
-  JIT_ABORTX("Invalid BinaryOpKind '%s'", name);
+  JIT_ABORT("Invalid BinaryOpKind '{}'", name);
 }
 
 constexpr std::array<std::string_view, kNumUnaryOpKinds> kUnaryOpNames = {
@@ -750,7 +750,7 @@ UnaryOpKind ParseUnaryOpName(std::string_view name) {
       return static_cast<UnaryOpKind>(i);
     }
   }
-  JIT_ABORTX("Invalid UnaryOpKind '%s'", name);
+  JIT_ABORT("Invalid UnaryOpKind '{}'", name);
 }
 
 constexpr std::array<std::string_view, kNumPrimitiveUnaryOpKinds>
@@ -770,7 +770,7 @@ PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(std::string_view name) {
       return static_cast<PrimitiveUnaryOpKind>(i);
     }
   }
-  JIT_ABORTX("Invalid PrimitiveUnaryOpKind '%s'", name);
+  JIT_ABORT("Invalid PrimitiveUnaryOpKind '{}'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the InPlaceOpKind
@@ -791,7 +791,7 @@ InPlaceOpKind ParseInPlaceOpName(std::string_view name) {
       return static_cast<InPlaceOpKind>(i);
     }
   }
-  JIT_ABORTX("Invalid InPlaceOpKind '%s'", name);
+  JIT_ABORT("Invalid InPlaceOpKind '{}'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the FunctionAttr
@@ -961,7 +961,7 @@ std::ostream& operator<<(std::ostream& os, OperandType op) {
     case Constraint::kMatchAllAsPrimitive:
       return os << "Primitive";
   }
-  JIT_ABORTX("unknown constraint");
+  JIT_ABORT("unknown constraint");
   return os << "<unknown>";
 }
 

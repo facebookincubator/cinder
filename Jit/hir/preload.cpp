@@ -192,7 +192,7 @@ std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
         if (PyErr_Occurred()) {
           PyErr_WriteUnraisable(descr);
         }
-        JIT_ABORTX("indirect_ptr null for %s (stale bytecode?)", repr(descr));
+        JIT_ABORT("indirect_ptr null for {} (stale bytecode?)", repr(descr));
       }
     }
   }

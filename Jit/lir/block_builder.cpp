@@ -531,7 +531,7 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
          if (k != guardKindMap.end()) {
            guard_kind = k->second;
          } else {
-           JIT_ABORTX("unknown check kind: {}", kind);
+           JIT_ABORT("Unknown check kind: {}", kind);
          }
          instr->allocateImmediateInput(guard_kind);
          bldr.CreateInstrImmediateInputFromStr(instr, tokens[2]);
@@ -613,7 +613,7 @@ void BasicBlockBuilder::AppendTokenizedCodeLine(
   if (hnd != instrHandlers.end()) {
     hnd->second(*this, tokens);
   } else {
-    JIT_ABORTX("Unknown LIR instruction: %s", instr_str);
+    JIT_ABORT("Unknown LIR instruction: {}", instr_str);
   }
 }
 

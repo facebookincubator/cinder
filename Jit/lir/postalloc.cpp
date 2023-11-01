@@ -336,7 +336,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBitExtensionInstrs(
       break;
     case OperandBase::k64bit:
     case OperandBase::kObject:
-      JIT_ABORTX("can't be smaller than the maximum size");
+      JIT_ABORT("can't be smaller than the maximum size");
       break;
     case OperandBase::kDouble:
       JIT_ABORT("A float point number cannot be the input of the instruction.");
@@ -798,7 +798,7 @@ bool PostRegAllocRewrite::insertMoveToRegister(
     } else if (op->isStack()) {
       move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
     } else if (op->isMem()) {
-      JIT_ABORTX("unsupported: div from mem");
+      JIT_ABORT("Unsupported: div from mem");
     } else {
       JIT_ABORT("Unexpected operand base: {}", static_cast<int>(op->type()));
     }

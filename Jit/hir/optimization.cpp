@@ -622,7 +622,7 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           }
           cond_branch->ReplaceWith(*Branch::create(target));
         } else {
-          JIT_ABORTX("Unexpected branch instruction %s", *branch);
+          JIT_ABORT("Unexpected branch instruction {}", *branch);
         }
         delete branch;
       }
@@ -797,7 +797,7 @@ struct AbstractCall {
     if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
       return f->arg(i);
     }
-    JIT_ABORTX("unsupported call type %s", instr->opname());
+    JIT_ABORT("Unsupported call type {}", instr->opname());
   }
 
   Register* target{nullptr};

@@ -119,7 +119,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
         pattern += "M";
         break;
       default:
-        JIT_ABORTX("Output operand has to be of type register or memory");
+        JIT_ABORT("Output operand has to be of type register or memory");
         break;
     }
   }
@@ -141,7 +141,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
         pattern += "b";
         break;
       default:
-        JIT_ABORTX("Illegal input type.");
+        JIT_ABORT("Illegal input type.");
         break;
     }
   });
@@ -320,7 +320,7 @@ void TranslateCompare(Environ* env, const Instruction* instr) {
       as->setbe(output);
       break;
     default:
-      JIT_ABORTX("bad instruction for TranslateCompare");
+      JIT_ABORT("bad instruction for TranslateCompare");
       break;
   }
   if (instr->output()->dataType() != OperandBase::k8bit) {
@@ -614,7 +614,7 @@ int LIROperandSizeMapper(const Instruction* instr) {
       return LIROperandMapper<0>(instr)->sizeInBits();
   }
 
-  JIT_ABORTX("Unknown size type");
+  JIT_ABORT("Unknown size type");
 }
 
 template <int N>
@@ -666,7 +666,7 @@ struct RegOperand {
       case 64:
         return asmjit::x86::gpq(LIROperandMapper<N>(instr)->getPhyRegister());
     }
-    JIT_ABORTX("Incorrect operand size.");
+    JIT_ABORT("Incorrect operand size.");
   }
 };
 
@@ -726,7 +726,7 @@ struct MemOperand {
     } else if (operand->isInd()) {
       memptr = AsmIndirectOperandBuilder(operand);
     } else {
-      JIT_ABORTX("Unsupported operand type.");
+      JIT_ABORT("Unsupported operand type.");
     }
 
     memptr.setSize(size);

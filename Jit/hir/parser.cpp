@@ -63,7 +63,7 @@ HIRParser::ListOrTuple HIRParser::parseListOrTuple() {
   if (kind == "tuple") {
     return ListOrTuple::Tuple;
   }
-  JIT_ABORTX("Invalid kind %s, expected list or tuple", kind);
+  JIT_ABORT("Invalid kind {}, expected list or tuple", kind);
 }
 
 Instr*
@@ -100,7 +100,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     } else if (opcode == "VectorCallKW") {
       instruction = newInstr<VectorCallKW>(num_args + 1, dst, is_awaited);
     } else {
-      JIT_ABORTX("Unhandled opcode {}", opcode);
+      JIT_ABORT("Unhandled opcode {}", opcode);
     }
 
     instruction->SetOperand(0, func);
@@ -120,7 +120,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
       } else if (tok == "ASCII") {
         return FVC_ASCII;
       }
-      JIT_ABORTX("Bad FormatValue conversion type: %s", tok);
+      JIT_ABORT("Bad FormatValue conversion type: {}", tok);
     }();
     expect(">");
     Register* fmt_spec = ParseRegister();
@@ -673,7 +673,7 @@ FrameState HIRParser::parseFrameState() {
       }
       expect("}");
     } else {
-      JIT_ABORTX("unexpected token in FrameState: %s", token);
+      JIT_ABORT("Unexpected token in FrameState: {}", token);
     }
     token = GetNextToken();
   }
@@ -759,7 +759,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
             token += *p;
             break;
           default:
-            JIT_ABORTX("Bad escape sequence \\%c", *p);
+            JIT_ABORT("Bad escape sequence \\{}", *p);
         }
       }
       p++;
@@ -868,7 +868,7 @@ RegState HIRParser::GetNextRegState() {
       rs.ref_kind = RefKind::kUncounted;
       break;
     default:
-      JIT_ABORTX("unknown ref kind: %c", token[0]);
+      JIT_ABORT("Unknown ref kind: {}", token[0]);
       break;
   }
 

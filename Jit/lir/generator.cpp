@@ -138,7 +138,7 @@ int bytes_from_cint_type(Type type) {
   } else if (type <= TCInt64 || type <= TCUInt64) {
     return 4;
   }
-  JIT_ABORTX("bad primitive int type: (%d)", type);
+  JIT_ABORT("Bad primitive int type: ({})", type);
   // NOTREACHED
 }
 
@@ -170,7 +170,7 @@ emitSubclassCheck(BasicBlockBuilder& bbb, hir::Register* obj, Type type) {
     fptr = reinterpret_cast<uint64_t>(__Invoke_Py##name##_Check); \
   } else
   FOREACH_FAST_BUILTIN(GET_FPTR) {
-    JIT_ABORTX("unsupported subclass check in CondBranchCheckType");
+    JIT_ABORT("Unsupported subclass check in CondBranchCheckType");
   }
 #undef GET_FPTR
   return bbb.appendInstr(
@@ -206,7 +206,7 @@ uint8_t multiplierFromSize(int num_bytes) {
     default:
       break;
   }
-  JIT_ABORTX("unexpected num_bytes %d", num_bytes);
+  JIT_ABORT("Unexpected num_bytes {}", num_bytes);
 }
 
 } // namespace
@@ -802,7 +802,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             };
             break;
           default:
-            JIT_ABORTX("not implemented");
+            JIT_ABORT("not implemented");
             break;
         }
 
@@ -861,7 +861,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             break;
           }
           default: {
-            JIT_ABORTX("Invalid operation for DoubleBinaryOp");
+            JIT_ABORT("Invalid operation for DoubleBinaryOp");
             break;
           }
         }
@@ -916,7 +916,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             op = Instruction::kLessThanEqualSigned;
             break;
           default:
-            JIT_ABORTX("Not implemented %d", static_cast<int>(instr->op()));
+            JIT_ABORT("Not implemented {}", static_cast<int>(instr->op()));
             break;
         }
         bbb.appendInstr(instr->dst(), op, instr->left(), instr->right());
@@ -1061,7 +1061,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (ty <= TCInt8) {
           bbb.AppendCall(instr->dst(), JITRT_UnboxI8, instr->value());
         } else {
-          JIT_ABORTX("Cannot unbox type %s", ty.toString().c_str());
+          JIT_ABORT("Cannot unbox type {}", ty.toString());
         }
         break;
       }
@@ -1094,7 +1094,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             break;
           }
           default:
-            JIT_ABORTX("not implemented unary op %d", (int)instr->op());
+            JIT_ABORT("Not implemented unary op {}", (int)instr->op());
             break;
         }
         break;
@@ -2166,7 +2166,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (type <= TObject) {
           func = JITRT_SetObj_InArray;
         } else {
-          JIT_ABORTX("unknown array type %s", type.toString().c_str());
+          JIT_ABORT("Unknown array type {}", type.toString());
         }
 
         bbb.AppendInvoke(func, instr->ob_item(), instr->value(), instr->idx());

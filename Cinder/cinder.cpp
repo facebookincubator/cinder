@@ -51,14 +51,14 @@ static int cinder_install_dict_watcher() {
 void Cinder_WatchDict(PyObject* dict) {
   if (PyDict_Watch(cinder_dict_watcher_id, dict) < 0) {
     PyErr_Print();
-    JIT_ABORTX("Cinder: unable to watch dict.");
+    JIT_ABORT("Unable to watch dict.");
   }
 }
 
 void Cinder_UnwatchDict(PyObject* dict) {
   if (PyDict_Unwatch(cinder_dict_watcher_id, dict) < 0) {
     PyErr_Print();
-    JIT_ABORTX("Unable to unwatch dict.");
+    JIT_ABORT("Unable to unwatch dict.");
   }
 }
 

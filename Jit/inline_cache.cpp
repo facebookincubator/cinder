@@ -253,8 +253,8 @@ inline PyObject* AttributeMutator::getAttr(PyObject* obj, PyObject* name) {
     case AttributeMutator::Kind::kDescrOrClassVar:
       return descr_or_cvar_.getAttr(obj, name);
     default:
-      JIT_ABORTX(
-          "Cannot invoke getAttr for attr of kind %d", static_cast<int>(kind));
+      JIT_ABORT(
+          "Cannot invoke getAttr for attr of kind {}", static_cast<int>(kind));
   }
 }
 

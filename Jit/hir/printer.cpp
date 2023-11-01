@@ -696,7 +696,7 @@ static std::string format_immediates(const Instr& instr) {
         case FVC_ASCII:
           return "ASCII";
       }
-      JIT_ABORTX("Unknown conversion type.");
+      JIT_ABORT("Unknown conversion type.");
     }
     case Opcode::kUnpackExToTuple: {
       const auto& i = static_cast<const UnpackExToTuple&>(instr);
@@ -707,7 +707,7 @@ static std::string format_immediates(const Instr& instr) {
       return fmt::format("{}", getStablePointer(dp.patcher()));
     }
   }
-  JIT_ABORTX("invalid opcode %d", static_cast<int>(instr.opcode()));
+  JIT_ABORT("Invalid opcode {}", static_cast<int>(instr.opcode()));
 }
 
 void HIRPrinter::Print(
@@ -975,7 +975,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     default:
       return std::to_string(oparg);
   }
-  JIT_ABORTX("unreachable");
+  JIT_ABORT("unreachable");
 }
 
 // TODO(emacs): Write basic blocks for bytecode (using BytecodeInstructionBlock
