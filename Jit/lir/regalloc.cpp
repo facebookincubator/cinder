@@ -20,7 +20,7 @@ using namespace jit::codegen;
 
 static constexpr bool g_debug_regalloc = false;
 
-#define TRACE(...) JIT_LOGIFX(g_debug_regalloc, __VA_ARGS__)
+#define TRACE(...) JIT_LOGIF(g_debug_regalloc, __VA_ARGS__)
 
 namespace jit::lir {
 
@@ -935,7 +935,9 @@ void LinearScanAllocator::rewriteLIR() {
   for (auto& bb : func_->basicblocks()) {
     ++instr_id;
     TRACE(
-        "%d - new basic block 0x%x", instr_id, reinterpret_cast<uintptr_t>(bb));
+        "{} - new basic block {:#x}",
+        instr_id,
+        reinterpret_cast<uintptr_t>(bb));
 
     // Remove mappings that end at the last basic block.
     // Inter-basic block resolution will be done later separately.
@@ -946,7 +948,7 @@ void LinearScanAllocator::rewriteLIR() {
 
       if (interval->endLocation() <= instr_id) {
         TRACE(
-            "Removing interval: 0x%x %s",
+            "Removing interval: {:#x} {}",
             reinterpret_cast<uintptr_t>(vreg),
             *interval);
         map_iter = mapping.erase(map_iter);
@@ -970,7 +972,7 @@ void LinearScanAllocator::rewriteLIR() {
       process_input = !process_input;
 
       auto instr = instr_iter->get();
-      TRACE("%d - %s - %s", instr_id, process_input ? "in" : "out", *instr);
+      TRACE("{} - {} - {}", instr_id, process_input ? "in" : "out", *instr);
 
       auto copies = std::make_unique<CopyGraphWithOperand>();
       // check for new allocated intervals and update register mappings
@@ -1003,7 +1005,7 @@ void LinearScanAllocator::rewriteLIR() {
           continue;
         }
 
-        TRACE("After rewrite: %s", *instr);
+        TRACE("After rewrite: {}", *instr);
         ++instr_iter;
       }
     }
@@ -1158,7 +1160,7 @@ void LinearScanAllocator::rewriteLIRUpdateMapping(
   auto pair = mapping.emplace(vreg, interval);
   if (pair.second) {
     TRACE(
-        "Adding interval 0x%llx %s",
+        "Adding interval {:#x} {}",
         reinterpret_cast<uintptr_t>(vreg),
         *interval);
     return;
@@ -1169,11 +1171,11 @@ void LinearScanAllocator::rewriteLIRUpdateMapping(
     auto from = mapping_iter->second->allocated_loc;
     auto to = interval->allocated_loc;
     TRACE(
-        "Updating interval 0x%llx %s",
+        "Updating interval {:#x} {}",
         reinterpret_cast<uintptr_t>(vreg),
         *interval);
     if (from != to) {
-      TRACE("Copying from %d to %d", from, to);
+      TRACE("Copying from {} to {}", from, to);
       copies->addEdge(from, to, interval->vreg->dataType());
     }
   }

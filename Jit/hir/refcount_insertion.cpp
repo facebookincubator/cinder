@@ -16,7 +16,7 @@
 #include <set>
 #include <vector>
 
-#define TRACE(...) JIT_LOGIFX(g_debug_refcount, __VA_ARGS__)
+#define TRACE(...) JIT_LOGIF(g_debug_refcount, __VA_ARGS__)
 
 // This file implements our reference count insertion pass. If this is your
 // first time here, I recommend reading refcount_insertion.md first.
@@ -338,6 +338,37 @@ struct RegStateLess {
   }
 };
 
+std::ostream& operator<<(std::ostream& os, const RegState& rstate) {
+  os << "RegState{[";
+  auto sep = "";
+  for (int i = 0, n = rstate.numCopies(); i < n; ++i) {
+    fmt::print(os, "{}{}", sep, rstate.copy(i)->name());
+    sep = ", ";
+  }
+  fmt::print(os, "], {}", rstate.kind());
+  if (rstate.isBorrowed() && !rstate.support().empty()) {
+    fmt::print(os, " {}", rstate.support().bits());
+  }
+  return os << "}";
+}
+
+std::ostream& operator<<(std::ostream& os, const StateMap& regs) {
+  if (regs.empty()) {
+    return os << "StateMap[0] = {}";
+  }
+
+  std::vector<const RegState*> states;
+  for (auto& pair : regs) {
+    states.emplace_back(&pair.second);
+  }
+  std::sort(states.begin(), states.end(), RegStateLess{});
+  fmt::print(os, "StateMap[{}] = {{\n", states.size());
+  for (auto state : states) {
+    fmt::print(os, "  {} -> {}\n", state->model()->name(), *state);
+  }
+  return os << "}";
+}
+
 // Global state used by the analysis.
 struct Env {
   Env(Function& func) : func{func}, liveness{func} {
@@ -370,7 +401,7 @@ struct Env {
       });
     }
 
-    TRACE("Support bits:\n%s", bit_names);
+    TRACE("Support bits:\n{}", bit_names);
   }
 
   // State that is initialized during setup and is immutable during the pass
@@ -463,7 +494,7 @@ void insertIncref(Env& env, Register* reg, Instr& cursor) {
   incref->copyBytecodeOffset(cursor);
   incref->InsertBefore(cursor);
   TRACE(
-      "Inserted '%s' before '%s' in bb %d",
+      "Inserted '{}' before '{}' in bb {}",
       *incref,
       cursor,
       cursor.block()->id);
@@ -482,7 +513,7 @@ void insertDecref(Env& env, Register* reg, Instr& cursor) {
   decref->copyBytecodeOffset(cursor);
   decref->InsertBefore(cursor);
   TRACE(
-      "Inserted '%s' before '%s' in bb %d",
+      "Inserted '{}' before '{}' in bb {}",
       *decref,
       cursor,
       cursor.block()->id);
@@ -534,7 +565,7 @@ void killRegisterImpl(
     RegState& rstate,
     Register* copy,
     Instr& cursor) {
-  TRACE("Killing %s from %s", *copy, rstate);
+  TRACE("Killing {} from {}", *copy, rstate);
   if (!rstate.killCopy(copy)) {
     // There are copies of this value still live.
     return;
@@ -704,7 +735,7 @@ void initializeInState(
     JIT_DCHECKX(inserted, "Register shouldn't exist in map yet");
   });
 
-  TRACE("Initial in-state for bb %d:\n%s", block->id, in_state);
+  TRACE("Initial in-state for bb {}:\n{}", block->id, in_state);
 }
 
 // Return true iff the given register is live into the given block, in the
@@ -807,7 +838,7 @@ PhiSupport processPhis(
           forward_pair.first->second.init(env.num_support_bits);
         }
         forward_pair.first->second.add(map_get(env.reg_to_bit, output));
-        TRACE("Forwarding support from dead %s to %s", *model, *output);
+        TRACE("Forwarding support from dead {} to {}", *model, *output);
       }
     }
     if (promote_output) {
@@ -856,7 +887,7 @@ void updateInState(Env& env, BasicBlock* block) {
   }
 
   PhiSupport phi_support = processPhis(env, block, preds, in_state);
-  TRACE("In-state for bb %d after processing Phis:\n%s", block->id, in_state);
+  TRACE("In-state for bb {} after processing Phis:\n{}", block->id, in_state);
 
   for (auto& pair : in_state) {
     auto& rstate = pair.second;
@@ -995,9 +1026,9 @@ void processInstr(Env& env, Instr& instr) {
   auto& dying_regs =
       last_uses_it == env.last_uses.end() ? kEmptyRegSet : last_uses_it->second;
 
-  TRACE("Processing '%s' with state:\n%s", instr, env.live_regs);
+  TRACE("Processing '{}' with state:\n{}", instr, env.live_regs);
   if (!dying_regs.empty()) {
-    TRACE("dying_regs: %s", dying_regs);
+    TRACE("dying_regs: {}", dying_regs);
   }
 
   if (instr.IsPhi()) {
@@ -1061,7 +1092,7 @@ void exitBlock(Env& env, const Edge* out_edge) {
   }
   auto const& from_regs = env.live_regs;
   auto const& to_regs = map_get(env.blocks, succ).in;
-  TRACE("Reconciling to in-state for bb %d:\n%s", succ->id, to_regs);
+  TRACE("Reconciling to in-state for bb {}:\n{}", succ->id, to_regs);
 
   // Count the number of increfs we need for each value.
   std::vector<std::pair<Register*, int>> reg_increfs;
@@ -1154,37 +1185,6 @@ void bindGuards(Function& irfunc) {
   DeadCodeElimination{}.Run(irfunc);
 }
 
-std::ostream& operator<<(std::ostream& os, const RegState& rstate) {
-  os << "RegState{[";
-  auto sep = "";
-  for (int i = 0, n = rstate.numCopies(); i < n; ++i) {
-    fmt::print(os, "{}{}", sep, rstate.copy(i)->name());
-    sep = ", ";
-  }
-  fmt::print(os, "], {}", rstate.kind());
-  if (rstate.isBorrowed() && !rstate.support().empty()) {
-    fmt::print(os, " {}", rstate.support().bits());
-  }
-  return os << "}";
-}
-
-std::ostream& operator<<(std::ostream& os, const StateMap& regs) {
-  if (regs.empty()) {
-    return os << "StateMap[0] = {}";
-  }
-
-  std::vector<const RegState*> states;
-  for (auto& pair : regs) {
-    states.emplace_back(&pair.second);
-  }
-  std::sort(states.begin(), states.end(), RegStateLess{});
-  fmt::print(os, "StateMap[{}] = {{\n", states.size());
-  for (auto state : states) {
-    fmt::print(os, "  {} -> {}\n", state->model()->name(), *state);
-  }
-  return os << "}";
-}
-
 void optimizeLongDecrefRuns(Function& irfunc) {
   constexpr int kMinimumNumberOfDecrefsToOptimize = 4;
 
@@ -1241,7 +1241,7 @@ void RefcountInsertion::Run(Function& func) {
   func.cfg.splitCriticalEdges();
 
   TRACE(
-      "Starting refcount insertion for '%s':\n%s",
+      "Starting refcount insertion for '{}':\n{}",
       func.fullname,
       HIRPrinter(true).ToString(func));
   Env env{func};
@@ -1258,12 +1258,12 @@ void RefcountInsertion::Run(Function& func) {
 
     updateInState(env, block);
 
-    TRACE("\nAnalyzing bb %d with in-state:\n%s", block->id, env.live_regs);
+    TRACE("\nAnalyzing bb {} with in-state:\n{}", block->id, env.live_regs);
     for (auto& instr : *block) {
       processInstr(env, instr);
     }
 
-    TRACE("Finished bb %d with out-state:\n%s", block->id, env.live_regs);
+    TRACE("Finished bb {} with out-state:\n{}", block->id, env.live_regs);
     auto& block_state = env.blocks[block];
     if (env.live_regs != block_state.out) {
       block_state.out = std::move(env.live_regs);
@@ -1285,7 +1285,7 @@ void RefcountInsertion::Run(Function& func) {
       useInState(env, map_get(env.blocks, block).in);
     }
 
-    TRACE("\nEntering bb %d with state:\n%s", block->id, env.live_regs);
+    TRACE("\nEntering bb {} with state:\n{}", block->id, env.live_regs);
 
     for (auto it = block->iterator_to(first_instr); it != block->end();) {
       auto& instr = *it;
@@ -1295,7 +1295,7 @@ void RefcountInsertion::Run(Function& func) {
       processInstr(env, instr);
     }
 
-    TRACE("Leaving bb %d with state:\n%s", block->id, env.live_regs);
+    TRACE("Leaving bb {} with state:\n{}", block->id, env.live_regs);
     if (block->out_edges().size() == 1) {
       exitBlock(env, *block->out_edges().begin());
     }

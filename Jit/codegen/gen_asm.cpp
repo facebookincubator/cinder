@@ -186,7 +186,7 @@ class ThrowableErrorHandler : public ErrorHandler {
 #define ASM_CHECK(exp, what)             \
   {                                      \
     auto err = (exp);                    \
-    JIT_CHECKX(                           \
+    JIT_CHECKX(                          \
         err == kErrorOk,                 \
         "Failed generating %s: %s",      \
         (what),                          \
@@ -300,9 +300,9 @@ void* NativeGenerator::getVectorcallEntry() {
     (*json)["cols"].emplace_back(lir_printer.print(*lir_func, "Initial LIR"));
   }
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_lir,
-      "LIR for %s after generation:\n%s",
+      "LIR for {} after generation:\n{}",
       GetFunction()->fullname,
       *lir_func);
 
@@ -312,9 +312,9 @@ void* NativeGenerator::getVectorcallEntry() {
       "LIR transformations",
       post_gen.run())
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_lir,
-      "LIR for %s after postgen rewrites:\n%s",
+      "LIR for {} after postgen rewrites:\n{}",
       GetFunction()->fullname,
       *lir_func);
 
@@ -346,9 +346,9 @@ void* NativeGenerator::getVectorcallEntry() {
     env_.initial_yield_spill_size_ = lsalloc.initialYieldSpillSize();
   }
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_lir,
-      "LIR for %s after register allocation:\n%s",
+      "LIR for {} after register allocation:\n{}",
       GetFunction()->fullname,
       *lir_func);
 
@@ -358,9 +358,9 @@ void* NativeGenerator::getVectorcallEntry() {
       "Post Reg Alloc Rewrite",
       post_rewrite.run())
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_lir,
-      "LIR for %s after postalloc rewrites:\n%s",
+      "LIR for {} after postalloc rewrites:\n{}",
       GetFunction()->fullname,
       *lir_func);
 
@@ -572,12 +572,14 @@ void NativeGenerator::loadOrGenerateLinkFrame(
     for (const auto& pair : save_regs) {
       if (pair.first != pair.second) {
         if (pair.first.isGpq()) {
-          JIT_DCHECKX(pair.second.isGpq(), "can't mix and match register types");
+          JIT_DCHECKX(
+              pair.second.isGpq(), "can't mix and match register types");
           as_->mov(
               static_cast<const asmjit::x86::Gpq&>(pair.second),
               static_cast<const asmjit::x86::Gpq&>(pair.first));
         } else if (pair.first.isXmm()) {
-          JIT_DCHECKX(pair.second.isXmm(), "can't mix and match register types");
+          JIT_DCHECKX(
+              pair.second.isXmm(), "can't mix and match register types");
           as_->movsd(
               static_cast<const asmjit::x86::Xmm&>(pair.second),
               static_cast<const asmjit::x86::Xmm&>(pair.first));
@@ -1444,9 +1446,9 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
     env_.annotations.disassembleJSON(*json, code_top, codeholder);
   }
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_asm,
-      "Disassembly for %s\n%s",
+      "Disassembly for {}\n{}",
       GetFunction()->fullname,
       env_.annotations.disassemble(code_top, codeholder));
 
@@ -1811,9 +1813,9 @@ void* generateDeoptTrampoline(bool generator_mode) {
   void* result{nullptr};
   ASM_CHECK(a.finalize(), name);
   ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_asm,
-      "Disassembly for %s\n%s",
+      "Disassembly for {}\n{}",
       name,
       annot.disassemble(result, code));
 
@@ -1860,9 +1862,9 @@ void* generateFailedDeferredCompileTrampoline() {
   void* result{nullptr};
   ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
 
-  JIT_LOGIFX(
+  JIT_LOGIF(
       g_dump_asm,
-      "Disassembly for %s\n%s",
+      "Disassembly for {}\n{}",
       name,
       annot.disassemble(result, code));
 

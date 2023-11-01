@@ -61,9 +61,9 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
   T pass;
   COMPILE_TIMER(func.compilation_phase_timer,
                 pass.name(),
-                JIT_LOGIFX(
+                JIT_LOGIF(
                     g_dump_hir_passes,
-                    "HIR for %s before pass %s:\n%s",
+                    "HIR for {} before pass {}:\n{}",
                     func.fullname,
                     pass.name(),
                     func);
@@ -73,9 +73,9 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
                 std::size_t time_ns = timer.finish();
                 callback(func, pass.name(), time_ns);
 
-                JIT_LOGIFX(
+                JIT_LOGIF(
                     g_dump_hir_passes,
-                    "HIR for %s after pass %s:\n%s",
+                    "HIR for {} after pass {}:\n{}",
                     func.fullname,
                     pass.name(),
                     func);
@@ -122,8 +122,8 @@ void Compiler::runPasses(
   runPass<jit::hir::CleanCFG>(irfunc, callback);
   // RefcountInsertion must come last
   runPass<jit::hir::RefcountInsertion>(irfunc, callback);
-  JIT_LOGIFX(
-      g_dump_final_hir, "Optimized HIR for %s:\n%s", irfunc.fullname, irfunc);
+  JIT_LOGIF(
+      g_dump_final_hir, "Optimized HIR for {}:\n{}", irfunc.fullname, irfunc);
 }
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(
