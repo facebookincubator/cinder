@@ -21,7 +21,7 @@ BasicBlockSorter::BasicBlockSorter(
     const UnorderedSet<BasicBlock*>& blocks,
     BasicBlock* entry)
     : entry_(entry), basic_blocks_store_(), basic_blocks_(blocks) {
-  JIT_DCHECKX(blocks.count(entry), "Entry basic block is not in blocks");
+  JIT_DCHECK(blocks.count(entry), "Entry basic block is not in blocks");
 }
 
 std::vector<BasicBlock*> BasicBlockSorter::getSortedBlocks() {
@@ -39,12 +39,12 @@ std::vector<BasicBlock*> BasicBlockSorter::getSortedBlocks() {
   std::vector<BasicBlock*> result;
   result.reserve(basic_blocks_.size());
   for (auto& sccblock : scc_blocks_) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         !sccblock->basic_blocks.empty(),
         "Cannot have an SCC with no basic blocks");
 
     if (sccblock->basic_blocks.size() == 1) {
-      JIT_DCHECKX(
+      JIT_DCHECK(
           sccblock->entry == nullptr ||
               sccblock->hasBasicBlock(sccblock->entry),
           "sccblock is not consistent.");
@@ -109,7 +109,7 @@ int BasicBlockSorter::dfsSearch(BasicBlock* block) {
       block_to_scc_map_.emplace(bb, sccblock.get());
     } while (block != bb);
 
-    JIT_DCHECKX(
+    JIT_DCHECK(
         !sccblock->basic_blocks.empty(), "Should not create an empty SCC.");
     scc_blocks_.push_back(std::move(sccblock));
   }
@@ -130,7 +130,7 @@ void BasicBlockSorter::calcEntryBlocks() {
         continue;
       }
 
-      JIT_CHECKX(
+      JIT_CHECK(
           succ_scc->entry == nullptr || succ_scc->entry == succ,
           "Irreducible CFG.");
       succ_scc->entry = succ;
@@ -195,10 +195,10 @@ void BasicBlockSorter::sortRPO() {
       auto& succ_bb = sccblocks.at(index);
 
       if (succ_bb->entry == exit_) {
-        JIT_CHECKX(
+        JIT_CHECK(
             succ_bb->basic_blocks.size() == 1,
             "Exit SCC should have a single block");
-        JIT_CHECKX(
+        JIT_CHECK(
             succ_bb->successors.empty(),
             "Exit block should have no successors");
         exit_scc = std::move(succ_bb);

@@ -31,7 +31,7 @@ class CodeAllocator {
 
   // Get the global code allocator for this process.
   static CodeAllocator* get() {
-    JIT_CHECKX(s_global_code_allocator_ != nullptr, "No global code allocator");
+    JIT_CHECK(s_global_code_allocator_ != nullptr, "No global code allocator");
     return s_global_code_allocator_;
   }
 

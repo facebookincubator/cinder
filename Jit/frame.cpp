@@ -55,9 +55,9 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       PyFrameObject* pyframe =
           static_cast<PyFrameObject*>(_PyShadowFrame_GetPtr(shadow_frame));
       globals = pyframe->f_globals;
-      JIT_DCHECKX(
+      JIT_DCHECK(
           globals != nullptr,
-          "Python frame (%p) has NULL globals",
+          "Python frame ({}) has NULL globals",
           reinterpret_cast<void*>(pyframe));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -67,9 +67,9 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       jit::CodeRuntime* code_rt =
           static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
       globals = code_rt->frameState()->globals();
-      JIT_DCHECKX(
+      JIT_DCHECK(
           globals != nullptr,
-          "JIT Runtime frame (%p) has NULL globals",
+          "JIT Runtime frame ({}) has NULL globals",
           reinterpret_cast<void*>(code_rt));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -78,9 +78,9 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       auto frame_state =
           static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
       globals = frame_state->globals();
-      JIT_DCHECKX(
+      JIT_DCHECK(
           globals != nullptr,
-          "JIT Runtime frame (%p) has NULL globals",
+          "JIT Runtime frame ({}) has NULL globals",
           reinterpret_cast<void*>(frame_state));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -102,7 +102,7 @@ uintptr_t getFrameBaseFromOnStackShadowFrame(_PyShadowFrame* shadow_frame) {
 }
 
 CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
-  JIT_CHECKX(
+  JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "shadow frame not owned by the JIT");
   if (is_shadow_frame_for_gen(shadow_frame)) {
@@ -113,8 +113,8 @@ CodeRuntime* getCodeRuntime(_PyShadowFrame* shadow_frame) {
   }
   auto jit_sf = reinterpret_cast<JITShadowFrame*>(shadow_frame);
   _PyShadowFrame_PtrKind rt_ptr_kind = JITShadowFrame_GetRTPtrKind(jit_sf);
-  JIT_CHECKX(
-      rt_ptr_kind == PYSF_CODE_RT, "unexpected ptr kind: %d", rt_ptr_kind);
+  JIT_CHECK(
+      rt_ptr_kind == PYSF_CODE_RT, "unexpected ptr kind: {}", rt_ptr_kind);
   return reinterpret_cast<jit::CodeRuntime*>(JITShadowFrame_GetRTPtr(jit_sf));
 }
 
@@ -139,7 +139,7 @@ std::optional<PyFrameObject*> findInnermostPyFrameForShadowFrame(
 // Return the instruction pointer for the JIT-compiled function that is
 // executing shadow_frame.
 uintptr_t getIP(_PyShadowFrame* shadow_frame, int frame_size) {
-  JIT_CHECKX(
+  JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "shadow frame not executed by the JIT");
   uintptr_t frame_base;
@@ -174,12 +174,12 @@ Ref<PyFrameObject> createPyFrame(
     frame_state = static_cast<CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame))
                       ->frameState();
   } else {
-    JIT_CHECKX(
+    JIT_CHECK(
         _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS,
         "Unexpected shadow frame type");
     frame_state =
         static_cast<RuntimeFrameState*>(_PyShadowFrame_GetPtr(shadow_frame));
-    JIT_CHECKX(!frame_state->isGen(), "unexpected generator in inlined frame");
+    JIT_CHECK(!frame_state->isGen(), "unexpected generator in inlined frame");
   }
   PyFrameConstructor py_frame_ctor = {};
   py_frame_ctor.fc_globals = frame_state->globals();
@@ -246,7 +246,7 @@ void attachPyFrame(
 }
 
 PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
-  JIT_DCHECKX(gen->gi_jit_data != nullptr, "not a JIT generator");
+  JIT_DCHECK(gen->gi_jit_data != nullptr, "not a JIT generator");
   switch (Ci_GetJITGenState(gen)) {
     case Ci_JITGenState_JustStarted: {
       return FRAME_CREATED;
@@ -344,7 +344,7 @@ struct ShadowFrameAndLoc {
 // Collect all the shadow frames in the unit, with the shadow frame for the
 // non-inlined function as the first element in the return vector.
 std::vector<_PyShadowFrame*> getUnitFrames(_PyShadowFrame* shadow_frame) {
-  JIT_CHECKX(
+  JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "must pass jit-owned shadow frame");
   std::vector<_PyShadowFrame*> frames;
@@ -378,7 +378,7 @@ using UnitState = std::vector<ShadowFrameAndLoc>;
 
 // Get the unit state for the JIT unit beginning at shadow_frame.
 UnitState getUnitState(_PyShadowFrame* shadow_frame) {
-  JIT_CHECKX(
+  JIT_CHECK(
       _PyShadowFrame_GetOwner(shadow_frame) == PYSF_JIT,
       "must pass jit-owned shadow frame");
   std::vector<_PyShadowFrame*> unit_frames = getUnitFrames(shadow_frame);
@@ -418,9 +418,8 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
         JIT_LOG("code={} bc_off={}", codeName(col.code), col.instr_offset);
       }
       logUnitFrames();
-      JIT_CHECKX(
-          false,
-          "size mismatch: expected %zu frames but got %zu",
+      JIT_ABORT(
+          "Size mismatch: expected {} frames but got {}",
           locs->size(),
           unit_frames.size());
     }
@@ -435,7 +434,7 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
     // worth investigating. Leave some breadcrumbs to help with debugging.
     JIT_LOG("No debug info for addr {}", ip);
     logUnitFrames();
-    JIT_DCHECKX(false, "No debug info for addr %x", ip);
+    JIT_DCHECK(false, "No debug info for addr {:x}", ip);
     for (std::size_t i = 0; i < unit_frames.size(); i++) {
       _PyShadowFrame* sf = unit_frames[i];
       unit_state.emplace_back(sf, CodeObjLoc{_PyShadowFrame_GetCode(sf), -1});
@@ -596,8 +595,7 @@ const char* shadowFrameKind(_PyShadowFrame* sf) {
     case PYSF_DUMMY:
       return "<dummy>";
   }
-  JIT_CHECKX(
-      false, "Unknown shadow frame kind %d", _PyShadowFrame_GetPtrKind(sf));
+  JIT_ABORT("Unknown shadow frame kind {}", _PyShadowFrame_GetPtrKind(sf));
 }
 
 } // namespace
@@ -636,9 +634,9 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
               sf_name_str);
         }
       }
-      JIT_CHECKX(
+      JIT_CHECK(
           py_frame == _PyShadowFrame_GetPyFrame(shadow_frame),
-          "Inconsistent shadow and py frame (%s vs %s)",
+          "Inconsistent shadow and py frame ({} vs {})",
           codeName(py_frame->f_code),
           codeName(_PyShadowFrame_GetPyFrame(shadow_frame)->f_code));
       py_frame = py_frame->f_back;
@@ -680,7 +678,7 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
   _PyShadowFrame* shadow_frame = &gen->gi_shadow_frame;
   UnitState unit_state = getUnitState(shadow_frame);
   // TODO(T116587512): Support inlined frames in generator objects
-  JIT_CHECKX(
+  JIT_CHECK(
       unit_state.size() == 1, "unexpected inlined frames found for generator");
   std::optional<BorrowedRef<PyFrameObject>> cursor;
   if (Ci_JITGenIsExecuting(gen) && !gen->gi_frame) {
@@ -708,7 +706,7 @@ int _PyShadowFrame_HasGen(_PyShadowFrame* shadow_frame) {
 }
 
 PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       is_shadow_frame_for_gen(shadow_frame),
       "Not shadow-frame for a generator");
 

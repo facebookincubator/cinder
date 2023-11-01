@@ -54,7 +54,7 @@ namespace {
 // Extra information needed to compile a PyCodeObject.
 struct CodeData {
   CodeData(PyObject* m, PyObject* b, PyObject* g) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         !g_threaded_compile_context.compileRunning(),
         "unexpected multithreading");
     module = Ref<>::create(m);
@@ -572,7 +572,7 @@ void initFlagProcessor() {
         [](std::string json_output_dir) {
           g_dump_hir_passes_json = json_output_dir;
           int mkdir_result = ::mkdir(g_dump_hir_passes_json.c_str(), 0755);
-          JIT_CHECKX(
+          JIT_CHECK(
               mkdir_result == 0 || errno == EEXIST,
               "could not make JSON directory");
         },
@@ -618,9 +618,9 @@ void initFlagProcessor() {
         "jit-attr-cache-size",
         "PYTHONJITATTRCACHESIZE",
         [](uint32_t entries) {
-          JIT_CHECKX(
+          JIT_CHECK(
               entries > 0 && entries <= 16,
-              "Using %d entries for attribute access inline "
+              "Using {} entries for attribute access inline "
               "caches is not within the appropriate range",
               entries);
           getMutableConfig().attr_cache_size = entries;
@@ -670,7 +670,7 @@ static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
     CompilationTimer t{func};
     return _PyJITContext_CompileFunction(jit_ctx, func);
   }
-  JIT_CHECKX(PyCode_Check(unit), "Expected function or code object");
+  JIT_CHECK(PyCode_Check(unit), "Expected function or code object");
   BorrowedRef<PyCodeObject> code(unit);
   const CodeData& data = map_get(jit_code_data, code);
   return _PyJITContext_CompileCode(
@@ -712,7 +712,7 @@ static void compile_perf_trampoline_entries() {
 }
 
 static void multithread_compile_all() {
-  JIT_CHECKX(jit_ctx, "JIT not initialized");
+  JIT_CHECK(jit_ctx, "JIT not initialized");
 
   std::vector<BorrowedRef<>> compilation_units;
   // units that were deleted during preloading
@@ -738,9 +738,9 @@ static void multithread_compile_all() {
           jit_preloaders.emplace(unit, std::move(preloader));
         }
       } else {
-        JIT_CHECKX(
+        JIT_CHECK(
             PyCode_Check(unit),
-            "Expected function or code object, not %s",
+            "Expected function or code object, not {}",
             unit->ob_type->tp_name);
         BorrowedRef<PyCodeObject> code(unit);
         const CodeData& data = map_get(jit_code_data, code);
@@ -783,7 +783,7 @@ static void multithread_compile_all() {
   g_threaded_compile_context.startCompile(std::move(live_compilation_units));
   std::vector<std::thread> worker_threads;
   size_t batch_compile_workers = getConfig().batch_compile_workers;
-  JIT_CHECKX(batch_compile_workers, "Zero workers for compile");
+  JIT_CHECK(batch_compile_workers, "Zero workers for compile");
   {
     // Hold a lock while we create threads because IG production has magic to
     // wrap pthread_create() and run Python code before threads are created.
@@ -915,9 +915,9 @@ int _PyJIT_IsCompiled(PyObject* func) {
   if (jit_ctx == nullptr) {
     return 0;
   }
-  JIT_DCHECKX(
+  JIT_DCHECK(
       PyFunction_Check(func),
-      "Expected PyFunctionObject, got '%.200s'",
+      "Expected PyFunctionObject, got '{:.200}'",
       Py_TYPE(func)->tp_name);
 
   return _PyJITContext_DidCompile(jit_ctx, func);
@@ -1375,12 +1375,12 @@ static int deopt_gen_impl(PyGenObject* gen) {
   if (Ci_GenIsCompleted(gen) || footer == nullptr) {
     return 0;
   }
-  JIT_CHECKX(
+  JIT_CHECK(
       footer->yieldPoint != nullptr,
       "Suspended JIT generator has nullptr yieldPoint");
   const DeoptMetadata& deopt_meta =
       Runtime::get()->getDeoptMetadata(footer->yieldPoint->deoptIdx());
-  JIT_CHECKX(
+  JIT_CHECK(
       deopt_meta.frame_meta.size() == 1,
       "Generators with inlined calls are not supported (T109706798)");
 
@@ -1741,7 +1741,7 @@ int _PyJIT_Initialize() {
   //
   // We use 0xf0 because compiler optimizations can be smart enough to spot that
   // things like 0 or 1 are not possible (due to alignment etc.)
-  JIT_CHECKX(
+  JIT_CHECK(
       reinterpret_cast<uintptr_t>(&__strobe_CodeRuntime_py_code) !=
               static_cast<uintptr_t>(0xf0) &&
           reinterpret_cast<uintptr_t>(&Ci_StrictModuleLoader_Type) !=
@@ -1945,7 +1945,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
     return 0;
   }
 
-  JIT_CHECKX(
+  JIT_CHECK(
       !g_threaded_compile_context.compileRunning(),
       "Not intended for using during threaded compilation");
   int result = 0;
@@ -1977,7 +1977,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
 }
 
 void _PyJIT_TypeCreated(PyTypeObject* type) {
-  JIT_DCHECKX(PyType_HasFeature(type, Py_TPFLAGS_READY), "type not ready");
+  JIT_DCHECK(PyType_HasFeature(type, Py_TPFLAGS_READY), "type not ready");
   auto& profile_runtime = jit::Runtime::get()->profileRuntime();
   profile_runtime.registerType(type);
 }
@@ -2105,13 +2105,13 @@ int _PyJIT_Finalize() {
     // Clear some global maps that reference Python data.
     jit_code_data.clear();
     jit_reg_units.clear();
-    JIT_CHECKX(
+    JIT_CHECK(
         jit_preloaders.empty(),
         "JIT cannot be finalized while multithreaded compilation is active");
 
     getMutableConfig().init_state = InitState::kFinalized;
 
-    JIT_CHECKX(jit_ctx != nullptr, "jit_ctx not initialized");
+    JIT_CHECK(jit_ctx != nullptr, "jit_ctx not initialized");
     delete jit_ctx;
     jit_ctx = nullptr;
 
@@ -2135,7 +2135,7 @@ PyObject* _PyJIT_GenSend(
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
 
   // state should be valid and the generator should not be completed
-  JIT_DCHECKX(
+  JIT_DCHECK(
       gen_footer->state == Ci_JITGenState_JustStarted ||
           gen_footer->state == Ci_JITGenState_Running,
       "Invalid JIT generator state");
@@ -2144,7 +2144,7 @@ PyObject* _PyJIT_GenSend(
 
   // JIT generators use nullptr arg to indicate an exception
   if (exc) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         arg == Py_None, "Arg should be None when injecting an exception");
     arg = nullptr;
   } else {
@@ -2167,7 +2167,7 @@ PyObject* _PyJIT_GenSend(
   }
 
   // Enter generated code.
-  JIT_DCHECKX(
+  JIT_DCHECK(
       gen_footer->yieldPoint != nullptr,
       "Attempting to resume a generator with no yield point");
   PyObject* result =
@@ -2190,7 +2190,7 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
 
 int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  JIT_DCHECKX(gen_footer, "Generator missing JIT data");
+  JIT_DCHECK(gen_footer, "Generator missing JIT data");
   if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     return reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)
         ->visitRefs(gen, visit, arg);
@@ -2200,7 +2200,7 @@ int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
 
 void _PyJIT_GenDealloc(PyGenObject* gen) {
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  JIT_DCHECKX(gen_footer, "Generator missing JIT data");
+  JIT_DCHECK(gen_footer, "Generator missing JIT data");
   if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)->releaseRefs(gen);
   }
@@ -2209,7 +2209,7 @@ void _PyJIT_GenDealloc(PyGenObject* gen) {
 
 PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
-  JIT_DCHECKX(gen_footer, "Generator missing JIT data");
+  JIT_DCHECK(gen_footer, "Generator missing JIT data");
   PyObject* yf = nullptr;
   if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
     yf = gen_footer->yieldPoint->yieldFromValue(gen_footer);
@@ -2226,7 +2226,7 @@ const jit::RuntimeFrameState* getRuntimeFrameState(
         _PyShadowFrame_GetPtr(shadow_frame));
   }
   // TODO(T110700318): Collapse into RTFS case
-  JIT_DCHECKX(
+  JIT_DCHECK(
       _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
       "Unexpected shadow frame type");
   jit::CodeRuntime* code_rt =
@@ -2238,7 +2238,7 @@ const jit::RuntimeFrameState* getRuntimeFrameState(
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   if (shadow_frame == nullptr) {
-    JIT_CHECKX(
+    JIT_CHECK(
         tstate->frame == nullptr,
         "py frame w/out corresponding shadow frame\n");
     return nullptr;
@@ -2252,7 +2252,7 @@ PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
 PyObject* _PyJIT_GetBuiltins(PyThreadState* tstate) {
   _PyShadowFrame* shadow_frame = tstate->shadow_frame;
   if (shadow_frame == nullptr) {
-    JIT_CHECKX(
+    JIT_CHECK(
         tstate->frame == nullptr,
         "py frame w/out corresponding shadow frame\n");
     return tstate->interp->builtins;
@@ -2358,11 +2358,11 @@ void start_instr(ProfileEnv& env, int bcoff_raw) {
       ? PyCode_Addr2Line(env.code, bcoff_raw)
       : -1;
   int opcode = _Py_OPCODE(PyBytes_AS_STRING(env.code->co_code)[bcoff_raw]);
-  JIT_CHECKX(opcode != 0, "invalid opcode at offset %d", bcoff_raw);
+  JIT_CHECK(opcode != 0, "Invalid opcode at offset {}", bcoff_raw);
   env.bc_offset = Ref<>::steal(check(PyLong_FromLong(bcoff_raw)));
   env.lineno = Ref<>::steal(check(PyLong_FromLong(lineno_raw)));
   env.opname.reset(s_opnames.at(opcode));
-  JIT_CHECKX(env.opname != nullptr, "no opname for op %d", opcode);
+  JIT_CHECK(env.opname != nullptr, "No opname for op {}", opcode);
 }
 
 void append_item(

@@ -186,9 +186,9 @@ class ThrowableErrorHandler : public ErrorHandler {
 #define ASM_CHECK(exp, what)             \
   {                                      \
     auto err = (exp);                    \
-    JIT_CHECKX(                          \
+    JIT_CHECK(                          \
         err == kErrorOk,                 \
-        "Failed generating %s: %s",      \
+        "Failed generating {}: {}",      \
         (what),                          \
         DebugUtils::errorAsString(err)); \
   }
@@ -214,7 +214,7 @@ void* NativeGenerator::getVectorcallEntry() {
     return vectorcall_entry_;
   }
 
-  JIT_CHECKX(as_ == nullptr, "x86::Builder should not have been initialized.");
+  JIT_CHECK(as_ == nullptr, "x86::Builder should not have been initialized.");
 
   CodeHolder code;
   code.init(CodeAllocator::get()->asmJitEnvironment());
@@ -365,9 +365,8 @@ void* NativeGenerator::getVectorcallEntry() {
       *lir_func);
 
   if (!verifyPostRegAllocInvariants(lir_func.get(), std::cerr)) {
-    JIT_CHECKX(
-        false,
-        "LIR for %s failed verification:\n%s",
+    JIT_ABORT(
+        "LIR for {} failed verification:\n{}",
         GetFunction()->fullname,
         *lir_func);
   }
@@ -384,10 +383,9 @@ void* NativeGenerator::getVectorcallEntry() {
     String s;
     FormatOptions formatOptions;
     Formatter::formatNodeList(s, formatOptions, as_);
-    JIT_CHECKX(
-        false,
-        "Failed to emit code for '%s': '%s' failed with '%s'\n\n"
-        "Builder contents on failure:\n%s",
+    JIT_ABORT(
+        "Failed to emit code for '{}': '{}' failed with '{}'\n\n"
+        "Builder contents on failure:\n{}",
         GetFunction()->fullname,
         ex.expr,
         ex.message,
@@ -399,7 +397,7 @@ void* NativeGenerator::getVectorcallEntry() {
    * JitRuntime::_add and may break in the future.
    */
 
-  JIT_DCHECKX(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
+  JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = static_cast<int>(code.codeSize());
   env_.code_rt->set_frame_size(env_.stack_frame_size);
   return vectorcall_entry_;
@@ -572,13 +570,13 @@ void NativeGenerator::loadOrGenerateLinkFrame(
     for (const auto& pair : save_regs) {
       if (pair.first != pair.second) {
         if (pair.first.isGpq()) {
-          JIT_DCHECKX(
+          JIT_DCHECK(
               pair.second.isGpq(), "can't mix and match register types");
           as_->mov(
               static_cast<const asmjit::x86::Gpq&>(pair.second),
               static_cast<const asmjit::x86::Gpq&>(pair.first));
         } else if (pair.first.isXmm()) {
-          JIT_DCHECKX(
+          JIT_DCHECK(
               pair.second.isXmm(), "can't mix and match register types");
           as_->movsd(
               static_cast<const asmjit::x86::Xmm&>(pair.second),
@@ -722,8 +720,7 @@ void NativeGenerator::generatePrologue(
       // xmm0 already contains the return value
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
     } else {
-      JIT_CHECKX(
-          false, "unsupported primitive return type %s", ret_type.toString());
+      JIT_ABORT("Unsupported primitive return type {}", ret_type.toString());
     }
 
     as_->call(box_func);
@@ -1053,7 +1050,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   if (!saved_regs.Empty()) {
     // Reset rsp to point at our callee-saved registers and restore them.
-    JIT_CHECKX(
+    JIT_CHECK(
         env_.last_callee_saved_reg_off != -1,
         "offset to callee saved regs not initialized");
     as_->lea(x86::rsp, x86::ptr(x86::rbp, -env_.last_callee_saved_reg_off));
@@ -1161,7 +1158,7 @@ void NativeGenerator::generateDeoptExits(const asmjit::CodeHolder& code) {
 }
 
 void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
-  JIT_CHECKX(code.hasBaseAddress(), "code not generated!");
+  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
   uint64_t base = code.baseAddress();
   for (const auto& udp : env_.pending_deopt_patchers) {
     uint64_t patchpoint = base + code.labelOffsetFromBase(udp.patchpoint);
@@ -1408,15 +1405,15 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // v
   // ------------- vectorcall_entry_
   if (has_static_entry) {
-    JIT_CHECKX(
+    JIT_CHECK(
         codeholder.labelOffsetFromBase(static_jmp_location) ==
             codeholder.labelOffsetFromBase(vectorcall_entry_label) +
                 JITRT_STATIC_ENTRY_OFFSET,
-        "bad static-entry offset %d ",
+        "bad static-entry offset {} ",
         codeholder.labelOffsetFromBase(vectorcall_entry_label) -
             codeholder.labelOffsetFromBase(static_jmp_location));
   }
-  JIT_CHECKX(
+  JIT_CHECK(
       codeholder.labelOffset(correct_args_entry) ==
           codeholder.labelOffset(vectorcall_entry_label) +
               JITRT_CALL_REENTRY_OFFSET,
@@ -1438,7 +1435,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // After code generation CodeHolder->codeSize() *should* return the actual
   // size of the generated code and associated data. This relies on the
   // implementation of asmjit::JitRuntime::_add and may break in the future.
-  JIT_DCHECKX(
+  JIT_DCHECK(
       codeholder.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = codeholder.codeSize();
 
@@ -1513,7 +1510,7 @@ static void raiseAttributeError(BorrowedRef<> receiver, BorrowedRef<> name) {
 
 static PyFrameObject*
 prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
-  JIT_CHECKX(deopt_idx != -1ull, "deopt_idx must be valid");
+  JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
@@ -1567,7 +1564,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
               PyExc_SystemError, "error return without exception set");
         }
 #else
-        JIT_CHECKX(PyErr_Occurred(), "Error return without exception set");
+        JIT_CHECK(PyErr_Occurred(), "Error return without exception set");
 #endif
         break;
       case jit::DeoptReason::kRaiseStatic:
@@ -1617,7 +1614,7 @@ static PyObject* resumeInInterpreter(
     // Delegate management of `tstate->frame` to the interpreter loop. On
     // entry, it expects that tstate->frame points to the frame for the calling
     // function.
-    JIT_CHECKX(tstate->frame == frame, "unexpected frame at top of stack");
+    JIT_CHECK(tstate->frame == frame, "unexpected frame at top of stack");
     tstate->frame = prev_frame;
     result = PyEval_EvalFrameEx(frame, err_occurred);
     JITRT_DecrefFrame(frame);

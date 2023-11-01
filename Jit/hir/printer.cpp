@@ -846,7 +846,7 @@ nlohmann::json JSONPrinter::PrintSource(const Function& func) {
     return nlohmann::json();
   }
   PyObject* co_filename = code->co_filename;
-  JIT_CHECKX(co_filename != nullptr, "filename must not be null");
+  JIT_CHECK(co_filename != nullptr, "filename must not be null");
   const char* filename = PyUnicode_AsUTF8(co_filename);
   if (filename == nullptr) {
     PyErr_Clear();
@@ -913,7 +913,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case STORE_LOCAL:
     case TP_ALLOC: {
       PyObject* const_obj = PyTuple_GetItem(code->co_consts, oparg);
-      JIT_DCHECKX(const_obj != nullptr, "bad constant");
+      JIT_DCHECK(const_obj != nullptr, "bad constant");
       PyObject* repr = PyObject_Repr(const_obj);
       if (repr == nullptr) {
         PyErr_Clear();
@@ -930,7 +930,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case STORE_FAST:
     case DELETE_FAST: {
       PyObject* name_obj = PyTuple_GetItem(code->co_varnames, oparg);
-      JIT_DCHECKX(name_obj != nullptr, "bad name");
+      JIT_DCHECK(name_obj != nullptr, "bad name");
       const char* name = PyUnicode_AsUTF8(name_obj);
       if (name == nullptr) {
         PyErr_Clear();
@@ -948,7 +948,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
         name_obj = PyTuple_GetItem(
             code->co_freevars, oparg - PyTuple_GET_SIZE(code->co_cellvars));
       }
-      JIT_DCHECKX(name_obj != nullptr, "bad name");
+      JIT_DCHECK(name_obj != nullptr, "bad name");
       const char* name = PyUnicode_AsUTF8(name_obj);
       if (name == nullptr) {
         PyErr_Clear();
@@ -964,7 +964,7 @@ reprArg(PyCodeObject* code, unsigned char opcode, unsigned char oparg) {
     case STORE_GLOBAL:
     case DELETE_GLOBAL: {
       PyObject* name_obj = PyTuple_GetItem(code->co_names, oparg);
-      JIT_DCHECKX(name_obj != nullptr, "bad name");
+      JIT_DCHECK(name_obj != nullptr, "bad name");
       const char* name = PyUnicode_AsUTF8(name_obj);
       if (name == nullptr) {
         PyErr_Clear();
@@ -1071,7 +1071,7 @@ nlohmann::json JSONPrinter::Print(const BasicBlock& block) {
   }
   result["instrs"] = instrs;
   const Instr* instr = block.GetTerminator();
-  JIT_CHECKX(instr != nullptr, "expected terminator");
+  JIT_CHECK(instr != nullptr, "expected terminator");
   result["terminator"] = Print(*instr);
   nlohmann::json succs = nlohmann::json::array();
   for (std::size_t i = 0; i < instr->numEdges(); i++) {

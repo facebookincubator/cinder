@@ -18,7 +18,7 @@ BasicBlock::BasicBlock(Function* func)
 
 BasicBlock* BasicBlock::insertBasicBlockBetween(BasicBlock* block) {
   auto i = std::find(successors_.begin(), successors_.end(), block);
-  JIT_DCHECKX(i != successors_.end(), "block must be one of the successors.");
+  JIT_DCHECK(i != successors_.end(), "block must be one of the successors.");
 
   auto new_block = func_->allocateBasicBlockAfter(this);
   *i = new_block;
@@ -37,9 +37,9 @@ void BasicBlock::print() const {
 }
 
 BasicBlock* BasicBlock::splitBefore(Instruction* instr) {
-  JIT_CHECKX(
+  JIT_CHECK(
       func_ != nullptr, "cannot split block that doesn't belong to a function");
-  JIT_CHECKX(
+  JIT_CHECK(
       instr->opcode() != Instruction::kPhi, "cannot split block at a phi node");
 
   // find the instruction
@@ -99,7 +99,7 @@ void BasicBlock::fixupPhis(BasicBlock* old_pred, BasicBlock* new_pred) {
 }
 
 void BasicBlock::setSuccessor(size_t index, BasicBlock* bb) {
-  JIT_CHECKX(index < successors_.size(), "Index out of range");
+  JIT_CHECK(index < successors_.size(), "Index out of range");
   BasicBlock* old_bb = successors_.at(index);
   std::vector<BasicBlock*>& old_preds = old_bb->predecessors_;
   old_preds.erase(std::find(old_preds.begin(), old_preds.end(), this));

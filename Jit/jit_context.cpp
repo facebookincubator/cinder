@@ -133,7 +133,7 @@ CompilationResult compilePreloader(
 
   // Store the compiled code.
   auto pair = ctx->compiled_codes.emplace(key, std::move(compiled));
-  JIT_CHECKX(pair.second == true, "CompilationKey already present");
+  JIT_CHECK(pair.second == true, "CompilationKey already present");
   return {pair.first->second.get(), PYJIT_RESULT_OK};
 }
 
@@ -147,7 +147,7 @@ CompilationResult compileCode(
     BorrowedRef<PyDictObject> builtins,
     BorrowedRef<PyDictObject> globals,
     const std::string& fullname) {
-  JIT_CHECKX(
+  JIT_CHECK(
       !jit::g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader =
@@ -202,7 +202,7 @@ _PyJIT_Result _PyJITContext_CompilePreloader(
 _PyJIT_Result _PyJITContext_AttachCompiledCode(
     _PyJITContext* ctx,
     BorrowedRef<PyFunctionObject> func) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       _PyJITContext_DidCompile(ctx, func) == 0, "Function is already compiled");
 
   if (jit::CompiledFunction* compiled = lookupCompiledFunction(ctx, func)) {

@@ -491,13 +491,13 @@ static bool absorbDstBlock(BasicBlock* block) {
   branch->unlink();
   while (!target->empty()) {
     Instr* instr = target->pop_front();
-    JIT_CHECKX(!instr->IsPhi(), "Expected no Phi but found %s", *instr);
+    JIT_CHECK(!instr->IsPhi(), "Expected no Phi but found {}", *instr);
     block->Append(instr);
   }
   // The successors to target might have Phis that still refer to target.
   // Retarget them to refer to block.
   Instr* old_term = block->GetTerminator();
-  JIT_CHECKX(old_term != nullptr, "block must have a terminator");
+  JIT_CHECK(old_term != nullptr, "block must have a terminator");
   for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
     old_term->successor(i)->fixupPhis(
         /*old_pred=*/target, /*new_pred=*/block);
@@ -587,7 +587,7 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           if (cond_branch->false_bb() == block) {
             target = cond_branch->true_bb();
           } else {
-            JIT_CHECKX(
+            JIT_CHECK(
                 cond_branch->true_bb() == block,
                 "true branch must be unreachable");
             target = cond_branch->false_bb();
@@ -694,7 +694,7 @@ static void simplifyRedundantCondBranches(CFG* cfg) {
     if (num_edges < 2) {
       continue;
     }
-    JIT_CHECKX(num_edges == 2, "only two edges are supported");
+    JIT_CHECK(num_edges == 2, "only two edges are supported");
     if (term->successor(0) != term->successor(1)) {
       continue;
     }
@@ -705,8 +705,7 @@ static void simplifyRedundantCondBranches(CFG* cfg) {
         break;
       default:
         // Can't be sure that it's safe to replace the instruction with a branch
-        JIT_CHECKX(
-            false, "unknown side effects of %s instruction", term->opname());
+        JIT_ABORT("Unknown side effects of {} instruction", term->opname());
         break;
     }
     to_simplify.emplace_back(&block);
@@ -862,7 +861,7 @@ static bool canInline(
 
     return false;
   }
-  JIT_DCHECKX(code->co_argcount >= 0, "argcount must be positive");
+  JIT_DCHECK(code->co_argcount >= 0, "argcount must be positive");
   if (call_instr->nargs != static_cast<size_t>(code->co_argcount)) {
     dlogAndCollectFailureStats(
         inline_failure_stats,
@@ -937,7 +936,7 @@ static bool canInlineWithPreloader(
 void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   PyFunctionObject* func = call_instr->func;
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
-  JIT_CHECKX(PyCode_Check(code), "Expected PyCodeObject");
+  JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
   PyObject* globals = func->func_globals;
   std::string fullname = funcFullname(func);
   Function::InlineFailureStats& inline_failure_stats =
@@ -1048,7 +1047,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
 
   // Transform Return into Assign+Branch
   auto return_instr = result.exit->GetTerminator();
-  JIT_CHECKX(
+  JIT_CHECK(
       return_instr->IsReturn(),
       "terminator from inlined function should be Return");
   auto assign = Assign::create(
@@ -1171,7 +1170,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   PyCodeObject* code = invoke.load_method->frameState()->code;
   PyObject* names = code->co_names;
   PyObject* name = PyTuple_GetItem(names, invoke.load_method->name_idx());
-  JIT_DCHECKX(name != nullptr, "name must not be null");
+  JIT_DCHECK(name != nullptr, "name must not be null");
   Register* receiver = invoke.load_method->receiver();
   Type receiver_type = receiver->type();
   // This is a list of common builtin types whose methods cannot be overwritten
@@ -1195,9 +1194,9 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     // This might happen for a variety of reasons, such as encountering a
     // method load on a maybe-defined value where the definition occurs in a
     // block of code that isn't seen by the compiler (e.g. in an except block).
-    JIT_DCHECKX(
+    JIT_DCHECK(
         receiver_type == TBottom,
-        "type %s expected to have PyTypeObject*",
+        "Type {} expected to have PyTypeObject*",
         receiver_type);
     return false;
   }
@@ -1230,7 +1229,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     load_type->InsertBefore(*invoke.call_method);
     call_static->SetOperand(1, type_reg);
   } else {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         Py_TYPE(method_obj) == &PyMethodDescr_Type ||
             Py_TYPE(method_obj) == &PyWrapperDescr_Type,
         "unexpected type");
@@ -1277,17 +1276,17 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
           continue;
         }
 
-        JIT_DCHECKX(
+        JIT_DCHECK(
             isLoadMethodBase(*func_instr),
-            "Load{,Module}Method/CallMethod should be paired but got "
-            "%s/CallMethod",
+            "Load{{,Module}}Method/CallMethod should be paired but got "
+            "{}/CallMethod",
             func_instr->opname());
         auto lm = static_cast<LoadMethod*>(func_instr);
 
-        JIT_DCHECKX(
+        JIT_DCHECK(
             cm->self()->instr()->IsGetSecondOutput(),
             "GetSecondOutput/CallMethod should be paired but got "
-            "%s/CallMethod",
+            "{}/CallMethod",
             cm->self()->instr()->opname());
         auto glmi = static_cast<GetSecondOutput*>(cm->self()->instr());
         auto result = invokes.insert({lm, MethodInvoke{lm, glmi, cm}});

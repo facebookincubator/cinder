@@ -65,7 +65,7 @@ class IntrusiveListNode {
   }
 
   void InsertBefore(IntrusiveListNode* node) {
-    JIT_DCHECKX(!isLinked(), "Item is already in a list");
+    JIT_DCHECK(!isLinked(), "Item is already in a list");
     auto prev_node = node->prev();
     prev_node->set_next(this);
     set_prev(prev_node);
@@ -74,7 +74,7 @@ class IntrusiveListNode {
   }
 
   void InsertAfter(IntrusiveListNode* node) {
-    JIT_DCHECKX(!isLinked(), "Item is already in a list");
+    JIT_DCHECK(!isLinked(), "Item is already in a list");
     auto next_node = node->next();
     next_node->set_prev(this);
     set_next(next_node);
@@ -83,7 +83,7 @@ class IntrusiveListNode {
   }
 
   void Unlink() {
-    JIT_DCHECKX(isLinked(), "Item is not in a list");
+    JIT_DCHECK(isLinked(), "Item is not in a list");
     prev()->set_next(next());
     next()->set_prev(prev());
     set_next(this);
@@ -127,12 +127,12 @@ class IntrusiveList {
   }
 
   reference Front() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     return *GetOwner(root_.next());
   }
 
   const_reference Front() const {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     return *GetOwner(root_.next());
   }
 
@@ -141,24 +141,24 @@ class IntrusiveList {
   }
 
   void PopFront() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     root_.next()->Unlink();
   }
 
   reference ExtractFront() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     IntrusiveListNode* old_front = root_.next();
     old_front->Unlink();
     return *GetOwner(old_front);
   }
 
   reference Back() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     return *GetOwner(root_.prev());
   }
 
   const_reference Back() const {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     return *GetOwner(root_.prev());
   }
 
@@ -175,12 +175,12 @@ class IntrusiveList {
   }
 
   void PopBack() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     root_.prev()->Unlink();
   }
 
   reference ExtractBack() {
-    JIT_DCHECKX(!IsEmpty(), "list cannot be empty");
+    JIT_DCHECK(!IsEmpty(), "list cannot be empty");
     IntrusiveListNode* old_back = root_.prev();
     old_back->Unlink();
     return *GetOwner(old_back);
@@ -207,9 +207,9 @@ class IntrusiveList {
   }
 
   void insert(reference r, iterator it) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         it.list() == this,
-        "iterator is for list %p, this == %p",
+        "iterator is for list {}, this == {}",
         reinterpret_cast<void*>(it.list()),
         reinterpret_cast<void*>(this));
     (r.*node_member).InsertBefore(it.node());
@@ -329,36 +329,36 @@ class IntrusiveListIterator {
   }
 
   reference operator*() const {
-    JIT_DCHECKX(current_ != &(list_->root_), "iterator exhausted");
+    JIT_DCHECK(current_ != &(list_->root_), "iterator exhausted");
     return *(list_->GetOwner(current_));
   }
 
   pointer operator->() const {
-    JIT_DCHECKX(current_ != &(list_->root_), "iterator exhausted");
+    JIT_DCHECK(current_ != &(list_->root_), "iterator exhausted");
     return list_->GetOwner(current_);
   }
 
   IntrusiveListIterator& operator++() {
-    JIT_DCHECKX(current_ != &(list_->root_), "iterator exhausted");
+    JIT_DCHECK(current_ != &(list_->root_), "iterator exhausted");
     current_ = current_->next();
     return *this;
   }
 
   IntrusiveListIterator operator++(int) {
-    JIT_DCHECKX(current_ != &(list_->root_), "iterator exhausted");
+    JIT_DCHECK(current_ != &(list_->root_), "iterator exhausted");
     IntrusiveListIterator<T, node_member, is_const> clone(*this);
     operator++();
     return clone;
   }
 
   IntrusiveListIterator& operator--() {
-    JIT_DCHECKX(current_ != list_->root_.next(), "iterator exhausted");
+    JIT_DCHECK(current_ != list_->root_.next(), "iterator exhausted");
     current_ = current_->prev();
     return *this;
   }
 
   IntrusiveListIterator operator--(int) {
-    JIT_DCHECKX(current_ != list_->root_.next(), "iterator exhausted");
+    JIT_DCHECK(current_ != list_->root_.next(), "iterator exhausted");
     IntrusiveListIterator<T, node_member, is_const> clone(*this);
     operator--();
     return clone;

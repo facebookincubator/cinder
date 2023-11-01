@@ -23,12 +23,12 @@ namespace codegen {
 struct Annotation {
   Annotation(const hir::Instr* instr, asmjit::Label begin, asmjit::Label end)
       : instr(instr), begin(begin), end(end) {
-    JIT_DCHECKX(instr != nullptr, "instr can't be null");
+    JIT_DCHECK(instr != nullptr, "instr can't be null");
   }
 
   Annotation(std::string str, asmjit::Label begin, asmjit::Label end)
       : str(std::move(str)), begin(begin), end(end) {
-    JIT_DCHECKX(!this->str.empty(), "str can't be empty");
+    JIT_DCHECK(!this->str.empty(), "str can't be empty");
   }
 
   const hir::Instr* const instr = nullptr;

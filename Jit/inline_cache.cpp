@@ -90,10 +90,10 @@ void AttributeMutator::set_split(
     Py_ssize_t val_offset,
     PyDictKeysObject* keys) {
   set_type(type, Kind::kSplit);
-  JIT_CHECKX(
+  JIT_CHECK(
       type->tp_dictoffset <= std::numeric_limits<uint32_t>::max(),
       "Dict offset does not fit into a 32-bit int");
-  JIT_CHECKX(
+  JIT_CHECK(
       val_offset <= std::numeric_limits<uint32_t>::max(),
       "Val offset does not fit into a 32-bit int");
   split_.dict_offset = static_cast<uint32_t>(type->tp_dictoffset);
@@ -121,7 +121,7 @@ void AttributeMutator::set_descr_or_classvar(
 
 void AttributeMutator::set_type(PyTypeObject* type, Kind kind) {
   auto raw = reinterpret_cast<uintptr_t>(type);
-  JIT_CHECKX((raw & kKindMask) == 0, "PyTypeObject* expected to be aligned");
+  JIT_CHECK((raw & kKindMask) == 0, "PyTypeObject* expected to be aligned");
   auto mask = static_cast<uintptr_t>(kind);
   type_ = raw | mask;
 }
@@ -233,9 +233,8 @@ AttributeMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
     case AttributeMutator::Kind::kDescrOrClassVar:
       return descr_or_cvar_.setAttr(obj, name, value);
     default:
-      JIT_CHECKX(
-          false,
-          "cannot invoke setAttr for attr of kind %d",
+      JIT_ABORT(
+          "Cannot invoke setAttr for attr of kind {}",
           static_cast<int>(kind));
   }
 }

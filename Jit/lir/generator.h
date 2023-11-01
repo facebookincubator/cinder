@@ -70,7 +70,7 @@ class LIRGenerator {
       InstrGuardKind kind,
       const hir::DeoptBase& hir_instr,
       TOperand&& guard_var) {
-    JIT_CHECKX(kind != InstrGuardKind::kAlwaysFail, "Use appendGuardAlwaysFail");
+    JIT_CHECK(kind != InstrGuardKind::kAlwaysFail, "Use appendGuardAlwaysFail");
     auto deopt_id = bbb.makeDeoptMetadata();
     auto instr = bbb.appendInstr(
         Instruction::kGuard,
@@ -85,10 +85,10 @@ class LIRGenerator {
     } else if (hir_instr.IsGuardType()) {
       const auto& guard = static_cast<const hir::GuardType&>(hir_instr);
       // TODO(T101999851): Handle non-Exact types
-      JIT_CHECKX(
+      JIT_CHECK(
           guard.target().isExact(), "Only exact type guards are supported");
       PyTypeObject* guard_type = guard.target().uniquePyType();
-      JIT_CHECKX(guard_type != nullptr, "Ensure unique representation exists");
+      JIT_CHECK(guard_type != nullptr, "Ensure unique representation exists");
       env_->code_rt->addReference(reinterpret_cast<PyObject*>(guard_type));
       instr->addOperands(MemImm{guard_type});
     } else {

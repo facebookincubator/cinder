@@ -71,8 +71,8 @@ class alignas(Ref<PyTypeObject>) TypeProfiler {
 template <typename... Args>
 inline void TypeProfiler::recordTypes(Args&&... args) {
   std::array<PyTypeObject*, sizeof...(Args)> tys{args...};
-  JIT_CHECKX(
-      tys.size() == cols_, "Expected %d arguments, got %d", cols_, tys.size());
+  JIT_CHECK(
+      tys.size() == cols_, "Expected {} arguments, got {}", cols_, tys.size());
 
   Ref<PyTypeObject>* type_row = typesPtr();
   int* counts = countsPtr();
@@ -111,9 +111,9 @@ inline int TypeProfiler::cols() const {
 }
 
 inline PyTypeObject* TypeProfiler::type(int row, int col) const {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       row < rows_ && col < cols_,
-      "Invalid position (%d, %d): bounds (%d, %d)",
+      "Invalid position ({}, {}): bounds ({}, {})",
       row,
       col,
       rows_,
@@ -122,7 +122,7 @@ inline PyTypeObject* TypeProfiler::type(int row, int col) const {
 }
 
 inline int TypeProfiler::count(int row) const {
-  JIT_DCHECKX(row < rows_, "Invalid row %d: limit %d", row, rows_);
+  JIT_DCHECK(row < rows_, "Invalid row {}: limit {}", row, rows_);
   return countsPtr()[row];
 }
 

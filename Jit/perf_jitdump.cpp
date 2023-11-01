@@ -76,9 +76,8 @@ class FileLock {
       if (ret == -1 && errno == EINTR) {
         continue;
       }
-      JIT_CHECKX(
-          false,
-          "flock(%d, %d) failed: %s",
+      JIT_ABORT(
+          "flock({}, {}) failed: {}",
           fd_,
           operation,
           string_error(errno));
@@ -87,8 +86,8 @@ class FileLock {
 
   ~FileLock() {
     auto ret = ::flock(fd_, LOCK_UN);
-    JIT_CHECKX(
-        ret == 0, "flock(%d, LOCK_UN) failed: %s", fd_, string_error(errno));
+    JIT_CHECK(
+        ret == 0, "flock({}, LOCK_UN) failed: {}", fd_, string_error(errno));
   }
 
   DISALLOW_COPY_AND_ASSIGN(FileLock);
@@ -195,7 +194,7 @@ FileInfo openJitdumpFile() {
     return {};
   }
 
-  JIT_CHECKX(
+  JIT_CHECK(
       perf_jitdump_dir.at(0) == '/', "jitdump directory path isn't absolute");
   auto info = openFileInfo(fmt::format("{}/jit-{{}}.dump", perf_jitdump_dir));
   if (info.file == nullptr) {
@@ -206,9 +205,9 @@ FileInfo openJitdumpFile() {
   // mmap() the jitdump file so perf inject can find it.
   auto g_jitdump_mmap_addr =
       mmap(nullptr, kJitdumpMmapSize, PROT_EXEC, MAP_PRIVATE, fd, 0);
-  JIT_CHECKX(
+  JIT_CHECK(
       g_jitdump_mmap_addr != MAP_FAILED,
-      "marker mmap of jitdump file failed: %s",
+      "Marker mmap of jitdump file failed: {}",
       string_error(errno));
 
   // Write out the file header.
@@ -463,8 +462,8 @@ void copyParentPidMap() {
 
 void copyJitdumpFile() {
   auto ret = munmap(g_jitdump_mmap_addr, kJitdumpMmapSize);
-  JIT_CHECKX(
-      ret == 0, "marker unmap of jitdump file failed: %s", string_error(errno));
+  JIT_CHECK(
+      ret == 0, "Marker unmap of jitdump file failed: {}", string_error(errno));
 
   copyFileInfo(g_jitdump_file);
   if (g_jitdump_file.file == nullptr) {

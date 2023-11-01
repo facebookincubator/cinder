@@ -43,7 +43,7 @@ class HIRParser {
   int max_reg_id_{0};
 
   std::string_view GetNextToken() {
-    JIT_CHECKX(token_iter_ != tokens_.end(), "No more tokens");
+    JIT_CHECK(token_iter_ != tokens_.end(), "No more tokens");
     return *(token_iter_++);
   }
 
@@ -56,7 +56,7 @@ class HIRParser {
   int GetNextInteger() {
     auto token = GetNextToken();
     auto n = parseInt<int>(token);
-    JIT_CHECKX(n.has_value(), "Cannot parse '%s' as an integer", token);
+    JIT_CHECK(n.has_value(), "Cannot parse '{}' as an integer", token);
     return *n;
   }
 

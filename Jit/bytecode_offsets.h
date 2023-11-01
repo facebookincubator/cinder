@@ -79,14 +79,14 @@ class BCOffsetBase {
   template <class TInt>
   int check(TInt v) {
     static_assert(std::is_integral_v<TInt>, "BCOffsetBase is an integer");
-    JIT_DCHECKX(
-        v <= std::numeric_limits<int>::max(), "Overflow converting from %d", v);
+    JIT_DCHECK(
+        v <= std::numeric_limits<int>::max(), "Overflow converting from {}", v);
     // Checking that an unsigned value is greater or equal than a negative value
     // would produce a compiler warning.
     if constexpr (std::is_signed_v<TInt>) {
-      JIT_DCHECKX(
+      JIT_DCHECK(
           v >= std::numeric_limits<int>::min(),
-          "Underflow converting from %d",
+          "Underflow converting from {}",
           v);
     }
     return static_cast<int>(v);

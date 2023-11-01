@@ -80,7 +80,7 @@ struct PhyLocation {
   };
 
   static const char* regName(Reg reg) {
-    JIT_CHECKX(reg >= 0, "reg must be nonnegative");
+    JIT_CHECK(reg >= 0, "reg must be nonnegative");
     switch (reg) {
 #define DECLARE_REG(v, ...) \
   case v:                   \

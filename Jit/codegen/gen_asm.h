@@ -57,7 +57,7 @@ class NativeGenerator {
   }
 
   void SetJSONOutput(nlohmann::json* json) {
-    JIT_CHECKX(json != nullptr, "expected non-null stream");
+    JIT_CHECK(json != nullptr, "expected non-null stream");
     this->json = json;
   }
 

@@ -31,7 +31,7 @@ class SlabArenaIterator {
     if (slabs_ == nullptr) {
       return;
     }
-    JIT_CHECKX(slabs_->size() > 0, "Unexpected empty slabs list");
+    JIT_CHECK(slabs_->size() > 0, "Unexpected empty slabs list");
     slab_ = slabs_->begin();
     slab_iter_ = currentSlab().begin();
     if (isSlabEnd()) {
@@ -58,7 +58,7 @@ class SlabArenaIterator {
         return *this = SlabArenaIterator{};
       }
       slab_iter_ = currentSlab().begin();
-      JIT_CHECKX(slab_iter_ != currentSlab().end(), "Unexpected empty slab");
+      JIT_CHECK(slab_iter_ != currentSlab().end(), "Unexpected empty slab");
     }
     return *this;
   }
@@ -132,7 +132,7 @@ class SlabArena {
     void* mem = slabs_.back().allocate();
     if (mem == nullptr) {
       mem = slabs_.emplace_back(SizeTrait::size()).allocate();
-      JIT_CHECKX(mem != nullptr, "Empty slab failed to allocate");
+      JIT_CHECK(mem != nullptr, "Empty slab failed to allocate");
       if (mlocked_) {
         slabs_.back().mlock();
       }
@@ -144,7 +144,7 @@ class SlabArena {
   void mlock() {
     std::lock_guard<std::mutex> guard{mutex_};
 
-    JIT_CHECKX(!mlocked_, "must be unlocked to lock");
+    JIT_CHECK(!mlocked_, "Must be unlocked to lock");
     for (auto& slab : slabs_) {
       slab.mlock();
     }
@@ -155,7 +155,7 @@ class SlabArena {
   void munlock() {
     std::lock_guard<std::mutex> guard{mutex_};
 
-    JIT_CHECKX(mlocked_, "must be locked to unlock");
+    JIT_CHECK(mlocked_, "Must be locked to unlock");
     for (auto& slab : slabs_) {
       slab.munlock();
     }

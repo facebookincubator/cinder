@@ -628,10 +628,9 @@ Type outputType(
         // Special Nullptr case for an uninitialized variable; load zero.
         return TLongExact;
       }
-      JIT_CHECKX(
-          false,
-          "only primitive numeric types should be boxed. type verification"
-          "missed an unexpected type %s",
+      JIT_ABORT(
+          "Only primitive numeric types should be boxed. type verification"
+          "missed an unexpected type {}",
           pb.value()->type());
     }
 
@@ -746,9 +745,9 @@ void reflowTypes(Environment* env, BasicBlock* start) {
       for (auto& instr : *block) {
         if (instr.opcode() == Opcode::kReturn) {
           Type type = static_cast<const Return&>(instr).type();
-          JIT_DCHECKX(
+          JIT_DCHECK(
               instr.GetOperand(0)->type() <= type,
-              "bad return type %s, expected %s in %s",
+              "bad return type {}, expected {} in {}",
               instr.GetOperand(0)->type(),
               type,
               *start->cfg);
@@ -794,9 +793,9 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
     auto ssablock = ssa_basic_blocks.at(block);
 
     for (auto& instr : *block) {
-      JIT_CHECKX(!instr.IsPhi(), "SSAify does not support Phis in its input");
+      JIT_CHECK(!instr.IsPhi(), "SSAify does not support Phis in its input");
       instr.visitUses([&](Register*& reg) {
-        JIT_CHECKX(
+        JIT_CHECK(
             reg != nullptr, "Instructions should not have nullptr operands.");
         reg = getDefine(ssablock, reg);
         return true;

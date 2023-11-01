@@ -184,7 +184,7 @@ void CompilationPhaseTimer::dumpPhaseTimingsAndTidy() {
 }
 
 void CompilationPhaseTimer::start(const std::string& phase_name) {
-  JIT_CHECKX(!phase_name.empty(), "Phase name cannot be empty");
+  JIT_CHECK(!phase_name.empty(), "Phase name cannot be empty");
   auto timer = std::make_unique<SubPhaseTimer>(phase_name);
   SubPhaseTimer* timerptr = timer.get();
   if (root_ == nullptr) {

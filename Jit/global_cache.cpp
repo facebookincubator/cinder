@@ -64,8 +64,8 @@ void GlobalCache::update(
       *valuePtr() = new_value;
     }
   } else {
-    JIT_CHECKX(dict == builtins, "Unexpected dict");
-    JIT_CHECKX(_PyDict_HasOnlyUnicodeKeys(key().globals), "Bad globals dict");
+    JIT_CHECK(dict == builtins, "Unexpected dict");
+    JIT_CHECK(_PyDict_HasOnlyUnicodeKeys(key().globals), "Bad globals dict");
     // Check if this value is shadowed.
     PyObject* globals_value = PyDict_GetItem(key().globals, key().name);
     if (globals_value == nullptr) {

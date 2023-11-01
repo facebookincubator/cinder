@@ -289,7 +289,7 @@ class Operand : public OperandBase {
   }
 
   int getPhyRegister() const override {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         type_ == kReg, "Unable to get physical register from the operand.");
     return std::get<int>(value_);
   }
@@ -300,7 +300,7 @@ class Operand : public OperandBase {
   }
 
   int getStackSlot() const override {
-    JIT_DCHECKX(type_ == kStack, "Unable to get a memory stack slot.");
+    JIT_DCHECK(type_ == kStack, "Unable to get a memory stack slot.");
     return std::get<int>(value_);
   }
 
@@ -324,7 +324,7 @@ class Operand : public OperandBase {
       case kStack:
         return getStackSlot();
       default:
-        JIT_DCHECKX(
+        JIT_DCHECK(
             false,
             "Unable to get a physical register or a memory stack slot from the "
             "operand");
@@ -334,7 +334,7 @@ class Operand : public OperandBase {
   }
 
   void* getMemoryAddress() const override {
-    JIT_DCHECKX(type_ == kMem, "Unable to get a memory address.");
+    JIT_DCHECK(type_ == kMem, "Unable to get a memory address.");
     return std::get<void*>(value_);
   }
 
@@ -344,7 +344,7 @@ class Operand : public OperandBase {
   }
 
   MemoryIndirect* getMemoryIndirect() const override {
-    JIT_DCHECKX(type_ == kInd, "Unable to get a memory indirect.");
+    JIT_DCHECK(type_ == kInd, "Unable to get a memory indirect.");
     return std::get<std::unique_ptr<MemoryIndirect>>(value_).get();
   }
 
@@ -361,7 +361,7 @@ class Operand : public OperandBase {
   }
 
   BasicBlock* getBasicBlock() const override {
-    JIT_DCHECKX(type_ == kLabel, "Unable to get a basic block address.");
+    JIT_DCHECK(type_ == kLabel, "Unable to get a basic block address.");
     return std::get<BasicBlock*>(value_);
   }
 

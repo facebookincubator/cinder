@@ -23,7 +23,7 @@ static inline bool operandAffectsMemory(const OperandBase* operand) {
 static bool isUseful(const Instruction* instruction) {
   const InstrProperty::InstrInfo& properties =
       InstrProperty::getProperties(instruction);
-  JIT_CHECKX(
+  JIT_CHECK(
       instruction->output() != nullptr || properties.is_essential,
       "Any instruction without an output must be marked as essential.");
   return (

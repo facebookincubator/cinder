@@ -31,9 +31,9 @@ using namespace jit::lir;
 class LIRGeneratorTest : public RuntimeTest {
  public:
   std::string getLIRString(PyObject* func) {
-    JIT_CHECKX(
+    JIT_CHECK(
         PyFunction_Check(func),
-        "trying to compile something that isn't a function");
+        "Trying to compile something that isn't a function");
 
     PyObject* globals = PyFunction_GetGlobals(func);
     if (!PyDict_CheckExact(globals)) {

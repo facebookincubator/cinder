@@ -77,9 +77,9 @@ int ss_vsprintf(jit_string_t* ss, const char* format, va_list args) {
       ss->str = (char*)malloc(ss->capacity);
       memcpy(ss->str, ss->_string, ss->pos);
     }
-    JIT_CHECKX(
+    JIT_CHECK(
         ss->str != NULL,
-        "Unable to allocate memory size = %lu bytes",
+        "Unable to allocate memory size = {} bytes",
         ss->capacity);
   }
 }
@@ -175,7 +175,7 @@ std::string typeFullname(PyTypeObject* type) {
 BorrowedRef<> typeLookupSafe(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<> name) {
-  JIT_CHECKX(PyUnicode_CheckExact(name), "name must be a str");
+  JIT_CHECK(PyUnicode_CheckExact(name), "name must be a str");
 
   BorrowedRef<PyTupleObject> mro{type->tp_mro};
   for (size_t i = 0, n = PyTuple_GET_SIZE(mro); i < n; ++i) {

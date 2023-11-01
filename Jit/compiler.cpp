@@ -80,16 +80,16 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
                     pass.name(),
                     func);
 
-                JIT_DCHECKX(
+                JIT_DCHECK(
                     checkFunc(func, std::cerr),
-                    "Function %s failed verification after pass %s:\n%s",
+                    "Function {} failed verification after pass {}:\n{}",
                     func.fullname,
                     pass.name(),
                     func);
 
-                JIT_DCHECKX(
+                JIT_DCHECK(
                     funcTypeChecks(func, std::cerr),
-                    "Function %s failed type checking after pass %s:\n%s",
+                    "Function {} failed type checking after pass {}:\n{}",
                     func.fullname,
                     pass.name(),
                     func);)
@@ -128,8 +128,8 @@ void Compiler::runPasses(
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(
     BorrowedRef<PyFunctionObject> func) {
-  JIT_CHECKX(PyFunction_Check(func), "Expected PyFunctionObject");
-  JIT_CHECKX(
+  JIT_CHECK(PyFunction_Check(func), "Expected PyFunctionObject");
+  JIT_CHECK(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader = jit::hir::Preloader::getPreloader(func);

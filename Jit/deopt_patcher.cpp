@@ -17,7 +17,7 @@ constexpr int kJmpSize = 5;
 } // namespace
 
 void DeoptPatcher::patch() {
-  JIT_CHECKX(patchpoint_ != nullptr, "not linked!");
+  JIT_CHECK(patchpoint_ != nullptr, "not linked!");
   JIT_DLOG("Patching DeoptPatchPoint at {}", static_cast<void*>(patchpoint_));
   // 32 bit relative jump - https://www.felixcloutier.com/x86/jmp
   patchpoint_[0] = 0xe9;
@@ -25,8 +25,8 @@ void DeoptPatcher::patch() {
 }
 
 void DeoptPatcher::link(uintptr_t patchpoint, uintptr_t deopt_exit) {
-  JIT_CHECKX(patchpoint_ == nullptr, "already linked!");
-  JIT_CHECKX(
+  JIT_CHECK(patchpoint_ == nullptr, "already linked!");
+  JIT_CHECK(
       fitsInt32(deopt_exit - (patchpoint + kJmpSize)),
       "can't encode jump as relative");
   init();

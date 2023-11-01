@@ -87,7 +87,7 @@ constexpr bool isPowerOfTwo(T x) {
 
 template <typename T>
 constexpr T roundDown(T x, size_t n) {
-  JIT_DCHECKX(isPowerOfTwo(n), "must be power of 2");
+  JIT_DCHECK(isPowerOfTwo(n), "must be power of 2");
   return (x & -n);
 }
 
@@ -155,7 +155,7 @@ inline int popcount(unsigned long long i) {
 template <typename M, typename K>
 auto& map_get_strict(M& map, const K& key) {
   auto it = map.find(key);
-  JIT_CHECKX(it != map.end(), "Key not found in map");
+  JIT_CHECK(it != map.end(), "Key not found in map");
   return it->second;
 }
 
@@ -164,7 +164,7 @@ auto& map_get_strict(M& map, const K& key) {
 template <typename M, typename K>
 auto& map_get(M& map, const K& key) {
   auto it = map.find(key);
-  JIT_DCHECKX(it != map.end(), "Key not found in map");
+  JIT_DCHECK(it != map.end(), "Key not found in map");
   return it->second;
 }
 
@@ -192,7 +192,7 @@ class Worklist {
   }
 
   const T& front() const {
-    JIT_DCHECKX(!empty(), "Worklist is empty");
+    JIT_DCHECK(!empty(), "Worklist is empty");
     return queue_.front();
   }
 

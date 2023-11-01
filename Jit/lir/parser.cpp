@@ -336,7 +336,7 @@ void Parser::setSection(const std::string& bbdef, BasicBlock* bb) {
     if (section == ".text") {
       bb->setSection(codegen::CodeSection::kHot);
     } else {
-      JIT_CHECKX(
+      JIT_CHECK(
           section == ".coldtext", "Code section must be .text or .coldtext.");
       bb->setSection(codegen::CodeSection::kCold);
     }

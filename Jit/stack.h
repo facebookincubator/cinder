@@ -17,7 +17,7 @@ class Stack {
   Stack(std::initializer_list<T> l) : stack_(l) {}
 
   T pop() {
-    JIT_CHECKX(!stack_.empty(), "Can't pop from empty stack");
+    JIT_CHECK(!stack_.empty(), "Can't pop from empty stack");
     T result = stack_.back();
     stack_.pop_back();
     return result;

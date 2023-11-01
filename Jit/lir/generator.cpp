@@ -672,9 +672,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (instr->type() <= TCUnsigned) {
           bbb.AppendCode("ConvertUnsigned {}, {}", instr->dst(), instr->src());
         } else {
-          JIT_CHECKX(
+          JIT_CHECK(
               instr->type() <= TCSigned,
-              "Unexpected IntConvert type %s",
+              "Unexpected IntConvert type {}",
               instr->type());
           bbb.AppendCode("Convert {}, {}", instr->dst(), instr->src());
         }
@@ -966,7 +966,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
         }
 
-        JIT_CHECKX(func != 0, "Unknown box type %s", src_type.toString());
+        JIT_CHECK(func != 0, "Unknown box type {}", src_type.toString());
 
         bbb.appendInstr(
             instr->GetOutput(),
@@ -1405,7 +1405,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_TrueDivide,
             PyNumber_Xor,
         };
-        JIT_CHECKX(
+        JIT_CHECK(
             static_cast<unsigned long>(bin_op->op()) < sizeof(helpers),
             "unsupported binop");
         auto op_kind = static_cast<int>(bin_op->op());
@@ -1449,7 +1449,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_Positive,
             PyNumber_Invert,
         };
-        JIT_CHECKX(
+        JIT_CHECK(
             static_cast<unsigned long>(unary_op->op()) < sizeof(helpers),
             "unsupported unaryop");
 
@@ -1485,8 +1485,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           break;
         }
         int op = static_cast<int>(instr->op());
-        JIT_CHECKX(op >= Py_LT, "invalid compare op %d", op);
-        JIT_CHECKX(op <= Py_GE, "invalid compare op %d", op);
+        JIT_CHECK(op >= Py_LT, "invalid compare op {}", op);
+        JIT_CHECK(op <= Py_GE, "invalid compare op {}", op);
         bbb.AppendCall(
             instr->dst(),
             PyObject_RichCompare,
@@ -2357,7 +2357,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_InPlaceTrueDivide,
             PyNumber_InPlaceXor,
         };
-        JIT_CHECKX(
+        JIT_CHECK(
             static_cast<unsigned long>(instr->op()) < sizeof(helpers),
             "unsupported inplaceop");
 
@@ -2492,7 +2492,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
                        ->ceval.eval_breaker._value) == 4,
             "Eval breaker is not a 4 byte value");
         hir::Register* dest = i.GetOutput();
-        JIT_CHECKX(dest->type() == TCInt32, "eval breaker output should be int");
+        JIT_CHECK(dest->type() == TCInt32, "eval breaker output should be int");
         // tstate->interp->ceval.eval_breaker
         Instruction* tstate = env_->asm_tstate;
         Instruction* interp = bbb.appendInstr(
@@ -2826,7 +2826,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         case Opcode::kPrimitiveBox: {
           auto& pb = static_cast<const PrimitiveBox&>(i);
-          JIT_DCHECKX(
+          JIT_DCHECK(
               !(pb.value()->type() <= TCBool), "should not be able to deopt");
           emitExceptionCheck(*db, bbb);
           break;
@@ -2890,8 +2890,8 @@ void LIRGenerator::FixOperands() {
       }
     }
 
-    JIT_DCHECKX(
-        def_instr != nullptr, "unable to find def instruction for '%s'.", name);
+    JIT_DCHECK(
+        def_instr != nullptr, "unable to find def instruction for '{}'.", name);
 
     auto& operands = pair.second;
     for (auto& operand : operands) {

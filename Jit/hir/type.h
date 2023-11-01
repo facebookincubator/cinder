@@ -241,14 +241,14 @@ class Type {
         spec_kind_{spec_kind},
         padding_{},
         int_{spec} {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         bits != kBottom || (spec_kind == kSpecBottom && spec == 0),
         "Bottom can't be specialized");
-    JIT_DCHECKX(
+    JIT_DCHECK(
         (lifetime == kLifetimeBottom) == ((bits & kObject) == 0),
         "lifetime component should be kLifetimeBottom if and only if no "
         "kObject bits are set");
-    JIT_DCHECKX(padding_ == 0, "Invalid padding");
+    JIT_DCHECK(padding_ == 0, "Invalid padding");
   }
 
   // What is this Type's specialization kind?

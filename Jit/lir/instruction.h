@@ -440,7 +440,7 @@ class Instruction {
   }
 
   int getOperandIndexByPredecessor(const BasicBlock* pred) const {
-    JIT_DCHECKX(opcode_ == kPhi, "The current instruction must be Phi.");
+    JIT_DCHECK(opcode_ == kPhi, "The current instruction must be Phi.");
     size_t num_inputs = getNumInputs();
     for (size_t i = 0; i < num_inputs; i += 2) {
       if (getInput(i)->getBasicBlock() == pred) {

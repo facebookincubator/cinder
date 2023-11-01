@@ -198,7 +198,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     }
 
     case Opcode::kStoreField:
-      JIT_DCHECKX(inst.NumOperands() == 3, "Unexpected number of operands");
+      JIT_DCHECK(inst.NumOperands() == 3, "Unexpected number of operands");
       return {false, AEmpty, {3, 2}, AInObjectAttr};
 
     case Opcode::kLoadArg:
@@ -255,7 +255,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
       return {false, AEmpty, {1, 1}, AManagedHeapAny};
 
     case Opcode::kSetFunctionAttr: {
-      JIT_DCHECKX(inst.NumOperands() == 2, "Unexpected number of operands");
+      JIT_DCHECK(inst.NumOperands() == 2, "Unexpected number of operands");
       return {false, AEmpty, {2, 1}, AFuncAttr};
     }
 
@@ -294,10 +294,8 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kCondBranchCheckType:
     case Opcode::kCondBranchIterNotDone:
     case Opcode::kPhi:
-      JIT_CHECKX(
-          false,
-          "Opcode %s doesn't have well-defined memory effects",
-          inst.opname());
+      JIT_ABORT(
+          "Opcode {} doesn't have well-defined memory effects", inst.opname());
     case Opcode::kGetTuple:
       return commonEffects(inst, AAny);
   }

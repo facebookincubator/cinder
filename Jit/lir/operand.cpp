@@ -19,7 +19,7 @@ void Operand::addUse(LinkedOperand* use) {
 }
 
 void Operand::removeUse(LinkedOperand* use) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       use->getLinkedOperand() == this,
       "Unable to remove use of another operand.");
 

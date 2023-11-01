@@ -204,7 +204,7 @@ Register* modelReg(Register* reg) {
   // the runtime value
   while (isPassthrough(*reg->instr()) && !(reg->instr()->IsGuardIs())) {
     reg = reg->instr()->GetOperand(0);
-    JIT_DCHECKX(reg != orig_reg, "Hit cycle while looking for model reg");
+    JIT_DCHECK(reg != orig_reg, "Hit cycle while looking for model reg");
   }
   return reg;
 }
@@ -286,7 +286,7 @@ bool funcTypeChecks(const Function& func, std::ostream& err) {
           operandsMustMatch(instr.GetOperandType(0))) {
         Type join = TBottom;
         for (std::size_t i = 0; i < instr.NumOperands(); i++) {
-          JIT_DCHECKX(
+          JIT_DCHECK(
               operandsMustMatch(instr.GetOperandType(i)),
               "Inconsistent operand type constraint");
           join |= instr.GetOperand(i)->type();
@@ -382,7 +382,7 @@ void DataflowAnalysis::Initialize() {
     } else {
       for (auto cfg_edge : cfg_block.out_edges()) {
         auto succ_cfg_block = cfg_edge->to();
-        JIT_CHECKX(
+        JIT_CHECK(
             df_blocks_.count(succ_cfg_block),
             "succ_cfg_block has to be in the hash table df_blocks_.");
         auto& succ_df_block = df_blocks_.at(succ_cfg_block);
@@ -696,7 +696,7 @@ DominatorAnalysis::DominatorAnalysis(const Function& irfunc)
       // pred1 = any already-processed predecessor
       auto pred1 = const_cast<const BasicBlock*>((*predIter)->from());
       while (!idoms_[pred1->id]) {
-        JIT_DCHECKX(
+        JIT_DCHECK(
             predIter != predEnd,
             "There should be an already-processed predecessor since we're "
             "iterating in RPO");

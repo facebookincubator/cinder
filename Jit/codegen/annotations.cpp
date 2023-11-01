@@ -17,7 +17,7 @@ std::string Annotations::disassembleSection(
     const asmjit::CodeHolder& code,
     CodeSection section) {
   // i386-dis is not thread-safe
-  JIT_CHECKX(
+  JIT_CHECK(
       g_dump_asm, "Annotations are not recorded without -X jit-disas-funcs");
   auto text = code.sectionByName(codeSectionName(section));
   if (text == nullptr) {
@@ -38,7 +38,7 @@ std::string Annotations::disassembleSection(
     }
     auto inserted =
         annot_bounds.emplace(begin, std::make_pair(&annot, end)).second;
-    JIT_DCHECKX(inserted, "Duplicate start address for annotation");
+    JIT_DCHECK(inserted, "Duplicate start address for annotation");
   }
 
   Annotation* prev_annot = nullptr;
@@ -54,7 +54,7 @@ std::string Annotations::disassembleSection(
     // one, switch to it.
     if (annot_it != annot_bounds.end() && cursor >= annot_it->first) {
       new_annot = annot_it->second.first;
-      JIT_DCHECKX(
+      JIT_DCHECK(
           new_annot->instr == nullptr || new_annot->str.empty(),
           "Annotations with both an instruction and str aren't yet supported");
       annot_end = annot_it->second.second;
@@ -99,7 +99,7 @@ std::string Annotations::disassemble(
     void* entry,
     const asmjit::CodeHolder& code) {
   ThreadedCompileSerialize guard;
-  JIT_CHECKX(code.hasBaseAddress(), "code not generated!");
+  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
   std::string result;
   forEachSection([&](CodeSection section) {
     result += disassembleSection(entry, code, section);
@@ -134,7 +134,7 @@ void Annotations::disassembleSectionJSON(
     }
     auto inserted =
         annot_bounds.emplace(begin, std::make_pair(&annot, end)).second;
-    JIT_DCHECKX(inserted, "Duplicate start address for annotation");
+    JIT_DCHECK(inserted, "Duplicate start address for annotation");
   }
 
   Annotation* prev_annot = nullptr;
@@ -152,7 +152,7 @@ void Annotations::disassembleSectionJSON(
     // one, switch to it.
     if (annot_it != annot_bounds.end() && cursor >= annot_it->first) {
       new_annot = annot_it->second.first;
-      JIT_DCHECKX(
+      JIT_DCHECK(
           new_annot->instr == nullptr || new_annot->str.empty(),
           "Annotations with both an instruction and str aren't yet supported");
       annot_end = annot_it->second.second;

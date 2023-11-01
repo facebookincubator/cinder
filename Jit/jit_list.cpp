@@ -21,7 +21,7 @@ bool get_jitlist_match_line_numbers() {
 }
 
 std::unique_ptr<JITList> JITList::create() {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto qualnames = Ref<>::steal(PyDict_New());
@@ -91,7 +91,7 @@ bool JITList::parseLine(const std::string& line) {
 }
 
 bool JITList::addEntryFO(const char* module_name, const char* qualname) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto mn_obj = Ref<>::steal(PyUnicode_FromString(module_name));
@@ -106,7 +106,7 @@ bool JITList::addEntryFO(const char* module_name, const char* qualname) {
 }
 
 bool JITList::addEntryFO(BorrowedRef<> module_name, BorrowedRef<> qualname) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto qualname_set = Ref<>::create(PyDict_GetItem(qualnames_, module_name));
@@ -126,7 +126,7 @@ bool JITList::addEntryCO(
     const char* name,
     const char* file,
     const char* line_no_str) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto name_obj = Ref<>::steal(PyUnicode_FromString(name));
@@ -152,7 +152,7 @@ bool JITList::addEntryCO(
 }
 
 Ref<> JITList::pathBasename(BorrowedRef<> path) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   if (path_sep_ == nullptr) {
@@ -176,7 +176,7 @@ bool JITList::addEntryCO(
     BorrowedRef<> name,
     BorrowedRef<> file,
     BorrowedRef<> line_no) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto file_set = Ref<>::create(PyDict_GetItem(name_file_line_no_, name));
@@ -228,7 +228,7 @@ int JITList::lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) {
 }
 
 int JITList::lookupCO(BorrowedRef<PyCodeObject> code) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto name =
@@ -249,7 +249,7 @@ int JITList::lookupCO(BorrowedRef<PyCodeObject> code) {
 }
 
 Ref<> JITList::getList() const {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   return Ref<>::steal(
@@ -257,7 +257,7 @@ Ref<> JITList::getList() const {
 }
 
 std::unique_ptr<WildcardJITList> WildcardJITList::create() {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto qualnames = Ref<>::steal(PyDict_New());
@@ -314,7 +314,7 @@ int WildcardJITList::lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) {
     return -1;
   }
 
-  JIT_DCHECKX(
+  JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
   auto func_name = Ref<>::steal(PyUnicode_Substring(qualname, idx + 1, len));

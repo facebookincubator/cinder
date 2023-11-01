@@ -34,11 +34,11 @@ void HIRParser::expect(std::string_view expected) {
 }
 
 Register* HIRParser::allocateRegister(std::string_view name) {
-  JIT_CHECKX(
-      name[0] == 'v', "invalid register name (must be v[0-9]+): %s", name);
+  JIT_CHECK(
+      name[0] == 'v', "invalid register name (must be v[0-9]+): {}", name);
   auto opt_id = parseInt<int>(name.substr(1));
-  JIT_CHECKX(
-      opt_id.has_value(), "Cannot parse register '%s' into an integer", name);
+  JIT_CHECK(
+      opt_id.has_value(), "Cannot parse register '{}' into an integer", name);
   auto id = *opt_id;
 
   auto reg = env_->getRegister(id);
@@ -581,19 +581,19 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     auto name = GetNextToken();
     auto mod_name =
         Ref<>::steal(PyUnicode_FromStringAndSize(name.data(), name.size()));
-    JIT_CHECKX(mod_name != nullptr, "failed to allocate mod name");
+    JIT_CHECK(mod_name != nullptr, "failed to allocate mod name");
     auto dot = Ref<>::steal(PyUnicode_FromString("."));
-    JIT_CHECKX(dot != nullptr, "failed to allocate mod name");
+    JIT_CHECK(dot != nullptr, "failed to allocate mod name");
 
     auto names = Ref<PyListObject>::steal(PyUnicode_Split(mod_name, dot, -1));
-    JIT_CHECKX(names != nullptr, "unknown func");
+    JIT_CHECK(names != nullptr, "unknown func");
     auto type_descr =
         Ref<>::steal(_PyTuple_FromArray(names->ob_item, Py_SIZE(names.get())));
-    JIT_CHECKX(type_descr != nullptr, "unknown func");
+    JIT_CHECK(type_descr != nullptr, "unknown func");
     PyObject* container = nullptr;
     auto func = Ref<PyFunctionObject>::steal(
         _PyClassLoader_ResolveFunction(type_descr, &container));
-    JIT_CHECKX(func != nullptr, "unknown func");
+    JIT_CHECK(func != nullptr, "unknown func");
     Py_XDECREF(container);
 
     expect(",");
@@ -610,7 +610,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     Register* count = ParseRegister();
     instruction = newInstr<RepeatList>(dst, list, count);
   } else {
-    JIT_CHECKX(0, "Unknown opcode: %s", opcode);
+    JIT_ABORT("Unknown opcode: {}", opcode);
   }
 
   return instruction;
@@ -744,7 +744,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
     if (*p == '"') {
       std::string token;
       for (p++; *p != '"'; p++) {
-        JIT_CHECKX(*p != '\0', "End of input during string literal");
+        JIT_CHECK(*p != '\0', "End of input during string literal");
         if (*p != '\\') {
           token += *p;
           continue;
@@ -844,17 +844,17 @@ int HIRParser::GetNextNameIdx() {
 BorrowedRef<> HIRParser::GetNextUnicode() {
   std::string_view str = GetNextToken();
   auto raw_obj = PyUnicode_FromStringAndSize(str.data(), str.size());
-  JIT_CHECKX(raw_obj != nullptr, "Failed to create string %s", str);
+  JIT_CHECK(raw_obj != nullptr, "Failed to create string {}", str);
   PyUnicode_InternInPlace(&raw_obj);
   auto obj = Ref<>::steal(raw_obj);
-  JIT_CHECKX(obj != nullptr, "Failed to intern string %s", str);
+  JIT_CHECK(obj != nullptr, "Failed to intern string {}", str);
   return env_->addReference(std::move(obj));
 }
 
 RegState HIRParser::GetNextRegState() {
   auto token = GetNextToken();
   auto end = token.find(':');
-  JIT_CHECKX(end != std::string::npos, "Invalid reg state: %s", token);
+  JIT_CHECK(end != std::string::npos, "Invalid reg state: {}", token);
   RegState rs;
   rs.reg = allocateRegister(token.substr(end + 1));
   switch (token[0]) {

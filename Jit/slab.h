@@ -62,12 +62,12 @@ class Slab {
   using iterator = SlabIterator<T>;
 
   explicit Slab(size_t increment) : increment_{increment} {
-    JIT_CHECKX(
+    JIT_CHECK(
         increment >= sizeof(T),
         "Trying to fit a slab object into too little memory");
     void* ptr;
     int result = posix_memalign(&ptr, kPageSize, kSlabSize);
-    JIT_CHECKX(result == 0, "Failed to allocate %d bytes", kSlabSize);
+    JIT_CHECK(result == 0, "Failed to allocate {} bytes", kSlabSize);
     base_.reset(static_cast<char*>(ptr));
     fill_ = base_.get();
   }

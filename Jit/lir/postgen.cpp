@@ -106,7 +106,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
     return kUnchanged;
   }
 
-  JIT_CHECKX(
+  JIT_CHECK(
       !instr->getInput(0)->isImm(),
       "The first input operand of a binary op instruction should not be "
       "constant");
@@ -214,9 +214,9 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteLoadArg(
     return kUnchanged;
   }
   instr->setOpcode(Instruction::kBind);
-  JIT_CHECKX(instr->getNumInputs() == 1, "expected one input");
+  JIT_CHECK(instr->getNumInputs() == 1, "expected one input");
   OperandBase* input = instr->getInput(0);
-  JIT_CHECKX(input->isImm(), "expected constant arg index as input");
+  JIT_CHECK(input->isImm(), "expected constant arg index as input");
   auto arg_idx = input->getConstant();
   auto loc = env->arg_locations[arg_idx];
   static_cast<Operand*>(input)->setPhyRegOrStackSlot(loc);
@@ -268,9 +268,9 @@ static Instruction* getSecondCallResult(
   Instruction* src_instr = src->instr();
   BasicBlock* src_block = src_instr->basicblock();
   auto src_it = src_block->iterator_to(src_instr);
-  JIT_CHECKX(
+  JIT_CHECK(
       src_instr->isCall() || src_instr->isPhi(),
-      "LoadSecondCallResult input must come from Call or Phi, not '%s'",
+      "LoadSecondCallResult input must come from Call or Phi, not '{}'",
       *src_instr);
 
   if (src_instr->isCall()) {
@@ -281,7 +281,7 @@ static Instruction* getSecondCallResult(
     auto next_it = std::next(src_it);
     if (next_it != src_block->instructions().end()) {
       Instruction* next_instr = next_it->get();
-      JIT_CHECKX(
+      JIT_CHECK(
           !(next_instr->isMove() && next_instr->getNumInputs() == 1 &&
             next_instr->getInput(0)->isReg() &&
             next_instr->getInput(0)->getPhyRegister() == RETURN_REGS[1]),

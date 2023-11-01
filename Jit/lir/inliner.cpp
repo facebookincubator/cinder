@@ -264,7 +264,7 @@ void LIRInliner::resolveLoadArg(
     BasicBlock* bb,
     BasicBlock::InstrList::iterator& instr_it) {
   auto instr = instr_it->get();
-  JIT_DCHECKX(
+  JIT_DCHECK(
       instr->getNumInputs() > 0 && instr->getInput(0)->isImm(),
       "LoadArg instruction should have at least 1 input.");
 
@@ -282,7 +282,7 @@ void LIRInliner::resolveLoadArg(
     instr->replaceInputOperand(0, std::move(param_copy));
     ++instr_it;
   } else {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         param->isLinked(), "Inlined arguments must be immediate or linked.");
     // Otherwise, output of kLoadArg should be a virtual register.
     // For virtual registers, delete kLoadArg and replace uses.
@@ -335,7 +335,7 @@ void LIRInliner::resolveReturnValue() {
     auto lastInstr = pred->getLastInstr();
     if (lastInstr != nullptr && lastInstr->isReturn()) {
       phi_instr->allocateLabelInput(pred);
-      JIT_CHECKX(
+      JIT_CHECK(
           lastInstr->getNumInputs() > 0,
           "Return instruction should have at least 1 input operand.");
       phi_instr->appendInputOperand(lastInstr->releaseInputOperand(0));

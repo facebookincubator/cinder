@@ -63,7 +63,7 @@ BitVector& BitVector::operator=(BitVector&& bv) {
 }
 
 bool BitVector::operator==(const BitVector& rhs) const {
-  JIT_CHECKX(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
+  JIT_CHECK(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
 
   if (IsShortVector()) {
     return bits_.bits == rhs.bits_.bits;
@@ -75,7 +75,7 @@ bool BitVector::operator==(const BitVector& rhs) const {
 
 template <typename Op>
 BitVector BitVector::BinaryOp(const BitVector& rhs, const Op& op) const {
-  JIT_CHECKX(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
+  JIT_CHECK(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
 
   if (IsShortVector()) {
     return BitVector(num_bits_, op(bits_.bits, rhs.bits_.bits));
@@ -111,7 +111,7 @@ BitVector BitVector::operator-(const BitVector& rhs) const {
 
 template <typename Op>
 BitVector& BitVector::BinaryOpAssign(const BitVector& rhs, const Op& op) {
-  JIT_CHECKX(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
+  JIT_CHECK(num_bits_ == rhs.num_bits_, "LHS and RHS are of different widths.");
 
   if (IsShortVector()) {
     bits_.bits = op(bits_.bits, rhs.bits_.bits);
@@ -179,7 +179,7 @@ void BitVector::fill(bool v) {
 }
 
 void BitVector::SetBit(size_t bit, bool v) {
-  JIT_CHECKX(bit < num_bits_, "bit is too large.");
+  JIT_CHECK(bit < num_bits_, "bit is too large.");
   if (IsShortVector()) {
     auto b = uintptr_t(1) << bit;
     bits_.bits = v ? (bits_.bits | b) : (bits_.bits & ~b);
@@ -236,7 +236,7 @@ void BitVector::SetBitWidth(size_t size) {
 }
 
 bool BitVector::GetBit(size_t bit) const {
-  JIT_CHECKX(bit < num_bits_, "bit is out of range.");
+  JIT_CHECK(bit < num_bits_, "bit is out of range.");
   if (IsShortVector()) {
     auto b = uintptr_t(1) << bit;
     return bits_.bits & b;
@@ -270,23 +270,23 @@ void BitVector::forEachSetBit(std::function<void(size_t)> per_bit_func) const {
 
 uint64_t BitVector::GetBitChunk(size_t chunk) const {
   if (IsShortVector()) {
-    JIT_CHECKX(chunk == 0, "chunk is out of range.");
+    JIT_CHECK(chunk == 0, "chunk is out of range.");
     return bits_.bits;
   }
 
-  JIT_CHECKX(chunk < bits_.bit_vec->size(), "chunk is out of range.");
+  JIT_CHECK(chunk < bits_.bit_vec->size(), "chunk is out of range.");
   return bits_.bit_vec->at(chunk);
 }
 
 void BitVector::SetBitChunk(size_t chunk, uint64_t bits) {
   auto num_chunks = (num_bits_ + PTR_WIDTH - 1) / PTR_WIDTH;
-  JIT_CHECKX(chunk < num_chunks, "chunk is out of range");
+  JIT_CHECK(chunk < num_chunks, "chunk is out of range");
 
   if (chunk == num_chunks - 1) {
     auto remainder = num_bits_ % PTR_WIDTH;
     if (remainder != 0) {
       auto mask = ~((uint64_t{1} << remainder) - 1);
-      JIT_CHECKX((mask & bits) == 0, "invalid bit chunk");
+      JIT_CHECK((mask & bits) == 0, "invalid bit chunk");
     }
   }
 

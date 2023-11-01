@@ -61,7 +61,7 @@ struct WorkItem {
 // the call stack for HIR instructions that do not have a FrameState but
 // for which we still need debug info (e.g. DecRef).
 ActivationMap buildActivationMap(const jit::hir::Function& func) {
-  JIT_CHECKX(func.code, "func has no code object");
+  JIT_CHECK(func.code, "func has no code object");
   ActivationMap amap;
   std::deque<WorkItem> workq{
       WorkItem{func.cfg.entry_block, Activation{func.code, nullptr}}};
@@ -115,11 +115,11 @@ void DebugInfo::resolvePending(
   ActivationMap amap = buildActivationMap(func);
   // Add an entry for each pending location by walking the stack of inlined
   // calls that end at its instruction.
-  JIT_CHECKX(code.hasBaseAddress(), "code not generated");
+  JIT_CHECK(code.hasBaseAddress(), "code not generated");
   uint64_t base = code.baseAddress();
   for (const PendingDebugLoc& item : pending) {
     auto it = amap.find(item.instr);
-    JIT_CHECKX(it != amap.end(), "instr doesn't belong to func");
+    JIT_CHECK(it != amap.end(), "instr doesn't belong to func");
     uintptr_t addr = base + code.labelOffsetFromBase(item.label);
     const auto& [code_obj, caller_frame_state] = it->second;
     addUnitCallStack(
@@ -147,7 +147,7 @@ uint16_t DebugInfo::getCodeObjID(BorrowedRef<PyCodeObject> code_obj) {
     }
   }
   // Not found, assign it an id
-  JIT_CHECKX(code_objs_.size() < kMaxCodeObjs, "too many inlined functions");
+  JIT_CHECK(code_objs_.size() < kMaxCodeObjs, "too many inlined functions");
   code_objs_.emplace_back(code_obj);
   return code_objs_.size() - 1;
 }
@@ -168,7 +168,7 @@ uint16_t DebugInfo::getCallerID(const jit::hir::FrameState* caller) {
     }
   }
   // No existing node found, add one
-  JIT_CHECKX(inlined_calls_.size() < kMaxInlined, "too many inlined functions");
+  JIT_CHECK(inlined_calls_.size() < kMaxInlined, "too many inlined functions");
   inlined_calls_.emplace_back(node);
   return inlined_calls_.size() - 1;
 }

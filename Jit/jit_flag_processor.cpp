@@ -184,9 +184,9 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
   for (Py_ssize_t pos = 0; PyDict_Next(cmdline_args, &pos, &key, &value);) {
     int match = PyUnicode_Tailmatch(
         key, jit_str, /*start=*/0, /*end=*/3, /*direction=*/-1);
-    JIT_DCHECKX(match != -1, "An error occurred");
+    JIT_DCHECK(match != -1, "An error occurred");
     const char* option = PyUnicode_AsUTF8(key);
-    JIT_DCHECKX(option != nullptr, "An error occurred");
+    JIT_DCHECK(option != nullptr, "An error occurred");
     if (match && !canHandle(option)) {
       JIT_LOG("Warning: JIT cannot handle X-option {}", option);
     }

@@ -74,7 +74,7 @@ void Rewrite::runOneStage(int stage) {
 
 Instruction* Rewrite::findRecentFlagAffectingInstr(instr_iter_t instr_iter) {
   Instruction* condbranch = instr_iter->get();
-  JIT_CHECKX(
+  JIT_CHECK(
       condbranch->isCondBranch(), "Input must be a CondBranch instruction.");
 
   BasicBlock* block = condbranch->basicblock();

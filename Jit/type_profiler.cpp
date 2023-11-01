@@ -9,14 +9,14 @@ namespace jit {
 
 std::unique_ptr<TypeProfiler> TypeProfiler::create(int rows, int cols) {
   const int kMaxDim = std::numeric_limits<decltype(rows_)>::max();
-  JIT_CHECKX(
+  JIT_CHECK(
       rows >= 1 && rows < kMaxDim,
-      "rows (%d) must be in [1, %d)",
+      "Rows ({}) must be in [1, {})",
       rows,
       kMaxDim);
-  JIT_CHECKX(
+  JIT_CHECK(
       cols >= 1 && cols < kMaxDim,
-      "cols (%d) must be in [1, %d)",
+      "Cols ({}) must be in [1, {})",
       cols,
       kMaxDim);
   size_t alloc_bytes = sizeof(TypeProfiler) +

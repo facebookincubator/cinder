@@ -18,7 +18,7 @@ CopyGraph::Node::~Node() {
 void CopyGraph::addEdge(int from, int to) {
   auto parent = getNode(from);
   auto child = getNode(to);
-  JIT_DCHECKX(child->parent == nullptr, "child already has a parent");
+  JIT_DCHECK(child->parent == nullptr, "child already has a parent");
   setParent(child, parent);
 }
 
@@ -35,7 +35,7 @@ CopyGraph::Node* CopyGraph::getNode(int loc) {
 }
 
 void CopyGraph::setParent(Node* child, Node* parent) {
-  JIT_DCHECKX(child != parent, "Can't make node its own parent");
+  JIT_DCHECK(child != parent, "Can't make node its own parent");
   if (child->child_node.isLinked()) {
     child->child_node.Unlink();
   }

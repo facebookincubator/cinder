@@ -30,7 +30,7 @@ Symbolizer::Symbolizer(const char* exe_path) {
     return;
   }
   off_t exe_size_signed = statbuf.st_size;
-  JIT_CHECKX(exe_size_signed >= 0, "exe size should not be negative");
+  JIT_CHECK(exe_size_signed >= 0, "exe size should not be negative");
   exe_size_ = static_cast<size_t>(exe_size_signed);
   exe_ = reinterpret_cast<char*>(
       ::mmap(nullptr, exe_size_, PROT_READ, MAP_PRIVATE, exe_fd, 0));
@@ -67,7 +67,7 @@ std::optional<std::string_view> Symbolizer::cache(
     const void* func,
     std::optional<std::string> name) {
   auto pair = cache_.emplace(func, std::move(name));
-  JIT_CHECKX(pair.second, "%p already exists in cache");
+  JIT_CHECK(pair.second, "{} already exists in cache", func);
   return pair.first->second;
 }
 
@@ -196,7 +196,7 @@ std::optional<std::string_view> Symbolizer::symbolize(const void* func) {
   // Fall back to reading dynamic symbols.
   SymbolResult result = {func, std::nullopt};
   int found = ::dl_iterate_phdr(findSymbolIn, &result);
-  JIT_CHECKX(
+  JIT_CHECK(
       (found > 0) == result.name.has_value(),
       "result.name should match return value of dl_iterate_phdr");
 

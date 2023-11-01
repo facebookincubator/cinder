@@ -216,7 +216,7 @@ int PostRegAllocRewrite::rewriteVectorCallFunctions(instr_iter_t instr_iter) {
   // check if kwnames is provided
   auto last_input = instr->releaseInputOperand(instr->getNumInputs() - 1);
   if (last_input->isImm()) {
-    JIT_DCHECKX(last_input->getConstant() == 0, "kwnames must be 0 or variable");
+    JIT_DCHECK(last_input->getConstant() == 0, "kwnames must be 0 or variable");
     block->allocateInstrBefore(
         instr_iter,
         Instruction::kXor,
@@ -339,9 +339,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBitExtensionInstrs(
       JIT_ABORTX("can't be smaller than the maximum size");
       break;
     case OperandBase::kDouble:
-      JIT_CHECKX(
-          false,
-          "a float point number cannot be the input of the instruction.");
+      JIT_ABORT("A float point number cannot be the input of the instruction.");
   }
 
   return kChanged;
@@ -435,7 +433,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteLoadInstrs(
   }
 
   auto out = instr->output();
-  JIT_DCHECKX(out->isReg(), "Unable to load to a non-register location.");
+  JIT_DCHECK(out->isReg(), "Unable to load to a non-register location.");
   if (out->getPhyRegister() == PhyLocation::RAX) {
     return kUnchanged;
   }
@@ -686,7 +684,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
   if (output->type() != OperandBase::kNone) {
     out_reg = output->getPhyRegister();
   } else {
-    JIT_CHECKX(dividend_lower->isReg(), "input should be in register");
+    JIT_CHECK(dividend_lower->isReg(), "input should be in register");
     out_reg = dividend_lower->getPhyRegister();
   }
 
@@ -699,7 +697,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
     // the transformation).  When we do this we'll re-write
     // it down to the 2 input form and make dividend_lower
     // be 16-bit.
-    JIT_CHECKX(
+    JIT_CHECK(
         instr->getNumInputs() == 3,
         "8-bit should always start with 3 operands");
     auto move = block->allocateInstrBefore(
@@ -731,7 +729,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteDivide(
     if (dividend_upper != nullptr &&
         (!dividend_upper->isReg() ||
          dividend_upper->getPhyRegister() != PhyLocation::RDX)) {
-      JIT_CHECKX(
+      JIT_CHECK(
           (dividend_upper->isImm() && dividend_upper->getConstant() == 0),
           "only immediate 0 is supported");
 
@@ -802,8 +800,7 @@ bool PostRegAllocRewrite::insertMoveToRegister(
     } else if (op->isMem()) {
       JIT_ABORTX("unsupported: div from mem");
     } else {
-      JIT_CHECKX(
-          false, "unexpected operand base: %d", static_cast<int>(op->type()));
+      JIT_ABORT("Unexpected operand base: {}", static_cast<int>(op->type()));
     }
 
     op->setPhyRegister(location);
@@ -853,7 +850,7 @@ class RegisterToMemoryMoves {
       PhyLocation from,
       PhyLocation to,
       Rewrite::instr_iter_t instr_iter) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         from.is_register() && to.is_memory(),
         "Must be a move from register to memory");
     invalidateMemory(to);
@@ -957,7 +954,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::optimizeMoveSequence(
         // instruction moving from the register to the stack location.
         if (opnd->isLastUse()) {
           auto opt_iter = registerMemoryMoves.getInstrFromMemory(stack_slot);
-          JIT_CHECKX(opt_iter.has_value(), "There must be a def instruction.");
+          JIT_CHECK(opt_iter.has_value(), "There must be a def instruction.");
           basicblock->instructions().erase(*opt_iter);
         }
       });

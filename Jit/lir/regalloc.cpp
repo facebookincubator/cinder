@@ -28,7 +28,7 @@ void LiveInterval::addRange(LiveRange range) {
   constexpr int kInitRangeSize = 8;
   if (ranges.empty()) {
     ranges.reserve(kInitRangeSize);
-    JIT_DCHECKX(range.start < range.end, "Invalid range.");
+    JIT_DCHECK(range.start < range.end, "Invalid range.");
     ranges.push_back(std::move(range));
     return;
   }
@@ -60,7 +60,7 @@ void LiveInterval::addRange(LiveRange range) {
   }
 
   if (!merged) {
-    JIT_DCHECKX(range.start < range.end, "Invalid range.");
+    JIT_DCHECK(range.start < range.end, "Invalid range.");
     if (iter != ranges.end() && iter->start == kRemovedRange) {
       *iter = std::move(range);
     } else {
@@ -164,7 +164,7 @@ LIRLocation LiveInterval::intersectWith(const LiveInterval& interval) const {
 }
 
 std::unique_ptr<LiveInterval> LiveInterval::splitAt(LIRLocation loc) {
-  JIT_DCHECKX(!fixed, "Unable to split fixed intervals.");
+  JIT_DCHECK(!fixed, "Unable to split fixed intervals.");
 
   if (loc <= startLocation() || loc >= endLocation()) {
     return nullptr;
@@ -315,7 +315,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
       if (output_opnd->isVreg()) {
 #ifdef Py_DEBUG
         auto inserted = seen_outputs.insert(output_opnd).second;
-        JIT_DCHECKX(inserted, "LIR is not in SSA form");
+        JIT_DCHECK(inserted, "LIR is not in SSA form");
 #endif
         getIntervalByVReg(output_opnd).setFrom(instr_id + 1);
         live.erase(output_opnd);
@@ -472,7 +472,7 @@ void LinearScanAllocator::calculateLiveIntervals() {
 }
 
 int LinearScanAllocator::initialYieldSpillSize() const {
-  JIT_CHECKX(
+  JIT_CHECK(
       initial_yield_spill_size_ != -1,
       "Don't have InitialYield spill size yet");
 
@@ -481,7 +481,7 @@ int LinearScanAllocator::initialYieldSpillSize() const {
 
 void LinearScanAllocator::computeInitialYieldSpillSize(
     const UnorderedMap<const Operand*, const LiveInterval*>& mapping) {
-  JIT_CHECKX(
+  JIT_CHECK(
       initial_yield_spill_size_ == -1,
       "Already computed InitialYield spill size");
 
@@ -709,7 +709,7 @@ bool LinearScanAllocator::tryAllocateFreeReg(
   // the preallocated register is a soft constraint to the register
   // allocator. It will be satisfied with the best effort.
   if (current->isRegisterAllocated()) {
-    JIT_DCHECKX(
+    JIT_DCHECK(
         is_fp == PhyLocation(current->allocated_loc).is_fp_register(),
         "the operand is allocated to an incorrect register type.");
     size_t areg = current->allocated_loc;
@@ -802,7 +802,7 @@ void LinearScanAllocator::allocateBlockedReg(
     current->allocateTo(reg);
 
     auto act_iter = reg_active_interval.find(reg);
-    JIT_DCHECKX(
+    JIT_DCHECK(
         act_iter != reg_active_interval.end(),
         "Must have one active interval allocated to reg. Otherwise, this "
         "function wouldn't have been called.");
@@ -871,12 +871,12 @@ void LinearScanAllocator::splitAndSave(
     LiveInterval* interval,
     LIRLocation loc,
     UnhandledQueue& queue) {
-  JIT_DCHECKX(interval->startLocation() < loc, "Invalid split point.");
+  JIT_DCHECK(interval->startLocation() < loc, "Invalid split point.");
   auto new_interval = interval->splitAt(loc);
-  JIT_DCHECKX(
+  JIT_DCHECK(
       new_interval != nullptr, "The split point must be inside the interval.");
 
-  JIT_DCHECKX(
+  JIT_DCHECK(
       new_interval->startLocation() < new_interval->endLocation(),
       "Invalid interval");
 
@@ -925,7 +925,7 @@ void LinearScanAllocator::rewriteLIR() {
     auto& interval = *allocated_iter;
     auto pair = mapping.emplace(interval->vreg, interval.get());
 
-    JIT_DCHECKX(
+    JIT_DCHECK(
         pair.second,
         "Should not have duplicated vreg mappings in the entry block.");
     ++allocated_iter;
@@ -944,7 +944,7 @@ void LinearScanAllocator::rewriteLIR() {
     for (auto map_iter = mapping.begin(); map_iter != mapping.end();) {
       auto vreg = map_iter->first;
       auto interval = map_iter->second;
-      JIT_DCHECKX(vreg == interval->vreg, "mapping is not consistent.");
+      JIT_DCHECK(vreg == interval->vreg, "mapping is not consistent.");
 
       if (interval->endLocation() <= instr_id) {
         TRACE(
@@ -1014,7 +1014,7 @@ void LinearScanAllocator::rewriteLIR() {
     for (auto& succ : bb->successors()) {
       succ->foreachPhiInstr([this, &bb, &mapping](Instruction* phi) {
         auto index = phi->getOperandIndexByPredecessor(bb);
-        JIT_DCHECKX(index != -1, "missing predecessor in phi instruction.");
+        JIT_DCHECK(index != -1, "missing predecessor in phi instruction.");
         rewriteInstrOneInput(phi, index, mapping, nullptr);
       });
     }
@@ -1064,9 +1064,9 @@ void LinearScanAllocator::rewriteInstrOutput(
 
     if (instr->opcode() == Instruction::kBind) {
       PhyLocation in_reg = instr->getInput(0)->getPhyRegister();
-      JIT_CHECKX(
+      JIT_CHECK(
           loc == in_reg,
-          "Output of Bind (%s) is not same as input (%s)",
+          "Output of Bind ({}) is not same as input ({})",
           loc,
           in_reg);
     }
@@ -1255,7 +1255,7 @@ void LinearScanAllocator::resolveEdges() {
         }
       }
 
-      JIT_DCHECKX(
+      JIT_DCHECK(
           last_instr_opcode != Instruction::kBranch,
           "Unconditional branch should not have been generated yet.");
 
@@ -1415,7 +1415,7 @@ void LinearScanAllocator::rewriteLIREmitCopies(
         break;
       }
       case CopyGraph::Op::Kind::kExchange: {
-        JIT_DCHECKX(
+        JIT_DCHECK(
             to.is_register() && from.is_register(),
             "Can only exchange registers.");
         auto instr =

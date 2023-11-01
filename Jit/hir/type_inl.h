@@ -32,10 +32,10 @@ inline bool Type::CIntFitsType(int64_t i, Type t) {
 }
 
 inline Type Type::fromCInt(int64_t i, Type t) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       t == TCInt64 || t == TCInt32 || t == TCInt16 || t == TCInt8,
       "expected signed value");
-  JIT_DCHECKX(CIntFitsType(i, t), "int value out of range");
+  JIT_DCHECK(CIntFitsType(i, t), "int value out of range");
   return Type{t.bits_, kLifetimeBottom, kSpecInt, i};
 }
 
@@ -50,10 +50,10 @@ inline bool Type::CUIntFitsType(uint64_t i, Type t) {
 }
 
 inline Type Type::fromCUInt(uint64_t i, Type t) {
-  JIT_DCHECKX(
+  JIT_DCHECK(
       t == TCUInt64 || t == TCUInt32 || t == TCUInt16 || t == TCUInt8,
       "expected unsigned value");
-  JIT_DCHECKX(Type::CUIntFitsType(i, t), "int value out of range");
+  JIT_DCHECK(Type::CUIntFitsType(i, t), "int value out of range");
   return Type{t.bits_, kLifetimeBottom, kSpecInt, (intptr_t)i};
 }
 
@@ -83,22 +83,22 @@ inline bool Type::hasValueSpec(Type ty) const {
 }
 
 inline PyTypeObject* Type::typeSpec() const {
-  JIT_DCHECKX(hasTypeSpec(), "Type has no type specialization");
+  JIT_DCHECK(hasTypeSpec(), "Type has no type specialization");
   return specKind() == kSpecObject ? Py_TYPE(pyobject_) : pytype_;
 }
 
 inline PyObject* Type::objectSpec() const {
-  JIT_DCHECKX(hasObjectSpec(), "Type has invalid value specialization");
+  JIT_DCHECK(hasObjectSpec(), "Type has invalid value specialization");
   return pyobject_;
 }
 
 inline intptr_t Type::intSpec() const {
-  JIT_DCHECKX(hasIntSpec(), "Type has invalid value specialization");
+  JIT_DCHECK(hasIntSpec(), "Type has invalid value specialization");
   return int_;
 }
 
 inline double_t Type::doubleSpec() const {
-  JIT_DCHECKX(hasDoubleSpec(), "Type has invalid value specialization");
+  JIT_DCHECK(hasDoubleSpec(), "Type has invalid value specialization");
   return double_;
 }
 

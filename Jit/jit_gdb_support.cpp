@@ -662,9 +662,9 @@ static void elfctx_build_object(ELFObjectContext* ctx) {
   elf_init_section(ctx, ELF_SECT_debug_line, elf_init_debugline);
   ALIGN_SECTION(ctx->p, sizeof(uintptr_t));
   ctx->objsize = (size_t)((char*)ctx->p - (char*)obj);
-  JIT_DCHECKX(
+  JIT_DCHECK(
       ctx->objsize < sizeof(ELFObject),
-      "ELFObject.space overflowed, ctx->objsize is %zd",
+      "ELFObject.space overflowed, ctx->objsize is {}",
       ctx->objsize);
 }
 
@@ -677,8 +677,8 @@ static ELFObjectContext* elfctx_new(
     void* code,
     int code_size,
     int stack_size) {
-  JIT_DCHECKX(code_size >= 0, "code_size must be greater than zero");
-  JIT_DCHECKX(stack_size >= 0, "stack_size must be greater than zero");
+  JIT_DCHECK(code_size >= 0, "code_size must be greater than zero");
+  JIT_DCHECK(stack_size >= 0, "stack_size must be greater than zero");
   ELFObjectContext* ctx =
       static_cast<ELFObjectContext*>(calloc(1, sizeof(ELFObjectContext)));
   if (ctx == NULL) {
