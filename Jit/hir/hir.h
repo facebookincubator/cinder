@@ -592,7 +592,7 @@ class Instr {
 
   // If this is a control instruction, return the i-th edge
   virtual Edge* edge(std::size_t /* i */) {
-    JIT_DCHECK(false, "not a control instruction");
+    JIT_DABORT("Not a control instruction");
     return nullptr;
   }
 

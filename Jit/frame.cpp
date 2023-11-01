@@ -434,7 +434,7 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
     // worth investigating. Leave some breadcrumbs to help with debugging.
     JIT_LOG("No debug info for addr {}", ip);
     logUnitFrames();
-    JIT_DCHECK(false, "No debug info for addr {:x}", ip);
+    JIT_DABORT("No debug info for addr {:x}", ip);
     for (std::size_t i = 0; i < unit_frames.size(); i++) {
       _PyShadowFrame* sf = unit_frames[i];
       unit_state.emplace_back(sf, CodeObjLoc{_PyShadowFrame_GetCode(sf), -1});

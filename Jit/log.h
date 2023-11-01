@@ -49,7 +49,7 @@ extern FILE* g_log_file;
 // "<failed to get UTF8 from Python string>"
 std::string repr(BorrowedRef<> obj);
 
-#define JIT_LOG(...)                                                    \
+#define JIT_LOG(...)                                                     \
   {                                                                      \
     ::jit::ThreadedCompileSerialize guard;                               \
     fmt::print(::jit::g_log_file, "JIT: {}:{} -- ", __FILE__, __LINE__); \
@@ -100,8 +100,13 @@ std::string repr(BorrowedRef<> obj);
   }
 
 #ifdef Py_DEBUG
-#define JIT_DCHECK(COND, ...) JIT_CHECK(COND, __VA_ARGS__)
+#define JIT_DABORT(...) JIT_ABORT(__VA_ARGS__)
+#define JIT_DCHECK(COND, ...) JIT_CHECK((COND), __VA_ARGS__)
 #else
+#define JIT_DABORT(...)     \
+  if (0) {                  \
+    JIT_ABORT(__VA_ARGS__); \
+  }
 #define JIT_DCHECK(COND, ...)       \
   if (0) {                          \
     JIT_CHECK((COND), __VA_ARGS__); \
