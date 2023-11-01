@@ -229,10 +229,10 @@ static bool can_translate(PyCodeObject* code) {
     auto opcode = bci.opcode();
     int oparg = bci.oparg();
     if (!kSupportedOpcodes.count(opcode)) {
-      JIT_DLOGX("Unsupported opcode: %d", opcode);
+      JIT_DLOG("Unsupported opcode: {}", opcode);
       return false;
     } else if (opcode == LOAD_GLOBAL && banned_name_ids.count(oparg)) {
-      JIT_DLOGX("'%s' unsupported", name_at(oparg));
+      JIT_DLOG("'{}' unsupported", name_at(oparg));
       return false;
     }
   }
@@ -560,7 +560,7 @@ std::unique_ptr<Function> buildHIR(const Preloader& preloader) {
 // with that if we ever want to support compiling them.
 std::unique_ptr<Function> HIRBuilder::buildHIR() {
   if (!can_translate(code_)) {
-    JIT_DLOGX("Can't translate all opcodes in %s", preloader_.fullname());
+    JIT_DLOG("Can't translate all opcodes in {}", preloader_.fullname());
     return nullptr;
   }
 
@@ -702,7 +702,7 @@ InlineResult HIRBuilder::inlineHIR(
     Function* caller,
     FrameState* caller_frame_state) {
   if (!can_translate(code_)) {
-    JIT_DLOGX("Can't translate all opcodes in %s", preloader_.fullname());
+    JIT_DLOG("Can't translate all opcodes in {}", preloader_.fullname());
     return {nullptr, nullptr};
   }
   BasicBlock* entry_block = buildHIRImpl(caller, caller_frame_state);
@@ -1959,8 +1959,8 @@ bool HIRBuilder::emitInvokeFunction(
 
     if (target.is_function && target.is_statically_typed) {
       if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
-        JIT_DLOGX(
-            "Warning: recursive compile of '%s' failed as it is already "
+        JIT_DLOG(
+            "Warning: recursive compile of '{}' failed as it is already "
             "being compiled",
             funcFullname(target.func()));
       }
@@ -3862,7 +3862,8 @@ void HIRBuilder::insertEvalBreakerCheckForLoop(
     CFG& cfg,
     BasicBlock* loop_header) {
   auto snap = loop_header->entrySnapshot();
-  JIT_CHECKX(snap != nullptr, "block %d has no entry snapshot", loop_header->id);
+  JIT_CHECKX(
+      snap != nullptr, "block %d has no entry snapshot", loop_header->id);
   auto fs = snap->frameState();
   JIT_CHECKX(
       fs != nullptr,

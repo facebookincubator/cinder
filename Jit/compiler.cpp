@@ -151,8 +151,8 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     const jit::hir::Preloader& preloader) {
   const std::string& fullname = preloader.fullname();
   if (!PyDict_CheckExact(preloader.globals())) {
-    JIT_DLOGX(
-        "Refusing to compile %s: globals is a %.200s, not a dict",
+    JIT_DLOG(
+        "Refusing to compile {}: globals is a {:.200}, not a dict",
         fullname,
         Py_TYPE(preloader.globals())->tp_name);
     return nullptr;
@@ -160,14 +160,14 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
 
   PyObject* builtins = preloader.builtins();
   if (!PyDict_CheckExact(builtins)) {
-    JIT_DLOGX(
-        "Refusing to compile %s: builtins is a %.200s, not a dict",
+    JIT_DLOG(
+        "Refusing to compile {}: builtins is a {:.200}, not a dict",
         fullname,
         Py_TYPE(builtins)->tp_name);
     return nullptr;
   }
-  JIT_DLOGX(
-      "Compiling %s @ %p",
+  JIT_DLOG(
+      "Compiling {} @ {}",
       fullname,
       reinterpret_cast<void*>(preloader.code().get()));
 
@@ -186,7 +186,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     compilation_phase_timer->end();
   }
   if (irfunc == nullptr) {
-    JIT_DLOGX("Lowering to HIR failed %s", fullname);
+    JIT_DLOG("Lowering to HIR failed {}", fullname);
     return nullptr;
   }
 
@@ -243,11 +243,11 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
       "Native code Generation",
       entry = ngen->getVectorcallEntry())
   if (entry == nullptr) {
-    JIT_DLOGX("Generating native code for %s failed", fullname);
+    JIT_DLOG("Generating native code for {} failed", fullname);
     return nullptr;
   }
 
-  JIT_DLOGX("Finished compiling %s", fullname);
+  JIT_DLOG("Finished compiling {}", fullname);
   if (nullptr != irfunc->compilation_phase_timer) {
     irfunc->compilation_phase_timer->end();
     irfunc->setCompilationPhaseTimer(nullptr);
@@ -260,7 +260,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   if (!g_dump_hir_passes_json.empty()) {
     std::string filename =
         fmt::format("{}/function_{}.json", g_dump_hir_passes_json, fullname);
-    JIT_DLOGX("Dumping JSON for %s to %s", fullname, filename);
+    JIT_DLOG("Dumping JSON for {} to {}", fullname, filename);
     std::ofstream json_file;
     json_file.open(
         filename,

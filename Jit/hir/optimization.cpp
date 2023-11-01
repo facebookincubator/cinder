@@ -417,12 +417,12 @@ guardNeeded(const RegUses& uses, Register* new_reg, Type relaxed_type) {
           // GuardType adds an unnecessary refinement. Since we cannot guard on
           // primitive types yet, this should never happen
           if (operandsMustMatch(expected_type)) {
-            JIT_DLOGX(
-                "'%s' kept alive by primitive '%s'", *new_reg->instr(), *instr);
+            JIT_DLOG(
+                "'{}' kept alive by primitive '{}'", *new_reg->instr(), *instr);
             return true;
           }
           if (!registerTypeMatches(relaxed_type, expected_type)) {
-            JIT_DLOGX("'%s' kept alive by '%s'", *new_reg->instr(), *instr);
+            JIT_DLOG("'{}' kept alive by '{}'", *new_reg->instr(), *instr);
             return true;
           }
         }
@@ -812,7 +812,7 @@ static void dlogAndCollectFailureStats(
     InlineFailureType failure_type,
     const std::string& function) {
   inline_failure_stats[failure_type].insert(function);
-  JIT_DLOGX(
+  JIT_DLOG(
       "Can't inline {} because {}",
       function,
       getInlineFailureMessage(failure_type));
@@ -824,7 +824,7 @@ static void dlogAndCollectFailureStats(
     const std::string& function,
     const char* tp_name) {
   inline_failure_stats[failure_type].insert(function);
-  JIT_DLOGX(
+  JIT_DLOG(
       "Can't inline {} because {} but a {:.200s}",
       function,
       getInlineFailureMessage(failure_type),
@@ -959,7 +959,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     return;
   }
   if (!canInline(call_instr, func, fullname, inline_failure_stats)) {
-    JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
+    JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
     return;
   }
 
@@ -972,7 +972,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     const Preloader& preloader{getPreloader(func)};
     if (!canInlineWithPreloader(
             call_instr, fullname, preloader, inline_failure_stats)) {
-      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
       return;
     }
     HIRBuilder hir_builder(preloader);
@@ -983,19 +983,19 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     // away.
     auto preloader = Preloader::getPreloader(func);
     if (!preloader) {
-      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
       return;
     }
     if (!canInlineWithPreloader(
             call_instr, fullname, *preloader, inline_failure_stats)) {
-      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
       return;
     }
     HIRBuilder hir_builder(*preloader);
     result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   }
   if (result.entry == nullptr) {
-    JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
+    JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
     return;
   }
 
@@ -1068,8 +1068,8 @@ void InlineFunctionCalls::Run(Function& irfunc) {
   }
   if (irfunc.code->co_flags & kCoFlagsAnyGenerator) {
     // TODO(T109706798): Support inlining into generators
-    JIT_DLOGX(
-        "Refusing to inline functions into %s: function is a generator",
+    JIT_DLOG(
+        "Refusing to inline functions into {}: function is a generator",
         irfunc.fullname);
     return;
   }
@@ -1081,8 +1081,8 @@ void InlineFunctionCalls::Run(Function& irfunc) {
         auto call = static_cast<VectorCallBase*>(&instr);
         Register* target = call->func();
         if (!target->type().hasValueSpec(TFunc)) {
-          JIT_DLOGX(
-              "Cannot inline non-function type %s (%s) into %s",
+          JIT_DLOG(
+              "Cannot inline non-function type {} ({}) into {}",
               target->type(),
               *target,
               irfunc.fullname);

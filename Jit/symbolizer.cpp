@@ -228,14 +228,14 @@ std::optional<std::string> demangle(const std::string& mangled_name) {
       abi::__cxa_demangle(mangled_name.c_str(), nullptr, nullptr, &status);
   if (demangled_name == nullptr) {
     if (status == -1) {
-      JIT_DLOGX("Could not allocate memory for demangled name");
+      JIT_DLOG("Could not allocate memory for demangled name");
     } else if (status == -2) {
-      JIT_DLOGX("Mangled name '%s' is not valid", mangled_name);
+      JIT_DLOG("Mangled name '{}' is not valid", mangled_name);
       // Couldn't demangle. Oh well. Probably better to have some name than
       // none at all.
       return mangled_name;
     } else if (status == -3) {
-      JIT_DLOGX("Invalid input to __cxa_demangle");
+      JIT_DLOG("Invalid input to __cxa_demangle");
     }
     return std::nullopt;
   }

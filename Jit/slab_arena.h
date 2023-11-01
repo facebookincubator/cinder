@@ -126,7 +126,7 @@ class SlabArena {
     if (mlocked_) {
       // It's not necessarily an error to allocate after locking but it's
       // probably not what we expect to happen in the common forking case.
-      JIT_DLOGX("Allocating while locked");
+      JIT_DLOG("Allocating while locked");
     }
 
     void* mem = slabs_.back().allocate();

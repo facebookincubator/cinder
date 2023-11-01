@@ -170,12 +170,11 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
 
     if (!found.empty()) {
       // use overriden debug message if it's been defined
-      JIT_DLOGX(fmt::format(
-                   "{} has been specified - {}",
-                   found,
-                   option->debug_message.empty() ? option->flag_description
-                                                 : option->debug_message)
-                   .c_str());
+      JIT_DLOG(
+          "{} has been specified - {}",
+          found,
+          option->debug_message.empty() ? option->flag_description
+                                        : option->debug_message);
     }
   }
 

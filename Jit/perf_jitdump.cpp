@@ -185,7 +185,7 @@ FileInfo openPidMap() {
   }
 
   FileInfo perf_map = openFileInfo("/tmp/perf-{}.map");
-  JIT_DLOGX("Opened JIT perf-map file: %s", perf_map.filename);
+  JIT_DLOG("Opened JIT perf-map file: {}", perf_map.filename);
   return perf_map;
 }
 

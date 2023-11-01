@@ -77,7 +77,7 @@ register_elf_ctx(ELFObjectContext* ctx, const char* type, void* ptr) {
   char* raw =
       static_cast<char*>(calloc(1, sizeof(JITCodeEntry) + elf_object_size));
   if (raw == NULL) {
-    JIT_DLOGX("Failed to allocate space for JITCodeEntry + ELFObject");
+    JIT_DLOG("Failed to allocate space for JITCodeEntry + ELFObject");
     return 0;
   }
 
@@ -92,7 +92,7 @@ register_elf_ctx(ELFObjectContext* ctx, const char* type, void* ptr) {
     int fd;
     if ((fd = open(ss_get_string(filename), O_CREAT | O_RDWR, 0600))) {
       if (write(fd, elf_object_start, elf_object_size) < 0) {
-        JIT_DLOGX("Failed to write to %s", ss_get_string(filename));
+        JIT_DLOG("Failed to write to {}", ss_get_string(filename));
       }
       close(fd);
     }
@@ -141,7 +141,7 @@ int register_raw_debug_symbol(
       stack_size);
 
   if (ctx == NULL) {
-    JIT_DLOGX("Failed to allocate ELFObjectContext");
+    JIT_DLOG("Failed to allocate ELFObjectContext");
     return 0;
   }
 
@@ -150,8 +150,8 @@ int register_raw_debug_symbol(
     return 0;
   }
 
-  JIT_DLOGX(
-      "Registered debug symbol at %p (%zd bytes) for %s at %p (%d bytes)",
+  JIT_DLOG(
+      "Registered debug symbol at {} ({} bytes) for {} at {} ({} bytes)",
       reinterpret_cast<void*>(elfctx_get_object_ptr(ctx)),
       elfctx_get_object_size(ctx),
       function_name,
@@ -175,16 +175,16 @@ int register_pycode_debug_symbol(
   int stack_size = compiled_func->stackSize();
   auto code = reinterpret_cast<void*>(compiled_func->vectorcallEntry());
   if (code_size < 1) {
-    JIT_DLOGX(
-        "Not registering symbol at %p because it has an invalid size %d",
+    JIT_DLOG(
+        "Not registering symbol at {} because it has an invalid size {}",
         code,
         code_size);
     return 0;
   }
   if (stack_size == -1) {
-    JIT_DLOGX(
-        "Not registering symbol at %p because it has an invalid "
-        "stack size %d",
+    JIT_DLOG(
+        "Not registering symbol at {} because it has an invalid "
+        "stack size {}",
         code,
         stack_size);
     return 0;
@@ -196,7 +196,7 @@ int register_pycode_debug_symbol(
     filename = PyUnicode_AsUTF8(sourcefile);
     if (filename == NULL) {
       filename = "<filename failed to encode to UTF8>";
-      JIT_DLOGX("Failed to encode filename for ELFObjectContext");
+      JIT_DLOG("Failed to encode filename for ELFObjectContext");
     }
   }
 
@@ -209,7 +209,7 @@ int register_pycode_debug_symbol(
       stack_size);
 
   if (ctx == NULL) {
-    JIT_DLOGX("Failed to allocate ELFObjectContext");
+    JIT_DLOG("Failed to allocate ELFObjectContext");
     return 0;
   }
 
@@ -218,9 +218,9 @@ int register_pycode_debug_symbol(
     return 0;
   }
 
-  JIT_DLOGX(
-      "Registered debug symbol at %p (%zd bytes) for a function at %p "
-      "(%d bytes)",
+  JIT_DLOG(
+      "Registered debug symbol at {} ({} bytes) for a function at {} "
+      "({} bytes)",
       reinterpret_cast<void*>(elfctx_get_object_ptr(ctx)),
       elfctx_get_object_size(ctx),
       code,

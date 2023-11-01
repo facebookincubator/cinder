@@ -685,7 +685,7 @@ static _PyJIT_Result compilePreloaded(BorrowedRef<> unit) {
 }
 
 static void compile_worker_thread() {
-  JIT_DLOGX("Started compile worker in thread %d", std::this_thread::get_id());
+  JIT_DLOG("Started compile worker in thread {}", std::this_thread::get_id());
   BorrowedRef<> unit;
   while ((unit = g_threaded_compile_context.nextUnit()) != nullptr) {
     g_compile_workers_attempted++;
@@ -695,7 +695,7 @@ static void compile_worker_thread() {
       g_threaded_compile_context.retryUnit(unit);
     }
   }
-  JIT_DLOGX("Finished compile worker in thread %d", std::this_thread::get_id());
+  JIT_DLOG("Finished compile worker in thread {}", std::this_thread::get_id());
 }
 
 static void compile_perf_trampoline_entries() {
@@ -1800,7 +1800,7 @@ int _PyJIT_Initialize() {
   }
 
   if (use_jit) {
-    JIT_DLOGX("Enabling JIT.");
+    JIT_DLOG("Enabling JIT.");
   } else {
     return 0;
   }

@@ -426,7 +426,7 @@ void DataflowAnalysis::dump() {
     format_to(out, "\n");
   }
 
-  JIT_DLOGX("%s", out);
+  JIT_DLOG("{}", out);
 }
 
 void BackwardDataflowAnalysis::Run() {
