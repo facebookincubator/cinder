@@ -61,50 +61,94 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   }
 }
 
-#define JIT_LOGX(...)                                                      \
-  do {                                                                     \
-    ::jit::ThreadedCompileSerialize guard;                                 \
-    fmt::fprintf(::jit::g_log_file, "JIT: %s:%d -- ", __FILE__, __LINE__); \
-    ::jit::protected_fprintf(::jit::g_log_file, __VA_ARGS__);              \
-    fmt::fprintf(::jit::g_log_file, "\n");                                 \
-    fflush(::jit::g_log_file);                                             \
-  } while (0)
-
-#define JIT_LOGIFX(pred, ...) \
-  if (pred) {                \
-    JIT_LOGX(__VA_ARGS__);   \
+#define JIT_LOG(...)                                                    \
+  {                                                                      \
+    ::jit::ThreadedCompileSerialize guard;                               \
+    fmt::print(::jit::g_log_file, "JIT: {}:{} -- ", __FILE__, __LINE__); \
+    fmt::print(::jit::g_log_file, __VA_ARGS__);                          \
+    fmt::print(::jit::g_log_file, "\n");                                 \
+    std::fflush(::jit::g_log_file);                                      \
   }
 
-#define JIT_DLOGX(...)             \
-  {                               \
-    if (::jit::g_debug_verbose) { \
-      JIT_LOGX(__VA_ARGS__);      \
-    }                             \
+#define JIT_LOGX(...)                                                     \
+  {                                                                      \
+    ::jit::ThreadedCompileSerialize guard;                               \
+    fmt::print(::jit::g_log_file, "JIT: {}:{} -- ", __FILE__, __LINE__); \
+    ::jit::protected_fprintf(::jit::g_log_file, __VA_ARGS__);            \
+    fmt::print(::jit::g_log_file, "\n");                                 \
+    std::fflush(::jit::g_log_file);                                      \
   }
 
-#define JIT_CHECKX(__cond, ...)                    \
+#define JIT_LOGIF(PRED, ...) \
+  if (PRED) {                \
+    JIT_LOG(__VA_ARGS__);    \
+  }
+
+#define JIT_LOGIFX(PRED, ...) \
+  if (PRED) {                 \
+    JIT_LOGX(__VA_ARGS__);    \
+  }
+
+#define JIT_DLOG(...) JIT_LOGIF(::jit::g_debug_verbose, __VA_ARGS__)
+#define JIT_DLOGX(...) JIT_LOGIFX(::jit::g_debug_verbose, __VA_ARGS__)
+
+#define JIT_CHECK(COND, ...)                      \
   {                                               \
-    if (!(__cond)) {                              \
-      fmt::fprintf(                               \
+    if (!(COND)) {                                \
+      fmt::print(                                 \
           stderr,                                 \
-          "JIT: %s:%d -- Assertion failed: %s\n", \
+          "JIT: {}:{} -- Assertion failed: {}\n", \
           __FILE__,                               \
           __LINE__,                               \
-          #__cond);                               \
+          #COND);                                 \
       JIT_ABORT_IMPL(__VA_ARGS__);                \
     }                                             \
   }
 
-#define JIT_ABORTX(...)                                                 \
-  {                                                                    \
-    fmt::fprintf(stderr, "JIT: %s:%d -- Abort\n", __FILE__, __LINE__); \
-    JIT_ABORT_IMPL(__VA_ARGS__);                                       \
+#define JIT_CHECKX(COND, ...)                     \
+  {                                               \
+    if (!(COND)) {                                \
+      fmt::print(                                 \
+          stderr,                                 \
+          "JIT: {}:{} -- Assertion failed: {}\n", \
+          __FILE__,                               \
+          __LINE__,                               \
+          #COND);                                 \
+      JIT_ABORT_IMPLX(__VA_ARGS__);               \
+    }                                             \
+  }
+
+#define JIT_ABORT(...)                                               \
+  {                                                                  \
+    fmt::print(stderr, "JIT: {}:{} -- Abort\n", __FILE__, __LINE__); \
+    JIT_ABORT_IMPL(__VA_ARGS__);                                     \
+  }
+
+#define JIT_ABORTX(...)                                              \
+  {                                                                  \
+    fmt::print(stderr, "JIT: {}:{} -- Abort\n", __FILE__, __LINE__); \
+    JIT_ABORT_IMPLX(__VA_ARGS__);                                    \
   }
 
 #define JIT_ABORT_IMPL(...)                              \
   {                                                      \
+    fmt::print(stderr, __VA_ARGS__);                     \
+    fmt::print(stderr, "\n");                            \
+    std::fflush(stderr);                                 \
+    PyThreadState* tstate = _PyThreadState_GET();        \
+    if (tstate != NULL && tstate->curexc_type != NULL) { \
+      PyErr_Display(                                     \
+          tstate->curexc_type,                           \
+          tstate->curexc_value,                          \
+          tstate->curexc_traceback);                     \
+    }                                                    \
+    std::abort();                                        \
+  }
+
+#define JIT_ABORT_IMPLX(...)                              \
+  {                                                      \
     ::jit::protected_fprintf(stderr, __VA_ARGS__);       \
-    fmt::fprintf(stderr, "\n");                          \
+    fmt::print(stderr, "\n");                            \
     std::fflush(stderr);                                 \
     PyThreadState* tstate = _PyThreadState_GET();        \
     if (tstate != NULL && tstate->curexc_type != NULL) { \
@@ -117,11 +161,16 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   }
 
 #ifdef Py_DEBUG
-#define JIT_DCHECKX(__cond, ...) JIT_CHECKX(__cond, __VA_ARGS__)
+#define JIT_DCHECK(COND, ...) JIT_CHECK(COND, __VA_ARGS__)
+#define JIT_DCHECKX(COND, ...) JIT_CHECKX(COND, __VA_ARGS__)
 #else
-#define JIT_DCHECKX(__cond, ...)     \
+#define JIT_DCHECK(COND, ...)       \
   if (0) {                          \
-    JIT_CHECKX(__cond, __VA_ARGS__); \
+    JIT_CHECK((COND), __VA_ARGS__); \
+  }
+#define JIT_DCHECKX(COND, ...)       \
+  if (0) {                           \
+    JIT_CHECKX((COND), __VA_ARGS__); \
   }
 #endif
 
