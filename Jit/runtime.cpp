@@ -27,7 +27,7 @@ int forEachOwnedRef(PyGenObject* gen, std::size_t deopt_idx, F func) {
       continue;
     }
     codegen::PhyLocation loc = value.location;
-    JIT_CHECK(
+    JIT_CHECKX(
         !loc.is_register(),
         "DeoptMetadata for Yields should not reference registers");
     int ret = func(*reinterpret_cast<PyObject**>(base + loc.loc));
@@ -59,7 +59,7 @@ void CodeRuntime::releaseReferences() {
 }
 
 void CodeRuntime::addReference(Ref<>&& obj) {
-  JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
+  JIT_CHECKX(obj != nullptr, "Can't own a reference to nullptr");
   references_.emplace(std::move(obj));
 }
 
@@ -103,7 +103,7 @@ void Builtins::init() {
       break;
     }
   }
-  JIT_CHECK(builtins != nullptr, "could not find builtins module");
+  JIT_CHECKX(builtins != nullptr, "could not find builtins module");
 
   auto add = [this](const std::string& name, PyMethodDef* meth) {
     cfunc_to_name_[meth] = name;
@@ -193,8 +193,8 @@ GlobalCache Runtime::findGlobalCache(
     PyObject* builtins,
     PyObject* globals,
     PyObject* name) {
-  JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
-  JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");
+  JIT_CHECKX(PyUnicode_CheckExact(name), "Name must be a str");
+  JIT_CHECKX(PyUnicode_CHECK_INTERNED(name), "Name must be interned");
   auto result = global_caches_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(builtins, globals, name),
@@ -253,7 +253,7 @@ std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {
 }
 
 DeoptMetadata& Runtime::getDeoptMetadata(std::size_t id) {
-  JIT_CHECK(
+  JIT_CHECKX(
       g_threaded_compile_context.canAccessSharedData(),
       "getDeoptMetadata() called in unsafe context");
   return deopt_metadata_[id];
@@ -318,7 +318,7 @@ void Runtime::clearGuardFailureCallback() {
 }
 
 void Runtime::addReference(Ref<>&& obj) {
-  JIT_CHECK(obj != nullptr, "Can't own a reference to nullptr");
+  JIT_CHECKX(obj != nullptr, "Can't own a reference to nullptr");
   // Serialize as we modify the globally accessible references_ object.
   ThreadedCompileSerialize guard;
   references_.emplace(std::move(obj));

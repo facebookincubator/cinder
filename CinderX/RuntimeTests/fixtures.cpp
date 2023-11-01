@@ -52,7 +52,7 @@ void HIRTest::TestBody() {
   }
 
   if (jit::g_dump_hir) {
-    JIT_LOG("Initial HIR for %s:\n%s", test_name, *irfunc);
+    JIT_LOGX("Initial HIR for %s:\n%s", test_name, *irfunc);
   }
 
   if (!passes_.empty()) {

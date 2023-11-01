@@ -102,7 +102,7 @@ struct FrameState {
     locals = other.locals;
     cells = other.cells;
     stack = other.stack;
-    JIT_DCHECK(
+    JIT_DCHECKX(
         this != other.parent, "FrameStates should not be self-referential");
     parent = other.parent;
     block_stack = other.block_stack;
@@ -117,7 +117,7 @@ struct FrameState {
       BorrowedRef<PyDictObject> builtins,
       FrameState* parent)
       : code(code), globals(globals), builtins(builtins), parent(parent) {
-    JIT_DCHECK(this != parent, "FrameStates should not be self-referential");
+    JIT_DCHECKX(this != parent, "FrameStates should not be self-referential");
   }
   // Used for testing only.
   explicit FrameState(int bc_off) : next_instr_offset(bc_off) {}
@@ -132,7 +132,7 @@ struct FrameState {
       frame = frame->parent;
       inline_depth++;
     }
-    JIT_DCHECK(
+    JIT_DCHECKX(
         inline_depth >= 0,
         "expected positive inline depth but got %d",
         inline_depth);
@@ -592,7 +592,7 @@ class Instr {
 
   // If this is a control instruction, return the i-th edge
   virtual Edge* edge(std::size_t /* i */) {
-    JIT_DCHECK(false, "not a control instruction");
+    JIT_DCHECKX(false, "not a control instruction");
     return nullptr;
   }
 
@@ -725,7 +725,7 @@ class Instr {
   }
 
   Register*& operandAt(std::size_t i) {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         i < NumOperands(),
         "operand %d out of range (max is %d)",
         i,
@@ -897,7 +897,7 @@ template <class T, Opcode opc, class Base, typename... Tys>
 class InstrT<T, opc, Base, Tys...> : public Base {
  public:
   OperandType GetOperandType(std::size_t i) const override {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         i < this->NumOperands(),
         "operand %d out of range (max is %d)",
         i,
@@ -1312,7 +1312,7 @@ class INSTR_CLASS(Branch, (), Operands<0>) {
   }
 
   Edge* edge(std::size_t i) override {
-    JIT_CHECK(i == 0, "only have 1 edge");
+    JIT_CHECKX(i == 0, "only have 1 edge");
     return &edge_;
   }
 
@@ -1357,7 +1357,7 @@ class INSTR_CLASS(SetFunctionAttr, (TObject, TFunc), Operands<2>) {
       case FunctionAttr::kDefaults:
         return offsetof(PyFunctionObject, func_defaults);
     }
-    JIT_ABORT("invalid field %d", static_cast<int>(field_));
+    JIT_ABORTX("invalid field %d", static_cast<int>(field_));
   }
 
  private:
@@ -1730,7 +1730,7 @@ class INSTR_CLASS(CallStatic, (TTop), HasOutput, Operands<>) {
   CallStatic(Register* out, void* addr, Type ret_type, Args&&... args)
       : InstrT(out), addr_(addr), ret_type_(ret_type) {
     std::array<Register*, sizeof...(Args)> operands{args...};
-    JIT_CHECK(
+    JIT_CHECKX(
         operands.size() == NumOperands(),
         "Expected %d arguments, got %d",
         NumOperands(),
@@ -2436,9 +2436,9 @@ class INSTR_CLASS(
 
   binaryfunc slotMethod() const {
     auto op_kind = static_cast<unsigned long>(op());
-    JIT_CHECK(op_kind < kLongBinaryOpSlotMethods.size(), "unsupported binop");
+    JIT_CHECKX(op_kind < kLongBinaryOpSlotMethods.size(), "unsupported binop");
     binaryfunc helper = kLongBinaryOpSlotMethods[op_kind];
-    JIT_DCHECK(helper != nullptr, "unsupported slot method");
+    JIT_DCHECKX(helper != nullptr, "unsupported slot method");
     return helper;
   }
 
@@ -2583,7 +2583,7 @@ class INSTR_CLASS(
       Type type,
       const FrameState& frame)
       : InstrT(dst, value, frame), type_(type) {
-    JIT_CHECK(
+    JIT_CHECKX(
         !(type <= TCBool),
         "PrimitiveBox does not support TCBool; use PrimitiveBoxBool instead.");
   }
@@ -2669,7 +2669,7 @@ class CondBranchBase : public Instr {
   }
 
   Edge* edge(std::size_t i) override {
-    JIT_DCHECK(i < 2, "only have 2 edges");
+    JIT_DCHECKX(i < 2, "only have 2 edges");
     return i == 0 ? &true_edge_ : &false_edge_;
   }
 
@@ -2825,7 +2825,7 @@ class INSTR_CLASS(LoadTypeAttrCacheItem, (), HasOutput, Operands<0>) {
  public:
   LoadTypeAttrCacheItem(Register* dst, int cache_id, int item_idx)
       : InstrT(dst), cache_id_(cache_id), item_idx_(item_idx) {
-    JIT_CHECK(item_idx < 2, "only two elements in the cache");
+    JIT_CHECKX(item_idx < 2, "only two elements in the cache");
   }
 
   int cache_id() const {
@@ -3065,7 +3065,7 @@ DEFINE_SIMPLE_INSTR(
 class INSTR_CLASS(LoadConst, (), HasOutput, Operands<0>) {
  public:
   LoadConst(Register* dst, Type type) : InstrT(dst), type_(type) {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         type.isSingleValue(), "Given Type must represent a single value");
   }
 
@@ -3289,7 +3289,7 @@ class INSTR_CLASS(MakeList, (TObject), HasOutput, Operands<>, DeoptBase) {
       const std::vector<Register*>& args,
       const FrameState& frame)
       : InstrT(dst, frame) {
-    JIT_CHECK(
+    JIT_CHECKX(
         NumOperands() == args.size(),
         "Cannot add %d args to instr with %d operands",
         args.size(),
@@ -3315,7 +3315,7 @@ class INSTR_CLASS(MakeTuple, (TObject), HasOutput, Operands<>, DeoptBase) {
       const std::vector<Register*>& args,
       const FrameState& frame)
       : InstrT(dst, frame) {
-    JIT_CHECK(
+    JIT_CHECKX(
         NumOperands() == args.size(),
         "Cannot add %d args to instr with %d operands",
         args.size(),
@@ -3950,7 +3950,7 @@ class INSTR_CLASS(RaiseStatic, (TObject), Operands<>, DeoptBase) {
  public:
   RaiseStatic(PyObject* exc_type, const char* fmt, const FrameState& frame)
       : InstrT(frame), fmt_(fmt), exc_type_(exc_type) {
-    JIT_CHECK(PyExceptionClass_Check(exc_type), "Expecting exception type");
+    JIT_CHECKX(PyExceptionClass_Check(exc_type), "Expecting exception type");
   }
 
   const char* fmt() const {
@@ -4147,7 +4147,7 @@ class BasicBlock {
   }
 
   void retargetPreds(BasicBlock* target) {
-    JIT_CHECK(target != this, "Can't retarget to self");
+    JIT_CHECKX(target != this, "Can't retarget to self");
     for (auto it = in_edges_.begin(); it != in_edges_.end();) {
       auto edge = *it;
       ++it;

@@ -16,7 +16,7 @@
 #include <set>
 #include <vector>
 
-#define TRACE(...) JIT_LOGIF(g_debug_refcount, __VA_ARGS__)
+#define TRACE(...) JIT_LOGIFX(g_debug_refcount, __VA_ARGS__)
 
 // This file implements our reference count insertion pass. If this is your
 // first time here, I recommend reading refcount_insertion.md first.
@@ -120,7 +120,7 @@ struct RegState {
   // The most recently defined copy of the model, which may still be the model
   // itself.
   Register* current() const {
-    JIT_DCHECK(!copies_.empty(), "%s has no live copies", model_->name());
+    JIT_DCHECKX(!copies_.empty(), "%s has no live copies", model_->name());
     return copies_.back();
   }
 
@@ -134,7 +134,7 @@ struct RegState {
     // The linear search and erase here assumes that having more than a couple
     // copies of a value is rare.
     auto it = std::find(copies_.begin(), copies_.end(), copy);
-    JIT_DCHECK(
+    JIT_DCHECKX(
         it != copies_.end(),
         "%s isn't a live copy of %s",
         copy->name(),
@@ -148,13 +148,13 @@ struct RegState {
   }
 
   Register* copy(size_t i) const {
-    JIT_DCHECK(i < copies_.size(), "Invalid index %d", i);
+    JIT_DCHECKX(i < copies_.size(), "Invalid index %d", i);
     return copies_[i];
   }
 
   // Merge `from` into `this`.
   void merge(const RegState& from) {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         model_ == from.model_,
         "Attempting to merge RegStates for different models");
 
@@ -207,7 +207,7 @@ struct RegState {
   }
 
   BorrowSupport& support() {
-    JIT_DCHECK(isBorrowed(), "Value isn't borrowed");
+    JIT_DCHECKX(isBorrowed(), "Value isn't borrowed");
     return support_;
   }
 
@@ -239,16 +239,16 @@ class StateMap {
   }
 
   auto countModel(Register* model) const {
-    JIT_DCHECK(model == modelReg(model), "countModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "countModel given non-model reg");
     return map_.count(model);
   }
 
   RegState& getModel(Register* model) {
-    JIT_DCHECK(model == modelReg(model), "getModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "getModel given non-model reg");
     return map_get(map_, model);
   }
   const RegState& getModel(Register* model) const {
-    JIT_DCHECK(model == modelReg(model), "getModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "getModel given non-model reg");
     return map_get(map_, model);
   }
 
@@ -260,11 +260,11 @@ class StateMap {
   }
 
   auto findModel(Register* model) {
-    JIT_DCHECK(model == modelReg(model), "findModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "findModel given non-model reg");
     return map_.find(model);
   }
   auto findModel(Register* model) const {
-    JIT_DCHECK(model == modelReg(model), "findModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "findModel given non-model reg");
     return map_.find(model);
   }
 
@@ -288,7 +288,7 @@ class StateMap {
   }
 
   auto eraseModel(Register* model) {
-    JIT_DCHECK(model == modelReg(model), "eraseModel given non-model reg");
+    JIT_DCHECKX(model == modelReg(model), "eraseModel given non-model reg");
     return map_.erase(model);
   }
   auto erase(map_t::iterator it) {
@@ -452,8 +452,8 @@ bool isUncounted(const Register* reg) {
 
 // Insert an Incref of `reg` before `cursor`.
 void insertIncref(Env& env, Register* reg, Instr& cursor) {
-  JIT_DCHECK(env.mutate, "Attempt to insert incref with mutate == false");
-  JIT_DCHECK(!isUncounted(reg), "Attempt to incref an uncounted value");
+  JIT_DCHECKX(env.mutate, "Attempt to insert incref with mutate == false");
+  JIT_DCHECKX(!isUncounted(reg), "Attempt to incref an uncounted value");
   Instr* incref;
   if (reg->type() <= TObject) {
     incref = Incref::create(reg);
@@ -471,8 +471,8 @@ void insertIncref(Env& env, Register* reg, Instr& cursor) {
 
 // Insert a Decref or XDecref of `reg`, depending on its type, before `cursor`.
 void insertDecref(Env& env, Register* reg, Instr& cursor) {
-  JIT_DCHECK(env.mutate, "Attempt to insert decref with mutate == false");
-  JIT_DCHECK(!isUncounted(reg), "Attempt to decref an uncounted value");
+  JIT_DCHECKX(env.mutate, "Attempt to insert decref with mutate == false");
+  JIT_DCHECKX(!isUncounted(reg), "Attempt to decref an uncounted value");
   Instr* decref;
   if (reg->type() <= TObject) {
     decref = Decref::create(reg);
@@ -508,7 +508,7 @@ void invalidateBorrowSupport(Env& env, Instr& cursor, Support support) {
 
   for (auto it = env.borrowed_regs.begin(); it != env.borrowed_regs.end();) {
     auto rstate = *it;
-    JIT_DCHECK(
+    JIT_DCHECKX(
         rstate->isBorrowed(),
         "Non-borrowed state in borrowed_regs: %s",
         *rstate);
@@ -619,10 +619,10 @@ void useSimpleInState(Env& env, BasicBlock* block) {
     return;
   }
 
-  JIT_DCHECK(
+  JIT_DCHECKX(
       block->in_edges().size() == 1,
       "Only blocks with <= 1 predecessors are supported");
-  JIT_DCHECK(
+  JIT_DCHECKX(
       !block->front().IsPhi(),
       "Phis in a single-predecessor block are unsupported");
 
@@ -701,7 +701,7 @@ void initializeInState(
 
   block->forEachPhi([&](Phi& phi) {
     auto inserted = in_state.emplace(phi.GetOutput(), phi.GetOutput()).second;
-    JIT_DCHECK(inserted, "Register shouldn't exist in map yet");
+    JIT_DCHECKX(inserted, "Register shouldn't exist in map yet");
   });
 
   TRACE("Initial in-state for bb %d:\n%s", block->id, in_state);
@@ -744,7 +744,7 @@ std::vector<PhiInput> collectPhiInputs(
     inputs.emplace_back(pred.block, &map_get(*pred.state, input));
     ++preds_it;
   }
-  JIT_DCHECK(!inputs.empty(), "Processing block with no visited predecessors");
+  JIT_DCHECKX(!inputs.empty(), "Processing block with no visited predecessors");
   return inputs;
 }
 
@@ -964,7 +964,7 @@ void processOutput(Env& env, const Instr& instr, const MemoryEffects& effects) {
   }
 
   auto pair = env.live_regs.emplace(output, output);
-  JIT_DCHECK(pair.second, "Register %s already defined", output->name());
+  JIT_DCHECKX(pair.second, "Register %s already defined", output->name());
   auto& rstate = pair.first->second;
   if (isUncounted(output)) {
     // Do nothing. rstate is already Uncounted by default.
@@ -980,7 +980,7 @@ void processOutput(Env& env, const Instr& instr, const MemoryEffects& effects) {
 // Process the given instruction: handle its memory effects, stolen inputs,
 // output, and any registers that die after it.
 void processInstr(Env& env, Instr& instr) {
-  JIT_DCHECK(
+  JIT_DCHECKX(
       !instr.IsIncref() && !instr.IsDecref() && !instr.IsXDecref() &&
           !instr.IsSnapshot(),
       "Unsupported instruction %s",
@@ -1005,9 +1005,9 @@ void processInstr(Env& env, Instr& instr) {
     // defines it. It's illegal to insert a Decref between Phis, so we collect
     // any such Registers to Decref together after the last Phi in the block.
     if (!dying_regs.empty()) {
-      JIT_DCHECK(dying_regs.size() == 1, "Multiple regs dying after Phi");
+      JIT_DCHECKX(dying_regs.size() == 1, "Multiple regs dying after Phi");
       auto output = instr.GetOutput();
-      JIT_DCHECK(
+      JIT_DCHECKX(
           *dying_regs.begin() == output, "Unexpected value dying after Phi");
       env.deferred_deaths.emplace_back(output);
     }
@@ -1025,12 +1025,12 @@ void processInstr(Env& env, Instr& instr) {
   stealInputs(env, instr, effects.stolen_inputs, dying_regs);
 
   if (instr.IsReturn()) {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         env.live_regs.size() == 1 &&
             env.live_regs.begin()->second.numCopies() == 1,
         "Unexpected live value(s) at Return, with state:\n%s",
         env.live_regs);
-    JIT_DCHECK(
+    JIT_DCHECKX(
         !map_get(env.live_regs, instr.GetOperand(0)).isOwned(),
         "Return operand should not be owned at exit");
     return;
@@ -1101,7 +1101,7 @@ void exitBlock(Env& env, const Edge* out_edge) {
     if (increfs > 0) {
       reg_increfs.emplace_back(from_rstate.current(), increfs);
     } else {
-      JIT_DCHECK(increfs == 0, "Invalid state transition");
+      JIT_DCHECKX(increfs == 0, "Invalid state transition");
     }
   }
 
@@ -1135,7 +1135,7 @@ void bindGuards(Function& irfunc) {
       } else if (
           instr.IsGuard() || instr.IsGuardIs() || instr.IsGuardType() ||
           instr.IsDeopt() || instr.IsDeoptPatchpoint()) {
-        JIT_DCHECK(
+        JIT_DCHECKX(
             fs != nullptr,
             "No dominating snapshot for '%s' in function:\n%s",
             instr,
@@ -1220,7 +1220,7 @@ void optimizeLongDecrefRuns(Function& irfunc) {
 
       constexpr size_t kDecrefOperandIndex = 0;
       for (int i = 0; i < num; i++) {
-        JIT_CHECK(
+        JIT_CHECKX(
             cur_iter->IsDecref(),
             "An unexpected non-decref instruction in a decref run.");
 

@@ -231,13 +231,13 @@ class DominatorAnalysis {
   DominatorAnalysis(const Function& irfunc);
 
   const BasicBlock* immediateDominator(const BasicBlock* block) {
-    JIT_DCHECK(block != nullptr, "Block cannot be null");
+    JIT_DCHECKX(block != nullptr, "Block cannot be null");
     return idoms_[block->id];
   }
 
   const std::unordered_set<const BasicBlock*>& getBlocksDominatedBy(
       const BasicBlock* block) {
-    JIT_DCHECK(block != nullptr, "Block cannot be null");
+    JIT_DCHECKX(block != nullptr, "Block cannot be null");
     return dom_sets_[block->id];
   }
 

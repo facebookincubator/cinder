@@ -440,7 +440,7 @@ class Instruction {
   }
 
   int getOperandIndexByPredecessor(const BasicBlock* pred) const {
-    JIT_DCHECK(opcode_ == kPhi, "The current instruction must be Phi.");
+    JIT_DCHECKX(opcode_ == kPhi, "The current instruction must be Phi.");
     size_t num_inputs = getNumInputs();
     for (size_t i = 0; i < num_inputs; i += 2) {
       if (getInput(i)->getBasicBlock() == pred) {
@@ -548,7 +548,7 @@ class Instruction {
       CASE_FLIP(kBranchL, kBranchGE)
       CASE_FLIP(kBranchG, kBranchLE)
       default:
-        JIT_ABORT("Not a conditional branch opcode.");
+        JIT_ABORTX("Not a conditional branch opcode.");
     }
   }
 
@@ -561,7 +561,7 @@ class Instruction {
       CASE_FLIP(kBranchL, kBranchG)
       CASE_FLIP(kBranchLE, kBranchGE)
       default:
-        JIT_ABORT("Unable to flip direction for opcode.");
+        JIT_ABORTX("Unable to flip direction for opcode.");
     }
   }
 
@@ -576,7 +576,7 @@ class Instruction {
       case kNotEqual:
         return kNotEqual;
       default:
-        JIT_ABORT("Unable to flip direction for comparison opcode.");
+        JIT_ABORTX("Unable to flip direction for comparison opcode.");
     }
   }
 
@@ -605,7 +605,7 @@ class Instruction {
       case kLessThanEqualSigned:
         return kBranchLE;
       default:
-        JIT_ABORT("Not a compare opcode.");
+        JIT_ABORTX("Not a compare opcode.");
     }
   }
 

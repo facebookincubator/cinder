@@ -449,10 +449,10 @@ void ProfileRuntime::setStripPattern(std::regex regex) {
 bool ProfileRuntime::serialize(const std::string& filename) const {
   std::ofstream file(filename, std::ios::binary);
   if (!file) {
-    JIT_LOG("Failed to open %s for writing", filename);
+    JIT_LOGX("Failed to open %s for writing", filename);
     return false;
   }
-  JIT_LOG("Writing out profiling data to %s", filename);
+  JIT_LOGX("Writing out profiling data to %s", filename);
   return serialize(file);
 }
 
@@ -464,13 +464,13 @@ bool ProfileRuntime::serialize(std::ostream& stream) const {
     write<uint64_t>(stream, kMagicHeader);
     write<uint32_t>(stream, 4);
     auto [num_codes, num_types] = writeVersion4(stream);
-    JIT_LOG(
+    JIT_LOGX(
         "Wrote %d bytes of profile data for %d code objects and %d types",
         stream.tellp() - start_pos,
         num_codes,
         num_types);
   } catch (const std::runtime_error& e) {
-    JIT_LOG("Failed to write profile data to stream: %s", e.what());
+    JIT_LOGX("Failed to write profile data to stream: %s", e.what());
     return false;
   }
 
@@ -482,10 +482,10 @@ bool ProfileRuntime::deserialize(const std::string& filename) {
 
   std::ifstream file(filename, std::ios::binary);
   if (!file) {
-    JIT_LOG("Failed to open %s for reading", filename);
+    JIT_LOGX("Failed to open %s for reading", filename);
     return false;
   }
-  JIT_LOG("Loading profile data from %s", filename);
+  JIT_LOGX("Loading profile data from %s", filename);
   return deserialize(file);
 }
 
@@ -498,7 +498,7 @@ bool ProfileRuntime::deserialize(std::istream& stream) {
     stream.exceptions(std::ios::badbit | std::ios::failbit);
     auto magic = read<uint64_t>(stream);
     if (magic != kMagicHeader) {
-      JIT_LOG("Bad magic value %#x in profile data stream", magic);
+      JIT_LOGX("Bad magic value %#x in profile data stream", magic);
       return false;
     }
     auto version = read<uint32_t>(stream);
@@ -509,11 +509,11 @@ bool ProfileRuntime::deserialize(std::istream& stream) {
     } else if (version == 4) {
       readVersion4(stream);
     } else {
-      JIT_LOG("Unknown profile data version %d", version);
+      JIT_LOGX("Unknown profile data version %d", version);
       return false;
     }
   } catch (const std::runtime_error& e) {
-    JIT_LOG("Failed to load profile data from stream: %s", e.what());
+    JIT_LOGX("Failed to load profile data from stream: %s", e.what());
     loaded_profiles_.clear();
     return false;
   }
@@ -522,10 +522,10 @@ bool ProfileRuntime::deserialize(std::istream& stream) {
 
   stream.exceptions(std::ios::iostate{});
   if (stream.peek() != EOF) {
-    JIT_LOG("Warning: stream has unread data at end");
+    JIT_LOGX("Warning: stream has unread data at end");
   }
 
-  JIT_LOG(
+  JIT_LOGX(
       "Loaded %d bytes of data for %d code objects and %d types",
       cur_pos - start_pos,
       loaded_profiles_.size(),
@@ -611,7 +611,7 @@ void ProfileRuntime::readVersion4(std::istream& stream) {
     auto py_version = read<uint16_t>(stream);
     auto offset = read<uint32_t>(stream);
     if (py_version == kThisPyVersion) {
-      JIT_LOG(
+      JIT_LOGX(
           "Loading profile for Python version %#x at offset %d",
           kThisPyVersion,
           offset);
@@ -630,7 +630,7 @@ void ProfileRuntime::readVersion4(std::istream& stream) {
     format_to(versions_str, "{}{:#x}", sep, version);
     sep = ", ";
   }
-  JIT_LOG(
+  JIT_LOGX(
       "Couldn't find target version %#x in profile data; found versions [%s]",
       kThisPyVersion,
       versions_str);

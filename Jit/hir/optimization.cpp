@@ -417,12 +417,12 @@ guardNeeded(const RegUses& uses, Register* new_reg, Type relaxed_type) {
           // GuardType adds an unnecessary refinement. Since we cannot guard on
           // primitive types yet, this should never happen
           if (operandsMustMatch(expected_type)) {
-            JIT_DLOG(
+            JIT_DLOGX(
                 "'%s' kept alive by primitive '%s'", *new_reg->instr(), *instr);
             return true;
           }
           if (!registerTypeMatches(relaxed_type, expected_type)) {
-            JIT_DLOG("'%s' kept alive by '%s'", *new_reg->instr(), *instr);
+            JIT_DLOGX("'%s' kept alive by '%s'", *new_reg->instr(), *instr);
             return true;
           }
         }
@@ -491,13 +491,13 @@ static bool absorbDstBlock(BasicBlock* block) {
   branch->unlink();
   while (!target->empty()) {
     Instr* instr = target->pop_front();
-    JIT_CHECK(!instr->IsPhi(), "Expected no Phi but found %s", *instr);
+    JIT_CHECKX(!instr->IsPhi(), "Expected no Phi but found %s", *instr);
     block->Append(instr);
   }
   // The successors to target might have Phis that still refer to target.
   // Retarget them to refer to block.
   Instr* old_term = block->GetTerminator();
-  JIT_CHECK(old_term != nullptr, "block must have a terminator");
+  JIT_CHECKX(old_term != nullptr, "block must have a terminator");
   for (std::size_t i = 0, n = old_term->numEdges(); i < n; ++i) {
     old_term->successor(i)->fixupPhis(
         /*old_pred=*/target, /*new_pred=*/block);
@@ -587,7 +587,7 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           if (cond_branch->false_bb() == block) {
             target = cond_branch->true_bb();
           } else {
-            JIT_CHECK(
+            JIT_CHECKX(
                 cond_branch->true_bb() == block,
                 "true branch must be unreachable");
             target = cond_branch->false_bb();
@@ -622,7 +622,7 @@ bool CleanCFG::RemoveUnreachableInstructions(CFG* cfg) {
           }
           cond_branch->ReplaceWith(*Branch::create(target));
         } else {
-          JIT_ABORT("Unexpected branch instruction %s", *branch);
+          JIT_ABORTX("Unexpected branch instruction %s", *branch);
         }
         delete branch;
       }
@@ -694,7 +694,7 @@ static void simplifyRedundantCondBranches(CFG* cfg) {
     if (num_edges < 2) {
       continue;
     }
-    JIT_CHECK(num_edges == 2, "only two edges are supported");
+    JIT_CHECKX(num_edges == 2, "only two edges are supported");
     if (term->successor(0) != term->successor(1)) {
       continue;
     }
@@ -705,7 +705,7 @@ static void simplifyRedundantCondBranches(CFG* cfg) {
         break;
       default:
         // Can't be sure that it's safe to replace the instruction with a branch
-        JIT_CHECK(
+        JIT_CHECKX(
             false, "unknown side effects of %s instruction", term->opname());
         break;
     }
@@ -798,7 +798,7 @@ struct AbstractCall {
     if (auto f = dynamic_cast<VectorCallBase*>(instr)) {
       return f->arg(i);
     }
-    JIT_ABORT("unsupported call type %s", instr->opname());
+    JIT_ABORTX("unsupported call type %s", instr->opname());
   }
 
   Register* target{nullptr};
@@ -812,7 +812,7 @@ static void dlogAndCollectFailureStats(
     InlineFailureType failure_type,
     const std::string& function) {
   inline_failure_stats[failure_type].insert(function);
-  JIT_DLOG(
+  JIT_DLOGX(
       "Can't inline {} because {}",
       function,
       getInlineFailureMessage(failure_type));
@@ -824,7 +824,7 @@ static void dlogAndCollectFailureStats(
     const std::string& function,
     const char* tp_name) {
   inline_failure_stats[failure_type].insert(function);
-  JIT_DLOG(
+  JIT_DLOGX(
       "Can't inline {} because {} but a {:.200s}",
       function,
       getInlineFailureMessage(failure_type),
@@ -862,7 +862,7 @@ static bool canInline(
 
     return false;
   }
-  JIT_DCHECK(code->co_argcount >= 0, "argcount must be positive");
+  JIT_DCHECKX(code->co_argcount >= 0, "argcount must be positive");
   if (call_instr->nargs != static_cast<size_t>(code->co_argcount)) {
     dlogAndCollectFailureStats(
         inline_failure_stats,
@@ -937,7 +937,7 @@ static bool canInlineWithPreloader(
 void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   PyFunctionObject* func = call_instr->func;
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
-  JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
+  JIT_CHECKX(PyCode_Check(code), "Expected PyCodeObject");
   PyObject* globals = func->func_globals;
   std::string fullname = funcFullname(func);
   Function::InlineFailureStats& inline_failure_stats =
@@ -959,7 +959,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     return;
   }
   if (!canInline(call_instr, func, fullname, inline_failure_stats)) {
-    JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+    JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
     return;
   }
 
@@ -972,7 +972,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     const Preloader& preloader{getPreloader(func)};
     if (!canInlineWithPreloader(
             call_instr, fullname, preloader, inline_failure_stats)) {
-      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
     HIRBuilder hir_builder(preloader);
@@ -983,19 +983,19 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
     // away.
     auto preloader = Preloader::getPreloader(func);
     if (!preloader) {
-      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
     if (!canInlineWithPreloader(
             call_instr, fullname, *preloader, inline_failure_stats)) {
-      JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+      JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
       return;
     }
     HIRBuilder hir_builder(*preloader);
     result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   }
   if (result.entry == nullptr) {
-    JIT_DLOG("Cannot inline %s into %s", fullname, caller.fullname);
+    JIT_DLOGX("Cannot inline %s into %s", fullname, caller.fullname);
     return;
   }
 
@@ -1048,7 +1048,7 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
 
   // Transform Return into Assign+Branch
   auto return_instr = result.exit->GetTerminator();
-  JIT_CHECK(
+  JIT_CHECKX(
       return_instr->IsReturn(),
       "terminator from inlined function should be Return");
   auto assign = Assign::create(
@@ -1068,7 +1068,7 @@ void InlineFunctionCalls::Run(Function& irfunc) {
   }
   if (irfunc.code->co_flags & kCoFlagsAnyGenerator) {
     // TODO(T109706798): Support inlining into generators
-    JIT_DLOG(
+    JIT_DLOGX(
         "Refusing to inline functions into %s: function is a generator",
         irfunc.fullname);
     return;
@@ -1081,7 +1081,7 @@ void InlineFunctionCalls::Run(Function& irfunc) {
         auto call = static_cast<VectorCallBase*>(&instr);
         Register* target = call->func();
         if (!target->type().hasValueSpec(TFunc)) {
-          JIT_DLOG(
+          JIT_DLOGX(
               "Cannot inline non-function type %s (%s) into %s",
               target->type(),
               *target,
@@ -1171,7 +1171,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
   PyCodeObject* code = invoke.load_method->frameState()->code;
   PyObject* names = code->co_names;
   PyObject* name = PyTuple_GetItem(names, invoke.load_method->name_idx());
-  JIT_DCHECK(name != nullptr, "name must not be null");
+  JIT_DCHECKX(name != nullptr, "name must not be null");
   Register* receiver = invoke.load_method->receiver();
   Type receiver_type = receiver->type();
   // This is a list of common builtin types whose methods cannot be overwritten
@@ -1195,7 +1195,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     // This might happen for a variety of reasons, such as encountering a
     // method load on a maybe-defined value where the definition occurs in a
     // block of code that isn't seen by the compiler (e.g. in an except block).
-    JIT_DCHECK(
+    JIT_DCHECKX(
         receiver_type == TBottom,
         "type %s expected to have PyTypeObject*",
         receiver_type);
@@ -1230,7 +1230,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     load_type->InsertBefore(*invoke.call_method);
     call_static->SetOperand(1, type_reg);
   } else {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         Py_TYPE(method_obj) == &PyMethodDescr_Type ||
             Py_TYPE(method_obj) == &PyWrapperDescr_Type,
         "unexpected type");
@@ -1277,14 +1277,14 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
           continue;
         }
 
-        JIT_DCHECK(
+        JIT_DCHECKX(
             isLoadMethodBase(*func_instr),
             "Load{,Module}Method/CallMethod should be paired but got "
             "%s/CallMethod",
             func_instr->opname());
         auto lm = static_cast<LoadMethod*>(func_instr);
 
-        JIT_DCHECK(
+        JIT_DCHECKX(
             cm->self()->instr()->IsGetSecondOutput(),
             "GetSecondOutput/CallMethod should be paired but got "
             "%s/CallMethod",

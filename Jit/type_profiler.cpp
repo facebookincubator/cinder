@@ -9,12 +9,12 @@ namespace jit {
 
 std::unique_ptr<TypeProfiler> TypeProfiler::create(int rows, int cols) {
   const int kMaxDim = std::numeric_limits<decltype(rows_)>::max();
-  JIT_CHECK(
+  JIT_CHECKX(
       rows >= 1 && rows < kMaxDim,
       "rows (%d) must be in [1, %d)",
       rows,
       kMaxDim);
-  JIT_CHECK(
+  JIT_CHECKX(
       cols >= 1 && cols < kMaxDim,
       "cols (%d) must be in [1, %d)",
       cols,

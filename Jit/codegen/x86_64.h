@@ -80,7 +80,7 @@ struct PhyLocation {
   };
 
   static const char* regName(Reg reg) {
-    JIT_CHECK(reg >= 0, "reg must be nonnegative");
+    JIT_CHECKX(reg >= 0, "reg must be nonnegative");
     switch (reg) {
 #define DECLARE_REG(v, ...) \
   case v:                   \
@@ -89,9 +89,9 @@ struct PhyLocation {
       FOREACH_XMM(DECLARE_REG)
 #undef DECLARE_REG
       case REG_INVALID:
-        JIT_ABORT("invalid register");
+        JIT_ABORTX("invalid register");
     }
-    JIT_ABORT("unknown register %d", reg);
+    JIT_ABORTX("unknown register %d", reg);
   }
 
   std::string toString() const {

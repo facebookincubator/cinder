@@ -110,7 +110,7 @@ class CopyGraphWithType : public CopyGraph {
 
   void addEdge(int from, int to, FromType type) {
     auto pair = from_types_.emplace(from, type);
-    JIT_DCHECK(
+    JIT_DCHECKX(
         pair.second || pair.first->second == type,
         "Different type for from %d.",
         from);

@@ -17,10 +17,10 @@ bool verifyPostRegAllocInvariants(Function* func, std::ostream& err) {
     std::unordered_set<BasicBlock*> branched_blocks;
     for (auto& instr : block->instructions()) {
       if (instr->isBranch() || instr->isBranchCC()) {
-        JIT_DCHECK(
+        JIT_DCHECKX(
             instr->getNumInputs() == 1, "Branch must have a single input.");
         auto operand = instr->getInput(0);
-        JIT_DCHECK(
+        JIT_DCHECKX(
             operand->type() == OperandBase::kLabel,
             "Branch must jump to a label.");
         branched_blocks.insert(operand->getBasicBlock());

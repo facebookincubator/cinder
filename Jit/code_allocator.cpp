@@ -30,7 +30,7 @@ size_t CodeAllocatorCinder::s_fragmented_allocs_ = 0;
 CodeAllocator::~CodeAllocator() {}
 
 void CodeAllocator::makeGlobalCodeAllocator() {
-  JIT_CHECK(
+  JIT_CHECKX(
       s_global_code_allocator_ == nullptr, "Global allocator already set");
   if (getConfig().multiple_code_sections) {
     s_global_code_allocator_ = new MultipleSectionCodeAllocator;
@@ -42,14 +42,14 @@ void CodeAllocator::makeGlobalCodeAllocator() {
 }
 
 void CodeAllocator::freeGlobalCodeAllocator() {
-  JIT_CHECK(s_global_code_allocator_ != nullptr, "Global allocator not set");
+  JIT_CHECKX(s_global_code_allocator_ != nullptr, "Global allocator not set");
   delete s_global_code_allocator_;
   s_global_code_allocator_ = nullptr;
 }
 
 CodeAllocatorCinder::~CodeAllocatorCinder() {
   for (void* alloc : s_allocations_) {
-    JIT_CHECK(munmap(alloc, kAllocSize) == 0, "Freeing code memory failed");
+    JIT_CHECKX(munmap(alloc, kAllocSize) == 0, "Freeing code memory failed");
   }
   s_allocations_.clear();
   s_current_alloc_ = nullptr;
@@ -82,13 +82,13 @@ asmjit::Error CodeAllocatorCinder::addCode(
         MAP_PRIVATE | MAP_ANONYMOUS,
         -1,
         0);
-    JIT_CHECK(
+    JIT_CHECKX(
         res != MAP_FAILED,
         "Failed to allocate %d bytes of memory for code",
         alloc_size);
 
     if (madvise(res, alloc_size, MADV_HUGEPAGE) == -1) {
-      JIT_LOG(
+      JIT_LOGX(
           "Failed to madvise [%p, %p) with MADV_HUGEPAGE",
           res,
           static_cast<char*>(res) + alloc_size);
@@ -104,19 +104,19 @@ asmjit::Error CodeAllocatorCinder::addCode(
   ASMJIT_PROPAGATE(code->relocateToBase(uintptr_t(s_current_alloc_)));
 
   size_t actual_code_size = code->codeSize();
-  JIT_CHECK(actual_code_size <= max_code_size, "Code grew during relocation");
+  JIT_CHECKX(actual_code_size <= max_code_size, "Code grew during relocation");
 
   for (asmjit::Section* section : code->_sections) {
     size_t offset = section->offset();
     size_t buffer_size = section->bufferSize();
     size_t virtual_size = section->virtualSize();
 
-    JIT_CHECK(
+    JIT_CHECKX(
         offset + buffer_size <= actual_code_size, "Inconsistent code size");
     std::memcpy(s_current_alloc_ + offset, section->data(), buffer_size);
 
     if (virtual_size > buffer_size) {
-      JIT_CHECK(
+      JIT_CHECKX(
           offset + virtual_size <= actual_code_size, "Inconsistent code size");
       std::memset(
           s_current_alloc_ + offset + buffer_size,
@@ -139,7 +139,7 @@ MultipleSectionCodeAllocator::~MultipleSectionCodeAllocator() {
     return;
   }
   int result = munmap(code_alloc_, total_allocation_size_);
-  JIT_CHECK(result == 0, "Freeing sections failed");
+  JIT_CHECKX(result == 0, "Freeing sections failed");
 }
 
 /*
@@ -153,13 +153,13 @@ void MultipleSectionCodeAllocator::createSlabs() noexcept {
   const size_t kHugePageSize = 1024 * 1024 * 2;
   size_t hot_section_size = asmjit::Support::alignUp(
       getConfig().hot_code_section_size, kHugePageSize);
-  JIT_CHECK(
+  JIT_CHECKX(
       hot_section_size > 0,
       "Hot code section must have non-zero size when using multiple sections.");
   code_section_free_sizes_[CodeSection::kHot] = hot_section_size;
 
   size_t cold_section_size = getConfig().cold_code_section_size;
-  JIT_CHECK(
+  JIT_CHECKX(
       cold_section_size > 0,
       "Cold code section must have non-zero size when using multiple "
       "sections.");
@@ -174,10 +174,10 @@ void MultipleSectionCodeAllocator::createSlabs() noexcept {
       MAP_PRIVATE | MAP_ANONYMOUS,
       -1,
       0));
-  JIT_CHECK(region != MAP_FAILED, "Allocating the code sections failed.");
+  JIT_CHECKX(region != MAP_FAILED, "Allocating the code sections failed.");
 
   if (madvise(region, hot_section_size, MADV_HUGEPAGE) == -1) {
-    JIT_LOG("Was unable to use huge pages for the hot code section.");
+    JIT_LOGX("Was unable to use huge pages for the hot code section.");
   }
 
   code_alloc_ = region;
@@ -202,7 +202,7 @@ asmjit::Error MultipleSectionCodeAllocator::addCode(
   // granular by comparing sizes section-by-section.
   if (code_section_free_sizes_[CodeSection::kHot] < potential_code_size ||
       code_section_free_sizes_[CodeSection::kCold] < potential_code_size) {
-    JIT_LOG(
+    JIT_LOGX(
         "Not enough memory to split code across sections, falling back to "
         "normal allocation.");
     return _runtime->add(dst, code);
@@ -237,7 +237,7 @@ asmjit::Error MultipleSectionCodeAllocator::addCode(
 
   // We assume that the hot section of the code is non-empty. This would be
   // incorrect for a completely cold function.
-  JIT_CHECK(
+  JIT_CHECKX(
       code->textSection()->realSize() > 0,
       "Every function must have a non-empty hot section.");
   *dst = code_sections_[CodeSection::kHot];

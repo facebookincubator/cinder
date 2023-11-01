@@ -43,7 +43,7 @@ Option& FlagProcessor::addOption(
           // foo=1`, but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
           callback(flag_value == "" ? 1 : std::stoi(flag_value));
         } catch (std::exception const&) {
-          JIT_LOG(
+          JIT_LOGX(
               "Invalid int value for %s/%s: %s",
               cmdline_flag,
               environment_variable,
@@ -122,7 +122,7 @@ Option& FlagProcessor::addOption(
       // but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
       variable_to_bind_to = flag_value == "" ? 1 : std::stoull(flag_value);
     } catch (std::exception const&) {
-      JIT_LOG(
+      JIT_LOGX(
           "Invalid unsigned long value for %s/%s: %s",
           cmdline_flag,
           environment_variable,
@@ -170,7 +170,7 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
 
     if (!found.empty()) {
       // use overriden debug message if it's been defined
-      JIT_DLOG(fmt::format(
+      JIT_DLOGX(fmt::format(
                    "{} has been specified - {}",
                    found,
                    option->debug_message.empty() ? option->flag_description
@@ -185,11 +185,11 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
   for (Py_ssize_t pos = 0; PyDict_Next(cmdline_args, &pos, &key, &value);) {
     int match = PyUnicode_Tailmatch(
         key, jit_str, /*start=*/0, /*end=*/3, /*direction=*/-1);
-    JIT_DCHECK(match != -1, "An error occurred");
+    JIT_DCHECKX(match != -1, "An error occurred");
     const char* option = PyUnicode_AsUTF8(key);
-    JIT_DCHECK(option != nullptr, "An error occurred");
+    JIT_DCHECKX(option != nullptr, "An error occurred");
     if (match && !canHandle(option)) {
-      JIT_LOG("Warning: JIT cannot handle X-option %s", option);
+      JIT_LOGX("Warning: JIT cannot handle X-option %s", option);
     }
   }
 }

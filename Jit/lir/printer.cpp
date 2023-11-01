@@ -172,7 +172,7 @@ nlohmann::json JSONPrinter::print(const Function& func, const char* pass_name) {
 }
 
 static nlohmann::json blockList(std::vector<BasicBlock*>& blocks) {
-  JIT_CHECK(!blocks.empty(), "should not add empty list");
+  JIT_CHECKX(!blocks.empty(), "should not add empty list");
   nlohmann::json result;
   for (auto block : blocks) {
     result.emplace_back(fmt::format("BB%{}", block->id()));

@@ -28,7 +28,7 @@ const std::vector<const char*> CallCFunc::kFuncNames{
 };
 
 void Phi::setArgs(const std::unordered_map<BasicBlock*, Register*>& args) {
-  JIT_DCHECK(NumOperands() == args.size(), "arg mismatch");
+  JIT_DCHECKX(NumOperands() == args.size(), "arg mismatch");
 
   basic_blocks_.clear();
   basic_blocks_.reserve(args.size());
@@ -56,8 +56,8 @@ std::size_t Phi::blockIndex(const BasicBlock* block) const {
       basic_blocks_.begin(), basic_blocks_.end(), block, [](auto b1, auto b2) {
         return b1->id < b2->id;
       });
-  JIT_DCHECK(it != basic_blocks_.end(), "Bad CFG");
-  JIT_DCHECK(*it == block, "Bad CFG");
+  JIT_DCHECKX(it != basic_blocks_.end(), "Bad CFG");
+  JIT_DCHECKX(*it == block, "Bad CFG");
   return std::distance(basic_blocks_.begin(), it);
 }
 
@@ -281,7 +281,7 @@ bool Instr::isReplayable() const {
       return false;
     }
   }
-  JIT_ABORT("Bad opcode %d", static_cast<int>(opcode()));
+  JIT_ABORTX("Bad opcode %d", static_cast<int>(opcode()));
 }
 
 void Instr::set_block(BasicBlock* block) {
@@ -294,12 +294,12 @@ void Instr::set_block(BasicBlock* block) {
 }
 
 void Instr::link(BasicBlock* block) {
-  JIT_CHECK(block_ == nullptr, "Instr is already linked");
+  JIT_CHECKX(block_ == nullptr, "Instr is already linked");
   set_block(block);
 }
 
 void Instr::unlink() {
-  JIT_CHECK(block_ != nullptr, "Instr isn't linked");
+  JIT_CHECKX(block_ != nullptr, "Instr isn't linked");
   block_node_.Unlink();
   set_block(nullptr);
 }
@@ -367,10 +367,10 @@ void BasicBlock::clear() {
 }
 
 BasicBlock::~BasicBlock() {
-  JIT_DCHECK(
+  JIT_DCHECKX(
       in_edges_.empty(), "Attempt to destroy a block with in-edges, %d", id);
   clear();
-  JIT_DCHECK(
+  JIT_DCHECKX(
       out_edges_.empty(), "out_edges not empty after deleting all instrs");
 }
 
@@ -415,7 +415,7 @@ bool BasicBlock::IsTrampoline() {
 }
 
 BasicBlock* BasicBlock::splitAfter(Instr& instr) {
-  JIT_CHECK(cfg != nullptr, "cannot split unlinked block");
+  JIT_CHECKX(cfg != nullptr, "cannot split unlinked block");
   auto tail = cfg->AllocateBlock();
   for (auto it = std::next(instrs_.iterator_to(instr)); it != instrs_.end();) {
     auto& instr = *it;
@@ -516,7 +516,7 @@ void CFG::InsertBlock(BasicBlock* block) {
 }
 
 void CFG::RemoveBlock(BasicBlock* block) {
-  JIT_DCHECK(block->cfg == this, "block doesn't belong to us");
+  JIT_DCHECKX(block->cfg == this, "block doesn't belong to us");
   block->cfg_node.Unlink();
   block->cfg = nullptr;
 }
@@ -528,7 +528,7 @@ void CFG::splitCriticalEdges() {
   // CFG while iterating it.
   for (auto& block : blocks) {
     auto term = block.GetTerminator();
-    JIT_DCHECK(term != nullptr, "Invalid block");
+    JIT_DCHECKX(term != nullptr, "Invalid block");
     auto num_edges = term->numEdges();
     if (num_edges < 2) {
       continue;
@@ -556,7 +556,7 @@ static void postorder_traverse(
     BasicBlock* block,
     std::vector<BasicBlock*>* traversal,
     std::unordered_set<BasicBlock*>* visited) {
-  JIT_CHECK(block != nullptr, "visiting null block!");
+  JIT_CHECKX(block != nullptr, "visiting null block!");
   visited->emplace(block);
 
   // Add successors to be visited
@@ -592,7 +592,7 @@ static void postorder_traverse(
     }
     default: {
       /* NOTREACHED */
-      JIT_CHECK(
+      JIT_CHECKX(
           0, "block %d has invalid terminator %s", block->id, instr->opname());
       break;
     }
@@ -665,7 +665,7 @@ CompareOp ParseCompareOpName(std::string_view name) {
       return static_cast<CompareOp>(i);
     }
   }
-  JIT_ABORT("Invalid CompareOp '%s'", name);
+  JIT_ABORTX("Invalid CompareOp '%s'", name);
 }
 
 constexpr std::array<std::string_view, kNumPrimitiveCompareOps>
@@ -685,7 +685,7 @@ PrimitiveCompareOp ParsePrimitiveCompareOpName(std::string_view name) {
       return static_cast<PrimitiveCompareOp>(i);
     }
   }
-  JIT_ABORT("Invalid PrimitiveCompareOp '%s'", name);
+  JIT_ABORTX("Invalid PrimitiveCompareOp '%s'", name);
 }
 
 std::optional<PrimitiveCompareOp> toPrimitiveCompareOp(CompareOp op) {
@@ -731,7 +731,7 @@ BinaryOpKind ParseBinaryOpName(std::string_view name) {
       return static_cast<BinaryOpKind>(i);
     }
   }
-  JIT_ABORT("Invalid BinaryOpKind '%s'", name);
+  JIT_ABORTX("Invalid BinaryOpKind '%s'", name);
 }
 
 constexpr std::array<std::string_view, kNumUnaryOpKinds> kUnaryOpNames = {
@@ -750,7 +750,7 @@ UnaryOpKind ParseUnaryOpName(std::string_view name) {
       return static_cast<UnaryOpKind>(i);
     }
   }
-  JIT_ABORT("Invalid UnaryOpKind '%s'", name);
+  JIT_ABORTX("Invalid UnaryOpKind '%s'", name);
 }
 
 constexpr std::array<std::string_view, kNumPrimitiveUnaryOpKinds>
@@ -770,7 +770,7 @@ PrimitiveUnaryOpKind ParsePrimitiveUnaryOpName(std::string_view name) {
       return static_cast<PrimitiveUnaryOpKind>(i);
     }
   }
-  JIT_ABORT("Invalid PrimitiveUnaryOpKind '%s'", name);
+  JIT_ABORTX("Invalid PrimitiveUnaryOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the InPlaceOpKind
@@ -791,7 +791,7 @@ InPlaceOpKind ParseInPlaceOpName(std::string_view name) {
       return static_cast<InPlaceOpKind>(i);
     }
   }
-  JIT_ABORT("Invalid InPlaceOpKind '%s'", name);
+  JIT_ABORTX("Invalid InPlaceOpKind '%s'", name);
 }
 
 // NB: This needs to be in the order that the values appear in the FunctionAttr
@@ -842,7 +842,7 @@ Function::~Function() {
 Register* Environment::addRegister(std::unique_ptr<Register> reg) {
   auto id = reg->id();
   auto res = registers_.emplace(id, std::move(reg));
-  JIT_CHECK(res.second, "register %d already in map", id);
+  JIT_CHECKX(res.second, "register %d already in map", id);
   return res.first->second.get();
 }
 
@@ -961,7 +961,7 @@ std::ostream& operator<<(std::ostream& os, OperandType op) {
     case Constraint::kMatchAllAsPrimitive:
       return os << "Primitive";
   }
-  JIT_ABORT("unknown constraint");
+  JIT_ABORTX("unknown constraint");
   return os << "<unknown>";
 }
 

@@ -50,7 +50,7 @@ bool LIRInliner::inlineCall() {
   }
 
   if (!isInlineable(callee)) {
-    JIT_DLOG("Found the callee, but cannot inline.");
+    JIT_DLOGX("Found the callee, but cannot inline.");
     return false;
   }
 
@@ -68,7 +68,7 @@ bool LIRInliner::inlineCall() {
   resolveArguments();
 
   resolveReturnValue();
-  JIT_DLOG("inlined function");
+  JIT_DLOGX("inlined function");
   return true;
 }
 
@@ -87,33 +87,33 @@ bool LIRInliner::isInlineable(const Function* callee) {
 
 bool LIRInliner::checkEntryExitReturn(const Function* callee) {
   if (callee->basicblocks().empty()) {
-    JIT_DLOG("Callee has no basic block.");
+    JIT_DLOGX("Callee has no basic block.");
     return false;
   }
   const BasicBlock* entry_block = callee->getEntryBlock();
   if (!entry_block->predecessors().empty()) {
-    JIT_DLOG("Expect entry block to have no predecessors.");
+    JIT_DLOGX("Expect entry block to have no predecessors.");
     return false;
   }
   BasicBlock* exit_block = callee->basicblocks().back();
   if (!exit_block->successors().empty()) {
-    JIT_DLOG("Expect exit block to have no successors.");
+    JIT_DLOGX("Expect exit block to have no successors.");
     return false;
   }
   for (BasicBlock* bb : callee->basicblocks()) {
     if (bb->predecessors().empty() && bb != entry_block) {
-      JIT_DLOG("Expect callee to have only 1 entry block.");
+      JIT_DLOGX("Expect callee to have only 1 entry block.");
       return false;
     }
     if (bb->successors().empty() && bb != exit_block) {
-      JIT_DLOG("Expect callee to have only 1 exit block.");
+      JIT_DLOGX("Expect callee to have only 1 exit block.");
       return false;
     }
     for (auto& instr : bb->instructions()) {
       if (instr->isReturn()) {
         if (instr.get() != bb->getLastInstr() || bb->successors().size() != 1 ||
             bb->successors()[0] != exit_block) {
-          JIT_DLOG(
+          JIT_DLOGX(
               "Expect return to be last instruction of the predecessor of the "
               "exit block.");
           // Expect return to be the last instruction in the block.
@@ -124,7 +124,7 @@ bool LIRInliner::checkEntryExitReturn(const Function* callee) {
     }
   }
   if (!exit_block->instructions().empty()) {
-    JIT_DLOG("Expect exit block to have no instructions.");
+    JIT_DLOGX("Expect exit block to have no instructions.");
     return false;
   }
   return true;
@@ -264,7 +264,7 @@ void LIRInliner::resolveLoadArg(
     BasicBlock* bb,
     BasicBlock::InstrList::iterator& instr_it) {
   auto instr = instr_it->get();
-  JIT_DCHECK(
+  JIT_DCHECKX(
       instr->getNumInputs() > 0 && instr->getInput(0)->isImm(),
       "LoadArg instruction should have at least 1 input.");
 
@@ -282,7 +282,7 @@ void LIRInliner::resolveLoadArg(
     instr->replaceInputOperand(0, std::move(param_copy));
     ++instr_it;
   } else {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         param->isLinked(), "Inlined arguments must be immediate or linked.");
     // Otherwise, output of kLoadArg should be a virtual register.
     // For virtual registers, delete kLoadArg and replace uses.
@@ -335,7 +335,7 @@ void LIRInliner::resolveReturnValue() {
     auto lastInstr = pred->getLastInstr();
     if (lastInstr != nullptr && lastInstr->isReturn()) {
       phi_instr->allocateLabelInput(pred);
-      JIT_CHECK(
+      JIT_CHECKX(
           lastInstr->getNumInputs() > 0,
           "Return instruction should have at least 1 input operand.");
       phi_instr->appendInputOperand(lastInstr->releaseInputOperand(0));

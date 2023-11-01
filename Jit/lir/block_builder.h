@@ -151,7 +151,7 @@ class BasicBlockBuilder {
     auto dest_lir = OutVReg{hirTypeToDataType(dest->type())};
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
-    JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest->name());
+    JIT_CHECKX(inserted, "HIR value '%s' defined twice in LIR", dest->name());
     return instr;
   }
 
@@ -168,7 +168,7 @@ class BasicBlockBuilder {
     auto dest_lir = OutVReg{type};
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(sval, instr);
-    JIT_CHECK(inserted, "HIR value '%s' defined twice in LIR", dest);
+    JIT_CHECKX(inserted, "HIR value '%s' defined twice in LIR", dest);
     return instr;
   }
 
@@ -348,7 +348,7 @@ class BasicBlockBuilder {
                   std::remove_cv_t<decltype(asm_thread_state)>>,
           "Thread state must be passed in a register or explicitly as "
           "\"__asm_tstate\".");
-      JIT_CHECK(
+      JIT_CHECKX(
           std::string_view(asm_thread_state) == cur_arg,
           "The thread state was passed as a string that wasn't __asm_tstate.");
     } else if constexpr (

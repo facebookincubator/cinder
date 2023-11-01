@@ -25,11 +25,11 @@ namespace jit {
 ThreadedCompileContext g_threaded_compile_context;
 
 void CompiledFunction::disassemble() const {
-  JIT_ABORT("disassemble() cannot be called in a release build.");
+  JIT_ABORTX("disassemble() cannot be called in a release build.");
 }
 
 void CompiledFunction::printHIR() const {
-  JIT_ABORT("printHIR() cannot be called in a release build.");
+  JIT_ABORTX("printHIR() cannot be called in a release build.");
 }
 
 void CompiledFunctionDebug::disassemble() const {
@@ -61,7 +61,7 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
   T pass;
   COMPILE_TIMER(func.compilation_phase_timer,
                 pass.name(),
-                JIT_LOGIF(
+                JIT_LOGIFX(
                     g_dump_hir_passes,
                     "HIR for %s before pass %s:\n%s",
                     func.fullname,
@@ -73,21 +73,21 @@ static void runPass(hir::Function& func, PostPassFunction callback) {
                 std::size_t time_ns = timer.finish();
                 callback(func, pass.name(), time_ns);
 
-                JIT_LOGIF(
+                JIT_LOGIFX(
                     g_dump_hir_passes,
                     "HIR for %s after pass %s:\n%s",
                     func.fullname,
                     pass.name(),
                     func);
 
-                JIT_DCHECK(
+                JIT_DCHECKX(
                     checkFunc(func, std::cerr),
                     "Function %s failed verification after pass %s:\n%s",
                     func.fullname,
                     pass.name(),
                     func);
 
-                JIT_DCHECK(
+                JIT_DCHECKX(
                     funcTypeChecks(func, std::cerr),
                     "Function %s failed type checking after pass %s:\n%s",
                     func.fullname,
@@ -122,14 +122,14 @@ void Compiler::runPasses(
   runPass<jit::hir::CleanCFG>(irfunc, callback);
   // RefcountInsertion must come last
   runPass<jit::hir::RefcountInsertion>(irfunc, callback);
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_final_hir, "Optimized HIR for %s:\n%s", irfunc.fullname, irfunc);
 }
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(
     BorrowedRef<PyFunctionObject> func) {
-  JIT_CHECK(PyFunction_Check(func), "Expected PyFunctionObject");
-  JIT_CHECK(
+  JIT_CHECKX(PyFunction_Check(func), "Expected PyFunctionObject");
+  JIT_CHECKX(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader = jit::hir::Preloader::getPreloader(func);
@@ -151,7 +151,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     const jit::hir::Preloader& preloader) {
   const std::string& fullname = preloader.fullname();
   if (!PyDict_CheckExact(preloader.globals())) {
-    JIT_DLOG(
+    JIT_DLOGX(
         "Refusing to compile %s: globals is a %.200s, not a dict",
         fullname,
         Py_TYPE(preloader.globals())->tp_name);
@@ -160,13 +160,13 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
 
   PyObject* builtins = preloader.builtins();
   if (!PyDict_CheckExact(builtins)) {
-    JIT_DLOG(
+    JIT_DLOGX(
         "Refusing to compile %s: builtins is a %.200s, not a dict",
         fullname,
         Py_TYPE(builtins)->tp_name);
     return nullptr;
   }
-  JIT_DLOG(
+  JIT_DLOGX(
       "Compiling %s @ %p",
       fullname,
       reinterpret_cast<void*>(preloader.code().get()));
@@ -186,12 +186,12 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     compilation_phase_timer->end();
   }
   if (irfunc == nullptr) {
-    JIT_DLOG("Lowering to HIR failed %s", fullname);
+    JIT_DLOGX("Lowering to HIR failed %s", fullname);
     return nullptr;
   }
 
   if (g_dump_hir) {
-    JIT_LOG("Initial HIR for %s:\n%s", fullname, *irfunc);
+    JIT_LOGX("Initial HIR for %s:\n%s", fullname, *irfunc);
   }
 
   if (nullptr != compilation_phase_timer) {
@@ -243,11 +243,11 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
       "Native code Generation",
       entry = ngen->getVectorcallEntry())
   if (entry == nullptr) {
-    JIT_DLOG("Generating native code for %s failed", fullname);
+    JIT_DLOGX("Generating native code for %s failed", fullname);
     return nullptr;
   }
 
-  JIT_DLOG("Finished compiling %s", fullname);
+  JIT_DLOGX("Finished compiling %s", fullname);
   if (nullptr != irfunc->compilation_phase_timer) {
     irfunc->compilation_phase_timer->end();
     irfunc->setCompilationPhaseTimer(nullptr);
@@ -260,7 +260,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   if (!g_dump_hir_passes_json.empty()) {
     std::string filename =
         fmt::format("{}/function_{}.json", g_dump_hir_passes_json, fullname);
-    JIT_DLOG("Dumping JSON for %s to %s", fullname, filename);
+    JIT_DLOGX("Dumping JSON for %s to %s", fullname, filename);
     std::ofstream json_file;
     json_file.open(
         filename,

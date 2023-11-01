@@ -26,8 +26,8 @@ class BitVector {
   BitVector(size_t nb, T val) {
     static_assert(
         std::is_integral<T>::value, "val must be of an integral type.");
-    JIT_CHECK(nb <= sizeof(void*) * 8, "Bit width is too large.")
-    JIT_CHECK(
+    JIT_CHECKX(nb <= sizeof(void*) * 8, "Bit width is too large.")
+    JIT_CHECKX(
         nb == 64 || (val & ~((T{1} << nb) - 1)) == 0,
         "Val has too many bits for bit width");
     num_bits_ = nb;

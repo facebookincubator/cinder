@@ -60,7 +60,7 @@ class BasicBlock {
       return;
     }
 
-    JIT_DCHECK(successors_.size() == 2, "Should at most have two successors.");
+    JIT_DCHECKX(successors_.size() == 2, "Should at most have two successors.");
     std::swap(successors_[0], successors_[1]);
   }
 

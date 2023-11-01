@@ -16,7 +16,7 @@ namespace jit {
 Symbolizer::Symbolizer(const char* exe_path) {
   int exe_fd = ::open(exe_path, O_RDONLY);
   if (exe_fd == -1) {
-    JIT_LOG("Could not open %s: %s", exe_path, ::strerror(errno));
+    JIT_LOGX("Could not open %s: %s", exe_path, ::strerror(errno));
     return;
   }
   // Close the file descriptor. We don't need to keep it around for the mapping
@@ -26,16 +26,16 @@ Symbolizer::Symbolizer(const char* exe_path) {
   struct stat statbuf;
   int stat_result = ::fstat(exe_fd, &statbuf);
   if (stat_result == -1) {
-    JIT_LOG("Could not stat %s: %s", exe_path, ::strerror(errno));
+    JIT_LOGX("Could not stat %s: %s", exe_path, ::strerror(errno));
     return;
   }
   off_t exe_size_signed = statbuf.st_size;
-  JIT_CHECK(exe_size_signed >= 0, "exe size should not be negative");
+  JIT_CHECKX(exe_size_signed >= 0, "exe size should not be negative");
   exe_size_ = static_cast<size_t>(exe_size_signed);
   exe_ = reinterpret_cast<char*>(
       ::mmap(nullptr, exe_size_, PROT_READ, MAP_PRIVATE, exe_fd, 0));
   if (exe_ == reinterpret_cast<char*>(MAP_FAILED)) {
-    JIT_LOG("could not mmap");
+    JIT_LOGX("could not mmap");
     exe_ = nullptr;
     return;
   }
@@ -52,12 +52,12 @@ Symbolizer::Symbolizer(const char* exe_path) {
     }
   }
   if (symtab_ == nullptr) {
-    JIT_LOG("could not find symtab");
+    JIT_LOGX("could not find symtab");
     deinit();
     return;
   }
   if (strtab_ == nullptr) {
-    JIT_LOG("could not find strtab");
+    JIT_LOGX("could not find strtab");
     deinit();
     return;
   }
@@ -67,7 +67,7 @@ std::optional<std::string_view> Symbolizer::cache(
     const void* func,
     std::optional<std::string> name) {
   auto pair = cache_.emplace(func, std::move(name));
-  JIT_CHECK(pair.second, "%p already exists in cache");
+  JIT_CHECKX(pair.second, "%p already exists in cache");
   return pair.first->second;
 }
 
@@ -96,11 +96,11 @@ static int findSymbolIn(struct dl_phdr_info* info, size_t, void* data) {
     return 0;
   }
   if (info->dlpi_addr == 0) {
-    JIT_LOG("Invalid ELF object '%s'", info->dlpi_name);
+    JIT_LOGX("Invalid ELF object '%s'", info->dlpi_name);
     return 0;
   }
   if (!hasELFMagic(reinterpret_cast<void*>(info->dlpi_addr))) {
-    JIT_LOG(
+    JIT_LOGX(
         "Bad ELF magic at %p in %s",
         reinterpret_cast<void*>(info->dlpi_addr),
         info->dlpi_name);
@@ -108,26 +108,26 @@ static int findSymbolIn(struct dl_phdr_info* info, size_t, void* data) {
   }
   int fd = ::open(info->dlpi_name, O_RDONLY);
   if (fd < 0) {
-    JIT_LOG("Failed opening %s: %s", info->dlpi_name, ::strerror(errno));
+    JIT_LOGX("Failed opening %s: %s", info->dlpi_name, ::strerror(errno));
     return 0;
   }
   SCOPE_EXIT(::close(fd));
   struct stat statbuf;
   if (::fstat(fd, &statbuf) < 0) {
-    JIT_LOG("Failed stat: %s", ::strerror(errno));
+    JIT_LOGX("Failed stat: %s", ::strerror(errno));
     return 0;
   }
   void* mapping =
       ::mmap(nullptr, statbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (mapping == MAP_FAILED) {
-    JIT_LOG("Failed mmap: %s", ::strerror(errno));
+    JIT_LOGX("Failed mmap: %s", ::strerror(errno));
     return 0;
   }
   SCOPE_EXIT(::munmap(mapping, statbuf.st_size));
   uint8_t* elf_obj = static_cast<uint8_t*>(mapping);
   auto elf_hdr = reinterpret_cast<ElfW(Ehdr)*>(elf_obj);
   if (elf_hdr->e_shoff == 0) {
-    JIT_LOG("No section header table in %s", info->dlpi_name);
+    JIT_LOGX("No section header table in %s", info->dlpi_name);
     return 0;
   }
   // Get the number of entries in the section header table (`e_shnum`). If this
@@ -196,7 +196,7 @@ std::optional<std::string_view> Symbolizer::symbolize(const void* func) {
   // Fall back to reading dynamic symbols.
   SymbolResult result = {func, std::nullopt};
   int found = ::dl_iterate_phdr(findSymbolIn, &result);
-  JIT_CHECK(
+  JIT_CHECKX(
       (found > 0) == result.name.has_value(),
       "result.name should match return value of dl_iterate_phdr");
 
@@ -213,7 +213,7 @@ void Symbolizer::deinit() {
   }
   int result = ::munmap(reinterpret_cast<void*>(exe_), exe_size_);
   if (result != 0) {
-    JIT_LOG("Could not unmap exe: %s", ::strerror(errno));
+    JIT_LOGX("Could not unmap exe: %s", ::strerror(errno));
   }
   exe_ = nullptr;
   exe_size_ = 0;
@@ -228,14 +228,14 @@ std::optional<std::string> demangle(const std::string& mangled_name) {
       abi::__cxa_demangle(mangled_name.c_str(), nullptr, nullptr, &status);
   if (demangled_name == nullptr) {
     if (status == -1) {
-      JIT_DLOG("Could not allocate memory for demangled name");
+      JIT_DLOGX("Could not allocate memory for demangled name");
     } else if (status == -2) {
-      JIT_DLOG("Mangled name '%s' is not valid", mangled_name);
+      JIT_DLOGX("Mangled name '%s' is not valid", mangled_name);
       // Couldn't demangle. Oh well. Probably better to have some name than
       // none at all.
       return mangled_name;
     } else if (status == -3) {
-      JIT_DLOG("Invalid input to __cxa_demangle");
+      JIT_DLOGX("Invalid input to __cxa_demangle");
     }
     return std::nullopt;
   }

@@ -171,7 +171,7 @@ Function::CopyResult Function::copyFrom(
     BasicBlock* prev_bb,
     BasicBlock* next_bb,
     const hir::Instr* origin) {
-  JIT_CHECK(
+  JIT_CHECKX(
       prev_bb->successors().size() == 1 && prev_bb->successors()[0] == next_bb,
       "prev_bb should only have 1 successor which should be next_bb.");
 
@@ -192,7 +192,7 @@ Function::CopyResult Function::copyFrom(
   BasicBlock* dest_start = basic_blocks_.at(start);
   BasicBlock* dest_end = basic_blocks_.at(end - 1);
   prev_bb->setSuccessor(0, dest_start);
-  JIT_CHECK(
+  JIT_CHECKX(
       dest_end->successors().empty(),
       "Last block of function should have no successors.");
   dest_end->addSuccessor(next_bb);

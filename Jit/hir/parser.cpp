@@ -28,16 +28,16 @@ namespace jit::hir {
 void HIRParser::expect(std::string_view expected) {
   std::string_view actual = GetNextToken();
   if (expected != actual) {
-    JIT_LOG("Expected \"%s\", but got \"%s\"", expected, actual);
+    JIT_LOGX("Expected \"%s\", but got \"%s\"", expected, actual);
     std::abort();
   }
 }
 
 Register* HIRParser::allocateRegister(std::string_view name) {
-  JIT_CHECK(
+  JIT_CHECKX(
       name[0] == 'v', "invalid register name (must be v[0-9]+): %s", name);
   auto opt_id = parseInt<int>(name.substr(1));
-  JIT_CHECK(
+  JIT_CHECKX(
       opt_id.has_value(), "Cannot parse register '%s' into an integer", name);
   auto id = *opt_id;
 
@@ -63,7 +63,7 @@ HIRParser::ListOrTuple HIRParser::parseListOrTuple() {
   if (kind == "tuple") {
     return ListOrTuple::Tuple;
   }
-  JIT_ABORT("Invalid kind %s, expected list or tuple", kind);
+  JIT_ABORTX("Invalid kind %s, expected list or tuple", kind);
 }
 
 Instr*
@@ -100,7 +100,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     } else if (opcode == "VectorCallKW") {
       instruction = newInstr<VectorCallKW>(num_args + 1, dst, is_awaited);
     } else {
-      JIT_ABORT("Unhandled opcode {}", opcode);
+      JIT_ABORTX("Unhandled opcode {}", opcode);
     }
 
     instruction->SetOperand(0, func);
@@ -120,7 +120,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
       } else if (tok == "ASCII") {
         return FVC_ASCII;
       }
-      JIT_ABORT("Bad FormatValue conversion type: %s", tok);
+      JIT_ABORTX("Bad FormatValue conversion type: %s", tok);
     }();
     expect(">");
     Register* fmt_spec = ParseRegister();
@@ -581,19 +581,19 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     auto name = GetNextToken();
     auto mod_name =
         Ref<>::steal(PyUnicode_FromStringAndSize(name.data(), name.size()));
-    JIT_CHECK(mod_name != nullptr, "failed to allocate mod name");
+    JIT_CHECKX(mod_name != nullptr, "failed to allocate mod name");
     auto dot = Ref<>::steal(PyUnicode_FromString("."));
-    JIT_CHECK(dot != nullptr, "failed to allocate mod name");
+    JIT_CHECKX(dot != nullptr, "failed to allocate mod name");
 
     auto names = Ref<PyListObject>::steal(PyUnicode_Split(mod_name, dot, -1));
-    JIT_CHECK(names != nullptr, "unknown func");
+    JIT_CHECKX(names != nullptr, "unknown func");
     auto type_descr =
         Ref<>::steal(_PyTuple_FromArray(names->ob_item, Py_SIZE(names.get())));
-    JIT_CHECK(type_descr != nullptr, "unknown func");
+    JIT_CHECKX(type_descr != nullptr, "unknown func");
     PyObject* container = nullptr;
     auto func = Ref<PyFunctionObject>::steal(
         _PyClassLoader_ResolveFunction(type_descr, &container));
-    JIT_CHECK(func != nullptr, "unknown func");
+    JIT_CHECKX(func != nullptr, "unknown func");
     Py_XDECREF(container);
 
     expect(",");
@@ -610,7 +610,7 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     Register* count = ParseRegister();
     instruction = newInstr<RepeatList>(dst, list, count);
   } else {
-    JIT_CHECK(0, "Unknown opcode: %s", opcode);
+    JIT_CHECKX(0, "Unknown opcode: %s", opcode);
   }
 
   return instruction;
@@ -673,7 +673,7 @@ FrameState HIRParser::parseFrameState() {
       }
       expect("}");
     } else {
-      JIT_ABORT("unexpected token in FrameState: %s", token);
+      JIT_ABORTX("unexpected token in FrameState: %s", token);
     }
     token = GetNextToken();
   }
@@ -744,7 +744,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
     if (*p == '"') {
       std::string token;
       for (p++; *p != '"'; p++) {
-        JIT_CHECK(*p != '\0', "End of input during string literal");
+        JIT_CHECKX(*p != '\0', "End of input during string literal");
         if (*p != '\\') {
           token += *p;
           continue;
@@ -759,7 +759,7 @@ std::unique_ptr<Function> HIRParser::ParseHIR(const char* hir) {
             token += *p;
             break;
           default:
-            JIT_ABORT("Bad escape sequence \\%c", *p);
+            JIT_ABORTX("Bad escape sequence \\%c", *p);
         }
       }
       p++;
@@ -844,17 +844,17 @@ int HIRParser::GetNextNameIdx() {
 BorrowedRef<> HIRParser::GetNextUnicode() {
   std::string_view str = GetNextToken();
   auto raw_obj = PyUnicode_FromStringAndSize(str.data(), str.size());
-  JIT_CHECK(raw_obj != nullptr, "Failed to create string %s", str);
+  JIT_CHECKX(raw_obj != nullptr, "Failed to create string %s", str);
   PyUnicode_InternInPlace(&raw_obj);
   auto obj = Ref<>::steal(raw_obj);
-  JIT_CHECK(obj != nullptr, "Failed to intern string %s", str);
+  JIT_CHECKX(obj != nullptr, "Failed to intern string %s", str);
   return env_->addReference(std::move(obj));
 }
 
 RegState HIRParser::GetNextRegState() {
   auto token = GetNextToken();
   auto end = token.find(':');
-  JIT_CHECK(end != std::string::npos, "Invalid reg state: %s", token);
+  JIT_CHECKX(end != std::string::npos, "Invalid reg state: %s", token);
   RegState rs;
   rs.reg = allocateRegister(token.substr(end + 1));
   switch (token[0]) {
@@ -868,7 +868,7 @@ RegState HIRParser::GetNextRegState() {
       rs.ref_kind = RefKind::kUncounted;
       break;
     default:
-      JIT_ABORT("unknown ref kind: %c", token[0]);
+      JIT_ABORTX("unknown ref kind: %c", token[0]);
       break;
   }
 

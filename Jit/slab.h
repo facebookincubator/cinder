@@ -62,12 +62,12 @@ class Slab {
   using iterator = SlabIterator<T>;
 
   explicit Slab(size_t increment) : increment_{increment} {
-    JIT_CHECK(
+    JIT_CHECKX(
         increment >= sizeof(T),
         "Trying to fit a slab object into too little memory");
     void* ptr;
     int result = posix_memalign(&ptr, kPageSize, kSlabSize);
-    JIT_CHECK(result == 0, "Failed to allocate %d bytes", kSlabSize);
+    JIT_CHECKX(result == 0, "Failed to allocate %d bytes", kSlabSize);
     base_.reset(static_cast<char*>(ptr));
     fill_ = base_.get();
   }
@@ -100,13 +100,13 @@ class Slab {
 
   void mlock() const {
     if (::mlock(base_.get(), kSlabSize) < 0) {
-      JIT_LOG("Failed to mlock slab at %p", base_.get());
+      JIT_LOGX("Failed to mlock slab at %p", base_.get());
     }
   }
 
   void munlock() const {
     if (::munlock(base_.get(), kSlabSize) < 0) {
-      JIT_LOG("Failed to munlock slab at %p", base_.get());
+      JIT_LOGX("Failed to munlock slab at %p", base_.get());
     }
   }
 

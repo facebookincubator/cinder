@@ -327,7 +327,7 @@ class DeoptStressTest : public RuntimeTest {
     jit::Compiler::runPasses(*irfunc, PassConfig::kDefault);
     auto delete_one_deopt = [&](const DeoptMetadata& deopt_meta) {
       auto it = guards.find(deopt_meta.nonce);
-      JIT_CHECK(it != guards.end(), "no guard for nonce %d", deopt_meta.nonce);
+      JIT_CHECKX(it != guards.end(), "no guard for nonce %d", deopt_meta.nonce);
       it->second->unlink();
       delete it->second;
       guards.erase(it);

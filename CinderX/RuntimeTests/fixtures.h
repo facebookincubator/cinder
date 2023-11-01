@@ -228,7 +228,7 @@ class HIRTest : public RuntimeTest {
         src_(src),
         expected_hir_(expected_hir),
         use_profile_data_(flags & kUseProfileData) {
-    JIT_CHECK(
+    JIT_CHECKX(
         !src_is_hir || !use_profile_data_,
         "Profile data tests can't have HIR input");
   }

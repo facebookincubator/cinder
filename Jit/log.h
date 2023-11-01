@@ -51,7 +51,7 @@ std::string repr(BorrowedRef<> obj);
 
 // fmt doesn't support compile-time checking of printf-style format strings, so
 // this wrapper is used to contain any exceptions rather than aborting during a
-// JIT_LOG() or unwinding the stack after a failed JIT_CHECK().
+// JIT_LOGX() or unwinding the stack after a failed JIT_CHECKX().
 template <typename... Args>
 void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   try {
@@ -61,7 +61,7 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   }
 }
 
-#define JIT_LOG(...)                                                       \
+#define JIT_LOGX(...)                                                      \
   do {                                                                     \
     ::jit::ThreadedCompileSerialize guard;                                 \
     fmt::fprintf(::jit::g_log_file, "JIT: %s:%d -- ", __FILE__, __LINE__); \
@@ -70,19 +70,19 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
     fflush(::jit::g_log_file);                                             \
   } while (0)
 
-#define JIT_LOGIF(pred, ...) \
+#define JIT_LOGIFX(pred, ...) \
   if (pred) {                \
-    JIT_LOG(__VA_ARGS__);    \
+    JIT_LOGX(__VA_ARGS__);   \
   }
 
-#define JIT_DLOG(...)             \
+#define JIT_DLOGX(...)             \
   {                               \
     if (::jit::g_debug_verbose) { \
-      JIT_LOG(__VA_ARGS__);       \
+      JIT_LOGX(__VA_ARGS__);      \
     }                             \
   }
 
-#define JIT_CHECK(__cond, ...)                    \
+#define JIT_CHECKX(__cond, ...)                    \
   {                                               \
     if (!(__cond)) {                              \
       fmt::fprintf(                               \
@@ -95,7 +95,7 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
     }                                             \
   }
 
-#define JIT_ABORT(...)                                                 \
+#define JIT_ABORTX(...)                                                 \
   {                                                                    \
     fmt::fprintf(stderr, "JIT: %s:%d -- Abort\n", __FILE__, __LINE__); \
     JIT_ABORT_IMPL(__VA_ARGS__);                                       \
@@ -117,11 +117,11 @@ void protected_fprintf(std::FILE* file, std::string_view fmt, Args&&... args) {
   }
 
 #ifdef Py_DEBUG
-#define JIT_DCHECK(__cond, ...) JIT_CHECK(__cond, __VA_ARGS__)
+#define JIT_DCHECKX(__cond, ...) JIT_CHECKX(__cond, __VA_ARGS__)
 #else
-#define JIT_DCHECK(__cond, ...)     \
+#define JIT_DCHECKX(__cond, ...)     \
   if (0) {                          \
-    JIT_CHECK(__cond, __VA_ARGS__); \
+    JIT_CHECKX(__cond, __VA_ARGS__); \
   }
 #endif
 

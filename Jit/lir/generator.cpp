@@ -138,7 +138,7 @@ int bytes_from_cint_type(Type type) {
   } else if (type <= TCInt64 || type <= TCUInt64) {
     return 4;
   }
-  JIT_ABORT("bad primitive int type: (%d)", type);
+  JIT_ABORTX("bad primitive int type: (%d)", type);
   // NOTREACHED
 }
 
@@ -170,7 +170,7 @@ emitSubclassCheck(BasicBlockBuilder& bbb, hir::Register* obj, Type type) {
     fptr = reinterpret_cast<uint64_t>(__Invoke_Py##name##_Check); \
   } else
   FOREACH_FAST_BUILTIN(GET_FPTR) {
-    JIT_ABORT("unsupported subclass check in CondBranchCheckType");
+    JIT_ABORTX("unsupported subclass check in CondBranchCheckType");
   }
 #undef GET_FPTR
   return bbb.appendInstr(
@@ -206,7 +206,7 @@ uint8_t multiplierFromSize(int num_bytes) {
     default:
       break;
   }
-  JIT_ABORT("unexpected num_bytes %d", num_bytes);
+  JIT_ABORTX("unexpected num_bytes %d", num_bytes);
 }
 
 } // namespace
@@ -672,7 +672,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (instr->type() <= TCUnsigned) {
           bbb.AppendCode("ConvertUnsigned {}, {}", instr->dst(), instr->src());
         } else {
-          JIT_CHECK(
+          JIT_CHECKX(
               instr->type() <= TCSigned,
               "Unexpected IntConvert type %s",
               instr->type());
@@ -802,7 +802,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             };
             break;
           default:
-            JIT_ABORT("not implemented");
+            JIT_ABORTX("not implemented");
             break;
         }
 
@@ -861,7 +861,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             break;
           }
           default: {
-            JIT_ABORT("Invalid operation for DoubleBinaryOp");
+            JIT_ABORTX("Invalid operation for DoubleBinaryOp");
             break;
           }
         }
@@ -916,7 +916,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             op = Instruction::kLessThanEqualSigned;
             break;
           default:
-            JIT_ABORT("Not implemented %d", static_cast<int>(instr->op()));
+            JIT_ABORTX("Not implemented %d", static_cast<int>(instr->op()));
             break;
         }
         bbb.appendInstr(instr->dst(), op, instr->left(), instr->right());
@@ -966,7 +966,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           func = reinterpret_cast<uint64_t>(JITRT_BoxI32);
         }
 
-        JIT_CHECK(func != 0, "Unknown box type %s", src_type.toString());
+        JIT_CHECKX(func != 0, "Unknown box type %s", src_type.toString());
 
         bbb.appendInstr(
             instr->GetOutput(),
@@ -1061,7 +1061,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (ty <= TCInt8) {
           bbb.AppendCall(instr->dst(), JITRT_UnboxI8, instr->value());
         } else {
-          JIT_ABORT("Cannot unbox type %s", ty.toString().c_str());
+          JIT_ABORTX("Cannot unbox type %s", ty.toString().c_str());
         }
         break;
       }
@@ -1094,7 +1094,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             break;
           }
           default:
-            JIT_ABORT("not implemented unary op %d", (int)instr->op());
+            JIT_ABORTX("not implemented unary op %d", (int)instr->op());
             break;
         }
         break;
@@ -1405,7 +1405,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_TrueDivide,
             PyNumber_Xor,
         };
-        JIT_CHECK(
+        JIT_CHECKX(
             static_cast<unsigned long>(bin_op->op()) < sizeof(helpers),
             "unsupported binop");
         auto op_kind = static_cast<int>(bin_op->op());
@@ -1449,7 +1449,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_Positive,
             PyNumber_Invert,
         };
-        JIT_CHECK(
+        JIT_CHECKX(
             static_cast<unsigned long>(unary_op->op()) < sizeof(helpers),
             "unsupported unaryop");
 
@@ -1485,8 +1485,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           break;
         }
         int op = static_cast<int>(instr->op());
-        JIT_CHECK(op >= Py_LT, "invalid compare op %d", op);
-        JIT_CHECK(op <= Py_GE, "invalid compare op %d", op);
+        JIT_CHECKX(op >= Py_LT, "invalid compare op %d", op);
+        JIT_CHECKX(op <= Py_GE, "invalid compare op %d", op);
         bbb.AppendCall(
             instr->dst(),
             PyObject_RichCompare,
@@ -2166,7 +2166,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         } else if (type <= TObject) {
           func = JITRT_SetObj_InArray;
         } else {
-          JIT_ABORT("unknown array type %s", type.toString().c_str());
+          JIT_ABORTX("unknown array type %s", type.toString().c_str());
         }
 
         bbb.AppendInvoke(func, instr->ob_item(), instr->value(), instr->idx());
@@ -2357,7 +2357,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyNumber_InPlaceTrueDivide,
             PyNumber_InPlaceXor,
         };
-        JIT_CHECK(
+        JIT_CHECKX(
             static_cast<unsigned long>(instr->op()) < sizeof(helpers),
             "unsupported inplaceop");
 
@@ -2492,7 +2492,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
                        ->ceval.eval_breaker._value) == 4,
             "Eval breaker is not a 4 byte value");
         hir::Register* dest = i.GetOutput();
-        JIT_CHECK(dest->type() == TCInt32, "eval breaker output should be int");
+        JIT_CHECKX(dest->type() == TCInt32, "eval breaker output should be int");
         // tstate->interp->ceval.eval_breaker
         Instruction* tstate = env_->asm_tstate;
         Instruction* interp = bbb.appendInstr(
@@ -2826,7 +2826,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         case Opcode::kPrimitiveBox: {
           auto& pb = static_cast<const PrimitiveBox&>(i);
-          JIT_DCHECK(
+          JIT_DCHECKX(
               !(pb.value()->type() <= TCBool), "should not be able to deopt");
           emitExceptionCheck(*db, bbb);
           break;
@@ -2890,7 +2890,7 @@ void LIRGenerator::FixOperands() {
       }
     }
 
-    JIT_DCHECK(
+    JIT_DCHECKX(
         def_instr != nullptr, "unable to find def instruction for '%s'.", name);
 
     auto& operands = pair.second;

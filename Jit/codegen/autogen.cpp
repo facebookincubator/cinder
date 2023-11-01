@@ -29,7 +29,7 @@ std::unique_ptr<PatternNode> addPattern(
     std::unique_ptr<PatternNode> patterns,
     const std::string& s,
     PatternNode::func_t func) {
-  JIT_DCHECK(!s.empty(), "pattern string should not be empty.");
+  JIT_DCHECKX(!s.empty(), "pattern string should not be empty.");
 
   if (patterns == nullptr) {
     patterns = std::make_unique<PatternNode>();
@@ -46,7 +46,7 @@ std::unique_ptr<PatternNode> addPattern(
     cur = iter->second.get();
   }
 
-  JIT_DCHECK(cur->func == nullptr, "Found duplicated pattern.");
+  JIT_DCHECKX(cur->func == nullptr, "Found duplicated pattern.");
   cur->func = func;
 
   return patterns;
@@ -119,7 +119,7 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
         pattern += "M";
         break;
       default:
-        JIT_ABORT("Output operand has to be of type register or memory");
+        JIT_ABORTX("Output operand has to be of type register or memory");
         break;
     }
   }
@@ -141,13 +141,13 @@ void AutoTranslator::translateInstr(Environ* env, const Instruction* instr)
         pattern += "b";
         break;
       default:
-        JIT_ABORT("Illegal input type.");
+        JIT_ABORTX("Illegal input type.");
         break;
     }
   });
 
   auto func = findByPattern(instr_map.get(), pattern);
-  JIT_CHECK(
+  JIT_CHECKX(
       func != nullptr,
       "No pattern found for opcode %s: %s",
       InstrProperty::getProperties(instr).name,
@@ -203,7 +203,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
     auto target_opnd = instr->getInput(kTargetIndex);
     if (target_opnd->isImm() || target_opnd->isMem()) {
       auto target = target_opnd->getConstantOrAddress();
-      JIT_DCHECK(
+      JIT_DCHECKX(
           fitsInt32(target),
           "Constant operand should fit in a 32-bit register, got %x.",
           target);
@@ -320,7 +320,7 @@ void TranslateCompare(Environ* env, const Instruction* instr) {
       as->setbe(output);
       break;
     default:
-      JIT_ABORT("bad instruction for TranslateCompare");
+      JIT_ABORTX("bad instruction for TranslateCompare");
       break;
   }
   if (instr->output()->dataType() != OperandBase::k8bit) {
@@ -346,7 +346,7 @@ void emitStoreGenYieldPoint(
 
   auto calc_spill_offset = [&](size_t live_input_n) {
     int mem_loc = yield->getInput(live_input_n)->getPhyRegOrStackSlot();
-    JIT_CHECK(mem_loc < 0, "Expected variable to have memory location");
+    JIT_CHECKX(mem_loc < 0, "Expected variable to have memory location");
     return mem_loc / kPointerSize;
   };
 
@@ -382,7 +382,7 @@ void emitLoadResumedYieldInputs(
     PhyLocation sent_in_source_loc,
     x86::Gp tstate_reg) {
   int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
-  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  JIT_CHECKX(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::ptr(x86::rbp, tstate_loc), tstate_reg);
 
   const lir::Operand* target = instr->output();
@@ -406,17 +406,17 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   // register before spilling. Still needs to be in memory though so it can be
   // recovered after calling JITRT_MakeGenObject* which will trash it.
   int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
-  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  JIT_CHECKX(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::rsi, x86::ptr(x86::rbp, tstate_loc));
 
   // Make a generator object to be returned by the epilogue.
   as->lea(x86::rdi, x86::ptr(env->gen_resume_entry_label));
-  JIT_CHECK(
+  JIT_CHECKX(
       env->shadow_frames_and_spill_size % kPointerSize == 0,
       "Bad spill alignment");
   as->mov(x86::rdx, env->shadow_frames_and_spill_size / kPointerSize);
   as->mov(x86::rcx, reinterpret_cast<uint64_t>(env->code_rt));
-  JIT_CHECK(instr->origin()->IsInitialYield(), "expected InitialYield");
+  JIT_CHECKX(instr->origin()->IsInitialYield(), "expected InitialYield");
   PyCodeObject* code = static_cast<const hir::InitialYield*>(instr->origin())
                            ->frameState()
                            ->code;
@@ -448,7 +448,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
 
   // Store variables spilled by this point to generator.
   int spill_bytes = env->initial_yield_spill_size_;
-  JIT_CHECK(spill_bytes % kPointerSize == 0, "Bad spill alignment");
+  JIT_CHECKX(spill_bytes % kPointerSize == 0, "Bad spill alignment");
 
   // Point rsi at the bottom word of the current spill space.
   as->lea(x86::rsi, x86::ptr(x86::rbp, -spill_bytes));
@@ -472,12 +472,12 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
 
   // Make sure tstate is in RDI for use in epilogue.
   int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
-  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  JIT_CHECKX(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
 
   // Value to send goes to RAX so it can be yielded (returned) by epilogue.
   int value_out_loc = instr->getInput(1)->getPhyRegOrStackSlot();
-  JIT_CHECK(value_out_loc < 0, "value to send out should be spilled");
+  JIT_CHECKX(value_out_loc < 0, "value to send out should be spilled");
   as->mov(x86::rax, x86::ptr(x86::rbp, value_out_loc));
 
   // Arbitrary scratch register for use in emitStoreGenYieldPoint()
@@ -501,7 +501,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
 
   // Make sure tstate is in RDI for use in epilogue and here.
   int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
-  JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
+  JIT_CHECKX(tstate_loc < 0, "__asm_tstate should be spilled");
   auto tstate_phys_reg = x86::rdi;
   as->mov(tstate_phys_reg, x86::ptr(x86::rbp, tstate_loc));
 
@@ -510,7 +510,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   // put initial send value in RSI, the same location future send values will
   // be on resume.
   int send_value_loc = instr->getInput(1)->getPhyRegOrStackSlot();
-  JIT_CHECK(send_value_loc < 0, "value to send out should be spilled");
+  JIT_CHECKX(send_value_loc < 0, "value to send out should be spilled");
   const auto send_value_phys_reg =
       skip_initial_send ? PhyLocation::RAX : PhyLocation::RSI;
   as->mov(x86::gpq(send_value_phys_reg), x86::ptr(x86::rbp, send_value_loc));
@@ -543,7 +543,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
 
   // Load sub-iterator into RDI
   int iter_loc = instr->getInput(2)->getPhyRegOrStackSlot();
-  JIT_CHECK(
+  JIT_CHECKX(
       iter_loc < 0,
       "Iter should be spilled. Instead it's in %s",
       PhyLocation(iter_loc).toString().c_str());
@@ -614,7 +614,7 @@ int LIROperandSizeMapper(const Instruction* instr) {
       return LIROperandMapper<0>(instr)->sizeInBits();
   }
 
-  JIT_ABORT("Unknown size type");
+  JIT_ABORTX("Unknown size type");
 }
 
 template <int N>
@@ -666,7 +666,7 @@ struct RegOperand {
       case 64:
         return asmjit::x86::gpq(LIROperandMapper<N>(instr)->getPhyRegister());
     }
-    JIT_ABORT("Incorrect operand size.");
+    JIT_ABORTX("Incorrect operand size.");
   }
 };
 
@@ -692,7 +692,7 @@ struct XmmOperand {
 #define REG_OP(v, size) RegOperand<v, size>
 
 asmjit::x86::Mem AsmIndirectOperandBuilder(const OperandBase* operand) {
-  JIT_DCHECK(operand->isInd(), "operand should be an indirect reference");
+  JIT_DCHECKX(operand->isInd(), "operand should be an indirect reference");
 
   auto indirect = operand->getMemoryIndirect();
 
@@ -726,7 +726,7 @@ struct MemOperand {
     } else if (operand->isInd()) {
       memptr = AsmIndirectOperandBuilder(operand);
     } else {
-      JIT_ABORT("Unsupported operand type.");
+      JIT_ABORTX("Unsupported operand type.");
     }
 
     memptr.setSize(size);

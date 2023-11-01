@@ -44,7 +44,7 @@ hir::ValueKind deoptValueKind(hir::Type type) {
     return jit::hir::ValueKind::kDouble;
   }
 
-  JIT_CHECK(
+  JIT_CHECKX(
       type <= jit::hir::TOptObject, "Unexpected type %s in deopt value", type);
   return jit::hir::ValueKind::kObject;
 }
@@ -57,11 +57,11 @@ const char* deoptReasonName(DeoptReason reason) {
     DEOPT_REASONS(REASON)
 #undef REASON
   }
-  JIT_ABORT("Invalid DeoptReason %d", static_cast<int>(reason));
+  JIT_ABORTX("Invalid DeoptReason %d", static_cast<int>(reason));
 }
 
 BorrowedRef<> MemoryView::readBorrowed(const LiveValue& value) const {
-  JIT_CHECK(
+  JIT_CHECKX(
       value.value_kind == jit::hir::ValueKind::kObject,
       "cannot materialize a borrowed primitive value");
   return reinterpret_cast<PyObject*>(readRaw(value));
@@ -84,7 +84,7 @@ Ref<> MemoryView::readOwned(const LiveValue& value) const {
     case jit::hir::ValueKind::kObject:
       return Ref<>::create(reinterpret_cast<PyObject*>(raw));
   }
-  JIT_ABORT("Unhandled ValueKind");
+  JIT_ABORTX("Unhandled ValueKind");
 }
 
 static void reifyLocalsplus(
@@ -285,7 +285,7 @@ static DeoptReason getDeoptReason(const jit::hir::DeoptBase& instr) {
         case hir::Raise::Kind::kRaiseWithExcAndCause:
           return DeoptReason::kRaise;
       }
-      JIT_ABORT("invalid raise kind");
+      JIT_ABORTX("invalid raise kind");
     }
     case jit::hir::Opcode::kRaiseStatic: {
       return DeoptReason::kRaiseStatic;
@@ -334,7 +334,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
       return -1;
     }
     auto it = reg_idx.find(reg);
-    JIT_CHECK(it != reg_idx.end(), "register %s not live", reg->name());
+    JIT_CHECKX(it != reg_idx.end(), "register %s not live", reg->name());
     return it->second;
   };
 
@@ -363,7 +363,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
         // have to be true, but it's our contention that the CPython
         // compiler will never produce bytecode that would contradict this.
         auto result = lms_on_stack.emplace(reg);
-        JIT_CHECK(
+        JIT_CHECKX(
             result.second,
             "load method results may only appear in one stack slot");
       }
@@ -372,7 +372,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
   };
 
   auto fs = instr.frameState();
-  JIT_DCHECK(
+  JIT_DCHECKX(
       fs != nullptr, "need FrameState to calculate inline depth of %s", instr);
 
   int num_frames = fs->inlineDepth();
@@ -393,7 +393,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
 
   meta.nonce = instr.nonce();
   meta.reason = getDeoptReason(instr);
-  JIT_CHECK(
+  JIT_CHECKX(
       meta.reason != DeoptReason::kUnhandledNullField ||
           meta.guilty_value != -1,
       "Guilty value is required for UnhandledNullField deopts");

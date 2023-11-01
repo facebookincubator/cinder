@@ -82,7 +82,7 @@ class BytecodeInstruction {
   }
 
   BCIndex GetJumpTargetAsIndex() const {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         IsBranch(),
         "calling GetJumpTargetAsIndex() on non-branch gives nonsense");
     if (kRelBranchOpcodes.count(opcode())) {
@@ -148,13 +148,13 @@ class BytecodeInstructionBlock {
     }
 
     reference operator*() {
-      JIT_DCHECK(
+      JIT_DCHECKX(
           !atEnd(), "cannot read past the end of BytecodeInstructionBlock");
       return bci_;
     }
 
     pointer operator->() {
-      JIT_DCHECK(
+      JIT_DCHECKX(
           !atEnd(), "cannot read past the end of BytecodeInstructionBlock");
       return &bci_;
     }
@@ -226,7 +226,7 @@ class BytecodeInstructionBlock {
   }
 
   BytecodeInstruction at(BCIndex idx) const {
-    JIT_CHECK(
+    JIT_CHECKX(
         start_idx_ == 0,
         "Instructions can only be looked up by index when start_idx_ == 0");
     return BytecodeInstruction(instrs_, idx);

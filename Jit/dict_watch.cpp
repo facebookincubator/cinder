@@ -47,23 +47,23 @@ bool isWatchedDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
 }
 
 void watchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
-  JIT_CHECK(PyUnicode_CheckExact(key), "key must be a str");
-  JIT_CHECK(PyUnicode_CHECK_INTERNED(key), "key must be interned");
+  JIT_CHECKX(PyUnicode_CheckExact(key), "key must be a str");
+  JIT_CHECKX(PyUnicode_CHECK_INTERNED(key), "key must be interned");
   auto& watchers = g_dict_watchers[dict][key];
   bool inserted = watchers.emplace(cache).second;
-  JIT_CHECK(inserted, "cache was already watching key");
+  JIT_CHECKX(inserted, "cache was already watching key");
   Cinder_WatchDict(dict);
 }
 
 void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
   auto dict_it = g_dict_watchers.find(dict);
-  JIT_CHECK(dict_it != g_dict_watchers.end(), "dict has no watchers");
+  JIT_CHECKX(dict_it != g_dict_watchers.end(), "dict has no watchers");
   auto& dict_keys = dict_it->second;
   auto key_it = dict_keys.find(key);
-  JIT_CHECK(key_it != dict_it->second.end(), "key has no watchers");
+  JIT_CHECKX(key_it != dict_it->second.end(), "key has no watchers");
   auto& key_watchers = key_it->second;
   auto cache_it = key_watchers.find(cache);
-  JIT_CHECK(cache_it != key_watchers.end(), "cache was not watching key");
+  JIT_CHECKX(cache_it != key_watchers.end(), "cache was not watching key");
   key_watchers.erase(cache_it);
   if (key_watchers.empty()) {
     dict_keys.erase(key_it);
@@ -81,7 +81,7 @@ void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
   // from co_names. If it's not, we at least know that an interned string with
   // its value exists (because we're watching it), so this should just be a
   // quick lookup.
-  JIT_CHECK(PyUnicode_CheckExact(key), "key must be a str");
+  JIT_CHECKX(PyUnicode_CheckExact(key), "key must be a str");
   if (!PyUnicode_CHECK_INTERNED(key)) {
     Py_INCREF(key);
     PyUnicode_InternInPlace(&key);

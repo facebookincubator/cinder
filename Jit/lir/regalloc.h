@@ -51,7 +51,7 @@ constexpr LIRLocation MAX_LOCATION = std::numeric_limits<LIRLocation>::max();
 
 struct LiveRange {
   LiveRange(LIRLocation s, LIRLocation e) : start(s), end(e) {
-    JIT_CHECK(s < e, "Invalid live range.");
+    JIT_CHECKX(s < e, "Invalid live range.");
   }
 
   LIRLocation start;
@@ -93,13 +93,13 @@ struct LiveInterval {
   void addRange(LiveRange range);
   void setFrom(LIRLocation loc);
   LIRLocation startLocation() const {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         !ranges.empty(), "Cannot get start location for an empty interval.");
     return ranges.begin()->start;
   }
 
   LIRLocation endLocation() const {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         !ranges.empty(), "Cannot get end location for an empty interval.");
     return ranges.rbegin()->end;
   }
@@ -252,7 +252,7 @@ class LinearScanAllocator {
   int getStackSlot(const lir::Operand* operand);
   void freeStackSlot(const lir::Operand* operand) {
     int slot = map_get(operand_to_slot_, operand, 0);
-    JIT_DCHECK(slot < 0, "should not map an operand to a register");
+    JIT_DCHECKX(slot < 0, "should not map an operand to a register");
 
     operand_to_slot_.erase(operand);
     free_stack_slots_.push_back(slot);

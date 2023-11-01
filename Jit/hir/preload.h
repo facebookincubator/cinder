@@ -89,7 +89,7 @@ class Preloader {
         func->func_builtins,
         funcFullname(func)));
     if (!preloader->preload()) {
-      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
+      JIT_DCHECKX(PyErr_Occurred(), "Expected Python exception to be set");
       return nullptr;
     }
     return preloader;
@@ -103,7 +103,7 @@ class Preloader {
     auto preloader = std::unique_ptr<Preloader>(
         new Preloader(nullptr, code, globals, builtins, fullname));
     if (!preloader->preload()) {
-      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
+      JIT_DCHECKX(PyErr_Occurred(), "Expected Python exception to be set");
       return nullptr;
     }
     return preloader;
@@ -191,9 +191,9 @@ class Preloader {
         globals_(Ref<>::create(globals)),
         builtins_(Ref<>::create(builtins)),
         fullname_(fullname) {
-    JIT_CHECK(PyCode_Check(code_), "Expected PyCodeObject");
+    JIT_CHECKX(PyCode_Check(code_), "Expected PyCodeObject");
     if (func_) {
-      JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");
+      JIT_CHECKX(PyFunction_Check(func_), "Expected PyFunctionObject");
     }
   };
 

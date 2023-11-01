@@ -51,7 +51,7 @@ const std::unordered_map<Type, PyTypeObject*>& typeToPyType() {
     // After construction, verify that all appropriate types have an entry in
     // this table.
 #define CHECK_TY(name, bits, lifetime, flags)                         \
-  JIT_CHECK(                                                          \
+  JIT_CHECKX(                                                          \
       ((flags)&kTypeHasUniquePyType) == 0 || map.count(T##name) == 1, \
       "Type %s missing entry in typeToPyType()",                      \
       T##name);
@@ -90,7 +90,7 @@ const std::unordered_map<PyTypeObject*, Type>& pyTypeToType() {
     std::unordered_map<PyTypeObject*, Type> map;
     for (auto& pair : typeToPyType()) {
       bool inserted = map.emplace(pair.second, pair.first).second;
-      JIT_CHECK(inserted, "Duplicate key type: %s", pair.second->tp_name);
+      JIT_CHECKX(inserted, "Duplicate key type: %s", pair.second->tp_name);
     }
     return map;
   }();
@@ -138,7 +138,7 @@ std::string Type::specString() const {
     if (*this <= TCPtr) {
       return fmt::format("{}", getStablePointer(ptr_));
     }
-    JIT_DCHECK(
+    JIT_DCHECKX(
         *this <= TCInt8 || *this <= TCInt16 || *this <= TCInt32 ||
             *this <= TCInt64 || *this <= TCUInt8 || *this <= TCUInt16 ||
             *this <= TCUInt32 || *this <= TCUInt64,
@@ -271,7 +271,7 @@ static auto makeSortedBits() {
       return false;
     }
 
-    JIT_CHECK(
+    JIT_CHECKX(
         (bits & Type::kObject) == bits || (bits & Type::kPrimitive) == bits,
         "Bits for %s should be subset of kObject or kPrimitive",
         name);
@@ -289,7 +289,7 @@ static auto makeSortedBits() {
     return popcount(a.first) > popcount(b.first);
   };
   std::sort(vec.begin(), vec.end(), pred);
-  JIT_CHECK(
+  JIT_CHECKX(
       vec.back().first == Type::kBottom, "Bottom should be at end of vec");
   vec.pop_back();
   return vec;
@@ -333,7 +333,7 @@ std::string Type::toString() const {
         }
       }
     }
-    JIT_CHECK(bits_left == 0, "Type contains invalid bits");
+    JIT_CHECKX(bits_left == 0, "Type contains invalid bits");
 
     // If we have a nontrivial lifetime component, turn obj_parts into one part
     // with that prepended, then combine that with parts.
@@ -395,12 +395,12 @@ Type Type::parse(Environment* env, std::string_view str) {
   }
 
   if (base <= TLong) {
-    JIT_CHECK(
+    JIT_CHECKX(
         Py_IsInitialized(),
         "Python runtime must be initialized for the HIR parser to parse "
         "PyObject*s (can't parse '%s')",
         str);
-    JIT_CHECK(
+    JIT_CHECKX(
         env != nullptr,
         "HIR Environment must be initialized for the HIR parser to allocate "
         "PyObject*s (can't parse '%s')",
@@ -445,7 +445,7 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
       PyType_Ready(type);
     }
   }
-  JIT_CHECK(
+  JIT_CHECKX(
       type->tp_mro != nullptr,
       "Type %s(%p) has a null mro",
       type->tp_name,
@@ -460,7 +460,7 @@ Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {
       return Type{bits & kUser, kLifetimeTop, type, exact};
     }
   }
-  JIT_CHECK(
+  JIT_CHECKX(
       false,
       "Type %s(%p) doesn't have object in its mro",
       type->tp_name,
@@ -576,7 +576,7 @@ Type Type::operator|(Type other) const {
 
   if (hasObjectSpec() && other.hasObjectSpec() &&
       objectSpec() == other.objectSpec()) {
-    JIT_DCHECK(
+    JIT_DCHECKX(
         *this == other,
         "Types with identical object specializations aren't equal");
     return *this;
@@ -689,7 +689,7 @@ Type Type::asBoxed() const {
   if (*this <= TCDouble) {
     return TFloat;
   }
-  JIT_ABORT("%s does not have a boxed equivalent", *this);
+  JIT_ABORTX("%s does not have a boxed equivalent", *this);
 }
 
 unsigned int Type::sizeInBytes() const {
@@ -705,7 +705,7 @@ unsigned int Type::sizeInBytes() const {
   if (*this <= (TCInt64 | TCUInt64 | TCPtr | TCDouble | TObject | TNullptr)) {
     return 8;
   }
-  JIT_ABORT("unexpected type %s", *this);
+  JIT_ABORTX("unexpected type %s", *this);
 }
 
 } // namespace jit::hir

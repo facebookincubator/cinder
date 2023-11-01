@@ -229,10 +229,10 @@ static bool can_translate(PyCodeObject* code) {
     auto opcode = bci.opcode();
     int oparg = bci.oparg();
     if (!kSupportedOpcodes.count(opcode)) {
-      JIT_DLOG("Unsupported opcode: %d", opcode);
+      JIT_DLOGX("Unsupported opcode: %d", opcode);
       return false;
     } else if (opcode == LOAD_GLOBAL && banned_name_ids.count(oparg)) {
-      JIT_DLOG("'%s' unsupported", name_at(oparg));
+      JIT_DLOGX("'%s' unsupported", name_at(oparg));
       return false;
     }
   }
@@ -333,7 +333,7 @@ void HIRBuilder::addLoadArgs(TranslationContext& tc, int num_args) {
   for (int i = 0; i < num_args; i++) {
     // Arguments in CPython are the first N locals
     Register* dst = tc.frame.locals[i];
-    JIT_CHECK(dst != nullptr, "No register for argument %d", i);
+    JIT_CHECKX(dst != nullptr, "No register for argument %d", i);
     if (i == starargs_idx) {
       tc.emit<LoadArg>(dst, i, TTupleExact);
     } else {
@@ -354,12 +354,12 @@ void HIRBuilder::addInitializeCells(
   for (int i = 0; i < ncellvars; i++) {
     int arg = CO_CELL_NOT_AN_ARG;
     auto dst = tc.frame.cells[i];
-    JIT_CHECK(dst != nullptr, "No register for cell %d", i);
+    JIT_CHECKX(dst != nullptr, "No register for cell %d", i);
     Register* cell_contents = null_reg;
     if (code_->co_cell2arg != NULL &&
         (arg = code_->co_cell2arg[i]) != CO_CELL_NOT_AN_ARG) {
       // cell is for argument local number `arg`
-      JIT_CHECK(
+      JIT_CHECKX(
           static_cast<unsigned>(arg) < tc.frame.locals.size(),
           "co_cell2arg says cell %d is local %d but locals size is %ld",
           i,
@@ -378,7 +378,7 @@ void HIRBuilder::addInitializeCells(
     return;
   }
 
-  JIT_CHECK(cur_func != nullptr, "No cur_func in function with freevars");
+  JIT_CHECKX(cur_func != nullptr, "No cur_func in function with freevars");
   Register* func_closure = temps_.AllocateNonStack();
   tc.emit<LoadField>(
       func_closure,
@@ -389,7 +389,7 @@ void HIRBuilder::addInitializeCells(
   for (int i = 0; i < nfreevars; i++) {
     auto cell_idx = i + ncellvars;
     Register* dst = tc.frame.cells[cell_idx];
-    JIT_CHECK(dst != nullptr, "No register for cell %ld", cell_idx);
+    JIT_CHECKX(dst != nullptr, "No register for cell %ld", cell_idx);
     tc.emit<LoadTupleItem>(dst, func_closure, i);
   }
 }
@@ -454,7 +454,7 @@ static bool should_snapshot(
     case JUMP_IF_NOT_EXC_MATCH:
     case RERAISE:
     case WITH_EXCEPT_START: {
-      JIT_CHECK(
+      JIT_CHECKX(
           false,
           "should not be compiling except blocks (opcode %d)\n",
           bci.opcode());
@@ -496,7 +496,7 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
           bc_instr.IsTerminator() || (opcode == YIELD_FROM)) {
         maybe_add_next_instr(bc_instr);
       } else {
-        JIT_CHECK(!bc_instr.IsTerminator(), "Terminator should split block");
+        JIT_CHECKX(!bc_instr.IsTerminator(), "Terminator should split block");
       }
     }
   }
@@ -525,13 +525,13 @@ HIRBuilder::BlockMap HIRBuilder::createBlocks(
 
 BasicBlock* HIRBuilder::getBlockAtOff(BCOffset off) {
   auto it = block_map_.blocks.find(off);
-  JIT_DCHECK(it != block_map_.blocks.end(), "No block for offset %d", off);
+  JIT_DCHECKX(it != block_map_.blocks.end(), "No block for offset %d", off);
   return it->second;
 }
 
 // Convenience wrapper, used only in tests
 std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func) {
-  JIT_CHECK(
+  JIT_CHECKX(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader = Preloader::getPreloader(func);
@@ -560,7 +560,7 @@ std::unique_ptr<Function> buildHIR(const Preloader& preloader) {
 // with that if we ever want to support compiling them.
 std::unique_ptr<Function> HIRBuilder::buildHIR() {
   if (!can_translate(code_)) {
-    JIT_DLOG("Can't translate all opcodes in %s", preloader_.fullname());
+    JIT_DLOGX("Can't translate all opcodes in %s", preloader_.fullname());
     return nullptr;
   }
 
@@ -702,7 +702,7 @@ InlineResult HIRBuilder::inlineHIR(
     Function* caller,
     FrameState* caller_frame_state) {
   if (!can_translate(code_)) {
-    JIT_DLOG("Can't translate all opcodes in %s", preloader_.fullname());
+    JIT_DLOGX("Can't translate all opcodes in %s", preloader_.fullname());
     return {nullptr, nullptr};
   }
   BasicBlock* entry_block = buildHIRImpl(caller, caller_frame_state);
@@ -732,10 +732,10 @@ InlineResult HIRBuilder::inlineHIR(
   UnorderedMap<FrameState*, FrameState*> framestate_parent;
   for (BasicBlock* block : caller->cfg.GetRPOTraversal(entry_block)) {
     for (Instr& instr : *block) {
-      JIT_CHECK(
+      JIT_CHECKX(
           !instr.IsBeginInlinedFunction(),
           "there should be no BeginInlinedFunction in inlined functions");
-      JIT_CHECK(
+      JIT_CHECKX(
           !instr.IsEndInlinedFunction(),
           "there should be no EndInlinedFunction in inlined functions");
       FrameState* fs = nullptr;
@@ -749,7 +749,7 @@ InlineResult HIRBuilder::inlineHIR(
         continue;
       }
       bool inserted = framestate_parent.emplace(fs, fs->parent).second;
-      JIT_CHECK(inserted, "there should not be duplicate FrameState pointers");
+      JIT_CHECKX(inserted, "there should not be duplicate FrameState pointers");
       fs->parent = nullptr;
     }
   }
@@ -1049,7 +1049,7 @@ void HIRBuilder::translate(
         }
         case RETURN_PRIMITIVE: {
           Type type = prim_type_to_type(bc_instr.oparg());
-          JIT_CHECK(
+          JIT_CHECKX(
               type <= preloader_.returnType(),
               "bad return type %s, expected %s",
               type,
@@ -1064,7 +1064,7 @@ void HIRBuilder::translate(
           // that all values flowing to return are of correct type; will
           // require consistency of static compiler and JIT types, see
           // T86480663
-          JIT_CHECK(
+          JIT_CHECKX(
               tc.frame.block_stack.isEmpty(),
               "Returning with non-empty block stack");
           tc.emit<Return>(reg);
@@ -1319,7 +1319,7 @@ void HIRBuilder::translate(
           // to start execution via the stack. We skip doing this for JIT
           // functions. This should be fine as long as we can't de-opt after the
           // function is started but before GEN_START. This check ensures this.
-          JIT_DCHECK(
+          JIT_DCHECKX(
               bc_instr.index() == 0, "GEN_START must be first instruction");
           break;
         }
@@ -1333,7 +1333,7 @@ void HIRBuilder::translate(
         }
         default: {
           // NOTREACHED
-          JIT_ABORT("unhandled opcode: %d", bc_instr.opcode());
+          JIT_ABORTX("unhandled opcode: %d", bc_instr.opcode());
           break;
         }
       }
@@ -1391,7 +1391,7 @@ void HIRBuilder::translate(
       default: {
         if (last_bc_instr.opcode() == YIELD_FROM &&
             is_in_async_for_header_block()) {
-          JIT_CHECK(
+          JIT_CHECKX(
               last_instr->IsCondBranchIterNotDone(),
               "Async-for header should end with CondBranchIterNotDone");
           auto condbr = static_cast<CondBranchIterNotDone*>(last_instr);
@@ -1560,7 +1560,7 @@ static inline BinaryOpKind get_bin_op_kind(
       return BinaryOpKind::kXor;
     }
     default: {
-      JIT_ABORT("unhandled binary op %d", bc_instr.opcode());
+      JIT_ABORTX("unhandled binary op %d", bc_instr.opcode());
       // NOTREACHED
       break;
     }
@@ -1614,7 +1614,7 @@ void HIRBuilder::emitAnyCall(
       break;
     }
     default: {
-      JIT_ABORT("Unhandled call opcode");
+      JIT_ABORTX("Unhandled call opcode");
     }
   }
   if (is_awaited && call_used_is_awaited) {
@@ -1632,13 +1632,13 @@ void HIRBuilder::emitAnyCall(
     emitGetAwaitable(cfg, tc, prev_prev_op, bc_instr.opcode());
 
     ++bc_it;
-    JIT_CHECK(
+    JIT_CHECKX(
         bc_it->opcode() == LOAD_CONST,
         "GET_AWAITABLE should always be followed by LOAD_CONST");
     emitLoadConst(tc, *bc_it);
 
     ++bc_it;
-    JIT_CHECK(
+    JIT_CHECKX(
         bc_it->opcode() == YIELD_FROM,
         "GET_AWAITABLE should always be followed by LOAD_CONST+YIELD_FROM");
     emitYieldFrom(tc, out);
@@ -1703,7 +1703,7 @@ static inline InPlaceOpKind get_inplace_op_kind(
       return InPlaceOpKind::kXor;
     }
     default: {
-      JIT_ABORT("unhandled inplace op %d", bc_instr.opcode());
+      JIT_ABORTX("unhandled inplace op %d", bc_instr.opcode());
       // NOTREACHED
       break;
     }
@@ -1738,7 +1738,7 @@ static inline UnaryOpKind get_unary_op_kind(
       return UnaryOpKind::kInvert;
 
     default:
-      JIT_ABORT("unhandled unary op %d", bc_instr.opcode());
+      JIT_ABORTX("unhandled unary op %d", bc_instr.opcode());
       // NOTREACHED
       break;
   }
@@ -1959,7 +1959,7 @@ bool HIRBuilder::emitInvokeFunction(
 
     if (target.is_function && target.is_statically_typed) {
       if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
-        JIT_DLOG(
+        JIT_DLOGX(
             "Warning: recursive compile of '%s' failed as it is already "
             "being compiled",
             funcFullname(target.func()));
@@ -2118,8 +2118,8 @@ void HIRBuilder::emitContainsOp(TranslationContext& tc, int oparg) {
 }
 
 void HIRBuilder::emitCompareOp(TranslationContext& tc, int compare_op) {
-  JIT_CHECK(compare_op >= Py_LT, "invalid op %d", compare_op);
-  JIT_CHECK(compare_op <= Py_GE, "invalid op %d", compare_op);
+  JIT_CHECKX(compare_op >= Py_LT, "invalid op %d", compare_op);
+  JIT_CHECKX(compare_op <= Py_GE, "invalid op %d", compare_op);
   auto& stack = tc.frame.stack;
   Register* right = stack.pop();
   Register* left = stack.pop();
@@ -2171,7 +2171,7 @@ void HIRBuilder::emitJumpIf(
     }
     default: {
       // NOTREACHED
-      JIT_CHECK(
+      JIT_CHECKX(
           false,
           "trying to translate non-jump-if bytecode: %d",
           bc_instr.opcode());
@@ -2306,7 +2306,7 @@ void HIRBuilder::emitLoadConst(
     TranslationContext& tc,
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
-  JIT_CHECK(
+  JIT_CHECKX(
       bc_instr.oparg() < PyTuple_Size(code_->co_consts),
       "LOAD_CONST index out of bounds");
   tc.emit<LoadConst>(
@@ -2372,11 +2372,11 @@ void HIRBuilder::emitPrimitiveLoadConst(
     const jit::BytecodeInstruction& bc_instr) {
   Register* tmp = temps_.AllocateStack();
   int index = bc_instr.oparg();
-  JIT_CHECK(
+  JIT_CHECKX(
       index < PyTuple_Size(code_->co_consts),
       "PRIMITIVE_LOAD_CONST index out of bounds");
   PyObject* num_and_type = PyTuple_GET_ITEM(code_->co_consts, index);
-  JIT_CHECK(
+  JIT_CHECKX(
       PyTuple_Size(num_and_type) == 2,
       "wrong size for PRIMITIVE_LOAD_CONST arg tuple")
   PyObject* num = PyTuple_GET_ITEM(num_and_type, 0);
@@ -2496,7 +2496,7 @@ static inline BinaryOpKind get_primitive_bin_op_kind(
       return BinaryOpKind::kPower;
     }
     default: {
-      JIT_ABORT("unhandled binary op %d", bc_instr.oparg());
+      JIT_ABORTX("unhandled binary op %d", bc_instr.oparg());
       // NOTREACHED
       break;
     }
@@ -2530,7 +2530,7 @@ static inline bool is_double_binop(int oparg) {
       return true;
     }
     default: {
-      JIT_ABORT("Invalid binary op %d", oparg);
+      JIT_ABORTX("Invalid binary op %d", oparg);
       // NOTREACHED
       break;
     }
@@ -2547,7 +2547,7 @@ static inline Type element_type_from_seq_type(int seq_type) {
     case SEQ_ARRAY_INT64:
       return TCInt64;
     default:
-      JIT_ABORT("invalid sequence type: (%d)", seq_type);
+      JIT_ABORTX("invalid sequence type: (%d)", seq_type);
       // NOTREACHED
       break;
   }
@@ -2618,7 +2618,7 @@ void HIRBuilder::emitPrimitiveCompare(
       op = PrimitiveCompareOp::kGreaterThanEqualUnsigned;
       break;
     default:
-      JIT_ABORT("unsupported comparison");
+      JIT_ABORTX("unsupported comparison");
       break;
   }
   tc.emit<PrimitiveCompare>(result, op, left, right);
@@ -2656,7 +2656,7 @@ void HIRBuilder::emitPrimitiveUnaryOp(
       break;
     }
     default: {
-      JIT_ABORT("unsupported unary op");
+      JIT_ABORTX("unsupported unary op");
       break;
     }
   }
@@ -2703,7 +2703,7 @@ void HIRBuilder::emitFastLen(
     offset = offsetof(PyASCIIObject, length);
     name = "length";
   }
-  JIT_CHECK(offset > 0, "Bad oparg for FAST_LEN");
+  JIT_CHECKX(offset > 0, "Bad oparg for FAST_LEN");
 
   if (inexact) {
     TranslationContext deopt_path{cfg.AllocateBlock(), tc.frame};
@@ -2769,7 +2769,7 @@ void HIRBuilder::emitSequenceGet(
         Type::fromCInt(offsetof(PyStaticArrayObject, ob_item), TCInt64));
     tc.emit<LoadFieldAddress>(ob_item, sequence, offset_reg);
   } else {
-    JIT_ABORT("Unsupported oparg for SEQUENCE_GET: %d", oparg);
+    JIT_ABORTX("Unsupported oparg for SEQUENCE_GET: %d", oparg);
   }
 
   auto type = element_type_from_seq_type(oparg);
@@ -2792,7 +2792,7 @@ void HIRBuilder::emitSequenceRepeat(
   int primitive_num = oparg & SEQ_REPEAT_PRIMITIVE_NUM;
   oparg &= ~SEQ_REPEAT_FLAGS;
 
-  JIT_DCHECK(
+  JIT_DCHECKX(
       oparg == SEQ_LIST || oparg == SEQ_TUPLE,
       "Bad oparg for SEQUENCE_REPEAT: %d",
       oparg);
@@ -2874,7 +2874,7 @@ void HIRBuilder::emitSequenceSet(
     int offset = offsetof(PyListObject, ob_item);
     tc.emit<LoadField>(ob_item, sequence, "ob_item", offset, TCPtr);
   } else {
-    JIT_ABORT("Unsupported oparg for SEQUENCE_SET: %d", oparg);
+    JIT_ABORTX("Unsupported oparg for SEQUENCE_SET: %d", oparg);
   }
   tc.emit<StoreArrayItem>(
       ob_item,
@@ -2983,7 +2983,7 @@ void HIRBuilder::emitBuildCheckedList(
   Py_ssize_t list_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
   Type type = preloader_.type(descr);
-  JIT_CHECK(
+  JIT_CHECKX(
       Ci_CheckedList_TypeCheck(type.uniquePyType()),
       "expected CheckedList type");
 
@@ -3005,7 +3005,7 @@ void HIRBuilder::emitBuildCheckedMap(
   Py_ssize_t dict_size = PyLong_AsLong(PyTuple_GET_ITEM(arg.get(), 1));
 
   Type type = preloader_.type(descr);
-  JIT_CHECK(
+  JIT_CHECKX(
       Ci_CheckedDict_TypeCheck(type.uniquePyType()),
       "expected CheckedDict type");
 
@@ -3104,7 +3104,7 @@ void HIRBuilder::emitPopJumpIf(
     }
     default: {
       // NOTREACHED
-      JIT_CHECK(
+      JIT_CHECKX(
           false,
           "trying to translate non pop-jump bytecode: %d",
           bc_instr.opcode());
@@ -3156,7 +3156,7 @@ void HIRBuilder::emitStoreFast(
     const jit::BytecodeInstruction& bc_instr) {
   Register* src = tc.frame.stack.pop();
   Register* dst = tc.frame.locals[bc_instr.oparg()];
-  JIT_DCHECK(dst != nullptr, "no register");
+  JIT_DCHECKX(dst != nullptr, "no register");
   moveOverwrittenStackRegisters(tc, dst);
   tc.emit<Assign>(dst, src);
 }
@@ -3345,7 +3345,7 @@ void HIRBuilder::emitAsyncForHeaderYieldFrom(
 void HIRBuilder::emitEndAsyncFor(TranslationContext& tc) {
   // Pop finally block and discard exhausted async iterator.
   const ExecutionBlock& b = tc.frame.block_stack.top();
-  JIT_CHECK(
+  JIT_CHECKX(
       static_cast<int>(tc.frame.stack.size()) == b.stack_level,
       "Bad stack depth in END_ASYNC_FOR: block stack expects %d, stack is %d",
       b.stack_level,
@@ -3520,7 +3520,7 @@ void HIRBuilder::emitRaiseVarargs(
       tc.emit<Raise>(0, tc.frame);
       break;
     default:
-      JIT_ABORT("unsupported RAISE_VARARGS op: %d", bc_instr.oparg());
+      JIT_ABORTX("unsupported RAISE_VARARGS op: %d", bc_instr.oparg());
       break;
   }
 }
@@ -3862,9 +3862,9 @@ void HIRBuilder::insertEvalBreakerCheckForLoop(
     CFG& cfg,
     BasicBlock* loop_header) {
   auto snap = loop_header->entrySnapshot();
-  JIT_CHECK(snap != nullptr, "block %d has no entry snapshot", loop_header->id);
+  JIT_CHECKX(snap != nullptr, "block %d has no entry snapshot", loop_header->id);
   auto fs = snap->frameState();
-  JIT_CHECK(
+  JIT_CHECKX(
       fs != nullptr,
       "entry snapshot for block %d has no FrameState",
       loop_header->id);

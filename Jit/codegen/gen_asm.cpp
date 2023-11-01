@@ -186,7 +186,7 @@ class ThrowableErrorHandler : public ErrorHandler {
 #define ASM_CHECK(exp, what)             \
   {                                      \
     auto err = (exp);                    \
-    JIT_CHECK(                           \
+    JIT_CHECKX(                           \
         err == kErrorOk,                 \
         "Failed generating %s: %s",      \
         (what),                          \
@@ -204,7 +204,7 @@ PhyLocation get_arg_location_phy_location(int arg) {
     return ARGUMENT_REGS[arg];
   }
 
-  JIT_ABORT("only six first registers should be used");
+  JIT_ABORTX("only six first registers should be used");
   return 0;
 }
 
@@ -214,7 +214,7 @@ void* NativeGenerator::getVectorcallEntry() {
     return vectorcall_entry_;
   }
 
-  JIT_CHECK(as_ == nullptr, "x86::Builder should not have been initialized.");
+  JIT_CHECKX(as_ == nullptr, "x86::Builder should not have been initialized.");
 
   CodeHolder code;
   code.init(CodeAllocator::get()->asmJitEnvironment());
@@ -300,7 +300,7 @@ void* NativeGenerator::getVectorcallEntry() {
     (*json)["cols"].emplace_back(lir_printer.print(*lir_func, "Initial LIR"));
   }
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_lir,
       "LIR for %s after generation:\n%s",
       GetFunction()->fullname,
@@ -312,7 +312,7 @@ void* NativeGenerator::getVectorcallEntry() {
       "LIR transformations",
       post_gen.run())
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_lir,
       "LIR for %s after postgen rewrites:\n%s",
       GetFunction()->fullname,
@@ -346,7 +346,7 @@ void* NativeGenerator::getVectorcallEntry() {
     env_.initial_yield_spill_size_ = lsalloc.initialYieldSpillSize();
   }
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_lir,
       "LIR for %s after register allocation:\n%s",
       GetFunction()->fullname,
@@ -358,14 +358,14 @@ void* NativeGenerator::getVectorcallEntry() {
       "Post Reg Alloc Rewrite",
       post_rewrite.run())
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_lir,
       "LIR for %s after postalloc rewrites:\n%s",
       GetFunction()->fullname,
       *lir_func);
 
   if (!verifyPostRegAllocInvariants(lir_func.get(), std::cerr)) {
-    JIT_CHECK(
+    JIT_CHECKX(
         false,
         "LIR for %s failed verification:\n%s",
         GetFunction()->fullname,
@@ -384,7 +384,7 @@ void* NativeGenerator::getVectorcallEntry() {
     String s;
     FormatOptions formatOptions;
     Formatter::formatNodeList(s, formatOptions, as_);
-    JIT_CHECK(
+    JIT_CHECKX(
         false,
         "Failed to emit code for '%s': '%s' failed with '%s'\n\n"
         "Builder contents on failure:\n%s",
@@ -399,7 +399,7 @@ void* NativeGenerator::getVectorcallEntry() {
    * JitRuntime::_add and may break in the future.
    */
 
-  JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
+  JIT_DCHECKX(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = static_cast<int>(code.codeSize());
   env_.code_rt->set_frame_size(env_.stack_frame_size);
   return vectorcall_entry_;
@@ -557,7 +557,7 @@ x86::Gp get_arg_location(int arg) {
     return x86::gpq(phyloc);
   }
 
-  JIT_ABORT("should only be used with first six args");
+  JIT_ABORTX("should only be used with first six args");
 }
 
 constexpr size_t kConstStackAlignmentRequirement = 16;
@@ -572,12 +572,12 @@ void NativeGenerator::loadOrGenerateLinkFrame(
     for (const auto& pair : save_regs) {
       if (pair.first != pair.second) {
         if (pair.first.isGpq()) {
-          JIT_DCHECK(pair.second.isGpq(), "can't mix and match register types");
+          JIT_DCHECKX(pair.second.isGpq(), "can't mix and match register types");
           as_->mov(
               static_cast<const asmjit::x86::Gpq&>(pair.second),
               static_cast<const asmjit::x86::Gpq&>(pair.first));
         } else if (pair.first.isXmm()) {
-          JIT_DCHECK(pair.second.isXmm(), "can't mix and match register types");
+          JIT_DCHECKX(pair.second.isXmm(), "can't mix and match register types");
           as_->movsd(
               static_cast<const asmjit::x86::Xmm&>(pair.second),
               static_cast<const asmjit::x86::Xmm&>(pair.first));
@@ -604,7 +604,7 @@ void NativeGenerator::loadOrGenerateLinkFrame(
           as_->sub(x86::rsp, pair.first.size());
           as_->movdqu(x86::dqword_ptr(x86::rsp), (asmjit::x86::Xmm&)pair.first);
         } else {
-          JIT_ABORT("unsupported saved register type");
+          JIT_ABORTX("unsupported saved register type");
         }
         rsp_offset += pair.first.size();
       }
@@ -640,7 +640,7 @@ void NativeGenerator::loadOrGenerateLinkFrame(
               (asmjit::x86::Xmm&)iter->second, x86::dqword_ptr(x86::rsp));
           as_->add(x86::rsp, 16);
         } else {
-          JIT_ABORT("unsupported saved register type");
+          JIT_ABORTX("unsupported saved register type");
         }
       }
       break;
@@ -720,7 +720,7 @@ void NativeGenerator::generatePrologue(
       // xmm0 already contains the return value
       box_func = reinterpret_cast<uint64_t>(JITRT_BoxDouble);
     } else {
-      JIT_CHECK(
+      JIT_CHECKX(
           false, "unsupported primitive return type %s", ret_type.toString());
     }
 
@@ -1051,7 +1051,7 @@ void NativeGenerator::generateEpilogue(BaseNode* epilogue_cursor) {
   auto saved_regs = env_.changed_regs & CALLEE_SAVE_REGS;
   if (!saved_regs.Empty()) {
     // Reset rsp to point at our callee-saved registers and restore them.
-    JIT_CHECK(
+    JIT_CHECKX(
         env_.last_callee_saved_reg_off != -1,
         "offset to callee saved regs not initialized");
     as_->lea(x86::rsp, x86::ptr(x86::rbp, -env_.last_callee_saved_reg_off));
@@ -1159,7 +1159,7 @@ void NativeGenerator::generateDeoptExits(const asmjit::CodeHolder& code) {
 }
 
 void NativeGenerator::linkDeoptPatchers(const asmjit::CodeHolder& code) {
-  JIT_CHECK(code.hasBaseAddress(), "code not generated!");
+  JIT_CHECKX(code.hasBaseAddress(), "code not generated!");
   uint64_t base = code.baseAddress();
   for (const auto& udp : env_.pending_deopt_patchers) {
     uint64_t patchpoint = base + code.labelOffsetFromBase(udp.patchpoint);
@@ -1406,7 +1406,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // v
   // ------------- vectorcall_entry_
   if (has_static_entry) {
-    JIT_CHECK(
+    JIT_CHECKX(
         codeholder.labelOffsetFromBase(static_jmp_location) ==
             codeholder.labelOffsetFromBase(vectorcall_entry_label) +
                 JITRT_STATIC_ENTRY_OFFSET,
@@ -1414,7 +1414,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
         codeholder.labelOffsetFromBase(vectorcall_entry_label) -
             codeholder.labelOffsetFromBase(static_jmp_location));
   }
-  JIT_CHECK(
+  JIT_CHECKX(
       codeholder.labelOffset(correct_args_entry) ==
           codeholder.labelOffset(vectorcall_entry_label) +
               JITRT_CALL_REENTRY_OFFSET,
@@ -1436,7 +1436,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // After code generation CodeHolder->codeSize() *should* return the actual
   // size of the generated code and associated data. This relies on the
   // implementation of asmjit::JitRuntime::_add and may break in the future.
-  JIT_DCHECK(
+  JIT_DCHECKX(
       codeholder.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
   compiled_size_ = codeholder.codeSize();
 
@@ -1444,7 +1444,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
     env_.annotations.disassembleJSON(*json, code_top, codeholder);
   }
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_asm,
       "Disassembly for %s\n%s",
       GetFunction()->fullname,
@@ -1464,7 +1464,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       case FrameMode::kShadow:
         return perf::kShadowFrameSymbolPrefix;
     }
-    JIT_ABORT("Invalid frame mode");
+    JIT_ABORTX("Invalid frame mode");
   }();
   // For perf, we want only the size of the code, so we get that directly from
   // the text sections.
@@ -1511,7 +1511,7 @@ static void raiseAttributeError(BorrowedRef<> receiver, BorrowedRef<> name) {
 
 static PyFrameObject*
 prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
-  JIT_CHECK(deopt_idx != -1ull, "deopt_idx must be valid");
+  JIT_CHECKX(deopt_idx != -1ull, "deopt_idx must be valid");
   const DeoptMetadata& deopt_meta = runtime->getDeoptMetadata(deopt_idx);
   PyThreadState* tstate = _PyThreadState_UncheckedGet();
   Ref<PyFrameObject> f = materializePyFrameForDeopt(tstate);
@@ -1554,7 +1554,7 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
         raiseUnboundFreevarError(deopt_meta.eh_name);
         break;
       case DeoptReason::kUnhandledException:
-        JIT_ABORT("unhandled exception without error set");
+        JIT_ABORTX("unhandled exception without error set");
         break;
       case DeoptReason::kRaise:
         // This code mirrors what happens in _PyEval_EvalFrameDefault although
@@ -1565,11 +1565,11 @@ prepareForDeopt(const uint64_t* regs, Runtime* runtime, std::size_t deopt_idx) {
               PyExc_SystemError, "error return without exception set");
         }
 #else
-        JIT_CHECK(PyErr_Occurred(), "Error return without exception set");
+        JIT_CHECKX(PyErr_Occurred(), "Error return without exception set");
 #endif
         break;
       case jit::DeoptReason::kRaiseStatic:
-        JIT_ABORT("Lost exception when raising static exception");
+        JIT_ABORTX("Lost exception when raising static exception");
         break;
       case DeoptReason::kReraise:
         PyErr_SetString(PyExc_RuntimeError, "No active exception to reraise");
@@ -1615,7 +1615,7 @@ static PyObject* resumeInInterpreter(
     // Delegate management of `tstate->frame` to the interpreter loop. On
     // entry, it expects that tstate->frame points to the frame for the calling
     // function.
-    JIT_CHECK(tstate->frame == frame, "unexpected frame at top of stack");
+    JIT_CHECKX(tstate->frame == frame, "unexpected frame at top of stack");
     tstate->frame = prev_frame;
     result = PyEval_EvalFrameEx(frame, err_occurred);
     JITRT_DecrefFrame(frame);
@@ -1811,7 +1811,7 @@ void* generateDeoptTrampoline(bool generator_mode) {
   void* result{nullptr};
   ASM_CHECK(a.finalize(), name);
   ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_asm,
       "Disassembly for %s\n%s",
       name,
@@ -1860,7 +1860,7 @@ void* generateFailedDeferredCompileTrampoline() {
   void* result{nullptr};
   ASM_CHECK(CodeAllocator::get()->addCode(&result, &code), name);
 
-  JIT_LOGIF(
+  JIT_LOGIFX(
       g_dump_asm,
       "Disassembly for %s\n%s",
       name,

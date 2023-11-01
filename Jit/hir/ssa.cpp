@@ -628,7 +628,7 @@ Type outputType(
         // Special Nullptr case for an uninitialized variable; load zero.
         return TLongExact;
       }
-      JIT_CHECK(
+      JIT_CHECKX(
           false,
           "only primitive numeric types should be boxed. type verification"
           "missed an unexpected type %s",
@@ -721,9 +721,9 @@ Type outputType(
     case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
-      JIT_ABORT("Opcode %s has no output", instr.opname());
+      JIT_ABORTX("Opcode %s has no output", instr.opname());
   }
-  JIT_ABORT("Bad opcode %d", static_cast<int>(instr.opcode()));
+  JIT_ABORTX("Bad opcode %d", static_cast<int>(instr.opcode()));
 }
 
 Type outputType(const Instr& instr) {
@@ -746,7 +746,7 @@ void reflowTypes(Environment* env, BasicBlock* start) {
       for (auto& instr : *block) {
         if (instr.opcode() == Opcode::kReturn) {
           Type type = static_cast<const Return&>(instr).type();
-          JIT_DCHECK(
+          JIT_DCHECKX(
               instr.GetOperand(0)->type() <= type,
               "bad return type %s, expected %s in %s",
               instr.GetOperand(0)->type(),
@@ -794,9 +794,9 @@ void SSAify::Run(BasicBlock* start, Environment* env) {
     auto ssablock = ssa_basic_blocks.at(block);
 
     for (auto& instr : *block) {
-      JIT_CHECK(!instr.IsPhi(), "SSAify does not support Phis in its input");
+      JIT_CHECKX(!instr.IsPhi(), "SSAify does not support Phis in its input");
       instr.visitUses([&](Register*& reg) {
-        JIT_CHECK(
+        JIT_CHECKX(
             reg != nullptr, "Instructions should not have nullptr operands.");
         reg = getDefine(ssablock, reg);
         return true;

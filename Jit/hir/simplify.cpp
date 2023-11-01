@@ -154,7 +154,7 @@ struct Env {
     BasicBlock* bb1 = func.cfg.AllocateBlock();
     BasicBlock* bb2 = func.cfg.AllocateBlock();
     do_branch(bb1, bb2);
-    JIT_CHECK(
+    JIT_CHECKX(
         cursor != block->begin(),
         "block should not be empty after calling do_branch()");
     BasicBlock* tail = block->splitAfter(*std::prev(cursor));
@@ -281,7 +281,7 @@ Register* emitGetLengthInt64(Env& env, Register* obj) {
       offset = offsetof(PyASCIIObject, length);
       name = "length";
     } else {
-      JIT_ABORT("unexpected type");
+      JIT_ABORTX("unexpected type");
     }
     env.emit<UseType>(obj, ty.unspecialized());
     return env.emit<LoadField>(obj, name, offset, TCInt64);
@@ -399,7 +399,7 @@ Register* simplifyIsTruthy(Env& env, const IsTruthy* instr) {
     };
     if (kTrustedTypes.count(Py_TYPE(obj))) {
       int res = PyObject_IsTrue(obj);
-      JIT_CHECK(res >= 0, "PyObject_IsTrue failed on trusted type");
+      JIT_CHECKX(res >= 0, "PyObject_IsTrue failed on trusted type");
       // Since we no longer use instr->GetOperand(0), we need to make sure that
       // we don't lose any associated type checks
       env.emit<UseType>(instr->GetOperand(0), ty);
@@ -450,7 +450,7 @@ Register* simplifyLoadArrayItem(Env& env, const LoadArrayItem* instr) {
     return nullptr;
   }
   intptr_t idx_signed = instr->idx()->type().intSpec();
-  JIT_CHECK(idx_signed >= 0, "LoadArrayItem should not have negative index");
+  JIT_CHECKX(idx_signed >= 0, "LoadArrayItem should not have negative index");
   uintptr_t idx = static_cast<uintptr_t>(idx_signed);
   // We can only do this for tuples because lists and arrays, the other
   // sequence types, are mutable. A more general LoadElimination pass could
@@ -1121,7 +1121,7 @@ static Register* resolveArgs(
     const VectorCall* instr,
     BorrowedRef<PyFunctionObject> target) {
   BorrowedRef<PyCodeObject> code{target->func_code};
-  JIT_CHECK(!(code->co_flags & CO_VARARGS), "can't resolve varargs");
+  JIT_CHECKX(!(code->co_flags & CO_VARARGS), "can't resolve varargs");
   // number of positional args (including args with default values)
   size_t co_argcount = static_cast<size_t>(code->co_argcount);
   if (instr->numArgs() > co_argcount) {
@@ -1132,7 +1132,7 @@ static Register* resolveArgs(
   size_t num_positional = std::min(co_argcount, instr->numArgs());
   std::vector<Register*> resolved_args(co_argcount, nullptr);
 
-  JIT_CHECK(!(code->co_flags & CO_VARKEYWORDS), "can't resolve varkwargs");
+  JIT_CHECKX(!(code->co_flags & CO_VARKEYWORDS), "can't resolve varkwargs");
 
   // grab default positional arguments
   BorrowedRef<PyTupleObject> defaults{target->func_defaults};
@@ -1146,7 +1146,7 @@ static Register* resolveArgs(
     return nullptr;
   }
   // TODO(T143644377): support kwonly args
-  JIT_CHECK(code->co_kwonlyargcount == 0, " can't resolve kwonly args");
+  JIT_CHECKX(code->co_kwonlyargcount == 0, " can't resolve kwonly args");
   for (size_t i = 0; i < co_argcount; i++) {
     if (i < num_positional) {
       resolved_args[i] = instr->arg(i);
@@ -1156,11 +1156,11 @@ static Register* resolveArgs(
 
       ThreadedCompileSerialize guard;
       auto def = Ref<>::create(PyTuple_GET_ITEM(defaults, default_idx));
-      JIT_CHECK(def != nullptr, "expected non-null default");
+      JIT_CHECKX(def != nullptr, "expected non-null default");
       auto type = Type::fromObject(env.func.env.addReference(std::move(def)));
       resolved_args[i] = env.emit<LoadConst>(type);
     }
-    JIT_CHECK(resolved_args.at(i) != nullptr, "expected non-null arg");
+    JIT_CHECKX(resolved_args.at(i) != nullptr, "expected non-null arg");
   }
 
   Register* defaults_obj = env.emit<LoadField>(
@@ -1209,7 +1209,7 @@ Register* simplifyVectorCall(Env& env, const VectorCall* instr) {
       return nullptr;
     }
 
-    JIT_CHECK(
+    JIT_CHECKX(
         code->co_argcount >= 0,
         "argcount must be greater than or equal to zero");
     if (instr->numArgs() != static_cast<size_t>(code->co_argcount)) {
@@ -1375,7 +1375,7 @@ void Simplify::Run(Function& irfunc) {
         env.cursor = block.iterator_to(instr);
         env.bc_off = instr.bytecodeOffset();
         Register* new_output = simplifyInstr(env, &instr);
-        JIT_CHECK(
+        JIT_CHECKX(
             env.cursor == env.block->iterator_to(instr),
             "Simplify functions are expected to leave env.cursor pointing to "
             "the original instruction, with new instructions inserted before "
@@ -1385,12 +1385,12 @@ void Simplify::Run(Function& irfunc) {
         }
 
         changed = true;
-        JIT_CHECK(
+        JIT_CHECKX(
             (new_output == nullptr) == (instr.GetOutput() == nullptr),
             "Simplify function should return a new output if and only if the "
             "existing instruction has an output");
         if (new_output != nullptr) {
-          JIT_CHECK(
+          JIT_CHECKX(
               new_output->type() <= instr.GetOutput()->type(),
               "New output type %s isn't compatible with old output type %s",
               new_output->type(),
@@ -1400,9 +1400,9 @@ void Simplify::Run(Function& irfunc) {
 
         if (instr.IsCondBranch() || instr.IsCondBranchIterNotDone() ||
             instr.IsCondBranchCheckType()) {
-          JIT_CHECK(env.cursor != env.block->begin(), "Unexpected empty block");
+          JIT_CHECKX(env.cursor != env.block->begin(), "Unexpected empty block");
           Instr& prev_instr = *std::prev(env.cursor);
-          JIT_CHECK(
+          JIT_CHECKX(
               instr.opcode() == prev_instr.opcode() || prev_instr.IsBranch(),
               "The only supported simplification for CondBranch* is to a "
               "Branch or a different CondBranch, got unexpected '%s'",

@@ -366,7 +366,7 @@ bool JITRT_PackStaticArgs(
           return true;
         }
       } else {
-        JIT_CHECK(
+        JIT_CHECKX(
             false,
             "unsupported primitive type %d",
             cur_arg->tai_primitive_type);
@@ -397,7 +397,7 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
 fail:
   PyObject* res =
       Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
-  JIT_DCHECK(res == NULL, "should alway be reporting an error");
+  JIT_DCHECKX(res == NULL, "should alway be reporting an error");
   return TRetType();
 }
 
@@ -484,7 +484,7 @@ JITRT_StaticCallFPReturn JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn(
     PyObject* /* kwnames */) {
   PyObject* res =
       JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
-  JIT_CHECK(res == NULL, "should always return an error");
+  JIT_CHECKX(res == NULL, "should always return an error");
   return {0, 0};
 }
 
@@ -495,7 +495,7 @@ JITRT_StaticCallReturn JITRT_ReportStaticArgTypecheckErrorsWithPrimitiveReturn(
     PyObject* /* kwnames */) {
   PyObject* res =
       JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
-  JIT_CHECK(res == NULL, "should always return an error");
+  JIT_CHECKX(res == NULL, "should always return an error");
   return {NULL, NULL};
 }
 
@@ -554,7 +554,7 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
     PyObject* builtins,
     PyObject* globals) {
   PyThreadState* tstate = PyThreadState_GET();
-  JIT_DCHECK(tstate != NULL, "thread state cannot be null");
+  JIT_DCHECKX(tstate != NULL, "thread state cannot be null");
 
   PyFrameObject* frame = allocateFrame(tstate, code, builtins, globals);
   if (frame == nullptr) {
@@ -626,10 +626,10 @@ template <bool is_awaited>
 static inline PyObject*
 call_function_kwargs(PyObject* func, PyObject** args, Py_ssize_t nargs) {
   PyObject* kwargs = args[nargs - 1];
-  JIT_DCHECK(PyTuple_CheckExact(kwargs), "Kwargs map must be a tuple");
+  JIT_DCHECKX(PyTuple_CheckExact(kwargs), "Kwargs map must be a tuple");
   nargs--;
   Py_ssize_t nkwargs = PyTuple_GET_SIZE(kwargs);
-  JIT_DCHECK(nkwargs < nargs, "Kwargs map too large");
+  JIT_DCHECKX(nkwargs < nargs, "Kwargs map too large");
   nargs -= nkwargs;
   size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
       (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
@@ -685,7 +685,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
       kwargs = d;
       new_kwargs = Ref<>::steal(kwargs);
     }
-    JIT_DCHECK(PyDict_CheckExact(kwargs), "Expect kwargs to be a dict");
+    JIT_DCHECKX(PyDict_CheckExact(kwargs), "Expect kwargs to be a dict");
   }
   if (!PyTuple_CheckExact(pargs)) {
     if (pargs->ob_type->tp_iter == NULL && !PySequence_Check(pargs)) {
@@ -704,7 +704,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
     }
     new_pargs = Ref<>::steal(pargs);
   }
-  JIT_DCHECK(PyTuple_CheckExact(pargs), "Expected pargs to be a tuple");
+  JIT_DCHECKX(PyTuple_CheckExact(pargs), "Expected pargs to be a tuple");
 
   if (_PyVectorcall_Function(func) != NULL) {
     return Ci_PyVectorcall_Call_WithFlags(
@@ -1163,7 +1163,7 @@ PyObject* JITRT_ImportName(
   PyObject* builtins = tstate->interp->builtins;
 
   import_func = _PyDict_GetItemIdWithError(builtins, &PyId___import__);
-  JIT_DCHECK(
+  JIT_DCHECKX(
       import_func || !PyErr_Occurred(),
       "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
   if (import_func == NULL) {
@@ -1245,7 +1245,7 @@ static void* gen_data_allocate(size_t spill_words) {
 
   // All free list entries are spill-word size 89, so we don't need to set
   // footer->spillWords again, it should still be set to 89 from previous use.
-  JIT_DCHECK(spill_words == jit::kMinGenSpillWords, "invalid size");
+  JIT_DCHECKX(spill_words == jit::kMinGenSpillWords, "invalid size");
 
   gen_data_free_list_size--;
   auto res = gen_data_free_list_tail;
@@ -1396,7 +1396,7 @@ JITRT_YieldFrom(PyObject* gen, PyObject* v, uint64_t finish_yield_from) {
   if (gen_status == PYGEN_ERROR) {
     return {NULL, 1};
   }
-  JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
+  JIT_DCHECKX(gen_status == PYGEN_NEXT, "Unexpected gen_status:", gen_status);
   return {retval, 0};
 }
 
@@ -1611,7 +1611,7 @@ PyObject* JITRT_UnpackExToTuple(
     PyObject* iterable,
     int before,
     int after) {
-  JIT_DCHECK(iterable != nullptr, "The iterable cannot be null.");
+  JIT_DCHECKX(iterable != nullptr, "The iterable cannot be null.");
 
   Ref<> it = Ref<>::steal(PyObject_GetIter(iterable));
   if (it == NULL) {
@@ -1661,7 +1661,7 @@ PyObject* JITRT_UnpackExToTuple(
     tuple->ob_item[ti++] = w;
   }
 
-  JIT_DCHECK(
+  JIT_DCHECKX(
       after >= 0,
       "This function should only be used for UNPACK_EX, where after >= 0.");
 
@@ -1784,7 +1784,7 @@ void JITRT_BatchDecref(PyObject** args, int nargs) {
 }
 
 Py_ssize_t JITRT_CheckSequenceBounds(PyObject* s, Py_ssize_t i) {
-  JIT_DCHECK(!PyErr_Occurred(), "called with error set");
+  JIT_DCHECKX(!PyErr_Occurred(), "called with error set");
   i = i < 0 ? i + Py_SIZE(s) : i;
   if (i < 0 || i >= Py_SIZE(s)) {
     PyErr_SetString(PyExc_IndexError, "index out of range");
@@ -1834,7 +1834,7 @@ PyObject* JITRT_CopyDictWithoutKeys(PyObject* subject, PyObject* keys) {
   if (rest == nullptr || PyDict_Update(rest, subject)) {
     return nullptr;
   }
-  JIT_DCHECK(PyTuple_CheckExact(keys), "Expected keys to be an exact tuple");
+  JIT_DCHECKX(PyTuple_CheckExact(keys), "Expected keys to be an exact tuple");
   for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(keys); i++) {
     if (PyDict_DelItem(rest, PyTuple_GET_ITEM(keys, i))) {
       return nullptr;

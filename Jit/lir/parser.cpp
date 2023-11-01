@@ -70,13 +70,13 @@ static void expect(bool cond, const char* cur, const char* msg = "") {
     return;
   }
 
-  JIT_LOG("Unable to parse - %s", msg);
+  JIT_LOGX("Unable to parse - %s", msg);
   if (strlen(cur) > 64) {
     std::string m(cur, cur + 64);
     m += "...";
-    JIT_LOG("String from %s", m);
+    JIT_LOGX("String from %s", m);
   } else {
-    JIT_LOG("Starting from %s", cur);
+    JIT_LOGX("Starting from %s", cur);
   }
 
   throw ParserException(fmt::format("Unable to parse - {}", msg));
@@ -336,7 +336,7 @@ void Parser::setSection(const std::string& bbdef, BasicBlock* bb) {
     if (section == ".text") {
       bb->setSection(codegen::CodeSection::kHot);
     } else {
-      JIT_CHECK(
+      JIT_CHECKX(
           section == ".coldtext", "Code section must be .text or .coldtext.");
       bb->setSection(codegen::CodeSection::kCold);
     }

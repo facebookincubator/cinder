@@ -192,9 +192,9 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kWaitHandleRelease:
     case Opcode::kXDecref:
     case Opcode::kXIncref:
-      JIT_ABORT("Opcode %s has no output", instr.opname());
+      JIT_ABORTX("Opcode %s has no output", instr.opname());
   }
-  JIT_ABORT("Bad opcode %d", static_cast<int>(instr.opcode()));
+  JIT_ABORTX("Bad opcode %d", static_cast<int>(instr.opcode()));
 }
 
 Register* modelReg(Register* reg) {
@@ -204,7 +204,7 @@ Register* modelReg(Register* reg) {
   // the runtime value
   while (isPassthrough(*reg->instr()) && !(reg->instr()->IsGuardIs())) {
     reg = reg->instr()->GetOperand(0);
-    JIT_DCHECK(reg != orig_reg, "Hit cycle while looking for model reg");
+    JIT_DCHECKX(reg != orig_reg, "Hit cycle while looking for model reg");
   }
   return reg;
 }
@@ -257,7 +257,7 @@ bool registerTypeMatches(Type op_type, OperandType expected_type) {
       return isSingleCInt(op_type) || op_type <= TCBool ||
           op_type <= TCDouble || op_type <= TCPtr;
   }
-  JIT_ABORT("unknown constraint");
+  JIT_ABORTX("unknown constraint");
   return false;
 }
 
@@ -275,7 +275,7 @@ bool operandsMustMatch(OperandType op_type) {
     case Constraint::kOptObjectOrCIntOrCBool:
       return false;
   }
-  JIT_ABORT("unknown constraint");
+  JIT_ABORTX("unknown constraint");
   return false;
 }
 
@@ -286,7 +286,7 @@ bool funcTypeChecks(const Function& func, std::ostream& err) {
           operandsMustMatch(instr.GetOperandType(0))) {
         Type join = TBottom;
         for (std::size_t i = 0; i < instr.NumOperands(); i++) {
-          JIT_DCHECK(
+          JIT_DCHECKX(
               operandsMustMatch(instr.GetOperandType(i)),
               "Inconsistent operand type constraint");
           join |= instr.GetOperand(i)->type();
@@ -382,7 +382,7 @@ void DataflowAnalysis::Initialize() {
     } else {
       for (auto cfg_edge : cfg_block.out_edges()) {
         auto succ_cfg_block = cfg_edge->to();
-        JIT_CHECK(
+        JIT_CHECKX(
             df_blocks_.count(succ_cfg_block),
             "succ_cfg_block has to be in the hash table df_blocks_.");
         auto& succ_df_block = df_blocks_.at(succ_cfg_block);
@@ -426,7 +426,7 @@ void DataflowAnalysis::dump() {
     format_to(out, "\n");
   }
 
-  JIT_DLOG("%s", out);
+  JIT_DLOGX("%s", out);
 }
 
 void BackwardDataflowAnalysis::Run() {
@@ -696,7 +696,7 @@ DominatorAnalysis::DominatorAnalysis(const Function& irfunc)
       // pred1 = any already-processed predecessor
       auto pred1 = const_cast<const BasicBlock*>((*predIter)->from());
       while (!idoms_[pred1->id]) {
-        JIT_DCHECK(
+        JIT_DCHECKX(
             predIter != predEnd,
             "There should be an already-processed predecessor since we're "
             "iterating in RPO");
