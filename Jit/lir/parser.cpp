@@ -70,13 +70,13 @@ static void expect(bool cond, const char* cur, const char* msg = "") {
     return;
   }
 
-  JIT_LOGX("Unable to parse - %s", msg);
+  JIT_LOG("Unable to parse - {}", msg);
   if (strlen(cur) > 64) {
     std::string m(cur, cur + 64);
     m += "...";
-    JIT_LOGX("String from %s", m);
+    JIT_LOG("String from {}", m);
   } else {
-    JIT_LOGX("Starting from %s", cur);
+    JIT_LOG("Starting from {}", cur);
   }
 
   throw ParserException(fmt::format("Unable to parse - {}", msg));

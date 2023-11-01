@@ -191,7 +191,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   }
 
   if (g_dump_hir) {
-    JIT_LOGX("Initial HIR for %s:\n%s", fullname, *irfunc);
+    JIT_LOG("Initial HIR for {}:\n{}", fullname, *irfunc);
   }
 
   if (nullptr != compilation_phase_timer) {

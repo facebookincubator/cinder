@@ -43,8 +43,8 @@ Option& FlagProcessor::addOption(
           // foo=1`, but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
           callback(flag_value == "" ? 1 : std::stoi(flag_value));
         } catch (std::exception const&) {
-          JIT_LOGX(
-              "Invalid int value for %s/%s: %s",
+          JIT_LOG(
+              "Invalid int value for {}/{}: {}",
               cmdline_flag,
               environment_variable,
               flag_value);
@@ -122,8 +122,8 @@ Option& FlagProcessor::addOption(
       // but `PYTHONFOO=` is not equivalent to `PYTHONFOO=1`.
       variable_to_bind_to = flag_value == "" ? 1 : std::stoull(flag_value);
     } catch (std::exception const&) {
-      JIT_LOGX(
-          "Invalid unsigned long value for %s/%s: %s",
+      JIT_LOG(
+          "Invalid unsigned long value for {}/{}: {}",
           cmdline_flag,
           environment_variable,
           flag_value);
@@ -189,7 +189,7 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
     const char* option = PyUnicode_AsUTF8(key);
     JIT_DCHECKX(option != nullptr, "An error occurred");
     if (match && !canHandle(option)) {
-      JIT_LOGX("Warning: JIT cannot handle X-option %s", option);
+      JIT_LOG("Warning: JIT cannot handle X-option {}", option);
     }
   }
 }

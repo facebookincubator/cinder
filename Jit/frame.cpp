@@ -383,9 +383,9 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
       "must pass jit-owned shadow frame");
   std::vector<_PyShadowFrame*> unit_frames = getUnitFrames(shadow_frame);
   auto logUnitFrames = [&unit_frames] {
-    JIT_LOGX("Unit shadow frames (increasing order of inline depth):");
+    JIT_LOG("Unit shadow frames (increasing order of inline depth):");
     for (_PyShadowFrame* sf : unit_frames) {
-      JIT_LOGX("code=%s", codeName(_PyShadowFrame_GetCode(sf)));
+      JIT_LOG("code={}", codeName(_PyShadowFrame_GetCode(sf)));
     }
   };
   // Look up bytecode offsets for the frames in the unit.
@@ -413,9 +413,9 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
       code_rt->debug_info()->getUnitCallStack(ip);
   if (locs.has_value()) {
     if (locs->size() != unit_frames.size()) {
-      JIT_LOGX("DebugInfo frames:");
+      JIT_LOG("DebugInfo frames:");
       for (const CodeObjLoc& col : locs.value()) {
-        JIT_LOGX("code=%s bc_off=%d", codeName(col.code), col.instr_offset);
+        JIT_LOG("code={} bc_off={}", codeName(col.code), col.instr_offset);
       }
       logUnitFrames();
       JIT_CHECKX(
@@ -433,7 +433,7 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
     // generating the information). The consequences of getting this wrong
     // (incorrect line numbers) don't warrant aborting in production, but it is
     // worth investigating. Leave some breadcrumbs to help with debugging.
-    JIT_LOGX("No debug info for addr %x", ip);
+    JIT_LOG("No debug info for addr {}", ip);
     logUnitFrames();
     JIT_DCHECKX(false, "No debug info for addr %x", ip);
     for (std::size_t i = 0; i < unit_frames.size(); i++) {
@@ -648,11 +648,11 @@ void assertShadowCallStackConsistent(PyThreadState* tstate) {
 
   if (py_frame != nullptr) {
     std::unordered_set<PyFrameObject*> seen;
-    JIT_LOGX(
+    JIT_LOG(
         "Stack walk didn't consume entire python stack! Here's what's left:");
     PyFrameObject* left = py_frame;
     while (left && !seen.count(left)) {
-      JIT_LOGX("%s", PyUnicode_AsUTF8(left->f_code->co_name));
+      JIT_LOG("{}", PyUnicode_AsUTF8(left->f_code->co_name));
       seen.insert(left);
       left = left->f_back;
     }

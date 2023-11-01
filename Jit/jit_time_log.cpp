@@ -175,8 +175,8 @@ void CompilationPhaseTimer::dumpPhaseTimingsAndTidy() {
       std::string(longest_phase - 4, ' '),
       std::string(ts_digits + 1, ' '));
 
-  JIT_LOGX(
-      "Compilation phase time breakdown for %s\n%s",
+  JIT_LOG(
+      "Compilation phase time breakdown for {}\n{}",
       function_name_,
       header + phase_info);
 

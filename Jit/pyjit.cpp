@@ -188,8 +188,8 @@ void setJitLogFile(std::string log_filename) {
   }
   FILE* file = fopen(pid_filename.c_str(), "w");
   if (file == nullptr) {
-    JIT_LOGX(
-        "Couldn't open log file %s (%s), logging to stderr",
+    JIT_LOG(
+        "Couldn't open log file {} ({}), logging to stderr",
         pid_filename,
         strerror(errno));
   } else {
@@ -218,7 +218,7 @@ static int jit_profile_interp_period = 0;
 static std::string jl_fn;
 
 static void warnJITOff(const char* flag) {
-  JIT_LOGX("Warning: JIT disabled; %s has no effect", flag);
+  JIT_LOG("Warning: JIT disabled; {} has no effect", flag);
 }
 
 void initFlagProcessor() {
@@ -465,8 +465,8 @@ void initFlagProcessor() {
                 auto& profile_runtime = jit::Runtime::get()->profileRuntime();
                 profile_runtime.setStripPattern(std::regex{pattern});
               } catch (const std::regex_error& ree) {
-                JIT_LOGX(
-                    "Bad profile strip pattern '%s': %s", pattern, ree.what());
+                JIT_LOG(
+                    "Bad profile strip pattern '{}': {}", pattern, ree.what());
               }
             },
             "Strip the given regex from file paths when computing code keys")
@@ -656,9 +656,9 @@ void initFlagProcessor() {
   xarg_flag_processor.setFlags(PySys_GetXOptions());
 
   if (getConfig().auto_jit_threshold > 0 && jl_fn != "") {
-    JIT_LOGX(
+    JIT_LOG(
         "Warning: jit-auto and jit-list-file are both enabled; only functions "
-        "on the jit-list will be compiled, and only after %u calls.",
+        "on the jit-list will be compiled, and only after {} calls.",
         getConfig().auto_jit_threshold);
   }
 }
@@ -704,7 +704,7 @@ static void compile_perf_trampoline_entries() {
       PyFunctionObject* func = (PyFunctionObject*)unit.get();
       if (PyUnstable_PerfTrampoline_CompileCode(
               reinterpret_cast<PyCodeObject*>(func->func_code)) == -1) {
-        JIT_LOGX("Failed to compile perf trampoline entry");
+        JIT_LOG("Failed to compile perf trampoline entry");
       }
     }
   }
@@ -813,13 +813,13 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
   }
   g_compile_workers_attempted = 0;
   g_compile_workers_retries = 0;
-  JIT_LOGX("(Re)compiling %d units", jit_reg_units.size());
+  JIT_LOG("(Re)compiling {} units", jit_reg_units.size());
   _PyJITContext_ClearCache(jit_ctx);
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
   multithread_compile_all();
   std::chrono::time_point time_end = std::chrono::steady_clock::now();
-  JIT_LOGX(
-      "Took %d ms, compiles attempted: %d, compiles retried: %d",
+  JIT_LOG(
+      "Took {} ms, compiles attempted: {}, compiles retried: {}",
       std::chrono::duration_cast<std::chrono::milliseconds>(
           time_end - time_start)
           .count(),
@@ -1773,17 +1773,17 @@ int _PyJIT_Initialize() {
       jit_list = jit::JITList::create();
     }
     if (jit_list == nullptr) {
-      JIT_LOGX("Failed to allocate JIT list");
+      JIT_LOG("Failed to allocate JIT list");
       return -1;
     }
     if (!jit_list->parseFile(jl_fn.c_str())) {
-      JIT_LOGX("Could not parse jit-list, disabling JIT.");
+      JIT_LOG("Could not parse jit-list, disabling JIT.");
       return 0;
     }
   }
 
   if (!read_profile_file.empty()) {
-    JIT_LOGX("Loading profile data from %s", read_profile_file);
+    JIT_LOG("Loading profile data from {}", read_profile_file);
     auto& profile_runtime = jit::Runtime::get()->profileRuntime();
     if (!profile_runtime.deserialize(read_profile_file)) {
       return -1;
@@ -2053,13 +2053,13 @@ static void dump_jit_stats() {
     return;
   }
 
-  JIT_LOGX("JIT runtime stats:\n%s", PyUnicode_AsUTF8(stats_str.get()));
+  JIT_LOG("JIT runtime stats:\n{}", PyUnicode_AsUTF8(stats_str.get()));
 }
 
 static void dump_jit_compiled_functions(const std::string& filename) {
   std::ofstream file(filename);
   if (!file) {
-    JIT_LOGX("Failed to open %s when dumping jit compiled functions", filename);
+    JIT_LOG("Failed to open {} when dumping jit compiled functions", filename);
     return;
   }
   for (BorrowedRef<PyFunctionObject> func : jit_ctx->compiled_funcs) {

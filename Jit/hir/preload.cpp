@@ -135,8 +135,8 @@ std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
   auto callable =
       Ref<>::steal(_PyClassLoader_ResolveFunction(descr, &container));
   if (callable == nullptr) {
-    JIT_LOGX(
-        "unknown invoke target %s during preloading %s",
+    JIT_LOG(
+        "unknown invoke target {} during preloading {}",
         repr(descr),
         fullname());
     return nullptr;
@@ -347,8 +347,8 @@ bool Preloader::preload() {
     PyTypeOpt ret_type =
         resolve_type_descr(_PyClassLoader_GetCodeReturnTypeDescr(code_));
     if (std::get<0>(ret_type) == nullptr) {
-      JIT_LOGX(
-          "unknown return type descr %s during preloading of %s",
+      JIT_LOG(
+          "unknown return type descr {} during preloading of {}",
           repr(_PyClassLoader_GetCodeReturnTypeDescr(code_)),
           fullname());
       return false;
@@ -372,8 +372,8 @@ bool Preloader::preload() {
       PyTypeOpt pytype_opt =
           resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
       if (std::get<0>(pytype_opt) == NULL) {
-        JIT_LOGX(
-            "unknown type descr %s during preloading of %s",
+        JIT_LOG(
+            "unknown type descr {} during preloading of {}",
             repr(PyTuple_GET_ITEM(checks, i + 1)),
             fullname());
         return false;
@@ -435,8 +435,8 @@ bool Preloader::preload() {
         BorrowedRef<> descr = PyTuple_GetItem(constArg(bc_instr), 0);
         PyTypeOpt collection_type = resolve_type_descr(descr);
         if (std::get<0>(collection_type) == nullptr) {
-          JIT_LOGX(
-              "unknown collection type descr %s during preloading of %s",
+          JIT_LOG(
+              "unknown collection type descr {} during preloading of {}",
               repr(descr),
               fullname());
           return false;
@@ -451,8 +451,8 @@ bool Preloader::preload() {
         BorrowedRef<> descr = constArg(bc_instr);
         PyTypeOpt alloc_type = resolve_type_descr(descr);
         if (std::get<0>(alloc_type) == nullptr) {
-          JIT_LOGX(
-              "unknown %d type descr %s during preloading of %s",
+          JIT_LOG(
+              "unknown {} type descr {} during preloading of {}",
               bc_instr.opcode(),
               repr(descr),
               fullname());

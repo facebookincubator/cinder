@@ -28,7 +28,7 @@ namespace jit::hir {
 void HIRParser::expect(std::string_view expected) {
   std::string_view actual = GetNextToken();
   if (expected != actual) {
-    JIT_LOGX("Expected \"%s\", but got \"%s\"", expected, actual);
+    JIT_LOG("Expected \"{}\", but got \"{}\"", expected, actual);
     std::abort();
   }
 }

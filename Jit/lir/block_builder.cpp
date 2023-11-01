@@ -106,9 +106,9 @@ void BasicBlockBuilder::createBasicCallInstr(
       std::optional<std::string> name =
           symbolize(reinterpret_cast<void*>(helper_addr));
       if (name.has_value()) {
-        JIT_LOGX("Call to function %s.", *name);
+        JIT_LOG("Call to function {}.", *name);
       } else {
-        JIT_LOGX("Call to function at %s.", tokens[dest_idx]);
+        JIT_LOG("Call to function at {}.", tokens[dest_idx]);
       }
     }
   }

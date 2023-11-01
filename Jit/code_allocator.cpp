@@ -88,8 +88,8 @@ asmjit::Error CodeAllocatorCinder::addCode(
         alloc_size);
 
     if (madvise(res, alloc_size, MADV_HUGEPAGE) == -1) {
-      JIT_LOGX(
-          "Failed to madvise [%p, %p) with MADV_HUGEPAGE",
+      JIT_LOG(
+          "Failed to madvise [{}, {}) with MADV_HUGEPAGE",
           res,
           static_cast<char*>(res) + alloc_size);
       s_fragmented_allocs_++;
@@ -177,7 +177,7 @@ void MultipleSectionCodeAllocator::createSlabs() noexcept {
   JIT_CHECKX(region != MAP_FAILED, "Allocating the code sections failed.");
 
   if (madvise(region, hot_section_size, MADV_HUGEPAGE) == -1) {
-    JIT_LOGX("Was unable to use huge pages for the hot code section.");
+    JIT_LOG("Was unable to use huge pages for the hot code section.");
   }
 
   code_alloc_ = region;
@@ -202,7 +202,7 @@ asmjit::Error MultipleSectionCodeAllocator::addCode(
   // granular by comparing sizes section-by-section.
   if (code_section_free_sizes_[CodeSection::kHot] < potential_code_size ||
       code_section_free_sizes_[CodeSection::kCold] < potential_code_size) {
-    JIT_LOGX(
+    JIT_LOG(
         "Not enough memory to split code across sections, falling back to "
         "normal allocation.");
     return _runtime->add(dst, code);

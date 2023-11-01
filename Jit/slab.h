@@ -100,13 +100,13 @@ class Slab {
 
   void mlock() const {
     if (::mlock(base_.get(), kSlabSize) < 0) {
-      JIT_LOGX("Failed to mlock slab at %p", base_.get());
+      JIT_LOG("Failed to mlock slab at {}", base_.get());
     }
   }
 
   void munlock() const {
     if (::munlock(base_.get(), kSlabSize) < 0) {
-      JIT_LOGX("Failed to munlock slab at %p", base_.get());
+      JIT_LOG("Failed to munlock slab at {}", base_.get());
     }
   }
 

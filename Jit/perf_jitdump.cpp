@@ -173,7 +173,7 @@ FileInfo openFileInfo(std::string filename_format) {
   auto filename = fmt::format(fmt::runtime(filename_format), getpid());
   auto file = std::fopen(filename.c_str(), "w+");
   if (file == nullptr) {
-    JIT_LOGX("Couldn't open %s for writing (%s)", filename, string_error(errno));
+    JIT_LOG("Couldn't open {} for writing ({})", filename, string_error(errno));
     return {};
   }
   return {filename, filename_format, file};
@@ -286,14 +286,14 @@ std::tuple<const void*, unsigned int, const char*> parseJitEntry(
 std::FILE* copyFile(const std::string& from_name, const std::string& to_name) {
   auto from = std::fopen(from_name.c_str(), "r");
   if (from == nullptr) {
-    JIT_LOGX(
-        "Couldn't open %s for reading (%s)", from_name, string_error(errno));
+    JIT_LOG(
+        "Couldn't open {} for reading ({})", from_name, string_error(errno));
     return nullptr;
   }
   auto to = std::fopen(to_name.c_str(), "w+");
   if (to == nullptr) {
     std::fclose(from);
-    JIT_LOGX("Couldn't open %s for writing (%s)", to_name, string_error(errno));
+    JIT_LOG("Couldn't open {} for writing ({})", to_name, string_error(errno));
     return nullptr;
   }
 
@@ -308,7 +308,7 @@ std::FILE* copyFile(const std::string& from_name, const std::string& to_name) {
       return to;
     }
     if (bytes_read == 0 || bytes_written < bytes_read) {
-      JIT_LOGX("Error copying %s to %s", from_name, to_name);
+      JIT_LOG("Error copying {} to {}", from_name, to_name);
       std::fclose(from);
       std::fclose(to);
       return nullptr;
@@ -321,8 +321,8 @@ std::FILE* copyFile(const std::string& from_name, const std::string& to_name) {
 int copyJitFile(const std::string& parent_filename) {
   auto parent_file = std::fopen(parent_filename.c_str(), "r");
   if (parent_file == nullptr) {
-    JIT_LOGX(
-        "Couldn't open %s for reading (%s)",
+    JIT_LOG(
+        "Couldn't open {} for reading ({})",
         parent_filename,
         string_error(errno));
     return 0;
@@ -338,7 +338,7 @@ int copyJitFile(const std::string& parent_filename) {
           std::get<1>(jit_entry),
           std::get<2>(jit_entry));
     } catch (const std::invalid_argument& e) {
-      JIT_LOGX("Error: Invalid JIT entry: %s \n", buf);
+      JIT_LOG("Error: Invalid JIT entry: {} \n", buf);
     }
   }
   std::fclose(parent_file);
@@ -352,8 +352,8 @@ int copyJitFile(const std::string& parent_filename) {
 int copyJitEntries(const std::string& parent_filename) {
   auto parent_file = std::fopen(parent_filename.c_str(), "r");
   if (parent_file == nullptr) {
-    JIT_LOGX(
-        "Couldn't open %s for reading (%s)",
+    JIT_LOG(
+        "Couldn't open {} for reading ({})",
         parent_filename,
         string_error(errno));
     return 0;
@@ -370,7 +370,7 @@ int copyJitEntries(const std::string& parent_filename) {
             std::get<1>(jit_entry),
             std::get<2>(jit_entry));
       } catch (const std::invalid_argument& e) {
-        JIT_LOGX("Error: Invalid JIT entry: %s \n", buf);
+        JIT_LOG("Error: Invalid JIT entry: {} \n", buf);
       }
     }
   }
@@ -400,8 +400,8 @@ void copyFileInfo(FileInfo& info) {
   if (parent_filename.starts_with("/tmp/perf-") &&
       parent_filename.ends_with(".map") &&
       _PyPerfTrampoline_IsPreforkCompilationEnabled()) {
-    JIT_LOGX(
-        "File %s has already been copied to %s by the perf trampoline, "
+    JIT_LOG(
+        "File {} has already been copied to {} by the perf trampoline, "
         "skipping copy.",
         parent_filename,
         child_filename);
@@ -410,8 +410,8 @@ void copyFileInfo(FileInfo& info) {
       parent_filename.starts_with("/tmp/perf-") &&
       parent_filename.ends_with(".map") && isPerfTrampolineActive()) {
     if (!copyJitEntries(parent_filename)) {
-      JIT_LOGX(
-          "Failed to copy JIT entries from %s to %s",
+      JIT_LOG(
+          "Failed to copy JIT entries from {} to {}",
           parent_filename,
           child_filename);
     }
@@ -421,8 +421,8 @@ void copyFileInfo(FileInfo& info) {
     // The JIT is still enabled: copy the file to allow for more compilation
     // in this process.
     if (!copyJitFile(parent_filename)) {
-      JIT_LOGX(
-          "Failed to copy perf map file from %s to %s",
+      JIT_LOG(
+          "Failed to copy perf map file from {} to {}",
           parent_filename,
           child_filename);
     }
@@ -439,8 +439,8 @@ void copyFileInfo(FileInfo& info) {
       // The JIT has been disabled: hard link the file to save disk space. Don't
       // open it in this process, to avoid messing with the parent's file.
       if (::link(parent_filename.c_str(), child_filename.c_str()) != 0) {
-        JIT_LOGX(
-            "Failed to link %s to %s: %s",
+        JIT_LOG(
+            "Failed to link {} to {}: {}",
             child_filename,
             parent_filename,
             string_error(errno));

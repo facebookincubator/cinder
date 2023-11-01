@@ -14,7 +14,7 @@ template <typename T>
 void capsuleDestructor(PyObject* capsule) {
   auto ptr = static_cast<T*>(PyCapsule_GetPointer(capsule, nullptr));
   if (ptr == nullptr) {
-    JIT_LOGX("ERROR: Couldn't retrieve value from capsule %p", capsule);
+    JIT_LOG("ERROR: Couldn't retrieve value from capsule {}", capsule);
     return;
   }
   delete ptr;
