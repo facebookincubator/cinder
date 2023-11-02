@@ -1,5 +1,6 @@
 #include "Python.h"
 #include "cinder/exports.h"
+#include "cinderhooks.h"
 #include "pycore_gc.h"            // PyGC_Head
 #include "pycore_pymem.h"         // _Py_tracemalloc_config
 #include "pycore_traceback.h"
@@ -301,21 +302,14 @@ hashtable_compare_traceback(const void *key1, const void *key2)
 
 static void
 tracemalloc_get_frame(
-#ifdef ENABLE_CINDERX
-    PyObject *filename,
-    int lineno,
-#else
     PyFrameObject *pyframe,
-#endif
     frame_t *frame)
 {
     frame->filename = unknown_filename;
-#ifndef ENABLE_CINDERX
     int lineno = PyFrame_GetLineNumber(pyframe);
     PyCodeObject *code = PyFrame_GetCode(pyframe);
     PyObject *filename = code->co_filename;
     Py_DECREF(code);
-#endif
     if (lineno < 0) {
         lineno = 0;
     }
@@ -393,28 +387,6 @@ traceback_hash(traceback_t *traceback)
     return x;
 }
 
-#ifdef ENABLE_CINDERX
-/*
- * NB: Callers of this function may hold `tables_lock`. As a result, this
- * function, or any of its transitive callees, cannot allocate Python
- * objects. Doing so would re-enter tracemalloc code that attempts to acquire
- * `tables_lock`, causing a deadlock as `tables_lock` is not re-entrant.
- */
-static CiStackWalkDirective
-Ci_traceback_process_frame(void *data, PyCodeObject *code, int lineno) {
-    traceback_t *traceback = (traceback_t *) data;
-    if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
-        tracemalloc_get_frame(code->co_filename, lineno, &traceback->frames[traceback->nframe]);
-        assert(traceback->frames[traceback->nframe].filename != NULL);
-        traceback->nframe++;
-    }
-    if (traceback->total_nframe < UINT16_MAX) {
-        traceback->total_nframe++;
-    }
-    return CI_SWD_CONTINUE_STACK_WALK;
-}
-#endif
-
 static void
 traceback_get_frames(traceback_t *traceback)
 {
@@ -425,10 +397,7 @@ traceback_get_frames(traceback_t *traceback)
 #endif
         return;
     }
-#ifdef ENABLE_CINDERX
-    Ci_WalkStack(tstate, Ci_traceback_process_frame, traceback);
-#else
-    PyFrameObject *pyframe = PyThreadState_GetFrame(tstate);
+   PyFrameObject *pyframe = PyThreadState_GetFrame(tstate);
     for (; pyframe != NULL;) {
         if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
             tracemalloc_get_frame(pyframe, &traceback->frames[traceback->nframe]);
@@ -443,7 +412,97 @@ traceback_get_frames(traceback_t *traceback)
         Py_DECREF(pyframe);
         pyframe = back;
     }
+}
+
+static void
+Ci_tracemalloc_get_frame(
+    PyObject *filename,
+    int lineno,
+    frame_t *frame)
+{
+    frame->filename = unknown_filename;
+    if (lineno < 0) {
+        lineno = 0;
+    }
+    frame->lineno = (unsigned int)lineno;
+
+
+    if (filename == NULL) {
+#ifdef TRACE_DEBUG
+        tracemalloc_error("failed to get the filename of the code object");
 #endif
+        return;
+    }
+
+    if (!PyUnicode_Check(filename)) {
+#ifdef TRACE_DEBUG
+        tracemalloc_error("filename is not a unicode string");
+#endif
+        return;
+    }
+    if (!PyUnicode_IS_READY(filename)) {
+        /* Don't make a Unicode string ready to avoid reentrant calls
+           to tracemalloc_malloc() or tracemalloc_realloc() */
+#ifdef TRACE_DEBUG
+        tracemalloc_error("filename is not a ready unicode string");
+#endif
+        return;
+    }
+
+    /* intern the filename */
+    _Py_hashtable_entry_t *entry;
+    entry = _Py_hashtable_get_entry(tracemalloc_filenames, filename);
+    if (entry != NULL) {
+        filename = (PyObject *)entry->key;
+    }
+    else {
+        /* tracemalloc_filenames is responsible to keep a reference
+           to the filename */
+        Py_INCREF(filename);
+        if (_Py_hashtable_set(tracemalloc_filenames, filename, NULL) < 0) {
+            Py_DECREF(filename);
+#ifdef TRACE_DEBUG
+            tracemalloc_error("failed to intern the filename");
+#endif
+            return;
+        }
+    }
+
+    /* the tracemalloc_filenames table keeps a reference to the filename */
+    frame->filename = filename;
+}
+
+/*
+ * NB: Callers of this function may hold `tables_lock`. As a result, this
+ * function, or any of its transitive callees, cannot allocate Python
+ * objects. Doing so would re-enter tracemalloc code that attempts to acquire
+ * `tables_lock`, causing a deadlock as `tables_lock` is not re-entrant.
+ */
+static CiStackWalkDirective
+Ci_traceback_process_frame(void *data, PyCodeObject *code, int lineno) {
+    traceback_t *traceback = (traceback_t *) data;
+    if (traceback->nframe < _Py_tracemalloc_config.max_nframe) {
+        Ci_tracemalloc_get_frame(code->co_filename, lineno, &traceback->frames[traceback->nframe]);
+        assert(traceback->frames[traceback->nframe].filename != NULL);
+        traceback->nframe++;
+    }
+    if (traceback->total_nframe < UINT16_MAX) {
+        traceback->total_nframe++;
+    }
+    return CI_SWD_CONTINUE_STACK_WALK;
+}
+
+static void
+Ci_traceback_get_frames(traceback_t *traceback)
+{
+    PyThreadState *tstate = PyGILState_GetThisThreadState();
+    if (tstate == NULL) {
+#ifdef TRACE_DEBUG
+        tracemalloc_error("failed to get the current thread state");
+#endif
+        return;
+    }
+    Ci_hook_WalkStack(tstate, Ci_traceback_process_frame, traceback);
 }
 
 
@@ -459,7 +518,13 @@ traceback_new(void)
     traceback = tracemalloc_traceback;
     traceback->nframe = 0;
     traceback->total_nframe = 0;
-    traceback_get_frames(traceback);
+
+    if (Ci_cinderx_initialized) {
+        Ci_traceback_get_frames(traceback);
+    } else {
+        traceback_get_frames(traceback);
+    }
+
     if (traceback->nframe == 0)
         return &tracemalloc_empty_traceback;
     traceback->hash = traceback_hash(traceback);
