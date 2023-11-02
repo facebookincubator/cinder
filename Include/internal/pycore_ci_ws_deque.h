@@ -91,10 +91,19 @@ Ci_WSArray_Grow(Ci_WSArray *arr, size_t top, size_t bot)
 
 static const size_t kCiParGCInitialArrSize = 1 << 12;
 
+// TODO(mpage): Determine this based on architecture
+#define CACHELINE_SIZE 64
+
 typedef struct {
+    union {
+        atomic_size_t top;
+        uint8_t top_padding[CACHELINE_SIZE];
+    };
+    union {
+        atomic_size_t bot;
+        uint8_t bot_padding[CACHELINE_SIZE];
+    };
     _Atomic(Ci_WSArray *) arr;
-    atomic_size_t top;
-    atomic_size_t bot;
 } Ci_WSDeque;
 
 static inline void
