@@ -186,6 +186,11 @@ int Cinder_Init() {
   Ci_hook_JIT_GetProfileNewInterpThread = _PyJIT_GetProfileNewInterpThreads;
   Ci_hook_JIT_GetFrame = _PyJIT_GetFrame;
   Ci_hook_PyDescr_NewMethod = Ci_PyDescr_NewMethod_METH_TYPED;
+  Ci_hook_WalkStack = Ci_WalkStack;
+
+
+  // This should be the very last hook installed
+  Ci_cinderx_initialized = 1;
 
   init_already_existing_types();
 

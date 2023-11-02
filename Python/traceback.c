@@ -1,9 +1,9 @@
-
 /* Traceback implementation */
 
 #include "Python.h"
 
 #include "cinder/exports.h"
+#include "cinderhooks.h"
 #include "code.h"
 #include "pycore_interp.h"        // PyInterpreterState.gc
 #include "frameobject.h"          // PyFrame_GetBack()
@@ -768,8 +768,6 @@ done:
     }
 }
 
-#ifdef ENABLE_CINDERX
-
 /* Write a frame into the file fd: "File "xxx", line xxx in xxx".
 
    This function is signal safe. */
@@ -843,21 +841,8 @@ Ci_dump_traceback(int fd, PyThreadState *tstate, int write_header)
       .fd = fd,
       .depth = 0,
     };
-    Ci_WalkStack(tstate, Ci_dump_stackentry, &ctx);
+    Ci_hook_WalkStack(tstate, Ci_dump_stackentry, &ctx);
 }
-
-/* Dump the traceback of a Python thread into fd. Use write() to write the
-   traceback and retry if write() is interrupted by a signal (failed with
-   EINTR), but don't call the Python signal handler.
-
-   The caller is responsible to call PyErr_CheckSignals() to call Python signal
-   handlers if signals were received. */
-void
-_Py_DumpTraceback(int fd, PyThreadState *tstate)
-{
-    Ci_dump_traceback(fd, tstate, 1);
-}
-#else // ENABLE_CINDERX
 
 static void
 dump_frame(int fd, PyFrameObject *frame)
@@ -944,9 +929,12 @@ dump_traceback(int fd, PyThreadState *tstate, int write_header)
 void
 _Py_DumpTraceback(int fd, PyThreadState *tstate)
 {
-    dump_traceback(fd, tstate, 1);
+    if (Ci_cinderx_initialized) {
+        Ci_dump_traceback(fd, tstate, 1);
+    } else {
+        dump_traceback(fd, tstate, 1);
+    }
 }
-#endif // ENABLE_CINDERX
 
 /* Write the thread identifier into the file 'fd': "Current thread 0xHHHH:\" if
    is_current is true, "Thread 0xHHHH:\n" otherwise.
@@ -1029,11 +1017,13 @@ _Py_DumpTracebackThreads(int fd, PyInterpreterState *interp,
         if (tstate == current_tstate && tstate->interp->gc.collecting) {
             PUTS(fd, "  Garbage-collecting\n");
         }
-#ifdef ENABLE_CINDERX
-        Ci_dump_traceback(fd, tstate, 0);
-#else
-        dump_traceback(fd, tstate, 0);
-#endif
+
+        if (Ci_cinderx_initialized) {
+            Ci_dump_traceback(fd, tstate, 0);
+        } else {
+            dump_traceback(fd, tstate, 0);
+        }
+
         tstate = PyThreadState_Next(tstate);
         nthreads++;
     } while (tstate != NULL);

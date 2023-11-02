@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "cinder/exports.h"
 #include "pystate.h" // PyThreadState
 
 /* Hooks needed by CinderX that have not been added to upstream. */
+
+// An integer flag set to 1 if the hooks are enabled.
+CiAPI_DATA(int8_t) Ci_cinderx_initialized;
 
 /* Hooks for JIT type profiling. */
 
@@ -37,3 +41,7 @@ CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 typedef void (*Cix_funcptr)(void);
 CiAPI_FUNC(Cix_funcptr)
     Cix_method_enter_call(PyThreadState *tstate, PyObject *func);
+
+typedef void (*Ci_HookType_WalkStack)(PyThreadState *tstate,
+                                      CiWalkStackCallback cb, void *data);
+CiAPI_DATA(Ci_HookType_WalkStack) Ci_hook_WalkStack;
