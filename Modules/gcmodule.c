@@ -24,6 +24,8 @@
 */
 
 #include "Python.h"
+#include "pycore_atomic.h"
+#include "pycore_condvar_compat.h"
 #include "pycore_context.h"
 #include "pycore_initconfig.h"
 #include "pycore_interp.h"      // PyInterpreterState.gc
@@ -420,7 +422,7 @@ validate_list(PyGC_Head *head, enum flagstates flags)
 /* Set all gc_refs = ob_refcnt.  After this, gc_refs is > 0 and
  * PREV_MASK_COLLECTING bit is set for all objects in containers.
  */
-static void
+static size_t
 update_refs(PyGC_Head *containers)
 {
     // PyGC_Head *gc = GC_NEXT(containers);
@@ -449,6 +451,7 @@ update_refs(PyGC_Head *containers)
     PyGC_Head *next;
     PyGC_Head *gc = GC_NEXT(containers);
     GCState *gcstate = get_gc_state();
+    size_t num_seen = 0;
     while (gc != containers) {
         next = GC_NEXT(gc);
         /* Move any object that might have become immortal to the
@@ -481,7 +484,9 @@ update_refs(PyGC_Head *containers)
          */
         _PyObject_ASSERT(FROM_GC(gc), gc_get_refs(gc) != 0);
         gc = next;
+        num_seen++;
     }
+    return num_seen;
 }
 
 /* A traversal callback for subtract_refs. */
@@ -1214,6 +1219,14 @@ handle_resurrected_objects(PyGC_Head *unreachable, PyGC_Head* still_unreachable,
     gc_list_merge(resurrected, old_generation);
 }
 
+typedef struct Ci_ParGCState Ci_ParGCState;
+
+static void
+Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head *unreachable);
+
+static Ci_ParGCState *
+Ci_get_par_gc_state(GCState *gcstate);
+
 /* This is the main function.  Read this to understand how the
  * collection process works. */
 static Py_ssize_t
@@ -1273,7 +1286,12 @@ gc_collect_main(PyThreadState *tstate, int generation,
         old = young;
     validate_list(old, collecting_clear_unreachable_clear);
 
-    deduce_unreachable(young, &unreachable);
+    Ci_ParGCState *par_gc = Ci_get_par_gc_state(gcstate);
+    if (par_gc != NULL) {
+        Ci_deduce_unreachable_parallel(par_gc, young, &unreachable);
+    } else {
+        deduce_unreachable(young, &unreachable);
+    }
 
     untrack_tuples(young);
     /* Move reachable objects to next generation. */
@@ -1507,6 +1525,485 @@ gc_collect_generations(PyThreadState *tstate)
         }
     }
     return n;
+}
+
+#define MUTEX_INIT(mut) \
+    if (PyMUTEX_INIT(&(mut))) { \
+        Py_FatalError("PyMUTEX_INIT(" #mut ") failed"); };
+#define MUTEX_FINI(mut) \
+    if (PyMUTEX_FINI(&(mut))) { \
+        Py_FatalError("PyMUTEX_FINI(" #mut ") failed"); };
+#define MUTEX_LOCK(mut) \
+    if (PyMUTEX_LOCK(&(mut))) { \
+        Py_FatalError("PyMUTEX_LOCK(" #mut ") failed"); };
+#define MUTEX_UNLOCK(mut) \
+    if (PyMUTEX_UNLOCK(&(mut))) { \
+        Py_FatalError("PyMUTEX_UNLOCK(" #mut ") failed"); };
+
+#define COND_INIT(cond) \
+    if (PyCOND_INIT(&(cond))) { \
+        Py_FatalError("PyCOND_INIT(" #cond ") failed"); };
+#define COND_FINI(cond) \
+    if (PyCOND_FINI(&(cond))) { \
+        Py_FatalError("PyCOND_FINI(" #cond ") failed"); };
+#define COND_SIGNAL(cond) \
+    if (PyCOND_SIGNAL(&(cond))) { \
+        Py_FatalError("PyCOND_SIGNAL(" #cond ") failed"); };
+#define COND_WAIT(cond, mut) \
+    if (PyCOND_WAIT(&(cond), &(mut))) { \
+        Py_FatalError("PyCOND_WAIT(" #cond ") failed"); };
+
+// A portable semaphore
+typedef struct {
+    unsigned int tokens_left;
+    PyMUTEX_T lock;
+    PyCOND_T cond;
+} Ci_Sema;
+
+static void
+Ci_Sema_Init(Ci_Sema *sema)
+{
+    sema->tokens_left = 0;
+    MUTEX_INIT(sema->lock);
+    COND_INIT(sema->cond);
+}
+
+static void
+Ci_Sema_Post(Ci_Sema *sema)
+{
+    MUTEX_LOCK(sema->lock);
+    sema->tokens_left++;
+    COND_SIGNAL(sema->cond);
+    MUTEX_UNLOCK(sema->lock);
+}
+
+static void
+Ci_Sema_Wait(Ci_Sema *sema)
+{
+    MUTEX_LOCK(sema->lock);
+    while (sema->tokens_left == 0) {
+        COND_WAIT(sema->cond, sema->lock);
+    }
+    sema->tokens_left--;
+    MUTEX_UNLOCK(sema->lock);
+}
+
+static void
+Ci_Sema_Fini(Ci_Sema *sema)
+{
+    MUTEX_FINI(sema->lock);
+    COND_FINI(sema->cond);
+}
+
+// A slice of the GC list. This represents the half open interval [start, end)
+typedef struct {
+    PyGC_Head *start;
+    PyGC_Head *end;
+} Ci_GCSlice;
+
+typedef struct {
+    // The worker's portion of the GC list
+    Ci_GCSlice gc_slice;
+
+    // This counts the number of objects that were visited by the worker during
+    // the subtract_refs phase of marking.
+    unsigned long subtract_refs_load;
+
+    // Workers block on this before beginning parallel marking
+    Ci_Sema start_worker;
+
+    // Signaled when the worker finishes with parallel marking
+    Ci_Sema done;
+
+    // This is set by the main thread to tell the worker to shutdown.
+    _Py_atomic_int shutdown_requested;
+
+    // Signaled immediately before the worker exits its main loop.
+    Ci_Sema exited;
+    unsigned long thread_id;
+} Ci_ParGCWorker;
+
+struct Ci_ParGCState {
+    // Only use the parallel collector when collecting generations >= this
+    // value.
+    int min_gen;
+
+    // GC state to which this is bound
+    struct _gc_runtime_state *gc_state;
+    struct Ci_ParGCState *next;
+    struct Ci_ParGCState *prev;
+
+    size_t num_workers;
+    Ci_ParGCWorker workers[];
+};
+
+static PyMUTEX_T ci_log_lock;
+static int ci_log_lock_initialized = 0;
+
+#define CI_LOG_DISABLED 0
+#define CI_LOG_DEBUG 1
+#define CI_LOG_TRACE 100
+
+#define CI_LOG_LEVEL CI_LOG_DISABLED
+
+// Must only be called from a python thread with the GIL held
+#define CI_INIT_LOGGING() do {                              \
+    if (CI_LOG_LEVEL && !ci_log_lock_initialized) {         \
+        MUTEX_INIT(ci_log_lock);                            \
+        ci_log_lock_initialized = 1;                        \
+    }                                                       \
+} while (0)
+
+#define CI_VLOG(level, ...) do {                                         \
+    if (level <= CI_LOG_LEVEL) {                                         \
+        MUTEX_LOCK(ci_log_lock);                                         \
+        fprintf(stderr, "PARGC: T%lu -- ", PyThread_get_thread_ident()); \
+        fprintf(stderr, __VA_ARGS__);                                    \
+        fprintf(stderr, "\n");                                           \
+        MUTEX_UNLOCK(ci_log_lock);                                       \
+    }                                                                    \
+} while (0)
+
+#define CI_DLOG(...) CI_VLOG(1, __VA_ARGS__)
+#define CI_TRACE(...) CI_VLOG(100, __VA_ARGS__)
+
+// Parallel GC state should be embedded in `struct _gc_runtime_state`, but that
+// would (potentially?) be an ABI break. We keep a 1-1 mapping between GC state
+// and parallel GC state using a doubly-linked list. This can go away if/when
+// the parallel collector is merged upstream.
+static Ci_ParGCState *par_gc_head;
+
+static inline int
+Ci_gc_is_collecting_atomic(PyGC_Head *g)
+{
+    uintptr_t prev = _Py_atomic_load_relaxed(((_Py_atomic_address *) &g->_gc_prev));
+    return (prev & PREV_MASK_COLLECTING) != 0;
+}
+
+static inline void
+Ci_gc_decref_atomic(PyGC_Head *g)
+{
+   _Py_atomic_fetch_sub_relaxed(((_Py_atomic_address *) &g->_gc_prev), 1 << _PyGC_PREV_SHIFT);
+}
+
+// Subtract an incoming ref to op
+static int
+Ci_subtract_incoming_ref(PyObject *obj, Ci_ParGCWorker *worker)
+{
+    worker->subtract_refs_load++;
+    assert(!_PyObject_IsFreed(obj));
+
+    if (_PyObject_IS_GC(obj)) {
+        PyGC_Head *gc = AS_GC(obj);
+        /* We're only interested in gc_refs for objects in the generation being
+         * collected.
+         */
+        if (Ci_gc_is_collecting_atomic(gc)) {
+            CI_TRACE("Subtracting incoming ref to %p", obj);
+            Ci_gc_decref_atomic(gc);
+        }
+    }
+
+    return 0;
+}
+
+static void
+Ci_ParGCWorker_SubtractRefs(Ci_ParGCWorker *worker)
+{
+    Ci_GCSlice *slice = &worker->gc_slice;
+    for (PyGC_Head *gc = slice->start; gc != slice->end; gc = GC_NEXT(gc)) {
+        PyObject *op = FROM_GC(gc);
+        assert(!_PyObject_IsFreed(op));
+        Py_TYPE(op)->tp_traverse(op, (visitproc) Ci_subtract_incoming_ref, worker);
+        worker->subtract_refs_load++;
+    }
+}
+
+static
+void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
+{
+    CI_DLOG("Worker started");
+    while (1) {
+        CI_TRACE("Worker waiting");
+        Ci_Sema_Wait(&worker->start_worker);
+
+        if (_Py_atomic_load(&worker->shutdown_requested)) {
+            CI_DLOG("Worker exiting");
+            Ci_Sema_Post(&worker->exited);
+            return;
+        }
+
+        // Subtract outgoing references from all GC objects in the generation
+        // being collected that refer to other objects in the same generation.
+        worker->subtract_refs_load = 0;
+        Ci_ParGCWorker_SubtractRefs(worker);
+
+        // Notify main thread that work is complete
+        Ci_Sema_Post(&worker->done);
+    }
+}
+
+static void
+Ci_ParGCWorker_Init(Ci_ParGCWorker *worker)
+{
+    worker->gc_slice.start = NULL;
+    worker->gc_slice.end = NULL;
+    worker->subtract_refs_load = 0;
+    Ci_Sema_Init(&worker->start_worker);
+    Ci_Sema_Init(&worker->done);
+    _Py_atomic_store(&worker->shutdown_requested, 0);
+    Ci_Sema_Init(&worker->exited);
+    worker->thread_id = PyThread_start_new_thread((void (*)(void *)) Ci_ParGCWorker_Run, worker);
+}
+
+static void
+Ci_ParGCWorker_Fini(Ci_ParGCWorker *worker)
+{
+    // Wait for the worker thread to exit
+    _Py_atomic_store(&worker->shutdown_requested, 1);
+    Ci_Sema_Post(&worker->start_worker);
+    Ci_Sema_Wait(&worker->exited);
+
+    Ci_Sema_Fini(&worker->start_worker);
+    Ci_Sema_Fini(&worker->done);
+    Ci_Sema_Fini(&worker->exited);
+}
+
+// Stolen from os_cpu_count_impl in posixmodule.c
+static int
+Ci_get_num_processors()
+{
+    int ncpu = 1;
+#ifdef MS_WINDOWS
+    ncpu = GetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+#elif defined(__hpux)
+    ncpu = mpctl(MPC_GETNUMSPUS, NULL, NULL);
+#elif defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
+    ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__VXWORKS__)
+    ncpu = _Py_popcount32(vxCpuEnabledGet());
+#elif defined(__DragonFly__) || \
+      defined(__OpenBSD__)   || \
+      defined(__FreeBSD__)   || \
+      defined(__NetBSD__)    || \
+      defined(__APPLE__)
+    int mib[2];
+    size_t len = sizeof(ncpu);
+    mib[0] = CTL_HW;
+    mib[1] = HW_NCPU;
+    if (sysctl(mib, 2, &ncpu, &len, NULL, 0) != 0)
+        ncpu = 1;
+#endif
+    return ncpu;
+}
+
+static int
+Ci_get_default_num_par_gc_threads()
+{
+    int num_threads = Ci_get_num_processors() / 2;
+    return num_threads > 0 ? num_threads : 1;
+}
+
+static Ci_ParGCState *
+Ci_ParGCState_New(struct _gc_runtime_state *gc_state, int min_gen, int num_threads)
+{
+    if (min_gen < 0 || min_gen >= NUM_GENERATIONS) {
+        _PyErr_SetString(_PyThreadState_GET(), PyExc_ValueError, "invalid generation");
+        return NULL;
+    }
+
+    if (num_threads < 0) {
+        _PyErr_SetString(_PyThreadState_GET(), PyExc_ValueError, "invalid num_threads");
+        return NULL;
+    }
+    if (num_threads == 0) {
+        num_threads = Ci_get_default_num_par_gc_threads();
+    }
+
+    Ci_ParGCState *par_gc = PyMem_RawCalloc(1, sizeof(Ci_ParGCState) + sizeof(Ci_ParGCWorker) * num_threads);
+    if (par_gc == NULL) {
+        Py_FatalError("out of memory");
+        return NULL;
+    }
+
+    par_gc->min_gen = min_gen;
+
+    if (par_gc_head != NULL) {
+        par_gc->next = par_gc_head;
+        par_gc_head->prev = par_gc;
+    }
+    par_gc_head = par_gc;
+    par_gc->gc_state = gc_state;
+
+    par_gc->num_workers = num_threads;
+    for (int i = 0; i < num_threads; i++) {
+        Ci_ParGCWorker_Init(&par_gc->workers[i]);
+    }
+
+    CI_DLOG("Enabling parallel gc with %d threads", num_threads);
+
+    return par_gc;
+}
+
+static void
+Ci_ParGCState_Destroy(Ci_ParGCState *par_gc)
+{
+    if (par_gc->prev != NULL) {
+        par_gc->prev->next = par_gc->next;
+    }
+    if (par_gc->next != NULL) {
+        par_gc->next->prev = par_gc->prev;
+    }
+    if (par_gc_head == par_gc) {
+        par_gc_head = par_gc->next;
+    }
+
+    for (size_t i = 0; i < par_gc->num_workers; i++) {
+        Ci_ParGCWorker_Fini(&par_gc->workers[i]);
+    }
+
+    PyMem_RawFree(par_gc);
+}
+
+// Assign workers slices of the gc list `base` for processing
+static void
+Ci_assign_worker_slices(Ci_ParGCWorker *workers, int num_workers, PyGC_Head *base, int num_objects)
+{
+    assert(num_objects >= num_workers);
+
+    for (int i = 0; i < num_workers; i++) {
+        workers[i].gc_slice.start = NULL;
+        workers[i].gc_slice.end = NULL;
+    }
+    int idx = 0;
+    int seen = 0;
+    int objs_per_slice = num_objects / num_workers;
+    for (PyGC_Head *gc = GC_NEXT(base); gc != base; gc = GC_NEXT(gc)) {
+        idx = seen / objs_per_slice;
+        idx = idx < num_workers ? idx : num_workers - 1;
+        if (workers[idx].gc_slice.start == NULL) {
+            // Start a new slice and close the previous one
+            workers[idx].gc_slice.start = gc;
+            if (idx > 0) {
+                workers[idx - 1].gc_slice.end = gc;
+            }
+        }
+        seen++;
+    }
+    assert(idx == num_workers - 1);
+    workers[idx].gc_slice.end = base;
+}
+
+static void
+Ci_report_load(Ci_ParGCWorker *workers, int num_workers)
+{
+    CI_DLOG("%-17s  %-10s", "Thread ID", "subtract_refs load");
+    int total_subtract_refs_load = 0;
+    for (int i = 0; i < num_workers; i++) {
+        Ci_ParGCWorker *w = &workers[i];
+        CI_DLOG("T%-16lu  %-10lu", w->thread_id, w->subtract_refs_load);
+        total_subtract_refs_load += w->subtract_refs_load;
+    }
+    CI_DLOG("total subtract_refs load: %d", total_subtract_refs_load);
+}
+
+/* Deduce which objects among "base" are unreachable from outside the list in
+   parallel and move them to 'unreachable'.
+
+   This uses the same basic approach as `deduce_unreachable`, but parallelizes
+   it across a number of worker threads. Figuring out the unreachable set is
+   split across three conceptual phases:
+
+   1. Iterate across the generation being collected and store each object's
+      refcount in the `prev` field of the doubly linked list, called its
+      `gc_refcount`.
+   2. For each object in the generation being collected, subtract all of its
+      outgoing references from the `gc_refcount` of other objects in the same
+      generation. After this, all objects with a `gc_refcount` > 0 are
+      reachable from outside of the generation being collected and are
+      considered live.
+   3. For each live object from (2), mark any objects that are transitively
+      reachable as live (by setting their `gc_refcount` to a value > 0).
+   4. All objects left in the generation being collected with a `gc_refcount`
+      of 0 are unreachable.
+
+   Step two of this process is parallelized roughly as follows (eventually we'll
+   parallelize step 3 and likely move to a work stealing model to improve load
+   balancing):
+
+   1. The main GC thread assigns each worker thread a slice of the GC list that
+      it should process.
+   2. The main GC thread wakes up each worker thread and waits for them all to
+      finish.
+   3. Each worker thread performs step (2) from above on its slice of the GC list
+      and notifies the main thread when its complete.
+
+   The static partitioning approach has good (~linear) scaling properties when
+   the number of outgoing references in each GC chunk is roughly equal, but can
+   become imbalanced if a subset of the GC chunks contain objects with a
+   disproportionate number of outgoing references (e.g. large lists or
+   dictionaries). We'll need some form of intelligent load balancing to
+   effectively parallelize the marking step (step 3 from the high-level
+   description above), and that can be used here to address any possible load
+   imbalance issues.
+
+Contracts:
+
+    * The "base" has to be a valid list with no mask set.
+
+    * The "unreachable" list must be uninitialized (this function calls
+      gc_list_init over 'unreachable').
+
+IMPORTANT: This function leaves 'unreachable' with the NEXT_MASK_UNREACHABLE
+flag set but it does not clear it to skip unnecessary iteration. Before the
+flag is cleared (for example, by using 'clear_unreachable_mask' function or
+by a call to 'move_legacy_finalizers'), the 'unreachable' list is not a normal
+list and we can not use most gc_list_* functions for it. */
+static void
+Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head *unreachable)
+{
+    validate_list(base, collecting_clear_unreachable_clear);
+
+    unsigned int num_objects = update_refs(base);
+    if (num_objects < par_gc->num_workers) {
+        CI_DLOG("Too few objects to justify parallel collection. Collecting serially.");
+        deduce_unreachable(base, unreachable);
+        return;
+    }
+
+    CI_DLOG("Starting parallel collection of %d objects", num_objects);
+
+    Ci_assign_worker_slices(par_gc->workers, par_gc->num_workers, base, num_objects);
+    for (size_t i = 0; i < par_gc->num_workers; i++) {
+        par_gc->workers[i].subtract_refs_load = 0;
+        Ci_Sema_Post(&par_gc->workers[i].start_worker);
+    }
+
+    // TODO(mpage): Use something more efficient
+    for (size_t i = 0; i < par_gc->num_workers; i++) {
+        Ci_Sema_Wait(&par_gc->workers[i].done);
+    }
+
+    gc_list_init(unreachable);
+    move_unreachable(base, unreachable);
+    validate_list(base, collecting_clear_unreachable_clear);
+    validate_list(unreachable, collecting_set_unreachable_set);
+
+    if (CI_LOG_LEVEL) {
+        Ci_report_load(par_gc->workers, par_gc->num_workers);
+    }
+    CI_DLOG("Done with parallel collection");
+}
+
+static Ci_ParGCState *
+Ci_get_par_gc_state(struct _gc_runtime_state *gc_state)
+{
+    for (Ci_ParGCState *cur = par_gc_head; cur != NULL; cur = cur->next) {
+        if (cur->gc_state == gc_state) {
+            return cur;
+        }
+    }
+    return NULL;
 }
 
 #include "clinic/gcmodule.c.h"
@@ -1994,6 +2491,118 @@ gc_get_freeze_count_impl(PyObject *module)
     return gc_list_size(&gcstate->permanent_generation.head);
 }
 
+/*[clinic input]
+gc.enable_parallel_collection
+
+    min_generation: int(c_default="NUM_GENERATIONS - 1") = 2
+    num_threads: int(c_default="0") = 0
+
+Enable parallel garbage collection for generations >= `min_generation`.
+
+Use `num_threads` threads to perform collection in parallel. When this value is
+0 the number of threads is half the number of processors.
+
+Calling this more than once has no effect. Call `disable_parallel_collection()`
+and then call this function to change the configuration.
+
+A ValueError is raised if the generation number is invalid.
+[clinic start generated code]*/
+
+static PyObject *
+gc_enable_parallel_collection_impl(PyObject *module, int min_generation,
+                                   int num_threads)
+/*[clinic end generated code: output=1065ad7ec09433bc input=2f58fef7cd854f95]*/
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    GCState *gc_state = &tstate->interp->gc;
+    CI_INIT_LOGGING();
+    if (Ci_get_par_gc_state(gc_state) != NULL) {
+        Py_RETURN_NONE;
+    }
+    if (Ci_ParGCState_New(gc_state, min_generation, num_threads) == NULL) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+/*[clinic input]
+gc.disable_parallel_collection
+
+Disable parallel garbage collection.
+
+This only affects the next collection; calling this from a finalizer does not
+affect the current collection.
+[clinic start generated code]*/
+
+static PyObject *
+gc_disable_parallel_collection_impl(PyObject *module)
+/*[clinic end generated code: output=750bd85f138823c9 input=ed9c5a8f9efcc587]*/
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    Ci_ParGCState *par_gc = Ci_get_par_gc_state(&tstate->interp->gc);
+    if (par_gc != NULL) {
+        Ci_ParGCState_Destroy(par_gc);
+    }
+    Py_RETURN_NONE;
+}
+
+/*[clinic input]
+gc.get_parallel_collection_settings
+
+Return the settings used by the parallel garbage collector or None if the parallel collector is not enabled.
+
+Returns a dictionary with the following keys when the parallel collector is
+enabled:
+
+    num_threads: Number of threads used.
+    min_generation: The minimum generation for which parallel collection is enabled.
+
+[clinic start generated code]*/
+
+static PyObject *
+gc_get_parallel_collection_settings_impl(PyObject *module)
+/*[clinic end generated code: output=a3f1357ca9e86beb input=ae9daf9bcf84d30a]*/
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    Ci_ParGCState *par_gc = Ci_get_par_gc_state(&tstate->interp->gc);
+
+    if (par_gc == NULL) {
+        Py_RETURN_NONE;
+    }
+
+    PyObject *settings = PyDict_New();
+    if (settings == NULL) {
+        return NULL;
+    }
+
+    PyObject *num_threads = PyLong_FromLong(par_gc->num_workers);
+    if (num_threads == NULL) {
+        Py_DECREF(settings);
+        return NULL;
+    }
+    if (PyDict_SetItemString(settings, "num_threads", num_threads) < 0) {
+        Py_DECREF(num_threads);
+        Py_DECREF(settings);
+        return NULL;
+    }
+    Py_DECREF(num_threads);
+
+    PyObject *min_gen = PyLong_FromLong(par_gc->min_gen);
+    if (min_gen == NULL) {
+        Py_DECREF(settings);
+        return NULL;
+    }
+    if (PyDict_SetItemString(settings, "min_generation", min_gen) < 0) {
+        Py_DECREF(min_gen);
+        Py_DECREF(settings);
+        return NULL;
+    }
+    Py_DECREF(min_gen);
+
+    return settings;
+}
+
+
 #ifdef Py_IMMORTAL_INSTANCES
 
 PyDoc_STRVAR(gc_immortalize_heap__doc__,
@@ -2131,7 +2740,10 @@ PyDoc_STRVAR(gc__doc__,
 #endif
 "freeze() -- Freeze all tracked objects and ignore them for future collections.\n"
 "unfreeze() -- Unfreeze all objects in the permanent generation.\n"
-"get_freeze_count() -- Return the number of objects in the permanent generation.\n");
+"get_freeze_count() -- Return the number of objects in the permanent generation.\n"
+"enable_parallel_collection() -- Enable parallel garbage collection.\n"
+"disable_parallel_collection() -- Disable parallel garbage collection.\n"
+"get_parallel_collection_settings() -- Return the settings used by for parallel collection.\n");
 
 static PyMethodDef GcMethods[] = {
     GC_ENABLE_METHODDEF
@@ -2159,6 +2771,9 @@ static PyMethodDef GcMethods[] = {
     GC_FREEZE_METHODDEF
     GC_UNFREEZE_METHODDEF
     GC_GET_FREEZE_COUNT_METHODDEF
+    GC_ENABLE_PARALLEL_COLLECTION_METHODDEF
+    GC_DISABLE_PARALLEL_COLLECTION_METHODDEF
+    GC_GET_PARALLEL_COLLECTION_SETTINGS_METHODDEF
     {NULL,      NULL}           /* Sentinel */
 };
 
@@ -2355,6 +2970,11 @@ _PyGC_Fini(PyInterpreterState *interp)
             PyGC_Head *gen = GEN_HEAD(gcstate, i);
             gc_fini_untrack(gen);
         }
+    }
+
+    Ci_ParGCState *par_gc = Ci_get_par_gc_state(gcstate);
+    if (par_gc != NULL) {
+        Ci_ParGCState_Destroy(par_gc);
     }
 }
 
