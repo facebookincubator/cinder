@@ -76,15 +76,16 @@ static void _PyMem_SetupDebugHooksDomain(PyMemAllocatorDomain domain);
 
 static inline size_t
 raw_malloc_size(void *p) {
+    if (p != NULL) {
 #ifdef MS_WINDOWS
-    return _msize(p);
+        return _msize(p);
 #elif defined(__linux__)
-    return malloc_usable_size(p);
+        return malloc_usable_size(p);
 #elif defined(__APPLE__)
-    return malloc_size(p);
-#else
-    return 0;
+        return malloc_size(p);
 #endif
+    }
+    return 0;
 }
 
 #ifdef WITH_PYMALLOC
