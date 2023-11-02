@@ -1568,6 +1568,9 @@ gc_collect_generations(PyThreadState *tstate)
 #define COND_FINI(cond) \
     if (PyCOND_FINI(&(cond))) { \
         Py_FatalError("PyCOND_FINI(" #cond ") failed"); };
+#define COND_BROADCAST(cond) \
+    if (PyCOND_BROADCAST(&(cond))) { \
+        Py_FatalError("PyCOND_BROADCAST(" #cond ") failed"); };
 #define COND_SIGNAL(cond) \
     if (PyCOND_SIGNAL(&(cond))) { \
         Py_FatalError("PyCOND_SIGNAL(" #cond ") failed"); };
@@ -1613,65 +1616,56 @@ static int ci_log_lock_initialized = 0;
 // threads.
 typedef struct {
     // Number of threads left to reach the barrier before it can be lifted.
-    _Py_atomic_int num_left;
+    unsigned int num_left;
 
     // Total number of threads managed by the barrier
-    int capacity;
+    unsigned int capacity;
 
-    // This is a sense reversing barrier.
-    volatile uintptr_t sense;
-    Py_tss_t *thrd_sense;
+    // The epoch advances once all threads reach the barrier; it
+    // disambiguates spurious wakeups from true wakeups that happen once all
+    // threads have reached the barrier.
+    unsigned int epoch;
+
+    PyMUTEX_T lock;
+    PyCOND_T cond;
 } Ci_Barrier;
 
 static void
 Ci_Barrier_Init(Ci_Barrier *barrier, int capacity)
 {
-    _Py_atomic_store(&barrier->num_left, capacity);
     barrier->capacity = capacity;
-    barrier->sense = 1;
-    barrier->thrd_sense = PyThread_tss_alloc();
-    if (barrier->thrd_sense == NULL) {
-        Py_FatalError("PyThread_tss_alloc()");
-    }
-    if (PyThread_tss_create(barrier->thrd_sense)) {
-        Py_FatalError("PyThread_tss_create()");
-    }
-}
-
-// Initialize thread-local state. This must be called in each worker prior to
-// starting work to ensure that the barrier's sense and the thread-local sense
-// are inverted.
-static void
-Ci_Barrier_InitTLS(Ci_Barrier *barrier)
-{
-    assert(PyThread_tss_is_created(barrier->thrd_sense));
-    PyThread_tss_set(barrier->thrd_sense, (void *) ((uintptr_t) !barrier->sense));
+    barrier->num_left = capacity;
+    barrier->epoch = 0;
+    MUTEX_INIT(barrier->lock);
+    COND_INIT(barrier->cond);
 }
 
 static void
 Ci_Barrier_Fini(Ci_Barrier *barrier)
 {
-    assert(PyThread_tss_is_created(barrier->thrd_sense));
-    PyThread_tss_free(barrier->thrd_sense);
+    MUTEX_FINI(barrier->lock);
+    COND_FINI(barrier->cond);
 }
 
 // Wait for all threads to reach the barrier before continuing.
 static void
 Ci_Barrier_Wait(Ci_Barrier *barrier)
 {
-    uintptr_t thrd_sense = (uintptr_t) PyThread_tss_get(barrier->thrd_sense);
-    int pos = _Py_atomic_fetch_sub(&barrier->num_left, 1);
-    if (pos == 1) {
+    MUTEX_LOCK(barrier->lock);
+    barrier->num_left--;
+    if (barrier->num_left == 0) {
         // We were the last one to get to the barrier; reset it and unblock
         // everyone else.
-        _Py_atomic_store(&barrier->num_left, barrier->capacity);
-        barrier->sense = thrd_sense;
+        barrier->num_left = barrier->capacity;
+        barrier->epoch++;
+        COND_BROADCAST(barrier->cond);
     } else {
-        // Spin waiting for everyone to arrive
-        while (barrier->sense != thrd_sense) {}
+        unsigned int epoch = barrier->epoch;
+        while (epoch == barrier->epoch) {
+            COND_WAIT(barrier->cond, barrier->lock);
+        }
     }
-
-    PyThread_tss_set(barrier->thrd_sense, (void *) ((uintptr_t) !thrd_sense));
+    MUTEX_UNLOCK(barrier->lock);
 }
 
 // A portable semaphore
@@ -2016,7 +2010,6 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
     Ci_Barrier *mark_barrier = &worker->par_gc->mark_barrier;
 
     CI_DLOG("Worker started");
-    Ci_Barrier_InitTLS(mark_barrier);
 
     // Subtract outgoing references from all GC objects in the generation
     // being collected that refer to other objects in the same generation.
