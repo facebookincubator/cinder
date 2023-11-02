@@ -30,10 +30,12 @@ Ci_list_subscript
 Ci_match_class
 Ci_match_keys
 Ci_module_lookupattro
-Ci_ParGCState_Destroy
 Ci_PyClassMethod_GetFunc
 Ci_PyDict_ForceCombined
 Ci_PyFunction_CallStatic
+Ci_PyGC_ClearFreeLists
+Ci_PyGC_GetImpl
+Ci_PyGC_SetImpl
 Ci_PyGen_IsSuspended
 Ci_PyGen_MarkJustStartedGenAsCompleted
 Ci_PyMethodDef_GetTypedSignature
@@ -55,7 +57,6 @@ Ci_ThreadState_SetProfileInterpAll
 Ci_TupleHashItems
 Ci_Tuple_Repeat
 Ci_tuple_subscript
-Ci_WSArray_Destroy
 Cix_method_enter_call
 ClassDef_fields
 Delete_fields

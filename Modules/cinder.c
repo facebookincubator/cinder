@@ -670,6 +670,82 @@ is_compile_perf_trampoline_pre_fork_enabled(PyObject *self, PyObject *Py_UNUSED(
     Py_RETURN_FALSE;
 }
 
+// TODO(T168696028): Move parallel gc functions to cinderx
+PyDoc_STRVAR(cinder_enable_parallel_gc_doc,
+"enable_parallel_gc(min_generation=2, num_threads=0)\n\
+\n\
+Enable parallel garbage collection for generations >= `min_generation`.\n\
+\n\
+Use `num_threads` threads to perform collection in parallel. When this value is\n\
+0 the number of threads is half the number of processors.\n\
+\n\
+Calling this more than once has no effect. Call `cinder.disable_parallel_gc()`\n\
+and then call this function to change the configuration.\n\
+\n\
+A ValueError is raised if the generation or number of threads is invalid."
+);
+static PyObject *
+cinder_enable_parallel_gc(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+    static char *argnames[] = {"min_generation", "num_threads", NULL};
+
+    int min_gen = 2;
+    int num_threads = 0;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii",
+                                     argnames, &min_gen, &num_threads)) {
+        return NULL;
+    }
+
+    if (min_gen < 0) {
+        PyErr_SetString(PyExc_ValueError, "invalid generation");
+        return NULL;
+    }
+
+    if (num_threads < 0) {
+        PyErr_SetString(PyExc_ValueError, "invalid num_threads");
+        return NULL;
+    }
+
+    if (Cinder_EnableParallelGC(min_gen, num_threads) < 0) {
+        return NULL;
+    }
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(cinder_disable_parallel_gc_doc,
+"disable_parallel_gc()\n\
+\n\
+Disable parallel garbage collection.\n\
+\n\
+This only affects the next collection; calling this from a finalizer does not\n\
+affect the current collection."
+);
+static PyObject *
+cinder_disable_parallel_gc(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    Cinder_DisableParallelGC();
+    Py_RETURN_NONE;
+}
+
+PyDoc_STRVAR(cinder_get_parallel_gc_settings_doc,
+"get_parallel_gc_settings()\n\
+\n\
+Return the settings used by the parallel garbage collector or\n\
+None if the parallel collector is not enabled.\n\
+\n\
+Returns a dictionary with the following keys when the parallel\n\
+collector is enabled:\n\
+\n\
+    num_threads: Number of threads used.\n\
+    min_generation: The minimum generation for which parallel gc is enabled."
+);
+static PyObject *
+cinder_get_parallel_gc_settings(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    return Cinder_GetParallelGCSettings();
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
     {"debug_break",
      cinder_debug_break,
@@ -801,6 +877,18 @@ static struct PyMethodDef cinder_module_methods[] = {
         is_compile_perf_trampoline_pre_fork_enabled,
         METH_NOARGS,
         "Return whether compile perf-trampoline entries before fork is enabled or not"},
+    {"enable_parallel_gc",
+     (PyCFunction) cinder_enable_parallel_gc,
+     METH_VARARGS | METH_KEYWORDS,
+     cinder_enable_parallel_gc_doc},
+    {"disable_parallel_gc",
+     cinder_disable_parallel_gc,
+     METH_NOARGS,
+     cinder_disable_parallel_gc_doc},
+    {"get_parallel_gc_settings",
+     cinder_get_parallel_gc_settings,
+     METH_NOARGS,
+     cinder_get_parallel_gc_settings_doc},
     {NULL, NULL} /* sentinel */
 };
 

@@ -3124,61 +3124,6 @@ class AsyncLazyValueCycleTest(unittest.TestCase):
             self.assertIn(alv4, d.parts)
 
 
-class ParallelGCTests(unittest.TestCase):
-    def setUp(self):
-        self.par_gc_settings = gc.get_parallel_collection_settings()
-
-    def tearDown(self):
-        if self.par_gc_settings is not None:
-            gc.disable_parallel_gc()
-            gc.enable_parallel_gc(
-                self.par_gc_settings["min_generation"],
-                self.par_gc_settings["num_threads"],
-            )
-        else:
-            gc.disable_parallel_collection()
-
-    def test_get_settings_when_disabled(self):
-        gc.disable_parallel_collection()
-        self.assertEqual(gc.get_parallel_collection_settings(), None)
-
-    def test_get_settings_when_enabled(self):
-        gc.disable_parallel_collection()
-        gc.enable_parallel_collection(2, 8)
-        settings = gc.get_parallel_collection_settings()
-        expected = {
-            "min_generation": 2,
-            "num_threads": 8,
-        }
-        self.assertEqual(settings, expected)
-
-    def test_set_invalid_generation(self):
-        with self.assertRaisesRegexp(ValueError, "invalid generation"):
-            gc.enable_parallel_collection(4, 8)
-
-    def test_set_invalid_num_threads(self):
-        with self.assertRaisesRegexp(ValueError, "invalid num_threads"):
-            gc.enable_parallel_collection(2, -1)
-
-    def test_collection(self):
-        collected = False
-
-        class Cycle:
-            def __init__(self):
-                self.ref = self
-
-            def __del__(self):
-                nonlocal collected
-                collected = True
-
-        gc.enable_parallel_collection()
-        gc.collect()
-        c = Cycle()
-        del c
-        gc.collect()
-        self.assertTrue(collected)
-
-
 if __name__ == "__main__":
 
     unittest.main()

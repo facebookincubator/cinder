@@ -5682,6 +5682,7 @@ done
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
     Cinder \
+    CinderX/ParallelGC \
     CinderX/RuntimeTests \
     CinderX/StrictModules/Tests \
     CinderX/ThirdParty/googletest-1.8.1/googletest \

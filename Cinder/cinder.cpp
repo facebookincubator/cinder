@@ -189,6 +189,18 @@ int Cinder_Init() {
 
   init_already_existing_types();
 
+  // Prevent the linker from omitting the object file containing the parallel
+  // GC implementation. This is the only reference from another translation
+  // unit to symbols defined in the file. Without it the linker will omit the
+  // object file when linking the libpython archive into the main python
+  // binary.
+  //
+  // TODO(T168696266): Remove this once we migrate to cinderx.
+  PyObject *res = Cinder_GetParallelGCSettings();
+  if (res == NULL) {
+    return -1;
+  }
+  Py_DECREF(res);
   if (cinder_install_dict_watcher() < 0) {
     return -1;
   }

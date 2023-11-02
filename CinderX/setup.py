@@ -32,6 +32,7 @@ CINDER_SRCS = [
 ]
 
 CINDERX_SRCS = [
+    "ParallelGC/parallel_gc.c",
     "_cinderx.cpp",
     "_static.c",
     "_strictmodule.c",

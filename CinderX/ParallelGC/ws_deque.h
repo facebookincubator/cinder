@@ -1,5 +1,4 @@
-#ifndef CI_WS_DEQUE_H
-#define CI_WS_DEQUE_H
+#pragma once
 
 #include "pyconfig.h"
 
@@ -282,4 +281,3 @@ Ci_WSDeque_Size(Ci_WSDeque *deque) { Ci_unimpl() }
 #define HAVE_WS_DEQUE 0
 
 #endif // #if HAVE_STD_ATOMIC
-#endif // #indef CI_WS_DEQUE_H
