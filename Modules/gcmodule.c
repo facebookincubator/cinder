@@ -1625,11 +1625,6 @@ Ci_Barrier_Init(Ci_Barrier *barrier, int capacity)
 {
     _Py_atomic_store(&barrier->num_left, capacity);
     barrier->capacity = capacity;
-    // NB: This must be 1 to avoid initializing barrier->thrd_sense
-    // in each thread prior to calling `Ci_Barrier_Wait`. PyThread_tss_get
-    // returns NULL when no value has been set. We need to preserve that
-    // barrier->sense == !barrier->thrd_sense until all threads have reached
-    // the barrier.
     barrier->sense = 1;
     barrier->thrd_sense = PyThread_tss_alloc();
     if (barrier->thrd_sense == NULL) {
@@ -1638,6 +1633,16 @@ Ci_Barrier_Init(Ci_Barrier *barrier, int capacity)
     if (PyThread_tss_create(barrier->thrd_sense)) {
         Py_FatalError("PyThread_tss_create()");
     }
+}
+
+// Initialize thread-local state. This must be called in each worker prior to
+// starting work to ensure that the barrier's sense and the thread-local sense
+// are inverted.
+static void
+Ci_Barrier_InitTLS(Ci_Barrier *barrier)
+{
+    assert(PyThread_tss_is_created(barrier->thrd_sense));
+    PyThread_tss_set(barrier->thrd_sense, (void *) ((uintptr_t) !barrier->sense));
 }
 
 static void
@@ -1733,17 +1738,9 @@ typedef struct {
 
     Ci_ParGCState *par_gc;
 
-    // Workers block on this before beginning parallel marking
-    Ci_Sema start_worker;
-
     // Signaled when the worker finishes with parallel marking
     Ci_Sema done;
 
-    // Set by the main thread to tell the worker to shutdown.
-    _Py_atomic_int shutdown_requested;
-
-    // Signaled immediately before the worker exits its main loop.
-    Ci_Sema exited;
     unsigned long thread_id;
 } Ci_ParGCWorker;
 
@@ -2013,33 +2010,25 @@ Ci_ParGCWorker_MarkReachable(Ci_ParGCWorker *worker)
 static
 void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
 {
+    Ci_Barrier *mark_barrier = &worker->par_gc->mark_barrier;
+
     CI_DLOG("Worker started");
+    Ci_Barrier_InitTLS(mark_barrier);
 
-    while (1) {
-        CI_TRACE("Worker waiting");
-        Ci_Sema_Wait(&worker->start_worker);
+    // Subtract outgoing references from all GC objects in the generation
+    // being collected that refer to other objects in the same generation.
+    worker->subtract_refs_load = 0;
+    Ci_ParGCWorker_SubtractRefs(worker);
 
-        if (_Py_atomic_load(&worker->shutdown_requested)) {
-            CI_DLOG("Worker exiting");
-            Ci_Sema_Post(&worker->exited);
-            return;
-        }
+    // Wait until all other workers are finished subtracting refs, then
+    // mark all reachable objects from objects that are known to be live.
+    Ci_Barrier_Wait(mark_barrier);
+    worker->mark_load = 0;
+    Ci_ParGCWorker_MarkReachable(worker);
 
-        // Subtract outgoing references from all GC objects in the generation
-        // being collected that refer to other objects in the same generation.
-        worker->subtract_refs_load = 0;
-        Ci_ParGCWorker_SubtractRefs(worker);
-
-        // Wait until all other workers are finished subtracting refs, then
-        // mark all reachable objects from objects that are known to be live.
-        Ci_Barrier_Wait(&worker->par_gc->mark_barrier);
-        worker->mark_load = 0;
-        Ci_ParGCWorker_MarkReachable(worker);
-
-        // Notify main thread that work is complete
-        CI_DLOG("Worker done");
-        Ci_Sema_Post(&worker->done);
-    }
+    // Notify main thread that work is complete
+    CI_DLOG("Worker done");
+    Ci_Sema_Post(&worker->done);
 }
 
 static void
@@ -2052,27 +2041,14 @@ Ci_ParGCWorker_Init(Ci_ParGCWorker *worker, Ci_ParGCState *par_gc, unsigned int 
     worker->mark_load = 0;
     worker->par_gc = par_gc;
     worker->seed = seed;
-
-    Ci_Sema_Init(&worker->start_worker);
     Ci_Sema_Init(&worker->done);
-    _Py_atomic_store(&worker->shutdown_requested, 0);
-    Ci_Sema_Init(&worker->exited);
-
-    worker->thread_id = PyThread_start_new_thread((void (*)(void *)) Ci_ParGCWorker_Run, worker);
+    worker->thread_id = 0;
 }
 
 static void
 Ci_ParGCWorker_Fini(Ci_ParGCWorker *worker)
 {
-    // Wait for the worker thread to exit
-    _Py_atomic_store(&worker->shutdown_requested, 1);
-    Ci_Sema_Post(&worker->start_worker);
-    Ci_Sema_Wait(&worker->exited);
-
-    Ci_Sema_Fini(&worker->start_worker);
     Ci_Sema_Fini(&worker->done);
-    Ci_Sema_Fini(&worker->exited);
-
     Ci_WSDeque_Fini(&worker->deque);
 }
 
@@ -2339,8 +2315,9 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
     CI_DLOG("Starting parallel collection of %d objects", num_objects);
 
     Ci_assign_worker_slices(par_gc->workers, par_gc->num_workers, base, num_objects);
+    Ci_ParGCWorker *workers = par_gc->workers;
     for (size_t i = 0; i < par_gc->num_workers; i++) {
-        Ci_Sema_Post(&par_gc->workers[i].start_worker);
+        workers[i].thread_id = PyThread_start_new_thread((void (*)(void *)) Ci_ParGCWorker_Run, &workers[i]);
     }
 
     // TODO(mpage): Use something more efficient
