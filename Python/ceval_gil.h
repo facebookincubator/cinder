@@ -49,7 +49,7 @@
      (Note: this mechanism is enabled with FORCE_SWITCHING above)
 */
 
-#include "condvar.h"
+#include "pycore_condvar_compat.h"
 
 #define MUTEX_INIT(mut) \
     if (PyMUTEX_INIT(&(mut))) { \

@@ -1271,7 +1271,7 @@ regen-opcode-targets:
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/opcode_targets.h.new
 
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
-		$(srcdir)/Python/condvar.h
+		$(srcdir)/Include/internal/pycore_condvar_compat.h
 
 Python/frozen.o: $(srcdir)/Python/importlib.h $(srcdir)/Python/importlib_external.h \
 		$(srcdir)/Python/importlib_zipimport.h $(srcdir)/Python/frozen_hello.h
@@ -1634,6 +1634,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/internal/pycore_code.h \
 		$(srcdir)/Include/internal/pycore_compile.h \
 		$(srcdir)/Include/internal/pycore_condvar.h \
+		$(srcdir)/Include/internal/pycore_condvar_compat.h \
 		$(srcdir)/Include/internal/pycore_context.h \
 		$(srcdir)/Include/internal/pycore_dtoa.h \
 		$(srcdir)/Include/internal/pycore_fileutils.h \
@@ -2543,7 +2544,7 @@ update-config:
 
 # Dependencies
 
-Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
+Python/thread.o: @THREADHEADERS@ $(srcdir)/Include/internal/pycore_condvar_compat.h
 
 .PHONY: regen-jit
 regen-jit:
