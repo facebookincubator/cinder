@@ -1246,6 +1246,9 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
 static Ci_ParGCState *
 Ci_get_par_gc_state(GCState *gcstate);
 
+static int
+Ci_should_use_par_gc(Ci_ParGCState *par_gc, int gen);
+
 /* This is the main function.  Read this to understand how the
  * collection process works. */
 static Py_ssize_t
@@ -1306,7 +1309,7 @@ gc_collect_main(PyThreadState *tstate, int generation,
     validate_list(old, collecting_clear_unreachable_clear);
 
     Ci_ParGCState *par_gc = Ci_get_par_gc_state(gcstate);
-    if (par_gc != NULL) {
+    if (Ci_should_use_par_gc(par_gc, generation)) {
         Ci_deduce_unreachable_parallel(par_gc, young, &unreachable);
     } else {
         deduce_unreachable(young, &unreachable);
@@ -2345,6 +2348,12 @@ Ci_get_par_gc_state(struct _gc_runtime_state *gc_state)
         }
     }
     return NULL;
+}
+
+static int
+Ci_should_use_par_gc(Ci_ParGCState *par_gc, int gen)
+{
+    return par_gc != NULL && gen >= par_gc->min_gen;
 }
 
 #include "clinic/gcmodule.c.h"
