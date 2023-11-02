@@ -1610,6 +1610,50 @@ static int ci_log_lock_initialized = 0;
 #define CI_STAT(...) CI_VLOG(CI_LOG_STAT, __VA_ARGS__)
 #define CI_TRACE(...) CI_VLOG(CI_LOG_TRACE, __VA_ARGS__)
 
+// A portable semaphore
+typedef struct {
+    size_t tokens_left;
+    PyMUTEX_T lock;
+    PyCOND_T cond;
+} Ci_Sema;
+
+static void
+Ci_Sema_Init(Ci_Sema *sema)
+{
+    sema->tokens_left = 0;
+    MUTEX_INIT(sema->lock);
+    COND_INIT(sema->cond);
+}
+
+static void
+Ci_Sema_Post(Ci_Sema *sema, size_t tokens)
+{
+    MUTEX_LOCK(sema->lock);
+    sema->tokens_left += tokens;
+    for (size_t i = 0; i < tokens; i++) {
+        COND_SIGNAL(sema->cond);
+    }
+    MUTEX_UNLOCK(sema->lock);
+}
+
+static void
+Ci_Sema_Wait(Ci_Sema *sema)
+{
+    MUTEX_LOCK(sema->lock);
+    while (sema->tokens_left == 0) {
+        COND_WAIT(sema->cond, sema->lock);
+    }
+    sema->tokens_left--;
+    MUTEX_UNLOCK(sema->lock);
+}
+
+static void
+Ci_Sema_Fini(Ci_Sema *sema)
+{
+    MUTEX_FINI(sema->lock);
+    COND_FINI(sema->cond);
+}
+
 // A barrier coordinates arrival between N threads.
 //
 // All N threads must reach the barrier before it is lifted, unblocking all
@@ -1711,7 +1755,12 @@ struct Ci_ParGCState {
 
     // Synchronizes all workers before marking reachable objects
     Ci_Barrier mark_barrier;
+
     _Py_atomic_int num_workers_marking;
+
+    PyMUTEX_T steal_coord_lock;
+    Ci_ParGCWorker *steal_coordinator;
+    Ci_Sema steal_sema;
 
     // Synchronizes all worker threads and the main thread at the end of parallel
     // collection
@@ -1954,19 +2003,99 @@ Ci_gc_steal_backoff(int *i)
     }
 }
 
+static int
+Ci_ParGCWorker_TakeStealCoordinator(Ci_ParGCWorker *worker)
+{
+    int success = 0;
+    Ci_ParGCState *par_gc = worker->par_gc;
+    MUTEX_LOCK(par_gc->steal_coord_lock);
+    if (par_gc->steal_coordinator == NULL) {
+        par_gc->steal_coordinator = worker;
+        success = 1;
+    }
+    MUTEX_UNLOCK(par_gc->steal_coord_lock);
+    return success;
+}
+
+static void
+Ci_ParGCWorker_DropStealCoordinator(Ci_ParGCWorker *worker)
+{
+    Ci_ParGCState *par_gc = worker->par_gc;
+    MUTEX_LOCK(par_gc->steal_coord_lock);
+    assert(par_gc->steal_coordinator == worker);
+    par_gc->steal_coordinator = NULL;
+    MUTEX_UNLOCK(par_gc->steal_coord_lock);
+}
+
+#define CI_UNITS_PER_WORKER 1
+
+static void
+Ci_ParGCWorker_CoordinateStealing(Ci_ParGCWorker *worker)
+{
+    int backoff = CI_GC_BACKOFF_MIN;
+    Ci_ParGCState *par_gc = worker->par_gc;
+    size_t num_workers = par_gc->num_workers;
+    while (1) {
+        // Marking is finished if we're the only active worker
+        int num_workers_marking = _Py_atomic_load(&par_gc->num_workers_marking);
+        if (num_workers_marking == 1) {
+            _Py_atomic_fetch_sub(&par_gc->num_workers_marking, 1);
+            Ci_Sema_Post(&par_gc->steal_sema, num_workers - num_workers_marking);
+            return;
+        }
+
+        // Compute available work
+        size_t work_available = 0;
+        for (size_t i = 0; i < num_workers; i++) {
+            work_available += Ci_WSDeque_Size(&par_gc->workers[i].deque);
+        }
+
+        // Figure out how many workers need to be woken up
+        if (work_available) {
+            size_t num_workers_to_wake_up = work_available / CI_UNITS_PER_WORKER;
+            size_t num_inactive_workers = num_workers - num_workers_marking ;
+            if (num_workers_to_wake_up > num_inactive_workers) {
+                num_workers_to_wake_up = num_inactive_workers;
+            }
+            if (num_workers_to_wake_up > 0) {
+                CI_DLOG("Waking up %lu workers, %d active, %lu inactive\n", num_workers_to_wake_up, num_workers_marking, num_inactive_workers);
+                // We need to increment the number of workers marking in the
+                // coordinator, rather than in each worker, to avoid a race
+                // condition where a worker is woken up but doesn't run before
+                // the next time the coordinator checks the number of workers
+                // marking. In that scenario, if the worker that was awakened
+                // was the only other active worker then the coordinator would
+                // incorrectly terminate marking because the numbers of workers
+                // marking wouldn't have been updated.
+                _Py_atomic_fetch_add(&par_gc->num_workers_marking, num_workers_to_wake_up);
+                Ci_Sema_Post(&par_gc->steal_sema, num_workers_to_wake_up);
+            }
+            return;
+        }
+
+        Ci_gc_steal_backoff(&backoff);
+    }
+}
+
 static void
 Ci_ParGCWorker_MarkReachable(Ci_ParGCWorker *worker)
 {
-    int backoff = CI_GC_BACKOFF_MIN;
-
     Ci_ParGCWorker_MarkGCSlice(worker);
 
     do {
-        _Py_atomic_fetch_add(&worker->par_gc->num_workers_marking, 1);
         Ci_ParGCWorker_ProcessMarkQueueAndSteal(worker);
-        _Py_atomic_fetch_sub(&worker->par_gc->num_workers_marking, 1);
 
-        Ci_gc_steal_backoff(&backoff);
+        if (Ci_ParGCWorker_TakeStealCoordinator(worker)) {
+            CI_DLOG("Took steal coordinator");
+            Ci_ParGCWorker_CoordinateStealing(worker);
+            Ci_ParGCWorker_DropStealCoordinator(worker);
+            CI_DLOG("Dropped steal coordinator");
+        } else {
+            // Wait until the coordinator wakes us up
+            CI_DLOG("Waiting for coordinator");
+            _Py_atomic_fetch_sub(&worker->par_gc->num_workers_marking, 1);
+            Ci_Sema_Wait(&worker->par_gc->steal_sema);
+        }
     } while (_Py_atomic_load(&worker->par_gc->num_workers_marking));
 }
 
@@ -2083,6 +2212,10 @@ Ci_ParGCState_New(struct _gc_runtime_state *gc_state, int min_gen, int num_threa
     Ci_Barrier_Init(&par_gc->mark_barrier, num_threads);
     _Py_atomic_store(&par_gc->num_workers_marking, 0);
 
+    MUTEX_INIT(par_gc->steal_coord_lock);
+    par_gc->steal_coordinator = NULL;
+    Ci_Sema_Init(&par_gc->steal_sema);
+
     // All worker threads + the main thread
     Ci_Barrier_Init(&par_gc->done_barrier, num_threads + 1);
 
@@ -2111,6 +2244,8 @@ Ci_ParGCState_Destroy(Ci_ParGCState *par_gc)
 
     Ci_Barrier_Fini(&par_gc->mark_barrier);
     Ci_Barrier_Fini(&par_gc->done_barrier);
+    MUTEX_FINI(par_gc->steal_coord_lock);
+    Ci_Sema_Fini(&par_gc->steal_sema);
 
     for (size_t i = 0; i < par_gc->num_workers; i++) {
         Ci_ParGCWorker_Fini(&par_gc->workers[i]);
@@ -2250,14 +2385,23 @@ Ci_move_unreachable_parallel(PyGC_Head *base, PyGC_Head *unreachable)
    better load balancing, should it become an issue.
 
    Parallelization of step three is divided between static partitioning and
-   work stealing:
+   coordinated work stealing:
 
    1. Each worker thread processes its slice of the GC list, queuing objects
       that are reachable from live objects in the list for further processing.
    2. Each worker thread processes all of the objects in its queue, enqueuing
-      newly discovered objects for further processing. Once the queue is empty,
-      it attempts to steal work from other workers.
-   3. Each worker exits when there is no more work to steal.
+      newly discovered objects for further processing.
+   3. Once the queue is empty, it attempts to steal work from other workers,
+      returning to step (2) if it successfully steals work.
+   4. When a worker fails to steal work it either becomes the steal coordinator
+      or waits to be woken up by current coordinator, either because the
+      coordinator thinks there is work to steal, or because marking has
+      finished.
+
+   The steal coordinator is responsible for ensuring that the number of workers
+   that are attempting to steal work is proportional to the amount of work
+   that is available to steal. This dramatically reduces the number of cycles
+   that are wasted by workers that fail to steal work.
 
 Contracts:
 
@@ -2285,6 +2429,7 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
 
     CI_DLOG("Starting parallel collection of %d objects", num_objects);
 
+    _Py_atomic_store(&par_gc->num_workers_marking, par_gc->num_workers);
     Ci_assign_worker_slices(par_gc->workers, par_gc->num_workers, base, num_objects);
     Ci_ParGCWorker *workers = par_gc->workers;
     for (size_t i = 0; i < par_gc->num_workers; i++) {

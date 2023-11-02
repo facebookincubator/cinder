@@ -219,6 +219,13 @@ Ci_WSDeque_GetNumResizes(Ci_WSDeque *deque)
     return atomic_load_relaxed(&deque->num_resizes);
 }
 
+static inline size_t
+Ci_WSDeque_Size(Ci_WSDeque *deque)
+{
+    size_t bot = atomic_load_relaxed(&deque->bot);
+    size_t top = atomic_load_acquire(&deque->top);
+    return bot < top ? 0 : bot - top;
+}
 
 #define HAVE_WS_DEQUE 1
 
@@ -268,6 +275,9 @@ Ci_WSDeque_Steal(Ci_WSDeque *deque) { Ci_unimpl() }
 
 static inline int
 Ci_WSDeque_GetNumResizes(Ci_WSDeque *deque) { Ci_unimpl() }
+
+static inline size_t
+Ci_WSDeque_Size(Ci_WSDeque *deque) { Ci_unimpl() }
 
 #define HAVE_WS_DEQUE 0
 
