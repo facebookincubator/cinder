@@ -55,6 +55,7 @@ Ci_ThreadState_SetProfileInterpAll
 Ci_TupleHashItems
 Ci_Tuple_Repeat
 Ci_tuple_subscript
+Ci_WSArray_Destroy
 Cix_method_enter_call
 ClassDef_fields
 Delete_fields

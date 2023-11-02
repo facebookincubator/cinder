@@ -24,6 +24,7 @@
 */
 
 #include "Python.h"
+#include "pyconfig.h"
 #include "pycore_atomic.h"
 #include "pycore_condvar_compat.h"
 #include "pycore_context.h"
@@ -32,8 +33,26 @@
 #include "pycore_object.h"
 #include "pycore_pyerrors.h"
 #include "pycore_pystate.h"     // _PyThreadState_GET()
+#include "pycore_ci_ws_deque.h"
 #include "pydtrace.h"
 #include "cinder/exports.h"
+
+#if defined(__x86_64__) || defined(__amd64)
+#include <immintrin.h>
+
+static inline void
+Ci_cpu_pause()
+{
+    _mm_pause();
+}
+
+#else
+
+static inline void
+Ci_cpu_pause()
+{}
+
+#endif
 
 typedef struct _gc_runtime_state GCState;
 
@@ -1553,6 +1572,100 @@ gc_collect_generations(PyThreadState *tstate)
     if (PyCOND_WAIT(&(cond), &(mut))) { \
         Py_FatalError("PyCOND_WAIT(" #cond ") failed"); };
 
+static PyMUTEX_T ci_log_lock;
+static int ci_log_lock_initialized = 0;
+
+#define CI_LOG_DISABLED 0
+#define CI_LOG_STAT 25
+#define CI_LOG_DEBUG 50
+#define CI_LOG_TRACE 100
+
+#define CI_LOG_LEVEL CI_LOG_DISABLED
+
+// Must only be called from a python thread with the GIL held
+#define CI_INIT_LOGGING() do {                              \
+    if (CI_LOG_LEVEL && !ci_log_lock_initialized) {         \
+        MUTEX_INIT(ci_log_lock);                            \
+        ci_log_lock_initialized = 1;                        \
+    }                                                       \
+} while (0)
+
+#define CI_VLOG(level, ...) do {                                         \
+    if (level <= CI_LOG_LEVEL) {                                         \
+        MUTEX_LOCK(ci_log_lock);                                         \
+        fprintf(stderr, "PARGC: T%lu -- ", PyThread_get_thread_ident()); \
+        fprintf(stderr, __VA_ARGS__);                                    \
+        fprintf(stderr, "\n");                                           \
+        MUTEX_UNLOCK(ci_log_lock);                                       \
+    }                                                                    \
+} while (0)
+
+#define CI_DLOG(...) CI_VLOG(CI_LOG_DEBUG, __VA_ARGS__)
+#define CI_STAT(...) CI_VLOG(CI_LOG_STAT, __VA_ARGS__)
+#define CI_TRACE(...) CI_VLOG(CI_LOG_TRACE, __VA_ARGS__)
+
+// A barrier coordinates arrival between N threads.
+//
+// All N threads must reach the barrier before it is lifted, unblocking all
+// threads.
+typedef struct {
+    // Number of threads left to reach the barrier before it can be lifted.
+    _Py_atomic_int num_left;
+
+    // Total number of threads managed by the barrier
+    int capacity;
+
+    // This is a sense reversing barrier.
+    volatile uintptr_t sense;
+    Py_tss_t *thrd_sense;
+} Ci_Barrier;
+
+static void
+Ci_Barrier_Init(Ci_Barrier *barrier, int capacity)
+{
+    _Py_atomic_store(&barrier->num_left, capacity);
+    barrier->capacity = capacity;
+    // NB: This must be 1 to avoid initializing barrier->thrd_sense
+    // in each thread prior to calling `Ci_Barrier_Wait`. PyThread_tss_get
+    // returns NULL when no value has been set. We need to preserve that
+    // barrier->sense == !barrier->thrd_sense until all threads have reached
+    // the barrier.
+    barrier->sense = 1;
+    barrier->thrd_sense = PyThread_tss_alloc();
+    if (barrier->thrd_sense == NULL) {
+        Py_FatalError("PyThread_tss_alloc()");
+    }
+    if (PyThread_tss_create(barrier->thrd_sense)) {
+        Py_FatalError("PyThread_tss_create()");
+    }
+}
+
+static void
+Ci_Barrier_Fini(Ci_Barrier *barrier)
+{
+    assert(PyThread_tss_is_created(barrier->thrd_sense));
+    PyThread_tss_free(barrier->thrd_sense);
+}
+
+// Wait for all threads to reach the barrier before continuing.
+static void
+Ci_Barrier_Wait(Ci_Barrier *barrier)
+{
+    uintptr_t thrd_sense = (uintptr_t) PyThread_tss_get(barrier->thrd_sense);
+    int pos = _Py_atomic_fetch_sub(&barrier->num_left, 1);
+    if (pos == 1) {
+        // We were the last one to get to the barrier; reset it and unblock
+        // everyone else.
+        _Py_atomic_store(&barrier->num_left, barrier->capacity);
+        barrier->sense = thrd_sense;
+    } else {
+        // Spin waiting for everyone to arrive
+        while (barrier->sense != thrd_sense) {}
+    }
+
+    PyThread_tss_set(barrier->thrd_sense, (void *) ((uintptr_t) !thrd_sense));
+}
+
 // A portable semaphore
 typedef struct {
     unsigned int tokens_left;
@@ -1605,9 +1718,20 @@ typedef struct {
     // The worker's portion of the GC list
     Ci_GCSlice gc_slice;
 
-    // This counts the number of objects that were visited by the worker during
-    // the subtract_refs phase of marking.
+    Ci_WSDeque deque;
+
+    // Counts the number of objects that were visited by the worker during the
+    // subtract_refs phase of marking.
     unsigned long subtract_refs_load;
+
+    // Counts the number of objects that were visited by the worker while
+    // marking transitively reachable objects.
+    unsigned long mark_load;
+
+    // Randomizes stealing order between workers
+    unsigned int seed;
+
+    Ci_ParGCState *par_gc;
 
     // Workers block on this before beginning parallel marking
     Ci_Sema start_worker;
@@ -1615,7 +1739,7 @@ typedef struct {
     // Signaled when the worker finishes with parallel marking
     Ci_Sema done;
 
-    // This is set by the main thread to tell the worker to shutdown.
+    // Set by the main thread to tell the worker to shutdown.
     _Py_atomic_int shutdown_requested;
 
     // Signaled immediately before the worker exits its main loop.
@@ -1633,39 +1757,13 @@ struct Ci_ParGCState {
     struct Ci_ParGCState *next;
     struct Ci_ParGCState *prev;
 
+    // Synchronizes all workers before marking reachable objects
+    Ci_Barrier mark_barrier;
+    _Py_atomic_int num_workers_marking;
+
     size_t num_workers;
     Ci_ParGCWorker workers[];
 };
-
-static PyMUTEX_T ci_log_lock;
-static int ci_log_lock_initialized = 0;
-
-#define CI_LOG_DISABLED 0
-#define CI_LOG_DEBUG 1
-#define CI_LOG_TRACE 100
-
-#define CI_LOG_LEVEL CI_LOG_DISABLED
-
-// Must only be called from a python thread with the GIL held
-#define CI_INIT_LOGGING() do {                              \
-    if (CI_LOG_LEVEL && !ci_log_lock_initialized) {         \
-        MUTEX_INIT(ci_log_lock);                            \
-        ci_log_lock_initialized = 1;                        \
-    }                                                       \
-} while (0)
-
-#define CI_VLOG(level, ...) do {                                         \
-    if (level <= CI_LOG_LEVEL) {                                         \
-        MUTEX_LOCK(ci_log_lock);                                         \
-        fprintf(stderr, "PARGC: T%lu -- ", PyThread_get_thread_ident()); \
-        fprintf(stderr, __VA_ARGS__);                                    \
-        fprintf(stderr, "\n");                                           \
-        MUTEX_UNLOCK(ci_log_lock);                                       \
-    }                                                                    \
-} while (0)
-
-#define CI_DLOG(...) CI_VLOG(1, __VA_ARGS__)
-#define CI_TRACE(...) CI_VLOG(100, __VA_ARGS__)
 
 // Parallel GC state should be embedded in `struct _gc_runtime_state`, but that
 // would (potentially?) be an ABI break. We keep a 1-1 mapping between GC state
@@ -1684,6 +1782,21 @@ static inline void
 Ci_gc_decref_atomic(PyGC_Head *g)
 {
    _Py_atomic_fetch_sub_relaxed(((_Py_atomic_address *) &g->_gc_prev), 1 << _PyGC_PREV_SHIFT);
+}
+
+static inline void
+Ci_gc_get_refs_and_collecting_atomic(PyGC_Head *g, Py_ssize_t *refs, int *collecting)
+{
+    uintptr_t prev = _Py_atomic_load_relaxed(((_Py_atomic_address *) &g->_gc_prev));
+    *refs = (Py_ssize_t) (prev >> _PyGC_PREV_SHIFT);
+    *collecting = (prev & PREV_MASK_COLLECTING) != 0;
+}
+
+static inline void
+Ci_gc_mark_reachable_and_clear_collecting_atomic(PyGC_Head *g)
+{
+    uintptr_t val = 1 << _PyGC_PREV_SHIFT;
+    _Py_atomic_store_relaxed(((_Py_atomic_address *) &g->_gc_prev), val);
 }
 
 // Subtract an incoming ref to op
@@ -1719,10 +1832,189 @@ Ci_ParGCWorker_SubtractRefs(Ci_ParGCWorker *worker)
     }
 }
 
+static int
+Ci_queue_obj_for_marking(PyObject *op, Ci_ParGCWorker *worker)
+{
+    worker->mark_load++;
+    if (!_PyObject_IS_GC(op)) {
+        CI_TRACE("%p not gc", op);
+        return 0;
+    }
+
+    // Ignore objects in other generations and skip objects that were already
+    // processed as part of marking transitively reachable objects.
+    PyGC_Head *gc = AS_GC(op);
+    if (!Ci_gc_is_collecting_atomic(gc)) {
+        CI_TRACE("%p not collecting", op);
+        return 0;
+    }
+
+    // Mark the object as being processed and reachable
+    CI_TRACE("%p marked and queued", op);
+    Ci_gc_mark_reachable_and_clear_collecting_atomic(gc);
+    Ci_WSDeque_Push(&worker->deque, op);
+
+    return 0;
+}
+
+// Attempt to steal a work item from another worker
+static PyObject *
+Ci_ParGCWorker_MaybeSteal(Ci_ParGCWorker *worker)
+{
+    Ci_ParGCWorker *victims = worker->par_gc->workers;
+    int num_victims = worker->par_gc->num_workers;
+    int start = rand_r(&worker->seed) % num_victims;
+    PyObject *obj = NULL;
+    for (int i = 0; i < num_victims && obj == NULL; i++) {
+        Ci_ParGCWorker *victim = &victims[(start + i) % num_victims];
+        if (victim == worker) {
+            continue;
+        }
+        obj = (PyObject *) Ci_WSDeque_Steal(&victim->deque);
+    }
+    return obj;
+}
+
+static void
+Ci_ParGCWorker_MarkGCSlice(Ci_ParGCWorker *worker)
+{
+    // At this point the GC list contains a mix of objects that are definitely
+    // reachable (gc_refs > 0) and that may be unreachable (gc_refs == 0).
+    for (PyGC_Head *gc = worker->gc_slice.start;
+         gc != worker->gc_slice.end; gc = GC_NEXT(gc)) {
+        Py_ssize_t gc_refs = -1;
+        int collecting = -1;
+        Ci_gc_get_refs_and_collecting_atomic(gc, &gc_refs, &collecting);
+        if (collecting && gc_refs) {
+            CI_TRACE("Marking %p from gc list slice", FROM_GC(gc));
+            Ci_gc_mark_reachable_and_clear_collecting_atomic(gc);
+
+            // This object is reachable. Mark anything reachable from it.
+            PyObject *obj = FROM_GC(gc);
+            Py_TYPE(obj)->tp_traverse(obj,
+                                      (visitproc) Ci_queue_obj_for_marking,
+                                      worker);
+        } else {
+            CI_TRACE("Ignoring %p from gc list slice", FROM_GC(gc));
+        }
+        worker->mark_load++;
+    }
+}
+
+typedef enum Ci_ParGCWorker_MarkState {
+    CI_PGCW_MS_START,
+    CI_PGCW_MS_MARK,
+    CI_PGCW_MS_STEAL,
+} Ci_ParGCWorker_MarkState;
+
+// Process the object graph that is reachable from items in the worker's
+// mark queue, attempting to steal new work when the queue becomes empty.
+//
+// This implements the state machine below:
+//
+//
+//
+//                          +----------+
+//                          |          |
+//                          v     q not empty
+//                    +-----------+    |
+//       +----------->| process q +----+
+//       |            +--------+--+
+//       |              ^      |
+//    q not empty       |      |
+//       |              |      |
+//       |              |      |
+//   +---+---+        stole  q empty       +------+
+//   | start |          |      |           | done |
+//   +---+---+          |      |           +------+
+//       |              |      |              ^
+//      q empty         |      v              |
+//       |            +-+---------+      didn't steal
+//       +----------->|   steal   +-----------+
+//                    +-----------+
+static void
+Ci_ParGCWorker_ProcessMarkQueueAndSteal(Ci_ParGCWorker *worker)
+{
+    PyObject *obj = Ci_WSDeque_Take(&worker->deque);
+    Ci_ParGCWorker_MarkState state = CI_PGCW_MS_START;
+
+    while (1) {
+      switch (state) {
+      case CI_PGCW_MS_START: {
+          if (obj == NULL) {
+              state = CI_PGCW_MS_STEAL;
+          } else {
+              state = CI_PGCW_MS_MARK;
+          }
+          break;
+      }
+
+      case CI_PGCW_MS_MARK: {
+          // Process mark queue
+          while (obj != NULL) {
+              CI_TRACE("Visiting %p from dequeue", obj);
+              Py_TYPE(obj)->tp_traverse(obj,
+                                        (visitproc) Ci_queue_obj_for_marking,
+                                        worker);
+              obj = Ci_WSDeque_Take(&worker->deque);
+          }
+          state = CI_PGCW_MS_STEAL;
+          break;
+      }
+
+      case CI_PGCW_MS_STEAL: {
+          // Try to steal some work
+          obj = Ci_ParGCWorker_MaybeSteal(worker);
+          if (obj == NULL) {
+              return;
+          }
+          state = CI_PGCW_MS_MARK;
+          break;
+      }
+
+      default:
+        abort();
+    }
+    }
+}
+
+#define CI_GC_BACKOFF_MIN 4
+#define CI_GC_BACKOFF_MAX 12
+
+// This clever implementation was stolen from Julia's parallel
+// GC.
+static void
+Ci_gc_steal_backoff(int *i)
+{
+    if (*i < CI_GC_BACKOFF_MAX) {
+        (*i)++;
+    }
+    for (int j = 0; j < (1 << *i); j++) {
+        Ci_cpu_pause();
+    }
+}
+
+static void
+Ci_ParGCWorker_MarkReachable(Ci_ParGCWorker *worker)
+{
+    int backoff = CI_GC_BACKOFF_MIN;
+
+    Ci_ParGCWorker_MarkGCSlice(worker);
+
+    do {
+        _Py_atomic_fetch_add(&worker->par_gc->num_workers_marking, 1);
+        Ci_ParGCWorker_ProcessMarkQueueAndSteal(worker);
+        _Py_atomic_fetch_sub(&worker->par_gc->num_workers_marking, 1);
+
+        Ci_gc_steal_backoff(&backoff);
+    } while (_Py_atomic_load(&worker->par_gc->num_workers_marking));
+}
+
 static
 void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
 {
     CI_DLOG("Worker started");
+
     while (1) {
         CI_TRACE("Worker waiting");
         Ci_Sema_Wait(&worker->start_worker);
@@ -1738,21 +2030,34 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
         worker->subtract_refs_load = 0;
         Ci_ParGCWorker_SubtractRefs(worker);
 
+        // Wait until all other workers are finished subtracting refs, then
+        // mark all reachable objects from objects that are known to be live.
+        Ci_Barrier_Wait(&worker->par_gc->mark_barrier);
+        worker->mark_load = 0;
+        Ci_ParGCWorker_MarkReachable(worker);
+
         // Notify main thread that work is complete
+        CI_DLOG("Worker done");
         Ci_Sema_Post(&worker->done);
     }
 }
 
 static void
-Ci_ParGCWorker_Init(Ci_ParGCWorker *worker)
+Ci_ParGCWorker_Init(Ci_ParGCWorker *worker, Ci_ParGCState *par_gc, unsigned int seed)
 {
     worker->gc_slice.start = NULL;
     worker->gc_slice.end = NULL;
+    Ci_WSDeque_Init(&worker->deque);
     worker->subtract_refs_load = 0;
+    worker->mark_load = 0;
+    worker->par_gc = par_gc;
+    worker->seed = seed;
+
     Ci_Sema_Init(&worker->start_worker);
     Ci_Sema_Init(&worker->done);
     _Py_atomic_store(&worker->shutdown_requested, 0);
     Ci_Sema_Init(&worker->exited);
+
     worker->thread_id = PyThread_start_new_thread((void (*)(void *)) Ci_ParGCWorker_Run, worker);
 }
 
@@ -1767,6 +2072,8 @@ Ci_ParGCWorker_Fini(Ci_ParGCWorker *worker)
     Ci_Sema_Fini(&worker->start_worker);
     Ci_Sema_Fini(&worker->done);
     Ci_Sema_Fini(&worker->exited);
+
+    Ci_WSDeque_Fini(&worker->deque);
 }
 
 // Stolen from os_cpu_count_impl in posixmodule.c
@@ -1835,9 +2142,12 @@ Ci_ParGCState_New(struct _gc_runtime_state *gc_state, int min_gen, int num_threa
     par_gc_head = par_gc;
     par_gc->gc_state = gc_state;
 
+    Ci_Barrier_Init(&par_gc->mark_barrier, num_threads);
+    _Py_atomic_store(&par_gc->num_workers_marking, 0);
+
     par_gc->num_workers = num_threads;
     for (int i = 0; i < num_threads; i++) {
-        Ci_ParGCWorker_Init(&par_gc->workers[i]);
+        Ci_ParGCWorker_Init(&par_gc->workers[i], par_gc, i);
     }
 
     CI_DLOG("Enabling parallel gc with %d threads", num_threads);
@@ -1857,6 +2167,8 @@ Ci_ParGCState_Destroy(Ci_ParGCState *par_gc)
     if (par_gc_head == par_gc) {
         par_gc_head = par_gc->next;
     }
+
+    Ci_Barrier_Fini(&par_gc->mark_barrier);
 
     for (size_t i = 0; i < par_gc->num_workers; i++) {
         Ci_ParGCWorker_Fini(&par_gc->workers[i]);
@@ -1897,14 +2209,61 @@ Ci_assign_worker_slices(Ci_ParGCWorker *workers, int num_workers, PyGC_Head *bas
 static void
 Ci_report_load(Ci_ParGCWorker *workers, int num_workers)
 {
-    CI_DLOG("%-17s  %-10s", "Thread ID", "subtract_refs load");
-    int total_subtract_refs_load = 0;
+    CI_STAT("%-17s  %-10s  %-10s", "Thread ID", "mark load", "subtract_refs load");
+    unsigned long total_mark_load = 0;
+    unsigned long total_subtract_refs_load = 0;
     for (int i = 0; i < num_workers; i++) {
         Ci_ParGCWorker *w = &workers[i];
-        CI_DLOG("T%-16lu  %-10lu", w->thread_id, w->subtract_refs_load);
+        CI_STAT("T%-16lu  %-10lu  %-10lu", w->thread_id, w->mark_load, w->subtract_refs_load);
+        total_mark_load += w->mark_load;
         total_subtract_refs_load += w->subtract_refs_load;
     }
-    CI_DLOG("total subtract_refs load: %d", total_subtract_refs_load);
+    CI_STAT("         total mark load: %lu", total_mark_load);
+    CI_STAT("total subtract_refs load: %lu", total_subtract_refs_load);
+}
+
+static void
+Ci_move_unreachable_parallel(PyGC_Head *base, PyGC_Head *unreachable)
+{
+    // Visit all GC objects, moving anything with a refcount of 0 to unreachable, and fix
+    // up prev pointers.
+    PyGC_Head *prev = base;
+    PyGC_Head *gc = GC_NEXT(base);
+    while (gc != base) {
+        if (gc_get_refs(gc) == 0) {
+            // Splice gc out of base. The next iteration of the loop will fix up
+            // the prev pointers.
+            _PyGCHead_SET_NEXT(prev, GC_NEXT(gc));
+
+            // Insert gc into unreachable.
+            // We can't use gc_list_append() here because we use
+            // NEXT_MASK_UNREACHABLE here.
+            PyGC_Head *last = GC_PREV(unreachable);
+            // NOTE: Since all objects in unreachable set has
+            // NEXT_MASK_UNREACHABLE flag, we set it unconditionally.
+            // But this may pollute the unreachable list head's 'next' pointer
+            // too. That's semantically senseless but expedient here - the
+            // damage is repaired when this function ends.
+            last->_gc_next = (NEXT_MASK_UNREACHABLE | (uintptr_t)gc);
+            _PyGCHead_SET_PREV(gc, last);
+            gc->_gc_next = (NEXT_MASK_UNREACHABLE | (uintptr_t)unreachable);
+            unreachable->_gc_prev = (uintptr_t)gc;
+
+            gc = GC_NEXT(prev);
+        } else {
+            _PyGCHead_SET_PREV(gc, prev);
+            gc_clear_collecting(gc);
+
+            prev = gc;
+            gc = GC_NEXT(gc);
+        }
+
+    }
+
+    // base->_gc_prev must be last element remained in the list.
+    _PyGCHead_SET_PREV(base, prev);
+    // don't let the pollution of the list head's next pointer leak
+    unreachable->_gc_next &= ~NEXT_MASK_UNREACHABLE;
 }
 
 /* Deduce which objects among "base" are unreachable from outside the list in
@@ -1927,9 +2286,7 @@ Ci_report_load(Ci_ParGCWorker *workers, int num_workers)
    4. All objects left in the generation being collected with a `gc_refcount`
       of 0 are unreachable.
 
-   Step two of this process is parallelized roughly as follows (eventually we'll
-   parallelize step 3 and likely move to a work stealing model to improve load
-   balancing):
+   Step two of this process is parallelized roughly as follows:
 
    1. The main GC thread assigns each worker thread a slice of the GC list that
       it should process.
@@ -1942,10 +2299,18 @@ Ci_report_load(Ci_ParGCWorker *workers, int num_workers)
    the number of outgoing references in each GC chunk is roughly equal, but can
    become imbalanced if a subset of the GC chunks contain objects with a
    disproportionate number of outgoing references (e.g. large lists or
-   dictionaries). We'll need some form of intelligent load balancing to
-   effectively parallelize the marking step (step 3 from the high-level
-   description above), and that can be used here to address any possible load
-   imbalance issues.
+   dictionaries). We can adapt the work stealing approach used below to provide
+   better load balancing, should it become an issue.
+
+   Parallelization of step three is divided between static partitioning and
+   work stealing:
+
+   1. Each worker thread processes its slice of the GC list, queuing objects
+      that are reachable from live objects in the list for further processing.
+   2. Each worker thread processes all of the objects in its queue, enqueuing
+      newly discovered objects for further processing. Once the queue is empty,
+      it attempts to steal work from other workers.
+   3. Each worker exits when there is no more work to steal.
 
 Contracts:
 
@@ -1975,7 +2340,6 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
 
     Ci_assign_worker_slices(par_gc->workers, par_gc->num_workers, base, num_objects);
     for (size_t i = 0; i < par_gc->num_workers; i++) {
-        par_gc->workers[i].subtract_refs_load = 0;
         Ci_Sema_Post(&par_gc->workers[i].start_worker);
     }
 
@@ -1985,7 +2349,7 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
     }
 
     gc_list_init(unreachable);
-    move_unreachable(base, unreachable);
+    Ci_move_unreachable_parallel(base, unreachable);
     validate_list(base, collecting_clear_unreachable_clear);
     validate_list(unreachable, collecting_set_unreachable_set);
 
@@ -2514,6 +2878,7 @@ gc_enable_parallel_collection_impl(PyObject *module, int min_generation,
 /*[clinic end generated code: output=1065ad7ec09433bc input=2f58fef7cd854f95]*/
 {
     PyThreadState *tstate = _PyThreadState_GET();
+#ifdef HAVE_WS_DEQUE
     GCState *gc_state = &tstate->interp->gc;
     CI_INIT_LOGGING();
     if (Ci_get_par_gc_state(gc_state) != NULL) {
@@ -2523,6 +2888,10 @@ gc_enable_parallel_collection_impl(PyObject *module, int min_generation,
         return NULL;
     }
     Py_RETURN_NONE;
+#else
+    _PyErr_SetString(tstate, PyExc_RuntimeError, "not supported on this platform");
+    return NULL;
+#endif
 }
 
 /*[clinic input]
