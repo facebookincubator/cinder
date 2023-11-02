@@ -1688,6 +1688,9 @@ typedef struct {
     // marking transitively reachable objects.
     unsigned long mark_load;
 
+    unsigned long steal_attempts;
+    unsigned long steal_successes;
+
     // Randomizes stealing order between workers
     unsigned int seed;
 
@@ -1824,6 +1827,10 @@ Ci_ParGCWorker_MaybeSteal(Ci_ParGCWorker *worker)
             continue;
         }
         obj = (PyObject *) Ci_WSDeque_Steal(&victim->deque);
+    }
+    worker->steal_attempts++;
+    if (obj != NULL) {
+        worker->steal_successes++;
     }
     return obj;
 }
@@ -1979,6 +1986,8 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
     // mark all reachable objects from objects that are known to be live.
     Ci_Barrier_Wait(&par_gc->mark_barrier);
     worker->mark_load = 0;
+    worker->steal_attempts = 0;
+    worker->steal_successes = 0;
     Ci_ParGCWorker_MarkReachable(worker);
 
     // Notify main thread that work is complete
@@ -2142,17 +2151,22 @@ Ci_assign_worker_slices(Ci_ParGCWorker *workers, int num_workers, PyGC_Head *bas
 static void
 Ci_report_load(Ci_ParGCWorker *workers, int num_workers)
 {
-    CI_STAT("%-17s  %-10s  %-10s", "Thread ID", "mark load", "subtract_refs load");
+    CI_STAT("%-17s  %-10s  %-13s  %-11s  %-11s  %-13s", "Thread ID", "mark load", "sub_refs load", "steal succs", "steal tries", "deque resizes");
     unsigned long total_mark_load = 0;
     unsigned long total_subtract_refs_load = 0;
+    unsigned long total_steal_attempts = 0;
+    unsigned long total_steals = 0;
     for (int i = 0; i < num_workers; i++) {
         Ci_ParGCWorker *w = &workers[i];
-        CI_STAT("T%-16lu  %-10lu  %-10lu", w->thread_id, w->mark_load, w->subtract_refs_load);
+        CI_STAT("T%-16lu  %-10lu  %-13lu  %-11lu  %-11lu  %-13d", w->thread_id, w->mark_load, w->subtract_refs_load, w->steal_successes, w->steal_attempts, Ci_WSDeque_GetNumResizes(&w->deque));
         total_mark_load += w->mark_load;
         total_subtract_refs_load += w->subtract_refs_load;
+        total_steal_attempts += w->steal_attempts;
+        total_steals += w->steal_successes;
     }
     CI_STAT("         total mark load: %lu", total_mark_load);
     CI_STAT("total subtract_refs load: %lu", total_subtract_refs_load);
+    CI_STAT("     steal success ratio: %lu/%lu (%.2f%%)", total_steals, total_steal_attempts, 100.0 * total_steals / total_steal_attempts);
 }
 
 static void

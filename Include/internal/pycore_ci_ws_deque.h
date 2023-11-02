@@ -104,6 +104,7 @@ typedef struct {
         uint8_t bot_padding[CACHELINE_SIZE];
     };
     _Atomic(Ci_WSArray *) arr;
+    atomic_int num_resizes;
 } Ci_WSDeque;
 
 static inline void
@@ -118,6 +119,7 @@ Ci_WSDeque_Init(Ci_WSDeque *deque)
     // bot will not wrap.
     atomic_store_relaxed(&deque->top, 1);
     atomic_store_relaxed(&deque->bot, 1);
+    atomic_store_relaxed(&deque->num_resizes, 0);
 }
 
 static inline void
@@ -183,6 +185,7 @@ Ci_WSDeque_Push(Ci_WSDeque *deque, void *obj)
         Ci_WSArray *new_arr = Ci_WSArray_Grow(arr, top, bot);
         atomic_store_relaxed(&deque->arr, new_arr);
         arr = atomic_load_relaxed(&deque->arr);
+        atomic_fetch_add_explicit(&deque->num_resizes, 1, memory_order_relaxed);
     }
     Ci_WSArray_Put(arr, bot, obj);
     atomic_thread_fence(memory_order_release);
@@ -208,6 +211,12 @@ Ci_WSDeque_Steal(Ci_WSDeque *deque)
         }
         return res;
     }
+}
+
+static inline int
+Ci_WSDeque_GetNumResizes(Ci_WSDeque *deque)
+{
+    return atomic_load_relaxed(&deque->num_resizes);
 }
 
 
@@ -256,6 +265,9 @@ Ci_WSDeque_Push(Ci_WSDeque *deque, void *obj) { Ci_unimpl() }
 
 static inline PyObject *
 Ci_WSDeque_Steal(Ci_WSDeque *deque) { Ci_unimpl() }
+
+static inline int
+Ci_WSDeque_GetNumResizes(Ci_WSDeque *deque) { Ci_unimpl() }
 
 #define HAVE_WS_DEQUE 0
 
