@@ -1668,48 +1668,6 @@ Ci_Barrier_Wait(Ci_Barrier *barrier)
     MUTEX_UNLOCK(barrier->lock);
 }
 
-// A portable semaphore
-typedef struct {
-    unsigned int tokens_left;
-    PyMUTEX_T lock;
-    PyCOND_T cond;
-} Ci_Sema;
-
-static void
-Ci_Sema_Init(Ci_Sema *sema)
-{
-    sema->tokens_left = 0;
-    MUTEX_INIT(sema->lock);
-    COND_INIT(sema->cond);
-}
-
-static void
-Ci_Sema_Post(Ci_Sema *sema)
-{
-    MUTEX_LOCK(sema->lock);
-    sema->tokens_left++;
-    COND_SIGNAL(sema->cond);
-    MUTEX_UNLOCK(sema->lock);
-}
-
-static void
-Ci_Sema_Wait(Ci_Sema *sema)
-{
-    MUTEX_LOCK(sema->lock);
-    while (sema->tokens_left == 0) {
-        COND_WAIT(sema->cond, sema->lock);
-    }
-    sema->tokens_left--;
-    MUTEX_UNLOCK(sema->lock);
-}
-
-static void
-Ci_Sema_Fini(Ci_Sema *sema)
-{
-    MUTEX_FINI(sema->lock);
-    COND_FINI(sema->cond);
-}
-
 // A slice of the GC list. This represents the half open interval [start, end)
 typedef struct {
     PyGC_Head *start;
@@ -1735,9 +1693,6 @@ typedef struct {
 
     Ci_ParGCState *par_gc;
 
-    // Signaled when the worker finishes with parallel marking
-    Ci_Sema done;
-
     unsigned long thread_id;
 } Ci_ParGCWorker;
 
@@ -1754,6 +1709,10 @@ struct Ci_ParGCState {
     // Synchronizes all workers before marking reachable objects
     Ci_Barrier mark_barrier;
     _Py_atomic_int num_workers_marking;
+
+    // Synchronizes all worker threads and the main thread at the end of parallel
+    // collection
+    Ci_Barrier done_barrier;
 
     size_t num_workers;
     Ci_ParGCWorker workers[];
@@ -2007,7 +1966,7 @@ Ci_ParGCWorker_MarkReachable(Ci_ParGCWorker *worker)
 static
 void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
 {
-    Ci_Barrier *mark_barrier = &worker->par_gc->mark_barrier;
+    Ci_ParGCState *par_gc = worker->par_gc;
 
     CI_DLOG("Worker started");
 
@@ -2018,13 +1977,13 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
 
     // Wait until all other workers are finished subtracting refs, then
     // mark all reachable objects from objects that are known to be live.
-    Ci_Barrier_Wait(mark_barrier);
+    Ci_Barrier_Wait(&par_gc->mark_barrier);
     worker->mark_load = 0;
     Ci_ParGCWorker_MarkReachable(worker);
 
     // Notify main thread that work is complete
     CI_DLOG("Worker done");
-    Ci_Sema_Post(&worker->done);
+    Ci_Barrier_Wait(&par_gc->done_barrier);
 }
 
 static void
@@ -2037,14 +1996,12 @@ Ci_ParGCWorker_Init(Ci_ParGCWorker *worker, Ci_ParGCState *par_gc, unsigned int 
     worker->mark_load = 0;
     worker->par_gc = par_gc;
     worker->seed = seed;
-    Ci_Sema_Init(&worker->done);
     worker->thread_id = 0;
 }
 
 static void
 Ci_ParGCWorker_Fini(Ci_ParGCWorker *worker)
 {
-    Ci_Sema_Fini(&worker->done);
     Ci_WSDeque_Fini(&worker->deque);
 }
 
@@ -2117,6 +2074,9 @@ Ci_ParGCState_New(struct _gc_runtime_state *gc_state, int min_gen, int num_threa
     Ci_Barrier_Init(&par_gc->mark_barrier, num_threads);
     _Py_atomic_store(&par_gc->num_workers_marking, 0);
 
+    // All worker threads + the main thread
+    Ci_Barrier_Init(&par_gc->done_barrier, num_threads + 1);
+
     par_gc->num_workers = num_threads;
     for (int i = 0; i < num_threads; i++) {
         Ci_ParGCWorker_Init(&par_gc->workers[i], par_gc, i);
@@ -2141,6 +2101,7 @@ Ci_ParGCState_Destroy(Ci_ParGCState *par_gc)
     }
 
     Ci_Barrier_Fini(&par_gc->mark_barrier);
+    Ci_Barrier_Fini(&par_gc->done_barrier);
 
     for (size_t i = 0; i < par_gc->num_workers; i++) {
         Ci_ParGCWorker_Fini(&par_gc->workers[i]);
@@ -2316,10 +2277,7 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
         workers[i].thread_id = PyThread_start_new_thread((void (*)(void *)) Ci_ParGCWorker_Run, &workers[i]);
     }
 
-    // TODO(mpage): Use something more efficient
-    for (size_t i = 0; i < par_gc->num_workers; i++) {
-        Ci_Sema_Wait(&par_gc->workers[i].done);
-    }
+    Ci_Barrier_Wait(&par_gc->done_barrier);
 
     gc_list_init(unreachable);
     Ci_move_unreachable_parallel(base, unreachable);
