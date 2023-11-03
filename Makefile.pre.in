@@ -2578,19 +2578,19 @@ ifneq ($(TESTOPTS),)
 endif
 	$(MAKE) -C $(srcdir)/CinderX/ TESTPYTHON="$(TESTPYTHON)" ASAN_TEST_ENV="$(ASAN_TEST_ENV)" $@
 
-
 define RUNTIME_TEST_BODY
 	$(MAKE) -C "$(srcdir)/CinderX/" \
-		abs_builddir="$(abs_builddir)" \
-		abs_srcdir="$(abs_srcdir)" \
-		CXX="$(CXX)" \
-		TESTPYTHON="$(TESTPYTHON)" \
-		PYTHON_CONFIG_CMD="$(abs_builddir)/$(BUILDPYTHON) $(abs_builddir)/python-config.py" \
-		PY_CORE_CXXFLAGS="$(PY_CORE_CXXFLAGS) -I$(abs_builddir)" \
-		ASAN_TEST_ENV_WITH_LSAN="$(ASAN_TEST_ENV_WITH_LSAN)" \
-		ASAN_TEST_ENV="$(ASAN_TEST_ENV)" \
-		PYTHONPATH="$(abs_builddir)/$(shell cat "$(abs_builddir)/pybuilddir.txt"):$(abs_srcdir)/Lib" \
-		TEST_LINK_FLAGS="$(BLDLIBRARY) $(PY3LIBRARY) $(LINKFORSHARED) $(PY_DYNLISTFLAG) $(PY_LDFLAGS) $(LRT_FLAG)" \
+		abs_builddir='$(abs_builddir)' \
+		abs_srcdir='$(abs_srcdir)' \
+		CXX='$(CXX)' \
+		TESTPYTHON='$(TESTPYTHON)' \
+		PYTHON_CONFIG_CMD='$(abs_builddir)/$(BUILDPYTHON) $(abs_builddir)/python-config.py' \
+		PY_CORE_CXXFLAGS='$(PY_CORE_CXXFLAGS) -I$(abs_builddir)' \
+		ASAN_TEST_ENV_WITH_LSAN='$(ASAN_TEST_ENV_WITH_LSAN)' \
+		ASAN_TEST_ENV='$(ASAN_TEST_ENV)' \
+		PYTHONPATH='$(abs_builddir)/$(shell cat "$(abs_builddir)/pybuilddir.txt"):$(abs_srcdir)/Lib' \
+		LIBPYTHON_A='$(abs_builddir)/$(LIBRARY)' \
+		TEST_LINK_FLAGS='$(BLDLIBRARY) $(PY3LIBRARY) $(LINKFORSHARED) $(PY_DYNLISTFLAG) $(PY_LDFLAGS) $(LRT_FLAG)' \
 		$(1)
 endef
 

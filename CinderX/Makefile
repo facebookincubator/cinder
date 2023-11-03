@@ -114,6 +114,7 @@ testcinder_jit_shadowframe_inliner_profile:
 # ASAN_TEST_ENV - ASAN env variables.
 # ASAN_TEST_ENV_WITH_LSAN - ASAN env variables.
 # PYTHONPATH - Python extension/stdlib search path.
+# LIBPYTHON_A - absolute libpython.a path
 # TEST_LINK_FLAGS - Linker args used when linking
 # TESTPYTHON - Python binary. This is primarily used to run gtest-parallel as
 #    using the system Python gets confused when run out of the Cinder root.
@@ -209,7 +210,7 @@ $(STRICTM_TESTS_OBJS): $(STRICTM_TESTS_BUILD_DIR)/%.o: pyembed_includes $(STRICT
 		-DBAKED_IN_PYTHONPATH=$(PYTHONPATH) \
 		-isystem $(CURDIR)/ThirdParty -isystem $(GTEST_SRCDIR)/include -c $(filter %.cpp,$^) -o $@
 
-$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests: ${GTEST_BUILD_DIR}/libgtest.a $(RUNTIME_TESTS_OBJS)
+$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests: ${GTEST_BUILD_DIR}/libgtest.a $(RUNTIME_TESTS_OBJS) $(LIBPYTHON_A)
 	$(eval PYEMBED_LIBS := $$(shell $(PYTHON_CONFIG_CMD) --libs | sed -e "s/-lpython[^ ]*//"))
 	cd $(abs_builddir) && \
 		$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
@@ -235,7 +236,7 @@ testruntime_serial: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 .PHONY: testruntime_serial
 
-$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests: ${GTEST_BUILD_DIR}/libgtest.a $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS)
+$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests: ${GTEST_BUILD_DIR}/libgtest.a $(STRICTM_TESTS_OBJS) $(STRICTM_HEADERS) $(LIBPYTHON_A)
 	$(eval PYEMBED_LIBS := $$(shell $(PYTHON_CONFIG_CMD) --libs | sed -e "s/-lpython[^ ]*//"))
 	cd $(abs_builddir) && \
 		$(CXX) -std=c++20 -I. -isystem ${GTEST_SRCDIR}/include -pthread \
