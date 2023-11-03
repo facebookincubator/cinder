@@ -29,6 +29,7 @@ INCLUDE_DIRS = [
 
 CINDER_SRCS = [
     "Cinder/cinder.cpp",
+    "Cinder/hooks.cpp",
 ]
 
 CINDERX_SRCS = [

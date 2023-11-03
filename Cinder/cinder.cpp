@@ -3,6 +3,7 @@
 #include "Python.h"
 #include "cinderhooks.h"
 #include "cinder/cinder.h"
+#include "cinder/hooks.h"
 #include "Jit/pyjit.h"
 #include "StaticPython/classloader.h"
 #include "StaticPython/descrobject_vectorcall.h"
@@ -170,6 +171,7 @@ int Cinder_Init() {
   Ci_hook_JIT_GetFrame = _PyJIT_GetFrame;
   Ci_hook_PyDescr_NewMethod = Ci_PyDescr_NewMethod_METH_TYPED;
   Ci_hook_WalkStack = Ci_WalkStack;
+  Ci_hook_code_sizeof_shadowcode = Ci_code_sizeof_shadowcode;
 
 
   // This should be the very last hook installed

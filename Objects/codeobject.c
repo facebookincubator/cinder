@@ -11,9 +11,8 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "clinic/codeobject.c.h"
 
-#ifdef ENABLE_CINDERX
-#include "Shadowcode/shadowcode.h"
-#endif
+#include "cinder/exports.h"
+#include "cinderhooks.h"
 
 static PyObject* code_repr(PyCodeObject *co);
 
@@ -792,19 +791,11 @@ code_sizeof(PyCodeObject *co, PyObject *Py_UNUSED(args))
         res += sizeof(_PyCodeObjectExtra) +
                (co_extra->ce_size-1) * sizeof(co_extra->ce_extras[0]);
     }
-#ifdef ENABLE_CINDERX
-    if (co->co_mutable->shadow != NULL) {
-        _PyShadowCode *shadow = co->co_mutable->shadow;
-        res += sizeof(_PyShadowCode);
-        res += sizeof(PyObject *) * shadow->l1_cache.size;
-        res += sizeof(PyObject *) * shadow->cast_cache.size;
-        res += sizeof(PyObject **) * shadow->globals_size;
-        res += sizeof(_PyShadow_InstanceAttrEntry **) *
-               shadow->polymorphic_caches_size;
-        res += sizeof(_FieldCache) * shadow->field_cache_size;
-        res += sizeof(_Py_CODEUNIT) * shadow->len;
+
+    if (Ci_hook_code_sizeof_shadowcode != NULL && co->co_mutable->shadow != NULL) {
+        Ci_hook_code_sizeof_shadowcode(co->co_mutable->shadow, &res);
     }
-#endif
+
     return PyLong_FromSsize_t(res);
 }
 

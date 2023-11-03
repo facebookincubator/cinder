@@ -45,3 +45,7 @@ CiAPI_FUNC(Cix_funcptr)
 typedef void (*Ci_HookType_WalkStack)(PyThreadState *tstate,
                                       CiWalkStackCallback cb, void *data);
 CiAPI_DATA(Ci_HookType_WalkStack) Ci_hook_WalkStack;
+
+typedef void (*Ci_HookType_code_sizeof_shadowcode)(struct _PyShadowCode *shadow,
+                                                   Py_ssize_t *res);
+CiAPI_DATA(Ci_HookType_code_sizeof_shadowcode) Ci_hook_code_sizeof_shadowcode;

@@ -20,3 +20,5 @@ Ci_TypeAttrRaisingCallback Ci_hook_type_setattr = NULL;
 Ci_HookType_PyDescr_NewMethod Ci_hook_PyDescr_NewMethod = NULL;
 
 Ci_HookType_WalkStack Ci_hook_WalkStack = NULL;
+
+Ci_HookType_code_sizeof_shadowcode Ci_hook_code_sizeof_shadowcode = NULL;

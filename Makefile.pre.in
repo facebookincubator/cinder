@@ -450,7 +450,8 @@ PYTHON_OBJS=	\
 ##########################################################################
 # Cinder
 CINDER_OBJS=       \
-		Cinder/cinder.o
+		Cinder/cinder.o \
+		Cinder/hooks.o
 
 ##########################################################################
 # Jit
@@ -1504,7 +1505,8 @@ STRICTM_HEADERS = \
 
 CINDER_HEADERS= \
 		$(srcdir)/Cinder/Include/cinder/cinder.h \
-		$(srcdir)/Cinder/Include/cinder/exports.h
+		$(srcdir)/Cinder/Include/cinder/exports.h \
+		$(srcdir)/Cinder/Include/cinder/hooks.h
 
 I386_DASM_HEADERS = \
         $(srcdir)/ThirdParty/i386-dis/dis-asm.h
