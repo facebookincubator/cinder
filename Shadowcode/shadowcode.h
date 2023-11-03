@@ -483,6 +483,9 @@ _PyShadow_TrySplitDictLookup(_PyShadow_InstanceAttrEntry *entry,
                              PyObject *dict,
                              int opcode)
 {
+    // opcode may not be used if INLINE_CACHE_PROFILE is not defined.
+    (void)opcode;
+
     PyDictObject *dictobj = (PyDictObject *)dict;
     if (_Py_LIKELY(dictobj != NULL)) {
         if (!_PyDict_HasSplitTable(dictobj)) {
