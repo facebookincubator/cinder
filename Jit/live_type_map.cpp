@@ -34,7 +34,11 @@ void LiveTypeMap::insert(BorrowedRef<PyTypeObject> type) {
     type_to_name_.erase(pair.first->second);
     pair.first->second = type;
   }
-  type_to_name_[type] = std::move(name);
+  auto pair2 = type_to_name_.emplace(type, name);
+  JIT_DCHECK(
+      !pair.second || pair2.second,
+      "Name and type maps are inconsistent when inserting name {}",
+      name);
 }
 
 void LiveTypeMap::setPrimedDictKeys(BorrowedRef<PyTypeObject> type) {
