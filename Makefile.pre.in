@@ -542,7 +542,8 @@ SHADOWCODE_OBJS=       \
 # Static Python
 STATICPYTHON_OBJS=       \
 		StaticPython/classloader.o \
-		StaticPython/descrobject_vectorcall.o
+		StaticPython/descrobject_vectorcall.o \
+		StaticPython/methodobject_vectorcall.o
 
 ##########################################################################
 # Strict Modules
@@ -1440,6 +1441,7 @@ SHADOWCODE_HEADERS= \
 STATICPYTHON_HEADERS= \
 		$(srcdir)/StaticPython/classloader.h \
 		$(srcdir)/StaticPython/descrobject_vectorcall.h \
+		$(srcdir)/StaticPython/methodobject_vectorcall.h \
 
 STRICTM_PRIVATE_HEADERS= \
 		$(srcdir)/Jit/ref.h \
