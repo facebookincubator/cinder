@@ -9,23 +9,8 @@ extern "C" {
 
 #include "Python.h"
 
-PyObject *
-Ci_cfunction_vectorcall_typed_0(PyObject *func,
-                             PyObject *const *args,
-                             size_t nargsf,
-                             PyObject *kwnames);
-
-PyObject *
-Ci_cfunction_vectorcall_typed_1(PyObject *func,
-                             PyObject *const *args,
-                             size_t nargsf,
-                             PyObject *kwnames);
-
-PyObject *
-Ci_cfunction_vectorcall_typed_2(PyObject *func,
-                             PyObject *const *args,
-                             size_t nargsf,
-                             PyObject *kwnames);
+vectorcallfunc
+Ci_PyCMethod_New_METH_TYPED(PyMethodDef *method);
 
 #ifdef __cplusplus
 }

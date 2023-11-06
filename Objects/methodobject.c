@@ -2,6 +2,8 @@
 /* Method object implementation */
 
 #include "Python.h"
+#include "cinderhooks.h"
+#include "cinder/exports.h"
 #include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_object.h"
 #include "pycore_pyerrors.h"
@@ -9,11 +11,7 @@
 #include "structmember.h"         // PyMemberDef
 
 #ifdef ENABLE_CINDERX
-#include "cinder/exports.h"
-#include "cinderhooks.h"
-
 #include "StaticPython/classloader.h"
-#include "StaticPython/methodobject_vectorcall.h"
 #endif
 
 /* undefine macro trampoline to PyCFunction_NewEx */
@@ -51,60 +49,40 @@ PyObject *
 PyCMethod_New(PyMethodDef *ml, PyObject *self, PyObject *module, PyTypeObject *cls)
 {
     /* Figure out correct vectorcall function to use */
-    vectorcallfunc vectorcall;
-#ifdef ENABLE_CINDERX
-    Ci_PyTypedMethodDef *sig;
-#endif
-    switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
-                            METH_O | METH_KEYWORDS | METH_METHOD
-#ifdef ENABLE_CINDERX
-                            | Ci_METH_TYPED
-#endif
-            ))
-    {
-        case METH_VARARGS:
-        case METH_VARARGS | METH_KEYWORDS:
-            /* For METH_VARARGS functions, it's more efficient to use tp_call
-             * instead of vectorcall. */
-            vectorcall = NULL;
-            break;
-        case METH_FASTCALL:
-            vectorcall = cfunction_vectorcall_FASTCALL;
-            break;
-        case METH_FASTCALL | METH_KEYWORDS:
-            vectorcall = cfunction_vectorcall_FASTCALL_KEYWORDS;
-            break;
-        case METH_NOARGS:
-            vectorcall = cfunction_vectorcall_NOARGS;
-            break;
-        case METH_O:
-            vectorcall = cfunction_vectorcall_O;
-            break;
-        case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
-            vectorcall = cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD;
-            break;
- #ifdef ENABLE_CINDERX
-        case Ci_METH_TYPED:
-            sig = (Ci_PyTypedMethodDef *)ml->ml_meth;
-            Py_ssize_t arg_cnt = 0;
-            while (sig->tmd_sig[arg_cnt] != NULL) {
-                arg_cnt++;
-            }
-            switch (arg_cnt) {
-                case 0: vectorcall = Ci_cfunction_vectorcall_typed_0; break;
-                case 1: vectorcall = Ci_cfunction_vectorcall_typed_1; break;
-                case 2: vectorcall = Ci_cfunction_vectorcall_typed_2; break;
-                default:
-                    PyErr_Format(PyExc_SystemError,
-                                "%s() method: unsupported argument count", ml->ml_name, arg_cnt);
-                    return NULL;
-            }
-            break;
-#endif
-        default:
-            PyErr_Format(PyExc_SystemError,
-                         "%s() method: bad call flags");
-            return NULL;
+    vectorcallfunc vectorcall = NULL;
+    if (Ci_hook_PyCMethod_New != NULL) {
+        vectorcall = Ci_hook_PyCMethod_New(ml);
+    }
+    if (vectorcall == NULL) {
+        switch (ml->ml_flags & (METH_VARARGS | METH_FASTCALL | METH_NOARGS |
+                                METH_O | METH_KEYWORDS | METH_METHOD))
+        {
+            case METH_VARARGS:
+            case METH_VARARGS | METH_KEYWORDS:
+                /* For METH_VARARGS functions, it's more efficient to use tp_call
+                 * instead of vectorcall. */
+                vectorcall = NULL;
+                break;
+            case METH_FASTCALL:
+                vectorcall = cfunction_vectorcall_FASTCALL;
+                break;
+            case METH_FASTCALL | METH_KEYWORDS:
+                vectorcall = cfunction_vectorcall_FASTCALL_KEYWORDS;
+                break;
+            case METH_NOARGS:
+                vectorcall = cfunction_vectorcall_NOARGS;
+                break;
+            case METH_O:
+                vectorcall = cfunction_vectorcall_O;
+                break;
+            case METH_METHOD | METH_FASTCALL | METH_KEYWORDS:
+                vectorcall = cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD;
+                break;
+            default:
+                PyErr_Format(PyExc_SystemError,
+                             "%s() method: bad call flags");
+                return NULL;
+        }
     }
 
     PyCFunctionObject *op = NULL;

@@ -33,6 +33,9 @@ CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
 typedef int(*Ci_TypeAttrRaisingCallback)(PyTypeObject *type, PyObject *name, PyObject *value);
 CiAPI_DATA(Ci_TypeAttrRaisingCallback) Ci_hook_type_setattr;
 
+typedef vectorcallfunc (*Ci_HookType_PyCMethod_New)(PyMethodDef *method);
+CiAPI_DATA(Ci_HookType_PyCMethod_New) Ci_hook_PyCMethod_New;
+
 typedef vectorcallfunc (*Ci_HookType_PyDescr_NewMethod)(PyMethodDef *method);
 CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 
