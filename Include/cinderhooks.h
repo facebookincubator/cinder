@@ -38,6 +38,9 @@ CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 
 /* Wrappers to expose private functions for usage with hooks. */
 
+CiAPI_FUNC(int) Cix_cfunction_check_kwargs(PyThreadState *tstate,
+                                           PyObject *func, PyObject *kwnames);
+
 typedef void (*Cix_funcptr)(void);
 CiAPI_FUNC(Cix_funcptr)
     Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func);

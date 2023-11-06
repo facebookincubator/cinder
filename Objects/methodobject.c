@@ -895,6 +895,12 @@ done:
 }
 #endif
 
+int
+Cix_cfunction_check_kwargs(PyThreadState *tstate, PyObject *func, PyObject *kwnames)
+{
+    return cfunction_check_kwargs(tstate, func, kwnames);
+}
+
 funcptr
 Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func) {
     return cfunction_enter_call(tstate, func);

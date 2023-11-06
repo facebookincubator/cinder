@@ -57,6 +57,7 @@ Ci_ThreadState_SetProfileInterpAll
 Ci_TupleHashItems
 Ci_Tuple_Repeat
 Ci_tuple_subscript
+Cix_cfunction_check_kwargs
 Cix_cfunction_enter_call
 Cix_method_enter_call
 ClassDef_fields
