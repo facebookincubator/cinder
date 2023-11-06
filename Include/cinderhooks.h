@@ -40,6 +40,8 @@ CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 
 typedef void (*Cix_funcptr)(void);
 CiAPI_FUNC(Cix_funcptr)
+    Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func);
+CiAPI_FUNC(Cix_funcptr)
     Cix_method_enter_call(PyThreadState *tstate, PyObject *func);
 
 typedef void (*Ci_HookType_WalkStack)(PyThreadState *tstate,

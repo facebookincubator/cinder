@@ -10,6 +10,7 @@
 
 #ifdef ENABLE_CINDERX
 #include "cinder/exports.h"
+#include "cinderhooks.h"
 
 #include "StaticPython/classloader.h"
 #endif
@@ -893,3 +894,8 @@ done:
     return (PyObject *)res;
 }
 #endif
+
+funcptr
+Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func) {
+    return cfunction_enter_call(tstate, func);
+}
