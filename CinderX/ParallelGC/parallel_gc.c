@@ -1577,23 +1577,32 @@ Ci_gc_is_collecting_atomic(PyGC_Head *g)
 }
 
 static inline void
+Ci_gc_get_collecting_and_finalized_atomic(PyGC_Head *g, int *collecting, int *finalized)
+{
+    uintptr_t prev = _Py_atomic_load_relaxed(((_Py_atomic_address *) &g->_gc_prev));
+    *collecting = (prev & PREV_MASK_COLLECTING) != 0;
+    *finalized = (prev & _PyGC_PREV_MASK_FINALIZED) != 0;
+}
+
+static inline void
 Ci_gc_decref_atomic(PyGC_Head *g)
 {
    _Py_atomic_fetch_sub_relaxed(((_Py_atomic_address *) &g->_gc_prev), 1 << _PyGC_PREV_SHIFT);
 }
 
-static inline void
-Ci_gc_get_refs_and_collecting_atomic(PyGC_Head *g, Py_ssize_t *refs, int *collecting)
+static inline int
+Ci_gc_is_collecting_and_reachable_atomic(PyGC_Head *g, int *finalized)
 {
     uintptr_t prev = _Py_atomic_load_relaxed(((_Py_atomic_address *) &g->_gc_prev));
-    *refs = (Py_ssize_t) (prev >> _PyGC_PREV_SHIFT);
-    *collecting = (prev & PREV_MASK_COLLECTING) != 0;
+    *finalized = (prev & _PyGC_PREV_MASK_FINALIZED) != 0;
+    return (prev >> _PyGC_PREV_SHIFT) && (prev & PREV_MASK_COLLECTING);
 }
 
 static inline void
-Ci_gc_mark_reachable_and_clear_collecting_atomic(PyGC_Head *g)
+Ci_gc_mark_reachable_and_clear_collecting_atomic(PyGC_Head *g, int finalized)
 {
-    uintptr_t val = 1 << _PyGC_PREV_SHIFT;
+    assert(finalized == 0 || finalized == 1);
+    uintptr_t val = (1 << _PyGC_PREV_SHIFT) | (finalized);
     _Py_atomic_store_relaxed(((_Py_atomic_address *) &g->_gc_prev), val);
 }
 
@@ -1642,14 +1651,16 @@ Ci_queue_obj_for_marking(PyObject *op, Ci_ParGCWorker *worker)
     // Ignore objects in other generations and skip objects that were already
     // processed as part of marking transitively reachable objects.
     PyGC_Head *gc = AS_GC(op);
-    if (!Ci_gc_is_collecting_atomic(gc)) {
+    int is_collecting, is_finalized;
+    Ci_gc_get_collecting_and_finalized_atomic(gc, &is_collecting, &is_finalized);
+    if (!is_collecting) {
         CI_TRACE("%p not collecting", op);
         return 0;
     }
 
     // Mark the object as being processed and reachable
     CI_TRACE("%p marked and queued", op);
-    Ci_gc_mark_reachable_and_clear_collecting_atomic(gc);
+    Ci_gc_mark_reachable_and_clear_collecting_atomic(gc, is_finalized);
     Ci_WSDeque_Push(&worker->deque, op);
 
     return 0;
@@ -1684,12 +1695,10 @@ Ci_ParGCWorker_MarkGCSlice(Ci_ParGCWorker *worker)
     // reachable (gc_refs > 0) and that may be unreachable (gc_refs == 0).
     for (PyGC_Head *gc = worker->gc_slice.start;
          gc != worker->gc_slice.end; gc = GC_NEXT(gc)) {
-        Py_ssize_t gc_refs = -1;
-        int collecting = -1;
-        Ci_gc_get_refs_and_collecting_atomic(gc, &gc_refs, &collecting);
-        if (collecting && gc_refs) {
+        int is_finalized;
+        if (Ci_gc_is_collecting_and_reachable_atomic(gc, &is_finalized)) {
             CI_TRACE("Marking %p from gc list slice", FROM_GC(gc));
-            Ci_gc_mark_reachable_and_clear_collecting_atomic(gc);
+            Ci_gc_mark_reachable_and_clear_collecting_atomic(gc, is_finalized);
 
             // This object is reachable. Mark anything reachable from it.
             PyObject *obj = FROM_GC(gc);
