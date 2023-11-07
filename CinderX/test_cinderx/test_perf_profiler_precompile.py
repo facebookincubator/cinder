@@ -118,3 +118,58 @@ class TestPerfTrampolinePreCompile(unittest.TestCase):
                 or f"py::baz_fork:{script}" in line
             ):
                 self.assertIn(line, child_perf_file_contents)
+
+    def test_trampoline_works_with_gced_functions(self):
+        # This tests that functions which are GC'd before the fork get cleared from
+        # the list of functions to compile a trampoline for.
+
+        code = """if 1:
+                import os
+                import gc
+                from cinder import _compile_perf_trampoline_pre_fork
+
+                def baz_fork():
+                    pass
+
+                def baz():
+                    pass
+
+                if __name__ == "__main__":
+
+                    def tmp_fn():
+                        pass
+
+                    # ensure this is registered with the JIT
+                    tmp_fn()
+
+                    # ensure it's GC'd
+                    del tmp_fn
+                    gc.collect()
+
+                    _compile_perf_trampoline_pre_fork()
+                    pid = os.fork()
+                    if pid == 0:
+                        print(os.getpid())
+                        baz_fork()
+                    else:
+                        baz()
+                """
+        rc, out, err = assert_python_ok("-c", code)
+        with temp_dir() as script_dir:
+            script = make_script(script_dir, "perftest", code)
+            with subprocess.Popen(
+                [
+                    sys.executable,
+                    "-X",
+                    "perf-trampoline-prefork-compilation",
+                    "-X",
+                    "perf",
+                    script,
+                ],
+                universal_newlines=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            ) as process:
+                stdout, stderr = process.communicate()
+                self.assertNotIn("Error:", stderr)
+                self.assertEqual(process.returncode, 0)

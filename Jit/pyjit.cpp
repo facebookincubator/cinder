@@ -2027,6 +2027,9 @@ void _PyJIT_FuncDestroyed(PyFunctionObject* func) {
       handle_unit_deleted_during_preload(func_obj);
     }
   }
+  if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
+    perf_trampoline_reg_units.erase(reinterpret_cast<PyObject*>(func));
+  }
   if (jit_ctx) {
     _PyJITContext_FuncDestroyed(jit_ctx, func);
   }
