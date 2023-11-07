@@ -2166,6 +2166,19 @@ Ci_move_unreachable_parallel(PyGC_Head *base, PyGC_Head *unreachable)
     unreachable->_gc_next &= ~NEXT_MASK_UNREACHABLE;
 }
 
+static void
+Ci_restore_prev_ptrs(PyGC_Head *containers)
+{
+    PyGC_Head *prev = containers;
+    for (PyGC_Head *gc = GC_NEXT(containers); gc != containers; gc = GC_NEXT(gc)) {
+      // Clear refcount saved in top bits (gc_refs)
+      _PyGCHead_SET_PREV(gc, prev);
+      // Clear the collecting bit
+      gc_clear_collecting(gc);
+      prev = gc;
+    }
+}
+
 /* Deduce which objects among "base" are unreachable from outside the list in
    parallel and move them to 'unreachable'.
 
@@ -2241,6 +2254,8 @@ Ci_deduce_unreachable_parallel(Ci_ParGCState *par_gc, PyGC_Head *base, PyGC_Head
     unsigned int num_objects = update_refs(base);
     if (num_objects < par_gc->num_workers) {
         CI_DLOG("Too few objects to justify parallel collection. Collecting serially.");
+        // Restore the prev pointer of each node that was clobbered by update_refs
+        Ci_restore_prev_ptrs(base);
         deduce_unreachable(base, unreachable);
         return;
     }
