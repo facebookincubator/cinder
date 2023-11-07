@@ -1555,6 +1555,10 @@ struct Ci_ParGCState {
     // collection
     Ci_Barrier done_barrier;
 
+    // Tracks the number of workers actively running. When this reaches zero
+    // it is safe to destroy shared state.
+    _Py_atomic_int num_workers_active;
+
     size_t num_workers;
     Ci_ParGCWorker workers[];
 };
@@ -1893,6 +1897,7 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
 {
     Ci_ParGCState *par_gc = worker->par_gc;
 
+    _Py_atomic_fetch_add(&par_gc->num_workers_active, 1);
     CI_DLOG("Worker started");
 
     // Subtract outgoing references from all GC objects in the generation
@@ -1911,6 +1916,7 @@ void Ci_ParGCWorker_Run(Ci_ParGCWorker *worker)
     // Notify main thread that work is complete
     CI_DLOG("Worker done");
     Ci_Barrier_Wait(&par_gc->done_barrier);
+    _Py_atomic_fetch_sub(&par_gc->num_workers_active, 1);
 }
 
 static void
@@ -2000,6 +2006,7 @@ Ci_ParGCState_New(size_t min_gen, size_t num_threads)
 
     // All worker threads + the main thread
     Ci_Barrier_Init(&par_gc->done_barrier, num_threads + 1);
+    _Py_atomic_store(&par_gc->num_workers_active, 0);
 
     par_gc->num_workers = num_threads;
     for (size_t i = 0; i < num_threads; i++) {
@@ -2014,6 +2021,31 @@ Ci_ParGCState_New(size_t min_gen, size_t num_threads)
 static void
 Ci_ParGCState_Destroy(Ci_ParGCState *par_gc)
 {
+    // Wait until all workers are done before destroying shared state.
+    //
+    // During finalization, the interpreter will perform a final collection
+    // immediately before destroying GC state. Depending on the vagaries of the
+    // OS scheduler, we may reach this point before some worker threads have
+    // been woken up. When that occurs, they will be paused at
+    //
+    //     Ci_Barrier_Wait(&par_gc->done_barrier);
+    //
+    // and will still need access to the synchronization primitives in
+    // `par_gc->done_barrier`. We must wait until they have proceeded past this
+    // point before we can safely finalize par_gc.
+    //
+    // A simple solution would be to join each thread, but that would require
+    // joining each thread at the end of every collection, slowing things
+    // down. Additionally, the Python C-API does not support this. Instead,
+    // each worker decrements `par_gc->num_workers_active` as the last
+    // operation it performs before exiting. Since no future collections will
+    // be performed once we reach this point, we can be sure that all workers
+    // no longer need access to any shared state once
+    // `par_gc->num_workers_active` reaches zero.
+    while (_Py_atomic_load(&par_gc->num_workers_active)) {
+        Ci_cpu_pause();
+    }
+
     Ci_PyGCImpl *old_impl = par_gc->old_impl;
     if (old_impl != NULL) {
         old_impl->finalize(old_impl);
