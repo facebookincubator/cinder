@@ -1,6 +1,7 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /* facebook begin t39538061 */
 #include "Objects/dict-common.h"
+#include "cinderhooks.h"
 #include "Python.h"
 #include "code.h"
 #include "opcode.h"
@@ -582,30 +583,30 @@ static PyObject *_Py_NO_INLINE
 _PyShadow_LoadAttrDictNoDescrMaybeError(_PyShadow_InstanceAttrEntry *entry,
                                         PyObject *owner)
 {
-#ifdef ENABLE_CINDERX
-    PyObject *res;
-    if (entry->value != NULL) {
-        /* cached_property descriptor, we need to create the value */
-        assert(Py_TYPE(entry->value) == &PyCachedProperty_Type);
-        PyCachedPropertyDescrObject *cp =
-            (PyCachedPropertyDescrObject *)entry->value;
-        PyObject *stack[1] = {owner};
-        res = _PyObject_FastCall(cp->func, stack, 1);
-        if (res == NULL || _PyObjectDict_SetItem(Py_TYPE(owner),
-                                                 _PyObject_GetDictPtr(owner),
-                                                 cp->name_or_descr,
-                                                 res)) {
+    if (Ci_cinderx_initialized) {
+        PyObject *res;
+        if (entry->value != NULL) {
+            /* cached_property descriptor, we need to create the value */
+            assert(Py_TYPE(entry->value) == &PyCachedProperty_Type);
+            PyCachedPropertyDescrObject *cp =
+                (PyCachedPropertyDescrObject *)entry->value;
+            PyObject *stack[1] = {owner};
+            res = _PyObject_FastCall(cp->func, stack, 1);
+            if (res == NULL || _PyObjectDict_SetItem(Py_TYPE(owner),
+                                                    _PyObject_GetDictPtr(owner),
+                                                    cp->name_or_descr,
+                                                    res)) {
+                return NULL;
+            }
+        } else {
+            _PyShadow_SetLoadAttrError(owner, entry->name);
             return NULL;
         }
+        return res;
     } else {
         _PyShadow_SetLoadAttrError(owner, entry->name);
         return NULL;
     }
-    return res;
-#else
-    _PyShadow_SetLoadAttrError(owner, entry->name);
-    return NULL;
-#endif
 }
 
 
@@ -660,32 +661,31 @@ _PyShadow_LoadAttrDictNoDescr(_PyShadow_EvalState *shadow,
 static _Py_ALWAYS_INLINE PyObject *
 _PyShadow_LoadAttrSlotHit(_PyShadow_InstanceAttrEntry *entry, PyObject *owner)
 {
-#ifdef ENABLE_CINDERX
-    PyObject *res = *(PyObject **)((char *)owner + entry->splitoffset);
-    if (res == NULL) {
-        if (entry->value != NULL &&
-            Py_TYPE(entry->value) == &PyCachedProperty_Type) {
-            /* cached_property descriptor, we need to create the value */
-            PyCachedPropertyDescrObject *cp =
-                (PyCachedPropertyDescrObject *)entry->value;
-            PyObject *stack[1] = {owner};
-            res = _PyObject_FastCall(cp->func, stack, 1);
-            if (res == NULL) {
+    if (Ci_cinderx_initialized) {
+        PyObject *res = *(PyObject **)((char *)owner + entry->splitoffset);
+        if (res == NULL) {
+            if (entry->value != NULL &&
+                Py_TYPE(entry->value) == &PyCachedProperty_Type) {
+                /* cached_property descriptor, we need to create the value */
+                PyCachedPropertyDescrObject *cp =
+                    (PyCachedPropertyDescrObject *)entry->value;
+                PyObject *stack[1] = {owner};
+                res = _PyObject_FastCall(cp->func, stack, 1);
+                if (res == NULL) {
+                    return NULL;
+                }
+                *(PyObject **)((char *)owner + entry->splitoffset) = res;
+            } else {
+                PyErr_SetObject(PyExc_AttributeError, entry->name);
                 return NULL;
             }
-            *(PyObject **)((char *)owner + entry->splitoffset) = res;
-        } else {
-            PyErr_SetObject(PyExc_AttributeError, entry->name);
-            return NULL;
         }
+        Py_INCREF(res);
+        return res;
+    } else {
+        PyErr_SetObject(PyExc_AttributeError, entry->name);
+        return NULL;
     }
-    Py_INCREF(res);
-    return res;
-#else
-    (void)owner;
-    PyErr_SetObject(PyExc_AttributeError, entry->name);
-    return NULL;
-#endif
 }
 
 static inline PyObject *
@@ -890,7 +890,6 @@ _PyShadow_LoadAttrModule(_PyShadow_EvalState *shadow,
     return res;
 }
 
-#ifdef ENABLE_CINDERX
 static inline PyObject *
 _PyShadow_LoadAttrStrictModule(_PyShadow_EvalState *shadow,
                          const _Py_CODEUNIT *next_instr,
@@ -925,7 +924,6 @@ _PyShadow_LoadAttrStrictModule(_PyShadow_EvalState *shadow,
     }
     return res;
 }
-#endif
 
 static _Py_ALWAYS_INLINE PyObject *
 _PyShadow_LoadAttrNoDictDescrHit(_PyShadow_InstanceAttrEntry *entry,
@@ -1352,7 +1350,6 @@ _PyShadow_LoadMethodModule(_PyShadow_EvalState *shadow,
     LOAD_METHOD_CACHE_MISS(LOAD_METHOD_MODULE, NULL)
 }
 
-#ifdef ENABLE_CINDERX
 static inline int
 _PyShadow_LoadMethodStrictModule(_PyShadow_EvalState *shadow,
                            const _Py_CODEUNIT *next_instr,
@@ -1386,7 +1383,6 @@ _PyShadow_LoadMethodStrictModule(_PyShadow_EvalState *shadow,
 
     LOAD_METHOD_CACHE_MISS(LOAD_METHOD_S_MODULE, NULL)
 }
-#endif
 
 #define STORE_ATTR_CACHE_MISS(opcode, target, v)                              \
     INLINE_CACHE_RECORD_STAT(opcode, misses);                                 \
