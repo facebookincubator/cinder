@@ -8,6 +8,7 @@
 #include "structmember.h"
 #include "weakrefobject.h"
 #include "cinder/exports.h"
+#include "cinderhooks.h"
 
 #include "internal/pycore_shadow_frame.h"   // _PyShadowFrame_GetGen(), _PyShadowFrame_SetGen()
 
@@ -7598,17 +7599,16 @@ _gather_multiple(PyObject *const*items,
     PyObject *current_task = NULL, *current_context = NULL, *awaiter = NULL;
     context_aware_task_set_ctx_f context_setter = NULL;
 
-#ifdef ENABLE_CINDERX
-    if (awaited) {
+    if (awaited && Ci_cinderx_initialized) {
         _PyShadowFrame* sf = tstate->shadow_frame;
         // If our caller is executing eagerly, it won't have a coroutine to set
         // as our awaiter yet. This will be fixed up if and when the caller
         // does suspend.
-        if (_PyShadowFrame_HasGen(sf)) {
-            awaiter = (PyObject *)_PyShadowFrame_GetGen(sf);
+        if (Ci_hook_PyShadowFrame_HasGen(sf)) {
+            awaiter = (PyObject *)Ci_hook_PyShadowFrame_GetGen(sf);
         }
     }
-#endif
+
     int contains_running_alv = 0;
     for (Py_ssize_t i = 0; i < nitems; ++i) {
         PyObject *arg = items[i];

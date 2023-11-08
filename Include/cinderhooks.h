@@ -57,3 +57,10 @@ CiAPI_DATA(Ci_HookType_WalkStack) Ci_hook_WalkStack;
 typedef void (*Ci_HookType_code_sizeof_shadowcode)(struct _PyShadowCode *shadow,
                                                    Py_ssize_t *res);
 CiAPI_DATA(Ci_HookType_code_sizeof_shadowcode) Ci_hook_code_sizeof_shadowcode;
+
+typedef int (*Ci_HookType_PyShadowFrame_HasGen)(struct _PyShadowFrame *sf);
+CiAPI_DATA(Ci_HookType_PyShadowFrame_HasGen) Ci_hook_PyShadowFrame_HasGen;
+
+typedef PyGenObject *(*Ci_HookType_PyShadowFrame_GetGen)(
+    struct _PyShadowFrame *sf);
+CiAPI_DATA(Ci_HookType_PyShadowFrame_GetGen) Ci_hook_PyShadowFrame_GetGen;

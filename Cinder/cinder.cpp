@@ -9,6 +9,7 @@
 #include "StaticPython/descrobject_vectorcall.h"
 #include "Shadowcode/shadowcode.h"
 #include "StaticPython/methodobject_vectorcall.h"
+#include "internal/pycore_shadow_frame.h"
 
 static int cinder_dict_watcher_id = -1;
 static int cinder_type_watcher_id = -1;
@@ -174,6 +175,9 @@ int Cinder_Init() {
   Ci_hook_PyDescr_NewMethod = Ci_PyDescr_NewMethod_METH_TYPED;
   Ci_hook_WalkStack = Ci_WalkStack;
   Ci_hook_code_sizeof_shadowcode = Ci_code_sizeof_shadowcode;
+  Ci_hook_PyShadowFrame_HasGen = _PyShadowFrame_HasGen;
+  Ci_hook_PyShadowFrame_GetGen = _PyShadowFrame_GetGen;
+
 
   // This should be the very last hook installed
   Ci_cinderx_initialized = 1;
