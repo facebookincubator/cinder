@@ -24,6 +24,7 @@ CiGen_restore_error
 Ci_GetAIter
 Ci_GetANext
 Ci_hook_PyDescr_NewMethod
+Ci_hook_PyJIT_GenDealloc
 Ci_List_APPEND
 Ci_List_Repeat
 Ci_list_subscript

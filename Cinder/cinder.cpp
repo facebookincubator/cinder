@@ -177,7 +177,11 @@ int Cinder_Init() {
   Ci_hook_code_sizeof_shadowcode = Ci_code_sizeof_shadowcode;
   Ci_hook_PyShadowFrame_HasGen = _PyShadowFrame_HasGen;
   Ci_hook_PyShadowFrame_GetGen = _PyShadowFrame_GetGen;
-
+  Ci_hook_PyJIT_GenVisitRefs = _PyJIT_GenVisitRefs;
+  Ci_hook_PyJIT_GenDealloc = _PyJIT_GenDealloc;
+  Ci_hook_PyJIT_GenSend = _PyJIT_GenSend;
+  Ci_hook_PyJIT_GenYieldFromValue = _PyJIT_GenYieldFromValue;
+  Ci_hook_PyJIT_GenMaterializeFrame = _PyJIT_GenMaterializeFrame;
 
   // This should be the very last hook installed
   Ci_cinderx_initialized = 1;

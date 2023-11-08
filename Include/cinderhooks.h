@@ -64,3 +64,24 @@ CiAPI_DATA(Ci_HookType_PyShadowFrame_HasGen) Ci_hook_PyShadowFrame_HasGen;
 typedef PyGenObject *(*Ci_HookType_PyShadowFrame_GetGen)(
     struct _PyShadowFrame *sf);
 CiAPI_DATA(Ci_HookType_PyShadowFrame_GetGen) Ci_hook_PyShadowFrame_GetGen;
+
+typedef int (*Ci_HookType_PyJIT_GenVisitRefs)(PyGenObject *gen, visitproc visit,
+                                              void *arg);
+CiAPI_DATA(Ci_HookType_PyJIT_GenVisitRefs) Ci_hook_PyJIT_GenVisitRefs;
+
+typedef void (*Ci_HookType_PyJIT_GenDealloc)(PyGenObject *gen);
+CiAPI_DATA(Ci_HookType_PyJIT_GenDealloc) Ci_hook_PyJIT_GenDealloc;
+
+typedef PyObject *(*Ci_HookType_PyJIT_GenSend)(PyGenObject *gen, PyObject *arg,
+                                               int exc, PyFrameObject *f,
+                                               PyThreadState *tstate,
+                                               int finish_yield_from);
+CiAPI_DATA(Ci_HookType_PyJIT_GenSend) Ci_hook_PyJIT_GenSend;
+
+typedef PyObject *(*Ci_HookType_PyJIT_GenYieldFromValue)(PyGenObject *gen);
+CiAPI_DATA(Ci_HookType_PyJIT_GenYieldFromValue) Ci_hook_PyJIT_GenYieldFromValue;
+
+typedef PyFrameObject *(*Ci_HookType_PyJIT_GenMaterializeFrame)(
+    PyGenObject *gen);
+CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
+    Ci_hook_PyJIT_GenMaterializeFrame;

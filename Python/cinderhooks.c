@@ -26,3 +26,9 @@ Ci_HookType_code_sizeof_shadowcode Ci_hook_code_sizeof_shadowcode = NULL;
 
 Ci_HookType_PyShadowFrame_HasGen Ci_hook_PyShadowFrame_HasGen = NULL;
 Ci_HookType_PyShadowFrame_GetGen Ci_hook_PyShadowFrame_GetGen = NULL;
+
+Ci_HookType_PyJIT_GenVisitRefs Ci_hook_PyJIT_GenVisitRefs = NULL;
+Ci_HookType_PyJIT_GenDealloc Ci_hook_PyJIT_GenDealloc = NULL;
+Ci_HookType_PyJIT_GenSend Ci_hook_PyJIT_GenSend = NULL;
+Ci_HookType_PyJIT_GenYieldFromValue Ci_hook_PyJIT_GenYieldFromValue = NULL;
+Ci_HookType_PyJIT_GenMaterializeFrame  Ci_hook_PyJIT_GenMaterializeFrame = NULL;
