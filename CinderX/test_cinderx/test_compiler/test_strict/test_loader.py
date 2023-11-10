@@ -16,8 +16,8 @@ from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
 from compiler.strict.loader import (
     _MAGIC_LEN,
-    _MAGIC_NONSTRICT,
-    _MAGIC_STRICT,
+    _MAGIC_NEITHER_STRICT_NOR_STATIC,
+    _MAGIC_STRICT_OR_STATIC,
     install,
     StrictModule,
     StrictModuleTestingPatchProxy,
@@ -357,7 +357,7 @@ class StrictLoaderTest(StrictTestBase):
         mod = self.sbx.strict_import("a")
 
         with open(mod.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT_OR_STATIC)
 
         BAD_MAGIC = (65535).to_bytes(2, "little") + b"\r\n"
 
@@ -368,7 +368,7 @@ class StrictLoaderTest(StrictTestBase):
         mod2 = self.sbx.strict_import("a")
 
         with open(mod2.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT_OR_STATIC)
 
     def test_magic_number_non_strict(self) -> None:
         """Extra magic number is written to pycs, and validated."""
@@ -376,7 +376,7 @@ class StrictLoaderTest(StrictTestBase):
         mod = self.sbx.strict_import("a")
 
         with open(mod.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NONSTRICT)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NEITHER_STRICT_NOR_STATIC)
 
         BAD_MAGIC = (65535).to_bytes(2, "little") + b"\r\n"
 
@@ -387,7 +387,7 @@ class StrictLoaderTest(StrictTestBase):
         mod2 = self.sbx.strict_import("a")
 
         with open(mod2.__cached__, "rb") as fh:
-            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NONSTRICT)
+            self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_NEITHER_STRICT_NOR_STATIC)
 
     def test_strict_loader_toggle(self) -> None:
         """Repeat imports with strict module loader toggled off/on/off work correctly."""
@@ -462,6 +462,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "astatic.py",
             """
+                import __strict__
                 import __static__
                 class C:
                     def f(self) -> int:
@@ -471,6 +472,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "bstatic.py",
             """
+                import __strict__
                 import __static__
                 from astatic import C
                 def f() -> int:
@@ -492,6 +494,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "math.pyi",
             """
+                import __strict__
                 import __static__
 
                 def gcd(a: int, b: int) -> int:
@@ -501,6 +504,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "bstatic.py",
             """
+                import __strict__
                 import __static__
                 from math import gcd
                 def e() -> int:
@@ -524,7 +528,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "bstatic.py",
             """
-                import __static__
+                import __strict__
                 from math import gcd
                 def e() -> int:
                     return gcd(15, 25)
@@ -540,6 +544,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "math.pyi",
             """
+                import __strict__
                 import __static__
 
                 def gcd(a: int, b: int) -> int:
@@ -549,6 +554,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "bstatic.py",
             """
+                import __strict__
                 import __static__
                 from math import gcd
                 def e() -> int:
@@ -565,6 +571,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "astatic.py",
             """
+                import __strict__
                 import __static__
                 from math import gcd
                 def e() -> int:
@@ -2030,6 +2037,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "a.py",
             """
+                import __strict__
                 import __static__
                 from typing import Optional
                 class C:
@@ -2045,6 +2053,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "a.py",
             """
+                import __strict__
                 import __static__
                 for int in [1, 2]:
                     pass
@@ -2060,6 +2069,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "a.py",
             """
+                import __strict__
                 import __static__
                 from typing import List
             """,
@@ -2071,6 +2081,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "a.py",
             """
+                import __strict__
                 import __static__
                 from typing import Final
 
@@ -2530,6 +2541,7 @@ class StrictLoaderTest(StrictTestBase):
                     raise ImportError("this module fails to import")
         """
         modcode = """
+            import __strict__
             import __static__
             from __strict__ import allow_side_effects
             from flag import maybe_throw
@@ -2541,6 +2553,7 @@ class StrictLoaderTest(StrictTestBase):
         """
         othercode = """
             from __future__ import annotations
+            import __strict__
             import __static__
             from __strict__ import allow_side_effects
 

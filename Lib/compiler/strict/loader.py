@@ -55,13 +55,15 @@ from .flag_extractor import Flags
 Compiler = Compiler
 
 
-_MAGIC_STRICT: bytes = (MAGIC_NUMBER + 2**15).to_bytes(2, "little") + b"\r\n"
+_MAGIC_STRICT_OR_STATIC: bytes = (MAGIC_NUMBER + 2**15).to_bytes(
+    2, "little"
+) + b"\r\n"
 # We don't actually need to increment anything here, because the strict modules
 # AST rewrite has no impact on pycs for non-strict modules. So we just always
 # use two zero bytes. This simplifies generating "fake" strict pycs for
 # known-not-to-be-strict third-party modules.
-_MAGIC_NONSTRICT: bytes = (0).to_bytes(2, "little") + b"\r\n"
-_MAGIC_LEN: int = len(_MAGIC_STRICT)
+_MAGIC_NEITHER_STRICT_NOR_STATIC: bytes = (0).to_bytes(2, "little") + b"\r\n"
+_MAGIC_LEN: int = len(_MAGIC_STRICT_OR_STATIC)
 
 
 @final
@@ -177,7 +179,7 @@ __builtins__: ModuleType
 
 
 class StrictSourceFileLoader(SourceFileLoader):
-    strict: bool = False
+    strict_or_static: bool = False
     compiler: Optional[Compiler] = None
     module: Optional[ModuleType] = None
 
@@ -261,10 +263,10 @@ class StrictSourceFileLoader(SourceFileLoader):
         if is_pyc:
             self.bytecode_found = True
             magic = data[:_MAGIC_LEN]
-            if magic == _MAGIC_NONSTRICT:
-                self.strict = False
-            elif magic == _MAGIC_STRICT:
-                self.strict = True
+            if magic == _MAGIC_NEITHER_STRICT_NOR_STATIC:
+                self.strict_or_static = False
+            elif magic == _MAGIC_STRICT_OR_STATIC:
+                self.strict_or_static = True
             else:
                 # This is a bit ugly: OSError is the only kind of error that
                 # get_code() ignores from get_data(). But this is way better
@@ -279,7 +281,11 @@ class StrictSourceFileLoader(SourceFileLoader):
         assert isinstance(path, str)
         if path.endswith(tuple(BYTECODE_SUFFIXES)):
             path = add_strict_tag(path, self.enable_patching)
-            magic = _MAGIC_STRICT if self.strict else _MAGIC_NONSTRICT
+            magic = (
+                _MAGIC_STRICT_OR_STATIC
+                if self.strict_or_static
+                else _MAGIC_NEITHER_STRICT_NOR_STATIC
+            )
             data = magic + data
         return super().set_data(path, data, _mode=_mode)
 
@@ -317,7 +323,7 @@ class StrictSourceFileLoader(SourceFileLoader):
             # Let the ast transform attempt to validate the strict module.  This
             # will return an unmodified module if import __strict__ isn't
             # actually at the top-level
-            code, is_valid_strict = self.ensure_compiler(
+            code, is_valid_strict, is_static = self.ensure_compiler(
                 self.import_path,
                 self.stub_path,
                 self.allow_list_prefix,
@@ -333,11 +339,11 @@ class StrictSourceFileLoader(SourceFileLoader):
                 submodule_search_locations,
                 override_flags=Flags(is_strict=force),
             )
-            self.strict = is_valid_strict
+            self.strict_or_static = is_valid_strict or is_static
             assert code is not None
             return code
-        self.strict = False
 
+        self.strict_or_static = False
         return code
 
     def exec_module(self, module: ModuleType) -> None:
@@ -364,7 +370,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         if cached and spec and spec.cached:
             spec.cached = cached
 
-        if self.strict:
+        if self.strict_or_static:
             if spec is None:
                 raise ImportError(f"Missing module spec for {module.__name__}")
 

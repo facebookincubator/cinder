@@ -297,12 +297,12 @@ class StaticTestBase(CompilerTest):
     ):
         compiler = self.get_strict_compiler(enable_patching=enable_patching)
 
-        code, is_valid_strict = compiler.load_compiled_module_from_source(
+        code, is_valid_strict, _is_static = compiler.load_compiled_module_from_source(
             self.clean_code(codestr),
             f"{modname}.py",
             modname,
             optimize,
-            override_flags=override_flags,
+            override_flags=override_flags or Flags(is_strict=True),
         )
         assert is_valid_strict
         return code

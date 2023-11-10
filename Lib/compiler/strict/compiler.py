@@ -190,21 +190,20 @@ class Compiler(StaticCompiler):
 
         if not flags.is_static and not flags.is_strict:
             code = self._compile_basic(name, pyast, filename, optimize)
-            return (code, False)
+            return (code, False, False)
 
-        # TODO: Remove the check when static is enabled in the next diff to isolate errors
         is_valid_strict = False
-        if flags.is_strict or flags.is_static:
+        if flags.is_strict:
             is_valid_strict = self._strict_analyze(
                 source, flags, symbols, filename, name, submodule_search_locations
             )
 
         if flags.is_static:
             code = self._compile_static(pyast, symbols, filename, name, optimize)
-            return (code, is_valid_strict)
+            return (code, is_valid_strict, True)
         else:
             code = self._compile_strict(pyast, symbols, filename, name, optimize)
-            return (code, is_valid_strict)
+            return (code, is_valid_strict, False)
 
     def _get_source(
         self,

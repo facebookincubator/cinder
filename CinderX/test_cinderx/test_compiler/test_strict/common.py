@@ -147,7 +147,7 @@ class StrictTestWithCheckerBase(StrictTestBase):
     ):
         compiler = Compiler([], "", [], [])
         source = inspect.cleandoc("\n" + source)
-        code, is_valid_strict = compiler.load_compiled_module_from_source(
+        code, is_valid_strict, _is_static = compiler.load_compiled_module_from_source(
             source, f"{modname}.py", modname, optimize
         )
         assert is_valid_strict
