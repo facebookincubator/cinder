@@ -11,6 +11,7 @@
  * which are used to store information to execute the optimized bytecodes.
  */
 
+#include "CachedProperties/cached_properties.h"
 #include "Jit/pyjit.h"
 #include "Python.h"
 #include "Shadowcode/shadowcode.h"

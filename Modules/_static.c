@@ -15,6 +15,8 @@
 #include "structmember.h"
 #include "pycore_object.h"
 
+#include "CachedProperties/cached_properties.h"
+
 #include "StaticPython/classloader.h"
 
 PyDoc_STRVAR(_static__doc__,

@@ -7,6 +7,8 @@
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
 
+#include "CachedProperties/cached_properties.h"
+
 #include "Jit/pyjit.h"
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);

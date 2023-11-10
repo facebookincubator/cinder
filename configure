@@ -17276,6 +17276,7 @@ done
 
 
 SRCDIRS="Parser Objects Python Modules Programs \
+    CachedProperties \
     Cinder \
     CinderX/ParallelGC \
     CinderX/RuntimeTests \

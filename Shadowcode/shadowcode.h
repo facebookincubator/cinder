@@ -15,6 +15,8 @@
 
 #include "cinder/ci_api.h"
 
+#include "CachedProperties/cached_properties.h"
+
 #include <stdint.h>
 
 #ifndef Py_SHADOWCODE_H

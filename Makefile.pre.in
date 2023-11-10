@@ -596,6 +596,11 @@ PARALLELGC_OBJS = \
 	CinderX/ParallelGC/parallel_gc.o
 
 ##########################################################################
+# Cached Properties
+CACHEDPROPS_OBJS = \
+	CachedProperties/cached_properties.o
+
+##########################################################################
 # Objects
 OBJECT_OBJS=	\
 		Objects/abstract.o \
@@ -711,6 +716,7 @@ BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
 ifeq ($(BUILD_CINDERX_SRCS), yes)
 	CINDERX_OBJS = \
 		$(ASMJIT_OBJS) \
+		$(CACHEDPROPS_OBJS) \
 		$(CINDER_OBJS) \
 		$(JIT_OBJS)    \
 		$(PARALLELGC_OBJS) \
@@ -1505,6 +1511,9 @@ STRICTM_HEADERS = \
 		$(STRICTM_PRIVATE_HEADERS) \
 		$(STRICTM_PUBLIC_HEADERS)
 
+CACHEDPROPS_HEADERS = \
+		$(srcdir)/CachedProperties/cached_properties.h
+
 CINDER_HEADERS= \
 		$(srcdir)/Cinder/Include/cinder/cinder.h \
 		$(srcdir)/Cinder/Include/cinder/exports.h \
@@ -1686,12 +1695,15 @@ PYTHON_HEADERS= \
 		$(SHADOWCODE_HEADERS) \
 		$(STATICPYTHON_HEADERS) \
 		$(STRICTM_HEADERS) \
+		$(CACHEDPROPS_HEADERS) \
 
 $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
 
 $(CINDER_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
 
 $(PARALLELGC_OBJS): $(CINDER_HEADERS) $(srcdir)/CinderX/ParallelGC/condvar.h $(srcdir)/CinderX/ParallelGC/ws_deque.h
+
+$(CACHEDPROPS_OBJS): $(CACHEDPROPS_HEADERS) $(PYTHON_HEADERS)
 
 $(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
 

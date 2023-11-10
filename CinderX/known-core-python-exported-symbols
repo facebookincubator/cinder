@@ -289,9 +289,6 @@ _PyAST_With
 _PyAST_withitem
 _PyAST_Yield
 _PyAST_YieldFrom
-PyAsyncCachedClassProperty_Type
-PyAsyncCachedProperty_Type
-PyAsyncCachedPropertyWithDescr_Type
 _PyAsyncGenASend_Type
 _PyAsyncGenAThrow_Type
 PyAsyncGen_New
@@ -350,9 +347,6 @@ _PyBytesWriter_Prepare
 _PyBytesWriter_Resize
 _PyBytesWriter_WriteBytes
 _Py_c_abs
-_PyCachedClassProperty_TypeSpec
-PyCachedProperty_Type
-PyCachedPropertyWithDescr_Type
 PyCallable_Check
 PyCallIter_New
 PyCallIter_Type

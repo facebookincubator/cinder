@@ -5681,6 +5681,7 @@ done
 
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
+    CachedProperties \
     Cinder \
     CinderX/ParallelGC \
     CinderX/RuntimeTests \

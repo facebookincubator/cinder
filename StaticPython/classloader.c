@@ -13,6 +13,8 @@
 
 #include "cinder/exports.h"
 
+#include "CachedProperties/cached_properties.h"
+
 #include "Jit/pyjit.h"
 
 #include "StaticPython/classloader.h"

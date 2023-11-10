@@ -235,6 +235,10 @@ STATICPYTHON_SRCS = [
     "StaticPython/methodobject_vectorcall.c",
 ]
 
+CACHEDPROPS_SRCS = [
+    "CachedProperties/cached_properties.c",
+]
+
 ALL_SRCS = (
     CINDER_SRCS +
     CINDERX_SRCS +
@@ -243,7 +247,8 @@ ALL_SRCS = (
     ASMJIT_SRCS +
     SHADOWCODE_SRCS +
     STRICTM_SRCS +
-    STATICPYTHON_SRCS
+    STATICPYTHON_SRCS +
+    CACHEDPROPS_SRCS
 )
 
 # Monkey-patch the ability to compile C++ files (but not C files) with
