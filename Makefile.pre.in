@@ -445,13 +445,11 @@ PYTHON_OBJS=	\
 		Python/suggestions.o \
 		Python/$(DYNLOADFILE) \
 		$(LIBOBJS) \
-		$(MACHDEP_OBJS) \
+		$(MACHDEP_OBJS)
 
 BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
 ifeq ($(BUILD_CINDERX_SRCS), yes)
 	CINDERX_OBJS = \
-		$(srcdir)/Cinder/cinder.o \
-		$(srcdir)/Cinder/hooks.o \
 		$(srcdir)/CinderX/_cinderx.o \
 		$(srcdir)/CinderX/CachedProperties/cached_properties.o \
 		$(srcdir)/CinderX/Common/watchers.o \
@@ -1398,6 +1396,7 @@ CINDERX_PRIVATE_HEADERS = \
 		$(srcdir)/CinderX/Jit/type_profiler.h \
 		$(srcdir)/CinderX/Jit/util.h \
 		$(srcdir)/CinderX/ParallelGC/condvar.h \
+		$(srcdir)/CinderX/ParallelGC/parallel_gc.h \
 		$(srcdir)/CinderX/ParallelGC/ws_deque.h \
 		$(srcdir)/CinderX/Shadowcode/shadowcode.h \
 		$(srcdir)/CinderX/StaticPython/classloader.h \
@@ -1461,6 +1460,7 @@ CINDERX_PRIVATE_HEADERS = \
 CINDERX_PUBLIC_HEADERS = \
 		$(srcdir)/CinderX/CachedProperties/cached_properties.h \
 		$(srcdir)/CinderX/Common/watchers.h \
+		$(srcdir)/CinderX/ParallelGC/parallel_gc.h \
 		$(srcdir)/CinderX/Jit/pyjit.h \
 		$(srcdir)/CinderX/Jit/pyjit_result.h \
 		$(srcdir)/CinderX/Jit/pyjit_typeslots.h \

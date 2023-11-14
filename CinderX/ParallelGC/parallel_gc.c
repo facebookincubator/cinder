@@ -35,7 +35,7 @@
 #include "pycore_pystate.h"     // _PyThreadState_GET()
 #include "ws_deque.h"
 #include "condvar.h"
-#include "Cinder/Include/cinder/cinder.h"
+#include "ParallelGC/parallel_gc.h"
 #include "cinder/exports.h"
 
 #if defined(__x86_64__) || defined(__amd64)

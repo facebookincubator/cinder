@@ -2,8 +2,8 @@
 #include "Python.h"
 
 #include "boolobject.h"
-#include "Cinder/Include/cinder/cinder.h"
 #include "Common/watchers.h"
+#include "ParallelGC/parallel_gc.h"
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"

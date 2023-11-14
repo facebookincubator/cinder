@@ -15,7 +15,6 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 THIRD_PARTY_DIR = os.path.realpath(f"{MODULE_DIR}/ThirdParty")
 PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
-CINDER_DIR = os.path.realpath(f"{PYTHON_DIR}/Cinder/")
 CINDERX_DIR = os.path.realpath(f"{PYTHON_DIR}/CinderX/")
 
 INCLUDE_DIRS = [
@@ -28,18 +27,13 @@ INCLUDE_DIRS = [
     f"{THIRD_PARTY_DIR}/parallel-hashmap",
 ]
 
-CINDER_SRCS = [
-    "Cinder/cinder.cpp",
-    "Cinder/hooks.cpp",
-]
-
 CINDERX_SRCS = [
-    "ParallelGC/parallel_gc.c",
     "_cinderx.cpp",
     "_static.c",
     "_strictmodule.c",
     "cinder.c",
     "Common/watchers.cpp",
+    "ParallelGC/parallel_gc.c",
 ]
 
 JIT_SRCS = [
@@ -242,7 +236,6 @@ CACHEDPROPS_SRCS = [
 ]
 
 ALL_SRCS = (
-    CINDER_SRCS +
     CINDERX_SRCS +
     JIT_SRCS +
     I386_DASM_SRCS +

@@ -4,24 +4,9 @@
 
 #include <Python.h>
 
-#ifndef Py_LIMITED_API
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Initialize Cinder global state.
- *
- * Initializes the JIT, and shared infrastructure such as watchers.
- *
- * Returns 0 on success or -1 on error.
- */
-PyAPI_FUNC(int) Cinder_Init(void);
-
-/* Finalize Cinder global state.
- *
- * Returns 0 on success or -1 on error.
- */
-PyAPI_FUNC(int) Cinder_Fini(void);
 
 /*
  * Enable parallel garbage collection for generations >= min_gen, using
@@ -50,4 +35,3 @@ PyAPI_FUNC(void) Cinder_DisableParallelGC(void);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-#endif /* Py_LIMITED_API */
