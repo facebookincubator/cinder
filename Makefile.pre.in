@@ -117,7 +117,7 @@ PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdi
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/folly -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_srcdir)/Cinder/Include
+PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/folly -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I $(srcdir)/CinderX
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
@@ -447,153 +447,194 @@ PYTHON_OBJS=	\
 		$(LIBOBJS) \
 		$(MACHDEP_OBJS) \
 
-##########################################################################
-# Cinder
-CINDER_OBJS=       \
-		Cinder/cinder.o \
-		Cinder/hooks.o
-
-##########################################################################
-# Jit
-JIT_OBJS=       \
-		Jit/bitvector.o \
-		Jit/bytecode.o \
-		Jit/code_allocator.o \
-		Jit/compiler.o \
-		Jit/config.o \
-		Jit/debug_info.o \
-		Jit/deopt.o \
-		Jit/deopt_patcher.o \
-		Jit/dict_watch.o \
-		Jit/disassembler.o \
-		Jit/frame.o \
-		Jit/global_cache.o \
-		Jit/hir/hir.o \
-		Jit/hir/alias_class.o \
-		Jit/hir/analysis.o \
-		Jit/hir/builder.o \
-		Jit/hir/memory_effects.o \
-		Jit/hir/optimization.o \
-		Jit/hir/parser.o \
-		Jit/hir/preload.o \
-		Jit/hir/printer.o \
-		Jit/hir/refcount_insertion.o \
-		Jit/hir/register.o \
-		Jit/hir/simplify.o \
-		Jit/hir/ssa.o \
-		Jit/hir/type.o \
-		Jit/inline_cache.o \
-		Jit/jit_context.o \
-		Jit/jit_flag_processor.o \
-		Jit/jit_gdb_support.o \
-		Jit/jit_list.o \
-		Jit/jit_rt.o \
-		Jit/jit_time_log.o \
-		Jit/live_type_map.o \
-		Jit/log.o \
-		Jit/perf_jitdump.o \
-		Jit/profile_runtime.o \
-		Jit/pyjit.o \
-		Jit/runtime.o \
-		Jit/runtime_support.o \
-		Jit/strobelight_exports.o \
-		Jit/symbolizer.o \
-		Jit/type_deopt_patchers.o \
-		Jit/type_profiler.o \
-		Jit/util.o \
-		Jit/codegen/annotations.o \
-		Jit/codegen/autogen.o \
-		Jit/codegen/code_section.o \
-		Jit/codegen/copy_graph.o \
-		Jit/codegen/gen_asm.o \
-		Jit/codegen/gen_asm_utils.o \
-		Jit/codegen/x86_64.o \
-		Jit/lir/block_builder.o \
-		Jit/lir/dce.o \
-		Jit/lir/lir.o \
-		Jit/lir/block.o \
-		Jit/lir/blocksorter.o \
-		Jit/lir/c_helper_translations.o \
-		Jit/lir/c_helper_translations_auto.o \
-		Jit/lir/function.o \
-		Jit/lir/generator.o \
-		Jit/lir/inliner.o \
-		Jit/lir/instruction.o \
-		Jit/lir/operand.o \
-		Jit/lir/parser.o \
-		Jit/lir/postalloc.o \
-		Jit/lir/postgen.o \
-		Jit/lir/printer.o \
-		Jit/lir/regalloc.o \
-		Jit/lir/rewrite.o \
-		Jit/lir/verify.o \
-		Jit/lir/symbol_mapping.o
-
-I386_DASM_OBJS = \
-		ThirdParty/i386-dis/i386-dis.o \
-		ThirdParty/i386-dis/dis-buf.o
-
-##########################################################################
-# Shadowcode
-SHADOWCODE_OBJS=       \
-        Shadowcode/shadowcode.o
-
-##########################################################################
-# Static Python
-STATICPYTHON_OBJS=       \
-		StaticPython/classloader.o \
-		StaticPython/descrobject_vectorcall.o \
-		StaticPython/methodobject_vectorcall.o
-
-##########################################################################
-# Strict Modules
-STRICTM_OBJS=       \
-		StrictModules/Compiler/analyzed_module.o \
-		StrictModules/Compiler/abstract_module_loader.o \
-		StrictModules/Compiler/module_info.o \
-		StrictModules/Compiler/stub.o \
-		StrictModules/Objects/base_object.o \
-		StrictModules/Objects/callable.o \
-		StrictModules/Objects/instance.o \
-		StrictModules/Objects/module.o \
-		StrictModules/Objects/numerics.o \
-		StrictModules/Objects/type.o \
-		StrictModules/Objects/constants.o \
-		StrictModules/Objects/exception_object.o \
-		StrictModules/Objects/module_type.o \
-		StrictModules/Objects/object_type.o \
-		StrictModules/Objects/string_object.o \
-		StrictModules/Objects/type_type.o \
-		StrictModules/Objects/union.o \
-		StrictModules/Objects/unknown.o \
-		StrictModules/Objects/iterable_objects.o \
-		StrictModules/Objects/iterator_objects.o \
-		StrictModules/Objects/dict_object.o \
-		StrictModules/Objects/function.o \
-		StrictModules/Objects/codeobject.o \
-		StrictModules/Objects/signature.o \
-		StrictModules/Objects/super.o \
-		StrictModules/Objects/property.o \
-		StrictModules/Objects/builtins.o \
-		StrictModules/Objects/lazy_object.o \
-		StrictModules/Objects/genericalias_object.o \
-		StrictModules/Objects/strict_modules_builtins.o \
-		StrictModules/Objects/objects.o \
-		StrictModules/Objects/object_interface.o \
-		StrictModules/symbol_table.o \
-		StrictModules/analyzer.o \
-		StrictModules/ast_visitor.o \
-		StrictModules/parser_util.o \
-		StrictModules/strict_module_checker_interface.o \
-		StrictModules/scope.o \
-		StrictModules/pystrictmodule.o \
-		StrictModules/exceptions.o \
-		StrictModules/error_sink.o
-
-##########################################################################
-# Parallel GC
-PARALLELGC_OBJS = \
-	CinderX/ParallelGC/parallel_gc.o
+BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
+ifeq ($(BUILD_CINDERX_SRCS), yes)
+	CINDERX_OBJS = \
+		$(srcdir)/Cinder/cinder.o \
+		$(srcdir)/Cinder/hooks.o \
+		$(srcdir)/CinderX/_cinderx.o \
+		$(srcdir)/CinderX/CachedProperties/cached_properties.o \
+		$(srcdir)/CinderX/Jit/bitvector.o \
+		$(srcdir)/CinderX/Jit/bytecode.o \
+		$(srcdir)/CinderX/Jit/code_allocator.o \
+		$(srcdir)/CinderX/Jit/codegen/annotations.o \
+		$(srcdir)/CinderX/Jit/codegen/autogen.o \
+		$(srcdir)/CinderX/Jit/codegen/code_section.o \
+		$(srcdir)/CinderX/Jit/codegen/copy_graph.o \
+		$(srcdir)/CinderX/Jit/codegen/gen_asm.o \
+		$(srcdir)/CinderX/Jit/codegen/gen_asm_utils.o \
+		$(srcdir)/CinderX/Jit/codegen/x86_64.o \
+		$(srcdir)/CinderX/Jit/compiler.o \
+		$(srcdir)/CinderX/Jit/config.o \
+		$(srcdir)/CinderX/Jit/debug_info.o \
+		$(srcdir)/CinderX/Jit/deopt.o \
+		$(srcdir)/CinderX/Jit/deopt_patcher.o \
+		$(srcdir)/CinderX/Jit/dict_watch.o \
+		$(srcdir)/CinderX/Jit/disassembler.o \
+		$(srcdir)/CinderX/Jit/frame.o \
+		$(srcdir)/CinderX/Jit/global_cache.o \
+		$(srcdir)/CinderX/Jit/hir/alias_class.o \
+		$(srcdir)/CinderX/Jit/hir/analysis.o \
+		$(srcdir)/CinderX/Jit/hir/builder.o \
+		$(srcdir)/CinderX/Jit/hir/hir.o \
+		$(srcdir)/CinderX/Jit/hir/memory_effects.o \
+		$(srcdir)/CinderX/Jit/hir/optimization.o \
+		$(srcdir)/CinderX/Jit/hir/parser.o \
+		$(srcdir)/CinderX/Jit/hir/preload.o \
+		$(srcdir)/CinderX/Jit/hir/printer.o \
+		$(srcdir)/CinderX/Jit/hir/refcount_insertion.o \
+		$(srcdir)/CinderX/Jit/hir/register.o \
+		$(srcdir)/CinderX/Jit/hir/simplify.o \
+		$(srcdir)/CinderX/Jit/hir/ssa.o \
+		$(srcdir)/CinderX/Jit/hir/type.o \
+		$(srcdir)/CinderX/Jit/inline_cache.o \
+		$(srcdir)/CinderX/Jit/jit_context.o \
+		$(srcdir)/CinderX/Jit/jit_flag_processor.o \
+		$(srcdir)/CinderX/Jit/jit_gdb_support.o \
+		$(srcdir)/CinderX/Jit/jit_list.o \
+		$(srcdir)/CinderX/Jit/jit_rt.o \
+		$(srcdir)/CinderX/Jit/jit_time_log.o \
+		$(srcdir)/CinderX/Jit/lir/block_builder.o \
+		$(srcdir)/CinderX/Jit/lir/block.o \
+		$(srcdir)/CinderX/Jit/lir/blocksorter.o \
+		$(srcdir)/CinderX/Jit/lir/c_helper_translations_auto.o \
+		$(srcdir)/CinderX/Jit/lir/c_helper_translations.o \
+		$(srcdir)/CinderX/Jit/lir/dce.o \
+		$(srcdir)/CinderX/Jit/lir/function.o \
+		$(srcdir)/CinderX/Jit/lir/generator.o \
+		$(srcdir)/CinderX/Jit/lir/inliner.o \
+		$(srcdir)/CinderX/Jit/lir/instruction.o \
+		$(srcdir)/CinderX/Jit/lir/lir.o \
+		$(srcdir)/CinderX/Jit/lir/operand.o \
+		$(srcdir)/CinderX/Jit/lir/parser.o \
+		$(srcdir)/CinderX/Jit/lir/postalloc.o \
+		$(srcdir)/CinderX/Jit/lir/postgen.o \
+		$(srcdir)/CinderX/Jit/lir/printer.o \
+		$(srcdir)/CinderX/Jit/lir/regalloc.o \
+		$(srcdir)/CinderX/Jit/lir/rewrite.o \
+		$(srcdir)/CinderX/Jit/lir/symbol_mapping.o \
+		$(srcdir)/CinderX/Jit/lir/verify.o \
+		$(srcdir)/CinderX/Jit/live_type_map.o \
+		$(srcdir)/CinderX/Jit/log.o \
+		$(srcdir)/CinderX/Jit/perf_jitdump.o \
+		$(srcdir)/CinderX/Jit/profile_runtime.o \
+		$(srcdir)/CinderX/Jit/pyjit.o \
+		$(srcdir)/CinderX/Jit/runtime.o \
+		$(srcdir)/CinderX/Jit/runtime_support.o \
+		$(srcdir)/CinderX/Jit/strobelight_exports.o \
+		$(srcdir)/CinderX/Jit/symbolizer.o \
+		$(srcdir)/CinderX/Jit/type_deopt_patchers.o \
+		$(srcdir)/CinderX/Jit/type_profiler.o \
+		$(srcdir)/CinderX/Jit/util.o \
+		$(srcdir)/CinderX/ParallelGC/parallel_gc.o \
+		$(srcdir)/CinderX/Shadowcode/shadowcode.o \
+		$(srcdir)/CinderX/StaticPython/classloader.o \
+		$(srcdir)/CinderX/StaticPython/descrobject_vectorcall.o \
+		$(srcdir)/CinderX/StaticPython/methodobject_vectorcall.o \
+		$(srcdir)/CinderX/StrictModules/analyzer.o \
+		$(srcdir)/CinderX/StrictModules/ast_visitor.o \
+		$(srcdir)/CinderX/StrictModules/Compiler/abstract_module_loader.o \
+		$(srcdir)/CinderX/StrictModules/Compiler/analyzed_module.o \
+		$(srcdir)/CinderX/StrictModules/Compiler/module_info.o \
+		$(srcdir)/CinderX/StrictModules/Compiler/stub.o \
+		$(srcdir)/CinderX/StrictModules/error_sink.o \
+		$(srcdir)/CinderX/StrictModules/exceptions.o \
+		$(srcdir)/CinderX/StrictModules/Objects/base_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/builtins.o \
+		$(srcdir)/CinderX/StrictModules/Objects/callable.o \
+		$(srcdir)/CinderX/StrictModules/Objects/codeobject.o \
+		$(srcdir)/CinderX/StrictModules/Objects/constants.o \
+		$(srcdir)/CinderX/StrictModules/Objects/dict_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/exception_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/function.o \
+		$(srcdir)/CinderX/StrictModules/Objects/genericalias_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/instance.o \
+		$(srcdir)/CinderX/StrictModules/Objects/iterable_objects.o \
+		$(srcdir)/CinderX/StrictModules/Objects/iterator_objects.o \
+		$(srcdir)/CinderX/StrictModules/Objects/lazy_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/module.o \
+		$(srcdir)/CinderX/StrictModules/Objects/module_type.o \
+		$(srcdir)/CinderX/StrictModules/Objects/numerics.o \
+		$(srcdir)/CinderX/StrictModules/Objects/object_interface.o \
+		$(srcdir)/CinderX/StrictModules/Objects/objects.o \
+		$(srcdir)/CinderX/StrictModules/Objects/object_type.o \
+		$(srcdir)/CinderX/StrictModules/Objects/property.o \
+		$(srcdir)/CinderX/StrictModules/Objects/signature.o \
+		$(srcdir)/CinderX/StrictModules/Objects/strict_modules_builtins.o \
+		$(srcdir)/CinderX/StrictModules/Objects/string_object.o \
+		$(srcdir)/CinderX/StrictModules/Objects/super.o \
+		$(srcdir)/CinderX/StrictModules/Objects/type.o \
+		$(srcdir)/CinderX/StrictModules/Objects/type_type.o \
+		$(srcdir)/CinderX/StrictModules/Objects/union.o \
+		$(srcdir)/CinderX/StrictModules/Objects/unknown.o \
+		$(srcdir)/CinderX/StrictModules/parser_util.o \
+		$(srcdir)/CinderX/StrictModules/pystrictmodule.o \
+		$(srcdir)/CinderX/StrictModules/scope.o \
+		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.o \
+		$(srcdir)/CinderX/StrictModules/symbol_table.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64assembler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64builder.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64compiler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64emithelper.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64formatter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64func.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64instapi.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64instdb.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64operand.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/a64rapass.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/arm/armformatter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/archtraits.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/assembler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/builder.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/codeholder.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/codewriter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/compiler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/constpool.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/cpuinfo.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/emithelper.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/emitter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/emitterutils.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/environment.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/errorhandler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/formatter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/funcargscontext.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/func.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/globals.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/inst.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/jitallocator.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/jitruntime.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/logger.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/operand.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/osutils.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/ralocal.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/rapass.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/rastack.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/string.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/support.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/target.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/type.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/virtmem.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zonehash.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zonelist.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zone.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zonestack.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zonetree.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/core/zonevector.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86assembler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86builder.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86compiler.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86emithelper.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86formatter.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86func.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86instapi.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86instdb.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86operand.o \
+		$(srcdir)/CinderX/ThirdParty/asmjit/src/asmjit/x86/x86rapass.o \
+		$(srcdir)/CinderX/ThirdParty/i386-dis/dis-buf.o \
+		$(srcdir)/CinderX/ThirdParty/i386-dis/i386-dis.o
+else
+	CINDERX_OBJS =
+endif
 
 ##########################################################################
 # Cached Properties
@@ -651,83 +692,6 @@ OBJECT_OBJS=	\
 		Objects/perf_trampoline.o \
 		@PERF_TRAMPOLINE_OBJ@
 
-##########################################################################
-# asmjit objects
-ASMJIT_OBJS = $(ASMJIT_DIR)/asmjit/arm/a64assembler.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64builder.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64compiler.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64emithelper.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64formatter.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64func.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64instapi.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64instdb.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64operand.o \
-		$(ASMJIT_DIR)/asmjit/arm/a64rapass.o \
-		$(ASMJIT_DIR)/asmjit/arm/armformatter.o \
-		$(ASMJIT_DIR)/asmjit/core/archtraits.o \
-        $(ASMJIT_DIR)/asmjit/core/assembler.o \
-        $(ASMJIT_DIR)/asmjit/core/builder.o \
-        $(ASMJIT_DIR)/asmjit/core/codeholder.o \
-        $(ASMJIT_DIR)/asmjit/core/codewriter.o \
-        $(ASMJIT_DIR)/asmjit/core/compiler.o \
-        $(ASMJIT_DIR)/asmjit/core/constpool.o \
-        $(ASMJIT_DIR)/asmjit/core/cpuinfo.o \
-        $(ASMJIT_DIR)/asmjit/core/emithelper.o \
-        $(ASMJIT_DIR)/asmjit/core/emitter.o \
-        $(ASMJIT_DIR)/asmjit/core/emitterutils.o \
-        $(ASMJIT_DIR)/asmjit/core/environment.o \
-        $(ASMJIT_DIR)/asmjit/core/errorhandler.o \
-        $(ASMJIT_DIR)/asmjit/core/formatter.o \
-        $(ASMJIT_DIR)/asmjit/core/funcargscontext.o \
-        $(ASMJIT_DIR)/asmjit/core/func.o \
-        $(ASMJIT_DIR)/asmjit/core/globals.o \
-        $(ASMJIT_DIR)/asmjit/core/inst.o \
-        $(ASMJIT_DIR)/asmjit/core/jitallocator.o \
-        $(ASMJIT_DIR)/asmjit/core/jitruntime.o \
-        $(ASMJIT_DIR)/asmjit/core/logger.o \
-        $(ASMJIT_DIR)/asmjit/core/operand.o \
-        $(ASMJIT_DIR)/asmjit/core/osutils.o \
-        $(ASMJIT_DIR)/asmjit/core/ralocal.o \
-        $(ASMJIT_DIR)/asmjit/core/rapass.o \
-        $(ASMJIT_DIR)/asmjit/core/rastack.o \
-        $(ASMJIT_DIR)/asmjit/core/string.o \
-        $(ASMJIT_DIR)/asmjit/core/support.o \
-        $(ASMJIT_DIR)/asmjit/core/target.o \
-        $(ASMJIT_DIR)/asmjit/core/type.o \
-        $(ASMJIT_DIR)/asmjit/core/virtmem.o \
-        $(ASMJIT_DIR)/asmjit/core/zone.o \
-        $(ASMJIT_DIR)/asmjit/core/zonehash.o \
-        $(ASMJIT_DIR)/asmjit/core/zonelist.o \
-        $(ASMJIT_DIR)/asmjit/core/zonestack.o \
-        $(ASMJIT_DIR)/asmjit/core/zonetree.o \
-        $(ASMJIT_DIR)/asmjit/core/zonevector.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86assembler.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86builder.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86compiler.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86emithelper.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86formatter.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86func.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86instapi.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86instdb.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86operand.o \
-        $(ASMJIT_DIR)/asmjit/x86/x86rapass.o
-
-BUILD_CINDERX_SRCS=@BUILD_CINDERX_SRCS@
-ifeq ($(BUILD_CINDERX_SRCS), yes)
-	CINDERX_OBJS = \
-		$(ASMJIT_OBJS) \
-		$(CACHEDPROPS_OBJS) \
-		$(CINDER_OBJS) \
-		CinderX/_cinderx.o \
-		$(JIT_OBJS)    \
-		$(PARALLELGC_OBJS) \
-		$(SHADOWCODE_OBJS) \
-		$(STATICPYTHON_OBJS) \
-		$(STRICTM_OBJS) \
-		$(I386_DASM_OBJS)
-else
-	CINDERX_OBJS =
-endif
 
 ##########################################################################
 # objects that get linked into the Python library
@@ -1346,184 +1310,162 @@ regen-typeslots:
 ############################################################################
 # Header files
 
-# Private interface for the JIT that isn't exposed to the rest of CPython
-JIT_PRIVATE_HEADERS= \
-		$(srcdir)/Jit/bitvector.h \
-		$(srcdir)/Jit/bytecode.h \
-		$(srcdir)/Jit/bytecode_offsets.h \
-		$(srcdir)/Jit/capsule.h \
-		$(srcdir)/Jit/code_allocator.h \
-		$(srcdir)/Jit/compiler.h \
-		$(srcdir)/Jit/config.h \
-		$(srcdir)/Jit/dataflow.h \
-		$(srcdir)/Jit/debug_info.h \
-		$(srcdir)/Jit/deopt.h \
-		$(srcdir)/Jit/deopt_patcher.h \
-		$(srcdir)/Jit/dict_watch.h \
-		$(srcdir)/Jit/disassembler.h \
-		$(srcdir)/Jit/fixed_type_profiler.h \
-		$(srcdir)/Jit/frame.h \
-		$(srcdir)/Jit/global_cache.h \
-		$(srcdir)/Jit/hir/hir.h \
-		$(srcdir)/Jit/hir/alias_class.h \
-		$(srcdir)/Jit/hir/analysis.h \
-		$(srcdir)/Jit/hir/builder.h \
-		$(srcdir)/Jit/hir/memory_effects.h \
-		$(srcdir)/Jit/hir/optimization.h \
-		$(srcdir)/Jit/hir/parser.h \
-		$(srcdir)/Jit/hir/preload.h \
-		$(srcdir)/Jit/hir/printer.h \
-		$(srcdir)/Jit/hir/register.h \
-		$(srcdir)/Jit/hir/ssa.h \
-		$(srcdir)/Jit/hir/type.h \
-		$(srcdir)/Jit/hir/type_generated.h \
-		$(srcdir)/Jit/hir/type_inl.h \
-		$(srcdir)/Jit/inline_cache.h \
-		$(srcdir)/Jit/intrusive_list.h \
-		$(srcdir)/Jit/live_type_map.h \
-		$(srcdir)/Jit/log.h \
-		$(srcdir)/Jit/jit_context.h \
-		$(srcdir)/Jit/jit_flag_processor.h \
-		$(srcdir)/Jit/jit_gdb_support.h \
-		$(srcdir)/Jit/jit_list.h \
-		$(srcdir)/Jit/jit_rt.h \
-		$(srcdir)/Jit/jit_time_log.h \
-		$(srcdir)/Jit/perf_jitdump.h \
-		$(srcdir)/Jit/profile_runtime.h \
-		$(srcdir)/Jit/ref.h \
-		$(srcdir)/Jit/runtime.h \
-		$(srcdir)/Jit/runtime_support.h \
-		$(srcdir)/Jit/slab.h \
-		$(srcdir)/Jit/slab_arena.h \
-		$(srcdir)/Jit/stack.h \
-		$(srcdir)/Jit/strobelight_exports.h \
-		$(srcdir)/Jit/symbolizer.h \
-		$(srcdir)/Jit/type_deopt_patchers.h \
-		$(srcdir)/Jit/type_profiler.h \
-		$(srcdir)/Jit/util.h \
-		$(srcdir)/Jit/codegen/annotations.h \
-		$(srcdir)/Jit/codegen/autogen.h \
-		$(srcdir)/Jit/codegen/code_section.h \
-		$(srcdir)/Jit/codegen/copy_graph.h \
-		$(srcdir)/Jit/codegen/environ.h \
-		$(srcdir)/Jit/codegen/gen_asm.h \
-		$(srcdir)/Jit/codegen/x86_64.h \
-		$(srcdir)/Jit/lir/block_builder.h \
-		$(srcdir)/Jit/lir/dce.h \
-		$(srcdir)/Jit/lir/lir.h \
-		$(srcdir)/Jit/lir/block.h \
-		$(srcdir)/Jit/lir/blocksorter.h \
-		$(srcdir)/Jit/lir/c_helper_translations.h \
-		$(srcdir)/Jit/lir/c_helper_translations_auto.h \
-		$(srcdir)/Jit/lir/function.h \
-		$(srcdir)/Jit/lir/generator.h \
-		$(srcdir)/Jit/lir/inliner.h \
-		$(srcdir)/Jit/lir/instruction.h \
-		$(srcdir)/Jit/lir/operand.h \
-		$(srcdir)/Jit/lir/parser.h \
-		$(srcdir)/Jit/lir/postalloc.h \
-		$(srcdir)/Jit/lir/postgen.h \
-		$(srcdir)/Jit/lir/printer.h \
-		$(srcdir)/Jit/lir/regalloc.h \
-		$(srcdir)/Jit/lir/rewrite.h \
-		$(srcdir)/Jit/lir/verify.h \
-		$(srcdir)/Jit/lir/symbol_mapping.h \
-		$(srcdir)/Jit/lir/x86_64.h
+CINDERX_PRIVATE_HEADERS = \
+		$(srcdir)/CinderX/CachedProperties/cached_properties.h \
+		$(srcdir)/CinderX/Jit/bitvector.h \
+		$(srcdir)/CinderX/Jit/bytecode.h \
+		$(srcdir)/CinderX/Jit/bytecode_offsets.h \
+		$(srcdir)/CinderX/Jit/capsule.h \
+		$(srcdir)/CinderX/Jit/code_allocator.h \
+		$(srcdir)/CinderX/Jit/codegen/annotations.h \
+		$(srcdir)/CinderX/Jit/codegen/autogen.h \
+		$(srcdir)/CinderX/Jit/codegen/code_section.h \
+		$(srcdir)/CinderX/Jit/codegen/copy_graph.h \
+		$(srcdir)/CinderX/Jit/codegen/environ.h \
+		$(srcdir)/CinderX/Jit/codegen/gen_asm.h \
+		$(srcdir)/CinderX/Jit/codegen/gen_asm_utils.h \
+		$(srcdir)/CinderX/Jit/codegen/x86_64.h \
+		$(srcdir)/CinderX/Jit/compiler.h \
+		$(srcdir)/CinderX/Jit/config.h \
+		$(srcdir)/CinderX/Jit/containers.h \
+		$(srcdir)/CinderX/Jit/dataflow.h \
+		$(srcdir)/CinderX/Jit/debug_info.h \
+		$(srcdir)/CinderX/Jit/deopt.h \
+		$(srcdir)/CinderX/Jit/deopt_patcher.h \
+		$(srcdir)/CinderX/Jit/dict_watch.h \
+		$(srcdir)/CinderX/Jit/disassembler.h \
+		$(srcdir)/CinderX/Jit/fixed_type_profiler.h \
+		$(srcdir)/CinderX/Jit/frame.h \
+		$(srcdir)/CinderX/Jit/global_cache.h \
+		$(srcdir)/CinderX/Jit/hir/alias_class.h \
+		$(srcdir)/CinderX/Jit/hir/analysis.h \
+		$(srcdir)/CinderX/Jit/hir/builder.h \
+		$(srcdir)/CinderX/Jit/hir/hir.h \
+		$(srcdir)/CinderX/Jit/hir/memory_effects.h \
+		$(srcdir)/CinderX/Jit/hir/optimization.h \
+		$(srcdir)/CinderX/Jit/hir/parser.h \
+		$(srcdir)/CinderX/Jit/hir/preload.h \
+		$(srcdir)/CinderX/Jit/hir/printer.h \
+		$(srcdir)/CinderX/Jit/hir/register.h \
+		$(srcdir)/CinderX/Jit/hir/ssa.h \
+		$(srcdir)/CinderX/Jit/hir/type_generated.h \
+		$(srcdir)/CinderX/Jit/hir/type.h \
+		$(srcdir)/CinderX/Jit/hir/type_inl.h \
+		$(srcdir)/CinderX/Jit/inline_cache.h \
+		$(srcdir)/CinderX/Jit/intrusive_list.h \
+		$(srcdir)/CinderX/Jit/jit_context.h \
+		$(srcdir)/CinderX/Jit/jit_flag_processor.h \
+		$(srcdir)/CinderX/Jit/jit_gdb_support.h \
+		$(srcdir)/CinderX/Jit/jit_list.h \
+		$(srcdir)/CinderX/Jit/jit_rt.h \
+		$(srcdir)/CinderX/Jit/jit_time_log.h \
+		$(srcdir)/CinderX/Jit/lir/block_builder.h \
+		$(srcdir)/CinderX/Jit/lir/block.h \
+		$(srcdir)/CinderX/Jit/lir/blocksorter.h \
+		$(srcdir)/CinderX/Jit/lir/c_helper_translations_auto.h \
+		$(srcdir)/CinderX/Jit/lir/c_helper_translations.h \
+		$(srcdir)/CinderX/Jit/lir/dce.h \
+		$(srcdir)/CinderX/Jit/lir/function.h \
+		$(srcdir)/CinderX/Jit/lir/generator.h \
+		$(srcdir)/CinderX/Jit/lir/inliner.h \
+		$(srcdir)/CinderX/Jit/lir/instruction.h \
+		$(srcdir)/CinderX/Jit/lir/lir.h \
+		$(srcdir)/CinderX/Jit/lir/operand.h \
+		$(srcdir)/CinderX/Jit/lir/parser.h \
+		$(srcdir)/CinderX/Jit/lir/postalloc.h \
+		$(srcdir)/CinderX/Jit/lir/postgen.h \
+		$(srcdir)/CinderX/Jit/lir/printer.h \
+		$(srcdir)/CinderX/Jit/lir/regalloc.h \
+		$(srcdir)/CinderX/Jit/lir/rewrite.h \
+		$(srcdir)/CinderX/Jit/lir/symbol_mapping.h \
+		$(srcdir)/CinderX/Jit/lir/verify.h \
+		$(srcdir)/CinderX/Jit/lir/x86_64.h \
+		$(srcdir)/CinderX/Jit/live_type_map.h \
+		$(srcdir)/CinderX/Jit/log.h \
+		$(srcdir)/CinderX/Jit/perf_jitdump.h \
+		$(srcdir)/CinderX/Jit/profile_runtime.h \
+		$(srcdir)/CinderX/Jit/ref.h \
+		$(srcdir)/CinderX/Jit/runtime.h \
+		$(srcdir)/CinderX/Jit/runtime_support.h \
+		$(srcdir)/CinderX/Jit/slab_arena.h \
+		$(srcdir)/CinderX/Jit/slab.h \
+		$(srcdir)/CinderX/Jit/stack.h \
+		$(srcdir)/CinderX/Jit/strobelight_exports.h \
+		$(srcdir)/CinderX/Jit/symbolizer.h \
+		$(srcdir)/CinderX/Jit/threaded_compile.h \
+		$(srcdir)/CinderX/Jit/type_deopt_patchers.h \
+		$(srcdir)/CinderX/Jit/type_profiler.h \
+		$(srcdir)/CinderX/Jit/util.h \
+		$(srcdir)/CinderX/ParallelGC/condvar.h \
+		$(srcdir)/CinderX/ParallelGC/ws_deque.h \
+		$(srcdir)/CinderX/Shadowcode/shadowcode.h \
+		$(srcdir)/CinderX/StaticPython/classloader.h \
+		$(srcdir)/CinderX/StaticPython/descrobject_vectorcall.h \
+		$(srcdir)/CinderX/StaticPython/methodobject_vectorcall.h \
+		$(srcdir)/CinderX/StrictModules/analyzer.h \
+		$(srcdir)/CinderX/StrictModules/ast_visitor.h \
+		$(srcdir)/CinderX/StrictModules/caller_context.h \
+		$(srcdir)/CinderX/StrictModules/caller_context_impl.h \
+		$(srcdir)/CinderX/StrictModules/Compiler/abstract_module_loader.h \
+		$(srcdir)/CinderX/StrictModules/Compiler/analyzed_module.h \
+		$(srcdir)/CinderX/StrictModules/Compiler/module_info.h \
+		$(srcdir)/CinderX/StrictModules/Compiler/stub.h \
+		$(srcdir)/CinderX/StrictModules/error_sink.h \
+		$(srcdir)/CinderX/StrictModules/exceptions.h \
+		$(srcdir)/CinderX/StrictModules/Objects/base_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/builtins.h \
+		$(srcdir)/CinderX/StrictModules/Objects/callable.h \
+		$(srcdir)/CinderX/StrictModules/Objects/callable_wrapper.h \
+		$(srcdir)/CinderX/StrictModules/Objects/codeobject.h \
+		$(srcdir)/CinderX/StrictModules/Objects/constants.h \
+		$(srcdir)/CinderX/StrictModules/Objects/dict_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/exception_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/function.h \
+		$(srcdir)/CinderX/StrictModules/Objects/genericalias_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/helper.h \
+		$(srcdir)/CinderX/StrictModules/Objects/instance.h \
+		$(srcdir)/CinderX/StrictModules/Objects/iterable_objects.h \
+		$(srcdir)/CinderX/StrictModules/Objects/iterator_objects.h \
+		$(srcdir)/CinderX/StrictModules/Objects/lazy_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/module.h \
+		$(srcdir)/CinderX/StrictModules/Objects/module_type.h \
+		$(srcdir)/CinderX/StrictModules/Objects/numerics.h \
+		$(srcdir)/CinderX/StrictModules/Objects/object_interface.h \
+		$(srcdir)/CinderX/StrictModules/Objects/objects.h \
+		$(srcdir)/CinderX/StrictModules/Objects/object_type.h \
+		$(srcdir)/CinderX/StrictModules/Objects/property.h \
+		$(srcdir)/CinderX/StrictModules/Objects/signature.h \
+		$(srcdir)/CinderX/StrictModules/Objects/strict_modules_builtins.h \
+		$(srcdir)/CinderX/StrictModules/Objects/string_object.h \
+		$(srcdir)/CinderX/StrictModules/Objects/super.h \
+		$(srcdir)/CinderX/StrictModules/Objects/type.h \
+		$(srcdir)/CinderX/StrictModules/Objects/type_type.h \
+		$(srcdir)/CinderX/StrictModules/Objects/typing_helpers.h \
+		$(srcdir)/CinderX/StrictModules/Objects/union.h \
+		$(srcdir)/CinderX/StrictModules/Objects/unknown.h \
+		$(srcdir)/CinderX/StrictModules/parser_util.h \
+		$(srcdir)/CinderX/StrictModules/pycore_dependencies.h \
+		$(srcdir)/CinderX/StrictModules/py_headers.h \
+		$(srcdir)/CinderX/StrictModules/rewriter_attributes.h \
+		$(srcdir)/CinderX/StrictModules/scope.h \
+		$(srcdir)/CinderX/StrictModules/scope_impl.h \
+		$(srcdir)/CinderX/StrictModules/sequence_map.h \
+		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h \
+		$(srcdir)/CinderX/StrictModules/symbol_table.h \
+		$(srcdir)/CinderX/ThirdParty/i386-dis/dis-asm.h \
+    	$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint.h \
+    	$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint-ELFx86.h \
+		$(srcdir)/CinderX/ThirdParty/json/json.hpp
 
-
-# Public interface for the JIT that is intended to be consumed by CPython
-# Changing these will cause a full rebuild
-JIT_PUBLIC_HEADERS= \
-		$(srcdir)/Jit/pyjit.h \
-		$(srcdir)/Jit/pyjit_result.h \
-		$(srcdir)/Jit/pyjit_typeslots.h
-
-JIT_HEADERS= \
-		$(JIT_PRIVATE_HEADERS) \
-		$(JIT_PUBLIC_HEADERS)
-
-SHADOWCODE_HEADERS= \
-		$(srcdir)/Shadowcode/shadowcode.h
-
-STATICPYTHON_HEADERS= \
-		$(srcdir)/StaticPython/classloader.h \
-		$(srcdir)/StaticPython/descrobject_vectorcall.h \
-		$(srcdir)/StaticPython/methodobject_vectorcall.h \
-
-STRICTM_PRIVATE_HEADERS= \
-		$(srcdir)/Jit/ref.h \
-		$(srcdir)/Jit/util.h \
-		$(srcdir)/Jit/log.h \
-		$(srcdir)/StrictModules/Compiler/module_info.h \
-		$(srcdir)/StrictModules/Compiler/analyzed_module.h \
-		$(srcdir)/StrictModules/Compiler/abstract_module_loader.h\
-		$(srcdir)/StrictModules/Compiler/stub.h\
-		$(srcdir)/StrictModules/Objects/base_object.h \
-		$(srcdir)/StrictModules/Objects/callable.h \
-		$(srcdir)/StrictModules/Objects/callable_wrapper.h \
-		$(srcdir)/StrictModules/Objects/helper.h \
-		$(srcdir)/StrictModules/Objects/instance.h \
-		$(srcdir)/StrictModules/Objects/module.h \
-		$(srcdir)/StrictModules/Objects/numerics.h \
-		$(srcdir)/StrictModules/Objects/type.h \
-		$(srcdir)/StrictModules/Objects/constants.h \
-		$(srcdir)/StrictModules/Objects/exception_object.h \
-		$(srcdir)/StrictModules/Objects/module_type.h \
-		$(srcdir)/StrictModules/Objects/object_type.h \
-		$(srcdir)/StrictModules/Objects/string_object.h \
-		$(srcdir)/StrictModules/Objects/type_type.h \
-		$(srcdir)/StrictModules/Objects/iterable_objects.h \
-		$(srcdir)/StrictModules/Objects/iterator_objects.h \
-		$(srcdir)/StrictModules/Objects/dict_object.h \
-		$(srcdir)/StrictModules/Objects/function.h \
-		$(srcdir)/StrictModules/Objects/codeobject.h \
-		$(srcdir)/StrictModules/Objects/signature.h \
-		$(srcdir)/StrictModules/Objects/union.h \
-		$(srcdir)/StrictModules/Objects/unknown.h \
-		$(srcdir)/StrictModules/Objects/super.h \
-		$(srcdir)/StrictModules/Objects/property.h \
-		$(srcdir)/StrictModules/Objects/lazy_object.h \
-		$(srcdir)/StrictModules/Objects/genericalias_object.h \
-		$(srcdir)/StrictModules/Objects/strict_modules_builtins.h \
-		$(srcdir)/StrictModules/Objects/object_interface.h \
-		$(srcdir)/StrictModules/Objects/objects.h \
-		$(srcdir)/StrictModules/Objects/builtins.h \
-		$(srcdir)/StrictModules/sequence_map.h \
-		$(srcdir)/StrictModules/symbol_table.h \
-		$(srcdir)/StrictModules/ast_visitor.h \
-		$(srcdir)/StrictModules/analyzer.h \
-		$(srcdir)/StrictModules/parser_util.h \
-		$(srcdir)/StrictModules/strict_module_checker_interface.h \
-		$(srcdir)/StrictModules/scope.h \
-		$(srcdir)/StrictModules/scope_impl.h \
-		$(srcdir)/StrictModules/exceptions.h \
-		$(srcdir)/StrictModules/error_sink.h \
-		$(srcdir)/StrictModules/py_headers.h \
-		$(srcdir)/StrictModules/caller_context.h \
-		$(srcdir)/StrictModules/caller_context_impl.h \
-		$(srcdir)/StrictModules/pycore_dependencies.h \
-		$(srcdir)/StrictModules/Objects/typing_helpers.h
-
-STRICTM_PUBLIC_HEADERS= \
-		$(srcdir)/StrictModules/pystrictmodule.h
-
-
-STRICTM_HEADERS = \
-		$(STRICTM_PRIVATE_HEADERS) \
-		$(STRICTM_PUBLIC_HEADERS)
-
-CACHEDPROPS_HEADERS = \
-		$(srcdir)/CachedProperties/cached_properties.h
-
-CINDER_HEADERS= \
-		$(srcdir)/Cinder/Include/cinder/cinder.h \
-		$(srcdir)/Cinder/Include/cinder/exports.h \
-		$(srcdir)/Cinder/Include/cinder/hooks.h
-
-I386_DASM_HEADERS = \
-        $(srcdir)/ThirdParty/i386-dis/dis-asm.h
-
-JSON_HEADERS = $(srcdir)/ThirdParty/json/json.hpp
+CINDERX_PUBLIC_HEADERS = \
+		$(srcdir)/CinderX/CachedProperties/cached_properties.h \
+		$(srcdir)/CinderX/Jit/pyjit.h \
+		$(srcdir)/CinderX/Jit/pyjit_result.h \
+		$(srcdir)/CinderX/Jit/pyjit_typeslots.h \
+		$(srcdir)/CinderX/Shadowcode/shadowcode.h \
+		$(srcdir)/CinderX/StaticPython/classloader.h \
+		$(srcdir)/CinderX/StrictModules/pystrictmodule.h \
+		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h
 
 PYTHON_HEADERS= \
 		$(srcdir)/Include/Python.h \
@@ -1533,7 +1475,6 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/bytearrayobject.h \
 		$(srcdir)/Include/bytesobject.h \
 		$(srcdir)/Include/cellobject.h \
-		$(srcdir)/Include/cinderhooks.h \
 		$(srcdir)/Include/ceval.h \
 		$(srcdir)/Include/classobject.h \
 		$(srcdir)/Include/code.h \
@@ -1691,28 +1632,14 @@ PYTHON_HEADERS= \
 		\
 		$(srcdir)/Python/stdlib_module_names.h \
 		\
-		$(CINDER_HEADERS) \
-		$(JIT_HEADERS) \
-		$(SHADOWCODE_HEADERS) \
-		$(STATICPYTHON_HEADERS) \
-		$(STRICTM_HEADERS) \
-		$(CACHEDPROPS_HEADERS) \
+		$(srcdir)/Cinder/Include/cinder/ci_api.h \
+		$(srcdir)/Cinder/Include/cinder/hooks.h \
+		$(srcdir)/Cinder/Include/cinder/exports.h \
+		$(srcdir)/Cinder/Include/cinder/vectorcall.h
 
-$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
+$(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(CINDERX_PUBLIC_HEADERS)
 
-$(CINDERX_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
-
-$(PARALLELGC_OBJS): $(CINDER_HEADERS) $(srcdir)/CinderX/ParallelGC/condvar.h $(srcdir)/CinderX/ParallelGC/ws_deque.h
-
-$(CACHEDPROPS_OBJS): $(CACHEDPROPS_HEADERS) $(PYTHON_HEADERS)
-
-$(JIT_OBJS): $(JIT_HEADERS) $(CINDER_HEADERS)
-
-$(SHADOWCODE_OBJS): $(SHADOWCODE_HEADERS) $(PYTHON_HEADERS)
-
-$(STATICPYTHON_OBJS): $(STATICPYTHON_HEADERS) $(JIT_HEADERS) $(CINDER_HEADERS) $(PYTHON_HEADERS)
-
-$(STRICTM_OBJS): $(STRICTM_HEADERS)
+$(CINDERX_OBJS): $(CINDERX_PRIVATE_HEADERS) $(CINDERX_PUBLIC_HEADERS) $(PYTHON_HEADERS)
 
 ######################################################################
 
