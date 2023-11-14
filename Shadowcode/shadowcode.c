@@ -18,7 +18,7 @@
 #include "pycore_moduleobject.h"
 #include "structmember.h"
 #include <stddef.h>
-#include "Cinder/Include/cinder/cinder.h"
+#include "Common/watchers.h"
 #include "cinder/exports.h"
 
 // This relies on Python internals.
@@ -455,7 +455,7 @@ _PyShadow_NewCache(PyObject *from)
     }
 
     if (PyType_Check(from)) {
-        Cinder_WatchType((PyTypeObject *)from);
+        Ci_Watchers_WatchType((PyTypeObject *)from);
     }
 
     return (PyCodeCacheRef *)new;

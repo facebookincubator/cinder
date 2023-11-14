@@ -2,6 +2,7 @@
 
 #include "Python.h"
 #include "cinder/hooks.h"
+#include "Common/watchers.h"
 #include "Cinder/Include/cinder/cinder.h"
 #include "Cinder/Include/cinder/hooks.h"
 #include "Jit/pyjit.h"
@@ -11,125 +12,6 @@
 #include "StaticPython/methodobject_vectorcall.h"
 #include "internal/pycore_shadow_frame.h"
 
-static int cinder_dict_watcher_id = -1;
-static int cinder_type_watcher_id = -1;
-static int cinder_func_watcher_id = -1;
-static int cinder_code_watcher_id = -1;
-
-static int cinder_install_dict_watcher() {
-  int watcher_id = PyDict_AddWatcher([](
-      PyDict_WatchEvent event,
-      PyObject* dict,
-      PyObject* key,
-      PyObject* new_value) {
-    switch (event) {
-      case PyDict_EVENT_ADDED:
-      case PyDict_EVENT_MODIFIED:
-      case PyDict_EVENT_DELETED:
-        if (!PyUnicode_CheckExact(key)) {
-          _PyJIT_NotifyDictUnwatch(dict);
-        } else {
-          _PyJIT_NotifyDictKey(dict, key, new_value);
-          _PyClassLoader_NotifyDictChange((PyDictObject *)dict, key);
-        }
-        break;
-      case PyDict_EVENT_CLEARED:
-        _PyJIT_NotifyDictClear(dict);
-        break;
-      case PyDict_EVENT_CLONED:
-      case PyDict_EVENT_DEALLOCATED:
-        _PyJIT_NotifyDictUnwatch(dict);
-        break;
-    }
-    return 0;
-  });
-  if (watcher_id < 0) {
-    return -1;
-  }
-  cinder_dict_watcher_id = watcher_id;
-  return 0;
-}
-
-void Cinder_WatchDict(PyObject* dict) {
-  if (PyDict_Watch(cinder_dict_watcher_id, dict) < 0) {
-    PyErr_Print();
-    JIT_ABORT("Unable to watch dict.");
-  }
-}
-
-void Cinder_UnwatchDict(PyObject* dict) {
-  if (PyDict_Unwatch(cinder_dict_watcher_id, dict) < 0) {
-    PyErr_Print();
-    JIT_ABORT("Unable to unwatch dict.");
-  }
-}
-
-static int cinder_install_type_watcher() {
-  int watcher_id = PyType_AddWatcher([](PyTypeObject* type) {
-    _PyShadow_TypeModified(type);
-    _PyJIT_TypeModified(type);
-    return 0;
-  });
-  if (watcher_id < 0) {
-    return -1;
-  }
-  cinder_type_watcher_id = watcher_id;
-  return 0;
-}
-
-void Cinder_WatchType(PyTypeObject* type) {
-  PyType_Watch(cinder_type_watcher_id, (PyObject *)type);
-}
-
-void Cinder_UnwatchType(PyTypeObject* type) {
-  PyType_Unwatch(cinder_type_watcher_id, (PyObject *)type);
-}
-
-static int cinder_install_func_watcher() {
-  int watcher_id = PyFunction_AddWatcher([](
-      PyFunction_WatchEvent event,
-      PyFunctionObject* func,
-      PyObject* new_value) {
-    switch (event) {
-      case PyFunction_EVENT_CREATE:
-        PyEntry_init(func);
-        break;
-      case PyFunction_EVENT_MODIFY_CODE:
-        _PyJIT_FuncModified(func);
-        // having deopted the func, we want to immediately consider recompiling.
-        // func_set_code will assign this again later, but we do it early so
-        // PyEntry_init can consider the new code object now
-        Py_INCREF(new_value);
-        Py_XSETREF(func->func_code, new_value);
-        PyEntry_init(func);
-        break;
-      case PyFunction_EVENT_MODIFY_DEFAULTS:
-        break;
-      case PyFunction_EVENT_MODIFY_KWDEFAULTS:
-        break;
-      case PyFunction_EVENT_MODIFY_QUALNAME:
-        // allow reconsideration of whether this function should be compiled
-        if (!_PyJIT_IsCompiled((PyObject*)func)) {
-          // func_set_qualname will assign this again, but we need to assign it
-          // now so that PyEntry_init can consider the new qualname
-          Py_INCREF(new_value);
-          Py_XSETREF(func->func_qualname, new_value);
-          PyEntry_init(func);
-        }
-        break;
-      case PyFunction_EVENT_DESTROY:
-        _PyJIT_FuncDestroyed(func);
-        break;
-    }
-    return 0;
-  });
-  if (watcher_id < 0) {
-    return -1;
-  }
-  cinder_func_watcher_id = watcher_id;
-  return 0;
-}
-
 static void init_already_existing_funcs() {
   PyUnstable_GC_VisitObjects([](PyObject* obj, void*){
     if (PyFunction_Check(obj)) {
@@ -137,21 +19,6 @@ static void init_already_existing_funcs() {
     }
     return 1;
   }, nullptr);
-}
-
-static int cinder_install_code_watcher() {
-  int watcher_id = PyCode_AddWatcher([](PyCodeEvent event, PyCodeObject* co) {
-    if (event == PY_CODE_EVENT_DESTROY) {
-      _PyShadow_ClearCache((PyObject *)co);
-      _PyJIT_CodeDestroyed(co);
-    }
-    return 0;
-  });
-  if (watcher_id < 0) {
-    return -1;
-  }
-  cinder_code_watcher_id = watcher_id;
-  return 0;
 }
 
 static void init_already_existing_types() {
@@ -198,16 +65,8 @@ int Cinder_Init() {
     return -1;
   }
   Py_DECREF(res);
-  if (cinder_install_dict_watcher() < 0) {
-    return -1;
-  }
-  if (cinder_install_type_watcher() < 0) {
-    return -1;
-  }
-  if (cinder_install_func_watcher() < 0) {
-    return -1;
-  }
-  if (cinder_install_code_watcher() < 0) {
+
+  if (Ci_Watchers_Init()) {
     return -1;
   }
 
@@ -248,25 +107,9 @@ int Cinder_Fini() {
     return -1;
   }
 
-  if (cinder_dict_watcher_id != -1 && PyDict_ClearWatcher(cinder_dict_watcher_id)) {
+  if (Ci_Watchers_Fini()) {
     return -1;
   }
-  cinder_dict_watcher_id = -1;
-
-  if (cinder_type_watcher_id != -1 && PyType_ClearWatcher(cinder_type_watcher_id)) {
-    return -1;
-  }
-  cinder_type_watcher_id = -1;
-
-  if (cinder_func_watcher_id != -1 && PyFunction_ClearWatcher(cinder_func_watcher_id)) {
-    return -1;
-  }
-  cinder_func_watcher_id = -1;
-
-  if (cinder_code_watcher_id != -1 && PyCode_ClearWatcher(cinder_code_watcher_id)) {
-    return -1;
-  }
-  cinder_code_watcher_id = -1;
 
   Ci_hook_type_created = nullptr;
   Ci_hook_type_destroyed = nullptr;

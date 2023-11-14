@@ -24,19 +24,6 @@ PyAPI_FUNC(int) Cinder_Init(void);
 PyAPI_FUNC(int) Cinder_Fini(void);
 
 /*
- * Watch or unwatch a dictionary.
- */
-PyAPI_FUNC(void) Cinder_WatchDict(PyObject* dict);
-PyAPI_FUNC(void) Cinder_UnwatchDict(PyObject* dict);
-
-/*
- * Watch or unwatch a type.
- */
-PyAPI_FUNC(void) Cinder_WatchType(PyTypeObject* type);
-PyAPI_FUNC(void) Cinder_UnwatchType(PyTypeObject* type);
-
-
-/*
  * Enable parallel garbage collection for generations >= min_gen, using
  * num_threads threads to parallelize the process.
  *

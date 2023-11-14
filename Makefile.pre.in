@@ -454,6 +454,7 @@ ifeq ($(BUILD_CINDERX_SRCS), yes)
 		$(srcdir)/Cinder/hooks.o \
 		$(srcdir)/CinderX/_cinderx.o \
 		$(srcdir)/CinderX/CachedProperties/cached_properties.o \
+		$(srcdir)/CinderX/Common/watchers.o \
 		$(srcdir)/CinderX/Jit/bitvector.o \
 		$(srcdir)/CinderX/Jit/bytecode.o \
 		$(srcdir)/CinderX/Jit/code_allocator.o \
@@ -1459,6 +1460,7 @@ CINDERX_PRIVATE_HEADERS = \
 
 CINDERX_PUBLIC_HEADERS = \
 		$(srcdir)/CinderX/CachedProperties/cached_properties.h \
+		$(srcdir)/CinderX/Common/watchers.h \
 		$(srcdir)/CinderX/Jit/pyjit.h \
 		$(srcdir)/CinderX/Jit/pyjit_result.h \
 		$(srcdir)/CinderX/Jit/pyjit_typeslots.h \

@@ -2,6 +2,7 @@
 
 #include "Jit/inline_cache.h"
 
+#include "Common/watchers.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
 
@@ -13,7 +14,6 @@
 #include <memory>
 
 // clang-format off
-#include "Cinder/Include/cinder/cinder.h"
 #include "cinder/exports.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_object.h"
@@ -28,7 +28,7 @@ struct TypeWatcher {
   jit::UnorderedMap<BorrowedRef<PyTypeObject>, jit::UnorderedSet<T*>> caches;
 
   void watch(BorrowedRef<PyTypeObject> type, T* cache) {
-    Cinder_WatchType(type);
+    Ci_Watchers_WatchType(type);
     caches[type].emplace(cache);
   }
 

@@ -16,8 +16,10 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 THIRD_PARTY_DIR = os.path.realpath(f"{MODULE_DIR}/ThirdParty")
 PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
 CINDER_DIR = os.path.realpath(f"{PYTHON_DIR}/Cinder/")
+CINDERX_DIR = os.path.realpath(f"{PYTHON_DIR}/CinderX/")
 
 INCLUDE_DIRS = [
+    CINDERX_DIR,
     f"{PYTHON_DIR}/Include/internal",
     f"{THIRD_PARTY_DIR}/asmjit/src",
     f"{THIRD_PARTY_DIR}/fmt-8.1.1/include",
@@ -37,6 +39,7 @@ CINDERX_SRCS = [
     "_static.c",
     "_strictmodule.c",
     "cinder.c",
+    "Common/watchers.cpp",
 ]
 
 JIT_SRCS = [

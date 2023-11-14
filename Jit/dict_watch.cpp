@@ -2,7 +2,7 @@
 
 #include "Jit/dict_watch.h"
 
-#include "Cinder/Include/cinder/cinder.h"
+#include "Common/watchers.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/global_cache.h"
@@ -52,7 +52,7 @@ void watchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
   auto& watchers = g_dict_watchers[dict][key];
   bool inserted = watchers.emplace(cache).second;
   JIT_CHECK(inserted, "cache was already watching key");
-  Cinder_WatchDict(dict);
+  Ci_Watchers_WatchDict(dict);
 }
 
 void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
@@ -69,7 +69,7 @@ void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
     dict_keys.erase(key_it);
     if (dict_keys.empty()) {
       g_dict_watchers.erase(dict_it);
-      Cinder_UnwatchDict(dict);
+      Ci_Watchers_UnwatchDict(dict);
     }
   }
 }
@@ -182,7 +182,7 @@ void _PyJIT_ClearDictCaches() {
     // so we need to make sure each dictionary is still being watched
     if (dict_it != jit::g_dict_watchers.end()) {
       _PyJIT_NotifyDictUnwatch(dict);
-      Cinder_UnwatchDict(dict);
+      Ci_Watchers_UnwatchDict(dict);
     }
   }
 }

@@ -2,7 +2,7 @@
 
 #include "Jit/runtime.h"
 
-#include "Cinder/Include/cinder/cinder.h"
+#include "Common/watchers.h"
 #include "internal/pycore_interp.h"
 
 #include "Jit/type_deopt_patchers.h"
@@ -353,7 +353,7 @@ std::optional<std::string> symbolize(const void* func) {
 void Runtime::watchType(
     BorrowedRef<PyTypeObject> type,
     TypeDeoptPatcher* patcher) {
-  Cinder_WatchType(type);
+  Ci_Watchers_WatchType(type);
   type_deopt_patchers_[type].emplace_back(patcher);
 }
 
