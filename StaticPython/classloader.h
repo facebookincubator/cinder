@@ -180,7 +180,7 @@ CiAPI_FUNC(PyObject *)
 _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container);
 
 CiAPI_FUNC(PyObject *)
-_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact, int *coroutine, int *classmethod);
+_PyClassLoader_ResolveReturnType(PyObject *func, int *optional, int *exact, int *func_flags);
 
 CiAPI_FUNC(PyMethodDescrObject *)
 _PyClassLoader_ResolveMethodDef(PyObject *path);
@@ -332,6 +332,10 @@ CiAPI_FUNC(int) _PyClassLoader_IsFinalMethodOverridden(PyTypeObject *base_type, 
 #define Ci_Py_SIG_SIZE_T (sizeof(void*) == 8 ? Ci_Py_SIG_UINT64 : Ci_Py_SIG_UINT32)
 #define Ci_Py_SIG_TYPE_MASK(x) ((x) >> 2)
 
+#define Ci_FUNC_FLAGS_COROUTINE       0x01
+#define Ci_FUNC_FLAGS_CLASSMETHOD     0x02
+#define Ci_FUNC_FLAGS_STATICMETHOD    0x04
+
 
 #ifndef Py_LIMITED_API
 typedef struct {
@@ -341,6 +345,8 @@ typedef struct {
     int td_optional;
     int td_exact;
 } _PyTypedDescriptor;
+
+CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
 
 CiAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 

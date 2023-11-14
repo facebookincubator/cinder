@@ -141,14 +141,14 @@ std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
     return nullptr;
   }
 
-  int coroutine, optional, exact, classmethod;
+  int optional, exact, func_flags;
   auto return_pytype =
       Ref<PyTypeObject>::steal(_PyClassLoader_ResolveReturnType(
-          callable, &optional, &exact, &coroutine, &classmethod));
+          callable, &optional, &exact, &func_flags));
 
   target->container_is_immutable = _PyClassLoader_IsImmutable(container);
   if (return_pytype != NULL) {
-    if (coroutine) {
+    if (func_flags & Ci_FUNC_FLAGS_COROUTINE) {
       // TODO properly handle coroutine returns awaitable type
       target->return_type = TObject;
     } else {

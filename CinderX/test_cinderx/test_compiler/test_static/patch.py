@@ -1,8 +1,11 @@
 import asyncio
+import cinder
 import re
 from compiler.pycodegen import PythonCodeGenerator
+from contextlib import contextmanager
+from textwrap import dedent
 from unittest import skip, skipIf
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from test.support.import_helper import import_module
 
@@ -14,6 +17,12 @@ except ImportError:
     cinderjit = None
 
 xxclassloader = import_module("xxclassloader")
+
+@contextmanager
+def save_restore_knobs():
+    prev = cinder.getknobs()
+    yield
+    cinder.setknobs(prev)
 
 
 class StaticPatchTests(StaticTestBase):
@@ -263,6 +272,201 @@ class StaticPatchTests(StaticTestBase):
                 g()
             with patch(f"{mod.__name__}.C.f", return_value=100) as p:
                 self.assertEqual(g(), 100)
+
+    @save_restore_knobs()
+    def test_patch_function_non_autospec(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                def f(self):
+                    return 42
+
+            def g(x: C):
+                return x.f()
+        """
+        with self.in_module(codestr) as mod:
+            g = mod.g
+            c = mod.C()
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                self.assertEqual(g(c), 100)
+                self.assertEqual(len(p.call_args[0]), 1)
+                self.assertEqual(p.call_args[0][0], c)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": True})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                self.assertEqual(g(c), 100)
+                self.assertEqual(len(p.call_args[0]), 0)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                self.assertEqual(g(c), 100)
+                self.assertEqual(len(p.call_args[0]), 1)
+                self.assertEqual(p.call_args[0][0], c)
+
+    @save_restore_knobs()
+    def test_patch_coro_non_autospec(self):
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                async def f(self) -> int:
+                    return 42
+
+            def g(x: C):
+                return x.f()
+        """
+        with self.in_module(codestr) as mod:
+            g = mod.g
+            c = mod.C()
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                try:
+                    g(c).send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+
+                self.assertEqual(len(p.call_args[0]), 1)
+                self.assertEqual(p.call_args[0][0], c)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": True})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                try:
+                    g(c).send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+                self.assertEqual(len(p.call_args[0]), 0)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                try:
+                    g(c).send(None)
+                except StopIteration as e:
+                    self.assertEqual(e.args[0], 100)
+                self.assertEqual(len(p.call_args[0]), 1)
+                self.assertEqual(p.call_args[0][0], c)
+
+    def test_patch_classmethod_non_autospec(self):
+        codestr = """
+            from typing import final, Type
+
+            @final
+            class C:
+                @classmethod
+                def f(cls):
+                    return 42
+
+            def g(x: C):
+                return x.f()
+
+            def g2():
+                return C.f()
+        """
+        with self.in_module(codestr) as mod:
+            g = mod.g
+            c = mod.C()
+
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                self.assertEqual(g(c), 100)
+                self.assertEqual(len(p.call_args[0]), 0)
+
+            g2 = mod.g2
+            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
+                self.assertEqual(g2(), 100)
+                self.assertEqual(len(p.call_args[0]), 0)
+
+
+    @save_restore_knobs()
+    def test_patch_function_module_non_autospec(self):
+        codestr = """
+            from typing import final
+
+            class C:
+                    pass
+
+            def f(self: C):
+                return 42
+
+            def g(x: C):
+                return f(x)
+        """
+        with self.in_strict_module(codestr, enable_patching=True) as mod:
+            g = mod.g
+            c = mod.C()
+            p = MagicMock(return_value=100)
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            mod.patch(f"f", p)
+            self.assertEqual(g(c), 100)
+            self.assertEqual(len(p.call_args[0]), 1)
+            self.assertEqual(p.call_args[0][0], c)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": True})
+            p = MagicMock(return_value=100)
+            mod.patch(f"f", p)
+            self.assertEqual(g(c), 100)
+            self.assertEqual(len(p.call_args[0]), 1)
+            self.assertEqual(p.call_args[0][0], c)
+
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            p = MagicMock(return_value=100)
+            mod.patch(f"f", p)
+            self.assertEqual(g(c), 100)
+            self.assertEqual(len(p.call_args[0]), 1)
+            self.assertEqual(p.call_args[0][0], c)
+
+    @save_restore_knobs()
+    def test_patch_function_descriptor(self):
+        class Patch:
+            def __init__(self):
+                self.call = None
+                self.get_called = False
+
+            def __get__(self, inst, ctx) -> object:
+                self.get_called = True
+                return self
+
+            def __call__(self, *args, **kwargs):
+                self.call = args, kwargs
+                return 100
+
+        codestr = """
+            from typing import final
+
+            @final
+            class C:
+                def f(self):
+                    return 42
+
+            def g(x: C):
+                return x.f()
+        """
+        with self.in_module(codestr) as mod:
+            g = mod.g
+            C = mod.C
+            c = mod.C()
+            p = Patch()
+            C.f = p
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            self.assertEqual(g(c), 100)
+            self.assertEqual(p.get_called, False)
+            self.assertEqual(p.call, ((c, ), {}))
+
+            cinder.setknobs({"calldescriptoroninvokefunction": True})
+            p = Patch()
+            C.f = p
+            self.assertEqual(g(c), 100)
+            self.assertEqual(p.get_called, True)
+            self.assertEqual(p.call, ((), {}))
+
+            cinder.setknobs({"calldescriptoroninvokefunction": False})
+            p = Patch()
+            C.f = p
+            self.assertEqual(g(c), 100)
+            self.assertEqual(p.get_called, False)
+            self.assertEqual(p.call, ((c, ), {}))
 
     def test_patch_primitive_ret_type(self):
         for type_name, value, patched in [

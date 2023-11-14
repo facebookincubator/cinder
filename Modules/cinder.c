@@ -12,6 +12,7 @@
 #include "Jit/pyjit.h"
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
+CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
 
 /* facebook begin */
 static PyObject *
@@ -41,6 +42,13 @@ cinder_setknobs(PyObject *self, PyObject *o)
     if (polymorphic != NULL) {
         int enabled = PyObject_IsTrue(polymorphic);
         _PyShadow_PolymorphicCacheEnabled = enabled != -1 && enabled;
+    }
+
+
+    PyObject* calldesc = PyDict_GetItemString(o, "calldescriptoroninvokefunction");
+    if (calldesc != NULL) {
+        int enabled = PyObject_IsTrue(calldesc);
+        Ci_CallDescriptorOnInvokeFunction = enabled != -1 && enabled;
     }
 
     Py_RETURN_NONE;
@@ -76,6 +84,14 @@ cinder_getknobs(PyObject *self, PyObject *args)
     err = PyDict_SetItemString(res,
                                "polymorphiccache",
                                _PyShadow_PolymorphicCacheEnabled ? Py_True
+                                                                 : Py_False);
+    if (err == -1) {
+        return NULL;
+    }
+
+    err = PyDict_SetItemString(res,
+                               "calldescriptoroninvokefunction",
+                               Ci_CallDescriptorOnInvokeFunction ? Py_True
                                                                  : Py_False);
     if (err == -1) {
         return NULL;
