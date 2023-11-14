@@ -718,6 +718,7 @@ ifeq ($(BUILD_CINDERX_SRCS), yes)
 		$(ASMJIT_OBJS) \
 		$(CACHEDPROPS_OBJS) \
 		$(CINDER_OBJS) \
+		CinderX/_cinderx.o \
 		$(JIT_OBJS)    \
 		$(PARALLELGC_OBJS) \
 		$(SHADOWCODE_OBJS) \
@@ -1699,7 +1700,7 @@ PYTHON_HEADERS= \
 
 $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(I386_DASM_HEADERS) $(JSON_HEADERS) $(CINDER_HEADERS)
 
-$(CINDER_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
+$(CINDERX_OBJS): $(JIT_PUBLIC_HEADERS) $(CINDER_HEADERS)
 
 $(PARALLELGC_OBJS): $(CINDER_HEADERS) $(srcdir)/CinderX/ParallelGC/condvar.h $(srcdir)/CinderX/ParallelGC/ws_deque.h
 

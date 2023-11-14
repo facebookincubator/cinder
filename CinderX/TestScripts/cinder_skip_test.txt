@@ -12,3 +12,5 @@ test.test_embed.EmbeddingTests.test_subinterps_main
 test.test_multibytecodec.Test_IncrementalEncoder.test_subinterp
 test.test_threading.SubinterpThreadingTests.*
 test.test_interpreters.*
+test.test_capi.CAPITest.test_getitem_with_error
+test.test_repl.TestInteractiveInterpreter.test_no_memory

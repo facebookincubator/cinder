@@ -15,10 +15,6 @@
 #include "pycore_sysmodule.h"     // _PySys_ClearAuditHooks()
 #include "pycore_traceback.h"     // _Py_DumpTracebackThreads()
 
-#ifdef ENABLE_CINDERX
-#include "cinder/cinder.h"
-#endif
-
 #include <locale.h>               // setlocale()
 
 #if defined(Py_DEBUG) && !defined(MS_WINDOWS) && !defined(__VXWORKS__)
@@ -1176,22 +1172,6 @@ init_interp_main(PyThreadState *tstate)
         return _PyStatus_ERR("failed to update the Python config");
     }
 
-    /* Initialize JIT ASAP to catch functions included in bootstrap libraries.
-     * TODO(T126550863): Move this out of `init_interp_main` (potentially into
-     * `pyinit_main`).
-     */
-#ifdef ENABLE_CINDERX
-    if (is_main_interp) {
-      int cinder_status = Cinder_Init();
-      if (cinder_status < 0) {
-        if (cinder_status == -2) {
-          return PyStatus_Exit(0);
-        }
-        Py_FatalError("Can't initialize Cinder");
-      }
-    }
-#endif
-
     status = init_importlib_external(tstate);
     if (_PyStatus_EXCEPTION(status)) {
         return status;
@@ -1973,10 +1953,6 @@ Py_FinalizeEx(void)
         _Py_PrintReferences(stderr);
     }
 #endif /* Py_TRACE_REFS */
-
-#ifdef ENABLE_CINDERX
-    Cinder_Fini();
-#endif
 
     finalize_interp_clear(tstate);
     finalize_interp_delete(tstate->interp);

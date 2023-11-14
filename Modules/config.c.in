@@ -30,6 +30,9 @@ extern PyObject* PyInit_gc(void);
 extern PyObject* PyInit__ast(void);
 extern PyObject* _PyWarnings_Init(void);
 extern PyObject* PyInit__string(void);
+#ifdef ENABLE_CINDERX
+extern PyObject* PyInit__cinderx(void);
+#endif
 
 struct _inittab _PyImport_Inittab[] = {
 
@@ -56,6 +59,11 @@ struct _inittab _PyImport_Inittab[] = {
 
     /* This lives in Objects/unicodeobject.c */
     {"_string", PyInit__string},
+
+#ifdef ENABLE_CINDERX
+    /* Hack while CinderX is not in a truly separate module */
+    {"_cinderx", PyInit__cinderx},
+#endif
 
     /* Sentinel */
     {0, 0}

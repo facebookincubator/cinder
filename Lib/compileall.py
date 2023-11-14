@@ -10,6 +10,13 @@ packages -- for now, you'll have to deal with packages separately.)
 
 See module py_compile for details of the actual byte-compilation.
 """
+
+try:
+    import cinderx
+    cinderx.init()
+except ImportError:
+    pass
+
 import os
 import sys
 import importlib.util
