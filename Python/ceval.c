@@ -37,6 +37,7 @@
 #include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
 
 #include "cinder/exports.h"
+#include "cinderhooks.h"
 
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"
@@ -1867,7 +1868,7 @@ _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     /* facebook begin t39538061 */
     /* Initialize the inline cache after the code object is "hot enough" */
     if (!tstate->profile_interp && co->co_mutable->shadow == NULL &&
-        _PyEval_ShadowByteCodeEnabled) {
+        Ci_cinderx_initialized && _PyEval_ShadowByteCodeEnabled) {
         if (++(co->co_mutable->ncalls) > PYSHADOW_INIT_THRESHOLD) {
             if (_PyShadow_InitCache(co) == -1) {
                 goto error;

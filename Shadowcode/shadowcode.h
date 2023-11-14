@@ -253,6 +253,7 @@ void _PyShadow_InitGlobal(_PyShadow_EvalState *shadow,
 PyObject *_PyShadow_GetInlineCacheStats(PyObject *self);
 
 CiAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
+CiAPI_FUNC(int) _PyShadow_FreeAll(void);
 
 int _PyShadow_PatchByteCode(_PyShadow_EvalState *shadow,
                             const _Py_CODEUNIT *next_instr,

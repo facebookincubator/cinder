@@ -191,29 +191,7 @@ def dash_R_cleanup(fs, ps, pic, zdc, abcs):
     if cinder_support.hasCinderX():
         cinder.setknobs({"shadowcode": False})
         cinder.clear_caches()
-        has_caches = [x for x in gc.get_objects()
-                    if isinstance(x, (type, FunctionType, ModuleType))]
-
-        for has_cache in has_caches:
-            cinder.clear_shadow_cache(has_cache)
-            if type(has_cache) is FunctionType:
-                # The function could create lambdas or comprehensions which
-                # get optimized
-                for const in has_cache.__code__.co_consts:
-                    if isinstance(const, CodeType):
-                        has_caches.append(const)
-            elif isinstance(has_cache, CodeType):
-                for const in has_cache.co_consts:
-                    if isinstance(const, CodeType):
-                        has_caches.append(const)
-        # Extension types aren't tracked by the GC, so find their shadow
-        # refs, and then use those weak refs to clear the underlying
-        # objects
-        has_caches = [x for x in gc.get_objects() if type(x).__name__ == "shadow_ref"]
-        for has_cache in has_caches:
-            cinder.clear_shadow_cache(has_cache())
-        del has_cache
-        del has_caches
+        cinder.clear_all_shadow_caches()
 
     # clear type cache
     sys._clear_type_cache()

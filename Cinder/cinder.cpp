@@ -182,9 +182,7 @@ int Cinder_Init() {
   Ci_hook_PyJIT_GenSend = _PyJIT_GenSend;
   Ci_hook_PyJIT_GenYieldFromValue = _PyJIT_GenYieldFromValue;
   Ci_hook_PyJIT_GenMaterializeFrame = _PyJIT_GenMaterializeFrame;
-
-  // This should be the very last hook installed
-  Ci_cinderx_initialized = 1;
+  Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
 
   init_already_existing_types();
 
@@ -212,11 +210,84 @@ int Cinder_Init() {
   if (cinder_install_code_watcher() < 0) {
     return -1;
   }
+
+  if (_PyJIT_Initialize()) {
+    return -1;
+  }
   init_already_existing_funcs();
-  return _PyJIT_Initialize();
+
+  Ci_cinderx_initialized = 1;
+
+  return 0;
 }
 
+// Attempts to shutdown CinderX. This is very much a best-effort with the
+// primary goals being to ensure Python shuts down without crashing, and
+// tests which do some kind of re-initialization continue to work. A secondary
+// goal is to one day make it possible to arbitrarily load/relaod CinderX at
+// runtime. However, for now the only thing we truly support is loading
+// CinderX once ASAP on start-up, and then never unloading it until complete
+// process shutdown.
 int Cinder_Fini() {
   _PyClassLoader_ClearCache();
-  return _PyJIT_Finalize();
+
+  if (PyThreadState_Get()->shadow_frame) {
+    // If any Python code is running we can't tell if JIT code is in use. Even
+    // if every frame in the callstack is interpreter-owned, some of them could
+    // be the result of deopt and JIT code may still be on the native stack.
+    JIT_DABORT("Python code still running on CinderX unload");
+    JIT_LOG("Python code is executing, cannot cleanly shutdown CinderX.");
+    return -1;
+  }
+
+  if (_PyJIT_Finalize()) {
+    return -1;
+  }
+
+  if (Ci_cinderx_initialized && Ci_hook__PyShadow_FreeAll()) {
+    return -1;
+  }
+
+  if (cinder_dict_watcher_id != -1 && PyDict_ClearWatcher(cinder_dict_watcher_id)) {
+    return -1;
+  }
+  cinder_dict_watcher_id = -1;
+
+  if (cinder_type_watcher_id != -1 && PyType_ClearWatcher(cinder_type_watcher_id)) {
+    return -1;
+  }
+  cinder_type_watcher_id = -1;
+
+  if (cinder_func_watcher_id != -1 && PyFunction_ClearWatcher(cinder_func_watcher_id)) {
+    return -1;
+  }
+  cinder_func_watcher_id = -1;
+
+  if (cinder_code_watcher_id != -1 && PyCode_ClearWatcher(cinder_code_watcher_id)) {
+    return -1;
+  }
+  cinder_code_watcher_id = -1;
+
+  Ci_hook_type_created = nullptr;
+  Ci_hook_type_destroyed = nullptr;
+  Ci_hook_type_name_modified = nullptr;
+  Ci_hook_type_pre_setattr = nullptr;
+  Ci_hook_type_setattr = nullptr;
+  Ci_hook_JIT_GetProfileNewInterpThread = nullptr;
+  Ci_hook_JIT_GetFrame = nullptr;
+  Ci_hook_PyDescr_NewMethod = nullptr;
+  Ci_hook_WalkStack = nullptr;
+  Ci_hook_code_sizeof_shadowcode = nullptr;
+  Ci_hook_PyShadowFrame_HasGen = nullptr;
+  Ci_hook_PyShadowFrame_GetGen = nullptr;
+  Ci_hook_PyJIT_GenVisitRefs = nullptr;
+  Ci_hook_PyJIT_GenDealloc = nullptr;
+  Ci_hook_PyJIT_GenSend = nullptr;
+  Ci_hook_PyJIT_GenYieldFromValue = nullptr;
+  Ci_hook_PyJIT_GenMaterializeFrame = nullptr;
+  Ci_hook__PyShadow_FreeAll = nullptr;
+
+  Ci_cinderx_initialized = 0;
+
+  return 0;
 }

@@ -12,6 +12,7 @@
 #include "Jit/pyjit.h"
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
+CiAPI_FUNC(void) _PyShadow_FreeAll(void);
 CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
 
 /* facebook begin */
@@ -203,9 +204,9 @@ clear_caches(PyObject *self, PyObject *obj)
 }
 
 static PyObject *
-clear_shadow_cache(PyObject *self, PyObject *obj)
+clear_all_shadow_caches(PyObject *self, PyObject *obj)
 {
-    _PyShadow_ClearCache(obj);
+    _PyShadow_FreeAll();
     Py_RETURN_NONE;
 }
 
@@ -801,7 +802,7 @@ static struct PyMethodDef cinder_module_methods[] = {
      METH_NOARGS,
      "Clears caches associated with the JIT.  This may have a negative effect "
      "on performance of existing JIT compiled code."},
-    {"clear_shadow_cache", clear_shadow_cache, METH_O, ""},
+    {"clear_all_shadow_caches", clear_all_shadow_caches, METH_NOARGS, ""},
     {"strict_module_patch",
      strict_module_patch,
      METH_VARARGS,

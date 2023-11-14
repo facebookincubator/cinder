@@ -39,6 +39,10 @@ CiAPI_DATA(Ci_HookType_PyCMethod_New) Ci_hook_PyCMethod_New;
 typedef vectorcallfunc (*Ci_HookType_PyDescr_NewMethod)(PyMethodDef *method);
 CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 
+/* Hooks for Shadow Code */
+typedef int (*Ci_HookType__PyShadow_FreeAll)(void);
+CiAPI_DATA(Ci_HookType__PyShadow_FreeAll) Ci_hook__PyShadow_FreeAll;
+
 /* Wrappers to expose private functions for usage with hooks. */
 
 CiAPI_FUNC(int) Cix_cfunction_check_kwargs(PyThreadState *tstate,

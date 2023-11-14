@@ -2675,3 +2675,81 @@ _PyShadow_ClearCache(PyObject *obj)
         }
     }
 }
+
+struct ShadowFreeVisitState {
+    PyObject* obj_list;
+    int error;
+};
+
+static int free_all_gc_visitor(PyObject* obj, void* data) {
+    struct ShadowFreeVisitState *state = (struct ShadowFreeVisitState *)data;
+    if (PyFunction_Check(obj)
+            || PyCode_Check(obj)
+            || PyType_Check(obj)
+            || PyModule_Check(obj)) {
+        if (PyList_Append(state->obj_list, obj)) {
+            state->error = 1;
+            return 0;
+        }
+    } else if (!strcmp(obj->ob_type->tp_name, "shadow_ref")) {
+        PyObject *shadow_obj = PyObject_Vectorcall(obj, NULL, 0, NULL);
+        if (PyList_Append(state->obj_list, shadow_obj)) {
+            Py_DecRef(shadow_obj);
+            state->error = 1;
+            return 0;
+        }
+        Py_DecRef(shadow_obj);
+    }
+    return 1;
+}
+
+static int free_all_visit_code_object(PyObject *obj, PyObject *obj_list) {
+    assert(PyCode_Check(obj));
+    PyCodeObject *code = (PyCodeObject *)obj;
+    // Code can create lambdas or comprehensions which get optimized.
+    for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(code->co_consts); ++i) {
+        PyObject *const_obj = PyTuple_GET_ITEM(code->co_consts, i);
+        if (PyCode_Check(const_obj)) {
+            if (PyList_Append(obj_list, const_obj)) {
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+int _PyShadow_FreeAll(void) {
+    struct ShadowFreeVisitState state = {
+        .obj_list = PyList_New(0),
+        .error = 0,
+    };
+    if (state.obj_list == NULL) {
+        return -1;
+    }
+    PyUnstable_GC_VisitObjects(free_all_gc_visitor, &state);
+    if (state.error) {
+        goto error;
+    }
+
+    for (Py_ssize_t i = 0; i < PyList_GET_SIZE(state.obj_list); ++i) {
+        PyObject *obj = PyList_GET_ITEM(state.obj_list, i);
+        _PyShadow_ClearCache(obj);
+        if (PyFunction_Check(obj)) {
+            if (free_all_visit_code_object(
+                    ((PyFunctionObject *)obj)->func_code, state.obj_list)) {
+                goto error;
+            }
+        } else if (PyCode_Check(obj)) {
+            if (free_all_visit_code_object(obj, state.obj_list)) {
+                goto error;
+            }
+        }
+    }
+
+    Py_DecRef(state.obj_list);
+    return 0;
+
+error:
+    Py_DecRef(state.obj_list);
+    return -1;
+}

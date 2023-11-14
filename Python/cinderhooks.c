@@ -22,6 +22,8 @@ Ci_HookType_PyDescr_NewMethod Ci_hook_PyDescr_NewMethod = NULL;
 
 Ci_HookType_WalkStack Ci_hook_WalkStack = NULL;
 
+/* Shadow Code */
+Ci_HookType__PyShadow_FreeAll Ci_hook__PyShadow_FreeAll = NULL;
 Ci_HookType_code_sizeof_shadowcode Ci_hook_code_sizeof_shadowcode = NULL;
 
 Ci_HookType_PyShadowFrame_HasGen Ci_hook_PyShadowFrame_HasGen = NULL;
