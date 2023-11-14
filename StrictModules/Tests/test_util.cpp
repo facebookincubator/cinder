@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -12,6 +13,15 @@
 static const std::string kDelim = "---";
 static const std::string kVarDelim = " ";
 static const std::string kExcDelim = "\n";
+
+std::string sourceRelativePath(const char* path) {
+  return std::filesystem::path(__FILE__)
+      .parent_path()
+      .parent_path()
+      .parent_path()
+      .append(path)
+      .string();
+}
 
 static std::ostream& err(const std::string& path) {
   std::cerr << "ERROR [" << path << "]: ";

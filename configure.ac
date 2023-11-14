@@ -5683,24 +5683,24 @@ AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
     CinderX/CachedProperties \
     CinderX/Common \
+    CinderX/Jit \
+    CinderX/Jit/codegen \
+    CinderX/Jit/hir \
+    CinderX/Jit/lir \
     CinderX/ParallelGC \
     CinderX/RuntimeTests \
+    CinderX/Shadowcode \
+    CinderX/StaticPython \
+    CinderX/StrictModules \
+    CinderX/StrictModules/Compiler \
+    CinderX/StrictModules/Objects \
     CinderX/StrictModules/Tests \
+    CinderX/ThirdParty/asmjit/src/asmjit/arm \
+    CinderX/ThirdParty/asmjit/src/asmjit/arm \
+    CinderX/ThirdParty/asmjit/src/asmjit/core \
+    CinderX/ThirdParty/asmjit/src/asmjit/x86 \
     CinderX/ThirdParty/googletest-1.8.1/googletest \
-    Jit \
-    Jit/codegen \
-    Jit/hir \
-    Jit/lir \
-    Shadowcode \
-    StaticPython \
-    StrictModules \
-    StrictModules/Compiler \
-    StrictModules/Objects \
-    ThirdParty/asmjit/src/asmjit/arm \
-    ThirdParty/asmjit/src/asmjit/arm \
-    ThirdParty/asmjit/src/asmjit/core \
-    ThirdParty/asmjit/src/asmjit/x86 \
-    ThirdParty/i386-dis"
+    CinderX/ThirdParty/i386-dis"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then

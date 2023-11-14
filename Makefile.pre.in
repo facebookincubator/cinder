@@ -117,7 +117,18 @@ PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdi
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS=	$(BASECPPFLAGS) -I. -I$(abs_srcdir)/Include -I$(abs_srcdir)/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/ThirdParty/folly -I$(abs_srcdir)/ThirdParty/i386-dis -I$(abs_srcdir)/ThirdParty/json $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I $(srcdir)/CinderX
+PY_CPPFLAGS= \
+	$(BASECPPFLAGS) $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) \
+	-DFMT_HEADER_ONLY=1 \
+	-I$(abs_builddir) \
+	-I$(abs_srcdir)/Include \
+	-I$(abs_srcdir)/CinderX/ThirdParty/fmt-8.1.1/include \
+	-I$(abs_srcdir)/CinderX/ThirdParty/folly \
+	-I$(abs_srcdir)/CinderX/ThirdParty/i386-dis \
+	-I$(abs_srcdir)/CinderX/ThirdParty/json \
+	-I$(abs_srcdir)/CinderX/ThirdParty/asmjit/src \
+	-I$(abs_srcdir)/CinderX/ThirdParty/parallel-hashmap \
+	-I$(abs_srcdir)/CinderX
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
@@ -306,20 +317,6 @@ PROFILE_TASK=-m test.regrtest --pgo
 COVERAGE_INFO=	$(abs_builddir)/coverage.info
 COVERAGE_REPORT=$(abs_builddir)/lcov-report
 COVERAGE_REPORT_OPTIONS=--no-branch-coverage --title "CPython lcov report"
-
-ASMJIT_DIR=ThirdParty/asmjit/src
-ASMJIT_SRCDIR=$(srcdir)/$(ASMJIT_DIR)
-PY_CORE_CXXFLAGS += -I$(ASMJIT_SRCDIR)
-
-PY_CORE_CXXFLAGS += -I$(srcdir)/ThirdParty/parallel-hashmap
-
-GTEST_DIR=ThirdParty/googletest-1.8.1/googletest
-GTEST_SRCDIR=$(srcdir)/$(GTEST_DIR)
-RUNTIME_TESTS_DIR=RuntimeTests
-RUNTIME_TESTS_SRCDIR=$(srcdir)/$(RUNTIME_TESTS_DIR)
-
-STRICTM_TESTS_DIR=StrictModules/Tests
-STRICTM_TESTS_SRCDIR=$(srcdir)/$(STRICTM_TESTS_DIR)
 
 # Environment variables injected by ./configure when ASAN is enabled, to make
 # all tests pass.
@@ -2502,9 +2499,9 @@ Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
 .PHONY: regen-jit
 regen-jit:
 	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/scripts/typed/generate_jit_type_h.py \
-		$(srcdir)/Jit/hir/type_generated.h.new
-	$(UPDATE_FILE) $(srcdir)/Jit/hir/type_generated.h \
-		$(srcdir)/Jit/hir/type_generated.h.new
+		$(srcdir)/CinderX/Jit/hir/type_generated.h.new
+	$(UPDATE_FILE) $(srcdir)/CinderX/Jit/hir/type_generated.h \
+		$(srcdir)/CinderX/Jit/hir/type_generated.h.new
 
 # asmjit
 

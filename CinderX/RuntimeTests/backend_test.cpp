@@ -20,6 +20,7 @@
 #include "RuntimeTests/fixtures.h"
 #include "RuntimeTests/testutil.h"
 
+#include <filesystem>
 #include <fstream>
 #include <regex>
 
@@ -27,6 +28,11 @@ using namespace jit;
 using namespace jit::lir;
 
 namespace jit::codegen {
+
+static std::filesystem::path sourceRelativePath(const char *path) {
+  return std::filesystem::path(__FILE__).parent_path().parent_path().append(path);
+}
+
 class BackendTest : public RuntimeTest {
  public:
   // compile a function without generating prologue and epilogue.
@@ -687,7 +693,8 @@ TEST_F(BackendTest, CastTest) {
 }
 
 TEST_F(BackendTest, ParserGetI32FromArrayTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir");
+  std::ifstream t(sourceRelativePath(
+      "Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir"));
   std::stringstream buffer;
   buffer << t.rdbuf();
   Parser parser;
@@ -697,7 +704,8 @@ TEST_F(BackendTest, ParserGetI32FromArrayTest) {
 }
 
 TEST_F(BackendTest, ParserCastTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_Cast.lir");
+  std::ifstream t(
+      sourceRelativePath("Jit/lir/c_helper_translations/JITRT_Cast.lir"));
   std::stringstream buffer;
   buffer << t.rdbuf();
 
@@ -794,7 +802,8 @@ TEST_F(BackendTest, SplitBasicBlockTest) {
 }
 
 TEST_F(BackendTest, CopyFromArrayTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir");
+  std::ifstream t(sourceRelativePath(
+      "Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir"));
   std::stringstream buffer;
   buffer << t.rdbuf();
   Parser parser;
@@ -847,7 +856,8 @@ BB %1 - preds: %3
 }
 
 TEST_F(BackendTest, CopyCastTest) {
-  std::ifstream t("Jit/lir/c_helper_translations/JITRT_Cast.lir");
+  std::ifstream t(
+      sourceRelativePath("Jit/lir/c_helper_translations/JITRT_Cast.lir"));
   std::stringstream buffer;
   buffer << t.rdbuf();
 

@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+std::string sourceRelativePath(const char* path);
+
 struct VarMatcher {
   std::string name;
   std::optional<std::string> type;

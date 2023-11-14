@@ -6,11 +6,12 @@
 class ParserTest : public PythonTest {};
 
 TEST_F(ParserTest, CanParseByFilename) {
-  const char* name = "StrictModules/Tests/python_tests/simple_assign.py";
+  std::string name =
+      sourceRelativePath("StrictModules/Tests/python_tests/simple_assign.py");
   PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
-      strictmod::readFromFile(name, arena, {});
+      strictmod::readFromFile(name.c_str(), arena, {});
   ASSERT_NE(result, std::nullopt);
   EXPECT_NE(result.value().ast, nullptr);
   EXPECT_NE(result.value().symbols, nullptr);

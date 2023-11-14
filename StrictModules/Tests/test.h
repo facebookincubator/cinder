@@ -14,6 +14,7 @@ avoid macro naming conflict between gtest and python ast.h
 #include "StrictModules/py_headers.h"
 #include "gtest/gtest.h"
 
+#include <codecvt>
 #include <memory>
 #include <vector>
 
@@ -108,11 +109,15 @@ class ModuleLoaderTest : public PythonTest {
   std::unique_ptr<strictmod::compiler::ModuleLoader> getLoader(
       const char* importPath,
       const char* stubPath) {
+    static const std::string defaultImportPath =
+        sourceRelativePath("StrictModules/Tests/python_tests");
+    static const std::string defaultStubPath =
+        sourceRelativePath("StrictModules/Tests/python_tests/stubs");
     if (importPath == nullptr) {
-      importPath = "StrictModules/Tests/python_tests";
+      importPath = defaultImportPath.c_str();
     }
     if (stubPath == nullptr) {
-      stubPath = "StrictModules/Tests/python_tests/stubs";
+      stubPath = defaultStubPath.c_str();
     }
     std::vector<std::string> importPaths;
     importPaths.emplace_back(importPath);
@@ -129,11 +134,15 @@ class ModuleLoaderTest : public PythonTest {
       const char* stubPath,
       strictmod::compiler::ModuleLoader::ForceStrictFunc func,
       strictmod::compiler::ModuleLoader::ErrorSinkFactory factory) {
+    static const std::string defaultImportPath =
+        sourceRelativePath("StrictModules/Tests/python_tests");
+    static const std::string defaultStubPath =
+        sourceRelativePath("StrictModules/Tests/python_tests/stubs");
     if (importPath == nullptr) {
-      importPath = "StrictModules/Tests/python_tests";
+      importPath = defaultImportPath.c_str();
     }
     if (stubPath == nullptr) {
-      stubPath = "StrictModules/Tests/python_tests/stubs";
+      stubPath = defaultStubPath.c_str();
     }
     std::vector<std::string> importPaths;
     importPaths.emplace_back(importPath);
@@ -207,7 +216,9 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
         [](const std::string&, const std::string&) { return true; },
         [errorSink] { return errorSink; });
     loader->setImportPath(
-        {"StrictModules/Tests/comparison_tests/imports", "Lib"});
+        {sourceRelativePath("StrictModules/Tests/comparison_tests/imports")
+             .c_str(),
+         "Lib"});
     loader->loadStrictModuleModule();
     const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
@@ -218,7 +229,9 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     ASSERT_NE(modValue.get(), nullptr);
 
     std::wstring path{Py_GetPath()};
-    path.append(L":StrictModules/Tests/comparison_tests/imports");
+    path.append(L":");
+    path.append(std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(
+        sourceRelativePath("StrictModules/Tests/comparison_tests/imports")));
     PySys_SetPath(path.c_str());
 
     PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);

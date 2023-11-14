@@ -3,8 +3,10 @@
 #include "StrictModules/py_headers.h"
 #include "gtest/gtest.h"
 
+#include <filesystem>
 #include <iostream>
-static void register_test(const char* path, const char* ignorePath) {
+
+static void register_test(std::string&& path, const char* ignorePath) {
   auto suite = ReadStrictMTestSuite(path);
   if (suite == nullptr) {
     std::exit(1);
@@ -57,10 +59,14 @@ int main(int argc, char* argv[]) {
   Py_SetProgramName(argv0);
   if (argc > 1) {
     register_test(
-        "StrictModules/Tests/comparison_tests/interpreter_test.txt", argv[1]);
+        sourceRelativePath(
+            "StrictModules/Tests/comparison_tests/interpreter_test.txt"),
+        argv[1]);
   } else {
     register_test(
-        "StrictModules/Tests/comparison_tests/interpreter_test.txt", nullptr);
+        sourceRelativePath(
+            "StrictModules/Tests/comparison_tests/interpreter_test.txt"),
+        nullptr);
   }
 
   int result = RUN_ALL_TESTS();

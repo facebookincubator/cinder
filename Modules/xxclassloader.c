@@ -6,7 +6,7 @@
 #include "pycore_interp.h"
 #include "pycore_pystate.h" // _PyInterpreterState_GET()
 
-#include "StaticPython/classloader.h"
+#include "CinderX/StaticPython/classloader.h"
 
 PyDoc_STRVAR(xxclassloader__doc__,
              "xxclassloader contains helpers for testing the class loader\n");
