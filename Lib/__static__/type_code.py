@@ -1,7 +1,7 @@
 # pyre-strict
 
 try:
-    from _static import (
+    from cinderx.static import (
         set_type_code,
         TYPED_BOOL,
         TYPED_CHAR,

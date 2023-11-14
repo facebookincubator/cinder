@@ -24,6 +24,7 @@ from _static import (
     TYPED_CHAR,
     TYPED_ARRAY,
 
+    SEQ_LIST,
     SEQ_TUPLE,
     SEQ_LIST_INEXACT,
     SEQ_ARRAY_INT64,

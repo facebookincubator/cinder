@@ -56,7 +56,7 @@ from typing import (
     Union,
 )
 
-from _static import (  # noqa: F401
+from cinderx.static import (  # noqa: F401
     FAST_LEN_ARRAY,
     FAST_LEN_DICT,
     FAST_LEN_INEXACT,

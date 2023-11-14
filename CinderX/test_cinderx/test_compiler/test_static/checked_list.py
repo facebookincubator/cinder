@@ -2,7 +2,7 @@ from __static__ import CheckedList
 
 from unittest import skip, skipIf
 
-from _static import SEQ_CHECKED_LIST, SEQ_SUBSCR_UNCHECKED
+from cinderx.static import SEQ_CHECKED_LIST, SEQ_SUBSCR_UNCHECKED
 
 from .common import bad_ret_type, StaticTestBase, type_mismatch
 

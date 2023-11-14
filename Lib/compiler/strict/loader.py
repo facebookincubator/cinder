@@ -43,7 +43,7 @@ from typing import (
     Type,
 )
 
-from _static import install_sp_audit_hook
+from cinderx.static import install_sp_audit_hook
 
 from ..consts import CO_STATICALLY_COMPILED
 from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER

@@ -42,7 +42,7 @@ from .flag_extractor import FlagExtractor
 from .rewriter import remove_annotations, rewrite
 
 if _static_module_ported:
-    from _static import __build_cinder_class__
+    from cinderx.static import __build_cinder_class__
 else:
     from __static__ import __build_cinder_class__
 

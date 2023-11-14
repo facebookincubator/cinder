@@ -40,7 +40,7 @@ from .types import (
 )
 
 if _static_module_ported:
-    from _static import posix_clock_gettime_ns, rand, RAND_MAX
+    from cinderx.static import posix_clock_gettime_ns, rand, RAND_MAX
 else:
     # pyre-fixme [21]: Could not find a name posix_clock_gettime_ns
     from __static__ import posix_clock_gettime_ns, rand, RAND_MAX

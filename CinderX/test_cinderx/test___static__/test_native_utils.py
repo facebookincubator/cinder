@@ -7,7 +7,7 @@ import _ctypes
 import unittest
 from typing import final
 
-from _static import (
+from cinderx.static import (
     _clear_dlopen_cache,
     _clear_dlsym_cache,
     _sizeof_dlopen_cache,

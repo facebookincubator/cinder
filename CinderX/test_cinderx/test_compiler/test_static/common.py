@@ -31,7 +31,7 @@ from functools import wraps
 from types import CodeType, FunctionType
 from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
 
-from _static import (
+from cinderx.static import (
     __build_cinder_class__,
     TYPED_BOOL,
     TYPED_INT16,

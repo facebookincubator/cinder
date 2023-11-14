@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Mapping
 from unittest import skipIf
 
-from _static import SEQ_SUBSCR_UNCHECKED, TYPED_INT64
+from cinderx.static import SEQ_SUBSCR_UNCHECKED, TYPED_INT64
 
 from .common import StaticTestBase, type_mismatch
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import ctypes
 from typing import Tuple
 
-from _static import (
+from cinderx.static import (
     resolve_primitive_descr,
     TYPED_BOOL,
     TYPED_CHAR,
