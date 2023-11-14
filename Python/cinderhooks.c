@@ -1,7 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 
 int8_t Ci_cinderx_initialized = 0;
 

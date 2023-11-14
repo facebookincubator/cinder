@@ -1,6 +1,6 @@
 #include "Python.h"
 #include "cinder/exports.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "pycore_gc.h"            // PyGC_Head
 #include "pycore_pymem.h"         // _Py_tracemalloc_config
 #include "pycore_traceback.h"

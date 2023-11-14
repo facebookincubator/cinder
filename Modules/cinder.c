@@ -2,7 +2,7 @@
 #include "Python.h"
 
 #include "boolobject.h"
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"

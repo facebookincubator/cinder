@@ -18,7 +18,7 @@
 #include "pycore_moduleobject.h"
 #include "structmember.h"
 #include <stddef.h>
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 #include "cinder/exports.h"
 
 // This relies on Python internals.

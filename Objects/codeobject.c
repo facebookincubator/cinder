@@ -12,7 +12,7 @@
 #include "clinic/codeobject.c.h"
 
 #include "cinder/exports.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 
 static PyObject* code_repr(PyCodeObject *co);
 

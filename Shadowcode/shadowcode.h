@@ -1,7 +1,7 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 /* facebook begin t39538061 */
 #include "Objects/dict-common.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "Python.h"
 #include "code.h"
 #include "opcode.h"

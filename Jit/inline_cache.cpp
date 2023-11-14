@@ -13,7 +13,7 @@
 #include <memory>
 
 // clang-format off
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 #include "cinder/exports.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_object.h"

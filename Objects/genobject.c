@@ -11,7 +11,7 @@
 #include "opcode.h"
 #include "Jit/pyjit.h"
 #include "cinder/exports.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "pycore_gc.h"            // _PyGC_UNSET_FINALIZED
 
 static PyObject *gen_close(PyGenObject *, PyObject *);

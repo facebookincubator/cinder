@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
-#include "cinderhooks.h"
-#include "cinder/cinder.h"
 #include "cinder/hooks.h"
+#include "Cinder/Include/cinder/cinder.h"
+#include "Cinder/Include/cinder/hooks.h"
 #include "Jit/pyjit.h"
 #include "StaticPython/classloader.h"
 #include "StaticPython/descrobject_vectorcall.h"

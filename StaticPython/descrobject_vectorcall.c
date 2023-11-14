@@ -1,7 +1,7 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
 
 #include "Python.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 
 #include "StaticPython/classloader.h"

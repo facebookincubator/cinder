@@ -37,7 +37,7 @@
 #include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
 
 #include "cinder/exports.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 
 #ifdef ENABLE_CINDERX
 #include "Jit/pyjit.h"

@@ -2,7 +2,7 @@
 
 #include "Jit/dict_watch.h"
 
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/global_cache.h"

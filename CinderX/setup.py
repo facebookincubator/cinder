@@ -18,7 +18,6 @@ PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
 CINDER_DIR = os.path.realpath(f"{PYTHON_DIR}/Cinder/")
 
 INCLUDE_DIRS = [
-    f"{CINDER_DIR}/Include",
     f"{PYTHON_DIR}/Include/internal",
     f"{THIRD_PARTY_DIR}/asmjit/src",
     f"{THIRD_PARTY_DIR}/fmt-8.1.1/include",

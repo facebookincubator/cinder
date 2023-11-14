@@ -2,7 +2,7 @@
 /* Method object implementation */
 
 #include "Python.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "cinder/exports.h"
 #include "pycore_ceval.h"         // _Py_EnterRecursiveCall()
 #include "pycore_object.h"

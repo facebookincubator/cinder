@@ -111,9 +111,9 @@ CONFIGURE_LDFLAGS=	@LDFLAGS@
 # command line to append to these values without stomping the pre-set
 # values.
 PY_CFLAGS=	$(BASECFLAGS) $(OPT) -I$(abs_srcdir)/ThirdParty/folly $(CONFIGURE_CFLAGS) $(CFLAGS) $(EXTRA_CFLAGS)
-PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(abs_srcdir)/Include/internal -I$(abs_srcdir)/Cinder/Include
+PY_CFLAGS_NODIST=$(CONFIGURE_CFLAGS_NODIST) $(CFLAGS_NODIST) -I$(abs_srcdir)/Include/internal
 PY_CXXFLAGS=$(BASECXXFLAGS) $(OPTCXX) $(CONFIGURE_CXXFLAGS) $(CXXFLAGS) $(EXTRA_CXXFLAGS)
-PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdir)/Include/internal -I$(abs_srcdir)/Cinder/Include
+PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdir)/Include/internal
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
@@ -1632,10 +1632,10 @@ PYTHON_HEADERS= \
 		\
 		$(srcdir)/Python/stdlib_module_names.h \
 		\
-		$(srcdir)/Cinder/Include/cinder/ci_api.h \
-		$(srcdir)/Cinder/Include/cinder/hooks.h \
-		$(srcdir)/Cinder/Include/cinder/exports.h \
-		$(srcdir)/Cinder/Include/cinder/vectorcall.h
+		$(srcdir)/Include/cinder/ci_api.h \
+		$(srcdir)/Include/cinder/hooks.h \
+		$(srcdir)/Include/cinder/exports.h \
+		$(srcdir)/Include/cinder/vectorcall.h
 
 $(LIBRARY_OBJS) $(MODOBJS) Programs/python.o: $(PYTHON_HEADERS) $(CINDERX_PUBLIC_HEADERS)
 

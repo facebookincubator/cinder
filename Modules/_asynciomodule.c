@@ -8,7 +8,7 @@
 #include "structmember.h"
 #include "weakrefobject.h"
 #include "cinder/exports.h"
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 
 #include "internal/pycore_shadow_frame.h"   // _PyShadowFrame_GetGen(), _PyShadowFrame_SetGen()
 

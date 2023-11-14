@@ -1,4 +1,4 @@
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 #include <Python.h>
 
 #include "Jit/log.h"

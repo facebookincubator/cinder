@@ -2,7 +2,7 @@
 
 #include "Jit/runtime.h"
 
-#include "cinder/cinder.h"
+#include "Cinder/Include/cinder/cinder.h"
 #include "internal/pycore_interp.h"
 
 #include "Jit/type_deopt_patchers.h"

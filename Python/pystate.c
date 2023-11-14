@@ -11,7 +11,7 @@
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 #include "pycore_sysmodule.h"
 
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "cinder/exports.h"
 
 #include "Jit/pyjit.h"

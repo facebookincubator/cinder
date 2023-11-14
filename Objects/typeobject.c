@@ -14,7 +14,7 @@
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
 
-#include "cinderhooks.h"
+#include "cinder/hooks.h"
 #include "cinder/exports.h"
 
 #ifdef ENABLE_CINDERX
