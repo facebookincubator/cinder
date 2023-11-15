@@ -226,6 +226,7 @@ SHADOWCODE_SRCS = [
 ]
 
 STATICPYTHON_SRCS = [
+    "StaticPython/checked_list.c",
     "StaticPython/classloader.c",
     "StaticPython/descrobject_vectorcall.c",
     "StaticPython/methodobject_vectorcall.c",

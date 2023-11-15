@@ -3,6 +3,7 @@
 #include "Jit/lir/generator.h"
 
 #include "Python.h"
+#include "StaticPython/checked_list.h"
 #include "cinder/exports.h"
 #include "internal/pycore_import.h"
 #include "internal/pycore_interp.h"
@@ -2451,7 +2452,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         bbb.AppendCall(
             instr->dst(),
-            Ci_List_APPEND,
+            Ci_ListOrCheckedList_Append,
             instr->GetOperand(0),
             instr->GetOperand(1));
         break;

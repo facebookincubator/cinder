@@ -43,6 +43,7 @@
 #include "Jit/pyjit.h"
 #include "Shadowcode/shadowcode.h"
 #include "StaticPython/classloader.h"
+#include "StaticPython/checked_list.h"
 #endif
 
 #include <ctype.h>
@@ -2449,7 +2450,11 @@ main_loop:
             PyObject *v = POP();
             PyObject *list = PEEK(oparg);
             int err;
-            err = Ci_List_APPEND((PyListObject *) list, v);
+#ifdef ENABLE_CINDERX
+            err = Ci_ListOrCheckedList_Append((PyListObject *) list, v);
+#else
+            err = PyList_Append(list, v);
+#endif
             Py_DECREF(v);
             if (err != 0)
                 goto error;
@@ -6188,7 +6193,11 @@ main_loop:
 
             while (--list_size >= 0) {
               PyObject *item = POP();
-              Ci_List_SET_ITEM(list, list_size, item);
+#ifdef ENABLE_CINDERX
+              Ci_ListOrCheckedList_SET_ITEM(list, list_size, item);
+#else
+              PyList_SET_ITEM(list, list_size, item);
+#endif
             }
             PUSH(list);
             DISPATCH();

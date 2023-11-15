@@ -3,6 +3,7 @@
 #include "Jit/hir/builder.h"
 
 #include "Python.h"
+#include "StaticPython/checked_list.h"
 #include "boolobject.h"
 #include "ceval.h"
 #include "object.h"

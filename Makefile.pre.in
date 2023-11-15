@@ -524,6 +524,7 @@ ifeq ($(BUILD_CINDERX_SRCS), yes)
 		$(srcdir)/CinderX/Jit/util.o \
 		$(srcdir)/CinderX/ParallelGC/parallel_gc.o \
 		$(srcdir)/CinderX/Shadowcode/shadowcode.o \
+		$(srcdir)/CinderX/StaticPython/checked_list.o \
 		$(srcdir)/CinderX/StaticPython/classloader.o \
 		$(srcdir)/CinderX/StaticPython/descrobject_vectorcall.o \
 		$(srcdir)/CinderX/StaticPython/methodobject_vectorcall.o \
@@ -632,10 +633,6 @@ else
 	CINDERX_OBJS =
 endif
 
-##########################################################################
-# Cached Properties
-CACHEDPROPS_OBJS = \
-	CachedProperties/cached_properties.o
 
 ##########################################################################
 # Objects
@@ -1462,6 +1459,7 @@ CINDERX_PUBLIC_HEADERS = \
 		$(srcdir)/CinderX/Jit/pyjit_result.h \
 		$(srcdir)/CinderX/Jit/pyjit_typeslots.h \
 		$(srcdir)/CinderX/Shadowcode/shadowcode.h \
+		$(srcdir)/CinderX/StaticPython/checked_list.h \
 		$(srcdir)/CinderX/StaticPython/classloader.h \
 		$(srcdir)/CinderX/StrictModules/pystrictmodule.h \
 		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h

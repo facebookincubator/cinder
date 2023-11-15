@@ -1,6 +1,6 @@
 /* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
-#ifndef Py_CLASSLOADER_H
-#define Py_CLASSLOADER_H
+#ifndef Ci_CLASSLOADER_H
+#define Ci_CLASSLOADER_H
 
 #include "cinder/exports.h"
 #include "internal/pycore_moduleobject.h"
@@ -732,4 +732,4 @@ _PyClassLoader_InvokeMethod(_PyType_VTable *vtable, Py_ssize_t slot, PyObject **
 #ifdef __cplusplus
 }
 #endif
-#endif /* !Py_OBJECT_H */
+#endif /* !Ci_CLASSLOADER_H */

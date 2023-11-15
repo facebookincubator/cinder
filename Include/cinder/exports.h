@@ -28,10 +28,6 @@ CiAPI_FUNC(PyObject *) Ci_strictmodule_lookupattro(PyObject *self, PyObject *nam
 
 CiAPI_FUNC(Py_hash_t) Ci_TupleHashItems(PyObject *const *items, Py_ssize_t len);
 
-#define Ci_List_GET_SIZE(op) Py_SIZE((PyListObject *)op)
-#define Ci_List_SET_ITEM(op, i, v) ((void)(((PyListObject *)op)->ob_item[i] = (v)))
-#define Ci_List_GET_ITEM(op, i) (((PyListObject *)op)->ob_item[i])
-
 /* Force the dictionary to use a combined layout.
  * Returns 0 on success or -1 on error.
  */
@@ -43,10 +39,6 @@ CiAPI_FUNC(int) Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *v
 
 CiAPI_FUNC(int) Ci_CheckedDict_Check(PyObject *x);
 CiAPI_FUNC(int) Ci_CheckedDict_TypeCheck(PyTypeObject *type);
-
-CiAPI_FUNC(PyObject *) Ci_CheckedList_GetItem(PyObject *self, Py_ssize_t);
-CiAPI_FUNC(PyObject *) Ci_CheckedList_New(PyTypeObject *type, Py_ssize_t);
-CiAPI_FUNC(int) Ci_CheckedList_TypeCheck(PyTypeObject *type);
 
 CiAPI_FUNC(PyObject **) Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 
@@ -77,8 +69,6 @@ CiAPI_FUNC(PyObject *) Ci_match_class(PyThreadState *tstate, PyObject *subject, 
 CiAPI_FUNC(PyObject *) Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
 
 CiAPI_FUNC(int) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
-
-CiAPI_DATA(int) (*Ci_List_APPEND)(PyListObject *list, PyObject *item);
 
 CiAPI_FUNC(PyObject *) Ci_List_Repeat(PyListObject *, Py_ssize_t);
 CiAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
