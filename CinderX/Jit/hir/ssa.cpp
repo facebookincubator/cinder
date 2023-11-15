@@ -603,14 +603,6 @@ Type outputType(
       return TObject;
     }
 
-    case Opcode::kRepeatList: {
-      return TListExact;
-    }
-
-    case Opcode::kRepeatTuple: {
-      return TTupleExact;
-    }
-
     case Opcode::kPrimitiveBoxBool: {
       return TBool;
     }

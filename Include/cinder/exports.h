@@ -70,9 +70,6 @@ CiAPI_FUNC(PyObject *) Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObj
 
 CiAPI_FUNC(int) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
-CiAPI_FUNC(PyObject *) Ci_List_Repeat(PyListObject *, Py_ssize_t);
-CiAPI_FUNC(PyObject *) Ci_Tuple_Repeat(PyTupleObject *, Py_ssize_t);
-
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleLoader_Type;
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
 

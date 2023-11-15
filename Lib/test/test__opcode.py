@@ -10,7 +10,6 @@ from _opcode import stack_effect
 MISSING_STACK_EFFECT = {
     "LOAD_FIELD",
     "STORE_FIELD",
-    "SEQUENCE_REPEAT",
     "INVOKE_METHOD",
     "BUILD_CHECKED_LIST",
     "CAST",

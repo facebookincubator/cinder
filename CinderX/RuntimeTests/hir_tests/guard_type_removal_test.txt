@@ -83,9 +83,9 @@ fun test {
         Stack<1> v2
       }
     }
-    v4 = LoadConst<CInt64[5]>
-    v5 = RepeatList v3 v4
-    Return v5
+    v4 = LoadConst<NoneType>
+    v5 = ListAppend v3 v4
+    Return v4
   }
 }
 ---
@@ -99,13 +99,10 @@ fun test {
         Stack<1> v0
       }
     }
-    v4:CInt64[5] = LoadConst<CInt64[5]>
-    v5:ListExact = RepeatList v3 v4 {
-      FrameState {
-        NextInstrOffset 0
-      }
+    v4:NoneType = LoadConst<NoneType>
+    v5:CInt32 = ListAppend v3 v4 {
     }
-    Return v5
+    Return v4
   }
 }
 ---

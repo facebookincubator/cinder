@@ -2393,13 +2393,7 @@ class DynamicClass(Class):
 
 
 class DynamicInstance(Object[DynamicClass]):
-    def __init__(self, klass: DynamicClass) -> None:
-        super().__init__(klass)
-
-    def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
-        if maybe_emit_sequence_repeat(node, code_gen):
-            return
-        code_gen.defaultVisit(node)
+    pass
 
 
 class NoneType(Class):
@@ -7372,11 +7366,6 @@ class TupleInstance(Object[TupleClass]):
             test, next, is_if_true, code_gen, self.get_fast_len_type()
         )
 
-    def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
-        if maybe_emit_sequence_repeat(node, code_gen):
-            return
-        code_gen.defaultVisit(node)
-
     def exact(self) -> Value:
         return self.klass.type_env.tuple.exact_type().instance
 
@@ -7561,41 +7550,6 @@ class SetInstance(Object[SetClass]):
         return self.klass.type_env.set.instance
 
 
-def maybe_emit_sequence_repeat(
-    node: ast.BinOp, code_gen: Static38CodeGenerator
-) -> bool:
-    if not isinstance(node.op, ast.Mult):
-        return False
-    for seq, num, rev in [
-        (node.left, node.right, 0),
-        (node.right, node.left, SEQ_REPEAT_REVERSED),
-    ]:
-        seq_type = code_gen.get_type(seq).klass
-        num_type = code_gen.get_type(num).klass
-        oparg = None
-        if code_gen.compiler.type_env.tuple.can_assign_from(seq_type):
-            oparg = SEQ_TUPLE
-        elif code_gen.compiler.type_env.list.can_assign_from(seq_type):
-            oparg = SEQ_LIST
-        if oparg is None:
-            continue
-        if num_type in code_gen.compiler.type_env.signed_cint_types:
-            oparg |= SEQ_REPEAT_PRIMITIVE_NUM
-        elif not code_gen.compiler.type_env.int.can_assign_from(num_type):
-            continue
-        if not seq_type.is_exact:
-            oparg |= SEQ_REPEAT_INEXACT_SEQ
-        if not num_type.is_exact:
-            oparg |= SEQ_REPEAT_INEXACT_NUM
-        oparg |= rev
-        code_gen.visit(seq)
-        code_gen.visit(num)
-        code_gen.emit("REFINE_TYPE", num_type.type_descr)
-        code_gen.emit("SEQUENCE_REPEAT", oparg)
-        return True
-    return False
-
-
 class ListAppendMethod(BuiltinMethodDescriptor):
     def resolve_descr_get(
         self,
@@ -7733,11 +7687,6 @@ class ListInstance(Object[ListClass]):
         ):
             return super().emit_delete_subscr(node, code_gen)
         code_gen.emit("LIST_DEL", self.get_subscr_type())
-
-    def emit_binop(self, node: ast.BinOp, code_gen: Static38CodeGenerator) -> None:
-        if maybe_emit_sequence_repeat(node, code_gen):
-            return
-        code_gen.defaultVisit(node)
 
     def exact(self) -> Value:
         return self.klass.type_env.list.exact_type().instance

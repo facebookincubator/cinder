@@ -139,7 +139,6 @@ extern "C" {
   X(DICT_MERGE,                      164) \
   X(DICT_UPDATE,                     165) \
   X(STORE_FIELD,                     166) \
-  X(SEQUENCE_REPEAT,                 167) \
   X(BUILD_CHECKED_LIST,              168) \
   X(LOAD_TYPE,                       169) \
   X(CAST,                            170) \

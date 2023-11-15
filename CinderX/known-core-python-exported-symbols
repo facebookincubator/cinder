@@ -21,7 +21,6 @@ Ci_GetAIter
 Ci_GetANext
 Ci_hook_PyDescr_NewMethod
 Ci_hook_PyJIT_GenDealloc
-Ci_List_Repeat
 Ci_list_subscript
 Ci_match_class
 Ci_match_keys
@@ -51,7 +50,6 @@ Ci_SuperLookupMethodOrAttr
 Ci_ThreadState_SetProfileInterp
 Ci_ThreadState_SetProfileInterpAll
 Ci_TupleHashItems
-Ci_Tuple_Repeat
 Ci_tuple_subscript
 Cix_cfunction_check_kwargs
 Cix_cfunction_enter_call

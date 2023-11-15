@@ -5239,54 +5239,6 @@ main_loop:
             DISPATCH();
         }
 
-        case TARGET(SEQUENCE_REPEAT): {
-            PyObject *num = TOP();
-            PyObject *seq = SECOND();
-            PyObject* res;
-            STACK_SHRINK(2);
-
-            int seq_inexact = oparg & SEQ_REPEAT_INEXACT_SEQ;
-            int num_inexact = oparg & SEQ_REPEAT_INEXACT_NUM;
-            int reversed = oparg & SEQ_REPEAT_REVERSED;
-            oparg &= ~SEQ_REPEAT_FLAGS;
-
-            assert((oparg == SEQ_LIST) || (oparg == SEQ_TUPLE));
-
-            if (seq_inexact) {
-                if ((oparg == SEQ_LIST && PyList_CheckExact(seq)) ||
-                    (oparg == SEQ_TUPLE && PyTuple_CheckExact(seq))) {
-                    seq_inexact = 0;
-                }
-            }
-
-            if (num_inexact && PyLong_CheckExact(num)) {
-                num_inexact = 0;
-            }
-
-            if (seq_inexact || num_inexact) {
-                if (reversed) {
-                    res = PyNumber_Multiply(num, seq);
-                } else {
-                    res = PyNumber_Multiply(seq, num);
-                }
-            } else {
-                if (oparg == SEQ_LIST) {
-                    res = Ci_List_Repeat((PyListObject*)seq, PyLong_AsSsize_t(num));
-                } else {
-                    res = Ci_Tuple_Repeat((PyTupleObject*)seq, PyLong_AsSsize_t(num));
-                }
-            }
-
-            Py_DECREF(num);
-            Py_DECREF(seq);
-            PUSH(res);
-
-            if (res == NULL) {
-                goto error;
-            }
-
-            DISPATCH();
-        }
 #define CAST_COERCE_OR_ERROR(val, type, exact)                              \
     if (type == &PyFloat_Type && PyObject_TypeCheck(val, &PyLong_Type)) {   \
         long lval = PyLong_AsLong(val);                                     \

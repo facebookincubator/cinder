@@ -10,7 +10,6 @@ opcode.def_op("LOAD_FIELD", 159)
 opcode.hasconst.add(159)
 opcode.def_op("STORE_FIELD", 166)
 opcode.hasconst.add(166)
-opcode.def_op("SEQUENCE_REPEAT", 167)
 opcode.def_op("BUILD_CHECKED_LIST", 168)
 opcode.hasconst.add(168)
 opcode.def_op("LOAD_TYPE", 169)
@@ -66,7 +65,6 @@ opcode.stack_effects.update(
     INVOKE_METHOD=lambda oparg, jmp: -oparg[1],
     LOAD_FIELD=0,
     STORE_FIELD=-2,
-    SEQUENCE_REPEAT=-1,
     CAST=0,
     LOAD_LOCAL=1,
     STORE_LOCAL=-1,

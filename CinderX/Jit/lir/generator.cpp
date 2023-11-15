@@ -2192,18 +2192,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->itemIdx() * sizeof(PyObject*));
         break;
       }
-      case Opcode::kRepeatList: {
-        auto instr = static_cast<const RepeatList*>(&i);
-        bbb.AppendCall(
-            instr->dst(), Ci_List_Repeat, instr->seq(), instr->num());
-        break;
-      }
-      case Opcode::kRepeatTuple: {
-        auto instr = static_cast<const RepeatTuple*>(&i);
-        bbb.AppendCall(
-            instr->dst(), Ci_Tuple_Repeat, instr->seq(), instr->num());
-        break;
-      }
       case Opcode::kMakeCheckedList: {
         auto instr = static_cast<const MakeCheckedList*>(&i);
         auto capacity = instr->nvalues();

@@ -178,11 +178,7 @@ static void *opcode_targets[256] = {
 #else
     &&_unknown_opcode,
 #endif
-#ifdef ENABLE_CINDERX
-    &&TARGET_SEQUENCE_REPEAT,
-#else
     &&_unknown_opcode,
-#endif
 #ifdef ENABLE_CINDERX
     &&TARGET_BUILD_CHECKED_LIST,
 #else

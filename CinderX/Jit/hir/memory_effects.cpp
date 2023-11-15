@@ -140,8 +140,6 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kLongBinaryOp:
     case Opcode::kMatchClass:
     case Opcode::kMatchKeys:
-    case Opcode::kRepeatList:
-    case Opcode::kRepeatTuple:
     case Opcode::kUnaryOp:
     case Opcode::kUnpackExToTuple:
     case Opcode::kVectorCall:

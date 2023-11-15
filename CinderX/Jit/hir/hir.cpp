@@ -248,8 +248,6 @@ bool Instr::isReplayable() const {
     case Opcode::kMergeSetUnpack:
     case Opcode::kPhi:
     case Opcode::kRaiseAwaitableError:
-    case Opcode::kRepeatList:
-    case Opcode::kRepeatTuple:
     case Opcode::kReturn:
     case Opcode::kRunPeriodicTasks:
     case Opcode::kSetCellItem:

@@ -233,8 +233,6 @@ hasconst.append(159)
 def_op("STORE_FIELD", 166, cinderx=True)
 hasconst.append(166)
 
-def_op("SEQUENCE_REPEAT", 167, cinderx=True)
-
 def_op("BUILD_CHECKED_LIST", 168, cinderx=True)
 hasconst.append(168)
 def_op("LOAD_TYPE", 169, cinderx=True)

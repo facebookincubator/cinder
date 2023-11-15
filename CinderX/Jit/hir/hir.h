@@ -328,8 +328,6 @@ struct FrameState {
   V(RaiseStatic)                       \
   V(RaiseAwaitableError)               \
   V(RefineType)                        \
-  V(RepeatList)                        \
-  V(RepeatTuple)                       \
   V(Return)                            \
   V(RunPeriodicTasks)                  \
   V(SetCellItem)                       \
@@ -3160,43 +3158,6 @@ class INSTR_CLASS(RefineType, (TTop), HasOutput, Operands<1>) {
  private:
   Type type_;
 };
-
-class RepeatBase : public DeoptBase {
- protected:
-  RepeatBase(Opcode op) : DeoptBase(op) {
-    auto new_frame = std::make_unique<FrameState>();
-    setFrameState(std::move(new_frame));
-  }
-
-  RepeatBase(Opcode op, const FrameState& frame) : DeoptBase(op, frame) {}
-
- public:
-  Register* seq() const {
-    return GetOperand(0);
-  }
-
-  Register* num() const {
-    return GetOperand(1);
-  }
-};
-
-// Repeat a list; e.g. [1, 2] * 2 == [1, 2, 1, 2]
-// Expects `num` to be a primitive integer
-DEFINE_SIMPLE_INSTR(
-    RepeatList,
-    (TList, TCInt),
-    HasOutput,
-    Operands<2>,
-    RepeatBase);
-
-// Repeat a tuple; e.g. (1, 2) * 2 == (1, 2, 1, 2)
-// Expects `num` to be a primitive integer
-DEFINE_SIMPLE_INSTR(
-    RepeatTuple,
-    (TTuple, TCInt),
-    HasOutput,
-    Operands<2>,
-    RepeatBase);
 
 //  Return from the function
 class INSTR_CLASS(Return, (), Operands<1>) {

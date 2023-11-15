@@ -188,7 +188,6 @@ const std::unordered_set<int> kSupportedOpcodes = {
     ROT_THREE,
     ROT_TWO,
     SEQUENCE_GET,
-    SEQUENCE_REPEAT,
     SEQUENCE_SET,
     SET_ADD,
     SET_UPDATE,
@@ -1001,10 +1000,6 @@ void HIRBuilder::translate(
         }
         case SEQUENCE_SET: {
           emitSequenceSet(tc, bc_instr);
-          break;
-        }
-        case SEQUENCE_REPEAT: {
-          emitSequenceRepeat(irfunc.cfg, tc, bc_instr);
           break;
         }
         case LOAD_GLOBAL: {
@@ -2774,74 +2769,6 @@ void HIRBuilder::emitSequenceGet(
   auto type = element_type_from_seq_type(oparg);
   tc.emit<LoadArrayItem>(
       result, ob_item, adjusted_idx, sequence, /*offset=*/0, type);
-  stack.push(result);
-}
-
-void HIRBuilder::emitSequenceRepeat(
-    CFG& cfg,
-    TranslationContext& tc,
-    const jit::BytecodeInstruction& bc_instr) {
-  auto& stack = tc.frame.stack;
-  Register* num;
-  Register* seq;
-  auto result = temps_.AllocateStack();
-  int oparg = bc_instr.oparg();
-  int seq_inexact = oparg & SEQ_REPEAT_INEXACT_SEQ;
-  int num_inexact = oparg & SEQ_REPEAT_INEXACT_NUM;
-  int primitive_num = oparg & SEQ_REPEAT_PRIMITIVE_NUM;
-  oparg &= ~SEQ_REPEAT_FLAGS;
-
-  JIT_DCHECK(
-      oparg == SEQ_LIST || oparg == SEQ_TUPLE,
-      "Bad oparg for SEQUENCE_REPEAT: {}",
-      oparg);
-
-  if (seq_inexact || num_inexact) {
-    TranslationContext deopt_path{cfg.AllocateBlock(), tc.frame};
-    deopt_path.frame.next_instr_offset = bc_instr.offset();
-    deopt_path.snapshot();
-    deopt_path.emit<Deopt>();
-    // Stack pops must wait until after we snapshot, so if we deopt they are
-    // still on stack.
-    num = stack.pop();
-    if (num_inexact) {
-      BasicBlock* fast_path = cfg.AllocateBlock();
-      tc.emit<CondBranchCheckType>(
-          num, TLongExact, fast_path, deopt_path.block);
-      tc.block = fast_path;
-      // TODO(T105038867): Remove once we have RefineTypeInsertion
-      tc.emit<RefineType>(num, TLongExact, num);
-    }
-    seq = stack.pop();
-    if (seq_inexact) {
-      BasicBlock* fast_path = cfg.AllocateBlock();
-      tc.emit<CondBranchCheckType>(
-          seq,
-          (oparg == SEQ_LIST) ? TListExact : TTupleExact,
-          fast_path,
-          deopt_path.block);
-      tc.block = fast_path;
-      // TODO(T105038867): Remove once we have RefineTypeInsertion
-      tc.emit<RefineType>(
-          seq, (oparg == SEQ_LIST) ? TListExact : TTupleExact, seq);
-    }
-  } else {
-    num = stack.pop();
-    seq = stack.pop();
-  }
-
-  if (!primitive_num) {
-    auto unboxed_num = temps_.AllocateStack();
-    tc.emit<PrimitiveUnbox>(unboxed_num, num, TCInt64);
-    num = unboxed_num;
-  }
-
-  if (oparg == SEQ_LIST) {
-    tc.emit<RepeatList>(result, seq, num);
-  } else {
-    tc.emit<RepeatTuple>(result, seq, num);
-  }
-
   stack.push(result);
 }
 
