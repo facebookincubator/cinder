@@ -42,6 +42,10 @@ static void shadowcode_code_sizeof(struct _PyShadowCode *shadow, Py_ssize_t *res
     res += sizeof(_Py_CODEUNIT) * shadow->len;
 }
 
+static inline int _PyStrictModule_Check(PyObject* obj) {
+  return PyStrictModule_Check(obj);
+}
+
 static int cinder_init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
@@ -62,6 +66,7 @@ static int cinder_init() {
   Ci_hook_PyJIT_GenYieldFromValue = _PyJIT_GenYieldFromValue;
   Ci_hook_PyJIT_GenMaterializeFrame = _PyJIT_GenMaterializeFrame;
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
+  Ci_hook_PyStrictModule_Check = _PyStrictModule_Check;
 
   init_already_existing_types();
 

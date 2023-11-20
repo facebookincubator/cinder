@@ -1,5 +1,8 @@
 #ifndef Py_INTERNAL_MODULEOBJECT_H
 #define Py_INTERNAL_MODULEOBJECT_H
+
+#include "cinder/hooks.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -45,11 +48,12 @@ typedef struct {
     PyObject *imported_from;
 } PyStrictModuleObject;
 
-#ifdef ENABLE_CINDERX
-#   define PyModule_Dict(op) (PyStrictModule_Check(op) ? ((PyStrictModuleObject *)op)->globals : ((PyModuleObject *)op)->md_dict)
-#else
-#   define PyModule_Dict(op) (((PyModuleObject *)op)->md_dict)
-#endif
+static inline PyObject* Ci_PyModule_Dict(PyObject *op) {
+    if (Ci_hook_PyStrictModule_Check && Ci_hook_PyStrictModule_Check(op))
+        return ((PyStrictModuleObject *)op)->globals;
+
+    return ((PyModuleObject *)op)->md_dict;
+}
 
 CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDict(PyObject *mod);
 CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDictSetter(PyObject *mod);

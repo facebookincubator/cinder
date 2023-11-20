@@ -1567,7 +1567,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         return 0;
     }
 
-    PyObject *dict = PyModule_Dict(owner);
+    PyObject *dict = Ci_PyModule_Dict(owner);
 
     if (dict) {
 
@@ -1883,7 +1883,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         return meth_found;
     }
 
-    PyObject *dict = PyModule_Dict(obj);
+    PyObject *dict = Ci_PyModule_Dict(obj);
     if (dict) {
         int version;
         PyObject *value;

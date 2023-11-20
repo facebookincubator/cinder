@@ -89,3 +89,6 @@ typedef PyFrameObject *(*Ci_HookType_PyJIT_GenMaterializeFrame)(
     PyGenObject *gen);
 CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
     Ci_hook_PyJIT_GenMaterializeFrame;
+
+typedef int (*Ci_HookType_PyStrictModule_Check)(PyObject *obj);
+CiAPI_DATA(Ci_HookType_PyStrictModule_Check) Ci_hook_PyStrictModule_Check;

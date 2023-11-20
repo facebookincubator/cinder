@@ -8,7 +8,7 @@
 #include "pycore_interp.h"        // _PyInterpreterState_ClearModules()
 #include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
 #include "pycore_long.h"          // _PyLong_GetZero()
-#include "pycore_moduleobject.h"  // PyModule_Dict()
+#include "pycore_moduleobject.h"  // Ci_PyModule_Dict()
 #include "pycore_pyerrors.h"
 #include "pycore_pyhash.h"
 #include "pycore_pylifecycle.h"
@@ -2975,7 +2975,7 @@ _imp_hydrate_lazy_objects_impl(PyObject *module)
             if (dst_module != Py_None) {
                 Py_XDECREF(dst_dict);
                 if (PyModule_Check(dst_module)) {
-                    dst_dict = PyModule_Dict(dst_module);
+                    dst_dict = Ci_PyModule_Dict(dst_module);
                     Py_XINCREF(dst_dict);
                 } else {
                     dst_dict = _PyObject_GetAttrId(dst_module, &PyId___dict__);
@@ -3000,7 +3000,7 @@ _imp_hydrate_lazy_objects_impl(PyObject *module)
                             if (d->lz_attr) {
                                 Py_XDECREF(src_dict);
                                 if (PyModule_Check(src_module)) {
-                                    src_dict = PyModule_Dict(src_module);
+                                    src_dict = Ci_PyModule_Dict(src_module);
                                     Py_XINCREF(src_dict);
                                 } else {
                                     src_dict = _PyObject_GetAttrId(src_module, &PyId___dict__);

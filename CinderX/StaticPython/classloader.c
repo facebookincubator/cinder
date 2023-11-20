@@ -4278,7 +4278,7 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
     } else if (PyModule_Check(container)) {
         /* modules have no special translation on things we invoke, so
          * we just rely upon the normal JIT dict watchers */
-        PyObject *dict = PyModule_Dict(container);
+        PyObject *dict = Ci_PyModule_Dict(container);
         if (dict != NULL) {
             cache = _PyJIT_GetDictCache(dict, name);
         }
