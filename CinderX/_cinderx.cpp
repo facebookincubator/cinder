@@ -32,14 +32,14 @@ static void init_already_existing_types() {
 }
 
 static void shadowcode_code_sizeof(struct _PyShadowCode *shadow, Py_ssize_t *res) {
-    res += sizeof(_PyShadowCode);
-    res += sizeof(PyObject *) * shadow->l1_cache.size;
-    res += sizeof(PyObject *) * shadow->cast_cache.size;
-    res += sizeof(PyObject **) * shadow->globals_size;
-    res += sizeof(_PyShadow_InstanceAttrEntry **) *
+    *res += sizeof(_PyShadowCode);
+    *res += sizeof(PyObject *) * shadow->l1_cache.size;
+    *res += sizeof(PyObject *) * shadow->cast_cache.size;
+    *res += sizeof(PyObject **) * shadow->globals_size;
+    *res += sizeof(_PyShadow_InstanceAttrEntry **) *
             shadow->polymorphic_caches_size;
-    res += sizeof(_FieldCache) * shadow->field_cache_size;
-    res += sizeof(_Py_CODEUNIT) * shadow->len;
+    *res += sizeof(_FieldCache) * shadow->field_cache_size;
+    *res += sizeof(_Py_CODEUNIT) * shadow->len;
 }
 
 static inline int _PyStrictModule_Check(PyObject* obj) {
