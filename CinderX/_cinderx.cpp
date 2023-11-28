@@ -51,6 +51,15 @@ static PyGetSetDef Ci_method_getset[] = {
   {},
 };
 
+static PyGetSetDef Ci_meth_getset[] = {
+  {.name = "__doc__", .get = (getter)Cix_meth_get__doc__, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__name__", .get = (getter)Cix_meth_get__name__, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__qualname__", .get = (getter)Cix_meth_get__qualname__, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__text_signature__", .get = (getter)Cix_meth_get__text_signature__, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__typed_signature__", .get = (getter)Ci_meth_get__typed_signature__, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {},
+};
+
 static int init_already_existing_types() {
   PyUnstable_GC_VisitObjects([](PyObject* obj, void*) {
     if (PyType_Check(obj) && PyType_HasFeature((PyTypeObject*)obj, Py_TPFLAGS_READY)) {
@@ -63,6 +72,9 @@ static int init_already_existing_types() {
     return -1;
   }
   if (override_tp_getset(&PyClassMethodDescr_Type, Ci_method_getset) < 0) {
+    return -1;
+  }
+  if (override_tp_getset(&PyCFunction_Type, Ci_meth_getset) < 0) {
     return -1;
   }
 

@@ -12,7 +12,6 @@
 
 #ifdef ENABLE_CINDERX
 #include "StaticPython/classloader.h"
-#include "StaticPython/methodobject_vectorcall.h"
 #endif
 
 /* undefine macro trampoline to PyCFunction_NewEx */
@@ -435,9 +434,6 @@ static PyGetSetDef meth_getsets [] = {
     {"__qualname__", (getter)meth_get__qualname__, NULL, NULL},
     {"__self__", (getter)meth_get__self__, NULL, NULL},
     {"__text_signature__", (getter)meth_get__text_signature__, NULL, NULL},
-#ifdef ENABLE_CINDERX
-    {"__typed_signature__", (getter)Ci_meth_get__typed_signature__, NULL, NULL},
-#endif
     {0}
 };
 
