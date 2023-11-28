@@ -9,10 +9,6 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "structmember.h"         // PyMemberDef
 
-#ifdef ENABLE_CINDERX
-#include "StaticPython/descrobject_vectorcall.h"
-#endif
-
 _Py_IDENTIFIER(getattr);
 
 /*[clinic input]
@@ -632,9 +628,6 @@ static PyGetSetDef method_getset[] = {
     {"__doc__", (getter)method_get_doc},
     {"__qualname__", (getter)descr_get_qualname},
     {"__text_signature__", (getter)method_get_text_signature},
-#ifdef ENABLE_CINDERX
-    {"__typed_signature__", (getter)Ci_method_get_typed_signature},
-#endif
     {0}
 };
 

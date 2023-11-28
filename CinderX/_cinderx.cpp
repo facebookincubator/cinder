@@ -22,13 +22,51 @@ static void init_already_existing_funcs() {
   }, nullptr);
 }
 
-static void init_already_existing_types() {
+static int override_tp_getset(PyTypeObject *type, PyGetSetDef *tp_getset) {
+  type->tp_getset = tp_getset;
+  PyGetSetDef *gsp = type->tp_getset;
+  PyObject *dict = type->tp_dict;
+  for (; gsp->name != NULL; gsp++) {
+      PyObject *descr = PyDescr_NewGetSet(type, gsp);
+      if (descr == NULL) {
+          return -1;
+      }
+
+      if (PyDict_SetDefault(dict, PyDescr_NAME(descr), descr) == NULL) {
+          Py_DECREF(descr);
+          return -1;
+      }
+      Py_DECREF(descr);
+  }
+
+  PyType_Modified(type);
+  return 0;
+}
+
+static PyGetSetDef Ci_method_getset[] = {
+  {.name = "__doc__", .get = (getter)Cix_method_get_doc, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__qualname__", .get = (getter)Cix_descr_get_qualname, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__text_signature__", .get = (getter)Cix_method_get_text_signature, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {.name = "__typed_signature__", .get = (getter)Ci_method_get_typed_signature, .set = nullptr, .doc = nullptr, .closure = nullptr},
+  {},
+};
+
+static int init_already_existing_types() {
   PyUnstable_GC_VisitObjects([](PyObject* obj, void*) {
     if (PyType_Check(obj) && PyType_HasFeature((PyTypeObject*)obj, Py_TPFLAGS_READY)) {
       _PyJIT_TypeCreated((PyTypeObject*)obj);
     }
     return 1;
   }, nullptr);
+
+  if (override_tp_getset(&PyMethodDescr_Type, Ci_method_getset) < 0) {
+    return -1;
+  }
+  if (override_tp_getset(&PyClassMethodDescr_Type, Ci_method_getset) < 0) {
+    return -1;
+  }
+
+  return 0;
 }
 
 static void shadowcode_code_sizeof(struct _PyShadowCode *shadow, Py_ssize_t *res) {
@@ -68,7 +106,9 @@ static int cinder_init() {
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
   Ci_hook_PyStrictModule_Check = _PyStrictModule_Check;
 
-  init_already_existing_types();
+  if (init_already_existing_types() < 0) {
+    return -1;
+  }
 
   // Prevent the linker from omitting the object file containing the parallel
   // GC implementation. This is the only reference from another translation

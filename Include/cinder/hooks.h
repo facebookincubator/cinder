@@ -2,6 +2,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "cinder/exports.h"
 #include "pystate.h" // PyThreadState
 
@@ -101,3 +105,7 @@ CiAPI_FUNC(PyObject *)
 
 CiAPI_FUNC(PyObject *)
     Cix_method_get_text_signature(PyMethodDescrObject *descr, void *closure);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
