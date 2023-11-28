@@ -11,6 +11,9 @@ extern "C" {
 vectorcallfunc
 Ci_PyDescr_NewMethod_METH_TYPED(PyMethodDef *method);
 
+PyObject *
+Ci_method_get_typed_signature(PyMethodDescrObject *descr, void *closure);
+
 #ifdef __cplusplus
 }
 #endif

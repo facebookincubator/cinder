@@ -217,3 +217,8 @@ Ci_PyDescr_NewMethod_METH_TYPED(PyMethodDef *method) {
     return vectorcall;
 }
 
+PyObject *
+Ci_method_get_typed_signature(PyMethodDescrObject *descr, void *closure)
+{
+    return Ci_PyMethodDef_GetTypedSignature(descr->d_method);
+}

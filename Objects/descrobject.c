@@ -9,6 +9,10 @@
 #include "pycore_tuple.h"         // _PyTuple_ITEMS()
 #include "structmember.h"         // PyMemberDef
 
+#ifdef ENABLE_CINDERX
+#include "StaticPython/descrobject_vectorcall.h"
+#endif
+
 _Py_IDENTIFIER(getattr);
 
 /*[clinic input]
@@ -567,14 +571,6 @@ method_get_text_signature(PyMethodDescrObject *descr, void *closure)
 {
     return _PyType_GetTextSignatureFromInternalDoc(descr->d_method->ml_name, descr->d_method->ml_doc);
 }
-
-#ifdef ENABLE_CINDERX
-static PyObject *
-Ci_method_get_typed_signature(PyMethodDescrObject *descr, void *closure)
-{
-    return Ci_PyMethodDef_GetTypedSignature(descr->d_method);
-}
-#endif
 
 static PyObject *
 calculate_qualname(PyDescrObject *descr)
@@ -1958,4 +1954,3 @@ Cix_method_get_text_signature(PyMethodDescrObject *descr, void *closure)
 {
     return method_get_text_signature(descr, closure);
 }
-
