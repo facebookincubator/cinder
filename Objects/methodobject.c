@@ -12,6 +12,7 @@
 
 #ifdef ENABLE_CINDERX
 #include "StaticPython/classloader.h"
+#include "StaticPython/methodobject_vectorcall.h"
 #endif
 
 /* undefine macro trampoline to PyCFunction_NewEx */
@@ -356,12 +357,6 @@ Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method)
     Py_DECREF(ret_info);
 
     return res;
-}
-
-static PyObject *
-Ci_meth_get__typed_signature__(PyCFunctionObject *m, void *closure)
-{
-    return Ci_PyMethodDef_GetTypedSignature(m->m_ml);
 }
 
 #endif
@@ -764,4 +759,3 @@ Cix_meth_get__text_signature__(PyCFunctionObject *m, void *closure)
 {
     return meth_get__text_signature__(m, closure);
 }
-

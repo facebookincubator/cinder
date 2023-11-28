@@ -1451,6 +1451,7 @@ CINDERX_PUBLIC_HEADERS = \
 		$(srcdir)/CinderX/StaticPython/checked_list.h \
 		$(srcdir)/CinderX/StaticPython/classloader.h \
 		$(srcdir)/CinderX/StaticPython/descrobject_vectorcall.h \
+		$(srcdir)/CinderX/StaticPython/methodobject_vectorcall.h \
 		$(srcdir)/CinderX/StrictModules/pystrictmodule.h \
 		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h
 

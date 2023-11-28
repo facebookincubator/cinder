@@ -164,3 +164,9 @@ Ci_PyCMethod_New_METH_TYPED(PyMethodDef *method)
     }
     return vectorcall;
 }
+
+PyObject *
+Ci_meth_get__typed_signature__(PyCFunctionObject *m, void *closure)
+{
+    return Ci_PyMethodDef_GetTypedSignature(m->m_ml);
+}
