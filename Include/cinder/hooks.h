@@ -48,6 +48,9 @@ CiAPI_DATA(Ci_HookType__PyShadow_FreeAll) Ci_hook__PyShadow_FreeAll;
 CiAPI_FUNC(int) Cix_cfunction_check_kwargs(PyThreadState *tstate,
                                            PyObject *func, PyObject *kwnames);
 
+CiAPI_FUNC(PyObject *)
+    Cix_descr_get_qualname(PyDescrObject *descr, void *closure);
+
 typedef void (*Cix_funcptr)(void);
 CiAPI_FUNC(Cix_funcptr)
     Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func);
@@ -92,3 +95,9 @@ CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
 
 typedef int (*Ci_HookType_PyStrictModule_Check)(PyObject *obj);
 CiAPI_DATA(Ci_HookType_PyStrictModule_Check) Ci_hook_PyStrictModule_Check;
+
+CiAPI_FUNC(PyObject *)
+    Cix_method_get_doc(PyMethodDescrObject *descr, void *closure);
+
+CiAPI_FUNC(PyObject *)
+    Cix_method_get_text_signature(PyMethodDescrObject *descr, void *closure);

@@ -53,7 +53,10 @@ Ci_TupleHashItems
 Ci_tuple_subscript
 Cix_cfunction_check_kwargs
 Cix_cfunction_enter_call
+Cix_descr_get_qualname
 Cix_method_enter_call
+Cix_method_get_doc
+Cix_method_get_text_signature
 ClassDef_fields
 Delete_fields
 DictComp_fields
