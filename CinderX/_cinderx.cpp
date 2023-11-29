@@ -100,6 +100,10 @@ static int cinder_init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
   Ci_hook_type_name_modified = _PyJIT_TypeNameModified;
+  Ci_hook_type_dealloc = _PyClassLoader_TypeDealloc;
+  Ci_hook_type_traverse = _PyClassLoader_TypeTraverse;
+  Ci_hook_type_clear = _PyClassLoader_TypeClear;
+  Ci_hook_add_subclass = _PyClassLoader_AddSubclass;
   Ci_hook_type_pre_setattr = _PyClassLoader_InitTypeForPatching;
   Ci_hook_type_setattr = _PyClassLoader_UpdateSlot;
   Ci_hook_JIT_GetProfileNewInterpThread = _PyJIT_GetProfileNewInterpThreads;
@@ -194,6 +198,18 @@ static int cinder_fini() {
   Ci_hook_PyJIT_GenYieldFromValue = nullptr;
   Ci_hook_PyJIT_GenMaterializeFrame = nullptr;
   Ci_hook__PyShadow_FreeAll = nullptr;
+  Ci_hook_add_subclass = nullptr;
+
+  /* These hooks are not safe to unset, since there may be SP generic types that
+   * outlive finalization of the cinder module, and if we don't have the hooks in
+   * place for their cleanup, we will have leaks. But these hooks also have no
+   * effect for any type other than an SP generic type, so they are generally
+   * harmless to leave in place, even if the runtime is shutdown and
+   * reinitialized. */
+
+  // Ci_hook_type_dealloc = nullptr;
+  // Ci_hook_type_traverse = nullptr;
+  // Ci_hook_type_clear = nullptr;
 
   Ci_cinderx_initialized = 0;
 

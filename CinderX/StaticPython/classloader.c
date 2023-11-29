@@ -3394,6 +3394,45 @@ _PyClassLoader_ClearGenericTypes()
     Py_CLEAR(genericinst_cache);
 }
 
+int
+_PyClassLoader_TypeDealloc(PyTypeObject *type)
+{
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_XDECREF(gti->gti_inst[i].gtp_type);
+        }
+        Py_XDECREF(gti->gti_gtd);
+        return 1;
+    }
+    return 0;
+}
+
+int
+_PyClassLoader_TypeTraverse(PyTypeObject *type, visitproc visit, void *arg)
+{
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        Py_VISIT(gti->gti_gtd);
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_VISIT(gti->gti_inst[i].gtp_type);
+        }
+    }
+    return 0;
+}
+
+void
+_PyClassLoader_TypeClear(PyTypeObject *type)
+{
+    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
+        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
+        Py_CLEAR(gti->gti_gtd);
+        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
+            Py_CLEAR(gti->gti_inst[i].gtp_type);
+        }
+    }
+}
+
 /**
     For every slot in the vtable slotmap, this sets the vectorcall entrypoint
     to `type_vtable_lazyinit`.

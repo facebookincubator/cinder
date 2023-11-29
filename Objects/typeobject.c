@@ -17,10 +17,6 @@
 #include "cinder/hooks.h"
 #include "cinder/exports.h"
 
-#ifdef ENABLE_CINDERX
-#include "StaticPython/classloader.h"
-#endif
-
 #include <ctype.h>
 
 /*[clinic input]
@@ -4568,22 +4564,12 @@ type_dealloc(PyTypeObject *type)
     }
     Py_XDECREF(et->ht_module);
 
-#ifdef ENABLE_CINDERX
-    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
-        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
-        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
-            Py_XDECREF(gti->gti_inst[i].gtp_type);
-        }
-        Py_XDECREF(gti->gti_gtd);
-    } else {
-#endif
+    if (!(Ci_hook_type_dealloc && Ci_hook_type_dealloc(type))) {
         /* A type's tp_doc is heap allocated, unlike the tp_doc slots
          * of most other objects.  It's okay to cast it to char *.
          */
         PyObject_Free((char *)type->tp_doc);
-#ifdef ENABLE_CINDERX
     }
-#endif
 
     Py_TYPE(type)->tp_free((PyObject *)type);
 }
@@ -4779,15 +4765,9 @@ type_traverse(PyTypeObject *type, visitproc visit, void *arg)
        in cycles; tp_subclasses is a list of weak references,
        and slots is a tuple of strings. */
 
-#ifdef ENABLE_CINDERX
-    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
-        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
-        Py_VISIT(gti->gti_gtd);
-        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
-            Py_VISIT(gti->gti_inst[i].gtp_type);
-        }
+    if (Ci_hook_type_traverse) {
+        Ci_hook_type_traverse(type, visit, arg);
     }
-#endif
     return 0;
 }
 
@@ -4841,15 +4821,9 @@ type_clear(PyTypeObject *type)
 
     Py_CLEAR(type->tp_mro);
 
-#ifdef ENABLE_CINDERX
-    if (type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST) {
-        _PyGenericTypeInst *gti = (_PyGenericTypeInst *)type;
-        Py_CLEAR(gti->gti_gtd);
-        for (Py_ssize_t i = 0; i < gti->gti_size; i++) {
-            Py_CLEAR(gti->gti_inst[i].gtp_type);
-        }
+    if (Ci_hook_type_clear) {
+        Ci_hook_type_clear(type);
     }
-#endif
 
     return 0;
 }
@@ -6957,11 +6931,9 @@ add_subclass(PyTypeObject *base, PyTypeObject *type)
         return -1;
     }
 
-#ifdef ENABLE_CINDERX
-    if (_PyClassLoader_AddSubclass(base, type)) {
+    if (Ci_cinderx_initialized && Ci_hook_add_subclass(base, type) < 0) {
         return -1;
     }
-#endif
 
     // Only get tp_subclasses after creating the key and value.
     // PyWeakref_NewRef() can trigger a garbage collection which can execute

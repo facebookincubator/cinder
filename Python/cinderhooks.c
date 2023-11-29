@@ -19,6 +19,10 @@ Ci_TypeRaisingCallback Ci_hook_type_pre_setattr = NULL;
 Ci_TypeAttrRaisingCallback Ci_hook_type_setattr = NULL;
 Ci_HookType_PyCMethod_New Ci_hook_PyCMethod_New = NULL;
 Ci_HookType_PyDescr_NewMethod Ci_hook_PyDescr_NewMethod = NULL;
+Ci_HookType_type_dealloc Ci_hook_type_dealloc = NULL;
+Ci_HookType_type_traverse Ci_hook_type_traverse = NULL;
+Ci_HookType_type_clear Ci_hook_type_clear = NULL;
+Ci_HookType_add_subclass Ci_hook_add_subclass = NULL;
 
 Ci_HookType_WalkStack Ci_hook_WalkStack = NULL;
 

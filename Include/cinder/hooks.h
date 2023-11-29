@@ -43,6 +43,19 @@ CiAPI_DATA(Ci_HookType_PyCMethod_New) Ci_hook_PyCMethod_New;
 typedef vectorcallfunc (*Ci_HookType_PyDescr_NewMethod)(PyMethodDef *method);
 CiAPI_DATA(Ci_HookType_PyDescr_NewMethod) Ci_hook_PyDescr_NewMethod;
 
+typedef int (*Ci_HookType_type_dealloc)(PyTypeObject *type);
+CiAPI_DATA(Ci_HookType_type_dealloc) Ci_hook_type_dealloc;
+
+typedef int (*Ci_HookType_type_traverse)(PyTypeObject *type, visitproc visit,
+                                         void *arg);
+CiAPI_DATA(Ci_HookType_type_traverse) Ci_hook_type_traverse;
+
+typedef void (*Ci_HookType_type_clear)(PyTypeObject *type);
+CiAPI_DATA(Ci_HookType_type_clear) Ci_hook_type_clear;
+
+typedef int (*Ci_HookType_add_subclass)(PyTypeObject *base, PyTypeObject *type);
+CiAPI_DATA(Ci_HookType_add_subclass) Ci_hook_add_subclass;
+
 /* Hooks for Shadow Code */
 typedef int (*Ci_HookType__PyShadow_FreeAll)(void);
 CiAPI_DATA(Ci_HookType__PyShadow_FreeAll) Ci_hook__PyShadow_FreeAll;

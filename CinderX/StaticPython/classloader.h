@@ -3,6 +3,7 @@
 #define Ci_CLASSLOADER_H
 
 #include "cinder/exports.h"
+#include "cinder/hooks.h"
 #include "internal/pycore_moduleobject.h"
 
 #ifdef __cplusplus
@@ -412,6 +413,11 @@ typedef struct {
     _PyGenericTypeParam gti_inst[]; /* generic type parameters */
 } _PyGenericTypeInst;
 
+CiAPI_FUNC(int) _PyClassLoader_TypeDealloc(PyTypeObject *type);
+CiAPI_FUNC(int) _PyClassLoader_TypeTraverse(PyTypeObject *type, visitproc visit, void *arg);
+CiAPI_FUNC(void) _PyClassLoader_TypeClear(PyTypeObject *type);
+CiAPI_FUNC(int) _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
+
 typedef struct {
   int tai_primitive_type;
   PyTypeObject* tai_type;
@@ -433,8 +439,6 @@ CiAPI_FUNC(int) _PyClassLoader_HasPrimitiveArgs(PyCodeObject* code);
 
 CiAPI_FUNC(PyObject *) _PyClassLoader_Box(uint64_t value, int primitive_type);
 CiAPI_FUNC(uint64_t) _PyClassLoader_Unbox(PyObject *value, int primitive_type);
-
-
 
 static inline int
 _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
