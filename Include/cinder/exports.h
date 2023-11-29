@@ -70,10 +70,6 @@ CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
 // Originally in Include/object.h
 #define Ci_Py_TPFLAG_CPYTHON_ALLOCATED (1UL << 2)
 #define Ci_Py_TPFLAGS_IS_STATICALLY_DEFINED (1UL << 3)
-/* This is a generic type instantiation */
-#define Ci_Py_TPFLAGS_GENERIC_TYPE_INST (1UL << 15)
-/* This type is a generic type definition */
-#define Ci_Py_TPFLAGS_GENERIC_TYPE_DEF (1UL << 16)
 
 #define Ci_Py_TPFLAGS_FROZEN (1UL << 21)
 

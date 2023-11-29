@@ -395,6 +395,12 @@ int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional,
            (!exact && PyObject_TypeCheck(val, type));
 }
 
+// The rest of the TPFLAGS are in Include/object.h
+/* This is a generic type instantiation */
+#define Ci_Py_TPFLAGS_GENERIC_TYPE_INST (1UL << 15)
+/* This type is a generic type definition */
+#define Ci_Py_TPFLAGS_GENERIC_TYPE_DEF (1UL << 16)
+
 typedef struct {
     PyTypeObject gtd_type; /* base type object */
     newfunc gtd_new;       /* real tp_new func for instances */
