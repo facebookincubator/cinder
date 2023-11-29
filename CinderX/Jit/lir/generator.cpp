@@ -3,6 +3,7 @@
 #include "Jit/lir/generator.h"
 
 #include "Python.h"
+#include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
 #include "cinder/exports.h"
 #include "internal/pycore_import.h"
@@ -2282,7 +2283,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const SetDictItem*>(&i);
         bbb.AppendCall(
             instr->GetOutput(),
-            Ci_Dict_SetItemInternal,
+            Ci_DictOrChecked_SetItemInternal,
             instr->GetOperand(0),
             instr->GetOperand(1),
             instr->GetOperand(2));

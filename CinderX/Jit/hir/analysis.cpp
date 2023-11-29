@@ -2,6 +2,7 @@
 
 #include "Jit/hir/analysis.h"
 
+#include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
 
 #include "Jit/dataflow.h"

@@ -43,6 +43,7 @@
 #include "Jit/pyjit.h"
 #include "Shadowcode/shadowcode.h"
 #include "StaticPython/classloader.h"
+#include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
 #endif
 
@@ -3431,13 +3432,13 @@ main_loop:
             DISPATCH();
         }
 
-#define Ci_BUILD_DICT(map_size)                                               \
+#define Ci_BUILD_DICT(map_size, set_item)                                     \
                                                                               \
     for (Py_ssize_t i = map_size; i > 0; i--) {                               \
         int err;                                                              \
         PyObject *key = PEEK(2 * i);                                          \
         PyObject *value = PEEK(2 * i - 1);                                    \
-        err = Ci_Dict_SetItemInternal(map, key, value);                       \
+        err = set_item(map, key, value);                                      \
         if (err != 0) {                                                       \
             Py_DECREF(map);                                                   \
             goto error;                                                       \
@@ -3455,7 +3456,7 @@ main_loop:
             if (map == NULL)
                 goto error;
 
-            Ci_BUILD_DICT(oparg);
+            Ci_BUILD_DICT(oparg, Ci_Dict_SetItemInternal);
 
             DISPATCH();
         }
@@ -3594,7 +3595,11 @@ main_loop:
                  || Ci_CheckedDict_Check(map)
 #endif
                  );
+#ifdef ENABLE_CINDERX
+            err = Ci_DictOrChecked_SetItemInternal(map, key, value);
+#else
             err = Ci_Dict_SetItemInternal(map, key, value);  /* map[key] = value */
+#endif
             Py_DECREF(value);
             Py_DECREF(key);
             if (err != 0)
@@ -5823,7 +5828,7 @@ main_loop:
             }
             Py_DECREF(type);
 
-            Ci_BUILD_DICT(map_size);
+            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItemInternal);
             DISPATCH();
         }
 
@@ -6252,7 +6257,7 @@ main_loop:
                 goto error;
             }
 
-            Ci_BUILD_DICT(map_size);
+            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItemInternal);
             DISPATCH();
         }
 

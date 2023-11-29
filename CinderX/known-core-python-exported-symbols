@@ -5,11 +5,6 @@ cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD
 check_args_iterable
 CiAsyncGen_New_NoFrame
 Ci_Builtin_Next_Core
-Ci_CheckedDict_Check
-Ci_CheckedDict_New
-Ci_CheckedDict_NewPresized
-Ci_CheckedDict_Type
-Ci_CheckedDict_TypeCheck
 CiCoro_New_NoFrame
 Ci_Dict_SetItemInternal
 Ci_dict_subscript
