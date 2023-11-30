@@ -2,7 +2,6 @@ AsyncFunctionDef_fields
 builtin_next
 cfunction_vectorcall_FASTCALL_KEYWORDS
 cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD
-check_args_iterable
 CiAsyncGen_New_NoFrame
 Ci_Builtin_Next_Core
 CiCoro_New_NoFrame
@@ -17,8 +16,6 @@ Ci_GetANext
 Ci_hook_PyDescr_NewMethod
 Ci_hook_PyJIT_GenDealloc
 Ci_list_subscript
-Ci_match_class
-Ci_match_keys
 Ci_module_lookupattro
 Ci_PyClassMethod_GetFunc
 Ci_PyDict_ForceCombined
@@ -49,6 +46,13 @@ Ci_tuple_subscript
 Cix_cfunction_check_kwargs
 Cix_cfunction_enter_call
 Cix_descr_get_qualname
+Cix_do_raise
+Cix_eval_frame_handle_pending
+Cix_format_awaitable_error
+Cix_format_exc_check_arg
+Cix_format_kwargs_error
+Cix_match_class
+Cix_match_keys
 Cix_meth_get__doc__
 Cix_meth_get__name__
 Cix_meth_get__qualname__
@@ -57,6 +61,7 @@ Cix_meth_get__text_signature__
 Cix_method_enter_call
 Cix_method_get_doc
 Cix_method_get_text_signature
+Cix_special_lookup
 ClassDef_fields
 Delete_fields
 DictComp_fields
@@ -69,12 +74,8 @@ DirEntry_repr
 DirEntry_test_mode
 DirEntryType_slots
 DirEntryType_spec
-do_raise
 _DYNAMIC
 eval_frame_handle_pending
-format_awaitable_error
-format_exc_check_arg
-format_kwargs_error
 __FRAME_END__
 FunctionDef_fields
 _io_IncrementalNewlineDecoder_decode
@@ -2001,7 +2002,6 @@ _Py_write
 _Py_write_noraise
 Py_XNewRef
 PyZip_Type
-special_lookup
 stat_S_IMODE
 stat_S_IMODE_doc
 stat_S_ISDIR

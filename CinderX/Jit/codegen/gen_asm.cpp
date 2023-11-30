@@ -1484,7 +1484,7 @@ bool canLoadStoreAddr(asmjit::x86::Gp reg, int64_t addr) {
 
 static void raiseUnboundLocalError(BorrowedRef<> name) {
   // name is converted into a `char*` in format_exc_check_arg
-  format_exc_check_arg(
+  Cix_format_exc_check_arg(
       _PyThreadState_GET(),
       PyExc_UnboundLocalError,
       "local variable '%.200s' referenced before assignment",
@@ -1493,7 +1493,7 @@ static void raiseUnboundLocalError(BorrowedRef<> name) {
 
 static void raiseUnboundFreevarError(BorrowedRef<> name) {
   // name is converted into a `char*` in format_exc_check_arg
-  format_exc_check_arg(
+  Cix_format_exc_check_arg(
       _PyThreadState_GET(),
       PyExc_NameError,
       "free variable '%.200s' referenced before assignment in enclosing scope",

@@ -593,7 +593,7 @@ JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
       _PyDict_LoadGlobal((PyDictObject*)globals, (PyDictObject*)builtins, name);
   if ((result == NULL) && !PyErr_Occurred()) {
     // name is converted to a `char*` by format_exc_check_arg
-    format_exc_check_arg(
+    Cix_format_exc_check_arg(
         _PyThreadState_GET(),
         PyExc_NameError,
         "name '%.200s' is not defined",
@@ -1224,7 +1224,7 @@ void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // (3) Calling tstate->c_tracefunc.
   // We don't support (3) and handle (1) + (2) between the check above and in
   // prepareForDeopt().
-  do_raise(tstate, exc, cause);
+  Cix_do_raise(tstate, exc, cause);
 }
 
 // JIT generator data free-list globals
@@ -1821,7 +1821,7 @@ int JITRT_DictMerge(
     PyObject* update,
     PyObject* func) {
   if (_PyDict_MergeEx(dict, update, 2) < 0) {
-    format_kwargs_error(tstate, func, update);
+    Cix_format_kwargs_error(tstate, func, update);
     return -1;
   }
   return 0;

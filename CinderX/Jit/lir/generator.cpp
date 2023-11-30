@@ -35,10 +35,6 @@
 #include <functional>
 #include <sstream>
 
-extern "C" {
-int eval_frame_handle_pending(PyThreadState*);
-}
-
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from
 // codegen.cpp with some interfaces changes so that it works with the new
@@ -1232,7 +1228,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadAttrSpecial*>(&i);
         bbb.AppendCall(
             instr->GetOutput(),
-            special_lookup,
+            Cix_special_lookup,
             "__asm_tstate",
             instr->GetOperand(0),
             instr->id());
@@ -1665,7 +1661,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kRaiseAwaitableError: {
         const auto& instr = static_cast<const RaiseAwaitableError&>(i);
         bbb.AppendInvoke(
-            format_awaitable_error,
+            Cix_format_awaitable_error,
             "__asm_tstate",
             instr.GetOperand(0),
             static_cast<int>(instr.with_prev_opcode()),
@@ -2082,7 +2078,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         const auto& instr = static_cast<const MatchClass&>(i);
         bbb.AppendCall(
             instr.GetOutput(),
-            Ci_match_class,
+            Cix_match_class,
             "__asm_tstate",
             instr.GetOperand(0),
             instr.GetOperand(1),
@@ -2094,7 +2090,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const MatchKeys*>(&i);
         bbb.AppendCall(
             instr->dst(),
-            Ci_match_keys,
+            Cix_match_keys,
             "__asm_tstate",
             instr->GetOperand(0),
             instr->GetOperand(1));
@@ -2497,7 +2493,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kRunPeriodicTasks: {
         bbb.AppendCall(
-            i.GetOutput(), eval_frame_handle_pending, "__asm_tstate");
+            i.GetOutput(), Cix_eval_frame_handle_pending, "__asm_tstate");
         break;
       }
       case Opcode::kSnapshot: {
@@ -2674,7 +2670,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.AppendCode(
             "Call {}, {:#x}, __asm_tstate, {}, {}",
             GetSafeTempName(),
-            reinterpret_cast<uint64_t>(&do_raise),
+            reinterpret_cast<uint64_t>(&Cix_do_raise),
             exc,
             cause);
         appendGuardAlwaysFail(bbb, instr);

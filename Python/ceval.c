@@ -102,6 +102,7 @@ static void dtrace_function_entry(PyFrameObject *);
 static void dtrace_function_return(PyFrameObject *);
 
 static int import_all_from(PyThreadState *, PyObject *, PyObject *);
+static void format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
 static void format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
 static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
                                       PyFrameObject *, const _Py_CODEUNIT *);
@@ -109,6 +110,10 @@ static PyObject * unicode_concatenate(PyThreadState *, PyObject *, PyObject *,
 static void try_profile_next_instr(PyFrameObject* f, PyObject** stack_pointer,
                                    const _Py_CODEUNIT* next_instr);
 #endif
+static PyObject * special_lookup(PyThreadState *, PyObject *, _Py_Identifier *);
+static int check_args_iterable(PyThreadState *, PyObject *func, PyObject *vararg);
+static void format_kwargs_error(PyThreadState *, PyObject *func, PyObject *kwargs);
+static void format_awaitable_error(PyThreadState *, PyTypeObject *, int, int);
 
 #define NAME_ERROR_MSG \
     "name '%.200s' is not defined"
@@ -1038,8 +1043,8 @@ _Py_CheckRecursiveCall(PyThreadState *tstate, const char *where)
 
 // Return a tuple of values corresponding to keys, with error checks for
 // duplicate/missing keys.
-PyObject*
-Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys)
+static PyObject*
+match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys)
 {
     assert(PyTuple_CheckExact(keys));
     Py_ssize_t nkeys = PyTuple_GET_SIZE(keys);
@@ -1140,8 +1145,8 @@ match_class_attr(PyThreadState *tstate, PyObject *subject, PyObject *type,
 
 // On success (match), return a tuple of extracted attributes. On failure (no
 // match), return NULL. Use _PyErr_Occurred(tstate) to disambiguate.
-PyObject*
-Ci_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
+static PyObject*
+match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
             Py_ssize_t nargs, PyObject *kwargs)
 {
     if (!PyType_Check(type)) {
@@ -1249,6 +1254,7 @@ fail:
 }
 
 
+static int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
 #ifdef ENABLE_CINDERX
@@ -3936,7 +3942,7 @@ main_loop:
             PyObject *type = TOP();
             PyObject *subject = SECOND();
             assert(PyTuple_CheckExact(names));
-            PyObject *attrs = Ci_match_class(tstate, subject, type, oparg, names);
+            PyObject *attrs = match_class(tstate, subject, type, oparg, names);
             Py_DECREF(names);
             if (attrs) {
                 // Success!
@@ -3975,7 +3981,7 @@ main_loop:
             // Otherwise, PUSH(None) and PUSH(False).
             PyObject *keys = TOP();
             PyObject *subject = SECOND();
-            PyObject *values_or_none = Ci_match_keys(tstate, subject, keys);
+            PyObject *values_or_none = match_keys(tstate, subject, keys);
             if (values_or_none == NULL) {
                 goto error;
             }
@@ -7150,7 +7156,7 @@ unbox_primitive_bool_and_decref(PyObject *x)
 }
 #endif
 
-PyObject *
+static PyObject *
 special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
 {
     PyObject *res;
@@ -7165,7 +7171,7 @@ special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
 
 /* Logic for the raise statement (too complicated for inlining).
    This *consumes* a reference count to each of its arguments. */
-int
+static int
 do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause)
 {
     PyObject *type = NULL, *value = NULL;
@@ -8491,7 +8497,7 @@ import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
     return err;
 }
 
-int
+static int
 check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args)
 {
     if (Py_TYPE(args)->tp_iter == NULL && !PySequence_Check(args)) {
@@ -8511,7 +8517,7 @@ check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args)
     return 0;
 }
 
-void
+static void
 format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs)
 {
     /* _PyDict_MergeEx raises attribute
@@ -8555,7 +8561,7 @@ format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs)
     }
 }
 
-void
+static void
 format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
                      const char *format_str, PyObject *obj)
 {
@@ -8610,7 +8616,7 @@ format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg)
     }
 }
 
-void
+static void
 format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode)
 {
     if (type->tp_as_async == NULL || type->tp_as_async->am_await == NULL) {
@@ -8931,4 +8937,46 @@ int Py_EnterRecursiveCall(const char *where)
 void Py_LeaveRecursiveCall(void)
 {
     _Py_LeaveRecursiveCall_inline();
+}
+
+
+PyObject*
+Cix_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
+        Py_ssize_t nargs, PyObject *kwargs) {
+    return match_class(tstate, subject, type, nargs, kwargs);
+}
+
+PyObject*
+Cix_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys) {
+    return match_keys(tstate, map, keys);
+}
+
+PyObject*
+Cix_special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id) {
+    return special_lookup(tstate, o, id);
+}
+
+void
+Cix_format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs) {
+    format_kwargs_error(tstate, func, kwargs);
+}
+
+void
+Cix_format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode) {
+    format_awaitable_error(tstate, type, prevprevopcode, prevopcode);
+}
+void
+Cix_format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
+                     const char *format_str, PyObject *obj) {
+    format_exc_check_arg(tstate, exc, format_str, obj);
+}
+
+int
+Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause) {
+    return do_raise(tstate, exc, cause);
+}
+
+int
+Cix_eval_frame_handle_pending(PyThreadState *tstate) {
+    return eval_frame_handle_pending(tstate);
 }

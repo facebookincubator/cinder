@@ -36,13 +36,6 @@ CiAPI_FUNC(int) Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *v
 
 CiAPI_FUNC(PyObject **) Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 
-CiAPI_FUNC(PyObject *) special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id);
-CiAPI_FUNC(int) check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *args);
-CiAPI_FUNC(void) format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs);
-CiAPI_FUNC(void) format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevprevopcode, int prevopcode);
-CiAPI_FUNC(void) format_exc_check_arg(PyThreadState *, PyObject *, const char *, PyObject *);
-CiAPI_FUNC(int) do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
-
 CiAPI_FUNC(PyObject *) Ci_GetAIter(PyThreadState *tstate, PyObject *obj);
 CiAPI_FUNC(PyObject *) Ci_GetANext(PyThreadState *tstate, PyObject *aiter);
 
@@ -57,10 +50,6 @@ CiAPI_FUNC(void) Ci_ThreadState_SetProfileInterp(PyThreadState *, int);
 /* Set the profile period for interpreter type profiling, in bytecode
    instructions. */
 CiAPI_FUNC(void) Ci_RuntimeState_SetProfileInterpPeriod(long);
-
-CiAPI_FUNC(PyObject *) Ci_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
-                Py_ssize_t nargs, PyObject *kwargs);
-CiAPI_FUNC(PyObject *) Ci_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
 
 CiAPI_FUNC(int) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
 
@@ -182,6 +171,24 @@ CiAPI_FUNC(Ci_PyGCImpl *) Ci_PyGC_GetImpl(struct _gc_runtime_state *gc_state);
  */
 CiAPI_FUNC(void) Ci_PyGC_ClearFreeLists(PyInterpreterState *interp);
 
+CiAPI_FUNC(int) Cix_eval_frame_handle_pending(PyThreadState *tstate);
+CiAPI_FUNC(PyObject *)
+    Cix_special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id);
+CiAPI_FUNC(void)
+    Cix_format_awaitable_error(PyThreadState *tstate, PyTypeObject *type,
+                               int prevprevopcode, int prevopcode);
+CiAPI_FUNC(void)
+    Cix_format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
+                             const char *format_str, PyObject *obj);
+CiAPI_FUNC(void) Cix_format_kwargs_error(PyThreadState *tstate, PyObject *func,
+                                         PyObject *kwargs);
+CiAPI_FUNC(int)
+    Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
+CiAPI_FUNC(PyObject *)
+    Cix_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
+                    Py_ssize_t nargs, PyObject *kwargs);
+CiAPI_FUNC(PyObject *)
+    Cix_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
 #ifdef __cplusplus
 }
 #endif
