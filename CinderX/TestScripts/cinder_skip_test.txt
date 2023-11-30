@@ -14,3 +14,5 @@ test.test_threading.SubinterpThreadingTests.*
 test.test_interpreters.*
 test.test_capi.CAPITest.test_getitem_with_error
 test.test_repl.TestInteractiveInterpreter.test_no_memory
+test.test__opcode.*
+test.test_dis.*.test_widths

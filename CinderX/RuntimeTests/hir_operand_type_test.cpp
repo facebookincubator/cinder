@@ -2,8 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "opcode.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"

@@ -3,7 +3,6 @@
 #include "descrobject.h"
 #include "dictobject.h"
 #include "object.h"
-#include "opcode.h"
 #include "pyerrors.h"
 #include "pyport.h"
 #include "structmember.h"
@@ -14,9 +13,8 @@
 #include "cinder/exports.h"
 
 #include "CachedProperties/cached_properties.h"
-
+#include "Interpreter/opcode.h"
 #include "Jit/pyjit.h"
-
 #include "StaticPython/classloader.h"
 
 #include <dlfcn.h>

@@ -8,11 +8,11 @@
 #include "boolobject.h"
 #include "ceval.h"
 #include "object.h"
-#include "opcode.h"
 #include "preload.h"
 #include "structmember.h"
 #include "type.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
 #include "Jit/codegen/environ.h"

@@ -5,6 +5,7 @@
 
 import os
 import sys
+import cinderx
 
 
 try:
@@ -39,10 +40,10 @@ def write_contents(f):
         if s is None:
             f.write(f"    &&_unknown_opcode,\n")
             continue
-        if s in opcode.cinderxop:
+        if s in cinderx.opcode.cinderxop:
             f.write(f"#ifdef ENABLE_CINDERX\n")
         f.write(f"    &&TARGET_{s},\n")
-        if s in opcode.cinderxop:
+        if s in cinderx.opcode.cinderxop:
             f.write(f"#else\n    &&_unknown_opcode,\n#endif\n")
     f.write("\n};\n")
 

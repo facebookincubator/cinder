@@ -2,7 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "opcode.h"
+
+#include "Interpreter/opcode.h"
 
 #include "Jit/hir/builder.h"
 #include "Jit/hir/hir.h"

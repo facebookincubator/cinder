@@ -1118,10 +1118,14 @@ regen-ast:
 regen-opcode:
 	# Regenerate Include/opcode.h from Lib/opcode.py
 	# using Tools/scripts/generate_opcode_h.py
-	$(PYTHON_FOR_REGEN) $(srcdir)/Tools/scripts/generate_opcode_h.py \
+	# Setting PYTHONPATH is a temporary hack which ensures CinderX opcodes are
+	# generated. Once we have a separate CinderX interpreter we'll remove this.
+	PYTHONPATH=$(srcdir)/CinderX $(PYTHON_FOR_REGEN) $(srcdir)/Tools/scripts/generate_opcode_h.py \
 		$(srcdir)/Lib/opcode.py \
 		$(srcdir)/Include/opcode.h.new
 	$(UPDATE_FILE) $(srcdir)/Include/opcode.h $(srcdir)/Include/opcode.h.new
+	$(MAKE) -C $(srcdir)/CinderX/ abs_srcdir=$(abs_srcdir) regen-opcode
+
 
 .PHONY: regen-frozen
 regen-frozen: Programs/_freeze_importlib
@@ -1228,9 +1232,13 @@ Objects/setobject.o: $(srcdir)/Objects/stringlib/eq.h
 regen-opcode-targets:
 	# Regenerate Python/opcode_targets.h from Lib/opcode.py
 	# using Python/makeopcodetargets.py
-	$(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodetargets.py \
+	# Setting PYTHONPATH is a temporary hack which ensures CinderX opcodes are
+	# generated. Once we have a separate CinderX interpreter we'll remove this.
+	PYTHONPATH=$(srcdir)/CinderX $(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodetargets.py \
 		$(srcdir)/Python/opcode_targets.h.new
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/opcode_targets.h.new
+	$(MAKE) -C $(srcdir)/CinderX/ abs_srcdir=$(abs_srcdir) regen-opcode-targets
+
 
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
 		$(srcdir)/Python/condvar.h
@@ -1295,6 +1303,8 @@ regen-typeslots:
 
 CINDERX_PRIVATE_HEADERS = \
 		$(srcdir)/CinderX/CachedProperties/cached_properties.h \
+		$(srcdir)/CinderX/Interpreter/cinderx_opcode_targets.h \
+		$(srcdir)/CinderX/Interpreter/opcode.h \
 		$(srcdir)/CinderX/Jit/bitvector.h \
 		$(srcdir)/CinderX/Jit/bytecode.h \
 		$(srcdir)/CinderX/Jit/bytecode_offsets.h \

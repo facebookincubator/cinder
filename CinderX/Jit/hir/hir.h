@@ -4,8 +4,8 @@
 
 #include "Python.h"
 #include "code.h"
-#include "opcode.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/bytecode.h"
 #include "Jit/config.h"
 #include "Jit/deopt_patcher.h"

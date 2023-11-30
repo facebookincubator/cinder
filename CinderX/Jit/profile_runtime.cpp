@@ -5,8 +5,8 @@
 #include "Objects/dict-common.h"
 #include "Python.h"
 #include "frameobject.h"
-#include "opcode.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/hir/type.h"
 #include "Jit/live_type_map.h"
 #include "Jit/log.h"

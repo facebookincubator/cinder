@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "opcode.h"
+#include "Interpreter/opcode.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/x86_64.h"

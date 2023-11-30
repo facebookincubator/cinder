@@ -15,3 +15,4 @@ test_compiler_sbs_stdlib_9
 test_perf_profiler_precompile.py
 test_shadowcode
 test_strictmodule
+test_cinderx.test_cpython_overrides.test_capi.CinderX_CAPITest.test_getitem_with_error

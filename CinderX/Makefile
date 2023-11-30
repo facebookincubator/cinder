@@ -260,3 +260,23 @@ test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
 		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
 		$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
 .PHONY: test_strict_module
+
+
+#
+# Regen rules
+#
+
+UPDATE_FILE=python3 $(abs_srcdir)/Tools/scripts/update_file.py
+
+.PHONY: regen-opcode
+regen-opcode:
+	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Tools/scripts/generate_opcode_h.py \
+		$(abs_srcdir)/Lib/opcode.py \
+		Interpreter/opcode.h.new
+	$(UPDATE_FILE) Interpreter/opcode.h Interpreter/opcode.h.new
+
+.PHONY: regen-opcode-targets
+regen-opcode-targets:
+	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Python/makeopcodetargets.py Interpreter/cinderx_opcode_targets.h.new
+	$(UPDATE_FILE) Interpreter/cinderx_opcode_targets.h Interpreter/cinderx_opcode_targets.h.new
+

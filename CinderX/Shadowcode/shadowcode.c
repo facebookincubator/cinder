@@ -22,8 +22,9 @@
 #include "cinder/exports.h"
 
 // This relies on Python internals.
-#include "opcode.h"
 #include "Python/wordcode_helpers.h"
+
+#include "Interpreter/opcode.h"
 
 #define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
 #define _PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)

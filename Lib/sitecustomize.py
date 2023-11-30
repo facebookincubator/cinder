@@ -1,5 +1,5 @@
 try:
     import cinderx
     cinderx.init()
-except ImportError:
+except (ImportError, AttributeError):
     pass

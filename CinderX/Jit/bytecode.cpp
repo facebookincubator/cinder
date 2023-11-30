@@ -1,8 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
+#include "Interpreter/opcode.h"
 #include "Jit/bytecode.h"
-
-#include "opcode.h"
 
 #include <unordered_set>
 

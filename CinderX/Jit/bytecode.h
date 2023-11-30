@@ -3,8 +3,8 @@
 #pragma once
 
 #include "Python.h"
-#include "opcode.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/bytecode_offsets.h"
 #include "Jit/log.h"
 

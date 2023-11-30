@@ -4,7 +4,6 @@
 #include "cinder/hooks.h"
 #include "Python.h"
 #include "code.h"
-#include "opcode.h"
 #include "weakrefobject.h"
 #include "pycore_object.h"
 #include "pystate.h"
@@ -16,6 +15,9 @@
 #include "cinder/ci_api.h"
 
 #include "CachedProperties/cached_properties.h"
+#ifndef Py_OPCODE_H
+#include "Interpreter/opcode.h"
+#endif
 
 #include <stdint.h>
 

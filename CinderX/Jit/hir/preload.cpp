@@ -3,8 +3,8 @@
 #include "Jit/hir/preload.h"
 
 #include "Python.h"
-#include "opcode.h"
 
+#include "Interpreter/opcode.h"
 #include "Jit/bytecode.h"
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/hir/optimization.h"

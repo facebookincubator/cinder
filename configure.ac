@@ -5683,6 +5683,7 @@ AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
     CinderX/CachedProperties \
     CinderX/Common \
+    CinderX/Interpreter \
     CinderX/Jit \
     CinderX/Jit/codegen \
     CinderX/Jit/hir \

@@ -1,3 +1,6 @@
 """High-performance Python runtime extensions."""
 
-from _cinderx import *
+try:
+    from _cinderx import *
+except ImportError:
+    pass
