@@ -135,6 +135,19 @@ CiAPI_FUNC(PyObject *)
 
 CiAPI_DATA(_PyFrameEvalFunction) Ci_hook_EvalFrame;
 
+typedef PyFrameObject *(*Ci_HookType_PyJIT_GetFrame)(PyThreadState *tstate);
+CiAPI_DATA(Ci_HookType_PyJIT_GetFrame) Ci_hook_PyJIT_GetFrame;
+
+typedef PyObject *(*Ci_HookType_PyJIT_GetBuiltins)(PyThreadState *tstate);
+CiAPI_DATA(Ci_HookType_PyJIT_GetBuiltins) Ci_hook_PyJIT_GetBuiltins;
+
+typedef PyObject *(*Ci_HookType_PyJIT_GetGlobals)(PyThreadState *tstate);
+CiAPI_DATA(Ci_HookType_PyJIT_GetGlobals) Ci_hook_PyJIT_GetGlobals;
+
+typedef int (*Ci_HookType_PyJIT_GetCurrentCodeFlags)(PyThreadState *tstate);
+CiAPI_DATA(Ci_HookType_PyJIT_GetCurrentCodeFlags)
+    Ci_hook_PyJIT_GetCurrentCodeFlags;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

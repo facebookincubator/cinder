@@ -43,3 +43,7 @@ Ci_HookType_PyStrictModule_Check Ci_hook_PyStrictModule_Check = NULL;
 
 /* Interpreter */
 _PyFrameEvalFunction Ci_hook_EvalFrame = NULL;
+Ci_HookType_PyJIT_GetFrame Ci_hook_PyJIT_GetFrame = NULL;
+Ci_HookType_PyJIT_GetBuiltins Ci_hook_PyJIT_GetBuiltins = NULL;
+Ci_HookType_PyJIT_GetGlobals Ci_hook_PyJIT_GetGlobals = NULL;
+Ci_HookType_PyJIT_GetCurrentCodeFlags Ci_hook_PyJIT_GetCurrentCodeFlags = NULL;

@@ -38,9 +38,6 @@
 
 #include "cinder/exports.h"
 #include "cinder/hooks.h"
-#ifdef ENABLE_CINDERX
-#include "Jit/pyjit.h"
-#endif
 
 #include <ctype.h>
 
@@ -5630,25 +5627,23 @@ PyFrameObject *
 PyEval_GetFrame(void)
 {
     PyThreadState* tstate = _PyThreadState_GET();
-#ifdef ENABLE_CINDERX
-    return _PyJIT_GetFrame(tstate);
-#else
+    if (Ci_hook_PyJIT_GetFrame) {
+        return Ci_hook_PyJIT_GetFrame(tstate);
+    }
     return tstate->frame;
-#endif
 }
 
 PyObject *
 _PyEval_GetBuiltins(PyThreadState *tstate)
 {
-#ifdef ENABLE_CINDERX
-    return _PyJIT_GetBuiltins(tstate);
-#else
+    if (Ci_hook_PyJIT_GetBuiltins) {
+        return Ci_hook_PyJIT_GetBuiltins(tstate);
+    }
     PyFrameObject *frame = tstate->frame;
     if (frame != NULL) {
         return frame->f_builtins;
     }
     return tstate->interp->builtins;
-#endif
 }
 
 PyObject *
@@ -5695,16 +5690,15 @@ PyEval_GetLocals(void)
 PyObject *
 _PyEval_GetGlobals(PyThreadState *tstate)
 {
-#ifdef ENABLE_CINDERX
-    return _PyJIT_GetGlobals(tstate);
-#else
+    if (Ci_hook_PyJIT_GetGlobals) {
+        return Ci_hook_PyJIT_GetGlobals(tstate);
+    }
     PyFrameObject *current_frame = tstate->frame;
     if (current_frame == NULL) {
         return NULL;
     }
     assert(current_frame->f_globals != NULL);
     return current_frame->f_globals;
-#endif
 }
 
 PyObject *
@@ -5714,33 +5708,19 @@ PyEval_GetGlobals(void)
     return _PyEval_GetGlobals(tstate);
 }
 
-#ifdef ENABLE_CINDERX
-static CiStackWalkDirective
-Ci_get_topmost_code(void *ptr, PyCodeObject *code, int lineno)
-{
-    PyCodeObject **topmost_code = (PyCodeObject **) ptr;
-    *topmost_code = code;
-    return CI_SWD_STOP_STACK_WALK;
-}
-#endif
-
 int
 PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
 {
     PyThreadState *tstate = _PyThreadState_GET();
     int result = cf->cf_flags != 0;
 
-#ifdef ENABLE_CINDERX
-    PyCodeObject *cur_code = NULL;
-    Ci_WalkStack(tstate, Ci_get_topmost_code, &cur_code);
-
-    if (cur_code != NULL) {
-        const int codeflags = cur_code->co_flags;
-#else
     PyFrameObject *current_frame = tstate->frame;
-    if (current_frame != NULL) {
-        const int codeflags = current_frame->f_code->co_flags;
-#endif
+    const int codeflags =
+        Ci_hook_PyJIT_GetCurrentCodeFlags
+            ? Ci_hook_PyJIT_GetCurrentCodeFlags(tstate)
+            : (current_frame == NULL ? -1 : current_frame->f_code->co_flags);
+
+    if (codeflags != -1) {
         const int compilerflags = codeflags & PyCF_MASK;
         if (compilerflags) {
             result = 1;

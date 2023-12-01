@@ -93,6 +93,19 @@ static void shadowcode_code_sizeof(struct _PyShadowCode *shadow, Py_ssize_t *res
     *res += sizeof(_Py_CODEUNIT) * shadow->len;
 }
 
+static int get_current_code_flags(PyThreadState* tstate) {
+    PyCodeObject *cur_code = NULL;
+    Ci_WalkStack(tstate, [](void *ptr, PyCodeObject *code, int) {
+      PyCodeObject **topmost_code = (PyCodeObject **) ptr;
+      *topmost_code = code;
+      return CI_SWD_STOP_STACK_WALK;
+    }, &cur_code);
+    if (!cur_code) {
+        return -1;
+    }
+    return cur_code->co_flags;
+}
+
 static inline int _PyStrictModule_Check(PyObject* obj) {
   return PyStrictModule_Check(obj);
 }
@@ -123,6 +136,10 @@ static int cinder_init() {
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
   Ci_hook_PyStrictModule_Check = _PyStrictModule_Check;
   Ci_hook_EvalFrame = Ci_EvalFrame;
+  Ci_hook_PyJIT_GetFrame = _PyJIT_GetFrame;
+  Ci_hook_PyJIT_GetBuiltins = _PyJIT_GetBuiltins;
+  Ci_hook_PyJIT_GetGlobals = _PyJIT_GetGlobals;
+  Ci_hook_PyJIT_GetCurrentCodeFlags = get_current_code_flags;
 
   if (init_already_existing_types() < 0) {
     return -1;
@@ -214,6 +231,10 @@ static int cinder_fini() {
   // Ci_hook_type_clear = nullptr;
 
   Ci_hook_EvalFrame = nullptr;
+  Ci_hook_PyJIT_GetFrame = nullptr;
+  Ci_hook_PyJIT_GetBuiltins = nullptr;
+  Ci_hook_PyJIT_GetGlobals = nullptr;
+  Ci_hook_PyJIT_GetCurrentCodeFlags = nullptr;
 
   Ci_cinderx_initialized = 0;
 
