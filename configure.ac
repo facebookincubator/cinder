@@ -6177,9 +6177,11 @@ BASECXXFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${
 
 GCC_CFLAGS="-Wno-cast-function-type -Wno-type-limits"
 CLANG_CFLAGS="-Wno-deprecated -Wno-macro-redefined -Wno-unknown-warning-option -Wno-unreachable-code"
+CLANG_POST_WEXTRA_FLAGS="-Wno-unused-but-set-variable -Wno-bitwise-instead-of-logical -Wno-null-pointer-subtraction -Wno-deprecated-copy"
 case "$CC" in
     *clang*)
       BASECFLAGS="$BASECFLAGS $CLANG_CFLAGS"
+      CFLAGS_NODIST="$CFLAGS_NODIST $CLANG_POST_WEXTRA_FLAGS"
       ;;
     *) # Probably gcc
       BASECFLAGS="$BASECFLAGS $GCC_CFLAGS"
@@ -6189,6 +6191,7 @@ esac
 case "$CXX" in
     *clang*)
       BASECXXFLAGS="$BASECXXFLAGS $CLANG_CFLAGS"
+      CXXFLAGS_NODIST="$CXXFLAGS_NODIST $CLANG_POST_WEXTRA_FLAGS"
       ;;
     *) # Probably g++
       BASECXXFLAGS="$BASECXXFLAGS $GCC_CFLAGS"
