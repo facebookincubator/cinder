@@ -14,6 +14,7 @@
 #include "listobject.h"
 #include "pystate.h"
 
+#include "Interpreter/interpreter.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/config.h"
 #include "Jit/containers.h"

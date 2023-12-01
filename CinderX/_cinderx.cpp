@@ -2,7 +2,9 @@
 
 #include "Python.h"
 #include "cinder/hooks.h"
+#include "cinder/exports.h"
 
+#include "Interpreter/interpreter.h"
 #include "Jit/pyjit.h"
 #include "Common/watchers.h"
 #include "ParallelGC/parallel_gc.h"
@@ -11,7 +13,6 @@
 #include "StaticPython/descrobject_vectorcall.h"
 #include "StaticPython/methodobject_vectorcall.h"
 #include "internal/pycore_shadow_frame.h"
-
 
 static void init_already_existing_funcs() {
   PyUnstable_GC_VisitObjects([](PyObject* obj, void*){
@@ -121,6 +122,7 @@ static int cinder_init() {
   Ci_hook_PyJIT_GenMaterializeFrame = _PyJIT_GenMaterializeFrame;
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
   Ci_hook_PyStrictModule_Check = _PyStrictModule_Check;
+  Ci_hook_EvalFrame = Ci_EvalFrame;
 
   if (init_already_existing_types() < 0) {
     return -1;
@@ -210,6 +212,8 @@ static int cinder_fini() {
   // Ci_hook_type_dealloc = nullptr;
   // Ci_hook_type_traverse = nullptr;
   // Ci_hook_type_clear = nullptr;
+
+  Ci_hook_EvalFrame = nullptr;
 
   Ci_cinderx_initialized = 0;
 

@@ -133,6 +133,8 @@ CiAPI_FUNC(PyObject *)
 CiAPI_FUNC(PyObject *)
     Cix_meth_get__text_signature__(PyCFunctionObject *m, void *closure);
 
+CiAPI_DATA(_PyFrameEvalFunction) Ci_hook_EvalFrame;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

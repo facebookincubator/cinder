@@ -36,12 +36,6 @@ CiAPI_FUNC(int) Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *v
 
 CiAPI_FUNC(PyObject **) Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 
-CiAPI_FUNC(PyObject *) Ci_GetAIter(PyThreadState *tstate, PyObject *obj);
-CiAPI_FUNC(PyObject *) Ci_GetANext(PyThreadState *tstate, PyObject *aiter);
-
-CiAPI_FUNC(void) PyEntry_init(PyFunctionObject *func);
-CiAPI_FUNC(int) eval_frame_handle_pending(PyThreadState *tstate);
-
 /* Enable or disable interpreter type profiling for all threads or for a
    specific thread. */
 CiAPI_FUNC(void) Ci_ThreadState_SetProfileInterpAll(int);
@@ -171,17 +165,73 @@ CiAPI_FUNC(Ci_PyGCImpl *) Ci_PyGC_GetImpl(struct _gc_runtime_state *gc_state);
  */
 CiAPI_FUNC(void) Ci_PyGC_ClearFreeLists(PyInterpreterState *interp);
 
+typedef struct {
+  PyCodeObject *code;        // The code object for the bounds. May be NULL.
+  PyCodeAddressRange bounds; // Only valid if code != NULL.
+  CFrame cframe;
+} PyTraceInfo;
+
+CiAPI_DATA(int) lltrace;
+
 CiAPI_FUNC(int) Cix_eval_frame_handle_pending(PyThreadState *tstate);
+CiAPI_FUNC(int) Cix_unpack_iterable(PyThreadState *tstate, PyObject *v,
+                                    int argcnt, int argcntafter, PyObject **sp);
 CiAPI_FUNC(PyObject *)
     Cix_special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id);
+CiAPI_FUNC(int) Cix_check_args_iterable(PyThreadState *tstate, PyObject *func,
+                                        PyObject *vararg);
+CiAPI_FUNC(void) Cix_format_kwargs_error(PyThreadState *tstate, PyObject *func,
+                                         PyObject *kwargs);
 CiAPI_FUNC(void)
     Cix_format_awaitable_error(PyThreadState *tstate, PyTypeObject *type,
                                int prevprevopcode, int prevopcode);
+CiAPI_FUNC(PyObject *)
+    Cix_do_call_core(PyThreadState *tstate, PyTraceInfo *trace_info,
+                     PyObject *func, PyObject *callargs, PyObject *kwdict,
+                     int awaited);
+CiAPI_FUNC(PyObject *)
+    Cix_PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f,
+                             PyObject *name, PyObject *qualname);
+CiAPI_FUNC(PyFrameObject *)
+    Cix_PyEval_MakeFrameVector(PyThreadState *tstate, PyFrameConstructor *con,
+                               PyObject *locals, PyObject *const *args,
+                               Py_ssize_t argcount, PyObject *kwnames);
+CiAPI_FUNC(PyObject *) Cix_make_coro(PyFrameConstructor *con, PyFrameObject *f);
+CiAPI_FUNC(int)
+    Cix_prtrace(PyThreadState *tstate, PyObject *v, const char *str);
 CiAPI_FUNC(void)
-    Cix_format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
-                             const char *format_str, PyObject *obj);
-CiAPI_FUNC(void) Cix_format_kwargs_error(PyThreadState *tstate, PyObject *func,
-                                         PyObject *kwargs);
+    Cix_call_exc_trace(Py_tracefunc func, PyObject *self, PyThreadState *tstate,
+                       PyFrameObject *f, PyTraceInfo *trace_info);
+CiAPI_FUNC(int)
+    Cix_call_trace_protected(Py_tracefunc func, PyObject *obj,
+                             PyThreadState *tstate, PyFrameObject *frame,
+                             PyTraceInfo *trace_info, int what, PyObject *arg);
+CiAPI_FUNC(int)
+    Cix_maybe_call_line_trace(Py_tracefunc func, PyObject *obj,
+                              PyThreadState *tstate, PyFrameObject *frame,
+                              PyTraceInfo *trace_info, int instr_prev);
+CiAPI_FUNC(int)
+    Cix_import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v);
+CiAPI_FUNC(void)
+    Cix_format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg);
+CiAPI_FUNC(void) Cix_maybe_dtrace_line(PyFrameObject *frame,
+                                       PyTraceInfo *trace_info, int instr_prev);
+CiAPI_FUNC(PyObject *)
+    Cix_unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
+                            PyFrameObject *f, const _Py_CODEUNIT *next_instr);
+CiAPI_FUNC(void) Cix_dtrace_function_entry(PyFrameObject *f);
+CiAPI_FUNC(void) Cix_dtrace_function_return(PyFrameObject *f);
+CiAPI_FUNC(void) Cix_maybe_dtrace_line(PyFrameObject *frame,
+                                       PyTraceInfo *trace_info, int instr_prev);
+CiAPI_FUNC(PyObject *)
+    Cix_Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
+                                   PyObject *global_super, PyTypeObject *type,
+                                   PyObject *self, PyObject *name,
+                                   int call_no_args, int *meth_found);
+CiAPI_FUNC(int)
+    Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
+CiAPI_FUNC(void) Cix_format_exc_check_arg(PyThreadState *, PyObject *,
+                                          const char *, PyObject *);
 CiAPI_FUNC(int)
     Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 CiAPI_FUNC(PyObject *)
@@ -189,6 +239,11 @@ CiAPI_FUNC(PyObject *)
                     Py_ssize_t nargs, PyObject *kwargs);
 CiAPI_FUNC(PyObject *)
     Cix_match_keys(PyThreadState *tstate, PyObject *map, PyObject *keys);
+CiAPI_FUNC(PyObject *)
+    Cix_call_function(PyThreadState *tstate, PyTraceInfo *trace_info,
+                      PyObject ***pp_stack, Py_ssize_t oparg, PyObject *kwnames,
+                      size_t flags);
+
 #ifdef __cplusplus
 }
 #endif

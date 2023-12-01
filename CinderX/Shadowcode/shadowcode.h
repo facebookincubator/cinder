@@ -15,9 +15,7 @@
 #include "cinder/ci_api.h"
 
 #include "CachedProperties/cached_properties.h"
-#ifndef Py_OPCODE_H
 #include "Interpreter/opcode.h"
-#endif
 
 #include <stdint.h>
 

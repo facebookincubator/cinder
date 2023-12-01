@@ -33,6 +33,7 @@ CINDERX_SRCS = [
     "_strictmodule.c",
     "cinder.c",
     "Common/watchers.cpp",
+    "Interpreter/interpreter.c",
     "ParallelGC/parallel_gc.c",
 ]
 

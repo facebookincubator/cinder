@@ -40,3 +40,6 @@ Ci_HookType_PyJIT_GenYieldFromValue Ci_hook_PyJIT_GenYieldFromValue = NULL;
 Ci_HookType_PyJIT_GenMaterializeFrame  Ci_hook_PyJIT_GenMaterializeFrame = NULL;
 
 Ci_HookType_PyStrictModule_Check Ci_hook_PyStrictModule_Check = NULL;
+
+/* Interpreter */
+_PyFrameEvalFunction Ci_hook_EvalFrame = NULL;
