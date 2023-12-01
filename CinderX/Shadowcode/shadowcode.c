@@ -2707,6 +2707,10 @@ static int free_all_gc_visitor(PyObject* obj, void* data) {
 static int free_all_visit_code_object(PyObject *obj, PyObject *obj_list) {
     assert(PyCode_Check(obj));
     PyCodeObject *code = (PyCodeObject *)obj;
+    if (code->co_consts == NULL) {
+      // TODO: This is a weird case, we should log this.
+      return 0;
+    }
     // Code can create lambdas or comprehensions which get optimized.
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(code->co_consts); ++i) {
         PyObject *const_obj = PyTuple_GET_ITEM(code->co_consts, i);
@@ -2735,14 +2739,13 @@ int _PyShadow_FreeAll(void) {
     for (Py_ssize_t i = 0; i < PyList_GET_SIZE(state.obj_list); ++i) {
         PyObject *obj = PyList_GET_ITEM(state.obj_list, i);
         _PyShadow_ClearCache(obj);
-        if (PyFunction_Check(obj)) {
-            if (free_all_visit_code_object(
-                    ((PyFunctionObject *)obj)->func_code, state.obj_list)) {
-                goto error;
-            }
-        } else if (PyCode_Check(obj)) {
+        if (obj != NULL && PyFunction_Check(obj)) {
+          obj = ((PyFunctionObject *)obj)->func_code;
+        }
+
+        if (obj != NULL && PyCode_Check(obj)) {
             if (free_all_visit_code_object(obj, state.obj_list)) {
-                goto error;
+              goto error;
             }
         }
     }
