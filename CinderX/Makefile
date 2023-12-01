@@ -268,6 +268,9 @@ test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
 
 UPDATE_FILE=python3 $(abs_srcdir)/Tools/scripts/update_file.py
 
+.PHONY: regen-all
+regen-all: regen-opcode regen-opcode-targets regen-jit
+
 .PHONY: regen-opcode
 regen-opcode:
 	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Tools/scripts/generate_opcode_h.py \
@@ -280,3 +283,7 @@ regen-opcode-targets:
 	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Python/makeopcodetargets.py Interpreter/cinderx_opcode_targets.h.new
 	$(UPDATE_FILE) Interpreter/cinderx_opcode_targets.h Interpreter/cinderx_opcode_targets.h.new
 
+.PHONY: regen-jit
+regen-jit:
+	python3 Jit/hir/generate_jit_type_h.py Jit/hir/type_generated.h.new
+	$(UPDATE_FILE) Jit/hir/type_generated.h Jit/hir/type_generated.h.new
