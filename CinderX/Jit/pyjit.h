@@ -59,12 +59,6 @@ PyAPI_FUNC(void) _PyJIT_Disable(void);
 PyAPI_FUNC(int) _PyJIT_IsEnabled(void);
 
 /*
- * After-fork callback for child processes. Performs any cleanup necessary for
- * per-process state, including handling of Linux perf pid maps.
- */
-PyAPI_FUNC(void) _PyJIT_AfterFork_Child(void);
-
-/*
  * Returns 1 if auto-JIT is enabled and 0 otherwise.
  */
 PyAPI_FUNC(int) _PyJIT_IsAutoJITEnabled(void);
@@ -122,13 +116,6 @@ PyAPI_FUNC(void) _PyJIT_FuncDestroyed(PyFunctionObject* func);
 PyAPI_FUNC(void) _PyJIT_CodeDestroyed(PyCodeObject* code);
 
 /*
- * Informs the JIT that an instance has had an assignment to its __class__
- * field.
- */
-PyAPI_FUNC(void)
-    _PyJIT_InstanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty);
-
-/*
  * Clean up any resources allocated by the JIT.
  *
  * This is intended to be called at interpreter shutdown in Py_Finalize.
@@ -136,16 +123,6 @@ PyAPI_FUNC(void)
  * Returns 0 on success or -1 on error.
  */
 PyAPI_FUNC(int) _PyJIT_Finalize(void);
-
-/*
- * Returns whether the function specified in `func` is on the jit-list.
- *
- * Returns 0 if the given function is not on the jit-list, and non-zero
- * otherwise.
- *
- * Always returns 1 if the JIT list is not specified.
- */
-PyAPI_FUNC(int) _PyJIT_OnJitList(PyFunctionObject* func);
 
 /* Dict-watching callbacks, invoked by dictobject.c when appropriate. */
 
@@ -412,11 +389,6 @@ PyAPI_FUNC(void)
  */
 PyAPI_FUNC(PyObject*) _PyJIT_GetAndClearTypeProfiles(void);
 PyAPI_FUNC(void) _PyJIT_ClearTypeProfiles(void);
-
-/*
- * Notify the JIT that type has been modified.
- */
-PyAPI_FUNC(void) _PyJIT_TypeModified(PyTypeObject* type);
 
 /*
  * Returns a borrowed reference to the top-most frame of tstate.

@@ -1423,7 +1423,7 @@ static int deopt_gen_visitor(PyObject* obj, void*) {
 }
 
 static PyObject* after_fork_child(PyObject*, PyObject*) {
-  _PyJIT_AfterFork_Child();
+  perf::afterForkChild();
   Py_RETURN_NONE;
 }
 
@@ -1603,7 +1603,13 @@ static int onJitListImpl(
   return 1;
 }
 
-int _PyJIT_OnJitList(PyFunctionObject* func) {
+// Returns whether the function specified in `func` is on the jit-list.
+//
+// Returns 0 if the given function is not on the jit-list, and non-zero
+// otherwise.
+//
+// Always returns 1 if the JIT list is not specified.
+static int onJitList(PyFunctionObject* func) {
   return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
 }
 
@@ -1692,6 +1698,14 @@ void _PyJIT_FinalizeInternedStrings() {
   }
 }
 
+// Informs the JIT that an instance has had an assignment to its __class__
+// field.
+static void instanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty) {
+  if (auto rt = Runtime::getUnchecked()) {
+    rt->notifyTypeModified(old_ty, new_ty);
+  }
+}
+
 // JIT audit event callback. For now, we only pay attention to when an object's
 // __class__ is assigned to.
 static int jit_audit_hook(const char* event, PyObject* args, void* /* data */) {
@@ -1706,7 +1720,7 @@ static int jit_audit_hook(const char* event, PyObject* args, void* /* data */) {
 
   BorrowedRef<> object(PyTuple_GET_ITEM(args, 0));
   BorrowedRef<PyTypeObject> new_type(PyTuple_GET_ITEM(args, 2));
-  _PyJIT_InstanceTypeAssigned(Py_TYPE(object), new_type);
+  instanceTypeAssigned(Py_TYPE(object), new_type);
   return 0;
 }
 
@@ -1846,10 +1860,6 @@ int _PyJIT_IsEnabled() {
       getConfig().is_enabled;
 }
 
-void _PyJIT_AfterFork_Child() {
-  perf::afterForkChild();
-}
-
 unsigned _PyJIT_AutoJITThreshold() {
   return getConfig().auto_jit_threshold;
 }
@@ -1890,7 +1900,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
     return _PyJITContext_CompilePreloader(jit_ctx, *(it->second));
   }
 
-  if (!_PyJIT_OnJitList(func)) {
+  if (!onJitList(func)) {
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
@@ -1949,7 +1959,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
       !g_threaded_compile_context.compileRunning(),
       "Not intended for using during threaded compilation");
   int result = 0;
-  if (_PyJIT_OnJitList(func)) {
+  if (onJitList(func)) {
     jit_reg_units.emplace(reinterpret_cast<PyObject*>(func));
     result = 1;
   } else if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
@@ -2004,12 +2014,6 @@ void _PyJIT_TypeDestroyed(PyTypeObject* type) {
   profile_runtime.unregisterType(type);
   if (auto rt = Runtime::getUnchecked()) {
     rt->notifyTypeModified(type, nullptr);
-  }
-}
-
-void _PyJIT_InstanceTypeAssigned(PyTypeObject* old_ty, PyTypeObject* new_ty) {
-  if (auto rt = Runtime::getUnchecked()) {
-    rt->notifyTypeModified(old_ty, new_ty);
   }
 }
 

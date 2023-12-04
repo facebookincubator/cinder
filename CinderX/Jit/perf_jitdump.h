@@ -30,7 +30,8 @@ void registerFunction(
     const std::string& name,
     const std::string& prefix = kDefaultSymbolPrefix);
 
-// Perform any cleanup needed in a child process after fork().
+// After-fork callback for child processes. Performs any cleanup necessary for
+// per-process state, including handling of Linux perf pid maps.
 void afterForkChild();
 
 } // namespace jit::perf
