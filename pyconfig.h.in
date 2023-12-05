@@ -41,6 +41,9 @@
    least significant byte first */
 #undef DOUBLE_IS_LITTLE_ENDIAN_IEEE754
 
+/* Enable Cinder refcount debugging */
+#undef Ci_REF_DEBUG
+
 /* Build CinderX features */
 #undef ENABLE_CINDERX
 
@@ -1708,4 +1711,3 @@
 #endif
 
 #endif /*Py_PYCONFIG_H*/
-

@@ -771,7 +771,23 @@ cinder_get_parallel_gc_settings(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(a
     return Cinder_GetParallelGCSettings();
 }
 
+static PyObject *
+toggle_dump_ref_changes(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(obj))
+{
+#ifdef Ci_REF_DEBUG
+    Ci_RefDebug_ToggleDumpRefChanges();
+    Py_RETURN_NONE;
+#else
+    PyErr_SetString(PyExc_NotImplementedError, "Rebuild with --enable-cinder-ref-debug.");
+    return NULL;
+#endif
+}
+
 static struct PyMethodDef cinder_module_methods[] = {
+    {"toggle_dump_ref_changes",
+     toggle_dump_ref_changes,
+     METH_NOARGS,
+     "Turn on dumping of all inc/decrefs."},
     {"debug_break",
      cinder_debug_break,
      METH_NOARGS,

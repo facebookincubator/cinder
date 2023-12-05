@@ -28,6 +28,38 @@
 extern "C" {
 #endif
 
+#ifdef Ci_REF_DEBUG
+
+static int ci_ref_debug_dump_ref_changes = 0;
+
+void Ci_RefDebug_ToggleDumpRefChanges(void) {
+    ci_ref_debug_dump_ref_changes = !ci_ref_debug_dump_ref_changes;
+}
+
+void Ci_RefDebug_DumpInc(PyObject *op) {
+    if (!ci_ref_debug_dump_ref_changes) {
+        return;
+    }
+    if (op->ob_type) {
+        printf("*** inc: %p %s %zd\n", op, op->ob_type->tp_name, op->ob_refcnt);
+    } else {
+        printf("*** inc: unknown (%p)\n", op);
+    }
+}
+
+void Ci_RefDebug_DumpDec(PyObject *op) {
+    if (!ci_ref_debug_dump_ref_changes) {
+        return;
+    }
+    if (op->ob_type) {
+        printf("*** dec: %p %s %zd\n", op, op->ob_type->tp_name, op->ob_refcnt);
+    } else {
+        printf("*** dec: unknown (%p)\n", op);
+    }
+}
+
+#endif
+
 /* Defined in tracemalloc.c */
 extern void _PyMem_DumpTraceback(int fd, const void *ptr);
 

@@ -613,6 +613,12 @@ PyAPI_FUNC(void) Py_DecRef(PyObject *);
 PyAPI_FUNC(void) _Py_IncRef(PyObject *);
 PyAPI_FUNC(void) _Py_DecRef(PyObject *);
 
+#ifdef Ci_REF_DEBUG
+PyAPI_FUNC(void) Ci_RefDebug_ToggleDumpRefChanges(void);
+PyAPI_FUNC(void) Ci_RefDebug_DumpInc(PyObject *op);
+PyAPI_FUNC(void) Ci_RefDebug_DumpDec(PyObject *op);
+#endif
+
 static inline __attribute__((always_inline)) void _Py_INCREF(PyObject *op)
 {
 #ifdef Py_IMMORTAL_INSTANCES
@@ -633,6 +639,10 @@ static inline __attribute__((always_inline)) void _Py_INCREF(PyObject *op)
         return;
     }
 #endif // __has_builtin(__builtin_uadd_overflow)
+
+#ifdef Ci_REF_DEBUG
+    Ci_RefDebug_DumpInc(op);
+#endif
 
     _Py_INC_REFTOTAL;
 // copy lower 32 bits of new refcnt over to object's refcnt
@@ -670,6 +680,11 @@ static inline __attribute__((always_inline)) void _Py_DECREF(
         return;
     }
 #endif
+
+#ifdef Ci_REF_DEBUG
+    Ci_RefDebug_DumpDec(op);
+#endif
+
 #if defined(Py_REF_DEBUG) && defined(Py_LIMITED_API) && Py_LIMITED_API+0 >= 0x030A0000
     // Stable ABI for Python 3.10 built in debug mode.
     _Py_DecRef(op);

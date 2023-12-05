@@ -6137,7 +6137,14 @@ else
 fi
 AC_SUBST(TEST_MODULES)
 
-AC_MSG_CHECKING(whather to build CinderX features into an .so)
+AC_MSG_CHECKING(whether to enable Cinder ref count debugging)
+AC_ARG_ENABLE(cinder-ref-debug,
+    AS_HELP_STRING([--enable-cinder-ref-debug], [Enable Cinder refcount debugging]),
+[
+  AC_DEFINE(Ci_REF_DEBUG, 1, [Build CinderX features])
+], [])
+
+AC_MSG_CHECKING(whether to build CinderX features into an .so)
 AC_ARG_ENABLE(cinderx-so,
     AS_HELP_STRING([--enable-cinderx-so], [build CinderX features into a .so]),
 [
