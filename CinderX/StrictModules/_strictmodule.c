@@ -3,9 +3,9 @@
 
 // Including this here is a hack until _strictmodule.c is migrated to CinderX
 #define __STRICTMODULE_C
-#include "CinderX/StrictModules/strict_module_checker_interface.h"
+#include "StrictModules/strict_module_checker_interface.h"
 
-#include "CinderX/StrictModules/pystrictmodule.h"
+#include "StrictModules/pystrictmodule.h"
 
 #include "cinder/exports.h"
 

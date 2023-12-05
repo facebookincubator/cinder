@@ -64,6 +64,7 @@ DISABLED_MODULE_LIST = []
 LIST_MODULE_NAMES = False
 
 ENABLE_CINDERX = (sysconfig.get_config_var('ENABLE_CINDERX') == 1)
+ENABLE_CINDERX_SO = (sysconfig.get_config_var('ENABLE_CINDERX_SO') == 'yes')
 
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
@@ -1021,8 +1022,8 @@ class PyBuildExt(build_ext):
         if ENABLE_CINDERX:
             self.add(Extension('cinder', ['cinder.c']) )
             self.add(Extension('xxclassloader', ['xxclassloader.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
-            self.add(Extension('_static', ['_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
-            self.add(Extension('_strictmodule', ['_strictmodule.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
+            self.add(Extension('_static', ['../CinderX/StaticPython/_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
+            self.add(Extension('_strictmodule', ['../CinderX/StrictModules/_strictmodule.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
 
         self.add(Extension('gdb_dbg', ['gdb_dbg.c']) )
 

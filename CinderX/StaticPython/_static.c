@@ -15,8 +15,8 @@
 #include "structmember.h"
 #include "pycore_object.h"
 
-#include "CinderX/CachedProperties/cached_properties.h"
-#include "CinderX/StaticPython/classloader.h"
+#include "CachedProperties/cached_properties.h"
+#include "StaticPython/classloader.h"
 
 PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");

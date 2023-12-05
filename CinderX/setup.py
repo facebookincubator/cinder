@@ -29,8 +29,6 @@ INCLUDE_DIRS = [
 
 CINDERX_SRCS = [
     "_cinderx.cpp",
-    "_static.c",
-    "_strictmodule.c",
     "cinder.c",
     "Common/watchers.cpp",
     "Interpreter/interpreter.c",
@@ -301,6 +299,34 @@ setuptools.setup(
             define_macros=[("FMT_HEADER_ONLY", 1), ("Py_BUILD_CORE", None)],
             extra_compile_args=["-Wno-ambiguous-reversed-operator"],
         )
+    ],
+    packages=setuptools.find_packages(),
+    python_requires="==3.10.*",
+)
+
+# Separate from the above so we can skip using CinderBuildExt. This behaves
+# weirdly for these extensions and it's not worth tracking down as this is
+# all very temporary.
+setuptools.setup(
+    name="cinderx_modules",
+    version="0.0.1",
+    author="Meta Platforms, Inc.",
+    author_email="cinder@meta.com",
+    description="High-performance Python runtime extension extensions",
+    url="https://github.com/facebookincubator/cinder",
+    ext_modules=[
+        setuptools.Extension(
+            "_static",
+            sources=["StaticPython/_static.c"],
+            include_dirs=INCLUDE_DIRS,
+            define_macros=[("Py_BUILD_CORE_MODULE", None)],
+        ),
+        setuptools.Extension(
+            "_strictmodule",
+            sources=["StrictModules/_strictmodule.c"],
+            include_dirs=INCLUDE_DIRS,
+            define_macros=[("Py_BUILD_CORE_MODULE", None)],
+        ),
     ],
     packages=setuptools.find_packages(),
     python_requires="==3.10.*",
