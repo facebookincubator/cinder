@@ -1776,6 +1776,7 @@ int _PyJIT_Initialize() {
 
   if (jit_help) {
     std::cout << xarg_flag_processor.jitXOptionHelpMessage() << std::endl;
+    // Return rather than exit here for arg printing test doesn't end early.
     return -2;
   }
 

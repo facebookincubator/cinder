@@ -162,7 +162,13 @@ static int cinder_init() {
     return -1;
   }
 
-  if (_PyJIT_Initialize()) {
+  int jit_init_ret = _PyJIT_Initialize();
+  if (jit_init_ret) {
+    // Exit here rather than in _PyJIT_Initialize so the tests for printing
+    // argument help works.
+    if (jit_init_ret == -2) {
+      exit(1);
+    }
     return -1;
   }
   init_already_existing_funcs();

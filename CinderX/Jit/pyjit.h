@@ -35,7 +35,7 @@ extern "C" {
  *
  * This must be called before attempting to use the JIT.
  *
- * Returns 0 on success or -1 on error.
+ * Returns 0 on success, -1 on error, or -2 if we just printed the jit args.
  */
 PyAPI_FUNC(int) _PyJIT_Initialize(void);
 
