@@ -1587,30 +1587,35 @@ static PyModuleDef jit_module = {
     nullptr, /* m_free */
 };
 
-static int onJitListImpl(
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<> mod,
-    BorrowedRef<> qualname) {
+static bool shouldAlwaysCompile(BorrowedRef<PyCodeObject> code) {
+  // No explicit list implies everything can and should be compiled.
+  if (g_jit_list == nullptr) {
+    return true;
+  }
+
+  // There's a config option for forcing all Static Python functions to be
+  // compiled.
   bool is_static = code->co_flags & CO_STATICALLY_COMPILED;
-  if (g_jit_list == nullptr ||
-      (is_static && getConfig().compile_all_static_functions)) {
-    // There's no jit list or the function is static.
-    return 1;
+  if (is_static && getConfig().compile_all_static_functions) {
+    return true;
   }
-  if (g_jit_list->lookupCO(code) != 1) {
-    return g_jit_list->lookupFO(mod, qualname);
-  }
-  return 1;
+
+  return false;
 }
 
-// Returns whether the function specified in `func` is on the jit-list.
-//
-// Returns 0 if the given function is not on the jit-list, and non-zero
-// otherwise.
-//
-// Always returns 1 if the JIT list is not specified.
-static int onJitList(PyFunctionObject* func) {
-  return onJitListImpl(func->func_code, func->func_module, func->func_qualname);
+// Check whether a function should be compiled.
+static bool shouldCompile(BorrowedRef<PyFunctionObject> func) {
+  return shouldAlwaysCompile(func->func_code) || g_jit_list->lookupFunc(func) == 1;
+}
+
+// Check whether a code object should be compiled. Intended for nested code
+// objects.
+static bool shouldCompile(BorrowedRef<> module_name, BorrowedRef<PyCodeObject> code) {
+  return (
+    shouldAlwaysCompile(code) ||
+    (g_jit_list->lookupCode(code) == 1) ||
+    (g_jit_list->lookupName(module_name, code->co_qualname) == 1)
+  );
 }
 
 // Call posix.register_at_fork(None, None, cinderjit.after_fork_child), if it
@@ -1901,7 +1906,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* func) {
     return _PyJITContext_CompilePreloader(jit_ctx, *(it->second));
   }
 
-  if (!onJitList(func)) {
+  if (!shouldCompile(func)) {
     return PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
@@ -1929,7 +1934,7 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
       BorrowedRef<PyCodeObject> code = PyTuple_GET_ITEM(consts, i);
       if (!PyCode_Check(code) || !visited.insert(code).second ||
           code->co_qualname == nullptr ||
-          !onJitListImpl(code, module, code->co_qualname)) {
+          !shouldCompile(module, code)) {
         continue;
       }
 
@@ -1960,7 +1965,7 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
       !g_threaded_compile_context.compileRunning(),
       "Not intended for using during threaded compilation");
   int result = 0;
-  if (onJitList(func)) {
+  if (shouldCompile(func)) {
     jit_reg_units.emplace(reinterpret_cast<PyObject*>(func));
     result = 1;
   } else if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {

@@ -162,6 +162,10 @@ std::string unicodeAsString(PyObject* str) {
   return std::string(utf8, size);
 }
 
+Ref<> stringAsUnicode(std::string_view str) {
+  return Ref<>::steal(PyUnicode_FromStringAndSize(str.data(), str.size()));
+}
+
 std::string typeFullname(PyTypeObject* type) {
   PyObject* module_str = type->tp_dict
       ? PyDict_GetItemString(type->tp_dict, "__module__")

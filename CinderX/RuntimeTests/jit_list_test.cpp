@@ -27,7 +27,7 @@ TEST_F(JITListTest, ParseLine) {
   EXPECT_FALSE(jitlist->parseLine("foo"));
 }
 
-TEST_F(JITListTest, LookupFO) {
+TEST_F(JITListTest, LookupName) {
   auto jitlist = JITList::create();
   ASSERT_NE(jitlist, nullptr);
 
@@ -43,24 +43,25 @@ TEST_F(JITListTest, LookupFO) {
   auto quux = Ref<>::steal(PyUnicode_FromString("quux"));
   ASSERT_NE(quux, nullptr);
 
-  EXPECT_TRUE(jitlist->lookupFO(foo, bar));
-  EXPECT_TRUE(jitlist->lookupFO(foo, baz));
-  EXPECT_FALSE(jitlist->lookupFO(foo, quux));
-  EXPECT_FALSE(jitlist->lookupFO(quux, bar));
+  EXPECT_TRUE(jitlist->lookupName(foo, bar));
+  EXPECT_TRUE(jitlist->lookupName(foo, baz));
+  EXPECT_FALSE(jitlist->lookupName(foo, quux));
+  EXPECT_FALSE(jitlist->lookupName(quux, bar));
 }
 
-TEST_F(JITListTest, LookupCO) {
+TEST_F(JITListTest, LookupFuncCode) {
   auto jitlist = JITList::create();
   ASSERT_NE(jitlist, nullptr);
 
-  auto func = compileAndGet("def f(): pass", "f");
+  auto obj = compileAndGet("def f(): pass", "f");
+
+  BorrowedRef<PyFunctionObject> func = reinterpret_cast<PyFunctionObject*>(obj.get());
   ASSERT_NE(func, nullptr);
+  ASSERT_EQ(jitlist->lookupFunc(func), 0);
 
-  BorrowedRef<PyCodeObject> code(
-      reinterpret_cast<PyFunctionObject*>(func.get())->func_code);
+  BorrowedRef<PyCodeObject> code = reinterpret_cast<PyCodeObject*>(func->func_code);
   ASSERT_NE(code, nullptr);
-
-  ASSERT_EQ(jitlist->lookupCO(code), 0);
+  ASSERT_EQ(jitlist->lookupCode(code), 0);
 }
 
 TEST_F(WildcardJITListTest, ParseLine) {
@@ -96,25 +97,25 @@ TEST_F(WildcardJITListTest, Lookup) {
   ASSERT_NE(foo_bar_evaluate, nullptr);
 
   // All funcs in foo are enabled
-  EXPECT_TRUE(jitlist->lookupFO(foo, bar));
-  EXPECT_TRUE(jitlist->lookupFO(foo, baz));
-  EXPECT_TRUE(jitlist->lookupFO(foo, quux));
+  EXPECT_TRUE(jitlist->lookupName(foo, bar));
+  EXPECT_TRUE(jitlist->lookupName(foo, baz));
+  EXPECT_TRUE(jitlist->lookupName(foo, quux));
 
   // All qualnames of baz are enabled
-  EXPECT_TRUE(jitlist->lookupFO(quux, baz));
+  EXPECT_TRUE(jitlist->lookupName(quux, baz));
 
   // Can't wildcard everything
-  EXPECT_FALSE(jitlist->lookupFO(bar, foo));
+  EXPECT_FALSE(jitlist->lookupName(bar, foo));
 
   // Exact lookups should still work
-  EXPECT_TRUE(jitlist->lookupFO(bar, quux));
+  EXPECT_TRUE(jitlist->lookupName(bar, quux));
 
   // Unconditionally wildcarded instance methods
-  EXPECT_TRUE(jitlist->lookupFO(bar, foo_init));
-  EXPECT_TRUE(jitlist->lookupFO(quux, foo_init));
+  EXPECT_TRUE(jitlist->lookupName(bar, foo_init));
+  EXPECT_TRUE(jitlist->lookupName(quux, foo_init));
 
   // Per-module wildcarded instance methods
-  EXPECT_TRUE(jitlist->lookupFO(foo, foo_evaluate));
-  EXPECT_TRUE(jitlist->lookupFO(foo, foo_bar_evaluate));
-  EXPECT_FALSE(jitlist->lookupFO(bar, foo_evaluate));
+  EXPECT_TRUE(jitlist->lookupName(foo, foo_evaluate));
+  EXPECT_TRUE(jitlist->lookupName(foo, foo_bar_evaluate));
+  EXPECT_FALSE(jitlist->lookupName(bar, foo_evaluate));
 }

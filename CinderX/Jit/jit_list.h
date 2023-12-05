@@ -8,6 +8,8 @@
 #include "Jit/util.h"
 
 #include <memory>
+#include <string>
+#include <string_view>
 
 namespace jit {
 
@@ -37,15 +39,15 @@ class JITList {
   // Parse a single entry on the JIT list.
   //
   // Returns true on success or false on error.
-  bool parseLine(const std::string& line);
+  bool parseLine(std::string_view line);
 
-  // Check if function is on the list.
+  // Check if function or code object is on the list.
   //
   // Returns 1, 0, -1 if the function was found, not found, or an error
   // occurred, respectively.
-  int lookup(BorrowedRef<PyFunctionObject> function);
-  virtual int lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname);
-  virtual int lookupCO(BorrowedRef<PyCodeObject> code);
+  int lookupFunc(BorrowedRef<PyFunctionObject> function) const;
+  int lookupCode(BorrowedRef<PyCodeObject> code) const;
+  virtual int lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname) const;
 
   // Return a new reference to the dictionary used for matching elements in the
   // JIT list.
@@ -56,26 +58,27 @@ class JITList {
       : qualnames_(std::move(qualnames)),
         name_file_line_no_(std::move(name_file_line_no)) {}
 
-  virtual bool addEntryFO(const char* module_name, const char* qualname);
-  bool addEntryFO(BorrowedRef<> module_name, BorrowedRef<> qualname);
-
-  virtual bool
-  addEntryCO(const char* name, const char* file, const char* line_no);
-  bool
-  addEntryCO(BorrowedRef<> name, BorrowedRef<> file, BorrowedRef<> line_no);
-
-  // Dict of module name to set of qualnames
-  Ref<> qualnames_;
-
-  // Dict of name/qualname -> dict of file basename -> set of line numbers
-  Ref<> name_file_line_no_;
+  // Add a function's name to the JIT list. Return true on success.
+  bool addEntryFunc(BorrowedRef<> module_name, BorrowedRef<> qualname);
+  virtual bool addEntryFunc(std::string_view module_name, std::string_view qualname);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(JITList);
 
-  Ref<> pathBasename(BorrowedRef<> path);
+  // Add a code object's name to the JIT list. Return true on success.
+  bool addEntryCode(BorrowedRef<> name, BorrowedRef<> file, BorrowedRef<> line_no);
+  bool addEntryCode(std::string_view name, std::string_view file, std::string_view line_no);
 
-  Ref<> path_sep_;
+  Ref<> pathBasename(BorrowedRef<> path) const;
+
+  // Dict of module name to set of qualnames.
+  Ref<> qualnames_;
+
+  // Dict of name/qualname -> dict of file basename -> set of line numbers.
+  Ref<> name_file_line_no_;
+
+  // Cached string object for the "/" path separator.
+  mutable Ref<> path_sep_;
 };
 
 // A wildcard JIT list allows one to match multiple functions with a single
@@ -110,14 +113,14 @@ class WildcardJITList : public JITList {
  public:
   static std::unique_ptr<WildcardJITList> create();
 
-  int lookupFO(BorrowedRef<> mod, BorrowedRef<> qualname) override;
+  int lookupName(BorrowedRef<> mod, BorrowedRef<> qualname) const override;
 
  protected:
   WildcardJITList(Ref<> wildcard, Ref<> qualnames)
       : JITList(std::move(qualnames), Ref<>::steal(PyDict_New())),
         wildcard_(std::move(wildcard)) {}
 
-  bool addEntryFO(const char* module_name, const char* qualname) override;
+  bool addEntryFunc(std::string_view module_name, std::string_view qualname) override;
 
   Ref<> wildcard_;
 };

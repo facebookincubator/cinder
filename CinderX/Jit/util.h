@@ -130,6 +130,10 @@ std::string typeFullname(PyTypeObject* type);
 // Return the given PyUnicodeObject as a std::string, or "" if an error occurs.
 std::string unicodeAsString(PyObject* str);
 
+// Convert a C++ string into a Python unicode object.  Will return nullptr on
+// error.
+Ref<> stringAsUnicode(std::string_view str);
+
 // Given a code object and an index into f_localsplus, compute which of
 // code->co_varnames, code->cellvars, or code->freevars contains the name of
 // the variable. Return that tuple and adjust idx as needed.
