@@ -1463,7 +1463,9 @@ CINDERX_PUBLIC_HEADERS = \
 		$(srcdir)/CinderX/StaticPython/descrobject_vectorcall.h \
 		$(srcdir)/CinderX/StaticPython/methodobject_vectorcall.h \
 		$(srcdir)/CinderX/StrictModules/pystrictmodule.h \
-		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h
+		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h \
+		$(srcdir)/Python/ceval.c
+
 
 PYTHON_HEADERS= \
 		$(srcdir)/Include/Python.h \

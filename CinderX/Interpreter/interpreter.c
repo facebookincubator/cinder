@@ -1,313 +1,13 @@
-/* Portions copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
+#include "Interpreter/opcode.h"
 
-#include "Python.h"
-#include "pycore_abstract.h"      // _PyIndex_Check()
-#include "pycore_call.h"          // _PyObject_FastCallDictTstate()
-#include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
-#include "pycore_code.h"          // _PyCode_InitOpcache()
-#include "pycore_initconfig.h"    // _PyStatus_OK()
-#include "pycore_import.h"        // _PyImport_ImportName()
-#include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
-#include "pycore_object.h"        // _PyObject_GC_TRACK()
-#include "pycore_pyerrors.h"      // _PyErr_Fetch()
-#include "pycore_pylifecycle.h"   // _PyErr_Print()
-#include "pycore_pymem.h"         // _PyMem_IsPtrFreed()
-#include "pycore_pystate.h"       // _PyInterpreterState_GET()
-#include "pycore_shadow_frame.h"  // _PyShadowFrame_{PushInterp,Pop}
-#include "pycore_sysmodule.h"     // _PySys_Audit()
-#include "pycore_tuple.h"         // _PyTuple_ITEMS()
+#define CINDERX_INTERPRETER
+#include "../../Python/ceval.c"
 
-#include "code.h"
-#include "dictobject.h"
-#include "frameobject.h"
-#include "pydtrace.h"
-#include "setobject.h"
-#include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
-
-#include "cinder/exports.h"
-#include "cinder/hooks.h"
-
-#include "Interpreter/interpreter.h"
 #include "Jit/pyjit.h"
 #include "Shadowcode/shadowcode.h"
 #include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
 #include "StaticPython/classloader.h"
-
-#include <ctype.h>
-
-#ifdef Py_DEBUG
-/* For debugging the interpreter: */
-#define LLTRACE  1      /* Low-level trace feature */
-#define CHECKEXC 1      /* Double-check exception checking */
-#endif
-
-#define NAME_ERROR_MSG \
-    "name '%.200s' is not defined"
-#define UNBOUNDLOCAL_ERROR_MSG \
-    "local variable '%.200s' referenced before assignment"
-#define UNBOUNDFREE_ERROR_MSG \
-    "free variable '%.200s' referenced before assignment" \
-    " in enclosing scope"
-
-/* Computed GOTOs, or
-       the-optimization-commonly-but-improperly-known-as-"threaded code"
-   using gcc's labels-as-values extension
-   (http://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html).
-
-   The traditional bytecode evaluation loop uses a "switch" statement, which
-   decent compilers will optimize as a single indirect branch instruction
-   combined with a lookup table of jump addresses. However, since the
-   indirect jump instruction is shared by all opcodes, the CPU will have a
-   hard time making the right prediction for where to jump next (actually,
-   it will be always wrong except in the uncommon case of a sequence of
-   several identical opcodes).
-
-   "Threaded code" in contrast, uses an explicit jump table and an explicit
-   indirect jump instruction at the end of each opcode. Since the jump
-   instruction is at a different address for each opcode, the CPU will make a
-   separate prediction for each of these instructions, which is equivalent to
-   predicting the second opcode of each opcode pair. These predictions have
-   a much better chance to turn out valid, especially in small bytecode loops.
-
-   A mispredicted branch on a modern CPU flushes the whole pipeline and
-   can cost several CPU cycles (depending on the pipeline depth),
-   and potentially many more instructions (depending on the pipeline width).
-   A correctly predicted branch, however, is nearly free.
-
-   At the time of this writing, the "threaded code" version is up to 15-20%
-   faster than the normal "switch" version, depending on the compiler and the
-   CPU architecture.
-
-   We disable the optimization if DYNAMIC_EXECUTION_PROFILE is defined,
-   because it would render the measurements invalid.
-
-
-   NOTE: care must be taken that the compiler doesn't try to "optimize" the
-   indirect jumps by sharing them between all opcodes. Such optimizations
-   can be disabled on gcc by using the -fno-gcse flag (or possibly
-   -fno-crossjumping).
-*/
-
-/* Use macros rather than inline functions, to make it as clear as possible
- * to the C compiler that the tracing check is a simple test then branch.
- * We want to be sure that the compiler knows this before it generates
- * the CFG.
- */
-#ifdef LLTRACE
-#define OR_LLTRACE || lltrace
-#else
-#define OR_LLTRACE
-#endif
-
-#ifdef WITH_DTRACE
-#define OR_DTRACE_LINE || PyDTrace_LINE_ENABLED()
-#else
-#define OR_DTRACE_LINE
-#endif
-
-#ifdef DYNAMIC_EXECUTION_PROFILE
-#undef USE_COMPUTED_GOTOS
-#define USE_COMPUTED_GOTOS 0
-#endif
-
-#ifdef HAVE_COMPUTED_GOTOS
-    #ifndef USE_COMPUTED_GOTOS
-    #define USE_COMPUTED_GOTOS 1
-    #endif
-#else
-    #if defined(USE_COMPUTED_GOTOS) && USE_COMPUTED_GOTOS
-    #error "Computed gotos are not supported on this compiler."
-    #endif
-    #undef USE_COMPUTED_GOTOS
-    #define USE_COMPUTED_GOTOS 0
-#endif
-
-#if USE_COMPUTED_GOTOS
-#define TARGET(op) op: TARGET_##op
-#define DISPATCH() \
-    { \
-        if (trace_info.cframe.use_tracing OR_DTRACE_LINE OR_LLTRACE) { \
-            goto tracing_dispatch; \
-        } \
-        f->f_lasti = INSTR_OFFSET(); \
-        NEXTOPARG(); \
-        goto *opcode_targets[opcode]; \
-    }
-#else
-#define TARGET(op) op
-#define DISPATCH() goto predispatch;
-#endif
-
-
-#define CHECK_EVAL_BREAKER() \
-    if (_Py_atomic_load_relaxed(eval_breaker)) { \
-        continue; \
-    }
-
-
-/* Tuple access macros */
-
-#ifndef Py_DEBUG
-#define GETITEM(v, i) PyTuple_GET_ITEM((PyTupleObject *)(v), (i))
-#else
-#define GETITEM(v, i) PyTuple_GetItem((v), (i))
-#endif
-
-/* Code access macros */
-
-/* The integer overflow is checked by an assertion below. */
-#define INSTR_OFFSET() ((int)(next_instr - first_instr))
-#define NEXTOPARG()  do { \
-        _Py_CODEUNIT word = *next_instr; \
-        opcode = _Py_OPCODE(word); \
-        oparg = _Py_OPARG(word); \
-        next_instr++; \
-    } while (0)
-#define JUMPTO(x)       (next_instr = first_instr + (x))
-#define JUMPBY(x)       (next_instr += (x))
-
-/* OpCode prediction macros
-    Some opcodes tend to come in pairs thus making it possible to
-    predict the second code when the first is run.  For example,
-    COMPARE_OP is often followed by POP_JUMP_IF_FALSE or POP_JUMP_IF_TRUE.
-
-    Verifying the prediction costs a single high-speed test of a register
-    variable against a constant.  If the pairing was good, then the
-    processor's own internal branch predication has a high likelihood of
-    success, resulting in a nearly zero-overhead transition to the
-    next opcode.  A successful prediction saves a trip through the eval-loop
-    including its unpredictable switch-case branch.  Combined with the
-    processor's internal branch prediction, a successful PREDICT has the
-    effect of making the two opcodes run as if they were a single new opcode
-    with the bodies combined.
-
-    If collecting opcode statistics, your choices are to either keep the
-    predictions turned-on and interpret the results as if some opcodes
-    had been combined or turn-off predictions so that the opcode frequency
-    counter updates for both opcodes.
-
-    Opcode prediction is disabled with threaded code, since the latter allows
-    the CPU to record separate branch prediction information for each
-    opcode.
-
-*/
-
-#define PREDICT_ID(op)          PRED_##op
-
-#if defined(DYNAMIC_EXECUTION_PROFILE) || USE_COMPUTED_GOTOS
-#define PREDICT(op)             if (0) goto PREDICT_ID(op)
-#else
-#define PREDICT(op) \
-    do { \
-        _Py_CODEUNIT word = *next_instr; \
-        opcode = _Py_OPCODE(word); \
-        if (opcode == op) { \
-            oparg = _Py_OPARG(word); \
-            next_instr++; \
-            goto PREDICT_ID(op); \
-        } \
-    } while(0)
-#endif
-#define PREDICTED(op)           PREDICT_ID(op):
-
-
-/* Stack manipulation macros */
-
-/* The stack can grow at most MAXINT deep, as co_nlocals and
-   co_stacksize are ints. */
-#define STACK_LEVEL()     ((int)(stack_pointer - f->f_valuestack))
-#define EMPTY()           (STACK_LEVEL() == 0)
-#define TOP()             (stack_pointer[-1])
-#define SECOND()          (stack_pointer[-2])
-#define THIRD()           (stack_pointer[-3])
-#define FOURTH()          (stack_pointer[-4])
-#define PEEK(n)           (stack_pointer[-(n)])
-#define SET_TOP(v)        (stack_pointer[-1] = (v))
-#define SET_SECOND(v)     (stack_pointer[-2] = (v))
-#define SET_THIRD(v)      (stack_pointer[-3] = (v))
-#define SET_FOURTH(v)     (stack_pointer[-4] = (v))
-#define BASIC_STACKADJ(n) (stack_pointer += n)
-#define BASIC_PUSH(v)     (*stack_pointer++ = (v))
-#define BASIC_POP()       (*--stack_pointer)
-
-#ifdef LLTRACE
-#define PUSH(v)         { (void)(BASIC_PUSH(v), \
-                          lltrace && Cix_prtrace(tstate, TOP(), "push")); \
-                          assert(STACK_LEVEL() <= co->co_stacksize); }
-#define POP()           ((void)(lltrace && Cix_prtrace(tstate, TOP(), "pop")), \
-                         BASIC_POP())
-#define STACK_GROW(n)   do { \
-                          assert(n >= 0); \
-                          (void)(BASIC_STACKADJ(n), \
-                          lltrace && Cix_prtrace(tstate, TOP(), "stackadj")); \
-                          assert(STACK_LEVEL() <= co->co_stacksize); \
-                        } while (0)
-#define STACK_SHRINK(n) do { \
-                            assert(n >= 0); \
-                            (void)(lltrace && Cix_prtrace(tstate, TOP(), "stackadj")); \
-                            (void)(BASIC_STACKADJ(-n)); \
-                            assert(STACK_LEVEL() <= co->co_stacksize); \
-                        } while (0)
-#define EXT_POP(STACK_POINTER) ((void)(lltrace && \
-                                Cix_prtrace(tstate, (STACK_POINTER)[-1], "ext_pop")), \
-                                *--(STACK_POINTER))
-#else
-#define PUSH(v)                BASIC_PUSH(v)
-#define POP()                  BASIC_POP()
-#define STACK_GROW(n)          BASIC_STACKADJ(n)
-#define STACK_SHRINK(n)        BASIC_STACKADJ(-n)
-#define EXT_POP(STACK_POINTER) (*--(STACK_POINTER))
-#endif
-
-/* Local variable macros */
-
-#define GETLOCAL(i)     (fastlocals[i])
-
-/* The SETLOCAL() macro must not DECREF the local variable in-place and
-   then store the new value; it must copy the old value to a temporary
-   value, then store the new value, and then DECREF the temporary value.
-   This is because it is possible that during the DECREF the frame is
-   accessed by other code (e.g. a __del__ method or gc.collect()) and the
-   variable would be pointing to already-freed memory. */
-#define SETLOCAL(i, value)      do { PyObject *tmp = GETLOCAL(i); \
-                                     GETLOCAL(i) = value; \
-                                     Py_XDECREF(tmp); } while (0)
-
-
-#define UNWIND_BLOCK(b) \
-    while (STACK_LEVEL() > (b)->b_level) { \
-        PyObject *v = POP(); \
-        Py_XDECREF(v); \
-    }
-
-#define UNWIND_EXCEPT_HANDLER(b) \
-    do { \
-        PyObject *type, *value, *traceback; \
-        _PyErr_StackItem *exc_info; \
-        assert(STACK_LEVEL() >= (b)->b_level + 3); \
-        while (STACK_LEVEL() > (b)->b_level + 3) { \
-            value = POP(); \
-            Py_XDECREF(value); \
-        } \
-        exc_info = tstate->exc_info; \
-        type = exc_info->exc_type; \
-        value = exc_info->exc_value; \
-        traceback = exc_info->exc_traceback; \
-        exc_info->exc_type = POP(); \
-        exc_info->exc_value = POP(); \
-        exc_info->exc_traceback = POP(); \
-        Py_XDECREF(type); \
-        Py_XDECREF(value); \
-        Py_XDECREF(traceback); \
-    } while(0)
-
-
-extern PyObject * Ci_Super_Lookup(PyTypeObject *type,
-                                  PyObject *obj,
-                                  PyObject *name,
-                                  PyObject *super_instance,
-                                  int *meth_found);
 
 #define PYSHADOW_INIT_THRESHOLD 50
 
@@ -407,33 +107,6 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 
 int _PyEval_ShadowByteCodeEnabled = 1;
 PyAPI_DATA(int) Py_LazyImportsFlag;
-
-#define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
-#define DISPATCH_EAGER_CORO_RESULT(r, X)                                    \
-        assert(Ci_PyWaitHandle_CheckExact(r));                                \
-        PyObject *coro_or_result = ((Ci_PyWaitHandleObject*)r)->wh_coro_or_result; \
-        X(coro_or_result);                                                  \
-        assert(_Py_OPCODE(*next_instr) == GET_AWAITABLE);                   \
-        assert(_Py_OPCODE(*(next_instr + 1)) == LOAD_CONST);                \
-        if (((Ci_PyWaitHandleObject*)r)->wh_waiter) {                          \
-            f->f_state = FRAME_SUSPENDED;                                   \
-            if (f->f_gen != NULL && (co->co_flags & CO_COROUTINE)) {        \
-                _PyAwaitable_SetAwaiter(coro_or_result, f->f_gen);          \
-            }                                                               \
-            f->f_stackdepth = (int)(stack_pointer - f->f_valuestack);         \
-            retval = ((Ci_PyWaitHandleObject*)r)->wh_waiter;                   \
-            Ci_PyWaitHandle_Release(r);                                       \
-            assert(f->f_lasti > 0);                                            \
-            f->f_lasti = INSTR_OFFSET() + 1;                                                    \
-            goto exiting;                                             \
-        }                                                                   \
-        else {                                                              \
-            Ci_PyWaitHandle_Release(r);                                       \
-            f->f_state = FRAME_EXECUTING;                                     \
-            assert(_Py_OPCODE(*(next_instr + 2)) == YIELD_FROM);            \
-            next_instr += 3;                                                \
-            DISPATCH();                                                     \
-        }
 
 static inline int8_t
 unbox_primitive_bool_and_decref(PyObject *x)
@@ -689,7 +362,7 @@ Ci_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
                an argument which depends on the situation.
                The global trace function is also called
                whenever an exception is detected. */
-            if (Cix_call_trace_protected(tstate->c_tracefunc,
+            if (call_trace_protected(tstate->c_tracefunc,
                                      tstate->c_traceobj,
                                      tstate, f, &trace_info,
                                      PyTrace_CALL, Py_None)) {
@@ -700,7 +373,7 @@ Ci_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
         if (tstate->c_profilefunc != NULL) {
             /* Similar for c_profilefunc, except it needn't
                return itself and isn't called for "line" events */
-            if (Cix_call_trace_protected(tstate->c_profilefunc,
+            if (call_trace_protected(tstate->c_profilefunc,
                                      tstate->c_profileobj,
                                      tstate, f, &trace_info,
                                      PyTrace_CALL, Py_None)) {
@@ -711,7 +384,7 @@ Ci_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
     }
 
     if (PyDTrace_FUNCTION_ENTRY_ENABLED())
-        Cix_dtrace_function_entry(f);
+        dtrace_function_entry(f);
 
     /* facebook begin t39538061 */
     /* Initialize the inline cache after the code object is "hot enough" */
@@ -878,7 +551,7 @@ main_loop:
         }
 
         if (PyDTrace_LINE_ENABLED())
-            Cix_maybe_dtrace_line(f, &trace_info, instr_prev);
+            maybe_dtrace_line(f, &trace_info, instr_prev);
 
         /* line-by-line tracing support */
 
@@ -889,7 +562,7 @@ main_loop:
                for expository comments */
             f->f_stackdepth = (int)(stack_pointer - f->f_valuestack);
 
-            err = Cix_maybe_call_line_trace(tstate->c_tracefunc,
+            err = maybe_call_line_trace(tstate->c_tracefunc,
                                         tstate->c_traceobj,
                                         tstate, f,
                                         &trace_info, instr_prev);
@@ -951,7 +624,7 @@ main_loop:
         case TARGET(LOAD_FAST): {
             PyObject *value = GETLOCAL(oparg);
             if (value == NULL) {
-                Cix_format_exc_check_arg(tstate, PyExc_UnboundLocalError,
+                format_exc_check_arg(tstate, PyExc_UnboundLocalError,
                                      UNBOUNDLOCAL_ERROR_MSG,
                                      PyTuple_GetItem(co->co_varnames, oparg));
                 goto error;
@@ -1170,7 +843,7 @@ main_loop:
                speedup on microbenchmarks. */
             if (PyUnicode_CheckExact(left) &&
                      PyUnicode_CheckExact(right)) {
-                sum = Cix_unicode_concatenate(tstate, left, right, f, next_instr);
+                sum = unicode_concatenate(tstate, left, right, f, next_instr);
                 /* unicode_concatenate consumed the ref to left */
             }
             else {
@@ -1383,7 +1056,7 @@ main_loop:
             PyObject *left = TOP();
             PyObject *sum;
             if (PyUnicode_CheckExact(left) && PyUnicode_CheckExact(right)) {
-                sum = Cix_unicode_concatenate(tstate, left, right, f, next_instr);
+                sum = unicode_concatenate(tstate, left, right, f, next_instr);
                 /* unicode_concatenate consumed the ref to left */
             }
             else {
@@ -1528,7 +1201,7 @@ main_loop:
                 exc = POP(); /* exc */
                 /* fall through */
             case 0:
-                if (Cix_do_raise(tstate, exc, cause)) {
+                if (do_raise(tstate, exc, cause)) {
                     goto exception_unwind;
                 }
                 break;
@@ -1580,7 +1253,7 @@ main_loop:
                 if ((next_instr - first_instr) > 2) {
                     opcode_at_minus_3 = _Py_OPCODE(next_instr[-3]);
                 }
-                Cix_format_awaitable_error(tstate, Py_TYPE(iterable),
+                format_awaitable_error(tstate, Py_TYPE(iterable),
                                        opcode_at_minus_3,
                                        _Py_OPCODE(next_instr[-2]));
             }
@@ -1631,7 +1304,7 @@ main_loop:
                 if (retval == NULL) {
                     if (tstate->c_tracefunc != NULL
                             && _PyErr_ExceptionMatches(tstate, PyExc_StopIteration))
-                        Cix_call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f, &trace_info);
+                        call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f, &trace_info);
                     if (_PyGen_FetchStopIterationValue(&retval) == 0) {
                         gen_status = PYGEN_RETURN;
                     }
@@ -1824,7 +1497,7 @@ main_loop:
             }
             err = PyObject_DelItem(ns, name);
             if (err != 0) {
-                Cix_format_exc_check_arg(tstate, PyExc_NameError,
+                format_exc_check_arg(tstate, PyExc_NameError,
                                      NAME_ERROR_MSG,
                                      name);
                 goto error;
@@ -1851,7 +1524,7 @@ main_loop:
                     Py_INCREF(item);
                     PUSH(item);
                 }
-            } else if (Cix_unpack_iterable(tstate, seq, oparg, -1,
+            } else if (unpack_iterable(tstate, seq, oparg, -1,
                                        stack_pointer + oparg)) {
                 STACK_GROW(oparg);
             } else {
@@ -1867,7 +1540,7 @@ main_loop:
             int totalargs = 1 + (oparg & 0xFF) + (oparg >> 8);
             PyObject *seq = POP();
 
-            if (Cix_unpack_iterable(tstate, seq, oparg & 0xFF, oparg >> 8,
+            if (unpack_iterable(tstate, seq, oparg & 0xFF, oparg >> 8,
                                 stack_pointer + totalargs)) {
                 stack_pointer += totalargs;
             } else {
@@ -1932,7 +1605,7 @@ main_loop:
             err = PyDict_DelItem(f->f_globals, name);
             if (err != 0) {
                 if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
-                    Cix_format_exc_check_arg(tstate, PyExc_NameError,
+                    format_exc_check_arg(tstate, PyExc_NameError,
                                          NAME_ERROR_MSG, name);
                 }
                 goto error;
@@ -1979,7 +1652,7 @@ main_loop:
                         v = PyDict_GetItemWithError(f->f_builtins, name);
                         if (v == NULL) {
                             if (!_PyErr_Occurred(tstate)) {
-                                Cix_format_exc_check_arg(
+                                format_exc_check_arg(
                                         tstate, PyExc_NameError,
                                         NAME_ERROR_MSG, name);
                             }
@@ -1991,7 +1664,7 @@ main_loop:
                         v = PyObject_GetItem(f->f_builtins, name);
                         if (v == NULL) {
                             if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
-                                Cix_format_exc_check_arg(
+                                format_exc_check_arg(
                                             tstate, PyExc_NameError,
                                             NAME_ERROR_MSG, name);
                             }
@@ -2017,7 +1690,7 @@ main_loop:
                     if (!_PyErr_Occurred(tstate)) {
                         /* _PyDict_LoadGlobal() returns NULL without raising
                          * an exception if the key doesn't exist */
-                        Cix_format_exc_check_arg(tstate, PyExc_NameError,
+                        format_exc_check_arg(tstate, PyExc_NameError,
                                              NAME_ERROR_MSG, name);
                     }
                     goto error;
@@ -2050,7 +1723,7 @@ main_loop:
                     v = PyObject_GetItem(f->f_builtins, name);
                     if (v == NULL) {
                         if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
-                            Cix_format_exc_check_arg(
+                            format_exc_check_arg(
                                         tstate, PyExc_NameError,
                                         NAME_ERROR_MSG, name);
                         }
@@ -2078,7 +1751,7 @@ main_loop:
                 Py_DECREF(oldobj);
                 DISPATCH();
             }
-            Cix_format_exc_unbound(tstate, co, oparg);
+            format_exc_unbound(tstate, co, oparg);
             goto error;
         }
 
@@ -2119,7 +1792,7 @@ main_loop:
                 PyObject *cell = freevars[oparg];
                 value = PyCell_GET(cell);
                 if (value == NULL) {
-                    Cix_format_exc_unbound(tstate, co, oparg);
+                    format_exc_unbound(tstate, co, oparg);
                     goto error;
                 }
                 Py_INCREF(value);
@@ -2132,7 +1805,7 @@ main_loop:
             PyObject *cell = freevars[oparg];
             PyObject *value = PyCell_GET(cell);
             if (value == NULL) {
-                Cix_format_exc_unbound(tstate, co, oparg);
+                format_exc_unbound(tstate, co, oparg);
                 goto error;
             }
             Py_INCREF(value);
@@ -2397,7 +2070,7 @@ main_loop:
             PyObject *dict = PEEK(oparg);
 
             if (_PyDict_MergeEx(dict, update, 2) < 0) {
-                Cix_format_kwargs_error(tstate, PEEK(2 + oparg), update);
+                format_kwargs_error(tstate, PEEK(2 + oparg), update);
                 Py_DECREF(update);
                 goto error;
             }
@@ -2588,7 +2261,7 @@ main_loop:
                 Py_DECREF(from);
                 goto error;
             }
-            err = Cix_import_all_from(tstate, locals, from);
+            err = import_all_from(tstate, locals, from);
             Py_DECREF(from);
             if (err != 0)
                 goto error;
@@ -2747,7 +2420,7 @@ main_loop:
             PyObject *type = TOP();
             PyObject *subject = SECOND();
             assert(PyTuple_CheckExact(names));
-            PyObject *attrs = Cix_match_class(tstate, subject, type, oparg, names);
+            PyObject *attrs = match_class(tstate, subject, type, oparg, names);
             Py_DECREF(names);
             if (attrs) {
                 // Success!
@@ -2786,7 +2459,7 @@ main_loop:
             // Otherwise, PUSH(None) and PUSH(False).
             PyObject *keys = TOP();
             PyObject *subject = SECOND();
-            PyObject *values_or_none = Cix_match_keys(tstate, subject, keys);
+            PyObject *values_or_none = match_keys(tstate, subject, keys);
             if (values_or_none == NULL) {
                 goto error;
             }
@@ -2886,7 +2559,7 @@ main_loop:
                     goto error;
                 }
                 else if (tstate->c_tracefunc != NULL) {
-                    Cix_call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f, &trace_info);
+                    call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj, tstate, f, &trace_info);
                 }
                 _PyErr_Clear(tstate);
             }
@@ -2907,12 +2580,12 @@ main_loop:
             _Py_IDENTIFIER(__aenter__);
             _Py_IDENTIFIER(__aexit__);
             PyObject *mgr = TOP();
-            PyObject *enter = Cix_special_lookup(tstate, mgr, &PyId___aenter__);
+            PyObject *enter = special_lookup(tstate, mgr, &PyId___aenter__);
             PyObject *res;
             if (enter == NULL) {
                 goto error;
             }
-            PyObject *exit = Cix_special_lookup(tstate, mgr, &PyId___aexit__);
+            PyObject *exit = special_lookup(tstate, mgr, &PyId___aexit__);
             if (exit == NULL) {
                 Py_DECREF(enter);
                 goto error;
@@ -2942,12 +2615,12 @@ main_loop:
             _Py_IDENTIFIER(__enter__);
             _Py_IDENTIFIER(__exit__);
             PyObject *mgr = TOP();
-            PyObject *enter = Cix_special_lookup(tstate, mgr, &PyId___enter__);
+            PyObject *enter = special_lookup(tstate, mgr, &PyId___enter__);
             PyObject *res;
             if (enter == NULL) {
                 goto error;
             }
-            PyObject *exit = Cix_special_lookup(tstate, mgr, &PyId___exit__);
+            PyObject *exit = special_lookup(tstate, mgr, &PyId___exit__);
             if (exit == NULL) {
                 Py_DECREF(enter);
                 goto error;
@@ -3058,7 +2731,7 @@ main_loop:
                    `callable` will be POPed by call_function.
                    NULL will will be POPed manually later.
                 */
-                res = Cix_call_function(tstate,
+                res = call_function(tstate,
                     &trace_info,
                     &sp,
                     oparg,
@@ -3080,7 +2753,7 @@ main_loop:
                   We'll be passing `oparg + 1` to call_function, to
                   make it accept the `self` as a first argument.
                 */
-                res = Cix_call_function(tstate,
+                res = call_function(tstate,
                                     &trace_info,
                                     &sp,
                                     oparg + 1,
@@ -3107,7 +2780,7 @@ main_loop:
             PyObject **sp, *res;
             sp = stack_pointer;
             int awaited = IS_AWAITED();
-            res = Cix_call_function(tstate,
+            res = call_function(tstate,
                                 &trace_info,
                                 &sp,
                                 oparg,
@@ -3137,7 +2810,7 @@ main_loop:
             /* We assume without checking that names contains only strings */
             sp = stack_pointer;
             int awaited = IS_AWAITED();
-            res = Cix_call_function(tstate,
+            res = call_function(tstate,
                                 &trace_info,
                                 &sp,
                                 oparg,
@@ -3171,7 +2844,7 @@ main_loop:
                         goto error;
                     if (_PyDict_MergeEx(d, kwargs, 2) < 0) {
                         Py_DECREF(d);
-                        Cix_format_kwargs_error(tstate, SECOND(), kwargs);
+                        format_kwargs_error(tstate, SECOND(), kwargs);
                         Py_DECREF(kwargs);
                         goto error;
                     }
@@ -3183,7 +2856,7 @@ main_loop:
             callargs = POP();
             func = TOP();
             if (!PyTuple_CheckExact(callargs)) {
-                if (Cix_check_args_iterable(tstate, func, callargs) < 0) {
+                if (check_args_iterable(tstate, func, callargs) < 0) {
                     Py_DECREF(callargs);
                     goto error;
                 }
@@ -3194,7 +2867,7 @@ main_loop:
             }
             assert(PyTuple_CheckExact(callargs));
             int awaited = IS_AWAITED();
-            result = Cix_do_call_core(tstate, &trace_info, func, callargs, kwargs, awaited);
+            result = do_call_core(tstate, &trace_info, func, callargs, kwargs, awaited);
             Py_DECREF(func);
             Py_DECREF(callargs);
             Py_XDECREF(kwargs);
@@ -3348,7 +3021,7 @@ main_loop:
                     if (!PyErr_Occurred()) {
                         /* _PyDict_LoadGlobal() returns NULL without raising
                          * an exception if the key doesn't exist */
-                        Cix_format_exc_check_arg(
+                        format_exc_check_arg(
                             tstate, PyExc_NameError, NAME_ERROR_MSG, name);
                     }
                     goto error;
@@ -4836,7 +4509,7 @@ main_loop:
             PyObject *global_super = POP();
 
             int meth_found = 0;
-            PyObject *attr = Cix_Ci_SuperLookupMethodOrAttr(
+            PyObject *attr = super_lookup_method_or_attr(
                 tstate, global_super, (PyTypeObject *)type, self, name, call_no_args, &meth_found);
             Py_DECREF(type);
             Py_DECREF(global_super);
@@ -4871,7 +4544,7 @@ main_loop:
             PyObject *self = POP();
             PyObject *type = POP();
             PyObject *global_super = POP();
-            PyObject *attr = Cix_Ci_SuperLookupMethodOrAttr(
+            PyObject *attr = super_lookup_method_or_attr(
                 tstate, global_super, (PyTypeObject *)type, self, name, call_no_args, NULL);
             Py_DECREF(type);
             Py_DECREF(self);
@@ -5216,7 +4889,7 @@ error:
             /* Make sure state is set to FRAME_EXECUTING for tracing */
             assert(f->f_state == FRAME_EXECUTING);
             f->f_state = FRAME_UNWINDING;
-            Cix_call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj,
+            call_exc_trace(tstate->c_tracefunc, tstate->c_traceobj,
                            tstate, f, &trace_info);
         }
 exception_unwind:
@@ -5291,13 +4964,13 @@ exception_unwind:
 exiting:
     if (trace_info.cframe.use_tracing) {
         if (tstate->c_tracefunc) {
-            if (Cix_call_trace_protected(tstate->c_tracefunc, tstate->c_traceobj,
+            if (call_trace_protected(tstate->c_tracefunc, tstate->c_traceobj,
                                      tstate, f, &trace_info, PyTrace_RETURN, retval)) {
                 Py_CLEAR(retval);
             }
         }
         if (tstate->c_profilefunc) {
-            if (Cix_call_trace_protected(tstate->c_profilefunc, tstate->c_profileobj,
+            if (call_trace_protected(tstate->c_profilefunc, tstate->c_profileobj,
                                      tstate, f, &trace_info, PyTrace_RETURN, retval)) {
                 Py_CLEAR(retval);
             }
@@ -5319,7 +4992,7 @@ exit_eval_frame:
     }
 
     if (PyDTrace_FUNCTION_RETURN_ENABLED())
-        Cix_dtrace_function_return(f);
+        dtrace_function_return(f);
     _Py_LeaveRecursiveCall(tstate);
     tstate->frame = f->f_back;
     co->co_mutable->curcalls--;
@@ -5513,10 +5186,10 @@ _CiStaticEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
 
     const int co_flags = ((PyCodeObject *)con->fc_code)->co_flags;
     if (awaited && (co_flags & CO_COROUTINE)) {
-        return Cix_PyEval_EvalEagerCoro(tstate, f, f->f_code->co_name, con->fc_qualname);
+        return _PyEval_EvalEagerCoro(tstate, f, f->f_code->co_name, con->fc_qualname);
     }
     if (co_flags & (CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR)) {
-        return Cix_make_coro(con, f);
+        return make_coro(con, f);
     }
     PyObject *retval = _PyEval_EvalFrame(tstate, f, 0);
 

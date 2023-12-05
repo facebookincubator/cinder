@@ -813,7 +813,7 @@ JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
     PyObject* name,
     bool no_args_in_super_call) {
   int meth_found = 0;
-  PyObject* result = Ci_SuperLookupMethodOrAttr(
+  PyObject* result = Cix_SuperLookupMethodOrAttr(
       PyThreadState_GET(),
       global_super,
       (PyTypeObject*)type,
@@ -847,7 +847,7 @@ PyObject* JITRT_GetAttrFromSuper(
     PyObject* self,
     PyObject* name,
     bool no_args_in_super_call) {
-  return Ci_SuperLookupMethodOrAttr(
+  return Cix_SuperLookupMethodOrAttr(
       PyThreadState_GET(),
       global_super,
       (PyTypeObject*)type,

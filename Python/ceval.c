@@ -31,7 +31,9 @@
 #include "code.h"
 #include "dictobject.h"
 #include "frameobject.h"
+#ifndef CINDERX_INTERPRETER
 #include "opcode.h"
+#endif
 #include "pydtrace.h"
 #include "setobject.h"
 #include "structmember.h" // struct PyMemberDef, T_OFFSET_EX
@@ -105,6 +107,8 @@ static void format_awaitable_error(PyThreadState *, PyTypeObject *, int, int);
     "free variable '%.200s' referenced before assignment" \
     " in enclosing scope"
 
+#ifndef CINDERX_INTERPRETER
+
 /* Dynamic execution profile */
 #ifdef DYNAMIC_EXECUTION_PROFILE
 #ifdef DXPAIRS
@@ -159,6 +163,7 @@ is_tstate_valid(PyThreadState *tstate)
 }
 #endif
 
+#endif // !CINDERX_INTERPRETER
 
 /* This can set eval_breaker to 0 even though gil_drop_request became
    1.  We believe this is all right because the eval loop will release
@@ -261,6 +266,7 @@ UNSIGNAL_ASYNC_EXC(PyInterpreterState *interp)
     COMPUTE_EVAL_BREAKER(interp, ceval, ceval2);
 }
 
+#ifndef CINDERX_INTERPRETER
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -304,6 +310,9 @@ PyEval_ThreadsInitialized(void)
 }
 #endif
 
+#endif // !CINDERX_INTERPRETER
+
+
 #define IS_AWAITED() (_Py_OPCODE(*next_instr) == GET_AWAITABLE)
 #define DISPATCH_EAGER_CORO_RESULT(r, X)                                    \
         assert(Ci_PyWaitHandle_CheckExact(r));                                \
@@ -331,6 +340,7 @@ PyEval_ThreadsInitialized(void)
             DISPATCH();                                                     \
         }
 
+#ifndef CINDERX_INTERPRETER
 PyStatus
 _PyEval_InitGIL(PyThreadState *tstate)
 {
@@ -921,6 +931,7 @@ _Py_CheckRecursiveCall(PyThreadState *tstate, const char *where)
     return 0;
 }
 
+#endif // !CINDERX_INTERPRETER
 
 // PEP 634: Structural Pattern Matching
 
@@ -1141,6 +1152,8 @@ fail:
 static int do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 static int unpack_iterable(PyThreadState *, PyObject *, int, int, PyObject **);
 
+#ifndef CINDERX_INTERPRETER
+
 PyObject *
 PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
 {
@@ -1182,9 +1195,10 @@ PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)
     PyThreadState *tstate = _PyThreadState_GET();
     return _PyEval_EvalFrame(tstate, f, throwflag);
 }
+#endif // !CINDERX_INTERPRETER
 
 // steals the reference to frame
-PyObject *
+static PyObject *
 _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, PyObject *qualname)
 {
 #define RELEASE_EXC_INFO(exc_info)                                            \
@@ -1245,6 +1259,7 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
     return Ci_PyWaitHandle_New(retval, NULL);
 }
 
+#ifndef CINDERX_INTERPRETER
 /* Handle signals, pending calls, GIL drop request
    and asynchronous exception */
 int
@@ -1312,6 +1327,7 @@ eval_frame_handle_pending(PyThreadState *tstate)
 
     return 0;
 }
+#endif
 
 /* Computed GOTOs, or
        the-optimization-commonly-but-improperly-known-as-"threaded code"
@@ -1571,8 +1587,8 @@ extern PyObject * Ci_Super_Lookup(PyTypeObject *type,
                                   PyObject *name,
                                   PyObject *super_instance,
                                   int *meth_found);
-inline PyObject *
-Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
+static inline PyObject *
+super_lookup_method_or_attr(PyThreadState *tstate,
                            PyObject *global_super,
                            PyTypeObject *type,
                            PyObject *self,
@@ -1607,6 +1623,8 @@ Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
     }
     return Ci_Super_Lookup(type, self, name, NULL, meth_found);
 }
+
+#ifndef CINDERX_INTERPRETER
 
 PyObject* _Py_HOT_FUNCTION
 _PyEval_EvalFrameDefault(PyThreadState *tstate, PyFrameObject *f, int throwflag)
@@ -4324,7 +4342,7 @@ main_loop:
             PyObject *global_super = POP();
 
             int meth_found = 0;
-            PyObject *attr = Ci_SuperLookupMethodOrAttr(
+            PyObject *attr = super_lookup_method_or_attr(
                 tstate, global_super, (PyTypeObject *)type, self, name, call_no_args, &meth_found);
             Py_DECREF(type);
             Py_DECREF(global_super);
@@ -4359,7 +4377,7 @@ main_loop:
             PyObject *self = POP();
             PyObject *type = POP();
             PyObject *global_super = POP();
-            PyObject *attr = Ci_SuperLookupMethodOrAttr(
+            PyObject *attr = super_lookup_method_or_attr(
                 tstate, global_super, (PyTypeObject *)type, self, name, call_no_args, NULL);
             Py_DECREF(type);
             Py_DECREF(self);
@@ -4980,6 +4998,7 @@ fail: /* Jump here from prelude on failure */
     }
     return NULL;
 }
+#endif // !CINDERX_INTERPRETER
 
 static PyObject *
 make_coro(PyFrameConstructor *con, PyFrameObject *f)
@@ -5010,6 +5029,7 @@ make_coro(PyFrameConstructor *con, PyFrameObject *f)
     return gen;
 }
 
+#ifndef CINDERX_INTERPRETER
 PyObject *
 _PyEval_Vector(PyThreadState *tstate, PyFrameConstructor *con,
                PyObject *locals,
@@ -5119,6 +5139,7 @@ fail:
     Py_DECREF(defaults);
     return res;
 }
+#endif // !CINDERX_INTERPRETER
 
 static PyObject *
 special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id)
@@ -5439,6 +5460,7 @@ call_trace(Py_tracefunc func, PyObject *obj,
     return result;
 }
 
+#ifndef CINDERX_INTERPRETER
 PyObject *
 _PyEval_CallTracing(PyObject *func, PyObject *args)
 {
@@ -5454,6 +5476,7 @@ _PyEval_CallTracing(PyObject *func, PyObject *args)
     tstate->cframe->use_tracing = save_use_tracing;
     return result;
 }
+#endif
 
 /* See Objects/lnotab_notes.txt for a description of how tracing works. */
 static int
@@ -5483,6 +5506,7 @@ maybe_call_line_trace(Py_tracefunc func, PyObject *obj,
     return result;
 }
 
+#ifndef CINDERX_INTERPRETER
 int
 _PyEval_SetProfile(PyThreadState *tstate, Py_tracefunc func, PyObject *arg)
 {
@@ -5762,6 +5786,7 @@ PyEval_GetFuncDesc(PyObject *func)
     else
         return " object";
 }
+#endif // !CINDERX_INTERPRETER
 
 #define C_TRACE(x, call) \
 if (trace_info->cframe.use_tracing && tstate->c_profilefunc) { \
@@ -5919,6 +5944,7 @@ do_call_core(PyThreadState *tstate,
     return PyObject_Call(func, callargs, kwdict);
 }
 
+#ifndef CINDERX_INTERPRETER
 /* Extract a slice index from a PyLong or an object with the
    nb_index slot defined, and store in *pi.
    Silently reduce values larger than PY_SSIZE_T_MAX to PY_SSIZE_T_MAX,
@@ -5966,6 +5992,7 @@ _PyEval_SliceIndexNotNone(PyObject *v, Py_ssize_t *pi)
     *pi = x;
     return 1;
 }
+#endif // !CINDERX_INTERPRETER
 
 static int
 import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
@@ -6266,6 +6293,8 @@ unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
     return res;
 }
 
+#ifndef CINDERX_INTERPRETER
+
 #ifdef DYNAMIC_EXECUTION_PROFILE
 
 static PyObject *
@@ -6323,6 +6352,7 @@ _PyEval_RequestCodeExtraIndex(freefunc free)
     interp->co_extra_freefuncs[new_index] = free;
     return new_index;
 }
+#endif // !CINDERX_INTERPRETER
 
 static void
 dtrace_function_entry(PyFrameObject *f)
@@ -6382,7 +6412,7 @@ maybe_dtrace_line(PyFrameObject *frame,
         }
     }
 }
-
+#ifndef CINDERX_INTERPRETER
 
 /* Implement Py_EnterRecursiveCall() and Py_LeaveRecursiveCall() as functions
    for the limited API. */
@@ -6401,12 +6431,6 @@ void Py_LeaveRecursiveCall(void)
     _Py_LeaveRecursiveCall_inline();
 }
 
-int
-Cix_unpack_iterable(PyThreadState *tstate, PyObject *v,
-        int argcnt, int argcntafter, PyObject **sp) {
-    return unpack_iterable(tstate, v, argcnt, argcntafter, sp);
-}
-
 PyObject*
 Cix_match_class(PyThreadState *tstate, PyObject *subject, PyObject *type,
         Py_ssize_t nargs, PyObject *kwargs) {
@@ -6423,11 +6447,6 @@ Cix_special_lookup(PyThreadState *tstate, PyObject *o, _Py_Identifier *id) {
     return special_lookup(tstate, o, id);
 }
 
-int
-Cix_check_args_iterable(PyThreadState *tstate, PyObject *func, PyObject *vararg) {
-    return check_args_iterable(tstate, func, vararg);
-}
-
 void
 Cix_format_kwargs_error(PyThreadState *tstate, PyObject *func, PyObject *kwargs) {
     format_kwargs_error(tstate, func, kwargs);
@@ -6438,27 +6457,6 @@ Cix_format_awaitable_error(PyThreadState *tstate, PyTypeObject *type, int prevpr
     format_awaitable_error(tstate, type, prevprevopcode, prevopcode);
 }
 
-PyObject *
-Cix_call_function(PyThreadState *tstate, PyTraceInfo *trace_info, PyObject ***pp_stack,
-        Py_ssize_t oparg, PyObject *kwnames, size_t flags) {
-    return call_function(tstate, trace_info, pp_stack, oparg, kwnames, flags);
-}
-
-PyObject *
-Cix_do_call_core(PyThreadState *tstate,
-             PyTraceInfo *trace_info,
-             PyObject *func,
-             PyObject *callargs,
-             PyObject *kwdict,
-             int awaited) {
-    return do_call_core(tstate, trace_info, func, callargs, kwdict, awaited);
-}
-
-PyObject *
-Cix_PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, PyObject *qualname) {
-    return _PyEval_EvalEagerCoro(tstate, f, name, qualname);
-}
-
 PyFrameObject *
 Cix_PyEval_MakeFrameVector(PyThreadState *tstate,
            PyFrameConstructor *con, PyObject *locals,
@@ -6467,81 +6465,14 @@ Cix_PyEval_MakeFrameVector(PyThreadState *tstate,
     return _PyEval_MakeFrameVector(tstate, con, locals, args, argcount, kwnames);
 }
 
-PyObject *
-Cix_make_coro(PyFrameConstructor *con, PyFrameObject *f) {
-    return make_coro(con, f);
-}
-
-#ifdef LLTRACE
-int
-Cix_prtrace(PyThreadState *tstate, PyObject *v, const char *str) {
-    return prtrace(tstate, v, str);
-}
-#endif
-
-void Cix_call_exc_trace(Py_tracefunc func, PyObject *self,
-               PyThreadState *tstate,
-               PyFrameObject *f,
-               PyTraceInfo *trace_info)
-{
-    call_exc_trace(func, self, tstate, f, trace_info);
-}
-
-int
-Cix_call_trace_protected(Py_tracefunc func, PyObject *obj,
-                     PyThreadState *tstate, PyFrameObject *frame,
-                     PyTraceInfo *trace_info,
-                     int what, PyObject *arg) {
-    return call_trace_protected(func, obj, tstate, frame, trace_info, what, arg);
-}
-
-int
-Cix_maybe_call_line_trace(Py_tracefunc func, PyObject *obj,
-                      PyThreadState *tstate, PyFrameObject *frame,
-                      PyTraceInfo *trace_info, int instr_prev) {
-    return maybe_call_line_trace(func, obj, tstate, frame, trace_info, instr_prev);
-}
-
-int
-Cix_import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v) {
-    return import_all_from(tstate, locals, v);
-}
-
-void
-Cix_format_exc_unbound(PyThreadState *tstate, PyCodeObject *co, int oparg) {
-    format_exc_unbound(tstate, co, oparg);
-}
-
 void
 Cix_format_exc_check_arg(PyThreadState *tstate, PyObject *exc,
                      const char *format_str, PyObject *obj) {
     format_exc_check_arg(tstate, exc, format_str, obj);
 }
 
-
 PyObject *
-Cix_unicode_concatenate(PyThreadState *tstate, PyObject *v, PyObject *w,
-                    PyFrameObject *f, const _Py_CODEUNIT *next_instr) {
-    return unicode_concatenate(tstate, v, w, f, next_instr);
-}
-
-void
-Cix_dtrace_function_entry(PyFrameObject *f) {
-    dtrace_function_entry(f);
-}
-
-void Cix_dtrace_function_return(PyFrameObject *f) {
-    dtrace_function_return(f);
-}
-
-void
-Cix_maybe_dtrace_line(PyFrameObject *frame,
-                  PyTraceInfo *trace_info, int instr_prev) {
-    maybe_dtrace_line(frame, trace_info, instr_prev);
-}
-
-PyObject *
-Cix_Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
+Cix_SuperLookupMethodOrAttr(PyThreadState *tstate,
                            PyObject *global_super,
                            PyTypeObject *type,
                            PyObject *self,
@@ -6549,7 +6480,7 @@ Cix_Ci_SuperLookupMethodOrAttr(PyThreadState *tstate,
                            int call_no_args,
                            int *meth_found)
 {
-    return Ci_SuperLookupMethodOrAttr(
+    return super_lookup_method_or_attr(
         tstate, global_super, type, self, name, call_no_args, meth_found);
 }
 
@@ -6562,3 +6493,5 @@ int
 Cix_eval_frame_handle_pending(PyThreadState *tstate) {
     return eval_frame_handle_pending(tstate);
 }
+
+#endif // !CINDERX_INTERPRETER
