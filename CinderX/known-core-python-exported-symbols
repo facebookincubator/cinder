@@ -6,7 +6,6 @@ cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD
 CiAsyncGen_New_NoFrame
 Ci_Builtin_Next_Core
 CiCoro_New_NoFrame
-Ci_Dict_SetItemInternal
 Ci_dict_subscript
 CiGen_ClearFreeList
 CiGen_close_yf

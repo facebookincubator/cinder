@@ -41,11 +41,11 @@ CiAPI_DATA(PyTypeObject) Ci_CheckedDictRevIterItem_Type;
 CiAPI_DATA(PyTypeObject) Ci_CheckedDictRevIterValue_Type;
 
 inline int
-Ci_DictOrChecked_SetItemInternal(PyObject *op, PyObject *key, PyObject *value) {
+Ci_DictOrChecked_SetItem(PyObject *op, PyObject *key, PyObject *value) {
     if (PyDict_Check(op)) {
-        return Ci_Dict_SetItemInternal(op, key, value);
+        return PyDict_SetItem(op, key, value);
     } else if (Ci_CheckedDict_Check(op)) {
-        return Ci_CheckedDict_SetItemInternal(op, key, value);
+        return Ci_CheckedDict_SetItem(op, key, value);
     } else {
         PyErr_BadInternalCall();
         return -1;
@@ -1104,12 +1104,16 @@ dictresize(PyDictObject *mp, Py_ssize_t newsize)
     return 0;
 }
 
-inline int Ci_CheckedDict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value)
+inline int Ci_CheckedDict_SetItem(PyObject *op, PyObject *key, PyObject *value)
 {
-    assert(key);
-    assert(value);
     PyDictObject *mp;
     Py_hash_t hash;
+    if (!Ci_CheckedDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    assert(key);
+    assert(value);
     mp = (PyDictObject *)op;
     if (!PyUnicode_CheckExact(key) ||
         (hash = ((PyASCIIObject *) key)->hash) == -1)
@@ -1636,7 +1640,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 Py_DECREF(key);
                 return -1;
             }
-            status = Ci_Dict_SetItemInternal(a, key, value);
+            status = Ci_CheckedDict_SetItem(a, key, value);
             Py_DECREF(key);
             Py_DECREF(value);
             if (status < 0) {

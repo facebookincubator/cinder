@@ -2280,7 +2280,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const SetDictItem*>(&i);
         bbb.AppendCall(
             instr->GetOutput(),
-            Ci_DictOrChecked_SetItemInternal,
+            Ci_DictOrChecked_SetItem,
             instr->GetOperand(0),
             instr->GetOperand(1),
             instr->GetOperand(2));

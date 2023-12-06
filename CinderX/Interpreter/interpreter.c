@@ -1952,7 +1952,7 @@ main_loop:
             if (map == NULL)
                 goto error;
 
-            Ci_BUILD_DICT(oparg, Ci_Dict_SetItemInternal);
+            Ci_BUILD_DICT(oparg, Ci_DictOrChecked_SetItem);
 
             DISPATCH();
         }
@@ -2087,7 +2087,7 @@ main_loop:
             STACK_SHRINK(2);
             map = PEEK(oparg);                      /* dict */
             assert(PyDict_CheckExact(map) || Ci_CheckedDict_Check(map));
-            err = Ci_DictOrChecked_SetItemInternal(map, key, value);  /* map[key] = value */
+            err = Ci_DictOrChecked_SetItem(map, key, value);  /* map[key] = value */
             Py_DECREF(value);
             Py_DECREF(key);
             if (err != 0)
@@ -4305,7 +4305,7 @@ main_loop:
             }
             Py_DECREF(type);
 
-            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItemInternal);
+            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItem);
             DISPATCH();
         }
 
@@ -4728,7 +4728,7 @@ main_loop:
                 goto error;
             }
 
-            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItemInternal);
+            Ci_BUILD_DICT(map_size, Ci_CheckedDict_SetItem);
             DISPATCH();
         }
 

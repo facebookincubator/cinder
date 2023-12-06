@@ -32,7 +32,6 @@ CiAPI_FUNC(Py_hash_t) Ci_TupleHashItems(PyObject *const *items, Py_ssize_t len);
  * Returns 0 on success or -1 on error.
  */
 CiAPI_FUNC(int) Ci_PyDict_ForceCombined(PyObject *);
-CiAPI_FUNC(int) Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value);
 
 CiAPI_FUNC(PyObject **) Ci_PyObject_GetDictPtrAtOffset(PyObject *obj, Py_ssize_t dictoffset);
 

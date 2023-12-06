@@ -1907,13 +1907,23 @@ _PyDict_LoadGlobal(PyDictObject *globals, PyDictObject *builtins, PyObject *key)
     return value;
 }
 
-/* Cinder-exposed internal setitem that elides type checks. */
-inline int Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value)
+/* CAUTION: PyDict_SetItem() must guarantee that it won't resize the
+ * dictionary if it's merely replacing the value for an existing key.
+ * This means that it's safe to loop over a dictionary with PyDict_Next()
+ * and occasionally replace a value -- but you can't insert new keys or
+ * remove them.
+ */
+int
+PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value)
 {
-    assert(key);
-    assert(value);
     PyDictObject *mp;
     Py_hash_t hash;
+    if (!PyDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return -1;
+    }
+    assert(key);
+    assert(value);
     mp = (PyDictObject *)op;
     if (!PyUnicode_CheckExact(key) ||
         (hash = ((PyASCIIObject *) key)->hash) == -1)
@@ -1928,22 +1938,6 @@ inline int Ci_Dict_SetItemInternal(PyObject *op, PyObject *key, PyObject *value)
     }
     /* insertdict() handles any resizing that might be necessary */
     return insertdict(mp, key, hash, value);
-}
-
-/* CAUTION: PyDict_SetItem() must guarantee that it won't resize the
- * dictionary if it's merely replacing the value for an existing key.
- * This means that it's safe to loop over a dictionary with PyDict_Next()
- * and occasionally replace a value -- but you can't insert new keys or
- * remove them.
- */
-int
-PyDict_SetItem(PyObject *op, PyObject *key, PyObject *value)
-{
-    if (!PyDict_Check(op)) {
-        PyErr_BadInternalCall();
-        return -1;
-    }
-    return Ci_Dict_SetItemInternal(op, key, value);
 }
 
 
@@ -3164,7 +3158,7 @@ dict_merge(PyObject *a, PyObject *b, int override)
                 Py_DECREF(key);
                 return -1;
             }
-            status = Ci_Dict_SetItemInternal(a, key, value);
+            status = PyDict_SetItem(a, key, value);
             Py_DECREF(key);
             Py_DECREF(value);
             if (status < 0) {
