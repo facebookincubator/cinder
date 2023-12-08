@@ -194,9 +194,10 @@ BorrowedRef<> typeLookupSafe(
       // (before we find the name); it could contain the key we're looking for.
       return nullptr;
     }
-    if (BorrowedRef<> value{PyDict_GetItem(base_ty->tp_dict, name)}) {
+    if (BorrowedRef<> value{PyDict_GetItemWithError(base_ty->tp_dict, name)}) {
       return value;
     }
+    JIT_CHECK(!PyErr_Occurred(), "Thread-unsafe exception during type lookup");
   }
   return nullptr;
 }
