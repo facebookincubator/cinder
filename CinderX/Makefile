@@ -38,8 +38,7 @@ endef
 
 define RUN_TESTCINDERJIT
 	$(call RUN_CINDER_TEST_RUNNER, -X usepycompiler -X jit -X jit-enable-inline-cache-stats-collection $(1))
-	# TODO re-enable when it doesn't crash on exit
-	# $(ASAN_TEST_ENV) $(TESTPYTHON) -X jit $(1) -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 Tests/multithreaded_compile_test.py
+	$(ASAN_TEST_ENV) $(TESTPYTHON) -X jit $(1) -X jit-multithreaded-compile-test -X jit-batch-compile-workers=10 -m test_cinderx.multithreaded_compile_test
 endef
 
 define RUN_TESTCINDERJITAUTO

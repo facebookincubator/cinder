@@ -19,9 +19,9 @@ from cinder import StrictModule
 
 
 def run_static_tests():
-    import test_compiler.test_static as test_static
-    from test_compiler.test_static.common import StaticTestBase
-    from test_compiler.test_static.compile import init_xxclassloader
+    import test_cinderx.test_compiler.test_static as test_static
+    from test_cinderx.test_compiler.test_static.common import StaticTestBase
+    from test_cinderx.test_compiler.test_static.compile import init_xxclassloader
 
     CODE_SAMPLES_IN_MODULE = []
     CODE_SAMPLES_IN_STRICT_MODULE = []
@@ -71,21 +71,28 @@ def run_static_tests():
     unittest.TextTestRunner().run(suite)
 
     print("Regenerate Static Python tests Python code")
+
+    modules_to_clear = set()
     class StaticTestCodeRegenerator(StaticTestBase):
         def __init__(self):
             init_xxclassloader()
 
             for args in CODE_SAMPLES_IN_MODULE:
+                modules_to_clear.add(args[0])
                 self._in_module(*args)
 
             for args in CODE_SAMPLES_IN_STRICT_MODULE:
+                modules_to_clear.add(args[0])
                 self._in_strict_module(*args)
 
             for args in CODE_SAMPLES_RUN:
                 _, d = self._run_code(*args)
                 sys.modules[args[2]] = d
+                modules_to_clear.add(args[2])
 
     StaticTestCodeRegenerator()
+
+    return modules_to_clear
 
 
 def main():
@@ -93,14 +100,17 @@ def main():
 
     # The Cinder JIT tests will generally introduce functions which exercise JIT
     # compilation corner-cases.
-    import test_cinderjit
+    import test_cinderx.test_cinderjit
 
     # The Cinder Static Python tests introduce functions which exercise features
     # of the JIT compiler for Static Python. These tests need to be executed as
     # many functions are created dynamically from strings.
-    run_static_tests()
+    modules_to_clear = run_static_tests()
 
     cinderjit.multithreaded_compile_test()
+
+    for modname in modules_to_clear:
+        del sys.modules[modname]
 
 
 if __name__ == "__main__":
