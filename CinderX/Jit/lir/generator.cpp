@@ -438,7 +438,10 @@ bool LIRGenerator::TranslateSpecializedCall(
     }
   }
 
-  auto func = _PyVectorcall_Function(callee);
+  auto func = [&]() {
+    ThreadedCompileSerialize guard;
+    return _PyVectorcall_Function(callee);
+  }();
   if (func == nullptr ||
       func == reinterpret_cast<vectorcallfunc>(PyEntry_LazyInit)) {
     // Bail if the object doesn't support vectorcall, or if it's a function

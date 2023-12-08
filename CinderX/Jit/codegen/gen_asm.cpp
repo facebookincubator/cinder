@@ -1448,11 +1448,13 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
       "Disassembly for {}\n{}",
       GetFunction()->fullname,
       env_.annotations.disassemble(code_top, codeholder));
-
-  for (auto& x : env_.function_indirections) {
-    Label trampoline = x.second.trampoline;
-    *x.second.indirect = reinterpret_cast<void*>(
-        codeholder.labelOffsetFromBase(trampoline) + codeholder.baseAddress());
+  {
+    ThreadedCompileSerialize guard;
+    for (auto& x : env_.function_indirections) {
+      Label trampoline = x.second.trampoline;
+      *x.second.indirect = reinterpret_cast<void*>(
+          codeholder.labelOffsetFromBase(trampoline) + codeholder.baseAddress());
+    }
   }
 
   const hir::Function* func = GetFunction();
