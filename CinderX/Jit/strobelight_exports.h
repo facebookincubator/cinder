@@ -46,6 +46,13 @@ PyAPI_DATA(int64_t) __strobe__PyShadowFrame_data;
 PyAPI_DATA(int64_t) __strobe__PyShadowFrame_prev;
 PyAPI_DATA(int64_t) __strobe_RuntimeFrameState_py_code;
 PyAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
+PyAPI_DATA(int64_t) __strobe_PyGIL_offset;
+PyAPI_DATA(int64_t) __strobe_PyGIL_last_holder;
+PyAPI_DATA(int64_t) __strobe_PyFrameObject_lasti;
+PyAPI_DATA(int64_t) __strobe_PyCodeObject_firstlineno;
+PyAPI_DATA(int64_t) __strobe_PyCodeObject_linetable;
+PyAPI_DATA(int64_t) __strobe_PyBytesObject_data;
+PyAPI_DATA(int64_t) __strobe_PyVarObject_size;
 
 #ifdef __cplusplus
 }
