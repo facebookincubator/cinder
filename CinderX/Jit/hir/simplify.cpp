@@ -984,11 +984,17 @@ Register* simplifyLoadAttrInstanceReceiver(
   Register* receiver = load_attr->GetOperand(0);
   Type type = receiver->type();
   BorrowedRef<PyTypeObject> py_type{type.runtimePyType()};
-  if (!type.isExact() || py_type == nullptr ||
-      !PyType_HasFeature(py_type, Py_TPFLAGS_READY) ||
-      py_type->tp_getattro != PyObject_GenericGetAttr ||
-      !ensureVersionTag(py_type)) {
-    return nullptr;
+  {
+    // Serialize as we are checking Py_TPFLAGS_READY and other type flags may
+    // be changed by ensureVersionTag (also here) which introduces a false-
+    // positive TSAN error.
+    ThreadedCompileSerialize guard;
+    if (!type.isExact() || py_type == nullptr ||
+        !PyType_HasFeature(py_type, Py_TPFLAGS_READY) ||
+        py_type->tp_getattro != PyObject_GenericGetAttr ||
+        !ensureVersionTag(py_type)) {
+      return nullptr;
+    }
   }
   BorrowedRef<PyUnicodeObject> attr_name{load_attr->name()};
   if (!PyUnicode_CheckExact(attr_name)) {

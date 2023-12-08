@@ -180,6 +180,10 @@ BorrowedRef<> typeLookupSafe(
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<> name) {
   JIT_CHECK(PyUnicode_CheckExact(name), "name must be a str");
+  // Silence false positive from TSAN when checking Py_TPFLAGS_READY.
+  // This flag should never change during compliation although other
+  // flags may.
+  ThreadedCompileSerialize guard;
 
   BorrowedRef<PyTupleObject> mro{type->tp_mro};
   for (size_t i = 0, n = PyTuple_GET_SIZE(mro); i < n; ++i) {
@@ -198,12 +202,11 @@ BorrowedRef<> typeLookupSafe(
 }
 
 bool ensureVersionTag(BorrowedRef<PyTypeObject> type) {
-  // Avoid taking the compilation lock in the common case that the type already
-  // has a version tag.
+  JIT_CHECK(g_threaded_compile_context.canAccessSharedData(),
+            "Accessing type object needs lock");
   if (PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
     return true;
   }
-  ThreadedCompileSerialize guard;
   return PyUnstable_Type_AssignVersionTag(type);
 }
 

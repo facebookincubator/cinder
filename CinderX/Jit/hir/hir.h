@@ -4374,6 +4374,7 @@ class Environment {
   int next_load_type_method_cache_{0};
 };
 
+constexpr unsigned long kThreadSafeFlagsMask = Py_TPFLAGS_BASETYPE;
 struct TypedArgument {
   TypedArgument(
       long locals_idx,
@@ -4387,13 +4388,24 @@ struct TypedArgument {
         jit_type(jit_type) {
     ThreadedCompileSerialize guard;
     this->pytype = Ref<PyTypeObject>::create(pytype);
+    thread_safe_flags = pytype->tp_flags & kThreadSafeFlagsMask;
   };
+
+
+  // Returns type flags which should not change between concurrent
+  // compilation threads.
+  unsigned long threadSafeTpFlags() const {
+    JIT_DCHECK(thread_safe_flags == (pytype->tp_flags & kThreadSafeFlagsMask),
+               "thread safe flags changed");
+    return thread_safe_flags;
+  }
 
   long locals_idx;
   Ref<PyTypeObject> pytype;
   int optional;
   int exact;
   Type jit_type;
+  unsigned long thread_safe_flags;
 };
 
 // Does the given code object need access to its containing PyFunctionObject at

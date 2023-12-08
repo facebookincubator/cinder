@@ -973,7 +973,7 @@ void NativeGenerator::generateStaticMethodTypeChecks(Label setup_frame) {
     emitCompare(as_, x86::r8, arg.pytype, x86::rax);
     as_->je(next_arg);
 
-    if (!arg.exact && (arg.pytype->tp_flags & Py_TPFLAGS_BASETYPE)) {
+    if (!arg.exact && (arg.threadSafeTpFlags() & Py_TPFLAGS_BASETYPE)) {
       // We need to check the object's MRO and see if the declared type
       // is present in it.  Technically we don't need to check the last
       // entry that will be object but the code gen is a little bit simpler
