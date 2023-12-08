@@ -805,6 +805,13 @@ const char* functionFieldName(FunctionAttr field) {
   return gFunctionFields[static_cast<int>(field)];
 }
 
+Environment::~Environment() {
+  // Serialize as we modify the ref-count of objects which may be widely
+  // accessible.
+  ThreadedCompileSerialize guard;
+  references_.clear();
+}
+
 Register* Environment::AllocateRegister() {
   auto id = next_register_id_++;
   while (registers_.count(id)) {
@@ -834,7 +841,9 @@ Function::~Function() {
   // Serialize as we alter ref-counts on potentially global objects.
   ThreadedCompileSerialize guard;
   code.reset();
+  builtins.reset();
   globals.reset();
+  prim_args_info.reset();
 }
 
 Register* Environment::addRegister(std::unique_ptr<Register> reg) {

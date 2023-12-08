@@ -24,6 +24,11 @@ struct GlobalCacheKey {
     this->name = Ref<>::create(name);
   }
 
+  ~GlobalCacheKey() {
+    ThreadedCompileSerialize guard;
+    name.reset();
+  }
+
   bool operator==(const GlobalCacheKey& other) const {
     return builtins == other.builtins && globals == other.globals &&
         name == other.name;

@@ -4306,6 +4306,7 @@ class Environment {
   using ReferenceSet = std::unordered_set<Ref<>>;
 
   Environment() = default;
+  ~Environment();
 
   Register* AllocateRegister();
 
@@ -4391,6 +4392,31 @@ struct TypedArgument {
     thread_safe_flags = pytype->tp_flags & kThreadSafeFlagsMask;
   };
 
+  TypedArgument(const TypedArgument& other) :
+      locals_idx(other.locals_idx),
+      optional(other.optional),
+      exact(other.exact),
+      jit_type(other.jit_type),
+      thread_safe_flags(other.thread_safe_flags) {
+    ThreadedCompileSerialize guard;
+    pytype = Ref<PyTypeObject>::create(other.pytype);
+  };
+
+  TypedArgument& operator=(const TypedArgument& other) {
+    locals_idx = other.locals_idx;
+    optional = other.optional;
+    exact = other.exact;
+    jit_type = other.jit_type;
+    thread_safe_flags = other.thread_safe_flags;
+    ThreadedCompileSerialize guard;
+    pytype = Ref<PyTypeObject>::create(other.pytype);
+    return *this;
+  };
+
+  ~TypedArgument() {
+    ThreadedCompileSerialize guard;
+    pytype.release();
+  }
 
   // Returns type flags which should not change between concurrent
   // compilation threads.

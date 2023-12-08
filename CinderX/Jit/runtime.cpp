@@ -353,6 +353,7 @@ std::optional<std::string> symbolize(const void* func) {
 void Runtime::watchType(
     BorrowedRef<PyTypeObject> type,
     TypeDeoptPatcher* patcher) {
+  ThreadedCompileSerialize guard;
   Ci_Watchers_WatchType(type);
   type_deopt_patchers_[type].emplace_back(patcher);
 }
@@ -360,6 +361,7 @@ void Runtime::watchType(
 void Runtime::notifyTypeModified(
     BorrowedRef<PyTypeObject> lookup_type,
     BorrowedRef<PyTypeObject> new_type) {
+  ThreadedCompileSerialize guard;
   auto it = type_deopt_patchers_.find(lookup_type);
   if (it == type_deopt_patchers_.end()) {
     return;
