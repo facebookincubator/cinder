@@ -481,7 +481,14 @@ Type Type::fromObject(PyObject* obj) {
     return TNoneType;
   }
 
-  bits_t lifetime = _Py_IsImmortal(obj) ? kLifetimeImmortal : kLifetimeMortal;
+  bits_t lifetime = [&]() {
+    // Serialize to silence TSAN errors about accessing the reference count of
+    // which can change during compliation. However, this is really a false
+    // positive as the mortality of an object should not change during
+    // compilation.
+    ThreadedCompileSerialize guard;
+    return _Py_IsImmortal(obj) ? kLifetimeImmortal : kLifetimeMortal;
+  }();
   return Type{fromTypeExact(Py_TYPE(obj)).bits_, lifetime, obj};
 }
 
