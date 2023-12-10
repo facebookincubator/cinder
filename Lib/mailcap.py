@@ -175,23 +175,11 @@ def findmatch(caps, MIMEtype, key='view', filename="/dev/null", plist=[]):
     entry to use.
 
     """
-    if _find_unsafe(filename):
-        msg = "Refusing to use mailcap with filename %r. Use a safe temporary filename." % (filename,)
-        warnings.warn(msg, UnsafeMailcapInput)
-        return None, None
-    entries = lookup(caps, MIMEtype, key)
-    # XXX This code should somehow check for the needsterminal flag.
-    for e in entries:
-        if 'test' in e:
-            test = subst(e['test'], filename, plist)
-            if test is None:
-                continue
-            if test and os.system(test) != 0:
-                continue
-        command = subst(e[key], MIMEtype, filename, plist)
-        if command is not None:
-            return command, e
-    return None, None
+    # START META PATCH
+    # replace function body with a RuntimeError to avoid CVE-2015-20107
+    # (and accelerate the upstream removal in 3.13, https://github.com/python/cpython/pull/104867)
+    raise RuntimeError("Disabled @ Meta for CVE-2015-20107")
+    # END META PATCH
 
 def lookup(caps, MIMEtype, key=None):
     entries = []

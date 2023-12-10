@@ -257,17 +257,20 @@ class FindmatchTest(unittest.TestCase):
             unsafe_mimetype = mailcap.subst("echo %t", "audio/*", "foo.txt")
             self.assertEqual(unsafe_mimetype, None)
 
-        with self.assertWarnsRegex(mailcap.UnsafeMailcapInput,
-                                   'Refusing to use mailcap with filename.*'
-                                   'Use a safe temporary filename.'):
+        # START META PATCH
+        with self.assertRaises(RuntimeError):
             unsafe_filename = mailcap.findmatch(MAILCAPDICT,
                                                 "audio/wav",
                                                 filename="foo*.txt")
             self.assertEqual(unsafe_filename, (None, None))
+        # END META PATCH
 
     def _run_cases(self, cases):
         for c in cases:
-            self.assertEqual(mailcap.findmatch(*c[0], **c[1]), c[2])
+            # START META PATCH
+            with self.assertRaises(RuntimeError):
+                mailcap.findmatch(*c[0], **c[1])
+            # END META PATCH
 
 
 if __name__ == '__main__':
