@@ -1775,7 +1775,9 @@ int _PyJIT_Initialize() {
     return -1;
   }
 
+  bool force_init = getConfig().force_init;
   getMutableConfig() = Config{};
+  getMutableConfig().force_init = force_init;
 
   initFlagProcessor();
 
@@ -1819,8 +1821,8 @@ int _PyJIT_Initialize() {
     g_write_profile_file = write_profile_file;
   }
 
-  if (use_jit) {
-    JIT_DLOG("Enabling JIT.");
+  if (use_jit || getConfig().force_init) {
+    JIT_DLOG("Initializing JIT");
   } else {
     return 0;
   }
@@ -1853,8 +1855,10 @@ int _PyJIT_Initialize() {
   }
 
   getMutableConfig().init_state = InitState::kInitialized;
-  getMutableConfig().is_enabled = 1;
+  getMutableConfig().is_enabled = use_jit;
   g_jit_list = jit_list.release();
+
+  JIT_DLOG("JIT is {}", getConfig().is_enabled ? "enabled" : "disabled");
 
   total_compliation_time = 0.0;
 

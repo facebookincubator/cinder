@@ -33,13 +33,8 @@ using namespace std;
 using namespace jit::lir;
 
 class CmdLineTest : public RuntimeTest {
- public:
-  void SetUp() override {
-    RuntimeTest::SetUp();
-  }
-
-  void TearDown() override {
-    RuntimeTest::TearDown();
+  bool setUpJit() const {
+    return false;
   }
 };
 
@@ -53,11 +48,6 @@ int try_flag_and_envvar_effect(
     bool capture_stdout = false) {
   // Shutdown the JIT so we can start it up again under different conditions.
   _PyJIT_Finalize();
-
-  // As most tests don't use _PyJIT_Initialize() we allocated a global code
-  // allocator "manually" in main.cpp. We now need to deallocate it so we can
-  // call _PyJIT_Initialize safely.
-  CodeAllocator::freeGlobalCodeAllocator();
 
   reset_vars(); // reset variable state before and
   // between flag and cmd line param runs
@@ -110,7 +100,6 @@ int try_flag_and_envvar_effect(
 
   _PyJIT_Finalize();
   reset_vars();
-  CodeAllocator::makeGlobalCodeAllocator();
 
   return init_status;
 }

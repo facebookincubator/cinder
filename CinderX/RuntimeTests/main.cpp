@@ -164,11 +164,7 @@ int main(int argc, char* argv[]) {
   // Prevent any test failures due to transient pointer values.
   jit::setUseStablePointers(true);
 
-  jit::CodeAllocator::makeGlobalCodeAllocator();
-
   int result = RUN_ALL_TESTS();
-
-  jit::CodeAllocator::freeGlobalCodeAllocator();
 
   PyMem_RawFree(argv0);
   return result;

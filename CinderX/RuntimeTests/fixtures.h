@@ -13,6 +13,7 @@
 #include "Jit/hir/parser.h"
 #include "Jit/hir/printer.h"
 #include "Jit/hir/ssa.h"
+#include "Jit/pyjit.h"
 #include "Jit/ref.h"
 
 #include "RuntimeTests/testutil.h"
@@ -23,7 +24,19 @@ class RuntimeTest : public ::testing::Test {
  public:
   RuntimeTest(bool compile_static = false) : compile_static_(compile_static) {}
 
+  virtual bool setUpJit() const {
+    return true;
+  }
+
   void SetUp() override {
+    ASSERT_FALSE(_PyJIT_IsEnabled())
+      << "Haven't called Py_Initialize yet but the JIT says it's enabled";
+
+    bool jit = setUpJit();
+    if (jit) {
+      jit::getMutableConfig().force_init = true;
+    }
+
     Py_Initialize();
     ASSERT_TRUE(Py_IsInitialized());
     if (compile_static_) {
@@ -32,6 +45,19 @@ class RuntimeTest : public ::testing::Test {
       globals_ = MakeGlobals();
     }
     ASSERT_NE(globals_, nullptr);
+  }
+
+  void TearDown() override {
+    if (setUpJit()) {
+      jit::getMutableConfig().force_init = false;
+    }
+
+    globals_.reset();
+    int result = Py_FinalizeEx();
+    ASSERT_EQ(result, 0) << "Failed finalizing the interpreter";
+
+    ASSERT_FALSE(_PyJIT_IsEnabled())
+      << "JIT should be disabled with Py_FinalizeEx";
   }
 
   bool runCode(const char* src) {
@@ -196,12 +222,6 @@ class RuntimeTest : public ::testing::Test {
 
     irfunc = jit::hir::buildHIR(func);
     ASSERT_NE(irfunc, nullptr) << "failed constructing HIR";
-  }
-
-  void TearDown() override {
-    globals_.reset();
-    int result = Py_FinalizeEx();
-    ASSERT_EQ(result, 0) << "Failed finalizing the interpreter";
   }
 
  protected:

@@ -19,9 +19,14 @@ enum class FrameMode : uint8_t {
 };
 
 struct Config {
-  bool is_enabled{false};
-  FrameMode frame_mode{FrameMode::kNormal};
+  // Initialization state of the JIT.
   InitState init_state{InitState::kNotInitialized};
+  // Set when the JIT is initialized and enabled.
+  bool is_enabled{false};
+  // Ignore CLI arguments and environment variables, always initialize the JIT
+  // without enabling it.  Intended for testing.
+  bool force_init{false};
+  FrameMode frame_mode{FrameMode::kNormal};
   bool allow_jit_list_wildcards{false};
   bool compile_all_static_functions{false};
   bool hir_inliner_enabled{false};
