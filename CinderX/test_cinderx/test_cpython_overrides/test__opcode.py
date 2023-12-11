@@ -1,5 +1,5 @@
 import dis
-import opcode
+import cinderx.opcode as opcode
 from test.support.import_helper import import_module
 import unittest
 
@@ -45,7 +45,7 @@ MISSING_STACK_EFFECT = {
 }
 
 
-class OpcodeTests(unittest.TestCase):
+class CinderX_OpcodeTests(unittest.TestCase):
 
     def test_stack_effect(self):
         self.assertEqual(stack_effect(dis.opmap['POP_TOP']), -1)
