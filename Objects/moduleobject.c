@@ -831,7 +831,7 @@ module_getattro(PyModuleObject *m, PyObject *name)
 }
 
 PyObject*
-Ci_module_lookupattro(PyObject *m, PyObject *name, int suppress)
+Ci_module_lookupattro(PyObject *m, PyObject *name)
 {
     return Ci_module_lookupattro_impl((PyModuleObject*)m, name, 1);
 }
@@ -1503,12 +1503,6 @@ static PyObject *
 strictmodule_getattro(PyStrictModuleObject *m, PyObject *name)
 {
     return Ci_strictmodule_lookupattro_impl(m, name, 0);
-}
-
-PyObject*
-Ci_strictmodule_lookupattro(PyObject *m, PyObject *name, int suppress)
-{
-    return Ci_strictmodule_lookupattro_impl((PyStrictModuleObject*)m, name, 1);
 }
 
 static int

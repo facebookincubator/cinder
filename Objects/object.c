@@ -1027,7 +1027,7 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
         return 0;
     }
     if (tp->tp_getattro == PyModule_Type.tp_getattro) {
-        *result = Ci_module_lookupattro(v, name, 1);
+        *result = Ci_module_lookupattro(v, name);
         if (*result != NULL) {
             return 1;
         }
@@ -1036,18 +1036,6 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
         }
         return 0;
     }
-#ifdef ENABLE_CINDERX
-    if (tp->tp_getattro == PyStrictModule_Type.tp_getattro) {
-        *result = Ci_strictmodule_lookupattro(v, name, 1);
-        if (*result != NULL) {
-            return 1;
-        }
-        if (PyErr_Occurred()) {
-            return -1;
-        }
-        return 0;
-    }
-#endif
     if (tp->tp_getattro != NULL) {
         *result = (*tp->tp_getattro)(v, name);
     }
@@ -1067,7 +1055,8 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
     if (*result != NULL) {
         return 1;
     }
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError) &&
+        !(PyErr_ExceptionMatches(PyExc_ImportCycleError))) {
         return -1;
     }
     PyErr_Clear();

@@ -22,8 +22,7 @@ CiAPI_FUNC(PyObject *) Ci_PyStaticMethod_GetFunc(PyObject *method);
 CiAPI_FUNC(PyObject *) Ci_dict_subscript(PyObject *mp, PyObject *key);
 CiAPI_FUNC(PyObject *) Ci_list_subscript(PyObject *list, PyObject *item);
 CiAPI_FUNC(PyObject *) Ci_tuple_subscript(PyObject *self, PyObject *item);
-CiAPI_FUNC(PyObject *) Ci_module_lookupattro(PyObject *self, PyObject *name, int suppress);
-CiAPI_FUNC(PyObject *) Ci_strictmodule_lookupattro(PyObject *self, PyObject *name, int suppress);
+CiAPI_FUNC(PyObject *) Ci_module_lookupattro(PyObject *self, PyObject *name);
 
 CiAPI_FUNC(Py_hash_t) Ci_TupleHashItems(PyObject *const *items, Py_ssize_t len);
 
