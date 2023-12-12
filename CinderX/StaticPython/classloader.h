@@ -113,6 +113,7 @@ typedef struct {
         ret_type,                                                             \
     }
 
+CiAPI_FUNC(PyObject *) Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method);
 
 struct _PyClassLoader_Awaitable;
 
