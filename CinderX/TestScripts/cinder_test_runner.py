@@ -10,8 +10,10 @@
 # internal logging systems, etc.
 
 import argparse
+import ctypes
 import functools
 import gc
+import io
 import json
 import multiprocessing
 import os
@@ -32,6 +34,7 @@ import threading
 import time
 import types
 import unittest
+import uuid
 
 from dataclasses import dataclass
 
@@ -280,6 +283,60 @@ class WorkSender:
         self.pipe.close()
 
 
+class ASANLogManipulator:
+    def __init__(self) -> None:
+        self._io = None
+        self._log_path_base = None
+        self._base_asan_options = None
+
+        asan_options = os.environ.get('ASAN_OPTIONS')
+        if asan_options is None:
+            return
+
+        log_path_base = None
+        for option in asan_options.split(','):
+            if option.startswith('log_path='):
+                log_path_base = option[len('log_path='):]
+                break
+
+        if log_path_base is None:
+            return
+
+        log_path = f"{log_path_base}-{uuid.uuid4()}"
+        fd = os.open(log_path, os.O_WRONLY | os.O_CREAT, mode=0o644)
+        ctypes.pythonapi["__sanitizer_set_report_fd"](fd)
+
+        # IO must not close the fd or ASAN will not be able to write final info.
+        self._io = io.TextIOWrapper(io.FileIO(fd, 'a', closefd=False), encoding='utf-8')
+        self._log_path_base = log_path_base
+        self._base_asan_options = [
+            opt for opt in asan_options.split(',') if not opt.startswith('log_path=')]
+
+        # Monkey patch individual test logging support
+        old_startTest = unittest.TextTestResult.startTest
+
+        def patched_startTest(text_test_runner_self, test):
+            self.log(f"Starting test {test}")
+            old_startTest(text_test_runner_self, test)
+
+        unittest.TextTestResult.startTest = patched_startTest
+
+    def log(self, s: str) -> None:
+        if self._io is None:
+            return
+        self._io.write(f"### {s}\n")
+        self._io.flush()
+
+    # Change the log path base which will be used only by *new* sub-processes.
+    def put_env_module_log_path(self, module_name: str) -> None:
+        if self._base_asan_options is None:
+            return
+        new_asan_options = (
+            self._base_asan_options +
+            [f"log_path={self._log_path_base}-sub_process_of-{module_name}"])
+        os.putenv("ASAN_OPTIONS", ','.join(new_asan_options))
+
+
 class WorkReceiver:
     def __init__(self, pipe: MessagePipe) -> None:
         self.pipe = pipe
@@ -287,6 +344,7 @@ class WorkReceiver:
     def run(self, ns: types.SimpleNamespace) -> None:
         """Read commands from pipe and execute them"""
         # Create a temporary directory for test runs
+        asan_log = ASANLogManipulator()
         t = Regrtest()
         t.ns = ns
         t.set_temp_dir()
@@ -300,6 +358,8 @@ class WorkReceiver:
             msg = self.pipe.recv()
             while not isinstance(msg, ShutdownWorker):
                 if isinstance(msg, RunTest):
+                    asan_log.log(f"Running module {msg.test_name}")
+                    asan_log.put_env_module_log_path(msg.test_name)
                     result = runtest(ns, msg.test_name)
                     self.pipe.send(TestComplete(msg.test_name, result))
                 msg = self.pipe.recv()
@@ -711,7 +771,7 @@ class MultiWorkerCinderRegrtest(Regrtest):
 
 
 # Patched version of test.libregrtest.runtest._runtest_inner2 which loads tests
-# using unittest.TestLoader.loadTestsFromName rather tna loadTestsFromModule.
+# using unittest.TestLoader.loadTestsFromName rather than loadTestsFromModule.
 # This allows much finer grained control over what tests are run e.g.
 # test.test_asyncgen.AsyncGenTests.test_await_for_iteration.
 def _patched_runtest_inner2(ns: Namespace, tests_name: str) -> bool:

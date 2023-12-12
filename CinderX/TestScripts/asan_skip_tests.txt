@@ -3,3 +3,5 @@ test_concurrent_futures
 test_multiprocessing_fork
 test_wait3
 test_logging
+# Monkey patching in cinder_test_runner.py for ASAN breaks this
+test.test_trace.TestCoverage.test_coverage_ignore
