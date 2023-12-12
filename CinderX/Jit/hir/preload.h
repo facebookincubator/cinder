@@ -83,10 +83,9 @@ class Preloader {
   static std::unique_ptr<Preloader> getPreloader(
       BorrowedRef<PyFunctionObject> func) {
     auto preloader = std::unique_ptr<Preloader>(new Preloader(
-        func,
         func->func_code,
-        func->func_globals,
         func->func_builtins,
+        func->func_globals,
         funcFullname(func)));
     if (!preloader->preload()) {
       JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
@@ -97,24 +96,17 @@ class Preloader {
 
   static std::unique_ptr<Preloader> getPreloader(
       BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins,
+      BorrowedRef<PyDictObject> globals,
       const std::string& fullname) {
     auto preloader = std::unique_ptr<Preloader>(
-        new Preloader(nullptr, code, globals, builtins, fullname));
+        new Preloader(code, builtins, globals, fullname));
     if (!preloader->preload()) {
       JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
       return nullptr;
     }
     return preloader;
   }
-
-  static std::unique_ptr<Preloader> getPreloader(
-      BorrowedRef<PyFunctionObject> func,
-      BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
-      BorrowedRef<PyDictObject> builtins,
-      const std::string& fullname);
 
   Type type(BorrowedRef<> descr) const;
   int primitiveTypecode(BorrowedRef<> descr) const;
@@ -135,10 +127,6 @@ class Preloader {
   BorrowedRef<> global(int name_idx) const;
 
   std::unique_ptr<Function> makeFunction() const;
-
-  BorrowedRef<PyFunctionObject> func() const {
-    return func_;
-  }
 
   BorrowedRef<PyCodeObject> code() const {
     return code_;
@@ -181,26 +169,20 @@ class Preloader {
   bool preload();
 
   explicit Preloader(
-      BorrowedRef<PyFunctionObject> func,
       BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> globals,
       BorrowedRef<PyDictObject> builtins,
+      BorrowedRef<PyDictObject> globals,
       const std::string& fullname)
-      : func_(Ref<>::create(func)),
-        code_(Ref<>::create(code)),
-        globals_(Ref<>::create(globals)),
+      : code_(Ref<>::create(code)),
         builtins_(Ref<>::create(builtins)),
+        globals_(Ref<>::create(globals)),
         fullname_(fullname) {
     JIT_CHECK(PyCode_Check(code_), "Expected PyCodeObject");
-    if (func_) {
-      JIT_CHECK(PyFunction_Check(func_), "Expected PyFunctionObject");
-    }
   };
 
-  Ref<PyFunctionObject> func_;
   Ref<PyCodeObject> code_;
-  Ref<PyDictObject> globals_;
   Ref<PyDictObject> builtins_;
+  Ref<PyDictObject> globals_;
   const std::string fullname_;
 
   // keyed by type descr tuple identity (they are interned in code objects)

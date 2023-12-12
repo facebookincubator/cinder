@@ -416,8 +416,12 @@ PyAPI_FUNC(void) _PyPerfTrampoline_CompilePerfTrampolinePreFork(void);
 
 #ifdef __cplusplus
 namespace jit {
-bool isPreloaded(BorrowedRef<PyFunctionObject> func);
-const hir::Preloader& getPreloader(BorrowedRef<PyFunctionObject> func);
+
+hir::Preloader* tryGetPreloader(BorrowedRef<> unit);
+
+bool isPreloaded(BorrowedRef<> unit);
+const hir::Preloader& getPreloader(BorrowedRef<> unit);
+
 } // namespace jit
 #endif
 

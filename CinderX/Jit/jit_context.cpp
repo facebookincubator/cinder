@@ -141,22 +141,19 @@ CompilationResult compilePreloader(
 //
 // Returns the CompiledFunction* and PYJIT_RESULT_OK if successful, or nullptr
 // and a failure reason if not.
-CompilationResult compileCode(
-    _PyJITContext* ctx,
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> builtins,
-    BorrowedRef<PyDictObject> globals,
-    const std::string& fullname) {
+template <class... Args>
+CompilationResult compileCode(_PyJITContext* ctx, Args&&... args) {
   JIT_CHECK(
       !jit::g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader =
-      jit::hir::Preloader::getPreloader(code, globals, builtins, fullname);
+    jit::hir::Preloader::getPreloader(std::forward<Args>(args)...);
   if (!preloader) {
     return {nullptr, PYJIT_RESULT_PYTHON_EXCEPTION};
   }
   return compilePreloader(ctx, *preloader);
 }
+
 } // namespace
 
 _PyJIT_Result _PyJITContext_CompileFunction(
@@ -165,10 +162,7 @@ _PyJIT_Result _PyJITContext_CompileFunction(
   if (_PyJITContext_DidCompile(ctx, func) == 1) {
     return PYJIT_RESULT_OK;
   }
-  BorrowedRef<PyCodeObject> code = func->func_code;
-  std::string fullname = jit::funcFullname(func);
-  CompilationResult result =
-      compileCode(ctx, code, func->func_builtins, func->func_globals, fullname);
+  CompilationResult result = compileCode(ctx, func);
   if (result.compiled == nullptr) {
     return result.result;
   }
@@ -188,13 +182,14 @@ _PyJIT_Result _PyJITContext_CompileCode(
 
 _PyJIT_Result _PyJITContext_CompilePreloader(
     _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func,
     const jit::hir::Preloader& preloader) {
   CompilationResult result = compilePreloader(ctx, preloader);
   if (result.compiled == nullptr) {
     return result.result;
   }
-  if (preloader.func() != nullptr) {
-    return finalizeCompiledFunc(ctx, preloader.func(), *result.compiled);
+  if (func != nullptr) {
+    return finalizeCompiledFunc(ctx, func, *result.compiled);
   }
   return PYJIT_RESULT_OK;
 }

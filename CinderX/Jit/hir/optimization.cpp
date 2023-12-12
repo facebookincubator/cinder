@@ -835,7 +835,7 @@ static void dlogAndCollectFailureStats(
 // treated as TODOs.
 static bool canInline(
     AbstractCall* call_instr,
-    PyFunctionObject* func,
+    BorrowedRef<PyFunctionObject> func,
     const std::string& fullname,
     Function::InlineFailureStats& inline_failure_stats) {
   if (func->func_kwdefaults != nullptr) {
@@ -934,7 +934,7 @@ static bool canInlineWithPreloader(
 }
 
 void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
-  PyFunctionObject* func = call_instr->func;
+  BorrowedRef<PyFunctionObject> func = call_instr->func;
   PyCodeObject* code = reinterpret_cast<PyCodeObject*>(func->func_code);
   JIT_CHECK(PyCode_Check(code), "Expected PyCodeObject");
   PyObject* globals = func->func_globals;

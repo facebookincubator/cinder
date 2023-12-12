@@ -117,6 +117,7 @@ _PyJIT_Result _PyJITContext_CompileCode(
  */
 _PyJIT_Result _PyJITContext_CompilePreloader(
     _PyJITContext* ctx,
+    BorrowedRef<PyFunctionObject> func,
     const jit::hir::Preloader& preloader);
 
 /*
