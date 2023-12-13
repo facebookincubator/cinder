@@ -582,6 +582,14 @@ def execusercustomize():
                 (err.__class__.__name__, err))
 
 
+def init_cinder():
+    try:
+        import cinderx
+        cinderx.init()
+    except (ImportError, AttributeError):
+        pass
+
+
 def main():
     """Add standard site-specific directories to the module search path.
 
@@ -607,6 +615,7 @@ def main():
     sethelper()
     if not sys.flags.isolated:
         enablerlcompleter()
+    init_cinder()
     execsitecustomize()
     if ENABLE_USER_SITE:
         execusercustomize()
