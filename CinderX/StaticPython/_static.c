@@ -1658,6 +1658,13 @@ static struct PyModuleDef _staticmodule = {PyModuleDef_HEAD_INIT,
 PyMODINIT_FUNC
 PyInit__static(void)
 {
+    // Trying to initialize the _static module without the CinderX hooks
+    // installed raises AttributeError; raise ImportError instead so we fall
+    // back to the __static__ polyfill.
+    if (!Ci_cinderx_initialized) {
+        PyErr_SetString(PyExc_ImportError, "must call cinderx.init() before importing _static");
+        return NULL;
+    }
 
     return PyModuleDef_Init(&_staticmodule);
 }

@@ -22,7 +22,7 @@ the source code.
 If the module you depend on is already actually strict-compliant you can
 simplify the stub file down to just contain the single line `__implicit__`,
 which just says "go use the real module contents, they're fine".
-See `Lib/compiler/strict/stubs/_collections_abc.pys` for an existing example.
+See `CinderX/cinderx/compiler/strict/stubs/_collections_abc.pys` for an existing example.
 Per-class/function stubs are only needed where the stdlib module does
 non-strict things at module level, so we need to extract just the bits we
 depend on and verify them for strictness.
@@ -64,4 +64,4 @@ stub:
     @implicit
     def wraps(): ...
 
-You can mix explicit and implicit stubs. See `Lib/compiler/strict/stubs` for some examples.
+You can mix explicit and implicit stubs. See `CinderX/cinderx/compiler/strict/stubs` for some examples.

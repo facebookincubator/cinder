@@ -212,13 +212,13 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     auto errorSink = std::make_shared<strictmod::CollectingErrorSink>();
     auto loader = getLoader(
         nullptr,
-        "Lib/compiler/strict/stubs",
+        "CinderX/cinderx/compiler/strict/stubs",
         [](const std::string&, const std::string&) { return true; },
         [errorSink] { return errorSink; });
     loader->setImportPath(
         {sourceRelativePath("StrictModules/Tests/comparison_tests/imports")
              .c_str(),
-         "Lib"});
+         "Lib", "CinderX"});
     loader->loadStrictModuleModule();
     const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
@@ -229,7 +229,7 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     ASSERT_NE(modValue.get(), nullptr);
 
     std::wstring path{Py_GetPath()};
-    path.append(L":");
+    path.append(L":CinderX/:");
     path.append(std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(
         sourceRelativePath("StrictModules/Tests/comparison_tests/imports")));
     PySys_SetPath(path.c_str());

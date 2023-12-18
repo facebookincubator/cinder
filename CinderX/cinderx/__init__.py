@@ -6,7 +6,7 @@ import os
 
 try:
     # TODO(T171566018) remove
-    sys.path.append(os.path.dirname(__file__) + "/../../CinderX/build")
+    sys.path.append(os.path.dirname(__file__) + "/../build")
     from _cinderx import *
 except ImportError:
     pass

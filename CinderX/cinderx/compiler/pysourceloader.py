@@ -22,7 +22,7 @@ class PySourceFileLoader(SourceFileLoader):
     def source_to_code(self, data, path, *, _optimize=-1):
         """Similar to SourceFileLoader.source_to_code
         but use the python based bytecode generator from
-        Lib/compiler/pycodegen.py
+        compiler/pycodegen.py
         """
         return importlib._bootstrap._call_with_frames_removed(
             python_compile, data, path, "exec", optimize=_optimize

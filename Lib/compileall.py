@@ -10,24 +10,18 @@ packages -- for now, you'll have to deal with packages separately.)
 
 See module py_compile for details of the actual byte-compilation.
 """
-
-try:
-    import cinderx
-    cinderx.init()
-except (ImportError, AttributeError):
-    pass
-
 import os
 import sys
 import importlib.util
 import py_compile
 import struct
 import filecmp
-from compiler.pysourceloader import PySourceFileLoader
 try:
-   from compiler.strict.loader import strict_compile as strict_compile_fn
-except ModuleNotFoundError:
-   strict_compile_fn = None
+    from compiler.pysourceloader import PySourceFileLoader
+    from compiler.strict.loader import strict_compile as strict_compile_fn
+except ImportError:
+    PySourceFileLoader = None
+    strict_compile_fn = None
 
 from functools import partial
 from pathlib import Path
@@ -404,7 +398,7 @@ def main():
                         help='Hardlink duplicated pyc files')
     parser.add_argument('--python-loader',
                         action='store_true', dest='use_py_loader',
-                        help=('use loader that uses non default compiler in Lib/compiler'))
+                        help=('use loader that uses CinderX compiler'))
     parser.add_argument('--strict-compile',
                         action='store_true', dest='strict_compile',
                         help=('use the bytecode compiler bundled with '
@@ -458,6 +452,8 @@ def main():
     success = True
     loader_override = None
     if args.use_py_loader:
+        if PySourceFileLoader is None:
+            raise ImportError("CinderX compiler is required to use --python-loader")
         loader_override = PySourceFileLoader
         sys.setrecursionlimit(sys.getrecursionlimit() * 100)
     strict_compile = args.strict_compile

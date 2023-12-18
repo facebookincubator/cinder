@@ -150,7 +150,7 @@ static const char usage_6[] =
 "PYTHONPYCACHEPREFIX: root directory for bytecode cache (pyc) files.\n"
 "PYTHONWARNDEFAULTENCODING: enable opt-in EncodingWarning for 'encoding=None'.\n"
 "PYTHONLAZYIMPORTSALL: enable lazy imports by default.\n"
-"PYTHONUSEPYCOMPILER: use compiler written in Lib/compiler.\n"
+"PYTHONUSEPYCOMPILER: use CinderX compiler.\n"
 "PYTHONINSTALLSTRICTLOADER: install strict/static module loader.\n";
 
 #if defined(MS_WINDOWS)
