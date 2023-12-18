@@ -47,7 +47,7 @@ class Opcode:
             raise ValueError(
                 "stack_effect: opcode does not permit oparg but oparg was specified"
             )
-        jump_int = {None: -1, True: 1, False: 0}.get(jump)  # pyre-ignore[6]
+        jump_int = {None: -1, True: 1, False: 0}.get(jump)
         if jump_int is None:
             raise ValueError("stack_effect: jump must be False, True or None")
         opname = self.opname[opcode]

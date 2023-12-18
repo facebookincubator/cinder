@@ -38,7 +38,7 @@ from ..static import Compiler as StaticCompiler, ModuleTable, StaticCodeGenerato
 from . import _static_module_ported, strict_compile
 from .class_conflict_checker import check_class_conflict
 from .common import StrictModuleError
-from .flag_extractor import FlagExtractor
+from .flag_extractor import FlagExtractor, Flags
 from .rewriter import remove_annotations, rewrite
 
 if _static_module_ported:
@@ -116,7 +116,7 @@ class Compiler(StaticCompiler):
             return None
 
         source, filename = self._get_source(name)
-        if source is None:
+        if source is None or filename is None:
             return None
 
         pyast = ast.parse(source)
@@ -129,6 +129,8 @@ class Compiler(StaticCompiler):
 
         if valid_if_strict and name not in self.modules:
             if flags.is_static:
+                # pyre-fixme[6]: For 1st argument expected `str` but got
+                #  `Union[bytes, str]`.
                 symbols = symtable.symtable(source, filename, "exec")
                 root = pyast
 
@@ -179,12 +181,13 @@ class Compiler(StaticCompiler):
         optimize: int,
         submodule_search_locations: Optional[List[str]] = None,
         override_flags: Optional[Flags] = None,
-    ) -> Tuple[CodeType | None, bool]:
+    ) -> Tuple[CodeType | None, bool, bool]:
         if override_flags and override_flags.is_strict:
             self.logger.debug(f"Forcibly treating module {name} as strict")
             self.loader.set_force_strict_by_name(name)
 
         pyast = ast.parse(source)
+        # pyre-fixme[6]: For 1st argument expected `str` but got `Union[bytes, str]`.
         symbols = symtable.symtable(source, filename, "exec")
         flags = FlagExtractor().get_flags(pyast).merge(override_flags)
 
@@ -208,7 +211,7 @@ class Compiler(StaticCompiler):
     def _get_source(
         self,
         name: str,
-    ) -> (Union[bytes, str], str):
+    ) -> Tuple[bytes | str | None, str | None]:
         module_path = name.replace(".", os.sep)
 
         for path in self.import_path:

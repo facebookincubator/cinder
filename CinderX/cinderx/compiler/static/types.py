@@ -2201,6 +2201,7 @@ class GenericClass(Class):
         for def_arg, self_arg, src_arg in zip(
             type_def.type_args, self.type_args, src.type_args
         ):
+            # pyre-fixme[16]: `Class` has no attribute `variance`.
             variance = def_arg.variance
             if variance is Variance.INVARIANT:
                 if self_arg.is_subclass_of(src_arg) and src_arg.is_subclass_of(
@@ -3866,6 +3867,7 @@ class Function(Callable[Class], FunctionContainer):
         idx = 0
         for idx, (argument, default) in enumerate(zip(posargs, defaults)):
             style = ParamStyle.POSONLY if idx < nposonly else ParamStyle.NORMAL
+            # pyre-fixme[6]: For 4th argument expected `expr` but got `Optional[expr]`.
             self.process_arg(module, idx, argument, default, style)
 
         base_idx = idx
@@ -3877,6 +3879,7 @@ class Function(Callable[Class], FunctionContainer):
 
         for argument, default in zip(arguments.kwonlyargs, arguments.kw_defaults):
             base_idx += 1
+            # pyre-fixme[6]: For 4th argument expected `expr` but got `Optional[expr]`.
             self.process_arg(module, base_idx, argument, default, ParamStyle.KWONLY)
 
         kwarg = arguments.kwarg
@@ -7145,7 +7148,6 @@ def parse_type(info: Dict[str, object], type_env: TypeEnvironment) -> Class:
     optional = info.get("optional", False)
     type = info.get("type")
     if type:
-        # pyre-ignore[6]: type is not known to be a str statically.
         klass = type_env.name_to_type.get(type)
         if klass is None:
             raise NotImplementedError("unsupported type: " + str(type))

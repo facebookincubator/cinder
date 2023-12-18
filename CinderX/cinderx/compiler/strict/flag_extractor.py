@@ -7,7 +7,7 @@ import ast
 import sys
 from ast import Import, ImportFrom
 from dataclasses import dataclass
-from typing import Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 from ..symbols import ModuleScope, Scope, SymbolVisitor
 
@@ -48,11 +48,11 @@ class FlagExtractor(SymbolVisitor):
         self.seen_docstring = False
         self.seen_import = False
 
-    def get_flags(self, node: Union[AST, Sequence[AST]]) -> Flags:
+    def get_flags(self, node: Union[ast.AST, Sequence[ast.AST]]) -> Flags:
         self.visit(node)
         return Flags(is_static=self.is_static, is_strict=self.is_strict)
 
-    def visit(self, node: Union[AST, Sequence[AST]], *args):
+    def visit(self, node: Union[ast.AST, Sequence[ast.AST]], *args: Any) -> None:
         super().visit(node, *args)
 
         match node:
