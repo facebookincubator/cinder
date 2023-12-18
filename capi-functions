@@ -1,0 +1,9 @@
+{
+  extern "C" {
+    /* Functions defined by Python's C-API */
+    Py*;
+    _Py*;
+    /* Export strobe symbols needed for pyperf */
+    __strobe_*;
+  };
+};
