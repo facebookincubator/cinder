@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
+import multiprocessing
 import os
 import sys
-import multiprocessing
+
 
 def compute():
     n = 0
@@ -10,14 +11,18 @@ def compute():
         n += i
     return n
 
+
 def child1():
     print("child1({}) computed {}".format(os.getpid(), compute()))
+
 
 def child2():
     print("child2({}) computed {}".format(os.getpid(), compute()))
 
+
 def parent():
     print("parent({}) computed {}".format(os.getpid(), compute()))
+
 
 def main():
     queue = multiprocessing.Queue(2)
@@ -39,6 +44,7 @@ def main():
     parent()
     os.waitpid(pid1, 0)
     os.waitpid(pid2, 0)
+
 
 if __name__ == "__main__":
     sys.exit(main())

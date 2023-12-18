@@ -4,8 +4,8 @@ import unittest
 
 from _testinternalcapi import perf_map_state_teardown, write_perf_map_entry
 
-if sys.platform != 'linux':
-    raise unittest.SkipTest('Linux only')
+if sys.platform != "linux":
+    raise unittest.SkipTest("Linux only")
 
 
 class TestPerfMapWriting(unittest.TestCase):

@@ -53,15 +53,13 @@ def run_static_tests():
             return modname, r
 
     class StaticCompilationTests(
-            CompileCaptureOverrides,
-            test_static.StaticCompilationTests):
+        CompileCaptureOverrides, test_static.StaticCompilationTests
+    ):
         @classmethod
         def tearDownClass(cls):
             pass
 
-    class StaticRuntimeTests(
-            CompileCaptureOverrides,
-            test_static.StaticRuntimeTests):
+    class StaticRuntimeTests(CompileCaptureOverrides, test_static.StaticRuntimeTests):
         pass
 
     suite = unittest.TestLoader().loadTestsFromTestCase(StaticCompilationTests)
@@ -73,6 +71,7 @@ def run_static_tests():
     print("Regenerate Static Python tests Python code")
 
     modules_to_clear = set()
+
     class StaticTestCodeRegenerator(StaticTestBase):
         def __init__(self):
             init_xxclassloader()

@@ -1,5 +1,6 @@
 import unittest
 from textwrap import dedent
+
 from test.support import cpython_only, SuppressCrashReport
 from test.support.script_helper import kill_python
 
@@ -27,7 +28,7 @@ class CinderX_TestInteractiveInterpreter(unittest.TestCase):
         with SuppressCrashReport():
             p.stdin.write(user_input)
         output = kill_python(p)
-        self.assertIn('After the exception.', output)
+        self.assertIn("After the exception.", output)
         # Changed to just assert not 0 for CinderX
         self.assertNotEqual(p.returncode, 0)
 

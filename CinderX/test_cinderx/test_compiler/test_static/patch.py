@@ -18,6 +18,7 @@ except ImportError:
 
 xxclassloader = import_module("xxclassloader")
 
+
 @contextmanager
 def save_restore_knobs():
     prev = cinder.getknobs()
@@ -378,7 +379,6 @@ class StaticPatchTests(StaticTestBase):
                 self.assertEqual(g2(), 100)
                 self.assertEqual(len(p.call_args[0]), 0)
 
-
     @save_restore_knobs()
     def test_patch_function_module_non_autospec(self):
         codestr = """
@@ -452,7 +452,7 @@ class StaticPatchTests(StaticTestBase):
             cinder.setknobs({"calldescriptoroninvokefunction": False})
             self.assertEqual(g(c), 100)
             self.assertEqual(p.get_called, False)
-            self.assertEqual(p.call, ((c, ), {}))
+            self.assertEqual(p.call, ((c,), {}))
 
             cinder.setknobs({"calldescriptoroninvokefunction": True})
             p = Patch()
@@ -466,7 +466,7 @@ class StaticPatchTests(StaticTestBase):
             C.f = p
             self.assertEqual(g(c), 100)
             self.assertEqual(p.get_called, False)
-            self.assertEqual(p.call, ((c, ), {}))
+            self.assertEqual(p.call, ((c,), {}))
 
     def test_patch_primitive_ret_type(self):
         for type_name, value, patched in [

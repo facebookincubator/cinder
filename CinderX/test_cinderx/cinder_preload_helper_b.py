@@ -8,12 +8,16 @@ import cinder_preload_helper_a
 # funcobject.c. Fill it up before freeing the critical function.
 funcs = []
 for i in range(400):
+
     def f():
         pass
+
     funcs.append(f)
+
 del funcs
 
 del cinder_preload_helper_a.a_func
+
 
 def b_func() -> str:
     return "hello from b_func!"

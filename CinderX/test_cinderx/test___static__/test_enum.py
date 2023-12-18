@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from __static__.enum import Enum
+
 import itertools
 import pickle
 import unittest
 from typing import final
 
-from __static__.enum import Enum
 
 @final
 class Colour(Enum):

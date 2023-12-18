@@ -1,7 +1,8 @@
 import dis
+import unittest
+
 import cinderx.opcode as opcode
 from test.support.import_helper import import_module
-import unittest
 
 _opcode = import_module("_opcode")
 from _opcode import stack_effect
@@ -46,16 +47,15 @@ MISSING_STACK_EFFECT = {
 
 
 class CinderX_OpcodeTests(unittest.TestCase):
-
     def test_stack_effect(self):
-        self.assertEqual(stack_effect(dis.opmap['POP_TOP']), -1)
-        self.assertEqual(stack_effect(dis.opmap['DUP_TOP_TWO']), 2)
-        self.assertEqual(stack_effect(dis.opmap['BUILD_SLICE'], 0), -1)
-        self.assertEqual(stack_effect(dis.opmap['BUILD_SLICE'], 1), -1)
-        self.assertEqual(stack_effect(dis.opmap['BUILD_SLICE'], 3), -2)
+        self.assertEqual(stack_effect(dis.opmap["POP_TOP"]), -1)
+        self.assertEqual(stack_effect(dis.opmap["DUP_TOP_TWO"]), 2)
+        self.assertEqual(stack_effect(dis.opmap["BUILD_SLICE"], 0), -1)
+        self.assertEqual(stack_effect(dis.opmap["BUILD_SLICE"], 1), -1)
+        self.assertEqual(stack_effect(dis.opmap["BUILD_SLICE"], 3), -2)
         self.assertRaises(ValueError, stack_effect, 30000)
-        self.assertRaises(ValueError, stack_effect, dis.opmap['BUILD_SLICE'])
-        self.assertRaises(ValueError, stack_effect, dis.opmap['POP_TOP'], 0)
+        self.assertRaises(ValueError, stack_effect, dis.opmap["BUILD_SLICE"])
+        self.assertRaises(ValueError, stack_effect, dis.opmap["POP_TOP"], 0)
         # All defined opcodes
         for name, code in dis.opmap.items():
             # TODO(T74641077) - Figure out how to deal with static python opcodes
@@ -76,15 +76,15 @@ class CinderX_OpcodeTests(unittest.TestCase):
                 self.assertRaises(ValueError, stack_effect, code, 0)
 
     def test_stack_effect_jump(self):
-        JUMP_IF_TRUE_OR_POP = dis.opmap['JUMP_IF_TRUE_OR_POP']
+        JUMP_IF_TRUE_OR_POP = dis.opmap["JUMP_IF_TRUE_OR_POP"]
         self.assertEqual(stack_effect(JUMP_IF_TRUE_OR_POP, 0), 0)
         self.assertEqual(stack_effect(JUMP_IF_TRUE_OR_POP, 0, jump=True), 0)
         self.assertEqual(stack_effect(JUMP_IF_TRUE_OR_POP, 0, jump=False), -1)
-        FOR_ITER = dis.opmap['FOR_ITER']
+        FOR_ITER = dis.opmap["FOR_ITER"]
         self.assertEqual(stack_effect(FOR_ITER, 0), 1)
         self.assertEqual(stack_effect(FOR_ITER, 0, jump=True), -1)
         self.assertEqual(stack_effect(FOR_ITER, 0, jump=False), 1)
-        JUMP_FORWARD = dis.opmap['JUMP_FORWARD']
+        JUMP_FORWARD = dis.opmap["JUMP_FORWARD"]
         self.assertEqual(stack_effect(JUMP_FORWARD, 0), 0)
         self.assertEqual(stack_effect(JUMP_FORWARD, 0, jump=True), 0)
         self.assertEqual(stack_effect(JUMP_FORWARD, 0, jump=False), 0)

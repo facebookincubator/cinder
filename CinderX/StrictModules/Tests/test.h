@@ -211,9 +211,8 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
   void TestBody() override {
     auto errorSink = std::make_shared<strictmod::CollectingErrorSink>();
     auto loader = getLoader(
-        nullptr,
-        "CinderX/cinderx/compiler/strict/stubs",
-        [](const std::string&, const std::string&) { return true; },
+        nullptr, "CinderX/cinderx/compiler/strict/stubs",
+        [](const std::string &, const std::string &) { return true; },
         [errorSink] { return errorSink; });
     loader->setImportPath(
         {sourceRelativePath("StrictModules/Tests/comparison_tests/imports")

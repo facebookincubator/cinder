@@ -1,8 +1,9 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 import gc
-import test.test_gc
 import unittest
+
+import test.test_gc
 
 try:
     import cinder

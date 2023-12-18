@@ -6,37 +6,39 @@ These are tests for the plain-Python fallback implementations in __static__;
 the static-Python uses are tested in test_compiler/test_static.py.
 
 """
-import unittest
 from __static__ import (
+    allow_weakrefs,
+    box,
     byte,
-    char,
+    cast,
     cbool,
-    int8,
+    cbool,
+    char,
+    CheckedDict,
+    chkdict,
+    clen,
+    double,
+    dynamic_return,
     int16,
     int32,
     int64,
-    uint8,
+    int8,
+    pydict,
+    PyDict,
+    rand,
+    RAND_MAX,
+    single,
+    size_t,
+    ssize_t,
     uint16,
     uint32,
     uint64,
-    single,
-    double,
-    size_t,
-    ssize_t,
-    allow_weakrefs,
-    dynamic_return,
-    box,
+    uint8,
     unbox,
-    cast,
-    CheckedDict,
-    chkdict,
-    pydict,
-    PyDict,
-    clen,
-    rand,
-    RAND_MAX,
 )
-from typing import Generic, Optional, TypeVar, Union, Dict
+
+import unittest
+from typing import Dict, Generic, Optional, TypeVar, Union
 
 try:
     from cinderx import static

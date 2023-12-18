@@ -329,7 +329,7 @@ class AstOptimizerTests(CompilerTest):
         self.assertNotIn(1 << 1000, consts)
         code = self.compare_graph("a=2**1000")
         code.assert_both("LOAD_CONST", 1000)
-        self.assertNotIn(2 ** 1000, consts)
+        self.assertNotIn(2**1000, consts)
 
     def test_binary_subscr_on_unicode(self):
         # valid code get optimized
