@@ -16,6 +16,7 @@
 #include "Interpreter/opcode.h"
 #include "Jit/pyjit.h"
 #include "StaticPython/classloader.h"
+#include "StaticPython/strictmoduleobject.h"
 
 #include <dlfcn.h>
 
@@ -2935,7 +2936,7 @@ check_if_final_method_overridden(PyTypeObject *type, PyObject *name)
 
 /* UpdateModuleName will be called on any patching of a name in a StrictModule. */
 int
-_PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
+_PyClassLoader_UpdateModuleName(Ci_StrictModuleObject *mod,
                                 PyObject *name,
                                 PyObject *new_value)
 {
@@ -4183,8 +4184,8 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObj
             }
         }
         thunks = vtable->vt_thunks;
-    } else if (PyStrictModule_Check(container)) {
-        PyStrictModuleObject *mod = (PyStrictModuleObject *)container;
+    } else if (Ci_StrictModule_Check(container)) {
+        Ci_StrictModuleObject *mod = (Ci_StrictModuleObject *)container;
         if (mod->static_thunks == NULL) {
             mod->static_thunks = PyDict_New();
             if (mod->static_thunks == NULL) {
@@ -4231,7 +4232,7 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObj
                                                                &thunk->thunk_tcs.tcs_rt.rt_exact,
                                                                &thunk->thunk_flags);
 
-    if (PyStrictModule_Check(container)) {
+    if (Ci_StrictModule_Check(container)) {
         // Treat functions in modules as static, we don't want to peel off the first argument.
         thunk->thunk_flags |= Ci_FUNC_FLAGS_STATICMETHOD;
     }
@@ -4264,8 +4265,8 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
                     original = PyDict_GetItem(originals, containerkey);
                 }
             }
-        } else if (PyStrictModule_Check(*container)) {
-            original = PyStrictModule_GetOriginal(*container, containerkey);
+        } else if (Ci_StrictModule_Check(*container)) {
+            original = Ci_StrictModule_GetOriginal(*container, containerkey);
         }
     }
     if (original == func) {
@@ -4310,12 +4311,12 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
             return NULL;
         }
         use_thunk = 1;
-    } else if (PyStrictModule_Check(container)) {
+    } else if (Ci_StrictModule_Check(container)) {
         use_thunk = 1;
     } else if (PyModule_Check(container)) {
         /* modules have no special translation on things we invoke, so
          * we just rely upon the normal JIT dict watchers */
-        PyObject *dict = Ci_PyModule_Dict(container);
+        PyObject *dict = Ci_MaybeStrictModule_Dict(container);
         if (dict != NULL) {
             cache = _PyJIT_GetDictCache(dict, name);
         }
@@ -4347,8 +4348,8 @@ _PyClassLoader_IsImmutable(PyObject *container) {
         }
     }
 
-    if (PyStrictModule_CheckExact(container) &&
-        ((PyStrictModuleObject *)container)->global_setter == NULL) {
+    if (Ci_StrictModule_CheckExact(container) &&
+        ((Ci_StrictModuleObject *)container)->global_setter == NULL) {
         return 1;
     }
     return 0;
@@ -5461,8 +5462,8 @@ _PyTypedArgsInfo* _PyClassLoader_GetTypedArgsInfoFromThunk(PyObject *thunk, PyOb
     if (PyType_Check(container)) {
         PyObject *vtable = ((PyTypeObject*)container)->tp_cache;
         originals = ((_PyType_VTable*)vtable)->vt_original;
-    } else if (PyStrictModule_Check(container)) {
-        originals = ((PyStrictModuleObject*)container)->originals;
+    } else if (Ci_StrictModule_Check(container)) {
+        originals = ((Ci_StrictModuleObject*)container)->originals;
     }
     if (!originals) {
         return NULL;

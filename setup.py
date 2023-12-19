@@ -1020,7 +1020,7 @@ class PyBuildExt(build_ext):
 
         # Cinder specific module
         if ENABLE_CINDERX:
-            self.add(Extension('cinder', ['cinder.c']) )
+            self.add(Extension('cinder', ['cinder.c'], extra_compile_args=["-DPy_BUILD_CORE_MODULE"]) )
             self.add(Extension('xxclassloader', ['xxclassloader.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
             self.add(Extension('_static', ['../CinderX/StaticPython/_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
             self.add(Extension('_strictmodule', ['../CinderX/StrictModules/_strictmodule.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )

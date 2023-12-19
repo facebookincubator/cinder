@@ -39,34 +39,6 @@ static inline PyObject* _PyModule_GetDict(PyObject *mod) {
     return dict;
 }
 
-typedef struct {
-    PyModuleObject base;
-    PyObject *globals;
-    PyObject *global_setter;
-    PyObject *originals;
-    PyObject *static_thunks;
-    PyObject *imported_from;
-} PyStrictModuleObject;
-
-static inline PyObject* Ci_PyModule_Dict(PyObject *op) {
-    if (Ci_hook_PyStrictModule_Check && Ci_hook_PyStrictModule_Check(op))
-        return ((PyStrictModuleObject *)op)->globals;
-
-    return ((PyModuleObject *)op)->md_dict;
-}
-
-CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDict(PyObject *mod);
-CiAPI_STATIC_INLINE_FUNC(PyObject*) _PyStrictModuleGetDictSetter(PyObject *mod);
-
-static inline PyObject* _PyStrictModuleGetDict(PyObject *mod) {
-    assert(PyStrictModule_Check(mod));
-    return ((PyStrictModuleObject*) mod) -> globals;
-}
-
-static inline PyObject* _PyStrictModuleGetDictSetter(PyObject *mod) {
-    assert(PyStrictModule_Check(mod));
-    return ((PyStrictModuleObject*) mod) -> global_setter;
-}
 
 #ifdef __cplusplus
 }

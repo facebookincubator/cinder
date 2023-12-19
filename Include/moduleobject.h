@@ -8,14 +8,9 @@ extern "C" {
 #endif
 
 PyAPI_DATA(PyTypeObject) PyModule_Type;
-CiAPI_DATA(PyTypeObject) PyStrictModule_Type;
 
 #define PyModule_Check(op) PyObject_TypeCheck(op, &PyModule_Type)
 #define PyModule_CheckExact(op) Py_IS_TYPE(op, &PyModule_Type)
-#define PyStrictModule_Check(op) PyObject_TypeCheck(op, &PyStrictModule_Type)
-#define PyStrictModule_CheckExact(op) (Py_TYPE(op) == &PyStrictModule_Type)
-
-PyAPI_FUNC(PyObject *) PyStrictModule_New(PyTypeObject*, PyObject*, PyObject*);
 
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03030000
 PyAPI_FUNC(PyObject *) PyModule_NewObject(
@@ -93,15 +88,6 @@ typedef struct PyModuleDef{
 // Internal C API
 #ifdef Py_BUILD_CORE
 extern int _PyModule_IsExtension(PyObject *obj);
-#endif
-
-#if !defined(Py_LIMITED_API)
-
-CiAPI_FUNC(int) strictmodule_is_unassigned(PyObject *dict, PyObject *name);
-CiAPI_FUNC(PyObject *) PyStrictModule_GetOriginal(PyObject *obj, PyObject *name);
-CiAPI_FUNC(int) _Py_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value);
-CiAPI_FUNC(PyObject *) PyStrictModule_GetDictSetter(PyObject *);
-CiAPI_FUNC(PyObject *) PyStrictModule_GetDict(PyObject *);
 #endif
 
 #ifdef __cplusplus

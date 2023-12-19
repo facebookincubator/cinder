@@ -555,6 +555,7 @@ ifeq ($(BUILD_CINDERX_SRCS), yes)
 		CinderX/StrictModules/Objects/type_type.o \
 		CinderX/StrictModules/Objects/union.o \
 		CinderX/StrictModules/Objects/unknown.o \
+		CinderX/StaticPython/strictmoduleobject.o \
 		CinderX/StrictModules/parser_util.o \
 		CinderX/StrictModules/pystrictmodule.o \
 		CinderX/StrictModules/scope.o \
@@ -1435,6 +1436,7 @@ CINDERX_PRIVATE_HEADERS = \
 		$(srcdir)/CinderX/StrictModules/Objects/typing_helpers.h \
 		$(srcdir)/CinderX/StrictModules/Objects/union.h \
 		$(srcdir)/CinderX/StrictModules/Objects/unknown.h \
+		$(srcdir)/CinderX/StaticPython/strictmoduleobject.h \
 		$(srcdir)/CinderX/StrictModules/parser_util.h \
 		$(srcdir)/CinderX/StrictModules/pycore_dependencies.h \
 		$(srcdir)/CinderX/StrictModules/py_headers.h \

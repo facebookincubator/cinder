@@ -15,6 +15,7 @@
 #include "Jit/hir/ssa.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
+#include "StaticPython/strictmoduleobject.h"
 
 #include "RuntimeTests/testutil.h"
 
@@ -173,7 +174,7 @@ class RuntimeTest : public ::testing::Test {
       return kwargs;
     }
     auto module = Ref<>::steal(
-        PyStrictModule_New(&PyStrictModule_Type, args.get(), kwargs.get()));
+        Ci_StrictModule_New(&Ci_StrictModule_Type, args.get(), kwargs.get()));
     if (module == nullptr) {
       return module;
     }

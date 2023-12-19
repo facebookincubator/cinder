@@ -11,8 +11,10 @@ CiGen_ClearFreeList
 CiGen_close_yf
 CiGen_New_NoFrame
 CiGen_restore_error
+Ci_hook_MaybeStrictModule_Dict
 Ci_hook_PyDescr_NewMethod
 Ci_hook_PyJIT_GenDealloc
+Ci_hook_StrictModuleGetDict
 Ci_list_subscript
 Ci_module_lookupattro
 Ci_PyClassMethod_GetFunc
@@ -577,7 +579,6 @@ _PyDictView_New
 PyDict_Watch
 _Py_DisplaySourceLine
 Py_DontWriteBytecodeFlag
-_Py_do_strictmodule_patch
 _Py_DumpASCII
 _Py_DumpDecimal
 _Py_DumpExtensionModules
@@ -1575,11 +1576,6 @@ _Py_strhex
 _Py_strhex_bytes
 _Py_strhex_bytes_with_sep
 _Py_strhex_with_sep
-PyStrictModule_GetDict
-PyStrictModule_GetDictSetter
-PyStrictModule_GetOriginal
-PyStrictModule_New
-PyStrictModule_Type
 _Py_string_to_number_with_underscores
 _Py_str_to_int
 PyStructSequence_GetItem
@@ -2001,7 +1997,6 @@ stat_S_ISDIR
 stat_S_ISDIR_doc
 stat_S_ISDOOR
 stat_S_ISDOOR_doc
-strictmodule_is_unassigned
 __TMC_END__
 UnicodeDecodeError_init
 UnicodeDecodeError_str

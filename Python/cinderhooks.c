@@ -39,6 +39,8 @@ Ci_HookType_PyJIT_GenSend Ci_hook_PyJIT_GenSend = NULL;
 Ci_HookType_PyJIT_GenYieldFromValue Ci_hook_PyJIT_GenYieldFromValue = NULL;
 Ci_HookType_PyJIT_GenMaterializeFrame  Ci_hook_PyJIT_GenMaterializeFrame = NULL;
 
+Ci_HookType_MaybeStrictModule_Dict Ci_hook_MaybeStrictModule_Dict = NULL;
+Ci_HookType_StrictModuleGetDict Ci_hook_StrictModuleGetDict = NULL;
 Ci_HookType_PyStrictModule_Check Ci_hook_PyStrictModule_Check = NULL;
 
 /* Interpreter */

@@ -110,6 +110,12 @@ typedef PyFrameObject *(*Ci_HookType_PyJIT_GenMaterializeFrame)(
 CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
     Ci_hook_PyJIT_GenMaterializeFrame;
 
+typedef PyObject *(*Ci_HookType_MaybeStrictModule_Dict)(PyObject *op);
+CiAPI_DATA(Ci_HookType_MaybeStrictModule_Dict) Ci_hook_MaybeStrictModule_Dict;
+
+typedef PyObject *(*Ci_HookType_StrictModuleGetDict)(PyObject *op);
+CiAPI_DATA(Ci_HookType_StrictModuleGetDict) Ci_hook_StrictModuleGetDict;
+
 typedef int (*Ci_HookType_PyStrictModule_Check)(PyObject *obj);
 CiAPI_DATA(Ci_HookType_PyStrictModule_Check) Ci_hook_PyStrictModule_Check;
 

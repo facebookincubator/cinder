@@ -10,6 +10,7 @@
 #include "Jit/profile_runtime.h"
 #include "Jit/runtime.h"
 #include "Jit/type_deopt_patchers.h"
+#include "StaticPython/strictmoduleobject.h"
 
 #include <fmt/ostream.h>
 
@@ -531,7 +532,7 @@ Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
     return simplifyLoadTypeMethod(env, load_meth);
   }
   BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
-  if (type == &PyModule_Type || type == &PyStrictModule_Type) {
+  if (type == &PyModule_Type || type == &Ci_StrictModule_Type) {
     return simplifyLoadModuleMethod(env, load_meth);
   }
   return nullptr;

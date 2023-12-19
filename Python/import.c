@@ -23,6 +23,7 @@
 #include "code.h"
 #include "importdl.h"
 #include "pydtrace.h"
+#include "cinder/hooks.h"
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -2975,7 +2976,11 @@ _imp_hydrate_lazy_objects_impl(PyObject *module)
             if (dst_module != Py_None) {
                 Py_XDECREF(dst_dict);
                 if (PyModule_Check(dst_module)) {
-                    dst_dict = Ci_PyModule_Dict(dst_module);
+                    if (Ci_hook_MaybeStrictModule_Dict) {
+                        dst_dict = Ci_hook_MaybeStrictModule_Dict(dst_module);
+                    } else {
+                        dst_dict = _PyModule_GetDict(dst_module);
+                    }
                     Py_XINCREF(dst_dict);
                 } else {
                     dst_dict = _PyObject_GetAttrId(dst_module, &PyId___dict__);
@@ -3000,7 +3005,11 @@ _imp_hydrate_lazy_objects_impl(PyObject *module)
                             if (d->lz_attr) {
                                 Py_XDECREF(src_dict);
                                 if (PyModule_Check(src_module)) {
-                                    src_dict = Ci_PyModule_Dict(src_module);
+                                    if (Ci_hook_MaybeStrictModule_Dict) {
+                                        src_dict = Ci_hook_MaybeStrictModule_Dict(src_module);
+                                    } else {
+                                        src_dict = _PyModule_GetDict(src_module);
+                                    }
                                     Py_XINCREF(src_dict);
                                 } else {
                                     src_dict = _PyObject_GetAttrId(src_module, &PyId___dict__);

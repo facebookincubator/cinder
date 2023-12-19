@@ -13,6 +13,7 @@
 #include "pycore_object.h"
 
 #include "cinder/ci_api.h"
+#include "StaticPython/strictmoduleobject.h"
 
 #include "CachedProperties/cached_properties.h"
 #include "Interpreter/opcode.h"
@@ -343,7 +344,7 @@ PyObject *_PyShadow_UpdateFastCache(_PyShadow_InstanceAttrEntry *entry,
                                     PyDictObject *dictobj);
 
 #define PYCACHE_MODULE_VERSION(module) ((PyDictObject *)((PyModuleObject *)module)->md_dict)->ma_version_tag
-#define PYCACHE_STRICT_MODULE_VERSION(module) ((PyDictObject *)((PyStrictModuleObject *)module)->globals)->ma_version_tag
+#define PYCACHE_STRICT_MODULE_VERSION(module) ((PyDictObject *)((Ci_StrictModuleObject *)module)->globals)->ma_version_tag
 
 
 int _PyShadow_LoadAttrMiss(_PyShadow_EvalState *shadow,
@@ -905,8 +906,8 @@ _PyShadow_LoadAttrStrictModule(_PyShadow_EvalState *shadow,
 
     if (entry->module == owner) {
         if (entry->version != PYCACHE_STRICT_MODULE_VERSION(owner)) {
-            PyObject * dict = ((PyStrictModuleObject *)owner)->globals;
-            int unassigned = strictmodule_is_unassigned(dict, entry->name);
+            PyObject * dict = ((Ci_StrictModuleObject *)owner)->globals;
+            int unassigned = Ci_strictmodule_is_unassigned(dict, entry->name);
             if (unassigned == 0) {
                 entry->value = _PyDict_GetItem_UnicodeExact(dict, entry->name);
             } else {
@@ -1364,8 +1365,8 @@ _PyShadow_LoadMethodStrictModule(_PyShadow_EvalState *shadow,
            &_PyShadow_StrictModuleAttrEntryType.type);
     if (entry->module == obj) {
         if (entry->version != PYCACHE_STRICT_MODULE_VERSION(obj)) {
-            PyObject *dict = ((PyStrictModuleObject *)obj)->globals;
-            int unassigned = strictmodule_is_unassigned(dict, entry->name);
+            PyObject *dict = ((Ci_StrictModuleObject *)obj)->globals;
+            int unassigned = Ci_strictmodule_is_unassigned(dict, entry->name);
             if (unassigned != 0) {
                 entry->value = NULL;
             } else {

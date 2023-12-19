@@ -7,6 +7,7 @@
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
+#include "CinderX/StaticPython/strictmoduleobject.h"
 
 // TODO(T169502989)
 // Including these here is a hack until cinder.c is split + migrated to CinderX
@@ -230,7 +231,7 @@ static PyObject * strict_module_patch(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OUO", &mod, &name, &value)) {
         return NULL;
     }
-    if (_Py_do_strictmodule_patch(mod, name, value) < 0) {
+    if (Ci_do_strictmodule_patch(mod, name, value) < 0) {
         return NULL;
     }
     Py_RETURN_NONE;
@@ -249,7 +250,7 @@ static PyObject * strict_module_patch_delete(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OU", &mod, &name)) {
         return NULL;
     }
-    if (_Py_do_strictmodule_patch(mod, name, NULL) < 0) {
+    if (Ci_do_strictmodule_patch(mod, name, NULL) < 0) {
         return NULL;
     }
     Py_RETURN_NONE;
@@ -262,11 +263,11 @@ Gets whether patching is enabled on the strict module"
 );
 static PyObject * strict_module_patch_enabled(PyObject *self, PyObject *mod)
 {
-    if (!PyStrictModule_Check(mod)) {
+    if (!Ci_StrictModule_Check(mod)) {
         PyErr_SetString(PyExc_TypeError, "expected strict module object");
         return NULL;
     }
-    if (PyStrictModule_GetDictSetter(mod) != NULL) {
+    if (Ci_StrictModule_GetDictSetter(mod) != NULL) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
@@ -975,7 +976,7 @@ PyInit_cinder(void)
     if (PyType_Ready(&PyCachedPropertyWithDescr_Type) < 0) {
         return NULL;
     }
-    if (PyType_Ready(&PyStrictModule_Type) < 0) {
+    if (PyType_Ready(&Ci_StrictModule_Type) < 0) {
         return NULL;
     }
     if (PyType_Ready(&PyAsyncCachedProperty_Type) < 0) {
@@ -1004,7 +1005,7 @@ PyInit_cinder(void)
     }
 
     ADDITEM("cached_property", &PyCachedProperty_Type);
-    ADDITEM("StrictModule", &PyStrictModule_Type);
+    ADDITEM("StrictModule", &Ci_StrictModule_Type);
     ADDITEM("async_cached_property", &PyAsyncCachedProperty_Type);
     ADDITEM("async_cached_classproperty", &PyAsyncCachedClassProperty_Type);
 

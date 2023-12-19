@@ -15,11 +15,11 @@
 #include "Jit/pyjit.h"
 #include "Python.h"
 #include "Shadowcode/shadowcode.h"
-#include "pycore_moduleobject.h"
 #include "structmember.h"
 #include <stddef.h>
 #include "Common/watchers.h"
 #include "cinder/exports.h"
+#include "StaticPython/strictmoduleobject.h"
 
 // This relies on Python internals.
 #include "Python/wordcode_helpers.h"
@@ -1104,9 +1104,9 @@ _PyShadow_SetLoadAttrError(PyObject *obj, PyObject *name)
         PyErr_Format(PyExc_AttributeError,
                     "module has no attribute '%U'", name);
     }
-    else if (PyStrictModule_CheckExact(obj)) {
+    else if (Ci_StrictModule_CheckExact(obj)) {
         PyErr_Clear();
-        PyStrictModuleObject *m = (PyStrictModuleObject *)obj;
+        Ci_StrictModuleObject *m = (Ci_StrictModuleObject *)obj;
         if (m->globals) {
             _Py_IDENTIFIER(__name__);
             mod_name = _PyDict_GetItemIdWithError(m->globals, &PyId___name__);
@@ -1335,8 +1335,8 @@ _PyShadow_LoadCacheInfo(PyTypeObject *tp,
     }
 
     /* Inline _PyObject_GetDictPtr */
-    if (PyType_IsSubtype(tp, &PyStrictModule_Type)) {
-        dictoffset = offsetof(PyStrictModuleObject, globals);
+    if (PyType_IsSubtype(tp, &Ci_StrictModule_Type)) {
+        dictoffset = offsetof(Ci_StrictModuleObject, globals);
     } else
     {
       dictoffset = tp->tp_dictoffset;
@@ -1568,16 +1568,16 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
         return 0;
     }
 
-    PyObject *dict = Ci_PyModule_Dict(owner);
+    PyObject *dict = Ci_MaybeStrictModule_Dict(owner);
 
     if (dict) {
 
         int version;
         PyObject *value;
 
-        if (PyStrictModule_Check(owner)) {
+        if (Ci_StrictModule_Check(owner)) {
             version = PYCACHE_STRICT_MODULE_VERSION(owner);
-            if (strictmodule_is_unassigned(dict, name) == 0) {
+            if (Ci_strictmodule_is_unassigned(dict, name) == 0) {
                 value = PyDict_GetItemWithError(dict, name);
             } else {
                 value = NULL;
@@ -1594,7 +1594,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
             *res = value;
 
             _PyShadow_ModuleAttrEntry *entry;
-            if (PyStrictModule_Check(owner)) {
+            if (Ci_StrictModule_Check(owner)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
             } else
@@ -1628,7 +1628,7 @@ _PyShadow_GetAttrModule(_PyShadow_EvalState *state,
              * dict which matches the string w/ a custom __eq__/__hash__ */
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-                                  PyStrictModule_Check(owner) ? LOAD_ATTR_S_MODULE :
+                                  Ci_StrictModule_Check(owner) ? LOAD_ATTR_S_MODULE :
                                   LOAD_ATTR_MODULE,
                                   (PyObject *)entry,
                                   name,
@@ -1696,7 +1696,7 @@ _PyShadow_LoadAttrWithCache(_PyShadow_EvalState *state,
             return res;
         } else if (
             type->tp_getattro == PyModule_Type.tp_getattro
-            || type->tp_getattro == PyStrictModule_Type.tp_getattro
+            || type->tp_getattro == Ci_StrictModule_Type.tp_getattro
         ) {
             PyObject *descr = _PyType_Lookup(type, name);
             if (descr == NULL) {
@@ -1884,14 +1884,14 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         return meth_found;
     }
 
-    PyObject *dict = Ci_PyModule_Dict(obj);
+    PyObject *dict = Ci_MaybeStrictModule_Dict(obj);
     if (dict) {
         int version;
         PyObject *value;
 
-        if (PyStrictModule_Check(obj)) {
+        if (Ci_StrictModule_Check(obj)) {
             version = PYCACHE_STRICT_MODULE_VERSION(obj);
-            if (strictmodule_is_unassigned(dict, name) == 0) {
+            if (Ci_strictmodule_is_unassigned(dict, name) == 0) {
                 value = PyDict_GetItemWithError(dict, name);
             } else {
                 value = NULL;
@@ -1905,7 +1905,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
         if (value != NULL) {
 
             _PyShadow_ModuleAttrEntry *entry;
-            if (PyStrictModule_Check(obj)) {
+            if (Ci_StrictModule_Check(obj)) {
                 entry = (_PyShadow_ModuleAttrEntry *)_PyShadow_NewCacheEntry(
                     &_PyShadow_StrictModuleAttrEntryType);
             } else
@@ -1934,7 +1934,7 @@ _PyShadow_LoadMethodFromModule(_PyShadow_EvalState *state,
 
             _PyShadow_PatchOrMiss(state,
                                   next_instr,
-                                  PyStrictModule_Check(obj) ? LOAD_METHOD_S_MODULE :
+                                  Ci_StrictModule_Check(obj) ? LOAD_METHOD_S_MODULE :
                                   LOAD_METHOD_MODULE,
                                   (PyObject *)entry,
                                   name,
@@ -1973,7 +1973,7 @@ _PyShadow_LoadMethodWithCache(_PyShadow_EvalState *state,
                 return meth_found;
             }
         } else if (tp->tp_getattro == PyModule_Type.tp_getattro
-                   || tp->tp_getattro == PyStrictModule_Type.tp_getattro
+                   || tp->tp_getattro == Ci_StrictModule_Type.tp_getattro
         ) {
             if (_PyType_Lookup(tp, name) == NULL) {
                 int meth_found = _PyShadow_LoadMethodFromModule(

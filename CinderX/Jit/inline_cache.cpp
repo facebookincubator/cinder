@@ -10,6 +10,8 @@
 #include "Jit/containers.h"
 #include "Jit/util.h"
 
+#include "StaticPython/strictmoduleobject.h"
+
 #include <algorithm>
 #include <memory>
 
@@ -755,7 +757,7 @@ static uint64_t getModuleVersion(BorrowedRef<PyModuleObject> mod) {
   return 0;
 }
 
-static uint64_t getModuleVersion(BorrowedRef<PyStrictModuleObject> mod) {
+static uint64_t getModuleVersion(BorrowedRef<Ci_StrictModuleObject> mod) {
   if (mod->globals) {
     BorrowedRef<PyDictObject> globals = mod->globals;
     return globals->ma_version_tag;
@@ -779,8 +781,8 @@ JITRT_LoadMethodResult LoadModuleMethodCache::lookup(
     if (PyModule_Check(obj)) {
       BorrowedRef<PyModuleObject> mod{obj};
       version = getModuleVersion(mod);
-    } else if (PyStrictModule_Check(obj)) {
-      BorrowedRef<PyStrictModuleObject> mod{obj};
+    } else if (Ci_StrictModule_Check(obj)) {
+      BorrowedRef<Ci_StrictModuleObject> mod{obj};
       version = getModuleVersion(mod);
     }
     if (module_version_ == version) {
@@ -806,13 +808,12 @@ LoadModuleMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
         res = PyDict_GetItemWithError(dict, name);
       }
     }
-  } else if (
-      PyStrictModule_Check(obj) &&
-      tp->tp_getattro == PyStrictModule_Type.tp_getattro) {
+  } else if (Ci_StrictModule_Check(obj) &&
+             tp->tp_getattro == Ci_StrictModule_Type.tp_getattro) {
     if (_PyType_Lookup(tp, name) == nullptr) {
-      BorrowedRef<PyStrictModuleObject> mod{obj};
+      BorrowedRef<Ci_StrictModuleObject> mod{obj};
       BorrowedRef<> dict = mod->globals;
-      if (dict && strictmodule_is_unassigned(dict, name) == 0) {
+      if (dict && Ci_strictmodule_is_unassigned(dict, name) == 0) {
         dict_version = getModuleVersion(mod);
         res = PyDict_GetItemWithError(dict, name);
       }

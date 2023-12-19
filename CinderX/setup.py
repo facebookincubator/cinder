@@ -230,6 +230,7 @@ STATICPYTHON_SRCS = [
     "StaticPython/classloader.c",
     "StaticPython/descrobject_vectorcall.c",
     "StaticPython/methodobject_vectorcall.c",
+    "StaticPython/strictmoduleobject.c",
 ]
 
 CACHEDPROPS_SRCS = [

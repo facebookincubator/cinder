@@ -5,6 +5,7 @@
 #include "cinder/exports.h"
 #include "cinder/hooks.h"
 #include "internal/pycore_moduleobject.h"
+#include "strictmoduleobject.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -371,7 +372,7 @@ CiAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 CiAPI_FUNC(PyObject *)
 _PyTypedDescriptorWithDefaultValue_New(PyObject *name, PyObject *type, Py_ssize_t offset, PyObject *default_value);
 
-CiAPI_FUNC(int) _PyClassLoader_UpdateModuleName(PyStrictModuleObject *mod,
+CiAPI_FUNC(int) _PyClassLoader_UpdateModuleName(Ci_StrictModuleObject *mod,
                                     PyObject *name,
                                     PyObject *new_value);
 

@@ -17,6 +17,7 @@
 
 #include "CachedProperties/cached_properties.h"
 #include "StaticPython/classloader.h"
+#include "strictmoduleobject.h"
 
 PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");
@@ -33,7 +34,7 @@ _static_exec(PyObject *m)
     if (PyType_Ready((PyTypeObject *)&Ci_CheckedList_Type) < 0)
         return -1;
 
-    PyObject *globals = ((PyStrictModuleObject *)m)->globals;
+    PyObject *globals = ((Ci_StrictModuleObject *)m)->globals;
     if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&Ci_CheckedDict_Type) < 0)
         return -1;
 
@@ -175,7 +176,7 @@ static PyObject* _static_create(PyObject *spec, PyModuleDef *def) {
     PyTuple_SET_ITEM(args, 0, mod_dict);
 
 
-    PyObject *res = PyStrictModule_New(&PyStrictModule_Type, args, NULL);
+    PyObject *res = Ci_StrictModule_New(&Ci_StrictModule_Type, args, NULL);
     Py_DECREF(args);
     if (res == NULL) {
         return NULL;
