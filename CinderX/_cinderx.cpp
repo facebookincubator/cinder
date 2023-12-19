@@ -107,7 +107,7 @@ static int get_current_code_flags(PyThreadState* tstate) {
     return cur_code->co_flags;
 }
 
-static inline int _Ci_StrictModule_Check(PyObject* obj) {
+static int _Ci_StrictModule_Check(PyObject* obj) {
   return Ci_StrictModule_Check(obj);
 }
 
@@ -137,7 +137,7 @@ static int cinder_init() {
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
   Ci_hook_MaybeStrictModule_Dict = Ci_MaybeStrictModule_Dict;
   Ci_hook_StrictModuleGetDict = Ci_StrictModuleGetDict;
-  Ci_hook_PyStrictModule_Check = _Ci_StrictModule_Check;
+  Ci_hook_StrictModule_Check = _Ci_StrictModule_Check;
   Ci_hook_EvalFrame = Ci_EvalFrame;
   Ci_hook_PyJIT_GetFrame = _PyJIT_GetFrame;
   Ci_hook_PyJIT_GetBuiltins = _PyJIT_GetBuiltins;
@@ -229,7 +229,7 @@ static int cinder_fini() {
   Ci_hook_add_subclass = nullptr;
   Ci_hook_MaybeStrictModule_Dict = nullptr;
   Ci_hook_StrictModuleGetDict = nullptr;
-  Ci_hook_PyStrictModule_Check = nullptr;
+  Ci_hook_StrictModule_Check = nullptr;
 
   /* These hooks are not safe to unset, since there may be SP generic types that
    * outlive finalization of the cinder module, and if we don't have the hooks in
