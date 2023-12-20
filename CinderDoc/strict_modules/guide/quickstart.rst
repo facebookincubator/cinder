@@ -1,20 +1,17 @@
-Quickstart
-##########
+# Quickstart
 
-How do I use it?
-----------------
+## How do I use it?
 
 Using Strict Modules requires a module loader able to detect strict modules
-based on some marker (we use the presence of ``import __strict__``).
+based on some marker (we use the presence of `import __strict__`).
 Such a loader is included (at `compiler.strict.loader.StrictSourceFileLoader`)
 and you can install it by calling `compiler.strict.loader.install()` in the
 "main" module of your program (before anything else is imported.)
 Note this means the main module itself cannot be strict. Alternatively, set the
-``PYTHONINSTALLSTRICTLOADER`` environment variable to a nonzero value, and
+`PYTHONINSTALLSTRICTLOADER` environment variable to a nonzero value, and
 the loader will be installed for you (but then you can't customize the loader).
 
-How do I make my module strict?
--------------------------------
+## How do I make my module strict?
 
 To opt your module in, place the line ``import __strict__`` at the top of the
 module. The ``__strict__`` marker line should come after the docstring if
