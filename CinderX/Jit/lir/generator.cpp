@@ -844,22 +844,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           break;
         }
 
-        std::string op;
+        auto op = Instruction::kNop;
         switch (instr->op()) {
           case BinaryOpKind::kAdd: {
-            op = "Fadd";
+            op = Instruction::kFadd;
             break;
           }
           case BinaryOpKind::kSubtract: {
-            op = "Fsub";
+            op = Instruction::kFsub;
             break;
           }
           case BinaryOpKind::kMultiply: {
-            op = "Fmul";
+            op = Instruction::kFmul;
             break;
           }
           case BinaryOpKind::kTrueDivide: {
-            op = "Fdiv";
+            op = Instruction::kFdiv;
             break;
           }
           default: {
@@ -868,19 +868,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           }
         }
 
-        // Our formatter for Registers tries to be clever with constant values,
-        // and this backfires in certain situations (it converts registers to
-        // immediates). We have to manually format the name and type here to
-        // work around that.
-        auto codestr = fmt::format(
-            "{} {}, {}:{}, {}:{}",
-            op,
+        bbb.appendInstr(
             instr->dst(),
-            instr->left()->name(),
-            instr->left()->type().unspecialized(),
-            instr->right()->name(),
-            instr->right()->type().unspecialized());
-        bbb.AppendCode(codestr);
+            op,
+            instr->left(),
+            instr->right()
+        );
         break;
       }
       case Opcode::kPrimitiveCompare: {
