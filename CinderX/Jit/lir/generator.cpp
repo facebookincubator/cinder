@@ -1094,9 +1094,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kReturn: {
         // TODO support constant operand to Return
-        Register* reg = i.GetOperand(0);
-        bbb.AppendCode(
-            "Return {}:{}", reg->name(), reg->type().unspecialized());
+        bbb.appendInstr(Instruction::kReturn, i.GetOperand(0));
         break;
       }
       case Opcode::kSetCurrentAwaiter: {
