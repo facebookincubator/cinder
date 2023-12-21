@@ -1031,9 +1031,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const PrimitiveUnbox*>(&i);
         Type ty = instr->type();
         if (ty <= TCBool) {
-          uint64_t true_addr = reinterpret_cast<uint64_t>(Py_True);
-          bbb.AppendCode(
-              "Equal {} {} {:#x}", instr->dst(), instr->value(), true_addr);
+          bbb.appendInstr(instr->dst(), Instruction::kEqual, instr->value(), MemImm{Py_True});
         } else if (ty <= TCDouble) {
           // For doubles, we can directly load the offset into the destination.
           Instruction* value = bbb.getDefInstr(instr->value());
