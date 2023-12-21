@@ -7,6 +7,8 @@
 import os
 import setuptools
 
+from typing import List
+
 from distutils.command.build_ext import build_ext
 from concurrent.futures import ThreadPoolExecutor
 
@@ -17,6 +19,7 @@ THIRD_PARTY_DIR = os.path.realpath(f"{MODULE_DIR}/ThirdParty")
 PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
 CINDERX_DIR = os.path.realpath(f"{PYTHON_DIR}/CinderX/")
 
+# Paths to be added to the compile command as roots for header paths
 INCLUDE_DIRS = [
     CINDERX_DIR,
     f"{PYTHON_DIR}/Include/internal",
@@ -25,6 +28,12 @@ INCLUDE_DIRS = [
     f"{THIRD_PARTY_DIR}/i386-dis",
     f"{THIRD_PARTY_DIR}/json",
     f"{THIRD_PARTY_DIR}/parallel-hashmap",
+]
+
+# Changes to any .h files in these paths will cause a complete rebuild
+INCLUDE_DEPS_DIRS = [
+    f"{PYTHON_DIR}/Include",
+    f"{CINDERX_DIR}",
 ]
 
 CINDERX_SRCS = [
@@ -281,6 +290,17 @@ class CinderBuildExt(build_ext):
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+def find_header_files(directories: List[str]) -> List[str]:
+    header_files = []
+    for directory in directories:
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.endswith('.h'):
+                    header_files.append(os.path.join(root, file))
+    return header_files
+
+dep_header_files = find_header_files(INCLUDE_DEPS_DIRS)
+
 setuptools.setup(
     name="cinderx",
     version="0.0.3",
@@ -298,6 +318,7 @@ setuptools.setup(
             include_dirs=INCLUDE_DIRS,
             define_macros=[("FMT_HEADER_ONLY", 1), ("Py_BUILD_CORE", None)],
             extra_compile_args=["-Wno-ambiguous-reversed-operator"],
+            depends=dep_header_files,
         )
     ],
     packages=setuptools.find_packages(),
@@ -320,18 +341,21 @@ setuptools.setup(
             sources=["StaticPython/_static.c"],
             include_dirs=INCLUDE_DIRS,
             define_macros=[("Py_BUILD_CORE_MODULE", None)],
+            depends=dep_header_files,
         ),
         setuptools.Extension(
             "_strictmodule",
             sources=["StrictModules/_strictmodule.c"],
             include_dirs=INCLUDE_DIRS,
             define_macros=[("Py_BUILD_CORE_MODULE", None)],
+            depends=dep_header_files,
         ),
         setuptools.Extension(
             "xxclassloader",
             sources=["StaticPython/xxclassloader.c"],
             include_dirs=INCLUDE_DIRS,
             define_macros=[("Py_BUILD_CORE_MODULE", None)],
+            depends=dep_header_files,
         ),
     ],
     packages=setuptools.find_packages(),
