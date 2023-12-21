@@ -7599,13 +7599,13 @@ _gather_multiple(PyObject *const*items,
     PyObject *current_task = NULL, *current_context = NULL, *awaiter = NULL;
     context_aware_task_set_ctx_f context_setter = NULL;
 
-    if (awaited && Ci_cinderx_initialized) {
+    if (awaited) {
         _PyShadowFrame* sf = tstate->shadow_frame;
         // If our caller is executing eagerly, it won't have a coroutine to set
         // as our awaiter yet. This will be fixed up if and when the caller
         // does suspend.
-        if (Ci_hook_PyShadowFrame_HasGen(sf)) {
-            awaiter = (PyObject *)Ci_hook_PyShadowFrame_GetGen(sf);
+        if (_PyShadowFrame_HasGen(sf)) {
+            awaiter = (PyObject *)_PyShadowFrame_GetGen(sf);
         }
     }
 

@@ -698,26 +698,9 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
 
   return materializePyFrames(tstate, unit_state, cursor);
 }
-
 } // namespace jit
 
-int _PyShadowFrame_HasGen(_PyShadowFrame* shadow_frame) {
-  return is_shadow_frame_for_gen(shadow_frame);
-}
-
-PyGenObject* _PyShadowFrame_GetGen(_PyShadowFrame* shadow_frame) {
-  JIT_DCHECK(
-      is_shadow_frame_for_gen(shadow_frame),
-      "Not shadow-frame for a generator");
-
-  // For generators, shadow frame is embedded in generator object. Thus we
-  // can recover the generator object pointer from the shadow frame pointer.
-  return reinterpret_cast<PyGenObject*>(
-      reinterpret_cast<uintptr_t>(shadow_frame) -
-      offsetof(PyGenObject, gi_shadow_frame));
-}
-
-PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
+PyCodeObject *Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame *shadow_frame) {
   _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
   void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
   switch (ptr_kind) {
@@ -733,54 +716,12 @@ PyCodeObject* _PyShadowFrame_GetCode(_PyShadowFrame* shadow_frame) {
   }
 }
 
-PyObject* _PyShadowFrame_GetFullyQualifiedName(_PyShadowFrame* shadow_frame) {
-  PyObject* mod_name = jit::getModuleName(shadow_frame);
-  if (!mod_name) {
-    return NULL;
-  }
-
-  if (!PyUnicode_Check(mod_name)) {
-    PyErr_Format(
-        PyExc_RuntimeError,
-        "expected module name to be a string, got %s",
-        Py_TYPE(mod_name)->tp_name);
-    Py_DECREF(mod_name);
-    return nullptr;
-  }
-
-  PyCodeObject* code = _PyShadowFrame_GetCode(shadow_frame);
-  PyObject* code_name = code->co_qualname;
-  char const* format = "%U:%U";
-  // If co_qualname is some invalid value, we try to do our best by using the
-  // co_name instead. While this is an error condition (and should be
-  // investigated), we don't crash here, someone might be trying to debug the
-  // issue itself by calling this function!
-  if (!code->co_qualname || !PyUnicode_Check(code->co_qualname)) {
-    code_name = code->co_name;
-    format = "%U:!%U";
-  }
-
-  PyObject* result = PyUnicode_FromFormat(format, mod_name, code_name);
-  Py_DECREF(mod_name);
-  return result;
+int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame *shadow_frame) {
+  return is_shadow_frame_for_gen(shadow_frame);
 }
 
-_PyShadowFrame* _PyShadowFrame_GetAwaiterFrame(_PyShadowFrame* shadow_frame) {
-  if (_PyShadowFrame_HasGen(shadow_frame)) {
-    PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
-    if (!PyCoro_CheckExact((PyObject*)gen)) {
-      // This means we have a real generator, so it cannot have awaiter frames.
-      // but we also did not fail.
-      return nullptr;
-    }
-    PyCoroObject* awaiter = ((PyCoroObject*)gen)->ci_cr_awaiter;
-    if (!awaiter) {
-      // This is fine, not every coroutine needs to have an awaiter
-      return nullptr;
-    }
-    return &(awaiter->cr_shadow_frame);
-  }
-  return nullptr;
+PyObject *Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame *shadow_frame) {
+  return jit::getModuleName(shadow_frame);
 }
 
 int _PyShadowFrame_WalkAndPopulate(

@@ -35,8 +35,6 @@ static PyObject *dlopen_cache;
 // Dict[Tuple[str, str], int]
 static PyObject *dlsym_cache;
 
-int Ci_CallDescriptorOnInvokeFunction = 0;
-
 static void
 vtabledealloc(_PyType_VTable *op)
 {

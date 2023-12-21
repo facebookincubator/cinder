@@ -576,8 +576,6 @@ _PyShadow_LoadAttrSwitchPolymorphic(_PyShadow_EvalState *state,
     return _PyShadow_LoadAttrPolymorphic(state, next_instr, entries, owner);
 }
 
-int _PyShadow_PolymorphicCacheEnabled = 1;
-
 PyObject *_Py_NO_INLINE
 _PyShadow_LoadAttrInvalidate(_PyShadow_EvalState *state,
                              const _Py_CODEUNIT *next_instr,

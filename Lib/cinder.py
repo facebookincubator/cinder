@@ -1,7 +1,31 @@
-"""High-performance Python runtime extensions."""
+from _cinder import (
+    # Methods
+    _get_arg0_from_pyframe,
+    _get_awaiter_frame,
+    _get_call_stack,
+    _get_coro_awaiter,
+    _get_entire_call_stack_as_qualnames,
+    _get_frame_gen,
+    _get_qualname,
+    _has_no_shadowing_instances,
+    _set_qualname,
+    cinder_set_warn_handler,
+    debug_break,
+    freeze_type,
+    get_warn_handler,
+    getknobs,
+    set_warn_handler,
+    setknobs,
+    toggle_dump_ref_changes,
+    warn_on_inst_dict,
+
+    # Other attributes
+    STRUCTURED_DATA_VERSION,
+    _built_with_asan,
+)
 
 try:
-    from _cinderx import (
+    from cinderx import (
         # Methods
         _compile_perf_trampoline_pre_fork,
         _get_entire_call_stack_as_qualnames_with_lineno_and_frame,
@@ -16,7 +40,6 @@ try:
         get_and_clear_type_profiles_with_metadata,
         get_and_clear_type_profiles,
         get_parallel_gc_settings,
-        init,
         set_profile_interp_all,
         set_profile_interp_period,
         set_profile_interp,

@@ -43,3 +43,13 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
 void assertShadowCallStackConsistent(PyThreadState* tstate);
 
 } // namespace jit
+
+extern "C" {
+
+PyCodeObject *Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame *shadow_frame);
+
+int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame *shadow_frame);
+
+PyObject *Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame *shadow_frame);
+
+} // extern "C"

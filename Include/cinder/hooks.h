@@ -11,6 +11,10 @@ extern "C" {
 
 /* Hooks needed by CinderX that have not been added to upstream. */
 
+CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
+CiAPI_DATA(int) _PyEval_ShadowByteCodeEnabled;
+CiAPI_DATA(int) _PyShadow_PolymorphicCacheEnabled;
+
 // An integer flag set to 1 if the hooks are enabled.
 CiAPI_DATA(int8_t) Ci_cinderx_initialized;
 
@@ -29,6 +33,18 @@ CiAPI_DATA(Ci_HookType_JIT_GetProfileNewInterpThread)
 
 typedef PyFrameObject *(*Ci_HookType_JIT_GetFrame)(PyThreadState *tstate);
 CiAPI_DATA(Ci_HookType_JIT_GetFrame) Ci_hook_JIT_GetFrame;
+
+typedef PyCodeObject *(*Ci_HookType_ShadowFrame_GetCode_JIT)(
+    _PyShadowFrame *shadow_frame);
+CiAPI_DATA(Ci_HookType_ShadowFrame_GetCode_JIT) Ci_hook_ShadowFrame_GetCode_JIT;
+
+typedef int (*Ci_HookType_ShadowFrame_HasGen_JIT)(_PyShadowFrame *shadow_frame);
+CiAPI_DATA(Ci_HookType_ShadowFrame_HasGen_JIT) Ci_hook_ShadowFrame_HasGen_JIT;
+
+typedef PyObject *(*Ci_HookType_ShadowFrame_GetModuleName_JIT)(
+    _PyShadowFrame *shadow_frame);
+CiAPI_DATA(Ci_HookType_ShadowFrame_GetModuleName_JIT)
+    Ci_hook_ShadowFrame_GetModuleName_JIT;
 
 /* Hooks for Static Python. */
 typedef int(*Ci_TypeRaisingCallback)(PyTypeObject *type);

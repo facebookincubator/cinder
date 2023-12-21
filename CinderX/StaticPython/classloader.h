@@ -349,8 +349,6 @@ typedef struct {
     int td_exact;
 } _PyTypedDescriptor;
 
-CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
-
 CiAPI_DATA(PyTypeObject) _PyTypedDescriptor_Type;
 
 CiAPI_FUNC(PyObject *)

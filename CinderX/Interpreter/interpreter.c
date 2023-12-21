@@ -105,7 +105,6 @@ static uint64_t signex_masks[] = {0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000,
 // #endif
 // #include "ceval_gil.h"
 
-int _PyEval_ShadowByteCodeEnabled = 1;
 PyAPI_DATA(int) Py_LazyImportsFlag;
 
 static inline int8_t

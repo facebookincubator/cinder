@@ -29,7 +29,6 @@ INCLUDE_DIRS = [
 
 CINDERX_SRCS = [
     "_cinderx.cpp",
-    "cinder.c",
     "Common/watchers.cpp",
     "Interpreter/interpreter.c",
     "ParallelGC/parallel_gc.c",

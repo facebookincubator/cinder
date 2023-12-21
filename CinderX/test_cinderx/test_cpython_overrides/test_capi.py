@@ -38,7 +38,7 @@ class CinderX_CAPITest(unittest.TestCase):
                 r"  File .*, line 6 in <module>\n"
                 r"\n"
                 # Changes for CinderX
-                r"Extension modules: _cinderx, _testcapi \(total: 2\)\n",
+                r"Extension modules: .* \(total: .*\)\n",
             )
         else:
             # Python built with NDEBUG macro defined:

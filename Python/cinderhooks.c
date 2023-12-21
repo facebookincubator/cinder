@@ -3,6 +3,10 @@
 #include "Python.h"
 #include "cinder/hooks.h"
 
+int Ci_CallDescriptorOnInvokeFunction = 0;
+int _PyEval_ShadowByteCodeEnabled = 1;
+int _PyShadow_PolymorphicCacheEnabled = 1;
+
 int8_t Ci_cinderx_initialized = 0;
 
 /* JIT type profiling. */
@@ -13,6 +17,9 @@ Ci_HookType_JIT_GetProfileNewInterpThread Ci_hook_JIT_GetProfileNewInterpThread 
 
 /* Hooks for JIT Shadow frames*/
 Ci_HookType_JIT_GetFrame Ci_hook_JIT_GetFrame = NULL;
+Ci_HookType_ShadowFrame_GetCode_JIT Ci_hook_ShadowFrame_GetCode_JIT = NULL;
+Ci_HookType_ShadowFrame_HasGen_JIT Ci_hook_ShadowFrame_HasGen_JIT = NULL;
+Ci_HookType_ShadowFrame_GetModuleName_JIT Ci_hook_ShadowFrame_GetModuleName_JIT = NULL;
 
 /* Static Python. */
 Ci_TypeRaisingCallback Ci_hook_type_pre_setattr = NULL;
@@ -30,14 +37,12 @@ Ci_HookType_WalkStack Ci_hook_WalkStack = NULL;
 Ci_HookType__PyShadow_FreeAll Ci_hook__PyShadow_FreeAll = NULL;
 Ci_HookType_code_sizeof_shadowcode Ci_hook_code_sizeof_shadowcode = NULL;
 
-Ci_HookType_PyShadowFrame_HasGen Ci_hook_PyShadowFrame_HasGen = NULL;
-Ci_HookType_PyShadowFrame_GetGen Ci_hook_PyShadowFrame_GetGen = NULL;
-
+/* Generators */
 Ci_HookType_PyJIT_GenVisitRefs Ci_hook_PyJIT_GenVisitRefs = NULL;
 Ci_HookType_PyJIT_GenDealloc Ci_hook_PyJIT_GenDealloc = NULL;
 Ci_HookType_PyJIT_GenSend Ci_hook_PyJIT_GenSend = NULL;
 Ci_HookType_PyJIT_GenYieldFromValue Ci_hook_PyJIT_GenYieldFromValue = NULL;
-Ci_HookType_PyJIT_GenMaterializeFrame  Ci_hook_PyJIT_GenMaterializeFrame = NULL;
+Ci_HookType_PyJIT_GenMaterializeFrame Ci_hook_PyJIT_GenMaterializeFrame = NULL;
 
 Ci_HookType_MaybeStrictModule_Dict Ci_hook_MaybeStrictModule_Dict = NULL;
 Ci_HookType_StrictModuleGetDict Ci_hook_StrictModuleGetDict = NULL;

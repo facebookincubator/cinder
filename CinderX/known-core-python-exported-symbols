@@ -5,6 +5,7 @@ cfunction_vectorcall_FASTCALL_KEYWORDS
 cfunction_vectorcall_FASTCALL_KEYWORDS_METHOD
 CiAsyncGen_New_NoFrame
 Ci_Builtin_Next_Core
+Ci_CallDescriptorOnInvokeFunction
 CiCoro_New_NoFrame
 Ci_dict_subscript
 CiGen_ClearFreeList
@@ -715,6 +716,7 @@ PyEval_SetProfile
 _PyEval_SetSwitchInterval
 _PyEval_SetTrace
 PyEval_SetTrace
+_PyEval_ShadowByteCodeEnabled
 _PyEval_SignalAsyncExc
 _PyEval_SignalReceived
 _PyEval_SliceIndex
@@ -1544,6 +1546,7 @@ PySet_Size
 Py_SetStandardStreamEncoding
 PySet_Type
 _PySet_Update
+_PyShadow_PolymorphicCacheEnabled
 _Py_Sigset_Converter
 PySlice_AdjustIndices
 _PySlice_FromIndices

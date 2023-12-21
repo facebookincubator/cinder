@@ -21,8 +21,6 @@ PyAPI_FUNC(PyObject *) PyEval_EvalCodeEx(PyObject *co,
 PyAPI_FUNC(PyObject *) _PyEval_CallTracing(PyObject *func, PyObject *args);
 
 CiAPI_DATA(int) _PyEval_LazyImportsEnabled;
-CiAPI_DATA(int) _PyEval_ShadowByteCodeEnabled;
-CiAPI_DATA(int) _PyShadow_PolymorphicCacheEnabled;
 
 CiAPI_FUNC(PyObject *) Ci_PyFunction_CallStatic(PyFunctionObject *func,
                                  PyObject* const* args,

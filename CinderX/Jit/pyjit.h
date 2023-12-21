@@ -6,12 +6,8 @@
 #include "frameobject.h"
 #include "genobject.h"
 
-// TODO(T169502989)
-// #ifndef is a hack until cinder.c isn't split + migrated to CinderX
-#ifndef _CINDER_C
 #include "Jit/pyjit_result.h"
 #include "Jit/pyjit_typeslots.h"
-#endif
 
 #ifdef __cplusplus
 #include "Jit/hir/preload.h"
