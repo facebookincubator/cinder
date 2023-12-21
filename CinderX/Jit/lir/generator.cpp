@@ -1141,8 +1141,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kAssign: {
-        auto instr = static_cast<const Assign*>(&i);
-        bbb.AppendCode("Assign {}, {}", instr->dst(), instr->reg());
+          JIT_CHECK(
+            false,
+            "assign shouldn't be present");
         break;
       }
       case Opcode::kBitCast: {
