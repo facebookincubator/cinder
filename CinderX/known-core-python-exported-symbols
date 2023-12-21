@@ -1546,6 +1546,7 @@ PySet_Size
 Py_SetStandardStreamEncoding
 PySet_Type
 _PySet_Update
+_PyShadowFrame_WalkAndPopulate
 _PyShadow_PolymorphicCacheEnabled
 _Py_Sigset_Converter
 PySlice_AdjustIndices

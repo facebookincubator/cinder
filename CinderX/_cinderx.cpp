@@ -459,6 +459,7 @@ static int cinder_init() {
   Ci_hook_ShadowFrame_GetCode_JIT = Ci_ShadowFrame_GetCode_JIT;
   Ci_hook_ShadowFrame_HasGen_JIT = Ci_ShadowFrame_HasGen_JIT;
   Ci_hook_ShadowFrame_GetModuleName_JIT = Ci_ShadowFrame_GetModuleName_JIT;
+  Ci_hook_ShadowFrame_WalkAndPopulate = Ci_ShadowFrame_WalkAndPopulate;
 
   if (init_already_existing_types() < 0) {
     return -1;
@@ -547,6 +548,7 @@ static int cinder_fini() {
   Ci_hook_ShadowFrame_GetCode_JIT = nullptr;
   Ci_hook_ShadowFrame_HasGen_JIT = nullptr;
   Ci_hook_ShadowFrame_GetModuleName_JIT = nullptr;
+  Ci_hook_ShadowFrame_WalkAndPopulate = nullptr;
 
   /* These hooks are not safe to unset, since there may be SP generic types that
    * outlive finalization of the cinder module, and if we don't have the hooks in

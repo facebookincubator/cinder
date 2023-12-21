@@ -3,6 +3,8 @@
 #include "Python.h"
 #include "cinder/hooks.h"
 
+#include "internal/pycore_shadow_frame.h"
+
 int Ci_CallDescriptorOnInvokeFunction = 0;
 int _PyEval_ShadowByteCodeEnabled = 1;
 int _PyShadow_PolymorphicCacheEnabled = 1;
@@ -20,6 +22,7 @@ Ci_HookType_JIT_GetFrame Ci_hook_JIT_GetFrame = NULL;
 Ci_HookType_ShadowFrame_GetCode_JIT Ci_hook_ShadowFrame_GetCode_JIT = NULL;
 Ci_HookType_ShadowFrame_HasGen_JIT Ci_hook_ShadowFrame_HasGen_JIT = NULL;
 Ci_HookType_ShadowFrame_GetModuleName_JIT Ci_hook_ShadowFrame_GetModuleName_JIT = NULL;
+Ci_HookType_ShadowFrame_WalkAndPopulate Ci_hook_ShadowFrame_WalkAndPopulate = NULL;
 
 /* Static Python. */
 Ci_TypeRaisingCallback Ci_hook_type_pre_setattr = NULL;
@@ -54,3 +57,30 @@ Ci_HookType_PyJIT_GetFrame Ci_hook_PyJIT_GetFrame = NULL;
 Ci_HookType_PyJIT_GetBuiltins Ci_hook_PyJIT_GetBuiltins = NULL;
 Ci_HookType_PyJIT_GetGlobals Ci_hook_PyJIT_GetGlobals = NULL;
 Ci_HookType_PyJIT_GetCurrentCodeFlags Ci_hook_PyJIT_GetCurrentCodeFlags = NULL;
+
+// For backward compatibility, we need this in libpython rather than the
+// CinderX module.
+int _PyShadowFrame_WalkAndPopulate(
+        PyCodeObject** async_stack,
+        int* async_linenos,
+        PyCodeObject** sync_stack,
+        int* sync_linenos,
+        int array_capacity,
+        int* async_stack_len_out,
+        int* sync_stack_len_out) {
+    if (Ci_hook_ShadowFrame_WalkAndPopulate == NULL) {
+        fprintf(stderr, "CinderX not loaded in _PyShadowFrame_WalkAndPopulate\n");
+        async_stack_len_out = 0;
+        sync_stack_len_out = 0;
+        return -1;
+    }
+    return
+        Ci_hook_ShadowFrame_WalkAndPopulate(
+            async_stack,
+            async_linenos,
+            sync_stack,
+            sync_linenos,
+            array_capacity,
+            async_stack_len_out,
+            sync_stack_len_out);
+}

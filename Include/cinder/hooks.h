@@ -46,6 +46,13 @@ typedef PyObject *(*Ci_HookType_ShadowFrame_GetModuleName_JIT)(
 CiAPI_DATA(Ci_HookType_ShadowFrame_GetModuleName_JIT)
     Ci_hook_ShadowFrame_GetModuleName_JIT;
 
+typedef int (*Ci_HookType_ShadowFrame_WalkAndPopulate)(
+    PyCodeObject **async_stack, int *async_linenos, PyCodeObject **sync_stack,
+    int *sync_linenos, int array_capacity, int *async_stack_len_out,
+    int *sync_stack_len_out);
+CiAPI_DATA(Ci_HookType_ShadowFrame_WalkAndPopulate)
+    Ci_hook_ShadowFrame_WalkAndPopulate;
+
 /* Hooks for Static Python. */
 typedef int(*Ci_TypeRaisingCallback)(PyTypeObject *type);
 CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
