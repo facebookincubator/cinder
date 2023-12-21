@@ -661,6 +661,11 @@ static struct PyModuleDef _cinderx_module = {
 };
 
 PyMODINIT_FUNC PyInit__cinderx(void) {
+  if ((_PyInterpreterState_GET()->dlopenflags & RTLD_GLOBAL) == 0) {
+    PyErr_SetString(PyExc_ImportError, "Do not import _cinderx directly. Use cinderx instead.");
+    return NULL;
+  }
+
   // Deliberate single-phase initialization.
   PyObject *m = PyModule_Create(&_cinderx_module);
   if (m == NULL) {
