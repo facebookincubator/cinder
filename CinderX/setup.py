@@ -327,6 +327,12 @@ setuptools.setup(
             include_dirs=INCLUDE_DIRS,
             define_macros=[("Py_BUILD_CORE_MODULE", None)],
         ),
+        setuptools.Extension(
+            "xxclassloader",
+            sources=["StaticPython/xxclassloader.c"],
+            include_dirs=INCLUDE_DIRS,
+            define_macros=[("Py_BUILD_CORE_MODULE", None)],
+        ),
     ],
     packages=setuptools.find_packages(),
     python_requires="==3.10.*",
