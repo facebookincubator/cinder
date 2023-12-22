@@ -102,15 +102,6 @@ class SampleClass:
 
     a_class_attribute = 42
 
-    @classmethod
-    @property
-    def a_classmethod_property(cls):
-        """
-        >>> print(SampleClass.a_classmethod_property)
-        42
-        """
-        return cls.a_class_attribute
-
     class NestedClass:
         """
         >>> x = SampleClass.NestedClass(5)
@@ -533,7 +524,6 @@ methods, classmethods, staticmethods, properties, and nested classes.
      1  SampleClass.NestedClass.__init__
      1  SampleClass.__init__
      2  SampleClass.a_classmethod
-     1  SampleClass.a_classmethod_property
      1  SampleClass.a_property
      1  SampleClass.a_staticmethod
      1  SampleClass.double
@@ -589,7 +579,6 @@ functions, classes, and the `__test__` dictionary, if it exists:
      1  some_module.SampleClass.NestedClass.__init__
      1  some_module.SampleClass.__init__
      2  some_module.SampleClass.a_classmethod
-     1  some_module.SampleClass.a_classmethod_property
      1  some_module.SampleClass.a_property
      1  some_module.SampleClass.a_staticmethod
      1  some_module.SampleClass.double
@@ -631,7 +620,6 @@ By default, an object with no doctests doesn't create any tests:
      1  SampleClass.NestedClass.__init__
      1  SampleClass.__init__
      2  SampleClass.a_classmethod
-     1  SampleClass.a_classmethod_property
      1  SampleClass.a_property
      1  SampleClass.a_staticmethod
      1  SampleClass.double
@@ -652,7 +640,6 @@ displays.
      0  SampleClass.NestedClass.square
      1  SampleClass.__init__
      2  SampleClass.a_classmethod
-     1  SampleClass.a_classmethod_property
      1  SampleClass.a_property
      1  SampleClass.a_staticmethod
      1  SampleClass.double
