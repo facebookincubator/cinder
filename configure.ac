@@ -6141,25 +6141,41 @@ AC_MSG_CHECKING(whether to enable Cinder ref count debugging)
 AC_ARG_ENABLE(cinder-ref-debug,
     AS_HELP_STRING([--enable-cinder-ref-debug], [Enable Cinder refcount debugging]),
 [
-  AC_DEFINE(Ci_REF_DEBUG, 1, [Cinder refcount debugging feature])
-  AC_MSG_RESULT([yes])
-], [
-  AC_MSG_RESULT([no])
-])
+  AC_DEFINE(Ci_REF_DEBUG, 1, [Build CinderX features])
+], [])
 
-AC_MSG_CHECKING(whether to build CinderX module)
-AC_ARG_ENABLE(cinderx-module,
-    AS_HELP_STRING([--disable-cinderx-module], [build CinderX module]),
+AC_MSG_CHECKING(whether to build CinderX features into an .so)
+AC_ARG_ENABLE(cinderx-so,
+    AS_HELP_STRING([--enable-cinderx-so], [build CinderX features into a .so]),
 [
-  ENABLE_CINDERX_MODULE=no
-  AC_MSG_RESULT([no])
+    ENABLE_CINDERX_SO=yes
+    ENABLE_CINDERX=yes
+    BUILD_CINDERX_SRCS=no
 ],
 [
-  ENABLE_CINDERX_MODULE=yes
-  AC_MSG_RESULT([yes])
+    ENABLE_CINDERX_SO=no
+    AC_MSG_CHECKING(whether to include CinderX features)
+    AC_ARG_ENABLE(cinderx,
+        AS_HELP_STRING(
+            [--disable-cinderx],
+            [build core with Cinder features marked for modularization]))
+    if test "$enable_cinderx" = no; then
+        ENABLE_CINDERX=no
+        BUILD_CINDERX_SRCS=no
+    else
+        ENABLE_CINDERX=yes
+        BUILD_CINDERX_SRCS=yes
+    fi
+    AC_MSG_RESULT($enable_cinderx)
 ])
 
-AC_SUBST(ENABLE_CINDERX_MODULE)
+if test "$ENABLE_CINDERX" = yes; then
+    AC_DEFINE(ENABLE_CINDERX, 1, [Build CinderX features])
+fi
+
+AC_SUBST(ENABLE_CINDERX_SO)
+AC_SUBST(BUILD_CINDERX_SRCS)
+AC_SUBST(ENABLE_CINDERX)
 
 # Cinder alterations to compiler flags
 BASECFLAGS="-I\"$srcdir\" -fno-omit-frame-pointer -momit-leaf-frame-pointer ${BASECFLAGS}"
