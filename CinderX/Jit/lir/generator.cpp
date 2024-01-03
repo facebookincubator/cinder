@@ -1341,21 +1341,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadMethodSuper: {
         auto instr = static_cast<const LoadMethodSuper*>(&i);
-        std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+          Instruction::kMove,
+          OutVReg{},
+          Imm{reinterpret_cast<uint64_t>(name)}
+        );
 
-        auto func = reinterpret_cast<uint64_t>(JITRT_GetMethodFromSuper);
-        bbb.AppendCode(
-            "Call {}, {:#x}, {}, {}, {}, {}, {}",
+        bbb.AppendCall(
             instr->dst(),
-            func,
+            JITRT_GetMethodFromSuper,
             instr->global_super(),
             instr->type(),
             instr->receiver(),
-            tmp_id,
-            instr->no_args_in_super_call() ? 1 : 0);
+            move,
+            instr->no_args_in_super_call() ? true : false);
         break;
       }
       case Opcode::kLoadAttrSuper: {
