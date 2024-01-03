@@ -1240,16 +1240,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kFillTypeAttrCache: {
         auto instr = static_cast<const FillTypeAttrCache*>(&i);
-        std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+          Instruction::kMove,
+          OutVReg{}, Imm(reinterpret_cast<uint64_t>(name)));
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeAttrCache::invoke,
             load_type_attr_caches_.at(instr->cache_id()),
             instr->receiver(),
-            tmp_id);
+            move);
         break;
       }
       case Opcode::kFillTypeMethodCache: {
