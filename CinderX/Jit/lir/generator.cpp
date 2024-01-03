@@ -1318,12 +1318,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadModuleMethod: {
         auto instr = static_cast<const LoadModuleMethod*>(&i);
 
-        std::string tmp_id = GetSafeTempName();
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+          Instruction::kMove,
+            OutVReg{}, Imm{reinterpret_cast<uint64_t>(name)});
 
         auto cache_entry = Runtime::get()->allocateLoadModuleMethodCache();
         bbb.AppendCall(
@@ -1331,7 +1331,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             LoadModuleMethodCache::lookupHelper,
             cache_entry,
             instr->receiver(),
-            tmp_id);
+            move);
         break;
       }
       case Opcode::kGetSecondOutput: {
