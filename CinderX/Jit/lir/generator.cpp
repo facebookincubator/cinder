@@ -1363,8 +1363,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
 
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+          Instruction::kMove,
+          OutVReg{},
+          Imm{reinterpret_cast<uint64_t>(name)}
+        );
 
         bbb.AppendCall(
             instr->dst(),
@@ -1372,7 +1375,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->global_super(),
             instr->type(),
             instr->receiver(),
-            tmp_id,
+            move,
             instr->no_args_in_super_call());
 
         break;
