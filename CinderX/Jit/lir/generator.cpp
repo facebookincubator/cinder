@@ -1626,13 +1626,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kBatchDecref: {
         auto instr = static_cast<const BatchDecref*>(&i);
 
-        std::stringstream ss;
-        ss << "BatchDecref ";
-        auto nargs = instr->NumOperands();
-        for (size_t i = 0; i < nargs; i++) {
-          ss << (i == 0 ? "" : ", ") << *instr->GetOperand(i);
+        auto lir = bbb.appendInstr(Instruction::kBatchDecref);
+        for (hir::Register* arg : instr->GetOperands()) {
+          lir->addOperands(VReg{bbb.getDefInstr(arg)});
         }
-        bbb.AppendCode(ss.str());
+
         break;
       }
       case Opcode::kDeopt: {
