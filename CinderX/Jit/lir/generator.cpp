@@ -1850,29 +1850,26 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyFunctionObject* func = instr->func();
 
         std::stringstream ss;
-
+        Instruction* lir;
         if (_PyJIT_IsCompiled((PyObject*)func)) {
-          ss << fmt::format(
-              "Call {}, {}",
-              instr->dst(),
-              reinterpret_cast<uint64_t>(
-                  JITRT_GET_STATIC_ENTRY(func->vectorcall)));
+          lir = bbb.appendInstr(
+            instr->dst(),
+            Instruction::kCall,
+            Imm{reinterpret_cast<uint64_t>(JITRT_GET_STATIC_ENTRY(func->vectorcall))});
         } else {
           void** indir = env_->rt->findFunctionEntryCache(func);
           env_->function_indirections.emplace(func, indir);
-          std::string tmp_id = GetSafeTempName();
-          bbb.AppendCode(
-              "Load {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(indir));
-          ss << "Call " << instr->dst()->name() << ":" << instr->dst()->type()
-             << ", " << tmp_id;
+          Instruction* move = bbb.appendInstr(
+            Instruction::kMove,
+            OutVReg{OperandBase::k64bit},
+            MemImm{indir});
+
+          lir = bbb.appendInstr(instr->dst(), Instruction::kCall, move);
         }
 
         for (size_t i = 0; i < nargs; i++) {
-          ss << ", " << instr->GetOperand(i)->name();
+          lir->addOperands(VReg{bbb.getDefInstr(instr->GetOperand(i))});
         }
-
-        bbb.AppendCode(ss.str());
-
         // functions that return primitives will signal error via edx/xmm1
         auto kind = InstrGuardKind::kNotZero;
         Type ret_type = instr->ret_type();
