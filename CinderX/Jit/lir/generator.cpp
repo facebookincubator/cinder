@@ -1188,7 +1188,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kDeleteAttr: {
-        std::string tmp = GetSafeTempName();
         auto instr = static_cast<const DeleteAttr*>(&i);
         PyObject* name = instr->name();
         Instruction* call = bbb.appendInstr(
@@ -1208,14 +1207,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
 
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+          Instruction::kMove,
+          OutVReg{},
+          // TODO(T140174965): This should be MemImm.
+          Imm{reinterpret_cast<uint64_t>(name)}
+        );
         bbb.AppendCall(
             instr->dst(),
             jit::LoadAttrCache::invoke,
             Runtime::get()->allocateLoadAttrCache(),
             instr->GetOperand(0),
-            tmp_id);
+            move);
         break;
       }
       case Opcode::kLoadAttrSpecial: {

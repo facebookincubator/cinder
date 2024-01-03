@@ -357,6 +357,8 @@ class BasicBlockBuilder {
       // Could add a runtime check here to ensure the type of the register is
       // correct, at least for non-temp-register args, but not doing that
       // currently.
+    } else if constexpr (
+        std::is_same_v<CurArgType, Instruction*>) {
     } else if constexpr (std::is_pointer_v<CurFuncArgType>) {
       if constexpr (std::is_function_v<CurArgType>) {
         // This came in as a reference to a function, as a bare function is
@@ -406,6 +408,8 @@ class BasicBlockBuilder {
           CreateInstrInput(instr, val->name());
         }
       }
+    } else if constexpr (std::is_same_v<CurArgType, Instruction*>) {
+      instr->allocateLinkedInput(val);
     } else if constexpr (
         std::is_same_v<CurArgType, std::string> ||
         std::is_same_v<CurArgType, std::string_view> ||
