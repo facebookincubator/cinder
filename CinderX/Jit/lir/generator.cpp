@@ -1254,7 +1254,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kFillTypeMethodCache: {
         auto instr = static_cast<const FillTypeMethodCache*>(&i);
-        std::string tmp_id = GetSafeTempName();
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = instr->name();
         auto cache_entry = load_type_method_caches_.at(instr->cache_id());
@@ -1263,14 +1262,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
         }
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
+        auto move = bbb.appendInstr(
+            Instruction::kMove,
+            OutVReg{}, Imm(reinterpret_cast<uint64_t>(name)));
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeMethodCache::lookupHelper,
             cache_entry,
             instr->receiver(),
-            tmp_id);
+            move);
         break;
       }
       case Opcode::kLoadTypeMethodCacheEntryType: {
