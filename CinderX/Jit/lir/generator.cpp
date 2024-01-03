@@ -1644,14 +1644,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kDeoptPatchpoint: {
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
         std::size_t deopt_id = bbb.makeDeoptMetadata();
-        std::stringstream ss;
-        ss << "DeoptPatchpoint " << static_cast<void*>(instr.patcher()) << ", "
-           << deopt_id;
         auto& regstates = instr.live_regs();
+        auto lir = bbb.appendInstr(Instruction::kDeoptPatchpoint, MemImm{instr.patcher()}, Imm{deopt_id});
         for (const auto& reg_state : regstates) {
-          ss << ", " << *reg_state.reg;
+          lir->addOperands(VReg{bbb.getDefInstr(reg_state.reg)});
         }
-        bbb.AppendCode(ss.str());
         break;
       }
       case Opcode::kRaiseAwaitableError: {

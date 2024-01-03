@@ -271,7 +271,7 @@ void TranslateDeoptPatchpoint(Environ* env, const Instruction* instr) {
   // The runtime will link the patcher to the appropriate point in the code
   // once code generation has completed.
   auto patcher =
-      reinterpret_cast<DeoptPatcher*>(instr->getInput(0)->getConstant());
+      reinterpret_cast<DeoptPatcher*>(instr->getInput(0)->getMemoryAddress());
   env->pending_deopt_patchers.emplace_back(
       patcher, patchpoint_label, deopt_label);
 }
