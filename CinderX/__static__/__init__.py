@@ -38,7 +38,7 @@ from .type_code import (
     TYPED_UINT8,
 )
 
-try:
+try:  # noqa: C901
     from cinderx import static
     from cinderx.static import (
         __build_cinder_class__,
@@ -94,8 +94,8 @@ except ImportError:
         def __getitem__(self, idx: int) -> None:
             return self._data[idx]
 
-        def __setitem__(self, idx: int) -> None:
-            self._data[idx] = idx
+        def __setitem__(self, idx: int, val: int) -> None:
+            self._data[idx] = val
 
         def __len__(self) -> int:
             return len(self._data)
@@ -400,9 +400,9 @@ def cast(typ, val):
     if union_args:
         typ = None
         if len(union_args) == 2:
-            if union_args[0] is type(None):
+            if union_args[0] is type(None):  # noqa: E721
                 typ = union_args[1]
-            elif union_args[1] is type(None):
+            elif union_args[1] is type(None):  # noqa: E721
                 typ = union_args[0]
         if typ is None:
             raise ValueError("cast expects type or Optional[T]")
@@ -482,4 +482,4 @@ def native(so_path):
     return _inner_native
 
 
-Array = staticarray
+Array = staticarray  # noqa: F811
