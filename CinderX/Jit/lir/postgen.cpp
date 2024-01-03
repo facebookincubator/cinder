@@ -52,11 +52,11 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
   auto input0 = instr->getInput(0);
   auto input1 = instr->getInput(1);
 
-  if (!input0->isImm() && !input0->isMem()) {
+  if (!input0->isImm()) {
     return kUnchanged;
   }
 
-  if (is_commutative && !input1->isImm() && !input1->isMem()) {
+  if (is_commutative && !input1->isImm()) {
     // if the operation is commutative and the second input is not also an
     // immediate, just swap the operands
     if (instr->isCompare()) {
@@ -68,26 +68,14 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
   }
 
   // otherwise, need to insert a move instruction
-  auto constant = input0->getConstantOrAddress();
+  auto constant = input0->getConstant();
+  auto constant_size = input0->dataType();
 
-  if (input0->isImm()) {
-    auto constant_size = input0->dataType();
-    auto move = block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kMove,
-        OutVReg(constant_size),
-        Imm(constant, constant_size));
+  auto move = block->allocateInstrBefore(instr_iter, Instruction::kMove,
+                                         OutVReg(constant_size),
+                                         Imm(constant, constant_size));
 
-    instr->allocateLinkedInput(move);
-  } else {
-    auto move = block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kMove,
-        OutVReg(),
-        MemImm(reinterpret_cast<void*>(constant)));
-
-    instr->allocateLinkedInput(move);
-  }
+  instr->allocateLinkedInput(move);
   auto new_input = instr->removeInputOperand(instr->getNumInputs() - 1);
   instr->replaceInputOperand(0, std::move(new_input));
 
@@ -122,7 +110,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
       "constant");
 
   auto in1 = instr->getInput(1);
-  if ((!in1->isImm() && !in1->isMem()) || in1->sizeInBits() < 64) {
+  if (!in1->isImm() || in1->sizeInBits() < 64) {
     return kUnchanged;
   }
 
@@ -133,24 +121,14 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpLargeConstant(
   }
 
   auto block = instr->basicblock();
-  if (in1->isImm()) {
-    auto move = block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kMove,
-        OutVReg(),
-        Imm(constant, in1->dataType()));
-    instr->allocateLinkedInput(move);
-  } else {
-    auto move = block->allocateInstrBefore(
-        instr_iter,
-        Instruction::kMove,
-        OutVReg(),
-        MemImm(reinterpret_cast<void*>(constant)));
-    instr->allocateLinkedInput(move);
-  }
+  auto move =
+      block->allocateInstrBefore(instr_iter, Instruction::kMove, OutVReg(),
+                                 Imm(constant, in1->dataType()));
 
   // remove the constant input
   instr->setNumInputs(instr->getNumInputs() - 1);
+  instr->allocateLinkedInput(move);
+
   return kChanged;
 }
 
