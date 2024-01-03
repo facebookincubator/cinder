@@ -1295,25 +1295,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadMethod: {
         auto instr = static_cast<const LoadMethod*>(&i);
 
-        std::string tmp_id = GetSafeTempName();
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = instr->name();
-        bbb.AppendCode(
-            "Move {}, {:#x}", tmp_id, reinterpret_cast<uint64_t>(name));
-        auto func = reinterpret_cast<uint64_t>(LoadMethodCache::lookupHelper);
+        auto move = bbb.appendInstr(
+            Instruction::kMove, OutVReg{}, Imm{reinterpret_cast<uint64_t>(name)});
         auto cache_entry = Runtime::get()->allocateLoadMethodCache();
         if (g_collect_inline_cache_stats) {
           cache_entry->initCacheStats(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
         }
-        bbb.AppendCode(
-            "Call {}, {:#x}, {:#x}, {}, {}",
-            instr->dst(),
-            func,
-            reinterpret_cast<uint64_t>(cache_entry),
-            instr->receiver(),
-            tmp_id);
+        bbb.AppendCall(
+          instr->dst(),
+          LoadMethodCache::lookupHelper,
+          cache_entry,
+          instr->receiver(),
+          move
+        );
 
         break;
       }
