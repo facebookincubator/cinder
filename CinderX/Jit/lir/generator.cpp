@@ -1638,7 +1638,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kUnreachable: {
-        bbb.AppendCode("Unreachable");
+        bbb.appendInstr(Instruction::kUnreachable);
         break;
       }
       case Opcode::kDeoptPatchpoint: {
