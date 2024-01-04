@@ -624,7 +624,7 @@ opsize(const _Py_CODEUNIT *instr, const _Py_CODEUNIT *first_instr)
     do {
         instr--;
         existing_size++;
-    } while (instr > first_instr && (_Py_OPCODE(*instr) == EXTENDED_ARG ||
+    } while (instr >= first_instr && (_Py_OPCODE(*instr) == EXTENDED_ARG ||
                                      _Py_OPCODE(*instr) == SHADOW_NOP));
     return existing_size;
 }

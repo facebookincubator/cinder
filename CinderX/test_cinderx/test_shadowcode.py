@@ -5,12 +5,14 @@
 import builtins
 import cinder
 import gc
+import inspect
+import opcode
 import sys
 import unittest
 import weakref
 from cinder import cached_property, strict_module_patch, StrictModule
 from collections import UserDict
-from types import FunctionType
+from types import CodeType, FunctionType
 from unittest import skipIf
 
 from test.cinder_support import CINDERJIT_ENABLED
@@ -3419,6 +3421,54 @@ def f(x):
             f(True, FunctionType)
         except AttributeError:
             pass
+
+    def test_load_global_extended_arg_first_opcode(self):
+        early_name_count = 300
+        code_str = bytes(
+            [
+                opcode.opmap["EXTENDED_ARG"],
+                early_name_count >> 8,
+                opcode.opmap["LOAD_GLOBAL"],
+                early_name_count & 0xFF,  # mask off extend arg
+                opcode.opmap["CALL_FUNCTION"],
+                0,
+                opcode.opmap["RETURN_VALUE"],
+                0,
+            ]
+        )
+
+        def f():
+            return max()
+
+        code = CodeType(
+            0,
+            0,
+            0,
+            0,
+            5,
+            inspect.CO_OPTIMIZED | inspect.CO_NOFREE | inspect.CO_NEWLOCALS,
+            code_str,
+            (),
+            tuple([f"foo{i}" for i in range(early_name_count)] + ["max"]),
+            (),
+            "foo.py",
+            "f",
+            1,
+            f.__code__.co_lnotab,
+        )
+
+        called = False
+
+        def called():
+            nonlocal called
+            called = True
+
+        f = FunctionType(code, {"max": called})
+
+        for i in range(REPETITION):
+            called = False
+            f()
+            self.assertTrue(called)
 
 
 if __name__ == "__main__":
