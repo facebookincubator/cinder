@@ -21,7 +21,8 @@ int64_t __strobe_PyCoroObject_cr_awaiter =
 int64_t __strobe_PyFrameObject_back = offsetof(PyFrameObject, f_back);
 int64_t __strobe_PyFrameObject_code = offsetof(PyFrameObject, f_code);
 int64_t __strobe_PyFrameObject_gen = offsetof(PyFrameObject, f_gen);
-int64_t __strobe_PyFrameObject_lineno = offsetof(PyFrameObject, f_lineno); // unused
+int64_t __strobe_PyFrameObject_lineno =
+    offsetof(PyFrameObject, f_lineno); // unused
 int64_t __strobe_PyFrameObject_localsplus =
     offsetof(PyFrameObject, f_localsplus);
 int64_t __strobe_PyGenObject_code = offsetof(PyGenObject, gi_code); // unused
@@ -52,10 +53,12 @@ int64_t __strobe_RuntimeFrameState_py_code =
     jit::RuntimeFrameState::codeOffset();
 
 int64_t __strobe_PyGIL_offset = offsetof(_PyRuntimeState, ceval.gil.locked);
-int64_t __strobe_PyGIL_last_holder = offsetof(_PyRuntimeState, ceval.gil.last_holder);
+int64_t __strobe_PyGIL_last_holder =
+    offsetof(_PyRuntimeState, ceval.gil.last_holder);
 
 int64_t __strobe_PyFrameObject_lasti = offsetof(PyFrameObject, f_lasti);
-int64_t __strobe_PyCodeObject_firstlineno = offsetof(PyCodeObject, co_firstlineno);
+int64_t __strobe_PyCodeObject_firstlineno =
+    offsetof(PyCodeObject, co_firstlineno);
 int64_t __strobe_PyCodeObject_linetable = offsetof(PyCodeObject, co_linetable);
-int64_t __strobe_PyBytesObject_data = offsetof(PyBytesObject,ob_sval);
-int64_t __strobe_PyVarObject_size = offsetof(PyVarObject,ob_size);
+int64_t __strobe_PyBytesObject_data = offsetof(PyBytesObject, ob_sval);
+int64_t __strobe_PyVarObject_size = offsetof(PyVarObject, ob_size);

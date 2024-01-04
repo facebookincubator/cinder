@@ -178,9 +178,9 @@ class ModuleLoader {
     va_list args;
     va_start(args, format_string);
     if (verbose_) {
-      fprintf(stderr, "STRICT: "); \
+      fprintf(stderr, "STRICT: ");
       vfprintf(stderr, format_string, args);
-      fprintf(stderr, "\n"); \
+      fprintf(stderr, "\n");
       fflush(stderr);
     }
     va_end(args);

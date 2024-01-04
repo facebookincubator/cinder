@@ -2,6 +2,7 @@
 
 #include "Jit/lir/generator.h"
 
+#include "Interpreter/interpreter.h"
 #include "Python.h"
 #include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
@@ -14,7 +15,6 @@
 #include "listobject.h"
 #include "pystate.h"
 
-#include "Interpreter/interpreter.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/config.h"
 #include "Jit/containers.h"
@@ -868,12 +868,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           }
         }
 
-        bbb.appendInstr(
-            instr->dst(),
-            op,
-            instr->left(),
-            instr->right()
-        );
+        bbb.appendInstr(instr->dst(), op, instr->left(), instr->right());
         break;
       }
       case Opcode::kPrimitiveCompare: {
@@ -1032,7 +1027,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         Type ty = instr->type();
         if (ty <= TCBool) {
           bbb.appendInstr(
-              instr->dst(), Instruction::kEqual, instr->value(),
+              instr->dst(),
+              Instruction::kEqual,
+              instr->value(),
               Imm{reinterpret_cast<uint64_t>(Py_True), OperandBase::kObject});
         } else if (ty <= TCDouble) {
           // For doubles, we can directly load the offset into the destination.
@@ -1143,9 +1140,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kAssign: {
-          JIT_CHECK(
-            false,
-            "assign shouldn't be present");
+        JIT_CHECK(false, "assign shouldn't be present");
         break;
       }
       case Opcode::kBitCast: {
@@ -1210,11 +1205,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyObject* name = instr->name();
 
         auto move = bbb.appendInstr(
-          Instruction::kMove,
-          OutVReg{},
-          // TODO(T140174965): This should be MemImm.
-          Imm{reinterpret_cast<uint64_t>(name)}
-        );
+            Instruction::kMove,
+            OutVReg{},
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(name)});
         bbb.AppendCall(
             instr->dst(),
             jit::LoadAttrCache::invoke,
@@ -1244,8 +1238,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const FillTypeAttrCache*>(&i);
         PyObject* name = instr->name();
         auto move = bbb.appendInstr(
-          Instruction::kMove,
-          OutVReg{}, Imm(reinterpret_cast<uint64_t>(name)));
+            Instruction::kMove,
+            OutVReg{},
+            Imm(reinterpret_cast<uint64_t>(name)));
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeAttrCache::invoke,
@@ -1266,7 +1261,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         auto move = bbb.appendInstr(
             Instruction::kMove,
-            OutVReg{}, Imm(reinterpret_cast<uint64_t>(name)));
+            OutVReg{},
+            Imm(reinterpret_cast<uint64_t>(name)));
         bbb.AppendCall(
             instr->GetOutput(),
             jit::LoadTypeMethodCache::lookupHelper,
@@ -1300,7 +1296,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = instr->name();
         auto move = bbb.appendInstr(
-            Instruction::kMove, OutVReg{}, Imm{reinterpret_cast<uint64_t>(name)});
+            Instruction::kMove,
+            OutVReg{},
+            Imm{reinterpret_cast<uint64_t>(name)});
         auto cache_entry = Runtime::get()->allocateLoadMethodCache();
         if (g_collect_inline_cache_stats) {
           cache_entry->initCacheStats(
@@ -1308,12 +1306,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               PyUnicode_AsUTF8(code->co_name));
         }
         bbb.AppendCall(
-          instr->dst(),
-          LoadMethodCache::lookupHelper,
-          cache_entry,
-          instr->receiver(),
-          move
-        );
+            instr->dst(),
+            LoadMethodCache::lookupHelper,
+            cache_entry,
+            instr->receiver(),
+            move);
 
         break;
       }
@@ -1324,8 +1321,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
         auto move = bbb.appendInstr(
-          Instruction::kMove,
-            OutVReg{}, Imm{reinterpret_cast<uint64_t>(name)});
+            Instruction::kMove,
+            OutVReg{},
+            Imm{reinterpret_cast<uint64_t>(name)});
 
         auto cache_entry = Runtime::get()->allocateLoadModuleMethodCache();
         bbb.AppendCall(
@@ -1345,10 +1343,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadMethodSuper*>(&i);
         PyObject* name = instr->name();
         auto move = bbb.appendInstr(
-          Instruction::kMove,
-          OutVReg{},
-          Imm{reinterpret_cast<uint64_t>(name)}
-        );
+            Instruction::kMove,
+            OutVReg{},
+            Imm{reinterpret_cast<uint64_t>(name)});
 
         bbb.AppendCall(
             instr->dst(),
@@ -1366,10 +1363,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyObject* name = instr->name();
 
         auto move = bbb.appendInstr(
-          Instruction::kMove,
-          OutVReg{},
-          Imm{reinterpret_cast<uint64_t>(name)}
-        );
+            Instruction::kMove,
+            OutVReg{},
+            Imm{reinterpret_cast<uint64_t>(name)});
 
         bbb.AppendCall(
             instr->dst(),
@@ -1647,7 +1643,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
         std::size_t deopt_id = bbb.makeDeoptMetadata();
         auto& regstates = instr.live_regs();
-        auto lir = bbb.appendInstr(Instruction::kDeoptPatchpoint, MemImm{instr.patcher()}, Imm{deopt_id});
+        auto lir = bbb.appendInstr(
+            Instruction::kDeoptPatchpoint,
+            MemImm{instr.patcher()},
+            Imm{deopt_id});
         for (const auto& reg_state : regstates) {
           lir->addOperands(VReg{bbb.getDefInstr(reg_state.reg)});
         }
@@ -1855,16 +1854,15 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         Instruction* lir;
         if (_PyJIT_IsCompiled((PyObject*)func)) {
           lir = bbb.appendInstr(
-            instr->dst(),
-            Instruction::kCall,
-            Imm{reinterpret_cast<uint64_t>(JITRT_GET_STATIC_ENTRY(func->vectorcall))});
+              instr->dst(),
+              Instruction::kCall,
+              Imm{reinterpret_cast<uint64_t>(
+                  JITRT_GET_STATIC_ENTRY(func->vectorcall))});
         } else {
           void** indir = env_->rt->findFunctionEntryCache(func);
           env_->function_indirections.emplace(func, indir);
           Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{OperandBase::k64bit},
-            MemImm{indir});
+              Instruction::kMove, OutVReg{OperandBase::k64bit}, MemImm{indir});
 
           lir = bbb.appendInstr(instr->dst(), Instruction::kCall, move);
         }

@@ -111,14 +111,7 @@ static PyObject* create_AnalysisResult(
   Py_INCREF(module_name);
   Py_INCREF(errors);
   return create_AnalysisResult_Helper(
-      1,
-      module_name,
-      filename,
-      mod_kind,
-      stub_kind,
-      ast,
-      symtable,
-      errors);
+      1, module_name, filename, mod_kind, stub_kind, ast, symtable, errors);
 }
 
 static void AnalysisResult_dealloc(StrictModuleAnalysisResult* self) {
@@ -397,14 +390,14 @@ static int StrictModuleLoaderObject_init(
     Py_ssize_t allow_list_regex_size = PyList_GET_SIZE(allow_list_regex_obj);
     const char* allow_list_regex_arr[allow_list_regex_size];
     if (PyListToCharArray(
-          allow_list_regex_obj, allow_list_regex_arr, allow_list_regex_size) <
+            allow_list_regex_obj, allow_list_regex_arr, allow_list_regex_size) <
         0) {
       return -1;
     }
     if (StrictModuleChecker_SetAllowListRegex(
             self->checker, allow_list_regex_arr, allow_list_regex_size) < 0) {
       PyErr_SetString(
-           PyExc_RuntimeError,
+          PyExc_RuntimeError,
           "failed to set the regex allowlist on StrictModuleLoader object");
       return -1;
     }

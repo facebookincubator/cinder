@@ -29,8 +29,9 @@ using namespace jit::lir;
 
 namespace jit::codegen {
 
-static std::filesystem::path sourceRelativePath(const char *path) {
-  return std::filesystem::path(__FILE__).parent_path().parent_path().append(path);
+static std::filesystem::path sourceRelativePath(const char* path) {
+  return std::filesystem::path(__FILE__).parent_path().parent_path().append(
+      path);
 }
 
 class BackendTest : public RuntimeTest {

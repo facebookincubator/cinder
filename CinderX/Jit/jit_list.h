@@ -47,7 +47,8 @@ class JITList {
   // occurred, respectively.
   int lookupFunc(BorrowedRef<PyFunctionObject> function) const;
   int lookupCode(BorrowedRef<PyCodeObject> code) const;
-  virtual int lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname) const;
+  virtual int lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname)
+      const;
 
   // Return a new reference to the dictionary used for matching elements in the
   // JIT list.
@@ -60,14 +61,20 @@ class JITList {
 
   // Add a function's name to the JIT list. Return true on success.
   bool addEntryFunc(BorrowedRef<> module_name, BorrowedRef<> qualname);
-  virtual bool addEntryFunc(std::string_view module_name, std::string_view qualname);
+  virtual bool addEntryFunc(
+      std::string_view module_name,
+      std::string_view qualname);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(JITList);
 
   // Add a code object's name to the JIT list. Return true on success.
-  bool addEntryCode(BorrowedRef<> name, BorrowedRef<> file, BorrowedRef<> line_no);
-  bool addEntryCode(std::string_view name, std::string_view file, std::string_view line_no);
+  bool
+  addEntryCode(BorrowedRef<> name, BorrowedRef<> file, BorrowedRef<> line_no);
+  bool addEntryCode(
+      std::string_view name,
+      std::string_view file,
+      std::string_view line_no);
 
   Ref<> pathBasename(BorrowedRef<> path) const;
 
@@ -120,7 +127,8 @@ class WildcardJITList : public JITList {
       : JITList(std::move(qualnames), Ref<>::steal(PyDict_New())),
         wildcard_(std::move(wildcard)) {}
 
-  bool addEntryFunc(std::string_view module_name, std::string_view qualname) override;
+  bool addEntryFunc(std::string_view module_name, std::string_view qualname)
+      override;
 
   Ref<> wildcard_;
 };

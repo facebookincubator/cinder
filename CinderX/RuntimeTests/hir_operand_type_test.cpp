@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
+#include "Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Interpreter/opcode.h"
 #include "Jit/hir/analysis.h"
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"

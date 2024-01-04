@@ -186,7 +186,7 @@ class ThrowableErrorHandler : public ErrorHandler {
 #define ASM_CHECK(exp, what)             \
   {                                      \
     auto err = (exp);                    \
-    JIT_CHECK(                          \
+    JIT_CHECK(                           \
         err == kErrorOk,                 \
         "Failed generating {}: {}",      \
         (what),                          \
@@ -570,14 +570,12 @@ void NativeGenerator::loadOrGenerateLinkFrame(
     for (const auto& pair : save_regs) {
       if (pair.first != pair.second) {
         if (pair.first.isGpq()) {
-          JIT_DCHECK(
-              pair.second.isGpq(), "can't mix and match register types");
+          JIT_DCHECK(pair.second.isGpq(), "can't mix and match register types");
           as_->mov(
               static_cast<const asmjit::x86::Gpq&>(pair.second),
               static_cast<const asmjit::x86::Gpq&>(pair.first));
         } else if (pair.first.isXmm()) {
-          JIT_DCHECK(
-              pair.second.isXmm(), "can't mix and match register types");
+          JIT_DCHECK(pair.second.isXmm(), "can't mix and match register types");
           as_->movsd(
               static_cast<const asmjit::x86::Xmm&>(pair.second),
               static_cast<const asmjit::x86::Xmm&>(pair.first));
@@ -1453,7 +1451,8 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
     for (auto& x : env_.function_indirections) {
       Label trampoline = x.second.trampoline;
       *x.second.indirect = reinterpret_cast<void*>(
-          codeholder.labelOffsetFromBase(trampoline) + codeholder.baseAddress());
+          codeholder.labelOffsetFromBase(trampoline) +
+          codeholder.baseAddress());
     }
   }
 

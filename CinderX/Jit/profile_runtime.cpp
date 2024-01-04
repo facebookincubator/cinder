@@ -2,11 +2,11 @@
 
 #include "Jit/profile_runtime.h"
 
+#include "Interpreter/opcode.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
 #include "frameobject.h"
 
-#include "Interpreter/opcode.h"
 #include "Jit/hir/type.h"
 #include "Jit/live_type_map.h"
 #include "Jit/log.h"

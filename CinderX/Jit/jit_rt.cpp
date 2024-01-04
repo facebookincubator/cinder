@@ -366,9 +366,7 @@ bool JITRT_PackStaticArgs(
           return true;
         }
       } else {
-        JIT_ABORT(
-            "Unsupported primitive type {}",
-            cur_arg->tai_primitive_type);
+        JIT_ABORT("Unsupported primitive type {}", cur_arg->tai_primitive_type);
       }
       arg_index++;
       continue;

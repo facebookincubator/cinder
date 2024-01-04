@@ -46,16 +46,19 @@ void assertShadowCallStackConsistent(PyThreadState* tstate);
 
 extern "C" {
 
-PyCodeObject *Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame *shadow_frame);
+PyCodeObject* Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame* shadow_frame);
 
-int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame *shadow_frame);
+int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame* shadow_frame);
 
-PyObject *Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame *shadow_frame);
+PyObject* Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame* shadow_frame);
 
-int Ci_ShadowFrame_WalkAndPopulate(PyCodeObject **async_stack,
-                                   int *async_linenos,
-                                   PyCodeObject **sync_stack, int *sync_linenos,
-                                   int array_capacity, int *async_stack_len_out,
-                                   int *sync_stack_len_out);
+int Ci_ShadowFrame_WalkAndPopulate(
+    PyCodeObject** async_stack,
+    int* async_linenos,
+    PyCodeObject** sync_stack,
+    int* sync_linenos,
+    int array_capacity,
+    int* async_stack_len_out,
+    int* sync_stack_len_out);
 
 } // extern "C"

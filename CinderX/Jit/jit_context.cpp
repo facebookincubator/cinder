@@ -147,7 +147,7 @@ CompilationResult compileCode(_PyJITContext* ctx, Args&&... args) {
       !jit::g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
   auto preloader =
-    jit::hir::Preloader::getPreloader(std::forward<Args>(args)...);
+      jit::hir::Preloader::getPreloader(std::forward<Args>(args)...);
   if (!preloader) {
     return {nullptr, PYJIT_RESULT_PYTHON_EXCEPTION};
   }

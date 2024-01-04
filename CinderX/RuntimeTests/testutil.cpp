@@ -116,14 +116,12 @@ struct Reader {
   int line_num;
 };
 
-
-
-
 std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& suite_path) {
   std::ifstream file;
 
-  std::filesystem::path path = std::filesystem::path(__FILE__)
-      .parent_path().parent_path().append(suite_path);
+  std::filesystem::path path =
+      std::filesystem::path(__FILE__).parent_path().parent_path().append(
+          suite_path);
 
   file.open(path);
   if (file.fail()) {

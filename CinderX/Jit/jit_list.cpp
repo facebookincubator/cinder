@@ -102,7 +102,9 @@ bool JITList::addEntryFunc(BorrowedRef<> module_name, BorrowedRef<> qualname) {
   return PySet_Add(qualname_set, qualname) == 0;
 }
 
-bool JITList::addEntryFunc(std::string_view module_name, std::string_view qualname) {
+bool JITList::addEntryFunc(
+    std::string_view module_name,
+    std::string_view qualname) {
   JIT_DCHECK(
       !g_threaded_compile_context.compileRunning(),
       "unexpected multithreading");
@@ -168,8 +170,8 @@ bool JITList::addEntryCode(
   }
 
   long line_no = 0;
-  auto result = std::from_chars(
-    line_no_str.begin(), line_no_str.end(), line_no);
+  auto result =
+      std::from_chars(line_no_str.begin(), line_no_str.end(), line_no);
   if (result.ec != std::errc{}) {
     return false;
   }
@@ -182,9 +184,8 @@ bool JITList::addEntryCode(
 }
 
 int JITList::lookupFunc(BorrowedRef<PyFunctionObject> func) const {
-  BorrowedRef<PyCodeObject> code = reinterpret_cast<PyCodeObject*>(
-    func->func_code
-  );
+  BorrowedRef<PyCodeObject> code =
+      reinterpret_cast<PyCodeObject*>(func->func_code);
   if (lookupCode(code) == 1) {
     return 1;
   }
@@ -220,7 +221,8 @@ int JITList::lookupCode(BorrowedRef<PyCodeObject> code) const {
   return PySet_Contains(line_set, line_no);
 }
 
-int JITList::lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname) const {
+int JITList::lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname)
+    const {
   if (module_name == nullptr) {
     return 0;
   }
@@ -278,13 +280,16 @@ Ref<> JITList::pathBasename(BorrowedRef<> path) const {
 }
 
 bool WildcardJITList::addEntryFunc(
-  std::string_view module_name,
-  std::string_view qualname) {
+    std::string_view module_name,
+    std::string_view qualname) {
   // *:* is invalid.
-  return (module_name != "*" || qualname != "*") && JITList::addEntryFunc(module_name, qualname);
+  return (module_name != "*" || qualname != "*") &&
+      JITList::addEntryFunc(module_name, qualname);
 }
 
-int WildcardJITList::lookupName(BorrowedRef<> module_name, BorrowedRef<> qualname) const {
+int WildcardJITList::lookupName(
+    BorrowedRef<> module_name,
+    BorrowedRef<> qualname) const {
   // Check for an exact match
   if (int st = JITList::lookupName(module_name, qualname); st != 0) {
     return st;

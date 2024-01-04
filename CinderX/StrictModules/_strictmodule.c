@@ -2,11 +2,8 @@
 #include "Python.h"
 
 // Including this here is a hack until _strictmodule.c is migrated to CinderX
-#define __STRICTMODULE_C
-#include "StrictModules/strict_module_checker_interface.h"
-
 #include "StrictModules/pystrictmodule.h"
-
+#include "StrictModules/strict_module_checker_interface.h"
 #include "cinder/exports.h"
 
 #ifndef Py_LIMITED_API
@@ -16,43 +13,46 @@ extern "C" {
 
 PyDoc_STRVAR(strictmodule_doc, "Strict Module related types and methods");
 
-static int strictmodule_exec(PyObject *m) {
+static int strictmodule_exec(PyObject* m) {
   if (PyType_Ready(&Ci_StrictModuleLoader_Type) < 0)
     goto fail;
   if (PyType_Ready(&Ci_StrictModuleAnalysisResult_Type) < 0)
     goto fail;
 
   Py_INCREF(&Ci_StrictModuleLoader_Type);
-  if (PyModule_AddObject(m, "StrictModuleLoader",
-                         (PyObject *)&Ci_StrictModuleLoader_Type) < 0) {
-      Py_DECREF(&Ci_StrictModuleLoader_Type);
-      return -1;
+  if (PyModule_AddObject(
+          m, "StrictModuleLoader", (PyObject*)&Ci_StrictModuleLoader_Type) <
+      0) {
+    Py_DECREF(&Ci_StrictModuleLoader_Type);
+    return -1;
   }
   Py_INCREF(&Ci_StrictModuleAnalysisResult_Type);
-  if (PyModule_AddObject(m, "StrictAnalysisResult",
-                         (PyObject *)&Ci_StrictModuleAnalysisResult_Type) < 0) {
-      Py_DECREF(&Ci_StrictModuleAnalysisResult_Type);
-      return -1;
+  if (PyModule_AddObject(
+          m,
+          "StrictAnalysisResult",
+          (PyObject*)&Ci_StrictModuleAnalysisResult_Type) < 0) {
+    Py_DECREF(&Ci_StrictModuleAnalysisResult_Type);
+    return -1;
   }
-  PyObject *val;
-#define SET_STR(name)                                                          \
-  val = PyUnicode_FromString(Ci_ ## name);                                     \
-  if (val == NULL) {                                                           \
-    return -1;                                                                 \
-  }                                                                            \
-  if (PyModule_AddObject(m, #name, val) < 0) {                                 \
-    Py_DECREF(val);                                                            \
-    return -1;                                                                 \
+  PyObject* val;
+#define SET_STR(name)                          \
+  val = PyUnicode_FromString(Ci_##name);       \
+  if (val == NULL) {                           \
+    return -1;                                 \
+  }                                            \
+  if (PyModule_AddObject(m, #name, val) < 0) { \
+    Py_DECREF(val);                            \
+    return -1;                                 \
   }
 #undef SET_STR
-#define SET_LONG(name)                                                         \
-  val = PyLong_FromLong(Ci_ ## name);                                          \
-  if (val == NULL) {                                                           \
-    return -1;                                                                 \
-  }                                                                            \
-  if (PyModule_AddObject(m, #name, val) < 0) {                                 \
-    Py_DECREF(val);                                                            \
-    return -1;                                                                 \
+#define SET_LONG(name)                         \
+  val = PyLong_FromLong(Ci_##name);            \
+  if (val == NULL) {                           \
+    return -1;                                 \
+  }                                            \
+  if (PyModule_AddObject(m, #name, val) < 0) { \
+    Py_DECREF(val);                            \
+    return -1;                                 \
   }
   SET_LONG(STRICT_MODULE_KIND)
   SET_LONG(STATIC_MODULE_KIND)
@@ -73,15 +73,16 @@ static struct PyModuleDef_Slot strictmodule_slots[] = {
     {0, NULL},
 };
 
-static struct PyModuleDef strictmodulemodule = {PyModuleDef_HEAD_INIT,
-                                                "_strictmodule",
-                                                strictmodule_doc,
-                                                0,
-                                                NULL,
-                                                strictmodule_slots,
-                                                NULL,
-                                                NULL,
-                                                NULL};
+static struct PyModuleDef strictmodulemodule = {
+    PyModuleDef_HEAD_INIT,
+    "_strictmodule",
+    strictmodule_doc,
+    0,
+    NULL,
+    strictmodule_slots,
+    NULL,
+    NULL,
+    NULL};
 
 /* Export function for the module (*must* be called PyInit_strictmodule) */
 

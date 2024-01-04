@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Python.h"
 #include "Interpreter/opcode.h"
+#include "Python.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/codegen/x86_64.h"

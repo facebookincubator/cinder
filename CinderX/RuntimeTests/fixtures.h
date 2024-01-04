@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
+#include "StaticPython/strictmoduleobject.h"
 #include "internal/pycore_interp.h"
 
 #include "Jit/code_allocator.h"
@@ -15,7 +16,6 @@
 #include "Jit/hir/ssa.h"
 #include "Jit/pyjit.h"
 #include "Jit/ref.h"
-#include "StaticPython/strictmoduleobject.h"
 
 #include "RuntimeTests/testutil.h"
 
@@ -31,7 +31,7 @@ class RuntimeTest : public ::testing::Test {
 
   void SetUp() override {
     ASSERT_FALSE(_PyJIT_IsEnabled())
-      << "Haven't called Py_Initialize yet but the JIT says it's enabled";
+        << "Haven't called Py_Initialize yet but the JIT says it's enabled";
 
     bool jit = setUpJit();
     if (jit) {
@@ -58,7 +58,7 @@ class RuntimeTest : public ::testing::Test {
     ASSERT_EQ(result, 0) << "Failed finalizing the interpreter";
 
     ASSERT_FALSE(_PyJIT_IsEnabled())
-      << "JIT should be disabled with Py_FinalizeEx";
+        << "JIT should be disabled with Py_FinalizeEx";
   }
 
   bool runCode(const char* src) {

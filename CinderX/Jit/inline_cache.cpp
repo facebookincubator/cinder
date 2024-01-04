@@ -5,12 +5,11 @@
 #include "Common/watchers.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "StaticPython/strictmoduleobject.h"
 
 #include "Jit/codegen/gen_asm.h"
 #include "Jit/containers.h"
 #include "Jit/util.h"
-
-#include "StaticPython/strictmoduleobject.h"
 
 #include <algorithm>
 #include <memory>
@@ -236,8 +235,7 @@ AttributeMutator::setAttr(PyObject* obj, PyObject* name, PyObject* value) {
       return descr_or_cvar_.setAttr(obj, name, value);
     default:
       JIT_ABORT(
-          "Cannot invoke setAttr for attr of kind {}",
-          static_cast<int>(kind));
+          "Cannot invoke setAttr for attr of kind {}", static_cast<int>(kind));
   }
 }
 
@@ -808,8 +806,9 @@ LoadModuleMethodCache::lookupSlowPath(BorrowedRef<> obj, BorrowedRef<> name) {
         res = PyDict_GetItemWithError(dict, name);
       }
     }
-  } else if (Ci_StrictModule_Check(obj) &&
-             tp->tp_getattro == Ci_StrictModule_Type.tp_getattro) {
+  } else if (
+      Ci_StrictModule_Check(obj) &&
+      tp->tp_getattro == Ci_StrictModule_Type.tp_getattro) {
     if (_PyType_Lookup(tp, name) == nullptr) {
       BorrowedRef<Ci_StrictModuleObject> mod{obj};
       BorrowedRef<> dict = mod->globals;

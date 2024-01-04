@@ -55,11 +55,13 @@ TEST_F(JITListTest, LookupFuncCode) {
 
   auto obj = compileAndGet("def f(): pass", "f");
 
-  BorrowedRef<PyFunctionObject> func = reinterpret_cast<PyFunctionObject*>(obj.get());
+  BorrowedRef<PyFunctionObject> func =
+      reinterpret_cast<PyFunctionObject*>(obj.get());
   ASSERT_NE(func, nullptr);
   ASSERT_EQ(jitlist->lookupFunc(func), 0);
 
-  BorrowedRef<PyCodeObject> code = reinterpret_cast<PyCodeObject*>(func->func_code);
+  BorrowedRef<PyCodeObject> code =
+      reinterpret_cast<PyCodeObject*>(func->func_code);
   ASSERT_NE(code, nullptr);
   ASSERT_EQ(jitlist->lookupCode(code), 0);
 }

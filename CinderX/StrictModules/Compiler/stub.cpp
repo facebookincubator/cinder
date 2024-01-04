@@ -5,6 +5,7 @@
 #include "StrictModules/pycore_dependencies.h"
 
 #include "Jit/ref.h"
+
 #include <unordered_map>
 
 namespace strictmod::compiler {

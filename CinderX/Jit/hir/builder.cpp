@@ -2,6 +2,7 @@
 
 #include "Jit/hir/builder.h"
 
+#include "Interpreter/opcode.h"
 #include "Python.h"
 #include "StaticPython/checked_dict.h"
 #include "StaticPython/checked_list.h"
@@ -12,7 +13,6 @@
 #include "structmember.h"
 #include "type.h"
 
-#include "Interpreter/opcode.h"
 #include "Jit/bitvector.h"
 #include "Jit/bytecode.h"
 #include "Jit/codegen/environ.h"
@@ -456,8 +456,7 @@ static bool should_snapshot(
     case RERAISE:
     case WITH_EXCEPT_START: {
       JIT_ABORT(
-          "Should not be compiling except blocks (opcode {})\n",
-          bci.opcode());
+          "Should not be compiling except blocks (opcode {})\n", bci.opcode());
       break;
     }
     // Take a snapshot after translating all other bytecode instructions. This
@@ -2168,8 +2167,7 @@ void HIRBuilder::emitJumpIf(
     default: {
       // NOTREACHED
       JIT_ABORT(
-          "Trying to translate non-jump-if bytecode: {}",
-          bc_instr.opcode());
+          "Trying to translate non-jump-if bytecode: {}", bc_instr.opcode());
       break;
     }
   }
@@ -3032,8 +3030,7 @@ void HIRBuilder::emitPopJumpIf(
     default: {
       // NOTREACHED
       JIT_ABORT(
-          "Trying to translate non pop-jump bytecode: {}",
-          bc_instr.opcode());
+          "Trying to translate non pop-jump bytecode: {}", bc_instr.opcode());
       break;
     }
   }
@@ -3788,8 +3785,7 @@ void HIRBuilder::insertEvalBreakerCheckForLoop(
     CFG& cfg,
     BasicBlock* loop_header) {
   auto snap = loop_header->entrySnapshot();
-  JIT_CHECK(
-      snap != nullptr, "block {} has no entry snapshot", loop_header->id);
+  JIT_CHECK(snap != nullptr, "block {} has no entry snapshot", loop_header->id);
   auto fs = snap->frameState();
   JIT_CHECK(
       fs != nullptr,

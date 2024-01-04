@@ -2,11 +2,13 @@
 
 #include "Jit/perf_jitdump.h"
 
+#include "Python.h"
+#include "pycore_ceval.h"
+
 #include "Jit/log.h"
 #include "Jit/pyjit.h"
 #include "Jit/threaded_compile.h"
 #include "Jit/util.h"
-#include "pycore_ceval.h"
 
 #include <elf.h>
 #include <fcntl.h>
@@ -77,10 +79,7 @@ class FileLock {
         continue;
       }
       JIT_ABORT(
-          "flock({}, {}) failed: {}",
-          fd_,
-          operation,
-          string_error(errno));
+          "flock({}, {}) failed: {}", fd_, operation, string_error(errno));
     }
   }
 

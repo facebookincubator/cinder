@@ -26,7 +26,6 @@ class PyJITContextTest : public RuntimeTest {
   _PyJITContext* jit_ctx_;
 };
 
-
 TEST_F(PyJITContextTest, UnwatchableBuiltins) {
   // This is a C++ test rather than in test_cinderjit so we can guarantee a
   // fresh runtime state with a watchable builtins dict when the test begins.

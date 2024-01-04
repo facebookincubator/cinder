@@ -90,8 +90,9 @@ static UnitDeletedCallback handle_unit_deleted_during_preload = nullptr;
 // Every unit that is a code object has corresponding entry in jit_code_data.
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
 // Every unit has an entry in preloaders if we are doing multithreaded compile.
-static std::unordered_map<BorrowedRef<PyCodeObject>, std::unique_ptr<hir::Preloader>>
-    jit_preloaders;
+static std::
+    unordered_map<BorrowedRef<PyCodeObject>, std::unique_ptr<hir::Preloader>>
+        jit_preloaders;
 
 namespace jit {
 
@@ -103,13 +104,11 @@ hir::Preloader* tryGetPreloader(BorrowedRef<> unit) {
   } else {
     code = BorrowedRef<PyCodeObject>{unit};
   }
+  JIT_CHECK(code != nullptr, "Trying to map a null code object to a preloader");
   JIT_CHECK(
-    code != nullptr, "Trying to map a null code object to a preloader");
-  JIT_CHECK(
-    PyCode_Check(code),
-    "Compilation unit has to be a code object but is instead {}",
-    code->ob_base.ob_type->tp_name
-  );
+      PyCode_Check(code),
+      "Compilation unit has to be a code object but is instead {}",
+      code->ob_base.ob_type->tp_name);
 
   auto it = jit_preloaders.find(code);
   return it != jit_preloaders.end() ? it->second.get() : nullptr;
@@ -122,8 +121,8 @@ bool isPreloaded(BorrowedRef<> unit) {
 const hir::Preloader& getPreloader(BorrowedRef<> unit) {
   hir::Preloader* preloader = tryGetPreloader(unit);
   JIT_CHECK(
-    preloader != nullptr,
-    "Cannot find preloader for the given compilation unit");
+      preloader != nullptr,
+      "Cannot find preloader for the given compilation unit");
   return *preloader;
 }
 
@@ -1631,17 +1630,18 @@ static bool shouldAlwaysCompile(BorrowedRef<PyCodeObject> code) {
 
 // Check whether a function should be compiled.
 static bool shouldCompile(BorrowedRef<PyFunctionObject> func) {
-  return shouldAlwaysCompile(func->func_code) || g_jit_list->lookupFunc(func) == 1;
+  return shouldAlwaysCompile(func->func_code) ||
+      g_jit_list->lookupFunc(func) == 1;
 }
 
 // Check whether a code object should be compiled. Intended for nested code
 // objects.
-static bool shouldCompile(BorrowedRef<> module_name, BorrowedRef<PyCodeObject> code) {
+static bool shouldCompile(
+    BorrowedRef<> module_name,
+    BorrowedRef<PyCodeObject> code) {
   return (
-    shouldAlwaysCompile(code) ||
-    (g_jit_list->lookupCode(code) == 1) ||
-    (g_jit_list->lookupName(module_name, code->co_qualname) == 1)
-  );
+      shouldAlwaysCompile(code) || (g_jit_list->lookupCode(code) == 1) ||
+      (g_jit_list->lookupName(module_name, code->co_qualname) == 1));
 }
 
 // Call posix.register_at_fork(None, None, cinderjit.after_fork_child), if it
@@ -1965,8 +1965,7 @@ static std::vector<BorrowedRef<PyCodeObject>> findNestedCodes(
     for (size_t i = 0, size = PyTuple_GET_SIZE(consts); i < size; ++i) {
       BorrowedRef<PyCodeObject> code = PyTuple_GET_ITEM(consts, i);
       if (!PyCode_Check(code) || !visited.insert(code).second ||
-          code->co_qualname == nullptr ||
-          !shouldCompile(module, code)) {
+          code->co_qualname == nullptr || !shouldCompile(module, code)) {
         continue;
       }
 

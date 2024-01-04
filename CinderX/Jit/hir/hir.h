@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "Interpreter/opcode.h"
 #include "Python.h"
 #include "code.h"
 
-#include "Interpreter/opcode.h"
 #include "Jit/bytecode.h"
 #include "Jit/config.h"
 #include "Jit/deopt_patcher.h"
@@ -4392,12 +4392,12 @@ struct TypedArgument {
     thread_safe_flags = pytype->tp_flags & kThreadSafeFlagsMask;
   };
 
-  TypedArgument(const TypedArgument& other) :
-      locals_idx(other.locals_idx),
-      optional(other.optional),
-      exact(other.exact),
-      jit_type(other.jit_type),
-      thread_safe_flags(other.thread_safe_flags) {
+  TypedArgument(const TypedArgument& other)
+      : locals_idx(other.locals_idx),
+        optional(other.optional),
+        exact(other.exact),
+        jit_type(other.jit_type),
+        thread_safe_flags(other.thread_safe_flags) {
     ThreadedCompileSerialize guard;
     pytype = Ref<PyTypeObject>::create(other.pytype);
   };
@@ -4421,8 +4421,9 @@ struct TypedArgument {
   // Returns type flags which should not change between concurrent
   // compilation threads.
   unsigned long threadSafeTpFlags() const {
-    JIT_DCHECK(thread_safe_flags == (pytype->tp_flags & kThreadSafeFlagsMask),
-               "thread safe flags changed");
+    JIT_DCHECK(
+        thread_safe_flags == (pytype->tp_flags & kThreadSafeFlagsMask),
+        "thread safe flags changed");
     return thread_safe_flags;
   }
 

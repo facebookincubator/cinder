@@ -83,7 +83,6 @@ int StrictModuleChecker_SetAllowListRegex(
   return success ? 0 : -1;
 }
 
-
 int StrictModuleChecker_LoadStrictModuleBuiltins(StrictModuleChecker* checker) {
   auto loader = reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);
   bool success = loader->loadStrictModuleModule();

@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Interpreter/opcode.h"
 #include "Jit/bitvector.h"
 #include "Jit/codegen/environ.h"
 #include "Jit/codegen/x86_64.h"

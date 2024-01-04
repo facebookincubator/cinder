@@ -700,7 +700,7 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
 }
 } // namespace jit
 
-PyCodeObject *Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame *shadow_frame) {
+PyCodeObject* Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame* shadow_frame) {
   _PyShadowFrame_PtrKind ptr_kind = _PyShadowFrame_GetPtrKind(shadow_frame);
   void* ptr = _PyShadowFrame_GetPtr(shadow_frame);
   switch (ptr_kind) {
@@ -716,19 +716,22 @@ PyCodeObject *Ci_ShadowFrame_GetCode_JIT(_PyShadowFrame *shadow_frame) {
   }
 }
 
-int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame *shadow_frame) {
+int Ci_ShadowFrame_HasGen_JIT(_PyShadowFrame* shadow_frame) {
   return is_shadow_frame_for_gen(shadow_frame);
 }
 
-PyObject *Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame *shadow_frame) {
+PyObject* Ci_ShadowFrame_GetModuleName_JIT(_PyShadowFrame* shadow_frame) {
   return jit::getModuleName(shadow_frame);
 }
 
-int Ci_ShadowFrame_WalkAndPopulate(PyCodeObject **async_stack,
-                                   int *async_linenos,
-                                   PyCodeObject **sync_stack, int *sync_linenos,
-                                   int array_capacity, int *async_stack_len_out,
-                                   int *sync_stack_len_out) {
+int Ci_ShadowFrame_WalkAndPopulate(
+    PyCodeObject** async_stack,
+    int* async_linenos,
+    PyCodeObject** sync_stack,
+    int* sync_linenos,
+    int array_capacity,
+    int* async_stack_len_out,
+    int* sync_stack_len_out) {
   PyThreadState* tstate = PyThreadState_GET();
   // Don't assume the inputs are clean
   *async_stack_len_out = 0;

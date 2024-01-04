@@ -203,8 +203,9 @@ BorrowedRef<> typeLookupSafe(
 }
 
 bool ensureVersionTag(BorrowedRef<PyTypeObject> type) {
-  JIT_CHECK(g_threaded_compile_context.canAccessSharedData(),
-            "Accessing type object needs lock");
+  JIT_CHECK(
+      g_threaded_compile_context.canAccessSharedData(),
+      "Accessing type object needs lock");
   if (PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG)) {
     return true;
   }

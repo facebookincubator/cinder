@@ -2,6 +2,7 @@
 #include "StrictModules/parser_util.h"
 
 #include "StrictModules/pycore_dependencies.h"
+
 #include <fstream>
 
 namespace strictmod {

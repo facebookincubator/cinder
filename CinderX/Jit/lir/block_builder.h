@@ -357,8 +357,7 @@ class BasicBlockBuilder {
       // Could add a runtime check here to ensure the type of the register is
       // correct, at least for non-temp-register args, but not doing that
       // currently.
-    } else if constexpr (
-        std::is_same_v<CurArgType, Instruction*>) {
+    } else if constexpr (std::is_same_v<CurArgType, Instruction*>) {
     } else if constexpr (std::is_pointer_v<CurFuncArgType>) {
       if constexpr (std::is_function_v<CurArgType>) {
         // This came in as a reference to a function, as a bare function is

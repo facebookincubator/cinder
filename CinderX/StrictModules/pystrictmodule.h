@@ -2,9 +2,7 @@
 #pragma once
 
 #include "Python.h"
-#ifndef __STRICTMODULE_C
 #include "StrictModules/strict_module_checker_interface.h"
-#endif
 
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
