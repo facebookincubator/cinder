@@ -2538,23 +2538,23 @@ define RUNTIME_TEST_BODY
 endef
 
 runtime_tests: @DEF_MAKE_RULE@ platform $(JIT_HEADERS) python-config
-	$(call RUNTIME_TEST_BODY, runtime_tests)
+	+$(call RUNTIME_TEST_BODY, runtime_tests)
 .PHONY: runtime_tests
 
 testruntime: @DEF_MAKE_RULE@ platform $(JIT_HEADERS) python-config
-	$(call RUNTIME_TEST_BODY, testruntime)
+	+$(call RUNTIME_TEST_BODY, testruntime)
 .PHONY: testruntime
 
 testruntime_serial: @DEF_MAKE_RULE@ platform $(JIT_HEADERS) python-config
-	$(call RUNTIME_TEST_BODY, testruntime_serial)
+	+$(call RUNTIME_TEST_BODY, testruntime_serial)
 .PHONY: testruntime_serial
 
 strict_module_tests: @DEF_MAKE_RULE@ platform $(JIT_HEADERS) python-config
-	$(call RUNTIME_TEST_BODY, strict_module_tests)
+	+$(call RUNTIME_TEST_BODY, strict_module_tests)
 .PHONY: strict_module_tests
 
 test_strict_module: @DEF_MAKE_RULE@ platform $(JIT_HEADERS) python-config
-	$(call RUNTIME_TEST_BODY, test_strict_module)
+	+$(call RUNTIME_TEST_BODY, test_strict_module)
 .PHONY: test_strict_module
 
 
