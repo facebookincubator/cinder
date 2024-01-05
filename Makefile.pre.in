@@ -1646,7 +1646,7 @@ $(CINDERX_OBJS): $(CINDERX_PRIVATE_HEADERS) $(CINDERX_PUBLIC_HEADERS) $(PYTHON_H
 ######################################################################
 
 TESTOPTS=	$(EXTRATESTOPTS)
-TESTPYTHON=	$(RUNSHARED) $(PWD)/$(BUILDPYTHON) $(TESTPYTHONOPTS)
+TESTPYTHON=	$(RUNSHARED) $(CURDIR)/$(BUILDPYTHON) $(TESTPYTHONOPTS)
 TESTRUNNER=	$(TESTPYTHON) -X usepycompiler $(srcdir)/Tools/scripts/run_tests.py
 TESTRUNNERLAZYIMPORTS=	$(TESTPYTHON) -L $(srcdir)/Tools/scripts/run_tests.py
 TESTTIMEOUT=	1200
