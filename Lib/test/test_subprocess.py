@@ -514,6 +514,10 @@ class ProcessTestCase(BaseTestCase):
                      'Test is not venv-compatible')
     @unittest.skipIf(sysconfig.is_python_build(),
                      "need an installed Python. See #7774")
+    # START META PATCH (skip test if running out of buck-out)
+    @unittest.skipIf("/buck-out/" in sys.executable,
+                     "Test is not compatible with running out of buck-out")
+    # END META PATCH
     def test_executable_without_cwd(self):
         # For a normal installation, it should work without 'cwd'
         # argument.  For test runs in the build directory, see #7774.
