@@ -1447,8 +1447,8 @@ CINDERX_PRIVATE_HEADERS = \
 		$(srcdir)/CinderX/StrictModules/strict_module_checker_interface.h \
 		$(srcdir)/CinderX/StrictModules/symbol_table.h \
 		$(srcdir)/CinderX/ThirdParty/i386-dis/dis-asm.h \
-    	$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint.h \
-    	$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint-ELFx86.h \
+		$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint.h \
+		$(srcdir)/CinderX/ThirdParty/folly/folly/tracing/StaticTracepoint-ELFx86.h \
 		$(srcdir)/CinderX/ThirdParty/json/json.hpp
 
 CINDERX_PUBLIC_HEADERS = \
