@@ -444,7 +444,9 @@ class TestSysConfig(unittest.TestCase):
         srcdir = sysconfig.get_config_var('srcdir')
 
         self.assertTrue(os.path.isabs(srcdir), srcdir)
-        self.assertTrue(os.path.isdir(srcdir), srcdir)
+        # START META PATCH (not applicable to our internal build)
+        # self.assertTrue(os.path.isdir(srcdir), srcdir)
+        # END META PATCH
 
         if sysconfig._PYTHON_BUILD:
             # The python executable has not been installed so srcdir
@@ -493,7 +495,9 @@ class TestSysConfig(unittest.TestCase):
             if ctypes.sizeof(ctypes.c_char_p()) == 4:
                 expected_suffixes = 'i386-linux-gnu.so', 'x86_64-linux-gnux32.so', 'i386-linux-musl.so'
             else: # 8 byte pointer size
-                expected_suffixes = 'x86_64-linux-gnu.so', 'x86_64-linux-musl.so'
+                # START META PATCH (expect our multiarch extension suffix)
+                expected_suffixes = 'x86_64-linux-gnu.so', 'x86_64-linux-musl.so', 'fb-010-x86_64.so'
+                # END META PATCH
             self.assertTrue(suffix.endswith(expected_suffixes),
                             f'unexpected suffix {suffix!r}')
 
@@ -507,6 +511,9 @@ class MakefileTests(unittest.TestCase):
     @unittest.skipIf(sys.platform.startswith('win'),
                      'Test is not Windows compatible')
     @unittest.skipIf(is_wasi, "Incompatible with WASI mapdir and OOT builds")
+    # START META PATCH (skip test in the internal build)
+    @unittest.skipIf("+meta" in sys.version, "Incompatible with how we run tests internally")
+    # END META PATCH
     def test_get_makefile_filename(self):
         makefile = sysconfig.get_makefile_filename()
         self.assertTrue(os.path.isfile(makefile), makefile)
