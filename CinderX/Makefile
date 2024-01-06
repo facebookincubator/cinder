@@ -127,6 +127,7 @@ endif
 # TEST_LINK_FLAGS - Linker args used when linking
 # TESTPYTHON - Python binary. This is primarily used to run gtest-parallel as
 #    using the system Python gets confused when run out of the Cinder root.
+# CINDERX_SO - The _cinderx.SOABI.so file.
 
 GTEST_DIR=ThirdParty/googletest-1.8.1/googletest
 GTEST_BUILD_DIR=$(abs_builddir)/CinderX/$(GTEST_DIR)
@@ -226,6 +227,7 @@ $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests: ${GTEST_BUILD_DIR}/libgtest.a $(RUNTIM
 		$(RUNTIME_TESTS_OBJS) \
 		${GTEST_BUILD_DIR}/libgtest.a \
 		$(TEST_LINK_FLAGS) $(PYEMBED_LIBS) \
+		$(CINDERX_SO) \
 		-o $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests -ggdb -rdynamic
 
 runtime_tests: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
@@ -252,6 +254,7 @@ $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests: ${GTEST_BUILD_DIR}/libgtest.a $(
 		$(STRICTM_TESTS_OBJS) \
 		${GTEST_BUILD_DIR}/libgtest.a \
 		$(TEST_LINK_FLAGS) $(PYEMBED_LIBS) \
+		$(CINDERX_SO) \
 		-o $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -ggdb -rdynamic
 
 strict_module_tests: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests

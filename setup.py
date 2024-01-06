@@ -63,9 +63,6 @@ DISABLED_MODULE_LIST = []
 # --list-module-names option used by Tools/scripts/generate_module_names.py
 LIST_MODULE_NAMES = False
 
-ENABLE_CINDERX = (sysconfig.get_config_var('ENABLE_CINDERX') == 1)
-ENABLE_CINDERX_SO = (sysconfig.get_config_var('ENABLE_CINDERX_SO') == 'yes')
-
 
 logging.basicConfig(format='%(message)s', level=logging.INFO)
 log = logging.getLogger('setup')
@@ -1018,13 +1015,8 @@ class PyBuildExt(build_ext):
         # Python interface to subinterpreter C-API.
         self.add(Extension('_xxsubinterpreters', ['_xxsubinterpretersmodule.c']))
 
-        # Cinder specific module
-        if ENABLE_CINDERX:
-            self.add(Extension('_cinder', ['_cinder.c']) )
-            self.add(Extension('xxclassloader', ['../CinderX/StaticPython/xxclassloader.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
-            self.add(Extension('_static', ['../CinderX/StaticPython/_static.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
-            self.add(Extension('_strictmodule', ['../CinderX/StrictModules/_strictmodule.c'], extra_compile_args=['-DPy_BUILD_CORE_MODULE']) )
-
+        # Cinder specific modules
+        self.add(Extension('_cinder', ['_cinder.c']) )
         self.add(Extension('gdb_dbg', ['gdb_dbg.c']) )
 
         # Memoize module
@@ -1079,9 +1071,8 @@ class PyBuildExt(build_ext):
 
         # Helpers for testing cinder-specific C APIs and cinder-specific modifications
         # to upstream CPython code
-        if ENABLE_CINDERX:
-            self.add(Extension('_testcindercapi', ['_testcindercapi.c'],
-                            extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
+        self.add(Extension('_testcindercapi', ['_testcindercapi.c'],
+                           extra_compile_args=['-DPy_BUILD_CORE_MODULE']))
 
 
     def detect_readline_curses(self):

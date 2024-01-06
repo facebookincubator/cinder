@@ -44,9 +44,6 @@
 /* Enable Cinder refcount debugging */
 #undef Ci_REF_DEBUG
 
-/* Build CinderX features */
-#undef ENABLE_CINDERX
-
 /* Define if --enable-ipv6 is specified */
 #undef ENABLE_IPV6
 
