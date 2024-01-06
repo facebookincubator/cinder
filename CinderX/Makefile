@@ -103,6 +103,16 @@ testcinder_jit_shadowframe_inliner_profile:
 # C++ Runtime/Strict Module rules
 #
 
+ULIMIT_VMEM=$$(( 1024 * 1024 ))
+GTEST_WORKERS=10
+ifeq ($(strip $(ASAN_TEST_ENV)),)
+	ULIMIT_PARALLEL= && ulimit -v $$(($(ULIMIT_VMEM) * $(GTEST_WORKERS)))
+	ULIMIT= && ulimit -v $(ULIMIT_VMEM)
+else
+	ULIMIT_PARALLEL=
+	ULIMIT=
+endif
+
 # Required environment variables:
 # abs_builddir - Absolute path of the CPython build (may be different from
 #     source for out-of-tree builds)
@@ -222,14 +232,14 @@ runtime_tests: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 .PHONY: runtime_tests
 
 testruntime: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
-	cd $(abs_srcdir) && \
+	cd $(abs_srcdir) $(ULIMIT_PARALLEL) && \
 		$(ASAN_TEST_ENV_WITH_LSAN) \
-		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
+		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel -w $(GTEST_WORKERS) \
 		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
 .PHONY: testruntime
 
 testruntime_serial: $(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
-	cd $(abs_srcdir) && \
+	cd $(abs_srcdir) $(ULIMIT) && \
 		LD_LIBRARY_PATH=$(abs_builddir) \
 		$(ASAN_TEST_ENV_WITH_LSAN) \
 		$(RUNTIME_TESTS_BUILD_DIR)/runtime_tests
@@ -253,10 +263,10 @@ ifneq ($(strip $(ASAN_TEST_ENV)),)
 endif
 
 test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
-	cd $(abs_srcdir) && \
+	cd $(abs_srcdir) $(ULIMIT_PARALLEL) && \
 		LD_LIBRARY_PATH=$(abs_builddir) \
 		$(ASAN_TEST_ENV_WITH_LSAN) \
-		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel \
+		$(TESTPYTHON) $(CURDIR)/ThirdParty/gtest-parallel/gtest-parallel -w $(GTEST_WORKERS) \
 		$(STRICTM_TESTS_BUILD_DIR)/strict_module_tests -- $(STRICTM_ASAN_SKIP_TESTS)
 .PHONY: test_strict_module
 

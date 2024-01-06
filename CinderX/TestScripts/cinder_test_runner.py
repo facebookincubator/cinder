@@ -920,12 +920,23 @@ if __name__ == "__main__":
     except OSError:
         pass
 
-    # Equivalent of 'ulimit -s unlimited'.
-    resource.setrlimit(
-        resource.RLIMIT_STACK,
-        (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
-
     parser = argparse.ArgumentParser()
+
+
+    # Limit the amount of RAM per process by default to cause a quick OOM on
+    # runaway loops. This 8GiB number is arbitrary but seems to be enough at
+    # the time of writing.
+    mem_limit_default = (
+        8192 * 1024 * 1024 if os.environ.get('ASAN_OPTIONS') is None else -1
+    )
+
+    parser.add_argument(
+        "--memory-limit",
+        type=int,
+        help="Memory limit in bytes per worker or -1",
+        default=mem_limit_default,
+    )
+
     subparsers = parser.add_subparsers()
 
     worker_parser = subparsers.add_parser("worker")
@@ -1012,6 +1023,17 @@ if __name__ == "__main__":
     replay_parser.set_defaults(func=replay_main)
 
     args = parser.parse_args()
+
+    # Equivalent of 'ulimit -s unlimited'.
+    resource.setrlimit(
+        resource.RLIMIT_STACK,
+        (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
+    if args.memory_limit != -1:
+        resource.setrlimit(
+            resource.RLIMIT_AS,
+            (args.memory_limit, args.memory_limit))
+
     if hasattr(args, "func"):
         args.func(args)
     else:
