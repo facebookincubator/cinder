@@ -89,6 +89,12 @@ class ProfileTest(unittest.TestCase):
             else:
                 self.fail(f"Deopt event '{deopt}' doesn't match any given specs")
 
+        if "IS_BISECTING_JITLIST" in os.environ:
+            # When running under Tools/scripts/jitlist_bisect.py, we want to
+            # let the test finish as normally as possible without compiling
+            # every function. Allow missing deopts.
+            return
+
         for spec, expected_count in deopt_specs.items():
             found_count = found_specs[spec]
             self.assertEqual(found_count, expected_count, f"Deopt spec {spec}")

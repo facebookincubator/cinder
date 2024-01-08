@@ -916,6 +916,9 @@ static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
     case PYJIT_RESULT_CANNOT_SPECIALIZE:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_CANNOT_SPECIALIZE");
       return nullptr;
+    case PYJIT_RESULT_NOT_ON_JITLIST:
+      PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_NOT_ON_JITLIST");
+      return nullptr;
     case PYJIT_RESULT_RETRY:
       PyErr_SetString(PyExc_RuntimeError, "PYJIT_RESULT_RETRY");
       return nullptr;
@@ -1935,7 +1938,7 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* raw_func) {
   }
 
   if (!shouldCompile(func)) {
-    return PYJIT_RESULT_CANNOT_SPECIALIZE;
+    return PYJIT_RESULT_NOT_ON_JITLIST;
   }
 
   CompilationTimer timer(func);

@@ -28,7 +28,7 @@ def run_with_jitlist(command, jitlist):
     write_jitlist(jitlist)
 
     environ = dict(os.environ)
-    environ.update({"PYTHONJITLISTFILE": JITLIST_FILENAME})
+    environ.update({"PYTHONJITLISTFILE": JITLIST_FILENAME, "IS_BISECTING_JITLIST": "1"})
 
     logging.debug(
         f"Running '{shlex.join(command)}' with jitlist of size {len(jitlist)}"

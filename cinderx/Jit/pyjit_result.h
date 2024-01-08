@@ -19,6 +19,9 @@ typedef enum {
    */
   PYJIT_RESULT_CANNOT_SPECIALIZE,
 
+  /* A JIT-list is in use and this function is not on it. */
+  PYJIT_RESULT_NOT_ON_JITLIST,
+
   /* Someone tried to compile a function but the JIT is not initialized. */
   PYJIT_NOT_INITIALIZED,
 
