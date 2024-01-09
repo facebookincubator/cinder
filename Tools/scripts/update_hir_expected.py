@@ -112,7 +112,7 @@ def get_failed_tests(args):
 
 
 TESTS_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "RuntimeTests")
+    os.path.join(os.path.dirname(__file__), "..", "..", "cinderx", "RuntimeTests")
 )
 
 
