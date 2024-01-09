@@ -36,10 +36,8 @@ from typing import (
     Dict,
     final,
     Iterable,
-    List,
     Mapping,
     Optional,
-    Tuple,
     Type,
 )
 
@@ -195,7 +193,7 @@ class StrictSourceFileLoader(SourceFileLoader):
         log_source_load: Optional[Callable[[str, Optional[str], bool], None]] = None,
         init_cached_properties: Optional[
             Callable[
-                [Mapping[str, str | Tuple[str, bool]]],
+                [Mapping[str, str | tuple[str, bool]]],
                 Callable[[Type[object]], Type[object]],
             ]
         ] = None,
@@ -402,7 +400,7 @@ def add_strict_tag(path: str, enable_patching: bool) -> str:
     return f"{base}.strict{enable_patching_marker}.{ext}"
 
 
-def _get_supported_file_loaders() -> List[Tuple[Loader, List[str]]]:
+def _get_supported_file_loaders() -> list[tuple[Type[Loader], list[str]]]:
     """Returns a list of file-based module loaders.
 
     Each item is a tuple (loader, suffixes).
@@ -410,7 +408,7 @@ def _get_supported_file_loaders() -> List[Tuple[Loader, List[str]]]:
     extensions = ExtensionFileLoader, EXTENSION_SUFFIXES
     source = StrictSourceFileLoader, SOURCE_SUFFIXES
     bytecode = SourcelessFileLoader, BYTECODE_SUFFIXES
-    return cast(List[Tuple[Loader, List[str]]], [extensions, source, bytecode])
+    return [extensions, source, bytecode]
 
 
 def strict_compile(
@@ -526,13 +524,9 @@ def install() -> None:
 
     for index, hook in enumerate(sys.path_hooks):
         if not isinstance(hook, type):
-            # pyre-fixme[6]: For 1st param expected `Tuple[Type[Loader], List[str]]`
-            #  but got `Tuple[Loader, List[str]]`.
             sys.path_hooks.insert(index, FileFinder.path_hook(*supported_loaders))
             break
     else:
-        # pyre-fixme[6]: For 1st param expected `Tuple[Type[Loader], List[str]]` but
-        #  got `Tuple[Loader, List[str]]`.
         sys.path_hooks.insert(0, FileFinder.path_hook(*supported_loaders))
 
     # We need to clear the path_importer_cache so that our new FileFinder will
