@@ -1578,8 +1578,8 @@ PyTypeObject Ci_PyWaitHandle_Type = {
 };
 
 static Ci_PyWaitHandleObject Ci_PyWaitHandle = {
-    {_PyObject_EXTRA_INIT
-    1, &Ci_PyWaitHandle_Type}, NULL, NULL
+    PyObject_HEAD_IMMORTAL_INIT(&Ci_PyWaitHandle_Type)
+    NULL, NULL
 };
 
 PyObject *
