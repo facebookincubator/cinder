@@ -2029,23 +2029,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
       case Opcode::kMakeList: {
         auto instr = static_cast<const MakeList*>(&i);
-        bbb.AppendCall(
+        Instruction* call = bbb.AppendCall(
             instr->dst(),
             PyList_New,
             static_cast<Py_ssize_t>(instr->nvalues()));
         if (instr->nvalues() > 0) {
-          std::string base = GetSafeTempName();
-          bbb.AppendCode(
-              "Load {}, {}, {}",
-              base,
-              instr->dst(),
-              offsetof(PyListObject, ob_item));
+          // TODO(T174544781): need to check for NULL before initializing,
+          // currently that check only happens after assigning these values.
+          auto load = bbb.appendInstr(
+              Instruction::kMove,
+              OutVReg{OperandBase::k64bit},
+              Ind{call, offsetof(PyListObject, ob_item)});
           for (size_t i = 0; i < instr->nvalues(); i++) {
-            bbb.AppendCode(
-                "Store {}, {}, {}",
-                instr->GetOperand(i),
-                base,
-                i * kPointerSize);
+            bbb.appendInstr(
+                Instruction::kMove,
+                OutInd{load, static_cast<int32_t>(i * kPointerSize)},
+                bbb.getDefInstr(instr->GetOperand(i)));
           }
         }
         break;

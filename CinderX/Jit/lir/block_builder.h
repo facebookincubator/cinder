@@ -204,25 +204,27 @@ class BasicBlockBuilder {
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  void AppendCall(
+  Instruction* AppendCall(
       hir::Register* dst,
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
     static_assert(
         !std::is_void_v<FuncReturnType>,
         "AppendCall cannot be used with functions that return void.");
-    AppendCallInternal(dst, func, std::forward<AppendArgs>(args)...);
+    return AppendCallInternal(dst, func, std::forward<AppendArgs>(args)...);
   }
 
   template <
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  void AppendInvoke(FuncReturnType (*func)(FuncArgs...), AppendArgs&&... args) {
+  Instruction* AppendInvoke(
+      FuncReturnType (*func)(FuncArgs...),
+      AppendArgs&&... args) {
     static_assert(
         std::is_void_v<FuncReturnType>,
         "AppendInvoke can only be used with functions that return void.");
-    AppendCallInternal(nullptr, func, std::forward<AppendArgs>(args)...);
+    return AppendCallInternal(nullptr, func, std::forward<AppendArgs>(args)...);
   }
 
   Instruction* createInstr(Instruction::Opcode opcode);
@@ -293,7 +295,7 @@ class BasicBlockBuilder {
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  void AppendCallInternal(
+  Instruction* AppendCallInternal(
       hir::Register* dst,
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
@@ -316,6 +318,7 @@ class BasicBlockBuilder {
     if (dst != nullptr) {
       GenericCreateInstrOutput(instr, dst);
     }
+    return instr;
   }
 
   template <
