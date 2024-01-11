@@ -2103,17 +2103,22 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kCheckSequenceBounds: {
         auto instr = static_cast<const CheckSequenceBounds*>(&i);
         auto type = instr->GetOperand(1)->type();
-        std::string src = instr->GetOperand(1)->name();
-        std::string tmp = GetSafeTempName();
-        if (type <= (TCInt8 | TCInt16 | TCInt32)) {
-          bbb.AppendCode("Convert {}:CInt64, {}:{}", tmp, src, type);
-          src = tmp;
-        } else if (type <= (TCUInt8 | TCUInt16 | TCUInt32)) {
-          bbb.AppendCode("Convert {}:CUInt64, {}:{}", tmp, src, type);
-          src = tmp;
+        if (type <= (TCInt8 | TCInt16 | TCInt32) ||
+            type <= (TCUInt8 | TCUInt16 | TCUInt32)) {
+          auto lir = bbb.appendInstr(
+              Instruction::kSext, OutVReg{}, instr->GetOperand(1));
+          bbb.AppendCall(
+              instr->dst(),
+              JITRT_CheckSequenceBounds,
+              instr->GetOperand(0),
+              lir);
+        } else {
+          bbb.AppendCall(
+              instr->dst(),
+              JITRT_CheckSequenceBounds,
+              instr->GetOperand(0),
+              instr->GetOperand(1));
         }
-        bbb.AppendCall(
-            instr->dst(), JITRT_CheckSequenceBounds, instr->GetOperand(0), src);
         break;
       }
       case Opcode::kLoadArrayItem: {
