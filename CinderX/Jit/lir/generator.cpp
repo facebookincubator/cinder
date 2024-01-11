@@ -2389,19 +2389,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kPhi: {
         auto instr = static_cast<const Phi*>(&i);
 
-        std::stringstream ss;
-        ss << "Phi " << fmt::format("{}", instr->GetOutput());
+        auto lir = bbb.appendInstr(instr->GetOutput(), Instruction::kPhi);
 
         for (size_t i = 0; i < instr->NumOperands(); i++) {
-          fmt::print(
-              ss,
-              ", {:#x}, {}",
-              reinterpret_cast<uint64_t>(instr->basic_blocks().at(i)),
-              // Phis don't support constant inputs yet
-              instr->GetOperand(i)->name());
+          // See FixPhiNodes, we are passing in hir BasicBlock*s here, and
+          // then we convert them to lir BasicBlocks
+          lir->allocateLabelInput(
+              reinterpret_cast<lir::BasicBlock*>(instr->basic_blocks().at(i)));
+          // The output may be defined later due to a backward edge, so we
+          // need to use CreateInstrInput which will handle this.
+          // Phis don't support constant inputs yet
+          bbb.CreateInstrInput(lir, instr->GetOperand(i)->name());
         }
 
-        bbb.AppendCode(ss.str());
         break;
       }
       case Opcode::kMakeFunction: {
