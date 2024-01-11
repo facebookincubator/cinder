@@ -541,44 +541,44 @@ void LIRGenerator::MakeDecref(
     return;
   }
 
-  auto end_decref = GetSafeLabelName();
+  auto end_decref = bbb.allocateBlock(GetSafeLabelName());
   if (xdecref) {
-    auto cont = GetSafeLabelName();
-    bbb.AppendCode("JumpIf {}, {}, {}", obj, cont, end_decref);
-    bbb.AppendLabel(cont);
+    auto cont = bbb.allocateBlock(GetSafeLabelName());
+    bbb.appendBranch(Instruction::kCondBranch, obj, cont, end_decref);
+    bbb.appendBlock(cont);
   }
 
-  auto r1 = GetSafeTempName();
-  bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, kRefcountOffset);
+  auto r1 = bbb.appendInstr(
+      OutVReg{},
+      Instruction::kMove,
+      Ind{bbb.getDefInstr(obj), kRefcountOffset});
 
   if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
-    auto mortal = GetSafeLabelName();
-    bbb.AppendCode("Test32 {}, {}", r1, r1);
-    bbb.AppendCode("BranchS {}", end_decref);
-    bbb.AppendLabel(mortal);
+    auto mortal = bbb.allocateBlock(GetSafeLabelName());
+    bbb.appendInstr(Instruction::kTest32, r1, r1);
+    bbb.appendBranch(Instruction::kBranchS, end_decref);
+    bbb.appendBlock(mortal);
   }
 
   if (kRefTotalAddr != 0) {
-    auto r0 = GetSafeTempName();
-    bbb.AppendCode(
-        "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(kRefTotalAddr));
-    bbb.AppendCode("Dec {}", r0);
-    bbb.AppendCode(
-        "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(kRefTotalAddr));
+    auto r0 =
+        bbb.appendInstr(OutVReg{}, Instruction::kMove, MemImm{kRefTotalAddr});
+    bbb.appendInstr(Instruction::kDec, r0);
+    bbb.appendInstr(OutMemImm{kRefTotalAddr}, Instruction::kMove, r0);
   }
 
-  auto dealloc = GetSafeLabelName();
-  bbb.AppendCode("Dec {}", r1);
-  bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, kRefcountOffset);
-
-  bbb.AppendCode("BranchNZ {}", end_decref);
-  bbb.AppendLabel(dealloc);
+  auto dealloc = bbb.allocateBlock(GetSafeLabelName());
+  bbb.appendInstr(Instruction::kDec, r1);
+  bbb.appendInstr(
+      OutInd{bbb.getDefInstr(obj), kRefcountOffset}, Instruction::kMove, r1);
+  bbb.appendBranch(Instruction::kBranchNZ, end_decref);
+  bbb.appendBlock(dealloc);
   if (getConfig().multiple_code_sections) {
-    bbb.SetBlockSection(dealloc, codegen::CodeSection::kCold);
+    dealloc->setSection(codegen::CodeSection::kCold);
   }
 
   bbb.AppendInvoke(JITRT_Dealloc, obj);
-  bbb.AppendLabel(end_decref);
+  bbb.appendBlock(end_decref);
 }
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
