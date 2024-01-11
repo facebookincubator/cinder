@@ -673,13 +673,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kIntConvert: {
         auto instr = static_cast<const IntConvert*>(&i);
         if (instr->type() <= TCUnsigned) {
-          bbb.AppendCode("ConvertUnsigned {}, {}", instr->dst(), instr->src());
+          bbb.appendInstr(instr->dst(), Instruction::kZext, instr->src());
         } else {
           JIT_CHECK(
               instr->type() <= TCSigned,
               "Unexpected IntConvert type {}",
               instr->type());
-          bbb.AppendCode("Convert {}, {}", instr->dst(), instr->src());
+          bbb.appendInstr(instr->dst(), Instruction::kSext, instr->src());
         }
         break;
       }
