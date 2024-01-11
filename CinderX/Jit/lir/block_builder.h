@@ -79,7 +79,7 @@ inline Operand::DataType hirTypeToDataType(hir::Type tp) {
   }
 }
 
-static inline std::pair<std::string, Operand::DataType> GetIdAndType(
+static inline std::pair<std::string, Operand::DataType> getIdAndType(
     const std::string& name) {
   static UnorderedMap<std::string_view, Operand::DataType> typeMap = {
       {"CInt8", Operand::k8bit},
@@ -139,7 +139,7 @@ class BasicBlockBuilder {
   Instruction* appendInstr(Instruction::Opcode opcode, Args&&... args) {
     auto instr = cur_bb_->allocateInstr(opcode, cur_hir_instr_);
 
-    return AppendInstrArguments(instr, std::forward<Args>(args)...);
+    return appendInstrArguments(instr, std::forward<Args>(args)...);
   }
 
   // Allocate and append a new instruction to the instruction stream.
@@ -200,7 +200,7 @@ class BasicBlockBuilder {
   appendInstr(std::string dest, Instruction::Opcode opcode, Args&&... args) {
     std::string sval;
     Operand::DataType type;
-    std::tie(sval, type) = GetIdAndType(dest);
+    std::tie(sval, type) = getIdAndType(dest);
     auto dest_lir = OutVReg{type};
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
     auto [it, inserted] = env_->output_map.emplace(sval, instr);
@@ -228,21 +228,23 @@ class BasicBlockBuilder {
     return instr;
   }
 
-  void AppendLabel(std::string_view s);
+  void appendLabel(std::string_view s);
 
   template <
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  Instruction* AppendCall(
+  Instruction* appendCallInstruction(
       hir::Register* dst,
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
     static_assert(
         !std::is_void_v<FuncReturnType>,
-        "AppendCall cannot be used with functions that return void.");
-    auto instr = AppendCallInternal(func, std::forward<AppendArgs>(args)...);
-    GenericCreateInstrOutput(instr, dst);
+        "appendCallInstruction cannot be used with functions that return "
+        "void.");
+    auto instr =
+        appendCallInstructionInternal(func, std::forward<AppendArgs>(args)...);
+    genericCreateInstrOutput(instr, dst);
     return instr;
   }
 
@@ -250,14 +252,16 @@ class BasicBlockBuilder {
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  Instruction* AppendCall(
+  Instruction* appendCallInstruction(
       OutVReg dst,
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
     static_assert(
         !std::is_void_v<FuncReturnType>,
-        "AppendCall cannot be used with functions that return void.");
-    auto instr = AppendCallInternal(func, std::forward<AppendArgs>(args)...);
+        "appendCallInstruction cannot be used with functions that return "
+        "void.");
+    auto instr =
+        appendCallInstructionInternal(func, std::forward<AppendArgs>(args)...);
     instr->addOperands(dst);
     return instr;
   }
@@ -266,13 +270,15 @@ class BasicBlockBuilder {
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  Instruction* AppendInvoke(
+  Instruction* appendInvokeInstruction(
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
     static_assert(
         std::is_void_v<FuncReturnType>,
-        "AppendInvoke can only be used with functions that return void.");
-    return AppendCallInternal(func, std::forward<AppendArgs>(args)...);
+        "appendInvokeInstruction can only be used with functions that return "
+        "void.");
+    return appendCallInstructionInternal(
+        func, std::forward<AppendArgs>(args)...);
   }
 
   Instruction* createInstr(Instruction::Opcode opcode);
@@ -280,12 +286,12 @@ class BasicBlockBuilder {
   Instruction* getDefInstr(const std::string& name);
   Instruction* getDefInstr(const hir::Register* reg);
 
-  void CreateInstrInput(Instruction* instr, const std::string& name);
-  void CreateInstrOutput(
+  void createInstrInput(Instruction* instr, const std::string& name);
+  void createInstrOutput(
       Instruction* instr,
       const std::string& name,
       Operand::DataType data_type);
-  void CreateInstrIndirect(
+  void createInstrIndirect(
       Instruction* instr,
       const std::string& base,
       const std::string& index,
@@ -306,24 +312,24 @@ class BasicBlockBuilder {
   Function* func_;
   std::unordered_map<std::string, BasicBlock*> label_to_bb_;
 
-  constexpr Instruction* AppendInstrArguments(Instruction* instr) {
+  constexpr Instruction* appendInstrArguments(Instruction* instr) {
     return instr;
   }
 
   template <typename FirstT, typename... T>
   Instruction*
-  AppendInstrArguments(Instruction* instr, FirstT&& first_arg, T&&... args) {
-    GenericCreateInstrInput(instr, first_arg);
-    return AppendInstrArguments(instr, std::forward<T>(args)...);
+  appendInstrArguments(Instruction* instr, FirstT&& first_arg, T&&... args) {
+    genericCreateInstrInput(instr, first_arg);
+    return appendInstrArguments(instr, std::forward<T>(args)...);
   }
 
-  BasicBlock* GetBasicBlockByLabel(const std::string& label);
+  BasicBlock* getBasicBlockByLabel(const std::string& label);
 
   template <
       typename FuncReturnType,
       typename... FuncArgs,
       typename... AppendArgs>
-  Instruction* AppendCallInternal(
+  Instruction* appendCallInstructionInternal(
       FuncReturnType (*func)(FuncArgs...),
       AppendArgs&&... args) {
     static_assert(
@@ -332,14 +338,17 @@ class BasicBlockBuilder {
         "arguments passed is different.");
 
     auto instr = createInstr(Instruction::kCall);
-    GenericCreateInstrInput(instr, func);
+    genericCreateInstrInput(instr, func);
 
     // Although the static_assert above will fail if this is false, the compiler
-    // will still attempt to instatiate AppendCallArguments, which will result
-    // in a ton of error spew that hides the actual error that we've generated.
+    // will still attempt to instatiate appendCallInstructionArguments, which
+    // will result in a ton of error spew that hides the actual error that we've
+    // generated.
     if constexpr (sizeof...(FuncArgs) == sizeof...(AppendArgs)) {
-      AppendCallArguments<sizeof...(FuncArgs), 0, std::tuple<FuncArgs...>>(
-          instr, std::forward<AppendArgs>(args)...);
+      appendCallInstructionArguments<
+          sizeof...(FuncArgs),
+          0,
+          std::tuple<FuncArgs...>>(instr, std::forward<AppendArgs>(args)...);
     }
 
     return instr;
@@ -350,7 +359,7 @@ class BasicBlockBuilder {
       size_t CurArg,
       typename FuncArgTuple,
       typename... AppendArgs>
-  std::enable_if_t<ArgsLeft == 0, void> AppendCallArguments(
+  std::enable_if_t<ArgsLeft == 0, void> appendCallInstructionArguments(
       Instruction*,
       AppendArgs&&...) {}
 
@@ -359,7 +368,7 @@ class BasicBlockBuilder {
       size_t CurArg,
       typename FuncArgTuple,
       typename... AppendArgs>
-  std::enable_if_t<ArgsLeft != 0, void> AppendCallArguments(
+  std::enable_if_t<ArgsLeft != 0, void> appendCallInstructionArguments(
       Instruction* instr,
       AppendArgs&&... args) {
     using CurArgType = std::remove_cv_t<std::remove_reference_t<
@@ -404,13 +413,13 @@ class BasicBlockBuilder {
           std::is_same_v<CurArgType, CurFuncArgType>,
           "Mismatched function parameter types!");
     }
-    GenericCreateInstrInput(instr, cur_arg);
-    AppendCallArguments<ArgsLeft - 1, CurArg + 1, FuncArgTuple>(
+    genericCreateInstrInput(instr, cur_arg);
+    appendCallInstructionArguments<ArgsLeft - 1, CurArg + 1, FuncArgTuple>(
         instr, std::forward<AppendArgs>(args)...);
   }
 
   template <typename T>
-  void GenericCreateInstrInput(Instruction* instr, const T& val) {
+  void genericCreateInstrInput(Instruction* instr, const T& val) {
     using CurArgType = std::remove_cv_t<std::remove_reference_t<T>>;
     if constexpr (std::is_same_v<CurArgType, hir::Register*>) {
       if (val == nullptr) {
@@ -431,7 +440,7 @@ class BasicBlockBuilder {
               reinterpret_cast<uint64_t>(tp.objectSpec()),
               Operand::DataType::kObject);
         } else {
-          CreateInstrInput(instr, val->name());
+          createInstrInput(instr, val->name());
         }
       }
     } else if constexpr (std::is_same_v<CurArgType, Instruction*>) {
@@ -440,7 +449,7 @@ class BasicBlockBuilder {
         std::is_same_v<CurArgType, std::string> ||
         std::is_same_v<CurArgType, std::string_view> ||
         std::is_same_v<CurArgType, char*> || std::is_array_v<CurArgType>) {
-      CreateInstrInput(instr, val);
+      createInstrInput(instr, val);
     } else if constexpr (
         std::is_pointer_v<CurArgType> || std::is_function_v<CurArgType>) {
       instr->allocateImmediateInput(
@@ -474,8 +483,8 @@ class BasicBlockBuilder {
     }
   }
 
-  void GenericCreateInstrOutput(Instruction* instr, hir::Register* dst) {
-    CreateInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
+  void genericCreateInstrOutput(Instruction* instr, hir::Register* dst) {
+    createInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
   }
 };
 

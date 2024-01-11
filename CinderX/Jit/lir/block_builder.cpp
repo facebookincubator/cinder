@@ -20,7 +20,7 @@ namespace jit::lir {
 
 BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
     : env_(env), func_(func) {
-  cur_bb_ = GetBasicBlockByLabel("__main__");
+  cur_bb_ = getBasicBlockByLabel("__main__");
   bbs_.push_back(cur_bb_);
 }
 
@@ -58,7 +58,7 @@ void BasicBlockBuilder::switchBlock(BasicBlock* block) {
   cur_bb_ = block;
 }
 
-void BasicBlockBuilder::AppendLabel(std::string_view s) {
+void BasicBlockBuilder::appendLabel(std::string_view s) {
   appendBlock(allocateBlock(s));
 }
 
@@ -66,7 +66,7 @@ Instruction* BasicBlockBuilder::createInstr(Instruction::Opcode opcode) {
   return cur_bb_->allocateInstr(opcode, cur_hir_instr_);
 }
 
-BasicBlock* BasicBlockBuilder::GetBasicBlockByLabel(const std::string& label) {
+BasicBlock* BasicBlockBuilder::getBasicBlockByLabel(const std::string& label) {
   auto iter = label_to_bb_.find(label);
   if (iter == label_to_bb_.end()) {
     auto bb = func_->allocateBasicBlock();
@@ -101,7 +101,7 @@ Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
   return getDefInstr(reg->name());
 }
 
-void BasicBlockBuilder::CreateInstrInput(
+void BasicBlockBuilder::createInstrInput(
     Instruction* instr,
     const std::string& name) {
   auto def_instr = getDefInstr(name);
@@ -116,7 +116,7 @@ void BasicBlockBuilder::CreateInstrInput(
   }
 }
 
-void BasicBlockBuilder::CreateInstrOutput(
+void BasicBlockBuilder::createInstrOutput(
     Instruction* instr,
     const std::string& name,
     Operand::DataType data_type) {
@@ -130,7 +130,7 @@ void BasicBlockBuilder::CreateInstrOutput(
   output->setDataType(data_type);
 }
 
-void BasicBlockBuilder::CreateInstrIndirect(
+void BasicBlockBuilder::createInstrIndirect(
     Instruction* instr,
     const std::string& base,
     const std::string& index,
@@ -159,7 +159,7 @@ void BasicBlockBuilder::CreateInstrIndirect(
 void BasicBlockBuilder::SetBlockSection(
     const std::string& label,
     codegen::CodeSection section) {
-  BasicBlock* block = GetBasicBlockByLabel(label);
+  BasicBlock* block = getBasicBlockByLabel(label);
   if (block == nullptr) {
     return;
   }
