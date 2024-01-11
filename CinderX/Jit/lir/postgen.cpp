@@ -56,6 +56,7 @@ Rewrite::RewriteResult PostGenerationRewrite::rewriteBinaryOpConstantPosition(
     return kUnchanged;
   }
 
+  // TODO: If both are registers we could constant fold here
   if (is_commutative && !input1->isImm()) {
     // if the operation is commutative and the second input is not also an
     // immediate, just swap the operands

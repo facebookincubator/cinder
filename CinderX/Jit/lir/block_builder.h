@@ -138,7 +138,8 @@ class BasicBlockBuilder {
   template <class... Args>
   Instruction* appendInstr(Instruction::Opcode opcode, Args&&... args) {
     auto instr = cur_bb_->allocateInstr(opcode, cur_hir_instr_);
-    return instr->addOperands(convertArg(std::forward<Args>(args))...);
+
+    return AppendInstrArguments(instr, std::forward<Args>(args)...);
   }
 
   // Allocate and append a new instruction to the instruction stream.
@@ -276,17 +277,15 @@ class BasicBlockBuilder {
   Function* func_;
   std::unordered_map<std::string, BasicBlock*> label_to_bb_;
 
-  auto convertArg(hir::Register* src) {
-    return VReg{getDefInstr(src)};
+  constexpr Instruction* AppendInstrArguments(Instruction* instr) {
+    return instr;
   }
 
-  auto convertArg(Instruction* instr) {
-    return VReg{instr};
-  }
-
-  template <class Arg>
-  auto convertArg(Arg&& arg) {
-    return std::forward<Arg>(arg);
+  template <typename FirstT, typename... T>
+  Instruction*
+  AppendInstrArguments(Instruction* instr, FirstT&& first_arg, T&&... args) {
+    GenericCreateInstrInput(instr, first_arg);
+    return AppendInstrArguments(instr, std::forward<T>(args)...);
   }
 
   BasicBlock* GetBasicBlockByLabel(const std::string& label);
@@ -395,10 +394,10 @@ class BasicBlockBuilder {
       } else {
         auto tp = val->type();
         auto dat = hirTypeToDataType(tp);
-        if (tp.hasDoubleSpec()) {
-          instr->allocateImmediateInput(
-              bit_cast<uint64_t>(tp.doubleSpec()), dat);
-        } else if (tp.hasIntSpec()) {
+        // We don't turn constant floats into immediates, as we always
+        // need to load these from general purpose registers or memory
+        // anyways.
+        if (tp.hasIntSpec()) {
           instr->allocateImmediateInput(
               static_cast<uint64_t>(tp.intSpec()), dat);
         } else if (tp.hasObjectSpec()) {
@@ -446,7 +445,7 @@ class BasicBlockBuilder {
         static_assert(!std::is_same_v<T, T>, "Unknown integral size!");
       }
     } else {
-      static_assert(!std::is_same_v<T, T>, "Unknown instruction input type!");
+      instr->addOperands(val);
     }
   }
 

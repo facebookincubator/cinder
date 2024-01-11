@@ -57,6 +57,9 @@ class LIRGeneratorTest : public RuntimeTest {
 
     env.rt = &rt;
 
+    CodeRuntime runtime{(PyFunctionObject*)func, FrameMode::kNormal};
+    env.code_rt = &runtime;
+
     LIRGenerator lir_gen(irfunc.get(), &env);
 
     auto lir_func = lir_gen.TranslateFunction();

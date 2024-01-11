@@ -587,7 +587,7 @@ Rewrite::RewriteResult PostRegAllocRewrite::rewriteBinaryOpInstrs(
     return kUnchanged;
   }
 
-  if (!instr->output()->isReg()) {
+  if (!instr->output()->isReg() || !instr->getInput(0)->isReg()) {
     return kUnchanged;
   }
 

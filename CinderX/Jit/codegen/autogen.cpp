@@ -476,9 +476,13 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
   as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
 
   // Value to send goes to RAX so it can be yielded (returned) by epilogue.
-  int value_out_loc = instr->getInput(1)->getPhyRegOrStackSlot();
-  JIT_CHECK(value_out_loc < 0, "value to send out should be spilled");
-  as->mov(x86::rax, x86::ptr(x86::rbp, value_out_loc));
+  if (instr->getInput(1)->isImm()) {
+    as->mov(x86::rax, instr->getInput(1)->getConstant());
+  } else {
+    int value_out_loc = instr->getInput(1)->getPhyRegOrStackSlot();
+    JIT_CHECK(value_out_loc < 0, "value to send out should be spilled");
+    as->mov(x86::rax, x86::ptr(x86::rbp, value_out_loc));
+  }
 
   // Arbitrary scratch register for use in emitStoreGenYieldPoint()
   auto scratch_r = x86::r9;

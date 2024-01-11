@@ -1247,11 +1247,21 @@ void LinearScanAllocator::resolveEdges() {
       if (is_return) {
         // check if the operand is RAX/XMM0
         auto ret_opnd = last_instr->getInput(0);
-        auto reg = ret_opnd->getPhyRegOrStackSlot();
+        if (ret_opnd->isReg() || ret_opnd->isStack()) {
+          auto reg = ret_opnd->getPhyRegOrStackSlot();
 
-        auto target = ret_opnd->isFp() ? PhyLocation::XMM0 : PhyLocation::RAX;
-        if (reg != target) {
-          copies->addEdge(reg, target, ret_opnd->dataType());
+          auto target = ret_opnd->isFp() ? PhyLocation::XMM0 : PhyLocation::RAX;
+          if (reg != target) {
+            copies->addEdge(reg, target, ret_opnd->dataType());
+          }
+        } else {
+          // return <constant>, we need to shuffle the value into rax here
+          auto instr = basic_block->allocateInstrBefore(
+              std::prev(instrs.end()), Instruction::kMove);
+          JIT_CHECK(!ret_opnd->isFp(), "only integer should be present");
+          instr->allocateImmediateInput(ret_opnd->getConstant());
+          instr->output()->setPhyRegOrStackSlot(PhyLocation::RAX);
+          instr->output()->setDataType(ret_opnd->dataType());
         }
       }
 
