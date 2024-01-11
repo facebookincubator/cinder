@@ -2678,16 +2678,17 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kRaiseStatic: {
         const auto& instr = static_cast<const RaiseStatic&>(i);
-        std::stringstream args;
+        auto lir = bbb.appendInstr(
+            Instruction::kCall,
+            reinterpret_cast<uint64_t>(PyErr_Format),
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(instr.excType())},
+            // TODO(T140174965): This should be MemImm.
+            Imm{reinterpret_cast<uint64_t>(instr.fmt())});
         for (size_t i = 0; i < instr.NumOperands(); i++) {
-          args << ", " << *instr.GetOperand(i);
+          lir->addOperands(VReg{bbb.getDefInstr(instr.GetOperand(i))});
         }
-        bbb.AppendCode(
-            "Invoke {:#x}, {:#x}, {:#x}{}",
-            reinterpret_cast<uint64_t>(&PyErr_Format),
-            reinterpret_cast<uint64_t>(instr.excType()),
-            reinterpret_cast<uint64_t>(instr.fmt()),
-            args.str());
+
         appendGuardAlwaysFail(bbb, instr);
         break;
       }
