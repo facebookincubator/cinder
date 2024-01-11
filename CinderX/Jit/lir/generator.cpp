@@ -2519,22 +2519,21 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         auto instr = static_cast<const BeginInlinedFunction*>(&i);
-        auto caller_shadow_frame = GetSafeTempName();
-        bbb.AppendCode(
-            "Lea {}, __native_frame_base, {}",
-            caller_shadow_frame,
-            shadowFrameOffsetBefore(instr));
+        auto caller_shadow_frame = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kLea,
+            PhyRegStack{PhyLocation(
+                static_cast<int32_t>(shadowFrameOffsetBefore(instr)))});
         // There is already a shadow frame for the caller function.
-        auto callee_shadow_frame = GetSafeTempName();
-        bbb.AppendCode(
-            "Lea {}, __native_frame_base, {}",
-            callee_shadow_frame,
-            shadowFrameOffsetOf(instr));
-        bbb.AppendCode(
-            "Store {}, {}, {}",
-            caller_shadow_frame,
-            callee_shadow_frame,
-            SHADOW_FRAME_FIELD_OFF(prev));
+        auto callee_shadow_frame = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kLea,
+            PhyRegStack{
+                PhyLocation(static_cast<int32_t>(shadowFrameOffsetOf(instr)))});
+        bbb.appendInstr(
+            OutInd{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(prev)},
+            Instruction::kMove,
+            caller_shadow_frame);
         // Set code object data
         PyCodeObject* code = instr->code();
         env_->code_rt->addReference(reinterpret_cast<PyObject*>(code));
@@ -2545,29 +2544,29 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         RuntimeFrameState* rtfs =
             env_->code_rt->allocateRuntimeFrameState(code, builtins, globals);
         uintptr_t data = _PyShadowFrame_MakeData(rtfs, PYSF_RTFS, PYSF_JIT);
-        auto data_reg = GetSafeTempName();
-        bbb.AppendCode("Move {}, {:#x}", data_reg, data);
-        bbb.AppendCode(
-            "Store {}, {}, {}",
-            data_reg,
-            callee_shadow_frame,
-            SHADOW_FRAME_FIELD_OFF(data));
+        auto data_reg = bbb.appendInstr(OutVReg{}, Instruction::kMove, data);
+        bbb.appendInstr(
+            OutInd{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(data)},
+            Instruction::kMove,
+            data_reg);
         // Set orig_data
         // This is only necessary when in normal-frame mode because the frame
         // is already materialized on function entry. It is lazily filled when
         // the frame is materialized in shadow-frame mode.
         if (func_->frameMode == jit::FrameMode::kNormal) {
-          bbb.AppendCode(
-              "Store {}, {}, {}",
-              data_reg,
-              callee_shadow_frame,
-              JIT_SHADOW_FRAME_FIELD_OFF(orig_data));
+          bbb.appendInstr(
+              OutInd{
+                  callee_shadow_frame, JIT_SHADOW_FRAME_FIELD_OFF(orig_data)},
+              Instruction::kMove,
+              data_reg);
         }
         // Set our shadow frame as top of shadow stack
-        bbb.AppendCode(
-            "Store {}, __asm_tstate, {}",
-            callee_shadow_frame,
-            offsetof(PyThreadState, shadow_frame));
+        bbb.appendInstr(
+            OutInd{
+                bbb.getDefInstr("__asm_tstate"),
+                offsetof(PyThreadState, shadow_frame)},
+            Instruction::kMove,
+            callee_shadow_frame);
         if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
