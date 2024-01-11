@@ -620,10 +620,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kSetCellItem: {
         auto instr = static_cast<const SetCellItem*>(&i);
         bbb.appendInstr(
-            Instruction::kMove,
             OutInd{
                 bbb.getDefInstr(instr->GetOperand(0)),
                 int32_t{offsetof(PyCellObject, ob_ref)}},
+            Instruction::kMove,
             instr->GetOperand(1));
         break;
       }
@@ -1863,7 +1863,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           void** indir = env_->rt->findFunctionEntryCache(func);
           env_->function_indirections.emplace(func, indir);
           Instruction* move = bbb.appendInstr(
-              Instruction::kMove, OutVReg{OperandBase::k64bit}, MemImm{indir});
+              OutVReg{OperandBase::k64bit}, Instruction::kMove, MemImm{indir});
 
           lir = bbb.appendInstr(instr->dst(), Instruction::kCall, move);
         }
@@ -1989,10 +1989,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kStoreField: {
         auto instr = static_cast<const StoreField*>(&i);
         auto lir = bbb.appendInstr(
-            Instruction::kMove,
             OutInd{
                 bbb.getDefInstr(instr->receiver()),
                 static_cast<int32_t>(instr->offset())},
+            Instruction::kMove,
             instr->value());
         lir->output()->setDataType(lir->getInput(0)->dataType());
         break;
@@ -2043,9 +2043,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               Ind{call, offsetof(PyListObject, ob_item)});
           for (size_t i = 0; i < instr->nvalues(); i++) {
             bbb.appendInstr(
-                Instruction::kMove,
                 OutInd{load, static_cast<int32_t>(i * kPointerSize)},
-                bbb.getDefInstr(instr->GetOperand(i)));
+                Instruction::kMove,
+                instr->GetOperand(i));
           }
         }
         break;
@@ -2061,11 +2061,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         const size_t ob_item_offset = offsetof(PyTupleObject, ob_item);
         for (size_t i = 0; i < instr->NumOperands(); i++) {
           bbb.appendInstr(
-              Instruction::kMove,
               OutInd{
                   tuple,
                   static_cast<int32_t>(ob_item_offset + i * kPointerSize)},
-              bbb.getDefInstr(instr->GetOperand(i)));
+              Instruction::kMove,
+              instr->GetOperand(i));
         }
         break;
       }
