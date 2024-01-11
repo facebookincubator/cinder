@@ -2654,21 +2654,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kRaise: {
         const auto& instr = static_cast<const Raise&>(i);
-        std::string exc = "0";
-        std::string cause = "0";
+        hir::Register* exc = nullptr;
+        hir::Register* cause = nullptr;
+
         switch (instr.kind()) {
           case Raise::Kind::kReraise:
             break;
           case Raise::Kind::kRaiseWithExcAndCause:
-            cause = instr.GetOperand(1)->name();
+            cause = instr.GetOperand(1);
             // Fallthrough
           case Raise::Kind::kRaiseWithExc:
-            exc = instr.GetOperand(0)->name();
+            exc = instr.GetOperand(0);
+            break;
         }
-        bbb.AppendCode(
-            "Call {}, {:#x}, __asm_tstate, {}, {}",
-            GetSafeTempName(),
-            reinterpret_cast<uint64_t>(&Cix_do_raise),
+        bbb.AppendCall(
+            OutVReg{OperandBase::k32bit},
+            Cix_do_raise,
+            "__asm_tstate",
             exc,
             cause);
         appendGuardAlwaysFail(bbb, instr);
