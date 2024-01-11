@@ -1987,11 +1987,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
       case Opcode::kStoreField: {
         auto instr = static_cast<const StoreField*>(&i);
-        bbb.AppendCode(
-            "Store {}, {}, {:#x}",
-            instr->value(),
-            instr->receiver(),
-            instr->offset());
+        auto lir = bbb.appendInstr(
+            Instruction::kMove,
+            OutInd{
+                bbb.getDefInstr(instr->receiver()),
+                static_cast<int32_t>(instr->offset())},
+            instr->value());
+        lir->output()->setDataType(lir->getInput(0)->dataType());
         break;
       }
 
