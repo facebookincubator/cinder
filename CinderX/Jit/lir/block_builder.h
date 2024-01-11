@@ -228,20 +228,7 @@ class BasicBlockBuilder {
     return instr;
   }
 
-  void AppendCode(std::string_view s) {
-    AppendTokenizedCodeLine(Tokenize(s));
-  }
-  void AppendCode(const fmt::memory_buffer& buf) {
-    AppendCode(std::string_view(buf.data(), buf.size()));
-  }
   void AppendLabel(std::string_view s);
-
-  template <typename... T>
-  void AppendCode(fmt::format_string<T...> s, T&&... args) {
-    fmt::memory_buffer buf;
-    fmt::format_to(std::back_inserter(buf), s, std::forward<T>(args)...);
-    AppendCode(buf);
-  }
 
   template <
       typename FuncReturnType,
@@ -298,29 +285,11 @@ class BasicBlockBuilder {
       Instruction* instr,
       const std::string& name,
       Operand::DataType data_type);
-  void CreateInstrInputFromStr(
-      Instruction* instr,
-      const std::string& name_size);
-  void CreateInstrImmediateInputFromStr(
-      Instruction* instr,
-      const std::string& val_size);
-  void CreateInstrOutputFromStr(
-      Instruction* instr,
-      const std::string& name_size);
-
   void CreateInstrIndirect(
       Instruction* instr,
       const std::string& base,
       const std::string& index,
       int multiplier, // log2(scale)
-      int offset);
-  void CreateInstrIndirectFromStr(
-      Instruction* instr,
-      const std::string& name_size,
-      int offset);
-  void CreateInstrIndirectOutputFromStr(
-      Instruction* instr,
-      const std::string& name_size,
       int offset);
   void SetBlockSection(const std::string& label, codegen::CodeSection section);
 
@@ -508,27 +477,6 @@ class BasicBlockBuilder {
   void GenericCreateInstrOutput(Instruction* instr, hir::Register* dst) {
     CreateInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
   }
-
-  void AppendTokenizedCodeLine(const std::vector<std::string>& tokens);
-
-  bool IsConstant(std::string_view s) {
-    return isdigit(s[0]) || (s[0] == '-');
-  }
-
-  static bool IsLabel(std::string_view s) {
-    return s.back() == ':';
-  }
-
-  void createBasicInstr(
-      Instruction::Opcode opc,
-      bool has_output,
-      int arg_count,
-      const std::vector<std::string>& tokens);
-  void createBasicCallInstr(
-      const std::vector<std::string>& tokens,
-      bool is_invoke,
-      bool is_vector_call);
-  static std::vector<std::string> Tokenize(std::string_view s);
 };
 
 } // namespace jit::lir
