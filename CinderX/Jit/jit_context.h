@@ -12,13 +12,13 @@
 #include "Jit/ref.h"
 #include "Jit/util.h"
 
-#include <functional>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
-// Lookup key for _PyJITContext::compiled_codes: a code object and a globals
-// dict it was JIT-compiled with.
+namespace jit {
+
+// Lookup key for compiled functions in Context: a code object and the globals
+// and builtins dicts it was JIT-compiled with.
 struct CompilationKey {
   // These three are borrowed references; the values are kept alive by strong
   // references in the corresponding jit::CodeRuntime.
@@ -29,15 +29,14 @@ struct CompilationKey {
   CompilationKey(PyObject* code, PyObject* builtins, PyObject* globals)
       : code(code), builtins(builtins), globals(globals) {}
 
-  bool operator==(const CompilationKey& other) const {
-    return code == other.code && globals == other.globals &&
-        builtins == other.builtins;
-  }
+  constexpr bool operator==(const CompilationKey& other) const = default;
 };
 
+} // namespace jit
+
 template <>
-struct std::hash<CompilationKey> {
-  std::size_t operator()(const CompilationKey& key) const {
+struct std::hash<jit::CompilationKey> {
+  std::size_t operator()(const jit::CompilationKey& key) const {
     std::hash<PyObject*> hasher;
     return jit::combineHash(
         jit::combineHash(hasher(key.code), hasher(key.globals)),
@@ -45,198 +44,182 @@ struct std::hash<CompilationKey> {
   }
 };
 
+namespace jit {
+
 /*
- * A JIT context encapsulates all the state managed by an instance of the JIT.
+ * A jit::Context encapsulates all the state managed by an instance of the JIT.
  */
-struct _PyJITContext {
-  ~_PyJITContext();
+class Context {
+ public:
+  ~Context();
+
+  /*
+   * JIT compile func and patch its entry point.
+   *
+   * On success, positional only calls to func will use the JIT compiled
+   * version.
+   *
+   * Will return PYJIT_RESULT_OK if the function was already compiled.
+   */
+  _PyJIT_Result compileFunc(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * JIT compile code and store the result in the context.
+   *
+   * This does not patch the entry point of any functions; it is primarily
+   * useful to pre-compile the code object for a nested function so it's
+   * available for use after disabling the JIT.
+   *
+   * Will return PYJIT_RESULT_OK if the code was already compiled.
+   */
+  _PyJIT_Result compileCode(
+      BorrowedRef<> module,
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> builtins,
+      BorrowedRef<PyDictObject> globals);
+
+  /*
+   * JIT compile function/code-object from a Preloader.
+   *
+   * Patches func entrypoint if the Preloader contains a func.
+   *
+   * Will return PYJIT_RESULT_OK if the function/code object was already
+   * compiled.
+   */
+  _PyJIT_Result compilePreloader(
+      BorrowedRef<PyFunctionObject> func,
+      const hir::Preloader& preloader);
+
+  /*
+   * Attach already-compiled code to the given function, if it exists.
+   *
+   * Intended for (but not limited to) use with nested functions after the JIT
+   * is disabled.
+   *
+   * Will return PYJIT_RESULT_OK if the given function already had compiled code
+   * attached.
+   */
+  _PyJIT_Result attachCompiledCode(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Callbacks invoked by the runtime when a PyFunctionObject is modified or
+   * destroyed.
+   */
+  void funcModified(BorrowedRef<PyFunctionObject> func);
+  void funcDestroyed(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Return whether or not this context compiled the supplied function.
+   */
+  bool didCompile(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Look up the compiled function object for a given Python function object.
+   */
+  CompiledFunction* lookupFunc(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Returns the number of functions inlined into a specified JIT-compiled
+   * function.
+   *
+   * Returns -1 if an error occurred.
+   */
+  int numInlinedFunctions(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Return a stats object on the functions inlined into a specified
+   * JIT-compiled function.
+   *
+   * Will return nullptr if the supplied function has not been JIT-compiled.
+   */
+  Ref<> inlinedFunctionsStats(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Return the HIR opcode counts for a JIT-compiled function, or nullptr if the
+   * function has not been JIT-compiled.
+   */
+  const hir::OpcodeCounts* hirOpcodeCounts(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Print the HIR for func to stdout if it was JIT-compiled.
+   * This function is a no-op if func was not JIT-compiled.
+   *
+   * Returns -1 if an error occurred or 0 otherwise.
+   */
+  int printHIR(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Print the disassembled code for func to stdout if it was JIT-compiled.
+   * This function is a no-op if func was not JIT-compiled.
+   *
+   * Returns -1 if an error occurred or 0 otherwise.
+   */
+  int disassemble(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Get a range over all function objects that have been compiled.
+   */
+  const UnorderedSet<BorrowedRef<PyFunctionObject>>& compiledFuncs();
+
+  /*
+   * Set and hold a reference to the cinderjit Python module.
+   */
+  void setCinderJitModule(Ref<> mod);
+
+  /*
+   * Clear cache of compiled code such that subsequent compilations are always
+   * full rather than just re-binding pre-compiled code. Only intended to be
+   * used during multithreaded_compile_test.
+   */
+  void clearCache();
+
+ private:
+  struct CompilationResult {
+    CompiledFunction* compiled;
+    _PyJIT_Result result;
+  };
+
+  CompilationResult compilePreloader(const hir::Preloader& preloader);
+
+  CompiledFunction* lookupCode(
+      BorrowedRef<PyCodeObject> code,
+      BorrowedRef<PyDictObject> builtins,
+      BorrowedRef<PyDictObject> globals);
+
+  /*
+   * Reset a function's entry point if it was JIT-compiled.
+   */
+  void deoptFunc(BorrowedRef<PyFunctionObject> func);
+
+  /*
+   * Record per-function metadata for a newly compiled function and set the
+   * function's entrypoint.
+   */
+  void finalizeFunc(
+      BorrowedRef<PyFunctionObject> func,
+      const CompiledFunction& compiled);
 
   /* General purpose jit compiler */
-  jit::Compiler jit_compiler;
+  Compiler jit_compiler_;
+
+  /* Set of which functions have JIT-compiled entrypoints. */
+  UnorderedSet<BorrowedRef<PyFunctionObject>> compiled_funcs_;
 
   /*
-   * Set of which functions have JIT-compiled entrypoints.
+   * Map of all compiled code objects, keyed by their address and also their
+   * builtins and globals objects.
    */
-  jit::UnorderedSet<BorrowedRef<PyFunctionObject>> compiled_funcs;
-
-  /*
-   * Compiled code objects, keyed by PyCodeObject* and the globals dict they
-   * were compiled with.
-   */
-  jit::UnorderedMap<CompilationKey, std::unique_ptr<jit::CompiledFunction>>
-      compiled_codes;
+  UnorderedMap<CompilationKey, std::unique_ptr<CompiledFunction>>
+      compiled_codes_;
 
   /*
    * Code which is being kept alive in case it was in use when
-   * _PyJITContext_ClearCache was called. Only intended to be used during
+   * clearCache was called. Only intended to be used during
    * multithreaded_compile_test.
    */
-  std::vector<std::unique_ptr<jit::CompiledFunction>> orphaned_compiled_codes;
+  std::vector<std::unique_ptr<CompiledFunction>> orphaned_compiled_codes_;
 
-  Ref<> cinderjit_module;
+  Ref<> cinderjit_module_;
 };
 
-/*
- * Clear cache of compiled code such that subsequent compilations are always
- * full rather than just re-binding pre-compiled code. Only intended to be used
- * during multithreaded_compile_test.
- */
-void _PyJITContext_ClearCache(_PyJITContext* ctx);
-
-/*
- * JIT compile func and patch its entry point.
- *
- * On success, positional only calls to func will use the JIT compiled version.
- *
- * Returns PYJIT_RESULT_OK on success, or if the function was already compiled.
- */
-_PyJIT_Result _PyJITContext_CompileFunction(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * JIT compile code and store the result in ctx.
- *
- * This does not patch the entry point of any functions; it is primarily useful
- * to pre-compile the code object for a nested function so it's available for
- * use after disabling the JIT.
- *
- * Returns 1 on success, 0 on failure.
- */
-_PyJIT_Result _PyJITContext_CompileCode(
-    _PyJITContext* ctx,
-    BorrowedRef<> module,
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> builtins,
-    BorrowedRef<PyDictObject> globals);
-
-/*
- * JIT compile function/code-object from Preloader.
- *
- * Patches func entrypoint if Preloader contains a func.
- */
-_PyJIT_Result _PyJITContext_CompilePreloader(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func,
-    const jit::hir::Preloader& preloader);
-
-/*
- * Attach already-compiled code to the given function, if it exists.
- *
- * Intended for (but not limited to) use with nested functions after the JIT is
- * disabled.
- *
- * Returns PYJIT_RESULT_OK on success or if the given function already had
- * compiled code attached.
- */
-_PyJIT_Result _PyJITContext_AttachCompiledCode(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Callbacks invoked by the runtime when a PyFunctionObject is modified or
- * destroyed.
- */
-void _PyJITContext_FuncModified(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-void _PyJITContext_FuncDestroyed(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Return whether or not this context compiled the supplied function.
- *
- * Return 1 if so, 0 if not, and -1 if an error occurred.
- */
-int _PyJITContext_DidCompile(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the code size in bytes for a specified JIT-compiled function.
- *
- * Returns 0 if the function is not JIT-compiled.
- *
- * Returns -1 if an error occurred.
- */
-
-int _PyJITContext_GetCodeSize(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the stack size in bytes for a specified JIT-compiled function.
- *
- * Returns -1 if an error occurred.
- */
-
-int _PyJITContext_GetStackSize(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the stack size used for spills in bytes for a specified JIT-compiled
- * function.
- *
- * Returns -1 if an error occurred.
- */
-int _PyJITContext_GetSpillStackSize(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the number of functions inlined into a specified JIT-compiled
- * function.
- *
- * Returns -1 if an error occurred.
- */
-int _PyJITContext_GetNumInlinedFunctions(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the number of functions inlined into a specified JIT-compiled
- * function.
- *
- * Returns -1 if an error occurred.
- */
-PyObject* _PyJITContext_GetInlinedFunctionsStats(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Returns the HIR opcode counts for a JIT-compiled function, or nullptr if the
- * function has not been JIT-compiled.
- */
-const jit::hir::OpcodeCounts* _PyJITContext_GetHIROpcodeCounts(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Return a list of functions that are currently JIT-compiled.
- *
- * Returns a new reference.
- *
- */
-PyObject* _PyJITContext_GetCompiledFunctions(_PyJITContext* ctx);
-
-/*
- * Print the HIR for func to stdout if it was JIT-compiled.
- * This function is a no-op if func was not JIT-compiled.
- *
- * Returns -1 if an error occurred or 0 otherwise.
- */
-int _PyJITContext_PrintHIR(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
-
-/*
- * Print the disassembled code for func to stdout if it was JIT-compiled.
- * This function is a no-op if func was not JIT-compiled.
- *
- * Returns -1 if an error occurred or 0 otherwise.
- */
-int _PyJITContext_Disassemble(
-    _PyJITContext* ctx,
-    BorrowedRef<PyFunctionObject> func);
+} // namespace jit
