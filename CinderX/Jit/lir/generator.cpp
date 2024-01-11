@@ -2579,46 +2579,44 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }
         // callee_shadow_frame <- tstate.shadow_frame
-        auto callee_shadow_frame = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, __asm_tstate, {}",
-            callee_shadow_frame,
-            offsetof(PyThreadState, shadow_frame));
+        auto callee_shadow_frame = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kMove,
+            Ind{bbb.getDefInstr("__asm_tstate"),
+                offsetof(PyThreadState, shadow_frame)});
 
         // Check if the callee has been materialized into a PyFrame. Use the
         // flags below.
         static_assert(
             PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
             "Unexpected constants");
-        auto shadow_frame_data = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            shadow_frame_data,
-            callee_shadow_frame,
-            SHADOW_FRAME_FIELD_OFF(data));
-        bbb.AppendCode("BitTest {}, 0", shadow_frame_data);
+        auto shadow_frame_data = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kMove,
+            Ind{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(data)});
+        bbb.appendInstr(Instruction::kBitTest, shadow_frame_data, Imm{0});
 
         // caller_shadow_frame <- callee_shadow_frame.prev
-        auto caller_shadow_frame = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            caller_shadow_frame,
-            callee_shadow_frame,
-            SHADOW_FRAME_FIELD_OFF(prev));
+        auto caller_shadow_frame = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kMove,
+            Ind{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(prev)});
         // caller_shadow_frame -> tstate.shadow_frame
-        bbb.AppendCode(
-            "Store {}, __asm_tstate, {}",
-            caller_shadow_frame,
-            offsetof(PyThreadState, shadow_frame));
+        bbb.appendInstr(
+            OutInd{
+                bbb.getDefInstr("__asm_tstate"),
+                offsetof(PyThreadState, shadow_frame)},
+            Instruction::kMove,
+            caller_shadow_frame);
 
         // Unlink PyFrame if needed. Someone might have materialized all of the
         // PyFrames via PyEval_GetFrame or similar.
-        auto done = GetSafeLabelName();
-        bbb.AppendCode("BranchNC {}", done);
+        auto done_block = bbb.allocateBlock(GetSafeLabelName());
+        bbb.appendBranch(Instruction::kBranchNC, done_block);
         // TODO(T109445584): Remove this unused label.
         bbb.AppendLabel(GetSafeLabelName());
         bbb.AppendInvoke(JITRT_UnlinkFrame, "__asm_tstate");
-        bbb.AppendLabel(done);
+        bbb.appendBlock(done_block);
         if (kPyDebug) {
           bbb.AppendInvoke(assertShadowCallStackConsistent, "__asm_tstate");
         }

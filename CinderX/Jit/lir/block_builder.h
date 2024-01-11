@@ -209,6 +209,13 @@ class BasicBlockBuilder {
     return instr;
   }
 
+  // Allocate and append a new branching instruction which is checking a flag
+  Instruction* appendBranch(Instruction::Opcode opcode, BasicBlock* true_bb) {
+    auto instr = appendInstr(opcode);
+    cur_bb_->addSuccessor(true_bb);
+    return instr;
+  }
+
   void AppendCode(std::string_view s) {
     AppendTokenizedCodeLine(Tokenize(s));
   }
