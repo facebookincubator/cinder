@@ -2197,18 +2197,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->type().typeSpec(),
             static_cast<Py_ssize_t>(capacity));
         if (instr->nvalues() > 0) {
-          std::string base = GetSafeTempName();
-          bbb.AppendCode(
-              "Load {}, {}, {}",
-              base,
-              instr->dst(),
-              offsetof(PyListObject, ob_item));
+          auto ob_item = bbb.appendInstr(
+              OutVReg{},
+              Instruction::kMove,
+              Ind{bbb.getDefInstr(instr->dst()),
+                  static_cast<int32_t>(offsetof(PyListObject, ob_item))});
           for (size_t i = 0; i < instr->nvalues(); i++) {
-            bbb.AppendCode(
-                "Store {}, {}, {}",
-                instr->GetOperand(i),
-                base,
-                i * kPointerSize);
+            bbb.appendInstr(
+                OutInd{ob_item, static_cast<int32_t>(i * kPointerSize)},
+                Instruction::kMove,
+                instr->GetOperand(i));
           }
         }
         break;
