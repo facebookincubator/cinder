@@ -2051,17 +2051,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kMakeTuple: {
         auto instr = static_cast<const MakeTuple*>(&i);
-        bbb.AppendCall(
+        Instruction* tuple = bbb.AppendCall(
             instr->dst(),
             PyTuple_New,
             static_cast<Py_ssize_t>(instr->nvalues()));
+        // TODO(T174544781): need to check for 0 before initializing, currently
+        // that check only happens after assigning these values.
         const size_t ob_item_offset = offsetof(PyTupleObject, ob_item);
         for (size_t i = 0; i < instr->NumOperands(); i++) {
-          bbb.AppendCode(
-              "Store {}, {}, {}",
-              instr->GetOperand(i),
-              instr->dst(),
-              ob_item_offset + i * kPointerSize);
+          bbb.appendInstr(
+              Instruction::kMove,
+              OutInd{
+                  tuple,
+                  static_cast<int32_t>(ob_item_offset + i * kPointerSize)},
+              bbb.getDefInstr(instr->GetOperand(i)));
         }
         break;
       }
