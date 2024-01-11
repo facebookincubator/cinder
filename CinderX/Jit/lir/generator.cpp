@@ -50,13 +50,13 @@ namespace {
 constexpr size_t kRefcountOffset = offsetof(PyObject, ob_refcnt);
 
 // _Py_RefTotal is only defined when Py_REF_DEBUG is defined.
-const size_t kRefTotalAddr = reinterpret_cast<size_t>(
+void* kRefTotalAddr =
 #ifdef Py_REF_DEBUG
     &_Py_RefTotal
 #else
     nullptr
 #endif
-);
+    ;
 
 // These functions call their counterparts and convert its output from int (32
 // bits) to uint64_t (64 bits). This is solely because the code generator cannot
@@ -486,39 +486,48 @@ void LIRGenerator::MakeIncref(
     return;
   }
 
-  auto end_incref = GetSafeLabelName();
+  auto end_incref = bbb.allocateBlock(GetSafeLabelName());
   if (xincref) {
-    auto cont = GetSafeLabelName();
-    bbb.AppendCode("JumpIf {}, {}, {}", obj, cont, end_incref);
-    bbb.AppendLabel(cont);
+    auto cont = bbb.allocateBlock(GetSafeLabelName());
+    bbb.appendBranch(Instruction::kCondBranch, obj, cont, end_incref);
+    bbb.appendBlock(cont);
   }
 
   // If this could be an immortal object then we need to load the refcount as a
   // 32-bit integer to see if it overflows on increment, indicating that it's
   // immortal.  For mortal objects the refcount is a regular 64-bit integer.
   if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
-    auto mortal = GetSafeLabelName();
-    auto r1 = GetSafeTempName();
-    bbb.AppendCode("Load {}:CUInt32, {}, {:#x}", r1, obj, kRefcountOffset);
-    bbb.AppendCode("Inc {}", r1);
-    bbb.AppendCode("BranchE {}", end_incref);
-    bbb.AppendLabel(mortal);
-    bbb.AppendCode("Store {}, {}:CUInt32, {:#x}", r1, obj, kRefcountOffset);
+    auto mortal = bbb.allocateBlock(GetSafeLabelName());
+    auto r1 = bbb.appendInstr(
+        OutVReg{OperandBase::k32bit},
+        Instruction::kMove,
+        Ind{bbb.getDefInstr(obj), kRefcountOffset});
+    bbb.appendInstr(Instruction::kInc, r1);
+    bbb.appendBranch(Instruction::kBranchE, end_incref);
+    bbb.appendBlock(mortal);
+    bbb.appendInstr(
+           OutInd{bbb.getDefInstr(obj), kRefcountOffset},
+           Instruction::kMove,
+           r1)
+        ->output()
+        ->setDataType(Operand::k32bit);
   } else {
-    auto r1 = GetSafeTempName();
-    bbb.AppendCode("Load {}, {}, {:#x}", r1, obj, kRefcountOffset);
-    bbb.AppendCode("Inc {}", r1);
-    bbb.AppendCode("Store {}, {}, {:#x}", r1, obj, kRefcountOffset);
+    auto r1 = bbb.appendInstr(
+        OutVReg{},
+        Instruction::kMove,
+        Ind{bbb.getDefInstr(obj), kRefcountOffset});
+    bbb.appendInstr(Instruction::kInc, r1);
+    bbb.appendInstr(
+        OutInd{bbb.getDefInstr(obj), kRefcountOffset}, Instruction::kMove, r1);
   }
 
   if (kRefTotalAddr != 0) {
-    auto r0 = GetSafeTempName();
-    bbb.AppendCode("Load {}, {:#x}", r0, kRefTotalAddr);
-    bbb.AppendCode("Inc {}", r0);
-    bbb.AppendCode("Store {}, {:#x}", r0, kRefTotalAddr);
+    auto r0 =
+        bbb.appendInstr(OutVReg{}, Instruction::kMove, MemImm{kRefTotalAddr});
+    bbb.appendInstr(Instruction::kInc, r0);
+    bbb.appendInstr(OutMemImm{kRefTotalAddr}, Instruction::kMove, r0);
   }
-
-  bbb.AppendLabel(end_incref);
+  bbb.appendBlock(end_incref);
 }
 
 void LIRGenerator::MakeDecref(
@@ -551,9 +560,11 @@ void LIRGenerator::MakeDecref(
 
   if (kRefTotalAddr != 0) {
     auto r0 = GetSafeTempName();
-    bbb.AppendCode("Load {}, {:#x}", r0, kRefTotalAddr);
+    bbb.AppendCode(
+        "Load {}, {:#x}", r0, reinterpret_cast<uint64_t>(kRefTotalAddr));
     bbb.AppendCode("Dec {}", r0);
-    bbb.AppendCode("Store {}, {:#x}", r0, kRefTotalAddr);
+    bbb.AppendCode(
+        "Store {}, {:#x}", r0, reinterpret_cast<uint64_t>(kRefTotalAddr));
   }
 
   auto dealloc = GetSafeLabelName();

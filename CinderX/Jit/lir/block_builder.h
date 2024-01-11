@@ -172,6 +172,18 @@ class BasicBlockBuilder {
   // register.
   template <class... Args>
   Instruction*
+  appendInstr(OutMemImm dest, Instruction::Opcode opcode, Args&&... args) {
+    auto instr = appendInstr(opcode, std::forward<Args>(args)...);
+    instr->output()->setMemoryAddress(dest.value);
+    return instr;
+  }
+
+  // Allocate and append a new instruction to the instruction stream.
+  //
+  // The instruction is expecting to produce a VReg and match it to an HIR
+  // register.
+  template <class... Args>
+  Instruction*
   appendInstr(OutVReg dest, Instruction::Opcode opcode, Args&&... args) {
     auto instr = appendInstr(opcode, std::forward<Args>(args)...);
     instr->output()->setVirtualRegister();
