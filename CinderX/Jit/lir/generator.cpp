@@ -619,11 +619,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kSetCellItem: {
         auto instr = static_cast<const SetCellItem*>(&i);
-        bbb.AppendCode(
-            "Store {}, {}, {}",
-            instr->GetOperand(1),
-            instr->GetOperand(0),
-            offsetof(PyCellObject, ob_ref));
+        bbb.appendInstr(
+            Instruction::kMove,
+            OutInd{
+                bbb.getDefInstr(instr->GetOperand(0)),
+                int32_t{offsetof(PyCellObject, ob_ref)}},
+            instr->GetOperand(1));
         break;
       }
       case Opcode::kLoadConst: {
