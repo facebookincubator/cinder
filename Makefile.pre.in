@@ -2149,7 +2149,7 @@ testcinde%: @DEF_MAKE_RULE@ platform
 ifneq ($(TESTOPTS),)
 	$(error Running Cinder tests with TESTOPTS is not supported)
 endif
-	$(MAKE) -C $(srcdir)/cinderx/ TESTPYTHON="$(TESTPYTHON)" ASAN_TEST_ENV="$(ASAN_TEST_ENV)" $@
+	$(MAKE) -C $(srcdir)/cinderx/ TESTPYTHON="$(TESTPYTHON)" ASAN_TEST_ENV="$(ASAN_TEST_ENV)" abs_builddir="$(abs_builddir)" $@
 
 define RUNTIME_TEST_BODY
 	$(MAKE) -C "$(srcdir)/cinderx/" \

@@ -1,10 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-# NOTE: This file is intended to test JIT behavior in the presence of profile
-# data. The non-standard filename is so it's not run by default as part of the
-# normal test suite; instead, it is run in a special configuration by the
-# 'testcinder_jit_profile' make target.
-
 import os
 import sys
 import threading
@@ -29,17 +24,22 @@ except ModuleNotFoundError:
 # reliable way to do this (given the current system) is to allow the code under
 # test to behave differently during profiling and testing.
 #
-# We expose this within this file through the PROFILING and TESTING globals,
-# which will never both be set at the same time (they might both be false, if
-# the JIT is disabled). This assumes that calling code will set
-# CINDER_JIT_PROFILE_TEST_PROFILING as appropriate.
-def check_profiling():
-    var = os.getenv("CINDER_JIT_PROFILE_TEST_PROFILING", None)
+# We expose this within this file through the MAKE_PROFILE and TEST_PROFILE
+# globals, which should never both be set at the same time (they might both be
+# false, if the JIT is disabled or we're running the test without profile
+# data). This assumes that calling code will set TEST_CINDERJIT_PROFILE_* as
+# appropriate.
+def check_env(name):
+    var = os.getenv(name, None)
     return var not in (None, "", "0")
 
 
-PROFILING = check_profiling()
-TESTING = not (PROFILING or cinderjit is None)
+MAKE_PROFILE = check_env("TEST_CINDERJIT_PROFILE_MAKE_PROFILE")
+TEST_PROFILE = check_env("TEST_CINDERJIT_PROFILE_TEST_PROFILE")
+if MAKE_PROFILE and TEST_PROFILE:
+    raise RuntimeError(
+        "This test cannot be run in both MAKE_PROFILE and TEST_PROFILE modes."
+    )
 
 
 class ProfileTest(unittest.TestCase):
@@ -60,6 +60,14 @@ class ProfileTest(unittest.TestCase):
 
         {}
         """
+
+        if not TEST_PROFILE:
+            # When this test isn't running in TEST_PROFILE mode (when we're in
+            # MAKE_PROFILE mode, running under the interpreter, or running
+            # under the JIT without profile data), run the body of the context
+            # manager but don't check for deopts.
+            yield
+            return
 
         cinderjit.get_and_clear_runtime_stats()
         yield
@@ -107,9 +115,8 @@ class BinaryOpTests(ProfileTest):
 
         self.assertEqual(do_pow(2, 2), 4)
 
-        if TESTING:
-            with self.assertDeopts({}):
-                self.assertEqual(do_pow(2, 8), 256)
+        with self.assertDeopts({}):
+            self.assertEqual(do_pow(2, 8), 256)
 
     def assert_index_error(self):
         return self.assertRaisesRegex(
@@ -160,7 +167,7 @@ class GetProfilesTests(ProfileTest):
     # tests.
     @cinder_support.runInSubprocess
     def test_get_and_clear_type_profiles(self):
-        if not PROFILING:
+        if not MAKE_PROFILE:
             return
 
         cinder.get_and_clear_type_profiles()
@@ -383,6 +390,7 @@ class LoadTypeMethodCacheTests(ProfileTest):
 
 
 class LoadAttrTests(ProfileTest):
+    @staticmethod
     def make_slot_type(caller_name, name, slots, bases=None):
         def init(self, **kwargs):
             for key, val in kwargs.items():
@@ -402,12 +410,14 @@ class LoadAttrTests(ProfileTest):
             },
         )
 
-    BasicSlotAttr = make_slot_type("test_load_from_slot", "BasicSlotAttr", ["b", "c"])
-    OtherSlotAttr = make_slot_type(
-        "test_load_attr_from_slot", "OtherSlotAttr", ["a", "b", "c", "d"]
-    )
-
     def test_load_attr_from_slot(self):
+        BasicSlotAttr = self.make_slot_type(
+            "test_load_from_slot", "BasicSlotAttr", ["b", "c"]
+        )
+        OtherSlotAttr = self.make_slot_type(
+            "test_load_attr_from_slot", "OtherSlotAttr", ["a", "b", "c", "d"]
+        )
+
         def get_a(o):
             return o.a
 
@@ -420,19 +430,19 @@ class LoadAttrTests(ProfileTest):
         def get_d(o):
             return o.d
 
-        o1 = self.BasicSlotAttr(b="bee", c="see")
+        o1 = BasicSlotAttr(b="bee", c="see")
 
         self.assertEqual(get_b(o1), "bee")
         self.assertEqual(get_c(o1), "see")
 
-        if TESTING:
-            with self.assertDeopts({}):
-                self.assertEqual(get_b(o1), "bee")
-                self.assertEqual(get_c(o1), "see")
+        with self.assertDeopts({}):
+            self.assertEqual(get_b(o1), "bee")
+            self.assertEqual(get_c(o1), "see")
 
+        if not MAKE_PROFILE:
             # Make sure get_b() and get_c() still behave correctly when given
             # a type not seen during profiling, with a different layout.
-            o2 = self.OtherSlotAttr(a="aaa", b="bbb", c="ccc", d="ddd")
+            o2 = OtherSlotAttr(a="aaa", b="bbb", c="ccc", d="ddd")
             with self.assertDeopts(
                 {(("reason", "GuardFailure"), ("description", "GuardType")): 2}
             ):
@@ -441,12 +451,12 @@ class LoadAttrTests(ProfileTest):
                 self.assertEqual(get_c(o2), "ccc")
                 self.assertEqual(get_d(o2), "ddd")
 
-    ModifiedSlotAttr = make_slot_type(
-        "test_modify_type_and_load_attr_from_slot", "ModifiedSlotAttr", ["a", "b"]
-    )
-
     def test_modify_type_and_load_attr_from_slot(self):
-        o = self.ModifiedSlotAttr(a=123, b=456)
+        ModifiedSlotAttr = self.make_slot_type(
+            "test_modify_type_and_load_attr_from_slot", "ModifiedSlotAttr", ["a", "b"]
+        )
+
+        o = ModifiedSlotAttr(a=123, b=456)
         o.__dict__ = {"a": "shadowed a"}
         self.assertEqual(o.a, 123)
 
@@ -455,35 +465,34 @@ class LoadAttrTests(ProfileTest):
 
         self.assertEqual(get_attr(o), 123)
 
-        if TESTING:
-            with self.assertDeopts({}):
-                self.assertEqual(get_attr(o), 123)
-                o.a = 789
-                self.assertEqual(get_attr(o), 789)
+        with self.assertDeopts({}):
+            self.assertEqual(get_attr(o), 123)
+            o.a = 789
+            self.assertEqual(get_attr(o), 789)
 
-            descr_saved = self.ModifiedSlotAttr.a
-            del self.ModifiedSlotAttr.a
+        descr_saved = ModifiedSlotAttr.a
+        del ModifiedSlotAttr.a
 
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "member descriptor attribute"),
-                    ): 3,
-                }
-            ):
-                self.assertEqual(get_attr(o), "shadowed a")
-                o.a = "another a"
-                self.assertEqual(get_attr(o), "another a")
-                self.ModifiedSlotAttr.a = descr_saved
-                self.assertEqual(get_attr(o), 789)
-
-    ModifiedOtherAttr = make_slot_type(
-        "test_modify_other_type_member", "ModifiedOtherAttr", ["foo", "bar"]
-    )
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "member descriptor attribute"),
+                ): 3,
+            }
+        ):
+            self.assertEqual(get_attr(o), "shadowed a")
+            o.a = "another a"
+            self.assertEqual(get_attr(o), "another a")
+            ModifiedSlotAttr.a = descr_saved
+            self.assertEqual(get_attr(o), 789)
 
     def test_modify_other_type_member(self):
-        o = self.ModifiedOtherAttr(foo="foo", bar="bar")
+        ModifiedOtherAttr = self.make_slot_type(
+            "test_modify_other_type_member", "ModifiedOtherAttr", ["foo", "bar"]
+        )
+
+        o = ModifiedOtherAttr(foo="foo", bar="bar")
 
         def get_foo(o):
             return o.foo
@@ -494,64 +503,63 @@ class LoadAttrTests(ProfileTest):
         self.assertEqual(get_foo(o), "foo")
         self.assertEqual(get_bar(o), "bar")
 
-        if TESTING:
-            self.ModifiedOtherAttr.bar = 5
+        ModifiedOtherAttr.bar = 5
 
-            with self.assertDeopts({}):
-                self.assertEqual(get_foo(o), "foo")
+        with self.assertDeopts({}):
+            self.assertEqual(get_foo(o), "foo")
 
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "member descriptor attribute"),
-                    ): 1
-                }
-            ):
-                self.assertEqual(get_bar(o), 5)
-
-    class EmptyBase:
-        pass
-
-    FakeSlotType = make_slot_type(
-        "test_fake_slot_type", "FakeSlotType", ["a", "b"], bases=(EmptyBase,)
-    )
-    FakeSlotType.c = FakeSlotType.a
-    OtherFakeSlotType = make_slot_type(
-        "test_fake_slot_type", "OtherFakeSlotType", ["a", "b"], bases=(EmptyBase,)
-    )
-    OtherFakeSlotType.c = OtherFakeSlotType.b
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "member descriptor attribute"),
+                ): 1
+            }
+        ):
+            self.assertEqual(get_bar(o), 5)
 
     def test_fake_slot_type(self):
         """Test __class__ assignment where the new type has a compatible layout but the
         "slot" we specialized on changed anyway, because it was aliasing a real
         slot.
         """
-        o1 = self.FakeSlotType(a="a_1", b="b_1")
+
+        class EmptyBase:
+            pass
+
+        FakeSlotType = self.make_slot_type(
+            "test_fake_slot_type", "FakeSlotType", ["a", "b"], bases=(EmptyBase,)
+        )
+        FakeSlotType.c = FakeSlotType.a
+        OtherFakeSlotType = self.make_slot_type(
+            "test_fake_slot_type", "OtherFakeSlotType", ["a", "b"], bases=(EmptyBase,)
+        )
+        OtherFakeSlotType.c = OtherFakeSlotType.b
+
+        o1 = FakeSlotType(a="a_1", b="b_1")
 
         def get_attrs(o, do_assign=False):
             a = o.a
             if do_assign:
-                o.__class__ = self.OtherFakeSlotType
+                o.__class__ = OtherFakeSlotType
             c = o.c
             return f"{a}-{c}"
 
         self.assertEqual(get_attrs(o1), "a_1-a_1")
 
-        if TESTING:
-            with self.assertDeopts(
-                {
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "member descriptor attribute"),
                     (
-                        ("reason", "GuardFailure"),
-                        ("description", "member descriptor attribute"),
-                        (
-                            "guilty_type",
-                            "test_cinderx.cinderjit_profile_test:OtherFakeSlotType",
-                        ),
-                    ): 1
-                }
-            ):
-                self.assertEqual(get_attrs(o1, True), "a_1-b_1")
+                        "guilty_type",
+                        "test_cinderx.test_cinderjit_profile:OtherFakeSlotType",
+                    ),
+                ): 1
+            }
+        ):
+            self.assertEqual(get_attrs(o1, True), "a_1-b_1")
 
     def test_load_attr_from_split_dict(self):
         class Point:
@@ -593,32 +601,32 @@ class LoadAttrTests(ProfileTest):
         self.assertEqual(get_x(p), 123)
         self.assertEqual(get_y(p), 456)
 
-        if TESTING:
-            # Test that normal attribute loads don't deopt.
-            with self.assertDeopts({}):
-                self.assertEqual(get_x(p), 123)
-                self.assertEqual(get_y(p), 456)
+        # Test that normal attribute loads don't deopt.
+        with self.assertDeopts({}):
+            self.assertEqual(get_x(p), 123)
+            self.assertEqual(get_y(p), 456)
 
-            # Test that modifying unrelated parts of the type doesn't cause
-            # deopting.
-            Point.foo = "whatever"
-            with self.assertDeopts({}):
-                self.assertEqual(get_x(p), 123)
-                self.assertEqual(get_y(p), 456)
+        # Test that modifying unrelated parts of the type doesn't cause
+        # deopting.
+        Point.foo = "whatever"
+        with self.assertDeopts({}):
+            self.assertEqual(get_x(p), 123)
+            self.assertEqual(get_y(p), 456)
 
-            # Test that loading the attribute from an instance with a combined
-            # dictionary fails a runtime guard.
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "ht_cached_keys comparison"),
-                    ): 2
-                }
-            ):
-                self.assertEqual(get_x(p_dict), 4)
-                self.assertEqual(get_y(p_dict), 3)
+        # Test that loading the attribute from an instance with a combined
+        # dictionary fails a runtime guard.
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "ht_cached_keys comparison"),
+                ): 2
+            }
+        ):
+            self.assertEqual(get_x(p_dict), 4)
+            self.assertEqual(get_y(p_dict), 3)
 
+        if not MAKE_PROFILE:
             # Test that changing the cached keys for Point causes code patching.
             p2 = Point("eks", "why", break_dict_order=True)
             with self.assertDeopts(
@@ -656,28 +664,27 @@ class LoadAttrTests(ProfileTest):
         self.assertEqual(get_x(p), 111)
         self.assertEqual(get_y(p), 222)
 
-        if TESTING:
-            # Sanity check that loading the attributes causes no deopts.
-            with self.assertDeopts({}):
-                self.assertEqual(get_x(p), 111)
-                self.assertEqual(get_y(p), 222)
+        # Sanity check that loading the attributes causes no deopts.
+        with self.assertDeopts({}):
+            self.assertEqual(get_x(p), 111)
+            self.assertEqual(get_y(p), 222)
 
-            # Shadow one of the attributes with a data descriptor and make sure
-            # we load the correct value, with the expected deopt.
-            Point.x = property(lambda self: 333)
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "SplitDictDeoptPatcher"),
-                    ): 1
-                }
-            ):
-                self.assertEqual(get_x(p), 333)
+        # Shadow one of the attributes with a data descriptor and make sure
+        # we load the correct value, with the expected deopt.
+        Point.x = property(lambda self: 333)
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "SplitDictDeoptPatcher"),
+                ): 1
+            }
+        ):
+            self.assertEqual(get_x(p), 333)
 
-            # Make sure get_y() was unaffected.
-            with self.assertDeopts({}):
-                self.assertEqual(get_y(p), 222)
+        # Make sure get_y() was unaffected.
+        with self.assertDeopts({}):
+            self.assertEqual(get_y(p), 222)
 
     def test_load_attr_from_replaced_property(self):
         class C:
@@ -691,12 +698,11 @@ class LoadAttrTests(ProfileTest):
         c = C()
         self.assertEqual(load_x(c), "hello from property")
 
-        if TESTING:
-            C.x = "goodbye"
-            with self.assertDeopts(
-                {(("reason", "GuardFailure"), ("description", "property attribute")): 1}
-            ):
-                self.assertEqual(load_x(c), "goodbye")
+        C.x = "goodbye"
+        with self.assertDeopts(
+            {(("reason", "GuardFailure"), ("description", "property attribute")): 1}
+        ):
+            self.assertEqual(load_x(c), "goodbye")
 
     def test_load_attr_from_replaced_descriptor(self):
         class Descr:
@@ -715,28 +721,27 @@ class LoadAttrTests(ProfileTest):
         c = C()
         self.assertEqual(load_attr(c), "descr!")
 
-        if TESTING:
-            del Descr.__get__
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "tp_descr_get/tp_descr_set"),
-                    ): 1
-                }
-            ):
-                self.assertIs(load_attr(c), C.attr)
+        del Descr.__get__
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "tp_descr_get/tp_descr_set"),
+                ): 1
+            }
+        ):
+            self.assertIs(load_attr(c), C.attr)
 
-            C.attr = "not descr"
-            with self.assertDeopts(
-                {
-                    (
-                        ("reason", "GuardFailure"),
-                        ("description", "generic descriptor attribute"),
-                    ): 1
-                }
-            ):
-                self.assertEqual(load_attr(c), "not descr")
+        C.attr = "not descr"
+        with self.assertDeopts(
+            {
+                (
+                    ("reason", "GuardFailure"),
+                    ("description", "generic descriptor attribute"),
+                ): 1
+            }
+        ):
+            self.assertEqual(load_attr(c), "not descr")
 
 
 class Duck:
@@ -749,7 +754,7 @@ class ShimmedDuck(Duck):
     pass
 
 
-GLOBAL_DUCK = Duck() if PROFILING else ShimmedDuck()
+GLOBAL_DUCK = Duck() if MAKE_PROFILE else ShimmedDuck()
 
 
 class FailingGuardTest(ProfileTest):

@@ -31,9 +31,13 @@ define RUN_CINDER_TEST_RUNNER
 endef
 
 define RUN_TESTCINDERJIT_PROFILE
-	CINDER_JIT_PROFILE_TEST_PROFILING=1 $(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-profile-interp -X jit-profile-interp-period=1 -X jit-write-profile=cinderjit_profile_test.types $(1) -munittest -v test_cinderx.cinderjit_profile_test
-	$(ASAN_TEST_ENV) $(TESTPYTHON) -X jit-read-profile=cinderjit_profile_test.types -X jit $(1) -munittest -v test_cinderx.cinderjit_profile_test
-	rm cinderjit_profile_test.types
+	TEST_CINDERJIT_PROFILE_MAKE_PROFILE=1 $(ASAN_TEST_ENV) $(TESTPYTHON) \
+		-X jit-profile-interp -X jit-profile-interp-period=1 -X jit-write-profile="$(abs_builddir)/test_cinderjit_profile.types" \
+		$(1) -munittest -v test_cinderx.test_cinderjit_profile
+	TEST_CINDERJIT_PROFILE_TEST_PROFILE=1 $(ASAN_TEST_ENV) $(TESTPYTHON) \
+		-X jit-read-profile="$(abs_builddir)/test_cinderjit_profile.types" -X jit \
+		$(1) -munittest -v test_cinderx.test_cinderjit_profile
+	rm "$(abs_builddir)/test_cinderjit_profile.types"
 endef
 
 define RUN_TESTCINDERJIT
