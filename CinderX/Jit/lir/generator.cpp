@@ -2740,14 +2740,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kWaitHandleRelease: {
         const auto& instr = static_cast<const WaitHandleRelease&>(i);
         std::string null_var = GetSafeTempName();
-        bbb.AppendCode(
-            "Store 0, {}, {}",
-            instr.reg(),
-            offsetof(Ci_PyWaitHandleObject, wh_coro_or_result));
-        bbb.AppendCode(
-            "Store 0, {}, {}",
-            instr.reg(),
-            offsetof(Ci_PyWaitHandleObject, wh_waiter));
+        bbb.appendInstr(
+            OutInd{
+                bbb.getDefInstr(instr.reg()),
+                static_cast<int32_t>(
+                    offsetof(Ci_PyWaitHandleObject, wh_coro_or_result))},
+            Instruction::kMove,
+            0);
+        bbb.appendInstr(
+            OutInd{
+                bbb.getDefInstr(instr.reg()),
+                static_cast<int32_t>(
+                    offsetof(Ci_PyWaitHandleObject, wh_waiter))},
+            Instruction::kMove,
+            0);
         break;
       }
       case Opcode::kDeleteSubscr: {
