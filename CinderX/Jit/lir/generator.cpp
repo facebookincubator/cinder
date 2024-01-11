@@ -2176,17 +2176,16 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // Users of LoadSplitDictItem are required to verify that dict has a
         // split table, so it's safe to load and acess ma_values with no
         // additional checks here.
-        std::string ma_values = GetSafeTempName();
-        bbb.AppendCode(
-            "Load {}, {}, {}",
-            ma_values,
-            dict,
-            offsetof(PyDictObject, ma_values));
-        bbb.AppendCode(
-            "Load {}, {}, {}",
+        auto ma_values = bbb.appendInstr(
+            OutVReg{},
+            Instruction::kMove,
+            Ind{bbb.getDefInstr(dict),
+                static_cast<int32_t>(offsetof(PyDictObject, ma_values))});
+        bbb.appendInstr(
             instr->GetOutput(),
-            ma_values,
-            instr->itemIdx() * sizeof(PyObject*));
+            Instruction::kMove,
+            Ind{ma_values,
+                static_cast<int32_t>(instr->itemIdx() * sizeof(PyObject*))});
         break;
       }
       case Opcode::kMakeCheckedList: {
