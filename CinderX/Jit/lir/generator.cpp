@@ -2422,11 +2422,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kSetFunctionAttr: {
         auto instr = static_cast<const SetFunctionAttr*>(&i);
 
-        bbb.AppendCode(
-            "Store {}, {}, {:#x}",
-            instr->value(),
-            instr->base(),
-            instr->offset());
+        bbb.appendInstr(
+            OutInd{
+                bbb.getDefInstr(instr->base()),
+                static_cast<int32_t>(instr->offset())},
+            Instruction::kMove,
+            instr->value());
         break;
       }
       case Opcode::kListAppend: {
