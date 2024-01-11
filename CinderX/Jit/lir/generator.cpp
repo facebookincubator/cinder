@@ -2709,17 +2709,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // using vectorcall here although this is not strictly a vector call.
         // the callable is always null, and all the components to be
         // concatenated will be in the args argument.
-        std::string s = fmt::format(
-            "Vectorcall {}, {}, 0, 0",
+
+        auto lir = bbb.appendInstr(
             instr.dst(),
-            reinterpret_cast<uint64_t>(JITRT_BuildString));
+            Instruction::kVectorCall,
+            JITRT_BuildString,
+            nullptr,
+            nullptr);
         for (size_t i = 0; i < instr.NumOperands(); i++) {
-          s += fmt::format(", {}", instr.GetOperand(i));
+          lir->addOperands(VReg{bbb.getDefInstr(instr.GetOperand(i))});
         }
+        lir->addOperands(Imm{0});
 
-        s += ", 0";
-
-        bbb.AppendCode(s);
         break;
       }
       case Opcode::kWaitHandleLoadWaiter: {
