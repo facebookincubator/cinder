@@ -8,7 +8,6 @@
 #include "Jit/debug_info.h"
 #include "Jit/inline_cache.h"
 #include "Jit/jit_rt.h"
-#include "Jit/lir/lir.h"
 #include "Jit/runtime.h"
 
 #include <asmjit/asmjit.h>

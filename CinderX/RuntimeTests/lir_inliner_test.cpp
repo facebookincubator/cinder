@@ -3,8 +3,6 @@
 
 #include "Jit/jit_rt.h"
 #include "Jit/lir/inliner.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/lir.h"
 #include "Jit/ref.h"
 
 #include "RuntimeTests/fixtures.h"

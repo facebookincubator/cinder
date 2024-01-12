@@ -6,8 +6,7 @@
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
 #include "Jit/containers.h"
-#include "Jit/lir/lir.h"
-#include "Jit/lir/operand.h"
+#include "Jit/lir/printer.h"
 #include "Jit/log.h"
 #include "Jit/util.h"
 

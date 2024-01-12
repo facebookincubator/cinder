@@ -4,7 +4,7 @@
 
 #include "Jit/codegen/environ.h"
 #include "Jit/lir/block.h"
-#include "Jit/lir/lir.h"
+#include "Jit/lir/printer.h"
 
 #include <functional>
 #include <memory>

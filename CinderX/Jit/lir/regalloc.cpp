@@ -4,8 +4,6 @@
 
 #include "Jit/codegen/copy_graph.h"
 #include "Jit/codegen/x86_64.h"
-#include "Jit/lir/lir.h"
-#include "Jit/lir/operand.h"
 
 #include <algorithm>
 #include <iostream>

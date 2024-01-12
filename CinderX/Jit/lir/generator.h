@@ -7,7 +7,7 @@
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
 #include "Jit/lir/block_builder.h"
-#include "Jit/lir/lir.h"
+#include "Jit/lir/function.h"
 
 #include <memory>
 #include <string>

@@ -4,7 +4,6 @@
 
 #include "Jit/containers.h"
 #include "Jit/lir/c_helper_translations.h"
-#include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 
 #include <shared_mutex>

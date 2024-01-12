@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Jit/codegen/environ.h"
-#include "Jit/lir/lir.h"
 #include "Jit/util.h"
 
 #include <memory>

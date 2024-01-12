@@ -5,7 +5,7 @@
 #include "Jit/codegen/code_section.h"
 #include "Jit/codegen/environ.h"
 #include "Jit/hir/hir.h"
-#include "Jit/lir/lir.h"
+#include "Jit/lir/block.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

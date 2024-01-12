@@ -10,7 +10,6 @@
 #include "Jit/jit_rt.h"
 #include "Jit/lir/inliner.h"
 #include "Jit/lir/instruction.h"
-#include "Jit/lir/lir.h"
 #include "Jit/lir/parser.h"
 #include "Jit/lir/postalloc.h"
 #include "Jit/lir/postgen.h"

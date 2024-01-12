@@ -10,7 +10,7 @@
 #include "Jit/codegen/x86_64.h"
 #include "Jit/hir/hir.h"
 #include "Jit/jit_rt.h"
-#include "Jit/lir/lir.h"
+#include "Jit/lir/printer.h"
 #include "Jit/util.h"
 
 #include <asmjit/asmjit.h>

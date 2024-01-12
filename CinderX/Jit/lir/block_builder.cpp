@@ -4,7 +4,6 @@
 
 #include "Jit/lir/generator.h"
 #include "Jit/lir/instruction.h"
-#include "Jit/lir/lir.h"
 #include "Jit/util.h"
 
 #include <dlfcn.h>

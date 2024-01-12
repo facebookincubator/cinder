@@ -3,8 +3,7 @@
 #pragma once
 
 #include "Jit/containers.h"
-#include "Jit/lir/lir.h"
-#include "Jit/lir/operand.h"
+#include "Jit/lir/printer.h"
 
 #include <memory>
 #include <string>

@@ -6,8 +6,6 @@
 #include "Jit/hir/hir.h"
 #include "Jit/hir/parser.h"
 #include "Jit/lir/generator.h"
-#include "Jit/lir/lir.h"
-#include "Jit/lir/operand.h"
 #include "Jit/lir/parser.h"
 #include "Jit/lir/postgen.h"
 #include "Jit/ref.h"
