@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_CODEBUFFERWRITER_P_H_INCLUDED
 #define ASMJIT_CORE_CODEBUFFERWRITER_P_H_INCLUDED
 
-#include "../core/assembler.h"
-#include "../core/codebuffer.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codebuffer.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -6,15 +6,15 @@
 #ifndef ASMJIT_CORE_RADEFS_P_H_INCLUDED
 #define ASMJIT_CORE_RADEFS_P_H_INCLUDED
 
-#include "../core/api-config.h"
-#include "../core/archtraits.h"
-#include "../core/compilerdefs.h"
-#include "../core/logger.h"
-#include "../core/operand.h"
-#include "../core/support.h"
-#include "../core/type.h"
-#include "../core/zone.h"
-#include "../core/zonevector.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compilerdefs.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/logger.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonevector.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -81,13 +81,13 @@
 #include "core.h"
 
 #include "asmjit-scope-begin.h"
-#include "x86/x86assembler.h"
-#include "x86/x86builder.h"
-#include "x86/x86compiler.h"
-#include "x86/x86emitter.h"
-#include "x86/x86globals.h"
-#include "x86/x86instdb.h"
-#include "x86/x86operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86builder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instdb.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 #include "asmjit-scope-end.h"
 
 #endif // ASMJIT_X86_H_INCLUDED

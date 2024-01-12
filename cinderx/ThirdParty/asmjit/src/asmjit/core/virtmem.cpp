@@ -3,13 +3,13 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/osutils.h"
-#include "../core/string.h"
-#include "../core/support.h"
-#include "../core/virtmem.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/osutils.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/virtmem.h"
 
 #if !defined(_WIN32)
   #include <errno.h>

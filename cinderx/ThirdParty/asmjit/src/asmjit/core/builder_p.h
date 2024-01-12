@@ -6,10 +6,10 @@
 #ifndef ASMJIT_CORE_BUILDER_P_H_INCLUDED
 #define ASMJIT_CORE_BUILDER_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_BUILDER
 
-#include "../core/builder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/builder.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

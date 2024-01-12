@@ -3,23 +3,23 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #if !defined(ASMJIT_NO_X86)
 
-#include "../core/assembler.h"
-#include "../core/codewriter_p.h"
-#include "../core/cpuinfo.h"
-#include "../core/emitterutils_p.h"
-#include "../core/formatter.h"
-#include "../core/logger.h"
-#include "../core/misc_p.h"
-#include "../core/support.h"
-#include "../x86/x86assembler.h"
-#include "../x86/x86emithelper_p.h"
-#include "../x86/x86instapi_p.h"
-#include "../x86/x86instdb_p.h"
-#include "../x86/x86formatter_p.h"
-#include "../x86/x86opcode_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codewriter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emitterutils_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/logger.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/misc_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instapi_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instdb_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86formatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86opcode_p.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

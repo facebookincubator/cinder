@@ -6,10 +6,10 @@
 #ifndef ASMJIT_ARM_A64ARCHTRAITS_P_H_INCLUDED
 #define ASMJIT_ARM_A64ARCHTRAITS_P_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/misc_p.h"
-#include "../core/type.h"
-#include "../arm/a64operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/misc_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

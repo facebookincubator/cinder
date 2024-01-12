@@ -29,7 +29,7 @@
   #include <windows.h>
 #endif
 
-#include "./api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 
 #if !defined(ASMJIT_BUILD_DEBUG) && defined(__GNUC__) && !defined(__clang__)
   #define ASMJIT_FAVOR_SIZE  __attribute__((__optimize__("Os")))
@@ -49,7 +49,7 @@
 
 // Include a unit testing package if this is a `asmjit_test_unit` build.
 #if defined(ASMJIT_TEST)
-  #include "../../../test/broken.h"
+#include "cinderx/ThirdParty/asmjit/test/broken.h"
 #endif
 
 #endif // ASMJIT_CORE_API_BUILD_P_H_INCLUDED

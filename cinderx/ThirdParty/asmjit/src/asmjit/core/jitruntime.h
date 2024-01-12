@@ -6,12 +6,12 @@
 #ifndef ASMJIT_CORE_JITRUNTIME_H_INCLUDED
 #define ASMJIT_CORE_JITRUNTIME_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/codeholder.h"
-#include "../core/jitallocator.h"
-#include "../core/target.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codeholder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/jitallocator.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/target.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

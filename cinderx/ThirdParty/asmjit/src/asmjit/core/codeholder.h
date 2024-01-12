@@ -6,18 +6,18 @@
 #ifndef ASMJIT_CORE_CODEHOLDER_H_INCLUDED
 #define ASMJIT_CORE_CODEHOLDER_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/codebuffer.h"
-#include "../core/errorhandler.h"
-#include "../core/operand.h"
-#include "../core/string.h"
-#include "../core/support.h"
-#include "../core/target.h"
-#include "../core/zone.h"
-#include "../core/zonehash.h"
-#include "../core/zonestring.h"
-#include "../core/zonetree.h"
-#include "../core/zonevector.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codebuffer.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/errorhandler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/target.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonehash.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonestring.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonetree.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonevector.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -3,13 +3,13 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #if !defined(ASMJIT_NO_X86) && !defined(ASMJIT_NO_COMPILER)
 
-#include "../x86/x86assembler.h"
-#include "../x86/x86compiler.h"
-#include "../x86/x86instapi_p.h"
-#include "../x86/x86rapass_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instapi_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86rapass_p.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

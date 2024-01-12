@@ -6,10 +6,10 @@
 #ifndef ASMJIT_CORE_INST_H_INCLUDED
 #define ASMJIT_CORE_INST_H_INCLUDED
 
-#include "../core/cpuinfo.h"
-#include "../core/operand.h"
-#include "../core/string.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -6,12 +6,12 @@
 #ifndef ASMJIT_CORE_EMITTER_H_INCLUDED
 #define ASMJIT_CORE_EMITTER_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/codeholder.h"
-#include "../core/formatter.h"
-#include "../core/inst.h"
-#include "../core/operand.h"
-#include "../core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codeholder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

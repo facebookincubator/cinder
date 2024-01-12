@@ -6,9 +6,9 @@
 #ifndef ASMJIT_ARM_A64INSTDB_H_P_INCLUDED
 #define ASMJIT_ARM_A64INSTDB_H_P_INCLUDED
 
-#include "../core/codeholder.h"
-#include "../arm/a64instdb.h"
-#include "../arm/a64operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codeholder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64instdb.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

@@ -3,19 +3,19 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
-#include "../core/archtraits.h"
-#include "../core/func.h"
-#include "../core/operand.h"
-#include "../core/type.h"
-#include "../core/funcargscontext_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/funcargscontext_p.h"
 
 #if !defined(ASMJIT_NO_X86)
-  #include "../x86/x86func_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86func_p.h"
 #endif
 
 #if !defined(ASMJIT_NO_AARCH64)
-  #include "../arm/a64func_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64func_p.h"
 #endif
 
 ASMJIT_BEGIN_NAMESPACE

@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_FORMATTER_P_H_INCLUDED
 #define ASMJIT_CORE_FORMATTER_P_H_INCLUDED
 
-#include "../core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

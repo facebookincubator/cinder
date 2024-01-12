@@ -6,12 +6,12 @@
 #ifndef ASMJIT_X86_X86COMPILER_H_INCLUDED
 #define ASMJIT_X86_X86COMPILER_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/compiler.h"
-#include "../core/type.h"
-#include "../x86/x86emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emitter.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

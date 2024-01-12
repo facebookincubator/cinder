@@ -6,10 +6,10 @@
 #ifndef ASMJIT_CORE_COMPILERDEFS_H_INCLUDED
 #define ASMJIT_CORE_COMPILERDEFS_H_INCLUDED
 
-#include "../core/api-config.h"
-#include "../core/operand.h"
-#include "../core/type.h"
-#include "../core/zonestring.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonestring.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

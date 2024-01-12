@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_TARGET_H_INCLUDED
 #define ASMJIT_CORE_TARGET_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/cpuinfo.h"
-#include "../core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

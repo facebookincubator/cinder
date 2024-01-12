@@ -3,11 +3,11 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/ralocal_p.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/ralocal_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

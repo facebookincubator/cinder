@@ -6,19 +6,19 @@
 #ifndef ASMJIT_CORE_COMPILER_H_INCLUDED
 #define ASMJIT_CORE_COMPILER_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/assembler.h"
-#include "../core/builder.h"
-#include "../core/constpool.h"
-#include "../core/compilerdefs.h"
-#include "../core/func.h"
-#include "../core/inst.h"
-#include "../core/operand.h"
-#include "../core/support.h"
-#include "../core/zone.h"
-#include "../core/zonevector.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/builder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/constpool.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compilerdefs.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonevector.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

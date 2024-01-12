@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_OSUTILS_P_H_INCLUDED
 #define ASMJIT_CORE_OSUTILS_P_H_INCLUDED
 
-#include "../core/osutils.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/osutils.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_ZONETREE_H_INCLUDED
 #define ASMJIT_CORE_ZONETREE_H_INCLUDED
 
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

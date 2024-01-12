@@ -6,7 +6,7 @@
 #ifndef ASMJIT_ARM_A64OPERAND_H_INCLUDED
 #define ASMJIT_ARM_A64OPERAND_H_INCLUDED
 
-#include "../arm/armoperand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/armoperand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

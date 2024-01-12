@@ -6,11 +6,11 @@
 #ifndef ASMJIT_CORE_CPUINFO_H_INCLUDED
 #define ASMJIT_CORE_CPUINFO_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/environment.h"
-#include "../core/globals.h"
-#include "../core/string.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/environment.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

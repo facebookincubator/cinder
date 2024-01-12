@@ -6,11 +6,11 @@
 #ifndef ASMJIT_ARM_A64BUILDER_H_INCLUDED
 #define ASMJIT_ARM_A64BUILDER_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_BUILDER
 
-#include "../core/builder.h"
-#include "../arm/a64emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/builder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64emitter.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

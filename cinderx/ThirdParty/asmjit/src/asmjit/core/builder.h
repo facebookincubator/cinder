@@ -6,20 +6,20 @@
 #ifndef ASMJIT_CORE_BUILDER_H_INCLUDED
 #define ASMJIT_CORE_BUILDER_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_BUILDER
 
-#include "../core/assembler.h"
-#include "../core/codeholder.h"
-#include "../core/constpool.h"
-#include "../core/formatter.h"
-#include "../core/inst.h"
-#include "../core/operand.h"
-#include "../core/string.h"
-#include "../core/support.h"
-#include "../core/type.h"
-#include "../core/zone.h"
-#include "../core/zonevector.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codeholder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/constpool.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonevector.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

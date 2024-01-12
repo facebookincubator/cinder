@@ -6,10 +6,10 @@
 #ifndef ASMJIT_ARM_A64EMITTER_H_INCLUDED
 #define ASMJIT_ARM_A64EMITTER_H_INCLUDED
 
-#include "../core/emitter.h"
-#include "../core/support.h"
-#include "../arm/a64instdb.h"
-#include "../arm/a64operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64instdb.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

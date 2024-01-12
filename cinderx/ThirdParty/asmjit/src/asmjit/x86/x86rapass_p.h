@@ -6,15 +6,15 @@
 #ifndef ASMJIT_X86_X86RAPASS_P_H_INCLUDED
 #define ASMJIT_X86_X86RAPASS_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/compiler.h"
-#include "../core/rabuilders_p.h"
-#include "../core/rapass_p.h"
-#include "../x86/x86assembler.h"
-#include "../x86/x86compiler.h"
-#include "../x86/x86emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rabuilders_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rapass_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emithelper_p.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

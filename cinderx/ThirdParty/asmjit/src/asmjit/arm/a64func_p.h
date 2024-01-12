@@ -6,7 +6,7 @@
 #ifndef ASMJIT_ARM_A64FUNC_P_H_INCLUDED
 #define ASMJIT_ARM_A64FUNC_P_H_INCLUDED
 
-#include "../core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

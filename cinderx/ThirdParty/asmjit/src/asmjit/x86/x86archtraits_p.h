@@ -6,9 +6,9 @@
 #ifndef ASMJIT_X86_X86ARCHTRAITS_P_H_INCLUDED
 #define ASMJIT_X86_X86ARCHTRAITS_P_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/misc_p.h"
-#include "../x86/x86operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/misc_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

@@ -3,25 +3,25 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_LOGGING
 
-#include "../core/archtraits.h"
-#include "../core/builder.h"
-#include "../core/codeholder.h"
-#include "../core/compiler.h"
-#include "../core/emitter.h"
-#include "../core/formatter_p.h"
-#include "../core/string.h"
-#include "../core/support.h"
-#include "../core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/builder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/codeholder.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
 
 #if !defined(ASMJIT_NO_X86)
-  #include "../x86/x86formatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86formatter_p.h"
 #endif
 
 #if !defined(ASMJIT_NO_AARCH64)
-  #include "../arm/a64formatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64formatter_p.h"
 #endif
 
 ASMJIT_BEGIN_NAMESPACE

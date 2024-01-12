@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_CONSTPOOL_H_INCLUDED
 #define ASMJIT_CORE_CONSTPOOL_H_INCLUDED
 
-#include "../core/support.h"
-#include "../core/zone.h"
-#include "../core/zonetree.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonetree.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

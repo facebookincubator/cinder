@@ -6,12 +6,12 @@
 #ifndef ASMJIT_CORE_FUNCARGSCONTEXT_P_H_INCLUDED
 #define ASMJIT_CORE_FUNCARGSCONTEXT_P_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/environment.h"
-#include "../core/func.h"
-#include "../core/operand.h"
-#include "../core/radefs_p.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/environment.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/radefs_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

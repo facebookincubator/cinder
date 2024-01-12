@@ -3,12 +3,12 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
-#include "../core/archtraits.h"
-#include "../core/emithelper_p.h"
-#include "../core/formatter.h"
-#include "../core/funcargscontext_p.h"
-#include "../core/radefs_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/funcargscontext_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/radefs_p.h"
 
 // Can be used for debugging...
 // #define ASMJIT_DUMP_ARGS_ASSIGNMENT

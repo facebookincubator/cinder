@@ -6,10 +6,10 @@
 #ifndef ASMJIT_X86_X86EMITTER_H_INCLUDED
 #define ASMJIT_X86_X86EMITTER_H_INCLUDED
 
-#include "../core/emitter.h"
-#include "../core/support.h"
-#include "../x86/x86globals.h"
-#include "../x86/x86operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

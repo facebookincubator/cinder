@@ -6,10 +6,10 @@
 #ifndef ASMJIT_X86_X86OPERAND_H_INCLUDED
 #define ASMJIT_X86_X86OPERAND_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/operand.h"
-#include "../core/type.h"
-#include "../x86/x86globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

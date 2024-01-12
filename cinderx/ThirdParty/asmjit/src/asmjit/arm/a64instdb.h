@@ -6,7 +6,7 @@
 #ifndef ASMJIT_ARM_A64INSTDB_H_INCLUDED
 #define ASMJIT_ARM_A64INSTDB_H_INCLUDED
 
-#include "../arm/a64globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

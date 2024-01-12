@@ -6,12 +6,12 @@
 #ifndef ASMJIT_X86_X86FORMATTER_P_H_INCLUDED
 #define ASMJIT_X86_X86FORMATTER_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_LOGGING
 
-#include "../core/formatter.h"
-#include "../core/string.h"
-#include "../x86/x86globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

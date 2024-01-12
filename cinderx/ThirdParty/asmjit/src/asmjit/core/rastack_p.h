@@ -6,10 +6,10 @@
 #ifndef ASMJIT_CORE_RASTACK_P_H_INCLUDED
 #define ASMJIT_CORE_RASTACK_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/radefs_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/radefs_p.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

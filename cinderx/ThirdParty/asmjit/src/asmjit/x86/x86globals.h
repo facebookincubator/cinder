@@ -6,8 +6,8 @@
 #ifndef ASMJIT_X86_X86GLOBALS_H_INCLUDED
 #define ASMJIT_X86_X86GLOBALS_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
 
 //! \namespace asmjit::x86
 //! \ingroup asmjit_x86

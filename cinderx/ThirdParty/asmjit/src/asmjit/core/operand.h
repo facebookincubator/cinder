@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_OPERAND_H_INCLUDED
 #define ASMJIT_CORE_OPERAND_H_INCLUDED
 
-#include "../core/archcommons.h"
-#include "../core/support.h"
-#include "../core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archcommons.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -6,13 +6,13 @@
 #ifndef ASMJIT_CORE_RALOCAL_P_H_INCLUDED
 #define ASMJIT_CORE_RALOCAL_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/raassignment_p.h"
-#include "../core/radefs_p.h"
-#include "../core/rapass_p.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/raassignment_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/radefs_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rapass_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

@@ -6,12 +6,12 @@
 #ifndef ASMJIT_ARM_ARMCOMPILER_H_INCLUDED
 #define ASMJIT_ARM_ARMCOMPILER_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/compiler.h"
-#include "../core/type.h"
-#include "../arm/a64emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64emitter.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

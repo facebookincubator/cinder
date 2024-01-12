@@ -6,10 +6,10 @@
 #ifndef ASMJIT_ARM_ARMOPERAND_H_INCLUDED
 #define ASMJIT_ARM_ARMOPERAND_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/operand.h"
-#include "../core/type.h"
-#include "../arm/armglobals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/armglobals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(arm)
 

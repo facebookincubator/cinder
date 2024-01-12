@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_ARCHTRAITS_H_INCLUDED
 #define ASMJIT_CORE_ARCHTRAITS_H_INCLUDED
 
-#include "../core/operand.h"
-#include "../core/support.h"
-#include "../core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

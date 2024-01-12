@@ -3,19 +3,19 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #if !defined(ASMJIT_NO_X86)
 
-#include "../core/formatter.h"
-#include "../core/funcargscontext_p.h"
-#include "../core/string.h"
-#include "../core/support.h"
-#include "../core/type.h"
-#include "../core/radefs_p.h"
-#include "../x86/x86emithelper_p.h"
-#include "../x86/x86emitter.h"
-#include "../x86/x86formatter_p.h"
-#include "../x86/x86instapi_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/funcargscontext_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/radefs_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86formatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instapi_p.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

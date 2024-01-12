@@ -6,9 +6,9 @@
 #ifndef ASMJIT_CORE_LOGGING_H_INCLUDED
 #define ASMJIT_CORE_LOGGING_H_INCLUDED
 
-#include "../core/inst.h"
-#include "../core/string.h"
-#include "../core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
 
 #ifndef ASMJIT_NO_LOGGING
 

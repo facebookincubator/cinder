@@ -3,11 +3,11 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/cpuinfo.h"
-#include "../core/jitruntime.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/jitruntime.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

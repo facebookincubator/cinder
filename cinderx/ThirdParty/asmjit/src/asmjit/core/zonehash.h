@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_ZONEHASH_H_INCLUDED
 #define ASMJIT_CORE_ZONEHASH_H_INCLUDED
 
-#include "../core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

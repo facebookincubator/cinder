@@ -6,8 +6,8 @@
 #ifndef ASMJIT_X86_X86INSTAPI_P_H_INCLUDED
 #define ASMJIT_X86_X86INSTAPI_P_H_INCLUDED
 
-#include "../core/inst.h"
-#include "../core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/inst.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

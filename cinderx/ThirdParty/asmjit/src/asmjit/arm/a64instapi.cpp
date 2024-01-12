@@ -3,15 +3,15 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #if !defined(ASMJIT_NO_AARCH64)
 
-#include "../core/cpuinfo.h"
-#include "../core/misc_p.h"
-#include "../core/support_p.h"
-#include "../arm/a64instapi_p.h"
-#include "../arm/a64instdb_p.h"
-#include "../arm/a64operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/misc_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64instapi_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64instdb_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

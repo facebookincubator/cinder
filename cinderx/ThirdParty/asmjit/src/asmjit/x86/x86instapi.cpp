@@ -21,16 +21,16 @@
 // (including registers and flags), and all indexes to all tables.
 // ----------------------------------------------------------------------------
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #if !defined(ASMJIT_NO_X86)
 
-#include "../core/cpuinfo.h"
-#include "../core/misc_p.h"
-#include "../core/support_p.h"
-#include "../x86/x86instapi_p.h"
-#include "../x86/x86instdb_p.h"
-#include "../x86/x86opcode_p.h"
-#include "../x86/x86operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/misc_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instapi_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86instdb_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86opcode_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(x86)
 

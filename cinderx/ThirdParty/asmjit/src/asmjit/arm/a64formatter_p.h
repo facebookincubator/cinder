@@ -6,13 +6,13 @@
 #ifndef ASMJIT_ARM_A64FORMATTER_P_H_INCLUDED
 #define ASMJIT_ARM_A64FORMATTER_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_LOGGING
 
-#include "../core/formatter.h"
-#include "../core/string.h"
-#include "../arm/armformatter_p.h"
-#include "../arm/a64globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/formatter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/string.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/armformatter_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

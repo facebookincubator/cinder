@@ -10,7 +10,7 @@
 // allows to be created from arm::Shift in a const-expr way, so the arm::Shift must be provided. So this header file
 // provides everything architecture-specific that is used by the Core API.
 
-#include "../core/globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/globals.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(arm)
 

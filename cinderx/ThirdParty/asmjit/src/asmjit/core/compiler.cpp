@@ -3,18 +3,18 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/assembler.h"
-#include "../core/builder_p.h"
-#include "../core/compiler.h"
-#include "../core/cpuinfo.h"
-#include "../core/logger.h"
-#include "../core/rapass_p.h"
-#include "../core/rastack_p.h"
-#include "../core/support.h"
-#include "../core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/builder_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/cpuinfo.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/logger.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rapass_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rastack_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

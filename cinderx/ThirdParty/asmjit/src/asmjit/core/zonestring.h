@@ -6,8 +6,8 @@
 #ifndef ASMJIT_CORE_ZONESTRING_H_INCLUDED
 #define ASMJIT_CORE_ZONESTRING_H_INCLUDED
 
-#include "../core/globals.h"
-#include "../core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

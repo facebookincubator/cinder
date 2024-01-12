@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_ENVIRONMENT_H_INCLUDED
 #define ASMJIT_CORE_ENVIRONMENT_H_INCLUDED
 
-#include "../core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
 
 #if defined(__APPLE__)
   #include <TargetConditionals.h>

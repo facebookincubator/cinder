@@ -3,17 +3,17 @@
 // See asmjit.h or LICENSE.md for license and copyright information
 // SPDX-License-Identifier: Zlib
 
-#include "../core/api-build_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-build_p.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/archtraits.h"
-#include "../core/jitallocator.h"
-#include "../core/osutils_p.h"
-#include "../core/support.h"
-#include "../core/virtmem.h"
-#include "../core/zone.h"
-#include "../core/zonelist.h"
-#include "../core/zonetree.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/jitallocator.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/osutils_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/virtmem.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zone.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonelist.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/zonetree.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

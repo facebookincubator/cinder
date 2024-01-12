@@ -6,15 +6,15 @@
 #ifndef ASMJIT_ARM_A64RAPASS_P_H_INCLUDED
 #define ASMJIT_ARM_A64RAPASS_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_COMPILER
 
-#include "../core/compiler.h"
-#include "../core/rabuilders_p.h"
-#include "../core/rapass_p.h"
-#include "../arm/a64assembler.h"
-#include "../arm/a64compiler.h"
-#include "../arm/a64emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rabuilders_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/rapass_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64assembler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64compiler.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64emithelper_p.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

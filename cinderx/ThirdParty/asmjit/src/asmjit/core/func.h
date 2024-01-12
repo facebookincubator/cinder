@@ -6,11 +6,11 @@
 #ifndef ASMJIT_CORE_FUNC_H_INCLUDED
 #define ASMJIT_CORE_FUNC_H_INCLUDED
 
-#include "../core/archtraits.h"
-#include "../core/environment.h"
-#include "../core/operand.h"
-#include "../core/type.h"
-#include "../core/support.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/archtraits.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/environment.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/type.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/support.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

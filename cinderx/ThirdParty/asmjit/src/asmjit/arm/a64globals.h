@@ -6,7 +6,7 @@
 #ifndef ASMJIT_ARM_A64GLOBALS_H_INCLUDED
 #define ASMJIT_ARM_A64GLOBALS_H_INCLUDED
 
-#include "../arm/armglobals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/armglobals.h"
 
 //! \namespace asmjit::a64
 //! \ingroup asmjit_a64

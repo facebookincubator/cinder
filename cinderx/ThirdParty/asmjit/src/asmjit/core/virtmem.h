@@ -6,10 +6,10 @@
 #ifndef ASMJIT_CORE_VIRTMEM_H_INCLUDED
 #define ASMJIT_CORE_VIRTMEM_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 #ifndef ASMJIT_NO_JIT
 
-#include "../core/globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/globals.h"
 
 ASMJIT_BEGIN_NAMESPACE
 

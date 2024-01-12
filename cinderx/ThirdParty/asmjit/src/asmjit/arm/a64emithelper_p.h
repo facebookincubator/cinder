@@ -6,12 +6,12 @@
 #ifndef ASMJIT_ARM_ARMEMITHELPER_P_H_INCLUDED
 #define ASMJIT_ARM_ARMEMITHELPER_P_H_INCLUDED
 
-#include "../core/api-config.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/api-config.h"
 
-#include "../core/emithelper_p.h"
-#include "../core/func.h"
-#include "../arm/a64emitter.h"
-#include "../arm/a64operand.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/emithelper_p.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/func.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64emitter.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/arm/a64operand.h"
 
 ASMJIT_BEGIN_SUB_NAMESPACE(a64)
 

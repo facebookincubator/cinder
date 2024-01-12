@@ -6,7 +6,7 @@
 #ifndef ASMJIT_CORE_OSUTILS_H_INCLUDED
 #define ASMJIT_CORE_OSUTILS_H_INCLUDED
 
-#include "../core/globals.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/core/globals.h"
 
 ASMJIT_BEGIN_NAMESPACE
 
