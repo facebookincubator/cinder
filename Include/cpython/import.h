@@ -21,6 +21,11 @@ PyAPI_FUNC(int) _PyImport_FixupBuiltin(
 PyAPI_FUNC(int) _PyImport_FixupExtensionObject(PyObject*, PyObject *,
                                                PyObject *, PyObject *);
 
+// START META PATCH (expose C API to call a module init function for statically linked extensions)
+PyAPI_FUNC(PyObject *) _Ci_PyImport_CallInitFuncWithContext(const char* context,
+                                                            PyObject* (*initfunc)(void));
+// END META PATCH
+
 struct _inittab {
     const char *name;           /* ASCII encoded string */
     PyObject* (*initfunc)(void);

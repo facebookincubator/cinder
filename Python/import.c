@@ -745,6 +745,19 @@ _PyImport_SwapPackageContext(const char *newcontext)
     return oldcontext;
 }
 
+// START META PATCH (expose C API to call a module init function for statically linked extensions)
+PyObject*
+_Ci_PyImport_CallInitFuncWithContext(const char* context, PyObject* (*initfunc)(void))
+{
+    const char *oldcontext;
+    PyObject* mod;
+    oldcontext = _PyImport_SwapPackageContext(context);
+    mod = _PyImport_InitFunc_TrampolineCall((PyModInitFunction)initfunc);
+    _PyImport_SwapPackageContext(oldcontext);
+    return mod;
+}
+// END META PATCH
+
 #ifdef HAVE_DLOPEN
 int
 _PyImport_GetDLOpenFlags(PyInterpreterState *interp)
