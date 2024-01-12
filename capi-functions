@@ -3,6 +3,8 @@
     /* Functions defined by Python's C-API */
     Py*;
     _Py*;
+    /* Additional Meta (Cinder) C-API functions to export */
+    _Ci*;
     /* Export strobe symbols needed for pyperf */
     __strobe_*;
   };
