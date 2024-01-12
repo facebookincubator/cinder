@@ -5681,27 +5681,27 @@ done
 
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Objects Python Modules Programs \
-    CinderX/CachedProperties \
-    CinderX/Common \
-    CinderX/Interpreter \
-    CinderX/Jit \
-    CinderX/Jit/codegen \
-    CinderX/Jit/hir \
-    CinderX/Jit/lir \
-    CinderX/ParallelGC \
-    CinderX/RuntimeTests \
-    CinderX/Shadowcode \
-    CinderX/StaticPython \
-    CinderX/StrictModules \
-    CinderX/StrictModules/Compiler \
-    CinderX/StrictModules/Objects \
-    CinderX/StrictModules/Tests \
-    CinderX/ThirdParty/asmjit/src/asmjit/arm \
-    CinderX/ThirdParty/asmjit/src/asmjit/arm \
-    CinderX/ThirdParty/asmjit/src/asmjit/core \
-    CinderX/ThirdParty/asmjit/src/asmjit/x86 \
-    CinderX/ThirdParty/googletest-1.8.1/googletest \
-    CinderX/ThirdParty/i386-dis"
+    cinderx/CachedProperties \
+    cinderx/Common \
+    cinderx/Interpreter \
+    cinderx/Jit \
+    cinderx/Jit/codegen \
+    cinderx/Jit/hir \
+    cinderx/Jit/lir \
+    cinderx/ParallelGC \
+    cinderx/RuntimeTests \
+    cinderx/Shadowcode \
+    cinderx/StaticPython \
+    cinderx/StrictModules \
+    cinderx/StrictModules/Compiler \
+    cinderx/StrictModules/Objects \
+    cinderx/StrictModules/Tests \
+    cinderx/ThirdParty/asmjit/src/asmjit/arm \
+    cinderx/ThirdParty/asmjit/src/asmjit/arm \
+    cinderx/ThirdParty/asmjit/src/asmjit/core \
+    cinderx/ThirdParty/asmjit/src/asmjit/x86 \
+    cinderx/ThirdParty/googletest-1.8.1/googletest \
+    cinderx/ThirdParty/i386-dis"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then

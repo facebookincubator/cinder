@@ -130,14 +130,14 @@ endif
 # CINDERX_SO - The _cinderx.SOABI.so file.
 
 GTEST_DIR=ThirdParty/googletest-1.8.1/googletest
-GTEST_BUILD_DIR=$(abs_builddir)/CinderX/$(GTEST_DIR)
+GTEST_BUILD_DIR=$(abs_builddir)/cinderx/$(GTEST_DIR)
 GTEST_SRCDIR=$(CURDIR)/$(GTEST_DIR)
 RUNTIME_TESTS_DIR=RuntimeTests
-RUNTIME_TESTS_BUILD_DIR=$(abs_builddir)/CinderX/$(RUNTIME_TESTS_DIR)
+RUNTIME_TESTS_BUILD_DIR=$(abs_builddir)/cinderx/$(RUNTIME_TESTS_DIR)
 RUNTIME_TESTS_SRCDIR=$(CURDIR)/$(RUNTIME_TESTS_DIR)
 
 STRICTM_TESTS_DIR=StrictModules/Tests
-STRICTM_TESTS_BUILD_DIR=$(abs_builddir)/CinderX/$(STRICTM_TESTS_DIR)
+STRICTM_TESTS_BUILD_DIR=$(abs_builddir)/cinderx/$(STRICTM_TESTS_DIR)
 STRICTM_TESTS_SRCDIR=$(CURDIR)/$(STRICTM_TESTS_DIR)
 
 

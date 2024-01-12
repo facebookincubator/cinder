@@ -586,7 +586,7 @@ def execusercustomize():
 def init_cinder():
     # ensure the CinderX pure-Python code is importable (only needed for in-repo
     # builds; Buck installs CinderX alongside the stdlib)
-    cinderx_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CinderX'))
+    cinderx_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cinderx'))
     if os.path.isdir(cinderx_dir):
         sys.path.append(cinderx_dir)
     try:

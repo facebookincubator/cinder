@@ -2,21 +2,21 @@
 #include "Python.h"
 
 #include "boolobject.h"
-#include "CinderX/Common/watchers.h"
-#include "CinderX/ParallelGC/parallel_gc.h"
+#include "cinderx/Common/watchers.h"
+#include "cinderx/ParallelGC/parallel_gc.h"
 #include "cinder/exports.h"
 #include "internal/pycore_shadow_frame.h"
 #include "frameobject.h"
-#include "CinderX/StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 
 // TODO(T169502989)
 // Including these here is a hack until cinder.c is split + migrated to CinderX
 #define _CINDER_C
-#include "CinderX/Jit/pyjit_result.h"
-#include "CinderX/Jit/pyjit_typeslots.h"
+#include "cinderx/Jit/pyjit_result.h"
+#include "cinderx/Jit/pyjit_typeslots.h"
 
-#include "CinderX/CachedProperties/cached_properties.h"
-#include "CinderX/Jit/pyjit.h"
+#include "cinderx/CachedProperties/cached_properties.h"
+#include "cinderx/Jit/pyjit.h"
 
 PyAPI_FUNC(void) _PyShadow_ClearCache(PyObject *co);
 CiAPI_FUNC(void) _PyShadow_FreeAll(void);

@@ -17,7 +17,7 @@ MODULE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 THIRD_PARTY_DIR = os.path.realpath(f"{MODULE_DIR}/ThirdParty")
 PYTHON_DIR = os.path.realpath(f"{MODULE_DIR}/..")
-CINDERX_DIR = os.path.realpath(f"{PYTHON_DIR}/CinderX/")
+CINDERX_DIR = os.path.realpath(f"{PYTHON_DIR}/cinderx/")
 
 # Paths to be added to the compile command as roots for header paths
 INCLUDE_DIRS = [

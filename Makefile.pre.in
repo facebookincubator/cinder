@@ -117,7 +117,7 @@ PY_CXXFLAGS_NODIST=$(CONFIGURE_CXXFLAGS_NODIST) $(CXXFLAGS_NODIST) -I$(abs_srcdi
 # Both CPPFLAGS and LDFLAGS need to contain the shell's value for setup.py to
 # be able to build extension modules using the directories specified in the
 # environment variables
-PY_CPPFLAGS= $(BASECPPFLAGS) $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_builddir) -I$(abs_srcdir)/Include -I$(abs_srcdir)/CinderX/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/CinderX/ThirdParty/folly -I$(abs_srcdir)/CinderX/ThirdParty/i386-dis -I$(abs_srcdir)/CinderX/ThirdParty/json -I$(abs_srcdir)/CinderX/ThirdParty/asmjit/src -I$(abs_srcdir)/CinderX/ThirdParty/parallel-hashmap -I$(abs_srcdir)/CinderX
+PY_CPPFLAGS= $(BASECPPFLAGS) $(CONFIGURE_CPPFLAGS) $(CPPFLAGS) -DFMT_HEADER_ONLY=1 -I$(abs_builddir) -I$(abs_srcdir)/Include -I$(abs_srcdir)/cinderx/ThirdParty/fmt-8.1.1/include -I$(abs_srcdir)/cinderx/ThirdParty/folly -I$(abs_srcdir)/cinderx/ThirdParty/i386-dis -I$(abs_srcdir)/cinderx/ThirdParty/json -I$(abs_srcdir)/cinderx/ThirdParty/asmjit/src -I$(abs_srcdir)/cinderx/ThirdParty/parallel-hashmap -I$(abs_srcdir)/cinderx
 PY_LDFLAGS_NODIST=$(CONFIGURE_LDFLAGS_NODIST) $(LDFLAGS_NODIST)
 OS_NAME := $(shell uname -s)
 ifeq ($(OS_NAME), Darwin)
@@ -807,7 +807,7 @@ regen-limited-abi: all
 regen-all: regen-opcode regen-opcode-targets regen-typeslots \
 	regen-token regen-ast regen-keyword regen-importlib clinic \
 	regen-pegen-metaparser regen-pegen regen-frozen
-	$(MAKE) -C $(abs_srcdir)/CinderX abs_srcdir=$(abs_srcdir) regen-all
+	$(MAKE) -C $(abs_srcdir)/cinderx abs_srcdir=$(abs_srcdir) regen-all
 	@echo
 	@echo "Note: make regen-stdlib-module-names and autoconf should be run manually"
 
@@ -926,7 +926,7 @@ regen-opcode:
 		$(srcdir)/Lib/opcode.py \
 		$(srcdir)/Include/opcode.h.new
 	$(UPDATE_FILE) $(srcdir)/Include/opcode.h $(srcdir)/Include/opcode.h.new
-	$(MAKE) -C $(srcdir)/CinderX/ abs_srcdir=$(abs_srcdir) regen-opcode
+	$(MAKE) -C $(srcdir)/cinderx/ abs_srcdir=$(abs_srcdir) regen-opcode
 
 
 .PHONY: regen-frozen
@@ -1037,7 +1037,7 @@ regen-opcode-targets:
 	$(PYTHON_FOR_REGEN) $(srcdir)/Python/makeopcodetargets.py \
 		$(srcdir)/Python/opcode_targets.h.new
 	$(UPDATE_FILE) $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/opcode_targets.h.new
-	$(MAKE) -C $(srcdir)/CinderX/ abs_srcdir=$(abs_srcdir) regen-opcode-targets
+	$(MAKE) -C $(srcdir)/cinderx/ abs_srcdir=$(abs_srcdir) regen-opcode-targets
 
 
 Python/ceval.o: $(srcdir)/Python/opcode_targets.h $(srcdir)/Python/ceval_gil.h \
@@ -2131,7 +2131,7 @@ Python/thread.o: @THREADHEADERS@ $(srcdir)/Python/condvar.h
 
 .PHONY: regen-jit
 regen-jit:
-	$(MAKE) -C $(abs_srcdir)/CinderX abs_srcdir=$(abs_srcdir) regen-jit
+	$(MAKE) -C $(abs_srcdir)/cinderx abs_srcdir=$(abs_srcdir) regen-jit
 
 # asmjit
 
@@ -2149,10 +2149,10 @@ testcinde%: @DEF_MAKE_RULE@ platform
 ifneq ($(TESTOPTS),)
 	$(error Running Cinder tests with TESTOPTS is not supported)
 endif
-	$(MAKE) -C $(srcdir)/CinderX/ TESTPYTHON="$(TESTPYTHON)" ASAN_TEST_ENV="$(ASAN_TEST_ENV)" $@
+	$(MAKE) -C $(srcdir)/cinderx/ TESTPYTHON="$(TESTPYTHON)" ASAN_TEST_ENV="$(ASAN_TEST_ENV)" $@
 
 define RUNTIME_TEST_BODY
-	$(MAKE) -C "$(srcdir)/CinderX/" \
+	$(MAKE) -C "$(srcdir)/cinderx/" \
 		abs_builddir='$(abs_builddir)' \
 		abs_srcdir='$(abs_srcdir)' \
 		CXX='$(CXX)' \
@@ -2193,7 +2193,7 @@ test_strict_module: runtime_test_deps
 
 .PHONY: cinderx_module
 cinderx_module: pybuilddir.txt $(BUILDPYTHON) sharedmods
-	$(RUNSHARED) $(abs_srcdir)/CinderX/build.sh \
+	$(RUNSHARED) $(abs_srcdir)/cinderx/build.sh \
 		--build-root "$(abs_builddir)" \
 		--python-bin "$(abs_builddir)/$(BUILDPYTHON)" \
 		--output-dir "$(abs_builddir)/`cat pybuilddir.txt`"
