@@ -32,7 +32,9 @@
    and the small letter tells about the operand size.  Refer to
    the Intel manual for details.  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>

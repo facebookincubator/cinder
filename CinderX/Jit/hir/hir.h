@@ -2125,6 +2125,7 @@ class INSTR_CLASS(
 
 class InlineBase {
  public:
+  virtual ~InlineBase() = default;
   virtual int inlineDepth() const = 0;
 };
 

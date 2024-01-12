@@ -14,8 +14,6 @@
 #include "cinder/hooks.h"
 #include "cinder/exports.h"
 
-#include "Jit/pyjit.h"
-
 /* --------------------------------------------------------------------------
 CAUTION
 

@@ -157,7 +157,7 @@ struct fmt::formatter<std::shared_ptr<strictmod::objects::BaseStrictObject>>
   template <typename FormatContext>
   auto format(
       std::shared_ptr<strictmod::objects::BaseStrictObject> c,
-      FormatContext& ctx) {
+      FormatContext& ctx) const {
     std::string name = c->getDisplayName();
     return formatter<std::string>::format(name, ctx);
   }

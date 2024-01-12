@@ -124,7 +124,6 @@ any DWARF information available for them).
 #include "pycore_ceval.h"
 #include "frameobject.h"
 #include "pycore_interp.h"
-#include "Jit/pyjit.h"
 
 typedef enum {
     PERF_STATUS_FAILED = -1,  // Perf trampoline is in an invalid state

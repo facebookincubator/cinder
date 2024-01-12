@@ -5016,18 +5016,20 @@ Ci_PyFunction_CallStatic(PyFunctionObject *func,
     PyCodeObject *co = (PyCodeObject *)func->func_code;
 
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-#endif
     assert(nargs == 0 || args != NULL);
+#endif
     PyFrameConstructor *con = PyFunction_AS_FRAME_CONSTRUCTOR(func);
     PyThreadState *tstate = _PyThreadState_GET();
     assert(tstate != NULL);
 
     /* We are bound to a specific function that is known at compile time, and
      * all of the arguments are guaranteed to be provided */
+#ifdef Py_DEBUG
     assert(co->co_argcount == nargs);
     assert(co->co_flags & CO_STATICALLY_COMPILED);
     assert(co->co_flags & CO_OPTIMIZED);
     assert(kwnames == NULL);
+#endif
 
     return _CiStaticEval_Vector(tstate, con, NULL, args, nargsf, NULL, 0);
 }

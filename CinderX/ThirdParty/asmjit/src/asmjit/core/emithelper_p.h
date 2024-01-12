@@ -24,6 +24,8 @@ public:
   inline explicit BaseEmitHelper(BaseEmitter* emitter = nullptr) noexcept
     : _emitter(emitter) {}
 
+  virtual ~BaseEmitHelper() noexcept = default;
+
   inline BaseEmitter* emitter() const noexcept { return _emitter; }
   inline void setEmitter(BaseEmitter* emitter) noexcept { _emitter = emitter; }
 
