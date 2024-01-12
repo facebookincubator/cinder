@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Python.h"
-
+#include "cinder/genobject_jit.h"
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/debug_info.h"
 #include "cinderx/Jit/deopt.h"

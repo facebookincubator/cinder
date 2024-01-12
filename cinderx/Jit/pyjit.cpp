@@ -3,12 +3,8 @@
 #include "cinderx/Jit/pyjit.h"
 
 #include "Python.h"
-#include "cinderx/StrictModules/pystrictmodule.h"
 #include "cinder/exports.h"
-#include "internal/pycore_ceval.h"
-#include "internal/pycore_shadow_frame.h"
-#include "pycore_interp.h"
-
+#include "cinder/genobject_jit.h"
 #include "cinderx/Jit/code_allocator.h"
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/config.h"
@@ -28,10 +24,13 @@
 #include "cinderx/Jit/profile_runtime.h"
 #include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/runtime.h"
+#include "internal/pycore_ceval.h"
+#include "internal/pycore_shadow_frame.h"
+#include "pycore_interp.h"
 #include "cinderx/Jit/strobelight_exports.h"
 #include "cinderx/Jit/type_profiler.h"
 #include "cinderx/Jit/util.h"
-
+#include "cinderx/StrictModules/pystrictmodule.h"
 #include "cinderx/ThirdParty/i386-dis/dis-asm.h"
 
 #include <atomic>

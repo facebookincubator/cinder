@@ -9,7 +9,7 @@
 #include "frameobject.h"
 #include "structmember.h"         // PyMemberDef
 #include "opcode.h"
-#include "Jit/pyjit.h"
+#include "cinder/genobject_jit.h"
 #include "cinder/exports.h"
 #include "cinder/hooks.h"
 #include "pycore_gc.h"            // _PyGC_UNSET_FINALIZED
