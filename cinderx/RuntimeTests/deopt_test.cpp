@@ -1,24 +1,24 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/compiler.h"
-#include "Jit/deopt.h"
-#include "Jit/disassembler.h"
-#include "Jit/hir/builder.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/optimization.h"
-#include "Jit/log.h"
-#include "Jit/ref.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/deopt.h"
+#include "cinderx/Jit/disassembler.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/util.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <algorithm>
 

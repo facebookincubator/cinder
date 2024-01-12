@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/block.h"
+#include "cinderx/Jit/lir/block.h"
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/lir/function.h"
-#include "Jit/lir/printer.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/lir/function.h"
+#include "cinderx/Jit/lir/printer.h"
 
 #include <algorithm>
 #include <iostream>

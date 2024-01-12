@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/instance.h"
-#include "StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/Objects/instance.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
 
 #include <optional>
 

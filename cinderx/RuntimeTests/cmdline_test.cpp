@@ -1,18 +1,18 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/copy_graph.h"
-#include "Jit/jit_gdb_support.h"
-#include "Jit/jit_list.h"
-#include "Jit/lir/inliner.h"
-#include "Jit/perf_jitdump.h"
-#include "Jit/profile_runtime.h"
-#include "Jit/pyjit.h"
+#include "cinderx/Jit/codegen/copy_graph.h"
+#include "cinderx/Jit/jit_gdb_support.h"
+#include "cinderx/Jit/jit_list.h"
+#include "cinderx/Jit/lir/inliner.h"
+#include "cinderx/Jit/perf_jitdump.h"
+#include "cinderx/Jit/profile_runtime.h"
+#include "cinderx/Jit/pyjit.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
-#include <dis-asm.h>
+#include "cinderx/ThirdParty/i386-dis/dis-asm.h"
 #include <fmt/format.h>
 
 #include <cstdlib>

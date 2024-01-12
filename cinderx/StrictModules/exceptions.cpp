@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/exceptions.h"
+#include "cinderx/StrictModules/exceptions.h"
 namespace strictmod {
 
 // StrictModuleException

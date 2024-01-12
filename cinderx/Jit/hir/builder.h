@@ -4,13 +4,13 @@
 
 #include "Python.h"
 
-#include "Jit/bytecode.h"
-#include "Jit/bytecode_offsets.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/preload.h"
-#include "Jit/profile_runtime.h"
-#include "Jit/stack.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/preload.h"
+#include "cinderx/Jit/profile_runtime.h"
+#include "cinderx/Jit/stack.h"
+#include "cinderx/Jit/util.h"
 
 #include <deque>
 #include <functional>

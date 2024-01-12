@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/bytecode.h"
+#include "cinderx/Jit/bytecode.h"
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #include <unordered_set>
 

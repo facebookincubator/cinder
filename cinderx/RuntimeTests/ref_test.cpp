@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 #include <unordered_set>
 

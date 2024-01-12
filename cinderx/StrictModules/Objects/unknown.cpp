@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/unknown.h"
+#include "cinderx/StrictModules/Objects/unknown.h"
 
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/exceptions.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/exceptions.h"
 
 #include <stdexcept>
 namespace strictmod::objects {

@@ -1,14 +1,14 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/perf_jitdump.h"
+#include "cinderx/Jit/perf_jitdump.h"
 
 #include "Python.h"
 #include "pycore_ceval.h"
 
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
-#include "Jit/threaded_compile.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/threaded_compile.h"
+#include "cinderx/Jit/util.h"
 
 #include <elf.h>
 #include <fcntl.h>

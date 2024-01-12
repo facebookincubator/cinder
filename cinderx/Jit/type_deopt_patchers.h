@@ -3,9 +3,9 @@
 
 #include "Python.h"
 
-#include "Jit/deopt_patcher.h"
-#include "Jit/ref.h"
-#include "Jit/runtime.h"
+#include "cinderx/Jit/deopt_patcher.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/runtime.h"
 
 #include <variant>
 

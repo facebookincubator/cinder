@@ -1,15 +1,15 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/profile_runtime.h"
+#include "cinderx/Jit/profile_runtime.h"
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
 #include "frameobject.h"
 
-#include "Jit/hir/type.h"
-#include "Jit/live_type_map.h"
-#include "Jit/log.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/live_type_map.h"
+#include "cinderx/Jit/log.h"
 
 #include <folly/tracing/StaticTracepoint.h>
 

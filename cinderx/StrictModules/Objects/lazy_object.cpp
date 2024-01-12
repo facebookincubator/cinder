@@ -1,6 +1,6 @@
-#include "StrictModules/Objects/lazy_object.h"
+#include "cinderx/StrictModules/Objects/lazy_object.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
 
 #include <iostream>
 namespace strictmod::objects {

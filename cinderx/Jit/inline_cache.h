@@ -3,14 +3,14 @@
 #pragma once
 
 #include "Python.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 
-#include "Jit/config.h"
-#include "Jit/containers.h"
-#include "Jit/jit_rt.h"
-#include "Jit/log.h"
-#include "Jit/ref.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/config.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/util.h"
 
 #include <array>
 #include <memory>

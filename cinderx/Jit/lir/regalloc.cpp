@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/regalloc.h"
+#include "cinderx/Jit/lir/regalloc.h"
 
-#include "Jit/codegen/copy_graph.h"
-#include "Jit/codegen/x86_64.h"
+#include "cinderx/Jit/codegen/copy_graph.h"
+#include "cinderx/Jit/codegen/x86_64.h"
 
 #include <algorithm>
 #include <iostream>

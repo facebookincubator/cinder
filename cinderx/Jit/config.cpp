@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/config.h"
+#include "cinderx/Jit/config.h"
 
 namespace jit {
 

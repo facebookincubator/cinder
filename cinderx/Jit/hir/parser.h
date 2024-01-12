@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/hir/hir.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/util.h"
 
 #include <cstdlib>
 #include <iterator>

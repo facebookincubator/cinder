@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/type.h"
+#include "cinderx/StrictModules/Objects/type.h"
 
 namespace strictmod::objects {
 

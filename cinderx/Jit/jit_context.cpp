@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/jit_context.h"
+#include "cinderx/Jit/jit_context.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/jit_gdb_support.h"
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/jit_gdb_support.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/pyjit.h"
 
 #include <unordered_set>
 

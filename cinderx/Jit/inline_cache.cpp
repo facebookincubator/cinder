@@ -1,15 +1,15 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/inline_cache.h"
+#include "cinderx/Jit/inline_cache.h"
 
-#include "Common/watchers.h"
+#include "cinderx/Common/watchers.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/containers.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <memory>

@@ -4,7 +4,7 @@
 
 #include "Python.h"
 
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 
 #ifdef __cplusplus
 extern "C" {

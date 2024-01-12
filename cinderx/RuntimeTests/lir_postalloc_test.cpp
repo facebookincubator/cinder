@@ -2,13 +2,13 @@
 
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/environ.h"
-#include "Jit/lir/parser.h"
-#include "Jit/lir/postalloc.h"
-#include "Jit/lir/verify.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/lir/parser.h"
+#include "cinderx/Jit/lir/postalloc.h"
+#include "cinderx/Jit/lir/verify.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 using namespace jit;
 

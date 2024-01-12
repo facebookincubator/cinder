@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Jit/hir/printer.h"
-#include "Jit/lir/block.h"
-#include "Jit/lir/function.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/operand.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/lir/block.h"
+#include "cinderx/Jit/lir/function.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/lir/operand.h"
 
 #include <iostream>
 #include <unordered_map>

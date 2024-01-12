@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/annotations.h"
+#include "cinderx/Jit/codegen/annotations.h"
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/disassembler.h"
-#include "Jit/hir/printer.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/disassembler.h"
+#include "cinderx/Jit/hir/printer.h"
 
 #include <map>
 #include <utility>

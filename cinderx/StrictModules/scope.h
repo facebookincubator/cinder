@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
-#include "StrictModules/sequence_map.h"
-#include "StrictModules/symbol_table.h"
+#include "cinderx/StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/symbol_table.h"
 
 #include <functional>
 #include <memory>
@@ -268,4 +268,4 @@ class ScopeManager {
 
 } // namespace strictmod
 
-#include "StrictModules/scope_impl.h"
+#include "cinderx/StrictModules/scope_impl.h"

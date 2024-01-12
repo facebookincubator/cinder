@@ -6,11 +6,11 @@
 #include "frameobject.h"
 #include "genobject.h"
 
-#include "Jit/pyjit_result.h"
-#include "Jit/pyjit_typeslots.h"
+#include "cinderx/Jit/pyjit_result.h"
+#include "cinderx/Jit/pyjit_typeslots.h"
 
 #ifdef __cplusplus
-#include "Jit/hir/preload.h"
+#include "cinderx/Jit/hir/preload.h"
 #endif
 
 #ifndef Py_LIMITED_API

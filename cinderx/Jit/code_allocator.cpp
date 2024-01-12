@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/code_allocator.h"
+#include "cinderx/Jit/code_allocator.h"
 
-#include "Jit/config.h"
-#include "Jit/threaded_compile.h"
+#include "cinderx/Jit/config.h"
+#include "cinderx/Jit/threaded_compile.h"
 
 #include <sys/mman.h>
 

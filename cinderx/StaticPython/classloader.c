@@ -12,11 +12,11 @@
 
 #include "cinder/exports.h"
 
-#include "CachedProperties/cached_properties.h"
-#include "Interpreter/opcode.h"
-#include "Jit/pyjit.h"
-#include "StaticPython/classloader.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/CachedProperties/cached_properties.h"
+#include "cinderx/Interpreter/opcode.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 
 #include <dlfcn.h>
 

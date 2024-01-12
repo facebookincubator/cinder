@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/copy_graph.h"
+#include "cinderx/Jit/codegen/copy_graph.h"
 
 #include <fmt/format.h>
 

@@ -3,8 +3,8 @@
 #include "pycore_interp.h"        // PyInterpreterState.list
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 
-#include "StaticPython/classloader.h"
-#include "StaticPython/checked_list.h"
+#include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/checked_list.h"
 
 static inline int
 Ci_List_CheckIncludingChecked(PyObject *op)

@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/jit_time_log.h"
+#include "cinderx/Jit/jit_time_log.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 #include <chrono>
 

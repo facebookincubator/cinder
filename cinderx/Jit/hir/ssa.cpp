@@ -1,14 +1,14 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/ssa.h"
+#include "cinderx/Jit/hir/ssa.h"
 
-#include "Jit/bitvector.h"
-#include "Jit/hir/analysis.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/type.h"
-#include "Jit/log.h"
-#include "Jit/runtime.h"
+#include "cinderx/Jit/bitvector.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/runtime.h"
 
 #include <fmt/ostream.h>
 

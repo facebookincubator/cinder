@@ -4,12 +4,12 @@
 
 #include "Python.h"
 
-#include "Jit/bytecode_offsets.h"
-#include "Jit/containers.h"
-#include "Jit/hir/type.h"
-#include "Jit/ref.h"
-#include "Jit/type_profiler.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/type_profiler.h"
+#include "cinderx/Jit/util.h"
 
 #include <iosfwd>
 #include <regex>

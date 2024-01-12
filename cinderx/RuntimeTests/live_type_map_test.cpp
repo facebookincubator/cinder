@@ -3,9 +3,9 @@
 
 #include "Python.h"
 
-#include "Jit/live_type_map.h"
+#include "cinderx/Jit/live_type_map.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 using namespace jit;
 

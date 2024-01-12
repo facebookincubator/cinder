@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/type_profiler.h"
+#include "cinderx/Jit/type_profiler.h"
 
 #include <limits>
 #include <memory>

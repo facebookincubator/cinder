@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/register.h"
+#include "cinderx/Jit/hir/register.h"
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 #include <fmt/format.h>
 

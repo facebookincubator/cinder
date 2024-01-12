@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/bytecode_offsets.h"
+#include "cinderx/Jit/bytecode_offsets.h"
 
 using namespace jit;
 

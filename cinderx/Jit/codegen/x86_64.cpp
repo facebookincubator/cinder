@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/x86_64.h"
+#include "cinderx/Jit/codegen/x86_64.h"
 
 #include <fmt/ostream.h>
 

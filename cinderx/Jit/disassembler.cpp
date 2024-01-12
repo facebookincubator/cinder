@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/disassembler.h"
+#include "cinderx/Jit/disassembler.h"
 
-#include "Jit/log.h"
-#include "Jit/runtime.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/runtime.h"
 
 #include <cstdarg>
 #include <cstddef>

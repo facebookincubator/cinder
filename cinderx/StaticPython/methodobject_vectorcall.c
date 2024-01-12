@@ -4,8 +4,8 @@
 #include "cinder/hooks.h"
 #include "pycore_pystate.h" // _PyThreadState_GET()
 
-#include "StaticPython/classloader.h"
-#include "StaticPython/methodobject_vectorcall.h"
+#include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/methodobject_vectorcall.h"
 
 typedef void *(*call_self_0)(PyObject *self);
 typedef void *(*call_self_1)(PyObject *self, void *);

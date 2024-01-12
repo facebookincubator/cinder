@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/dict_object.h"
+#include "cinderx/StrictModules/Objects/dict_object.h"
 
-#include "StrictModules/Objects/callable_wrapper.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/caller_context_impl.h"
-#include "StrictModules/exceptions.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/exceptions.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 

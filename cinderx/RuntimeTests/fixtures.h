@@ -4,20 +4,20 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 #include "internal/pycore_interp.h"
 
-#include "Jit/code_allocator.h"
-#include "Jit/hir/builder.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/optimization.h"
-#include "Jit/hir/parser.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/ssa.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/code_allocator.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/parser.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/ssa.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 #define JIT_TEST_MOD_NAME "jittestmodule"
 

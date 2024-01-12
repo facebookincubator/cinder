@@ -1,15 +1,15 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-#include "StrictModules/Objects/genericalias_object.h"
+#include "cinderx/StrictModules/Objects/genericalias_object.h"
 
-#include "StrictModules/Objects/builtins.h"
-#include "StrictModules/Objects/callable_wrapper.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/object_type.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/Objects/typing_helpers.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/Objects/builtins.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/typing_helpers.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
 
 #include <unordered_set>
 namespace strictmod::objects {

@@ -1,12 +1,12 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/rewrite.h"
+#include "cinderx/Jit/lir/rewrite.h"
 
-#include "Jit/codegen/x86_64.h"
-#include "Jit/lir/block.h"
-#include "Jit/lir/operand.h"
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/lir/block.h"
+#include "cinderx/Jit/lir/operand.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <set>
 #include <unordered_set>

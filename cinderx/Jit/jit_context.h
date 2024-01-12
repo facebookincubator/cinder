@@ -4,13 +4,13 @@
 
 #include "Python.h"
 
-#include "Jit/compiler.h"
-#include "Jit/containers.h"
-#include "Jit/hir/preload.h"
-#include "Jit/pyjit_result.h"
-#include "Jit/pyjit_typeslots.h"
-#include "Jit/ref.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/hir/preload.h"
+#include "cinderx/Jit/pyjit_result.h"
+#include "cinderx/Jit/pyjit_typeslots.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/util.h"
 
 #include <memory>
 #include <vector>

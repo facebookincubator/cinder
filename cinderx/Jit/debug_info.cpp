@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/debug_info.h"
+#include "cinderx/Jit/debug_info.h"
 
-#include "Jit/hir/hir.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/ref.h"
 
 #include <algorithm>
 #include <deque>

@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/block_builder.h"
+#include "cinderx/Jit/lir/block_builder.h"
 
-#include "Jit/lir/generator.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/lir/generator.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/util.h"
 
 #include <dlfcn.h>
 

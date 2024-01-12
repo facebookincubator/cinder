@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/global_cache.h"
+#include "cinderx/Jit/global_cache.h"
 
-#include "Jit/dict_watch.h"
-#include "Jit/runtime.h"
+#include "cinderx/Jit/dict_watch.h"
+#include "cinderx/Jit/runtime.h"
 
 namespace jit {
 

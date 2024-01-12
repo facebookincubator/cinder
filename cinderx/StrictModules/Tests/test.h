@@ -4,14 +4,14 @@
 /** Include this file instead of including the gtest headers to
 avoid macro naming conflict between gtest and python ast.h
 */
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/Compiler/module_info.h"
-#include "StrictModules/Tests/test_util.h"
-#include "StrictModules/analyzer.h"
-#include "StrictModules/error_sink.h"
-#include "StrictModules/exceptions.h"
-#include "StrictModules/parser_util.h"
-#include "StrictModules/py_headers.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/Tests/test_util.h"
+#include "cinderx/StrictModules/analyzer.h"
+#include "cinderx/StrictModules/error_sink.h"
+#include "cinderx/StrictModules/exceptions.h"
+#include "cinderx/StrictModules/parser_util.h"
+#include "cinderx/StrictModules/py_headers.h"
 #include "gtest/gtest.h"
 
 #include <codecvt>

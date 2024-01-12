@@ -1,8 +1,8 @@
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 #include "cinder/exports.h"
 
-#include "Jit/runtime.h"
+#include "cinderx/Jit/runtime.h"
 
 #include <sstream>
 

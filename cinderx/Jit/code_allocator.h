@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "asmjit/asmjit.h"
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/log.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/log.h"
 
 #include <memory>
 #include <vector>

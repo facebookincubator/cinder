@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/builtins.h"
+#include "cinderx/StrictModules/Objects/builtins.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/Compiler/module_info.h"
-#include "StrictModules/Objects/callable_wrapper.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/caller_context_impl.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> reprImpl(

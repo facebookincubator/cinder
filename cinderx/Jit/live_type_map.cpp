@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/live_type_map.h"
+#include "cinderx/Jit/live_type_map.h"
 
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 namespace jit {
 

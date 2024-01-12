@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/module.h"
-#include "StrictModules/caller_context.h"
+#include "cinderx/StrictModules/Objects/module.h"
+#include "cinderx/StrictModules/caller_context.h"
 
 #include <memory>
 #include <typeindex>

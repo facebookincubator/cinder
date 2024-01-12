@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Jit/dataflow.h"
-#include "Jit/hir/alias_class.h"
-#include "Jit/hir/hir.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/dataflow.h"
+#include "cinderx/Jit/hir/alias_class.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/util.h"
 
 #include <iosfwd>
 

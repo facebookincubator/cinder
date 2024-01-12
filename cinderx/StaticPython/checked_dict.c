@@ -9,8 +9,8 @@
 
 #include "cinder/exports.h"
 
-#include "StaticPython/checked_dict.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/checked_dict.h"
+#include "cinderx/StaticPython/classloader.h"
 
 /***********************************************************************
  * Type-enforced dictionary - shares most of the implementation with the

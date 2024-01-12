@@ -1,12 +1,12 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/hir.h"
+#include "cinderx/Jit/hir/hir.h"
 
-#include "Jit/hir/printer.h"
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
-#include "Jit/threaded_compile.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/threaded_compile.h"
 
 #include <fmt/format.h>
 

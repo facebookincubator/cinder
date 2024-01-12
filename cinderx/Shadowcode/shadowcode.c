@@ -11,20 +11,20 @@
  * which are used to store information to execute the optimized bytecodes.
  */
 
-#include "CachedProperties/cached_properties.h"
-#include "Jit/pyjit.h"
+#include "cinderx/CachedProperties/cached_properties.h"
+#include "cinderx/Jit/pyjit.h"
 #include "Python.h"
-#include "Shadowcode/shadowcode.h"
+#include "cinderx/Shadowcode/shadowcode.h"
 #include "structmember.h"
 #include <stddef.h>
-#include "Common/watchers.h"
+#include "cinderx/Common/watchers.h"
 #include "cinder/exports.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 
 // This relies on Python internals.
 #include "Python/wordcode_helpers.h"
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
 #define _PyStaticMethod_Check(op) (Py_TYPE(op) == &PyStaticMethod_Type)

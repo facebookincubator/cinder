@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/type.h"
+#include "cinderx/Jit/hir/type.h"
 
-#include "Jit/hir/hir.h"
-#include "Jit/log.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/log.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

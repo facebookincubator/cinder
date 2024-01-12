@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/exceptions.h"
+#include "cinderx/StrictModules/exceptions.h"
 
 #include <memory>
 #include <string>

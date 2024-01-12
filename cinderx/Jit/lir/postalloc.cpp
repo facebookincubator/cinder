@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/postalloc.h"
+#include "cinderx/Jit/lir/postalloc.h"
 
-#include "Jit/codegen/x86_64.h"
-#include "Jit/containers.h"
-#include "Jit/lir/operand.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/operand.h"
 
 #include <optional>
 

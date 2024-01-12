@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
 namespace strictmod::compiler {
 
 inline bool endsWith(const std::string& name, const std::string& suffix) {

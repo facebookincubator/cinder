@@ -1,22 +1,22 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/optimization.h"
 
 #include "Python.h"
 #include "code.h"
 #include "internal/pycore_interp.h"
 
-#include "Jit/compiler.h"
-#include "Jit/containers.h"
-#include "Jit/hir/analysis.h"
-#include "Jit/hir/builder.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/memory_effects.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/ssa.h"
-#include "Jit/jit_rt.h"
-#include "Jit/pyjit.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/memory_effects.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/ssa.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/util.h"
 
 #include <fmt/format.h>
 

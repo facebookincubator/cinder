@@ -1,16 +1,16 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/compiler.h"
-#include "Jit/hir/builder.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <iostream>
 #include <string>

@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/hir/builder.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/printer.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/printer.h"
 
 using namespace jit::hir;
 

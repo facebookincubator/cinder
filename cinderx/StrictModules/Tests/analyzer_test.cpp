@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-#include "StrictModules/Tests/test.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Tests/test.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 using namespace strictmod;
 

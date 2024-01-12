@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/object_type.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 class StrictExceptionObject : public StrictInstance {

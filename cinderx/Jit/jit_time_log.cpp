@@ -1,13 +1,13 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/jit_time_log.h"
+#include "cinderx/Jit/jit_time_log.h"
 
 #include "fmt/core.h"
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 #include <fmt/format.h>
-#include <parallel_hashmap/phmap.h>
+#include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/phmap.h"
 
 #include <iostream>
 #include <memory>

@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/dataflow.h"
+#include "cinderx/Jit/dataflow.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 using namespace jit::optimizer;
 

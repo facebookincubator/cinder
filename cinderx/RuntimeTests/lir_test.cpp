@@ -1,17 +1,17 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/codegen/environ.h"
-#include "Jit/compiler.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/parser.h"
-#include "Jit/lir/generator.h"
-#include "Jit/lir/parser.h"
-#include "Jit/lir/postgen.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/parser.h"
+#include "cinderx/Jit/lir/generator.h"
+#include "cinderx/Jit/lir/parser.h"
+#include "cinderx/Jit/lir/postgen.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 #include <Python.h>
 #include <asm-generic/errno-base.h>

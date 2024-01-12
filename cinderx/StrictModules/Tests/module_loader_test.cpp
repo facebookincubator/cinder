@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Tests/test.h"
+#include "cinderx/StrictModules/Tests/test.h"
 TEST_F(ModuleLoaderTest, GetLoader) {
   auto mod = getLoader(nullptr, nullptr);
   ASSERT_NE(mod.get(), nullptr);

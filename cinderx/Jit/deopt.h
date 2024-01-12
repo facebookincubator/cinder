@@ -4,9 +4,9 @@
 
 #include "Python.h"
 
-#include "Jit/codegen/x86_64.h"
-#include "Jit/hir/hir.h"
-#include "Jit/jit_rt.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/jit_rt.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/hir/alias_class.h"
+#include "cinderx/Jit/hir/alias_class.h"
 
 using namespace jit::hir;
 

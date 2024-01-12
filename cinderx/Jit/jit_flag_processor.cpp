@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/jit_flag_processor.h"
+#include "cinderx/Jit/jit_flag_processor.h"
 
 #include "Python.h"
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 #include <fmt/format.h>
 

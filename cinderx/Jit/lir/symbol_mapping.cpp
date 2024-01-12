@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/symbol_mapping.h"
+#include "cinderx/Jit/lir/symbol_mapping.h"
 
 #include "Python.h"
 

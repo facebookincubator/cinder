@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/function.h"
+#include "cinderx/Jit/lir/function.h"
 
-#include "Jit/containers.h"
-#include "Jit/lir/blocksorter.h"
-#include "Jit/lir/printer.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/blocksorter.h"
+#include "cinderx/Jit/lir/printer.h"
 
 #include <stack>
 

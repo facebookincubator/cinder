@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 #include "Python.h"
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 
 // remove conflicting macros from python-ast.h
 #ifdef Compare

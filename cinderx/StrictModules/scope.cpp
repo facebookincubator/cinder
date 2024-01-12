@@ -1,6 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-#include "StrictModules/scope.h"
+#include "cinderx/StrictModules/scope.h"
 namespace strictmod {
 std::string mangle(const std::string& className, const std::string& name) {
   // private names need to start with __

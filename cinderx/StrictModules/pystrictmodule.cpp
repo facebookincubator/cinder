@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/pystrictmodule.h"
+#include "cinderx/StrictModules/pystrictmodule.h"
 
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 #include "structmember.h"
 
 #ifndef Py_LIMITED_API

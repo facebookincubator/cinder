@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/error_sink.h"
-#include "StrictModules/exceptions.h"
-#include "StrictModules/py_headers.h"
-#include "StrictModules/pystrictmodule.h"
-#include "StrictModules/symbol_table.h"
+#include "cinderx/StrictModules/error_sink.h"
+#include "cinderx/StrictModules/exceptions.h"
+#include "cinderx/StrictModules/py_headers.h"
+#include "cinderx/StrictModules/pystrictmodule.h"
+#include "cinderx/StrictModules/symbol_table.h"
 
 #include <memory>
 #include <optional>

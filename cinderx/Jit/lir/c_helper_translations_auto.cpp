@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/c_helper_translations_auto.h"
+#include "cinderx/Jit/lir/c_helper_translations_auto.h"
 
-#include "Jit/jit_rt.h"
+#include "cinderx/Jit/jit_rt.h"
 
 namespace jit::lir {
 

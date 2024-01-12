@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Jit/util.h"
+#include "cinderx/Jit/util.h"
 
-#include <dis-asm.h>
+#include "cinderx/ThirdParty/i386-dis/dis-asm.h"
 
 #include <string>
 

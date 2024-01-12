@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/postgen.h"
+#include "cinderx/Jit/lir/postgen.h"
 
-#include "Jit/lir/inliner.h"
+#include "cinderx/Jit/lir/inliner.h"
 
 using namespace jit::codegen;
 

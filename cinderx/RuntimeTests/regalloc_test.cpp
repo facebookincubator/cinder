@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/compiler.h"
-#include "Jit/lir/operand.h"
-#include "Jit/lir/parser.h"
-#include "Jit/lir/printer.h"
-#include "Jit/lir/regalloc.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/lir/operand.h"
+#include "cinderx/Jit/lir/parser.h"
+#include "cinderx/Jit/lir/printer.h"
+#include "cinderx/Jit/lir/regalloc.h"
 
 #include <fmt/ostream.h>
 

@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/jit_gdb_support.h"
+#include "cinderx/Jit/jit_gdb_support.h"
 
-#include "Jit/compiler.h"
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/compiler.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <fcntl.h>
 #include <stddef.h>

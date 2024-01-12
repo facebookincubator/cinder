@@ -12,10 +12,10 @@
 #include "pycore_object.h"
 
 #include "cinder/ci_api.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 
-#include "CachedProperties/cached_properties.h"
-#include "Interpreter/opcode.h"
+#include "cinderx/CachedProperties/cached_properties.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #include <stdint.h>
 

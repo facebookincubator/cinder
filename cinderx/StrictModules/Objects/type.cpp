@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/type.h"
+#include "cinderx/StrictModules/Objects/type.h"
 
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/caller_context_impl.h"
-#include "StrictModules/exceptions.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/exceptions.h"
 
 #include <functional>
 #include <list>

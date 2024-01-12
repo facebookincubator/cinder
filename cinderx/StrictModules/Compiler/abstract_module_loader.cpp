@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
 
-#include "StrictModules/Compiler/analyzed_module.h"
-#include "StrictModules/Compiler/module_info.h"
-#include "StrictModules/Compiler/stub.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/analyzer.h"
-#include "StrictModules/parser_util.h"
-#include "StrictModules/symbol_table.h"
+#include "cinderx/StrictModules/Compiler/analyzed_module.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/Compiler/stub.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/analyzer.h"
+#include "cinderx/StrictModules/parser_util.h"
+#include "cinderx/StrictModules/symbol_table.h"
 
 #include <cstring>
 #include <filesystem>

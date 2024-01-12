@@ -1,9 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/blocksorter.h"
+#include "cinderx/Jit/lir/blocksorter.h"
 
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <limits>

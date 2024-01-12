@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "Jit/bitvector.h"
-#include "Jit/codegen/copy_graph.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/containers.h"
-#include "Jit/lir/printer.h"
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bitvector.h"
+#include "cinderx/Jit/codegen/copy_graph.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/printer.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <list>
 #include <memory>

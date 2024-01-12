@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/module_type.h"
+#include "cinderx/StrictModules/Objects/module_type.h"
 
-#include "StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 
 namespace strictmod::objects {
 void StrictModuleType::storeAttr(

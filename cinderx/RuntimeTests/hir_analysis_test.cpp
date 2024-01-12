@@ -3,14 +3,14 @@
 
 #include "Python.h"
 
-#include "Jit/hir/analysis.h"
-#include "Jit/hir/builder.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/parser.h"
-#include "Jit/hir/ssa.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/parser.h"
+#include "cinderx/Jit/hir/ssa.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 #include <memory>
 

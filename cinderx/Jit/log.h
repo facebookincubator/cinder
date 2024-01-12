@@ -5,8 +5,8 @@
 #include "Python.h"
 #include "internal/pycore_pystate.h"
 
-#include "Jit/ref.h"
-#include "Jit/threaded_compile.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/threaded_compile.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

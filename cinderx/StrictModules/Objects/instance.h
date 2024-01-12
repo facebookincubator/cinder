@@ -1,6 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
-#include "StrictModules/Objects/base_object.h"
+#include "cinderx/StrictModules/Objects/base_object.h"
 
 namespace strictmod::objects {
 class StrictObjectType;

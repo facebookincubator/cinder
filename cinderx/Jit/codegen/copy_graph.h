@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Jit/intrusive_list.h"
+#include "cinderx/Jit/intrusive_list.h"
 
 #include <iterator>
 #include <limits>

@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/analyzer.h"
+#include "cinderx/StrictModules/analyzer.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/caller_context_impl.h"
-#include "StrictModules/exceptions.h"
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/exceptions.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 
 namespace strictmod {
 using namespace objects;

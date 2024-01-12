@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Compiler/analyzed_module.h"
-#include "StrictModules/Compiler/module_info.h"
-#include "StrictModules/analyzer.h"
-#include "StrictModules/error_sink.h"
+#include "cinderx/StrictModules/Compiler/analyzed_module.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/analyzer.h"
+#include "cinderx/StrictModules/error_sink.h"
 
 #include <functional>
 #include <memory>

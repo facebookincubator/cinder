@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/strobelight_exports.h"
+#include "cinderx/Jit/strobelight_exports.h"
 
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame.h"
 
-#include "Jit/runtime.h"
+#include "cinderx/Jit/runtime.h"
 
 int64_t __strobe_CodeRuntime_py_code = jit::CodeRuntime::kPyCodeOffset;
 int32_t __strobe_PyVersion_major = PY_MAJOR_VERSION;

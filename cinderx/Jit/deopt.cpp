@@ -1,13 +1,13 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/deopt.h"
+#include "cinderx/Jit/deopt.h"
 
-#include "Jit/bytecode_offsets.h"
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/hir/analysis.h"
-#include "Jit/jit_rt.h"
-#include "Jit/runtime.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/util.h"
 
 #include <folly/tracing/StaticTracepoint.h>
 

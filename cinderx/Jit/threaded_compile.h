@@ -4,7 +4,7 @@
 
 #include "Python.h"
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
 #include <atomic>
 #include <cassert>

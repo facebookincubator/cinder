@@ -4,8 +4,8 @@
 
 #include "Python.h"
 
-#include "Jit/log.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/ref.h"
 
 namespace jit {
 

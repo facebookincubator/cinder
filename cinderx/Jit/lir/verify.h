@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Jit/lir/function.h"
+#include "cinderx/Jit/lir/function.h"
 
 namespace jit::lir {
 

@@ -1,21 +1,21 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/compiler.h"
+#include "cinderx/Jit/compiler.h"
 
 #include "Python.h"
 
-#include "Jit/config.h"
-#include "Jit/disassembler.h"
-#include "Jit/hir/analysis.h"
-#include "Jit/hir/builder.h"
-#include "Jit/hir/optimization.h"
-#include "Jit/hir/preload.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/ssa.h"
-#include "Jit/jit_time_log.h"
-#include "Jit/log.h"
+#include "cinderx/Jit/config.h"
+#include "cinderx/Jit/disassembler.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/hir/builder.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/preload.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/ssa.h"
+#include "cinderx/Jit/jit_time_log.h"
+#include "cinderx/Jit/log.h"
 
-#include <json.hpp>
+#include "cinderx/ThirdParty/json/json.hpp"
 
 #include <chrono>
 #include <fstream>

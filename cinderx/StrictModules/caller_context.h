@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/error_sink.h"
+#include "cinderx/StrictModules/error_sink.h"
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
 #include <cassert>
 #include <memory>

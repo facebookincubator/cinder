@@ -4,8 +4,8 @@
 
 #include "sys/mman.h"
 
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <cstddef>
 #include <cstdlib>

@@ -1,13 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/bytecode.h"
+#include "cinderx/Jit/bytecode.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 using BytecodeInstructionIteratorTest = RuntimeTest;
 

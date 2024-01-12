@@ -1,15 +1,15 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/preload.h"
+#include "cinderx/Jit/hir/preload.h"
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/bytecode.h"
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/hir/optimization.h"
-#include "Jit/ref.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/util.h"
 
 #include <utility>
 

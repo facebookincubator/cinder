@@ -1,15 +1,15 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/autogen.h"
+#include "cinderx/Jit/codegen/autogen.h"
 
-#include "Jit/codegen/gen_asm_utils.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/deopt_patcher.h"
-#include "Jit/frame.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/gen_asm_utils.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/deopt_patcher.h"
+#include "cinderx/Jit/frame.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/util.h"
 
-#include <asmjit/x86/x86operand.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 
 #include <type_traits>
 #include <vector>

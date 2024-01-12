@@ -4,8 +4,8 @@
 
 #include "Python.h"
 
-#include "Jit/containers.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/util.h"
 
 #include <chrono>
 #include <memory>

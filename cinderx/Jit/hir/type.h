@@ -5,9 +5,9 @@
 #include "Python.h"
 #include "frameobject.h"
 
-#include "Jit/hir/type_generated.h"
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/hir/type_generated.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -313,5 +313,5 @@ struct std::hash<jit::hir::Type> {
 };
 
 #define incl_JIT_HIR_TYPE_INL_H
-#include "Jit/hir/type_inl.h"
+#include "cinderx/Jit/hir/type_inl.h"
 #undef incl_JIT_HIR_TYPE_INL_H

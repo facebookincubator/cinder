@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/copy_graph.h"
+#include "cinderx/Jit/codegen/copy_graph.h"
 
 namespace jit::codegen {
 

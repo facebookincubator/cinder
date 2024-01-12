@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/codegen/environ.h"
-#include "Jit/lir/rewrite.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/lir/rewrite.h"
 
 using namespace jit::codegen;
 

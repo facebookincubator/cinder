@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #ifdef __cplusplus
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 #include <charconv>
 #include <cstdarg>

@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Jit/symbolizer.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/symbolizer.h"
+#include "cinderx/Jit/util.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 using UtilTest = RuntimeTest;
 

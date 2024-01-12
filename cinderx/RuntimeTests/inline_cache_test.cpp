@@ -2,15 +2,15 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 #include "cinder/exports.h"
 #include "unicodeobject.h"
 
-#include "Jit/inline_cache.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/inline_cache.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 #include <cstring>
 

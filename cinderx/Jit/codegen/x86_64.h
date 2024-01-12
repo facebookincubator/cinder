@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/log.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/util.h"
 
 #include <array>
 #include <iosfwd>

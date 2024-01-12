@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/iterable_objects.h"
+#include "cinderx/StrictModules/Objects/iterable_objects.h"
 
 namespace strictmod::objects {
 typedef sequence_map<

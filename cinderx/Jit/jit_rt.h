@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Python.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 #include "frameobject.h"
 
 #include <array>

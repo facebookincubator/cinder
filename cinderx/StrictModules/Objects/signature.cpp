@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/signature.h"
+#include "cinderx/StrictModules/Objects/signature.h"
 
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/caller_context_impl.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 namespace strictmod::objects {
 

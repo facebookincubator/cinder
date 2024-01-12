@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/module.h"
+#include "cinderx/StrictModules/Objects/module.h"
 
 namespace strictmod::objects {
 StrictModuleObject::StrictModuleObject(

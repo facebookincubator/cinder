@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/lir/instruction.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/lir/instruction.h"
 
-#include <asmjit/asmjit.h>
-#include <json.hpp>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
+#include "cinderx/ThirdParty/json/json.hpp"
 
 #include <string>
 #include <vector>

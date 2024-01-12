@@ -1,13 +1,17 @@
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #define CINDERX_INTERPRETER
+#ifdef FBCODE_BUILD
+#include "ceval.c"
+#else
 #include "../../Python/ceval.c"
+#endif
 
-#include "Jit/pyjit.h"
-#include "Shadowcode/shadowcode.h"
-#include "StaticPython/checked_dict.h"
-#include "StaticPython/checked_list.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Shadowcode/shadowcode.h"
+#include "cinderx/StaticPython/checked_dict.h"
+#include "cinderx/StaticPython/checked_list.h"
+#include "cinderx/StaticPython/classloader.h"
 
 #define PYSHADOW_INIT_THRESHOLD 50
 
@@ -283,7 +287,7 @@ Ci_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 #if USE_COMPUTED_GOTOS
 /* Import the static jump table */
 #define CINDERX_INTERPRETER
-#include "Interpreter/cinderx_opcode_targets.h"
+#include "cinderx/Interpreter/cinderx_opcode_targets.h"
 #endif
 
 #ifdef DXPAIRS

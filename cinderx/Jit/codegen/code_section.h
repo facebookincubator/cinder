@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Jit/config.h"
+#include "cinderx/Jit/config.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <cstring>
 #include <vector>

@@ -4,11 +4,11 @@
 
 #include "Python.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/preload.h"
-#include "Jit/runtime.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/preload.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/util.h"
 
 #include <utility>
 

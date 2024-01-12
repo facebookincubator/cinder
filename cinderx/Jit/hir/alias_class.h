@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Jit/hir/type.h"
+#include "cinderx/Jit/hir/type.h"
 
 #include <cstdint>
 #include <iosfwd>

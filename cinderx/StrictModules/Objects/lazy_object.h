@@ -1,8 +1,8 @@
 #pragma once
 
-#include "StrictModules/Objects/instance.h"
-#include "StrictModules/Objects/iterable_objects.h"
-#include "StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/Objects/instance.h"
+#include "cinderx/StrictModules/Objects/iterable_objects.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
 
 #include <optional>
 

@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/operand.h"
+#include "cinderx/Jit/lir/operand.h"
 
-#include "Jit/lir/block.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/x86_64.h"
+#include "cinderx/Jit/lir/block.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/lir/x86_64.h"
 
 namespace jit::lir {
 

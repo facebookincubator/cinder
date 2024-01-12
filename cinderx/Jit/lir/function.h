@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Jit/lir/block.h"
+#include "cinderx/Jit/lir/block.h"
 
 #include <deque>
 #include <iostream>

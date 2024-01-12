@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Jit/codegen/environ.h"
-#include "Jit/lir/block.h"
-#include "Jit/lir/printer.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/lir/block.h"
+#include "cinderx/Jit/lir/printer.h"
 
 #include <functional>
 #include <memory>

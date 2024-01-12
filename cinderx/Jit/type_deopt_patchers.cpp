@@ -1,11 +1,11 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-#include "Jit/type_deopt_patchers.h"
+#include "cinderx/Jit/type_deopt_patchers.h"
 
 #include "structmember.h"
 
-#include "Jit/runtime.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/util.h"
 
 namespace jit {
 

@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/gen_asm_utils.h"
+#include "cinderx/Jit/codegen/gen_asm_utils.h"
 
-#include "Jit/codegen/environ.h"
+#include "cinderx/Jit/codegen/environ.h"
 
 namespace jit::codegen {
 

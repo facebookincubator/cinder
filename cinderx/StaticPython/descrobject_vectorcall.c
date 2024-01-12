@@ -4,8 +4,8 @@
 #include "cinder/hooks.h"
 #include "pycore_pystate.h"       // _PyThreadState_GET()
 
-#include "StaticPython/classloader.h"
-#include "StaticPython/descrobject_vectorcall.h"
+#include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/descrobject_vectorcall.h"
 
 static inline int
 Ci_method_check_args(PyObject *func, PyObject *const *args, Py_ssize_t nargs, size_t nargsf, PyObject *kwnames)

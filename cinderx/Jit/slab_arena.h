@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Jit/log.h"
-#include "Jit/slab.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/slab.h"
+#include "cinderx/Jit/util.h"
 
 #include <cstddef>
 #include <cstdlib>

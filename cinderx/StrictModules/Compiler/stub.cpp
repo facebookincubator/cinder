@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Compiler/stub.h"
+#include "cinderx/StrictModules/Compiler/stub.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
 #include <unordered_map>
 

@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/dce.h"
+#include "cinderx/Jit/lir/dce.h"
 
-#include "Jit/containers.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/operand.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/lir/operand.h"
+#include "cinderx/Jit/util.h"
 
 namespace jit::lir {
 

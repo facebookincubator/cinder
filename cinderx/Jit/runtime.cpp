@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/runtime.h"
+#include "cinderx/Jit/runtime.h"
 
-#include "Common/watchers.h"
+#include "cinderx/Common/watchers.h"
 #include "internal/pycore_interp.h"
 
-#include "Jit/type_deopt_patchers.h"
+#include "cinderx/Jit/type_deopt_patchers.h"
 
 #include <sys/mman.h>
 

@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Compiler/analyzed_module.h"
+#include "cinderx/StrictModules/Compiler/analyzed_module.h"
 
-#include "StrictModules/pystrictmodule.h"
+#include "cinderx/StrictModules/pystrictmodule.h"
 
 namespace strictmod::compiler {
 bool AnalyzedModule::isStrict() const {

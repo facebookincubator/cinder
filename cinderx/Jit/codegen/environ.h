@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "Jit/codegen/annotations.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/containers.h"
-#include "Jit/debug_info.h"
-#include "Jit/inline_cache.h"
-#include "Jit/jit_rt.h"
-#include "Jit/runtime.h"
+#include "cinderx/Jit/codegen/annotations.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/debug_info.h"
+#include "cinderx/Jit/inline_cache.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/runtime.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 namespace jit::codegen {
 

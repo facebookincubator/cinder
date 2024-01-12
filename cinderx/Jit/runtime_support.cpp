@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/runtime_support.h"
+#include "cinderx/Jit/runtime_support.h"
 
 #include "Python.h"
 #include "internal/pycore_pyerrors.h"
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 namespace jit {
 

@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context.h"
 #include "pycore_ast.h"
 
 namespace strictmod::objects {

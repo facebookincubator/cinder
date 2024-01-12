@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/bytecode_offsets.h"
-#include "Jit/log.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/log.h"
 
 #include <iterator>
 #include <unordered_set>

@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/numerics.h"
+#include "cinderx/StrictModules/Objects/numerics.h"
 
-#include "StrictModules/Objects/callable.h"
-#include "StrictModules/Objects/callable_wrapper.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/callable.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 
 #include <cmath>
 

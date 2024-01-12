@@ -29,8 +29,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #else
-#include "parallel_hashmap/btree.h"
-#include "parallel_hashmap/phmap.h"
+#include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/btree.h"
+#include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/phmap.h"
 #endif
 
 namespace jit {

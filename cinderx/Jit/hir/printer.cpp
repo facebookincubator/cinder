@@ -1,16 +1,16 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/printer.h"
+#include "cinderx/Jit/hir/printer.h"
 
 #include "Python.h"
 
-#include "Jit/hir/hir.h"
-#include "Jit/runtime.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/util.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
-#include <json.hpp>
+#include "cinderx/ThirdParty/json/json.hpp"
 
 #include <algorithm>
 #include <fstream>

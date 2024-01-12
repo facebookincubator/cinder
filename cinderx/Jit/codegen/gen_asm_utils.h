@@ -4,10 +4,10 @@
 
 #include "Python.h"
 
-#include "Jit/debug_info.h"
-#include "Jit/lir/instruction.h"
+#include "cinderx/Jit/debug_info.h"
+#include "cinderx/Jit/lir/instruction.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 namespace jit::codegen {
 

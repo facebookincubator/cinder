@@ -3,8 +3,8 @@
 
 #include "Python.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 class SanityTest : public RuntimeTest {};
 

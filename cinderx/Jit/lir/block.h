@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/lir/instruction.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/lir/instruction.h"
 
 #include <algorithm>
 #include <list>

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <asmjit/x86.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/x86.h"
 
 namespace jit {
 

@@ -1,12 +1,12 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/dict_watch.h"
+#include "cinderx/Jit/dict_watch.h"
 
-#include "Common/watchers.h"
+#include "cinderx/Common/watchers.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/global_cache.h"
-#include "Jit/pyjit.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/global_cache.h"
+#include "cinderx/Jit/pyjit.h"
 
 #include <set>
 #include <unordered_map>

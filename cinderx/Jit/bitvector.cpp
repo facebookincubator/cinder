@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/bitvector.h"
+#include "cinderx/Jit/bitvector.h"
 
 #include <algorithm>
 #include <cstdint>

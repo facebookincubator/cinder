@@ -1,12 +1,12 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/caller_context.h"
-#include "StrictModules/py_headers.h"
-#include "StrictModules/rewriter_attributes.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/py_headers.h"
+#include "cinderx/StrictModules/rewriter_attributes.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
 #include <fmt/format.h>
 

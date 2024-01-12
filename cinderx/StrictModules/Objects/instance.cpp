@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/instance.h"
+#include "cinderx/StrictModules/Objects/instance.h"
 
-#include "StrictModules/Objects/type.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/caller_context_impl.h"
+#include "cinderx/StrictModules/Objects/type.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/caller_context_impl.h"
 
 #include <stdexcept>
 

@@ -4,19 +4,19 @@
 
 #include "Python.h"
 
-#include "Jit/containers.h"
-#include "Jit/debug_info.h"
-#include "Jit/deopt.h"
-#include "Jit/fixed_type_profiler.h"
-#include "Jit/global_cache.h"
-#include "Jit/inline_cache.h"
-#include "Jit/jit_rt.h"
-#include "Jit/profile_runtime.h"
-#include "Jit/pyjit.h"
-#include "Jit/slab_arena.h"
-#include "Jit/symbolizer.h"
-#include "Jit/threaded_compile.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/debug_info.h"
+#include "cinderx/Jit/deopt.h"
+#include "cinderx/Jit/fixed_type_profiler.h"
+#include "cinderx/Jit/global_cache.h"
+#include "cinderx/Jit/inline_cache.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/profile_runtime.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/slab_arena.h"
+#include "cinderx/Jit/symbolizer.h"
+#include "cinderx/Jit/threaded_compile.h"
+#include "cinderx/Jit/util.h"
 
 #include <optional>
 #include <string_view>

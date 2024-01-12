@@ -1,14 +1,14 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/base_object.h"
-#include "StrictModules/Objects/dict_object.h"
-#include "StrictModules/ast_visitor.h"
-#include "StrictModules/caller_context.h"
-#include "StrictModules/error_sink.h"
-#include "StrictModules/py_headers.h"
-#include "StrictModules/scope.h"
-#include "StrictModules/sequence_map.h"
+#include "cinderx/StrictModules/Objects/base_object.h"
+#include "cinderx/StrictModules/Objects/dict_object.h"
+#include "cinderx/StrictModules/ast_visitor.h"
+#include "cinderx/StrictModules/caller_context.h"
+#include "cinderx/StrictModules/error_sink.h"
+#include "cinderx/StrictModules/py_headers.h"
+#include "cinderx/StrictModules/scope.h"
+#include "cinderx/StrictModules/sequence_map.h"
 
 #include <memory>
 #include <optional>

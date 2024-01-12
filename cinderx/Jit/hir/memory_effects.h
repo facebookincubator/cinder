@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/bitvector.h"
-#include "Jit/hir/alias_class.h"
+#include "cinderx/Jit/bitvector.h"
+#include "cinderx/Jit/hir/alias_class.h"
 
 #include <iosfwd>
 

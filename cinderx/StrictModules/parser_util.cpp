@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/parser_util.h"
+#include "cinderx/StrictModules/parser_util.h"
 
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 
 #include <fstream>
 

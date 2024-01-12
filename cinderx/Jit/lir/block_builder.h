@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/codegen/environ.h"
-#include "Jit/hir/hir.h"
-#include "Jit/lir/block.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/lir/block.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Python.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 
-#include "Jit/global_cache.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/type.h"
-#include "Jit/log.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/global_cache.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/ref.h"
 
 #include <map>
 #include <unordered_map>

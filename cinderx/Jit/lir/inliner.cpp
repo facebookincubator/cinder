@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/inliner.h"
+#include "cinderx/Jit/lir/inliner.h"
 
-#include "Jit/containers.h"
-#include "Jit/lir/c_helper_translations.h"
-#include "Jit/lir/parser.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/c_helper_translations.h"
+#include "cinderx/Jit/lir/parser.h"
 
 #include <shared_mutex>
 #include <string_view>

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Jit/bitvector.h"
+#include "cinderx/Jit/bitvector.h"
 
 #include <algorithm>
 #include <list>

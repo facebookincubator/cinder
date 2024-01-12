@@ -2,21 +2,21 @@
 
 #pragma once
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 #include "code.h"
 
-#include "Jit/bytecode.h"
-#include "Jit/config.h"
-#include "Jit/deopt_patcher.h"
-#include "Jit/hir/register.h"
-#include "Jit/hir/type.h"
-#include "Jit/intrusive_list.h"
-#include "Jit/jit_rt.h"
-#include "Jit/jit_time_log.h"
-#include "Jit/ref.h"
-#include "Jit/stack.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode.h"
+#include "cinderx/Jit/config.h"
+#include "cinderx/Jit/deopt_patcher.h"
+#include "cinderx/Jit/hir/register.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/intrusive_list.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/jit_time_log.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/stack.h"
+#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <array>

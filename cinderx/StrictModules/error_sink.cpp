@@ -1,5 +1,5 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/error_sink.h"
+#include "cinderx/StrictModules/error_sink.h"
 
 namespace strictmod {
 bool BaseErrorSink::hasError() const {

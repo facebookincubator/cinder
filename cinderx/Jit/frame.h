@@ -6,7 +6,7 @@
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame_struct.h"
 
-#include "Jit/ref.h"
+#include "cinderx/Jit/ref.h"
 
 namespace jit {
 

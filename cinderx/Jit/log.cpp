@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
-#include "Jit/threaded_compile.h"
+#include "cinderx/Jit/threaded_compile.h"
 
 namespace jit {
 

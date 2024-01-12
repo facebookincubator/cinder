@@ -1,7 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/block.h"
-#include "Jit/lir/printer.h"
+#include "cinderx/Jit/lir/block.h"
+#include "cinderx/Jit/lir/printer.h"
 
 #include <iomanip>
 #include <utility>

@@ -1,10 +1,10 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/Objects/base_object.h"
-#include "StrictModules/Objects/objects.h"
-#include "StrictModules/Objects/type.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Objects/base_object.h"
+#include "cinderx/StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/type.h"
 
 namespace strictmod::objects {
 std::shared_ptr<BaseStrictObject> iGetDescr(

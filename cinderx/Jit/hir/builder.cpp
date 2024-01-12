@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/builder.h"
+#include "cinderx/Jit/hir/builder.h"
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
-#include "StaticPython/checked_dict.h"
-#include "StaticPython/checked_list.h"
+#include "cinderx/StaticPython/checked_dict.h"
+#include "cinderx/StaticPython/checked_list.h"
 #include "boolobject.h"
 #include "ceval.h"
 #include "object.h"
@@ -13,19 +13,19 @@
 #include "structmember.h"
 #include "type.h"
 
-#include "Jit/bitvector.h"
-#include "Jit/bytecode.h"
-#include "Jit/codegen/environ.h"
-#include "Jit/containers.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/optimization.h"
-#include "Jit/hir/preload.h"
-#include "Jit/hir/ssa.h"
-#include "Jit/hir/type.h"
-#include "Jit/profile_runtime.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
-#include "Jit/threaded_compile.h"
+#include "cinderx/Jit/bitvector.h"
+#include "cinderx/Jit/bytecode.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/preload.h"
+#include "cinderx/Jit/hir/ssa.h"
+#include "cinderx/Jit/hir/type.h"
+#include "cinderx/Jit/profile_runtime.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/threaded_compile.h"
 
 #include <folly/tracing/StaticTracepoint.h>
 

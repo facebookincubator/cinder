@@ -6,8 +6,8 @@
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_moduleobject.h"  // _PyModule_GetDef()
 #include "structmember.h"         // PyMemberDef
-#include "StaticPython/strictmoduleobject.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/classloader.h"
 
 static inline PyObject* Ci_StrictModuleGetDictSetter(PyObject *mod) {
     assert(Ci_StrictModule_Check(mod));

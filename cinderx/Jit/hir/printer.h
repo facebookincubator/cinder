@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "Jit/hir/hir.h"
+#include "cinderx/Jit/hir/hir.h"
 
-#include <json.hpp>
+#include "cinderx/ThirdParty/json/json.hpp"
 
 #include <iostream>
 #include <sstream>

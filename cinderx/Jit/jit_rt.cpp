@@ -1,10 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/jit_rt.h"
+#include "cinderx/Jit/jit_rt.h"
 
 #include "Objects/dict-common.h"
 #include "Python.h"
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 #include "cinder/exports.h"
 #include "frameobject.h"
 #include "listobject.h"
@@ -12,14 +12,14 @@
 #include "pycore_shadow_frame.h"
 #include "pystate.h"
 
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/frame.h"
-#include "Jit/log.h"
-#include "Jit/pyjit.h"
-#include "Jit/ref.h"
-#include "Jit/runtime.h"
-#include "Jit/runtime_support.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/frame.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/runtime_support.h"
+#include "cinderx/Jit/util.h"
 
 // clang-format off
 #include "internal/pycore_pyerrors.h"

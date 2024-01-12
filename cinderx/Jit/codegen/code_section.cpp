@@ -1,8 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/codegen/code_section.h"
+#include "cinderx/Jit/codegen/code_section.h"
 
-#include "Jit/log.h"
+#include "cinderx/Jit/log.h"
 
 namespace jit::codegen {
 const char* codeSectionName(CodeSection section) {

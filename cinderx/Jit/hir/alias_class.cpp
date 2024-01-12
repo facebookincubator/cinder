@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/alias_class.h"
+#include "cinderx/Jit/hir/alias_class.h"
 
 #include <fmt/ostream.h>
 

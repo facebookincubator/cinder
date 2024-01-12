@@ -1,11 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/lir/parser.h"
+#include "cinderx/Jit/lir/parser.h"
 
-#include "Jit/codegen/code_section.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/lir/operand.h"
-#include "Jit/lir/symbol_mapping.h"
+#include "cinderx/Jit/codegen/code_section.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/lir/operand.h"
+#include "cinderx/Jit/lir/symbol_mapping.h"
 
 #include <algorithm>
 #include <cctype>

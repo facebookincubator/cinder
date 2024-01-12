@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/hir/hir.h"
-#include "Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/optimization.h"
 
 #include <fmt/format.h>
 

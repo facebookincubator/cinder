@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 
-#include "StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
 
 namespace strictmod::objects {
 

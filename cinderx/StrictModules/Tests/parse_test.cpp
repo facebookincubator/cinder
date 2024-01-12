@@ -1,7 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 
-#include "StrictModules/Tests/test.h"
-#include "StrictModules/parser_util.h"
+#include "cinderx/StrictModules/Tests/test.h"
+#include "cinderx/StrictModules/parser_util.h"
 
 class ParserTest : public PythonTest {};
 

@@ -1,13 +1,13 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/hir/parser.h"
+#include "cinderx/Jit/hir/parser.h"
 
-#include "StaticPython/classloader.h"
+#include "cinderx/StaticPython/classloader.h"
 #include "pycore_tuple.h"
 
-#include "Jit/hir/hir.h"
-#include "Jit/log.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/ref.h"
 
 #include <algorithm>
 #include <cctype>

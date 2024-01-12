@@ -1,6 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
-#include "StrictModules/Compiler/module_info.h"
+#include "cinderx/StrictModules/Compiler/module_info.h"
 namespace strictmod::compiler {
 class ModuleLoader;
 

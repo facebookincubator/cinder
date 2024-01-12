@@ -5,11 +5,11 @@
 #include "Python.h"
 #include "frameobject.h"
 
-#include "Jit/bytecode_offsets.h"
-#include "Jit/containers.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/ref.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <cstdint>
 #include <optional>

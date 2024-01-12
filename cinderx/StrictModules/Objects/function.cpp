@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Objects/function.h"
+#include "cinderx/StrictModules/Objects/function.h"
 
-#include "StrictModules/Objects/callable_wrapper.h"
-#include "StrictModules/Objects/object_interface.h"
-#include "StrictModules/Objects/objects.h"
+#include "cinderx/StrictModules/Objects/callable_wrapper.h"
+#include "cinderx/StrictModules/Objects/object_interface.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 
 namespace strictmod::objects {
 FunctionReturnException::FunctionReturnException(

@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "Jit/codegen/environ.h"
-#include "Jit/containers.h"
-#include "Jit/hir/hir.h"
-#include "Jit/jit_rt.h"
-#include "Jit/lir/block_builder.h"
-#include "Jit/lir/function.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/lir/block_builder.h"
+#include "cinderx/Jit/lir/function.h"
 
 #include <memory>
 #include <string>

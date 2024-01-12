@@ -1,16 +1,16 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
 #include "Python.h"
-#include "StaticPython/strictmoduleobject.h"
+#include "cinderx/StaticPython/strictmoduleobject.h"
 #include "structmember.h"
 #include "type.h"
 
-#include "Jit/hir/optimization.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/ssa.h"
-#include "Jit/profile_runtime.h"
-#include "Jit/runtime.h"
-#include "Jit/type_deopt_patchers.h"
+#include "cinderx/Jit/hir/optimization.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/ssa.h"
+#include "cinderx/Jit/profile_runtime.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/type_deopt_patchers.h"
 
 #include <fmt/ostream.h>
 

@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/containers.h"
-#include "Jit/lir/printer.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/printer.h"
 
 #include <memory>
 #include <string>

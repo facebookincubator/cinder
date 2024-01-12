@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
-#include "StrictModules/Objects/instance.h"
-#include "StrictModules/Objects/object_type.h"
-#include "StrictModules/Objects/signature.h"
-#include "StrictModules/analyzer.h"
+#include "cinderx/StrictModules/Objects/instance.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/Objects/signature.h"
+#include "cinderx/StrictModules/analyzer.h"
 
 namespace strictmod::compiler {
 class ModuleLoader;

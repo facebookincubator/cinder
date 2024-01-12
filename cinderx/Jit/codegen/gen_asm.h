@@ -2,18 +2,18 @@
 
 #pragma once
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/bitvector.h"
-#include "Jit/codegen/environ.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/hir/hir.h"
-#include "Jit/jit_rt.h"
-#include "Jit/lir/printer.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bitvector.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/lir/printer.h"
+#include "cinderx/Jit/util.h"
 
-#include <asmjit/asmjit.h>
+#include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <algorithm>
 #include <list>

@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "Jit/frame.h"
+#include "cinderx/Jit/frame.h"
 
 #include "Python.h"
 #include "cinder/exports.h"
@@ -8,11 +8,11 @@
 #include "internal/pycore_shadow_frame.h"
 #include "pycore_object.h"
 
-#include "Jit/bytecode_offsets.h"
-#include "Jit/debug_info.h"
-#include "Jit/log.h"
-#include "Jit/runtime.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/bytecode_offsets.h"
+#include "cinderx/Jit/debug_info.h"
+#include "cinderx/Jit/log.h"
+#include "cinderx/Jit/runtime.h"
+#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <functional>

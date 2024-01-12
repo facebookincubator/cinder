@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/containers.h"
-#include "Jit/lir/block.h"
+#include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/lir/block.h"
 
 #include <memory>
 #include <unordered_map>

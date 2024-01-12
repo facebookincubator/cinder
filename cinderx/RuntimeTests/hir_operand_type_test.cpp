@@ -1,16 +1,16 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "Interpreter/opcode.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
 
-#include "Jit/hir/analysis.h"
-#include "Jit/hir/hir.h"
-#include "Jit/hir/parser.h"
-#include "Jit/hir/printer.h"
-#include "Jit/hir/ssa.h"
+#include "cinderx/Jit/hir/analysis.h"
+#include "cinderx/Jit/hir/hir.h"
+#include "cinderx/Jit/hir/parser.h"
+#include "cinderx/Jit/hir/printer.h"
+#include "cinderx/Jit/hir/ssa.h"
 
-#include "RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/fixtures.h"
 
 using namespace jit::hir;
 

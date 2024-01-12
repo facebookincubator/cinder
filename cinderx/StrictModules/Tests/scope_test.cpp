@@ -1,6 +1,6 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
-#include "StrictModules/Tests/test.h"
-#include "StrictModules/scope.h"
+#include "cinderx/StrictModules/Tests/test.h"
+#include "cinderx/StrictModules/scope.h"
 
 #include <utility>
 class ScopeTest : public PythonTest {};

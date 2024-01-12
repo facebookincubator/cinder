@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Jit/codegen/environ.h"
-#include "Jit/util.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/util.h"
 
 #include <memory>
 #include <unordered_map>

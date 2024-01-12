@@ -3,21 +3,21 @@
 
 #include "Python.h"
 
-#include "Jit/codegen/autogen.h"
-#include "Jit/codegen/environ.h"
-#include "Jit/codegen/gen_asm.h"
-#include "Jit/codegen/x86_64.h"
-#include "Jit/jit_rt.h"
-#include "Jit/lir/inliner.h"
-#include "Jit/lir/instruction.h"
-#include "Jit/lir/parser.h"
-#include "Jit/lir/postalloc.h"
-#include "Jit/lir/postgen.h"
-#include "Jit/lir/regalloc.h"
-#include "Jit/ref.h"
+#include "cinderx/Jit/codegen/autogen.h"
+#include "cinderx/Jit/codegen/environ.h"
+#include "cinderx/Jit/codegen/gen_asm.h"
+#include "cinderx/Jit/codegen/x86_64.h"
+#include "cinderx/Jit/jit_rt.h"
+#include "cinderx/Jit/lir/inliner.h"
+#include "cinderx/Jit/lir/instruction.h"
+#include "cinderx/Jit/lir/parser.h"
+#include "cinderx/Jit/lir/postalloc.h"
+#include "cinderx/Jit/lir/postgen.h"
+#include "cinderx/Jit/lir/regalloc.h"
+#include "cinderx/Jit/ref.h"
 
-#include "RuntimeTests/fixtures.h"
-#include "RuntimeTests/testutil.h"
+#include "cinderx/RuntimeTests/fixtures.h"
+#include "cinderx/RuntimeTests/testutil.h"
 
 #include <filesystem>
 #include <fstream>

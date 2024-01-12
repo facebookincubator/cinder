@@ -4,7 +4,7 @@
 
 #include "Python.h"
 
-#include "Jit/util.h"
+#include "cinderx/Jit/util.h"
 
 #include <limits>
 #include <ostream>

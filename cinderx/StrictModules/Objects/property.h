@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #pragma once
 
-#include "StrictModules/Objects/object_type.h"
-#include "StrictModules/Objects/string_object.h"
+#include "cinderx/StrictModules/Objects/object_type.h"
+#include "cinderx/StrictModules/Objects/string_object.h"
 namespace strictmod::objects {
 class StrictProperty : public StrictInstance {
  public:

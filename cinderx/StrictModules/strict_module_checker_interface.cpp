@@ -1,9 +1,9 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include "strict_module_checker_interface.h"
 
-#include "StrictModules/Compiler/abstract_module_loader.h"
-#include "StrictModules/Compiler/analyzed_module.h"
-#include "StrictModules/pycore_dependencies.h"
+#include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
+#include "cinderx/StrictModules/Compiler/analyzed_module.h"
+#include "cinderx/StrictModules/pycore_dependencies.h"
 
 #include <string>
 #include <utility>
