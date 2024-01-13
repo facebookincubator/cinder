@@ -4201,28 +4201,16 @@ get_or_make_thunk(PyObject *func, PyObject *original, PyObject* container, PyObj
     if (thunk == NULL) {
         return NULL;
     }
-    thunk->thunk_tcs.tcs_value = func;
-    Py_INCREF(func);
+
     PyObject *func_name = classloader_get_func_name(name);
     thunk->thunk_tcs.tcs_rt.rt_name = func_name;
     Py_INCREF(func_name);
     thunk->thunk_cls = type;
     Py_XINCREF(type);
     thunk->thunk_vectorcall = (vectorcallfunc)&thunk_vectorcall;
+    thunk->thunk_tcs.tcs_value = NULL;
 
-    PyObject *funcref;
-    if (func == original) {
-        funcref = original;
-    } else {
-        funcref = (PyObject *)thunk;
-    }
-    PyObject *unwrapped = classloader_maybe_unwrap_callable(funcref);
-    if (unwrapped != NULL) {
-        thunk->thunk_funcref = unwrapped;
-        Py_DECREF(unwrapped);
-    } else {
-        thunk->thunk_funcref = funcref;
-    }
+    update_thunk(thunk, original, func);
 
     thunk->thunk_tcs.tcs_rt.rt_expected = (PyTypeObject *)_PyClassLoader_ResolveReturnType(
                                                                original,
