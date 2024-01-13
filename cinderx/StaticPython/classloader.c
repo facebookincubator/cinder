@@ -2807,8 +2807,13 @@ update_thunk(_Py_StaticThunk *thunk, PyObject *previous, PyObject *new_value)
 {
     Py_CLEAR(thunk->thunk_tcs.tcs_value);
     if (new_value != NULL) {
-        thunk->thunk_tcs.tcs_value = new_value;
-        Py_INCREF(new_value);
+        PyObject *unwrapped_new = classloader_maybe_unwrap_callable(new_value);
+        if (unwrapped_new != NULL) {
+            thunk->thunk_tcs.tcs_value = unwrapped_new;
+        } else {
+            thunk->thunk_tcs.tcs_value = new_value;
+            Py_INCREF(new_value);
+        }
     }
     PyObject *funcref;
     if (new_value == previous) {
@@ -4258,6 +4263,13 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
         original = NULL;
     }
 
+    if (original != NULL) {
+        PyObject *res = (PyObject *)get_or_make_thunk(func, original, *container, containerkey);
+        Py_DECREF(func);
+        assert(res != NULL);
+        return res;
+    }
+
     if (func != NULL) {
         if (Py_TYPE(func) == &PyStaticMethod_Type) {
             PyObject *res = Ci_PyStaticMethod_GetFunc(func);
@@ -4271,13 +4283,6 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
             Py_DECREF(func);
             func = res;
         }
-    }
-
-    if (original != NULL) {
-        PyObject *res = (PyObject *)get_or_make_thunk(func, original, *container, containerkey);
-        Py_DECREF(func);
-        assert(res != NULL);
-        return res;
     }
 
     return func;

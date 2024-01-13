@@ -257,6 +257,28 @@ class StaticPatchTests(StaticTestBase):
             with patch(f"{mod.__name__}.C.f", autospec=True, return_value=100) as p:
                 self.assertEqual(g(), 100)
 
+    def test_patch_staticmethod_with_staticmethod(self):
+        codestr = """
+            class C:
+                @staticmethod
+                def f():
+                    return 42
+
+            def g():
+                return C.f()
+        """
+        with self.in_module(codestr) as mod:
+            g = mod.g
+            for i in range(100):
+                self.assertEqual(g(), 42)
+
+            @staticmethod
+            def new():
+                return 100
+
+            mod.C.f = new
+            self.assertEqual(g(), 100)
+
     def test_patch_static_function_non_autospec(self):
         codestr = """
             class C:
