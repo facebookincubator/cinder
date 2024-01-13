@@ -11,7 +11,6 @@ extern "C" {
 
 /* Hooks needed by CinderX that have not been added to upstream. */
 
-CiAPI_DATA(int) Ci_CallDescriptorOnInvokeFunction;
 CiAPI_DATA(int) _PyEval_ShadowByteCodeEnabled;
 CiAPI_DATA(int) _PyShadow_PolymorphicCacheEnabled;
 

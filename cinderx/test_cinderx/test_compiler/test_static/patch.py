@@ -290,22 +290,9 @@ class StaticPatchTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             g = mod.g
             c = mod.C()
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
-                self.assertEqual(g(c), 100)
-                self.assertEqual(len(p.call_args[0]), 1)
-                self.assertEqual(p.call_args[0][0], c)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": True})
             with patch(f"{mod.__name__}.C.f", return_value=100) as p:
                 self.assertEqual(g(c), 100)
                 self.assertEqual(len(p.call_args[0]), 0)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
-                self.assertEqual(g(c), 100)
-                self.assertEqual(len(p.call_args[0]), 1)
-                self.assertEqual(p.call_args[0][0], c)
 
     @save_restore_knobs()
     def test_patch_coro_non_autospec(self):
@@ -323,32 +310,12 @@ class StaticPatchTests(StaticTestBase):
         with self.in_module(codestr) as mod:
             g = mod.g
             c = mod.C()
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
-                try:
-                    g(c).send(None)
-                except StopIteration as e:
-                    self.assertEqual(e.args[0], 100)
-
-                self.assertEqual(len(p.call_args[0]), 1)
-                self.assertEqual(p.call_args[0][0], c)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": True})
             with patch(f"{mod.__name__}.C.f", return_value=100) as p:
                 try:
                     g(c).send(None)
                 except StopIteration as e:
                     self.assertEqual(e.args[0], 100)
                 self.assertEqual(len(p.call_args[0]), 0)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            with patch(f"{mod.__name__}.C.f", return_value=100) as p:
-                try:
-                    g(c).send(None)
-                except StopIteration as e:
-                    self.assertEqual(e.args[0], 100)
-                self.assertEqual(len(p.call_args[0]), 1)
-                self.assertEqual(p.call_args[0][0], c)
 
     def test_patch_classmethod_non_autospec(self):
         codestr = """
@@ -397,21 +364,6 @@ class StaticPatchTests(StaticTestBase):
             g = mod.g
             c = mod.C()
             p = MagicMock(return_value=100)
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            mod.patch(f"f", p)
-            self.assertEqual(g(c), 100)
-            self.assertEqual(len(p.call_args[0]), 1)
-            self.assertEqual(p.call_args[0][0], c)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": True})
-            p = MagicMock(return_value=100)
-            mod.patch(f"f", p)
-            self.assertEqual(g(c), 100)
-            self.assertEqual(len(p.call_args[0]), 1)
-            self.assertEqual(p.call_args[0][0], c)
-
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            p = MagicMock(return_value=100)
             mod.patch(f"f", p)
             self.assertEqual(g(c), 100)
             self.assertEqual(len(p.call_args[0]), 1)
@@ -449,24 +401,9 @@ class StaticPatchTests(StaticTestBase):
             c = mod.C()
             p = Patch()
             C.f = p
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            self.assertEqual(g(c), 100)
-            self.assertEqual(p.get_called, False)
-            self.assertEqual(p.call, ((c,), {}))
-
-            cinder.setknobs({"calldescriptoroninvokefunction": True})
-            p = Patch()
-            C.f = p
             self.assertEqual(g(c), 100)
             self.assertEqual(p.get_called, True)
             self.assertEqual(p.call, ((), {}))
-
-            cinder.setknobs({"calldescriptoroninvokefunction": False})
-            p = Patch()
-            C.f = p
-            self.assertEqual(g(c), 100)
-            self.assertEqual(p.get_called, False)
-            self.assertEqual(p.call, ((c,), {}))
 
     def test_patch_primitive_ret_type(self):
         for type_name, value, patched in [

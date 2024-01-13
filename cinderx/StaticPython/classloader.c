@@ -2419,8 +2419,7 @@ thunk_vectorcall(_Py_StaticThunk *thunk, PyObject *const *args,
         return rettype_check(thunk->thunk_cls, res, (_PyClassLoader_RetTypeInfo *)thunk);
     }
 
-    if (Ci_CallDescriptorOnInvokeFunction &&
-        !(thunk->thunk_flags & Ci_FUNC_FLAGS_STATICMETHOD) &&
+    if (!(thunk->thunk_flags & Ci_FUNC_FLAGS_STATICMETHOD) &&
         !PyFunction_Check(func)) {
 
         PyObject *callable;
@@ -4280,21 +4279,29 @@ _PyClassLoader_ResolveFunction(PyObject *path, PyObject **container)
         assert(res != NULL);
         return res;
     }
+
     return func;
 }
 
 PyObject **
-_PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *container) {
-    PyObject **cache = NULL;
-    if (_PyVectorcall_Function(func) == NULL) {
-        goto done;
+_PyClassLoader_ResolveIndirectPtr(PyObject *path) {
+    PyObject *container;
+    PyObject *name;
+    PyObject *func =
+        classloader_get_member(path, PyTuple_GET_SIZE(path), &container, &name);
+    if (func == NULL) {
+        return NULL;
     }
-    PyObject *name = PyTuple_GET_ITEM(path, PyTuple_GET_SIZE(path) - 1);
+
+    // for performance reason should only be used on mutable containers
+    assert(!_PyClassLoader_IsImmutable(container));
+
+    PyObject **cache = NULL;
     int use_thunk = 0;
     if (PyType_Check(container)) {
         _PyType_VTable *vtable = _PyClassLoader_EnsureVtable((PyTypeObject *)container, 1);
         if (vtable == NULL) {
-            return NULL;
+            goto error;
         }
         use_thunk = 1;
     } else if (Ci_StrictModule_Check(container)) {
@@ -4313,14 +4320,16 @@ _PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *containe
          * case func is the original function in the type. */
         _Py_StaticThunk *thunk = get_or_make_thunk(func, func, container, name);
         if (thunk == NULL) {
-            return NULL;
+            goto error;
         }
 
         cache = &thunk->thunk_funcref;
         Py_DECREF(thunk);
     }
-done:
 
+error:
+    Py_DECREF(container);
+    Py_DECREF(func);
     return cache;
 }
 

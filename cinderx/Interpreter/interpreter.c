@@ -4145,11 +4145,7 @@ main_loop:
                             &shadow, next_instr, INVOKE_FUNCTION_CACHED, (nargs<<8) | offset);
                     }
                 } else {
-                    PyObject **funcptr = _PyClassLoader_GetIndirectPtr(
-                        target,
-                        func,
-                        container
-                    );
+                    PyObject **funcptr = _PyClassLoader_ResolveIndirectPtr(target);
                     int offset =
                         _PyShadow_CacheFunction(&shadow, funcptr);
                     if (offset != -1) {

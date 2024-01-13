@@ -171,7 +171,7 @@ _PyClassLoader_IsPatchedThunk(PyObject *obj);
 * to be re-resolved.
 */
 CiAPI_FUNC(PyObject **)
-_PyClassLoader_GetIndirectPtr(PyObject *path, PyObject *func, PyObject *container);
+_PyClassLoader_ResolveIndirectPtr(PyObject *path);
 
 /* Checks to see if the given container is immutable */
 CiAPI_FUNC(int)

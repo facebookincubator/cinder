@@ -37,12 +37,6 @@ cinder_setknobs(PyObject *self, PyObject *o)
     }
 
 
-    PyObject* calldesc = PyDict_GetItemString(o, "calldescriptoroninvokefunction");
-    if (calldesc != NULL) {
-        int enabled = PyObject_IsTrue(calldesc);
-        Ci_CallDescriptorOnInvokeFunction = enabled != -1 && enabled;
-    }
-
     Py_RETURN_NONE;
 }
 
@@ -76,14 +70,6 @@ cinder_getknobs(PyObject *self, PyObject *args)
     err = PyDict_SetItemString(res,
                                "polymorphiccache",
                                _PyShadow_PolymorphicCacheEnabled ? Py_True
-                                                                 : Py_False);
-    if (err == -1) {
-        return NULL;
-    }
-
-    err = PyDict_SetItemString(res,
-                               "calldescriptoroninvokefunction",
-                               Ci_CallDescriptorOnInvokeFunction ? Py_True
                                                                  : Py_False);
     if (err == -1) {
         return NULL;

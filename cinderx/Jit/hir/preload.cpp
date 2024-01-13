@@ -186,8 +186,7 @@ std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
     target->uses_runtime_func =
         target->is_function && usesRuntimeFunc(target->func()->func_code);
     if (!target->container_is_immutable) {
-      target->indirect_ptr =
-          _PyClassLoader_GetIndirectPtr(descr, target->callable, container);
+      target->indirect_ptr = _PyClassLoader_ResolveIndirectPtr(descr);
       if (target->indirect_ptr == nullptr) {
         if (PyErr_Occurred()) {
           PyErr_WriteUnraisable(descr);

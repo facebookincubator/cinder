@@ -5,7 +5,6 @@
 
 #include "internal/pycore_shadow_frame.h"
 
-int Ci_CallDescriptorOnInvokeFunction = 0;
 int _PyEval_ShadowByteCodeEnabled = 1;
 int _PyShadow_PolymorphicCacheEnabled = 1;
 
