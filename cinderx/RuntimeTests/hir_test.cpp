@@ -1,8 +1,8 @@
 // Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
 #include <gtest/gtest.h>
 
-#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/compiler.h"
 #include "cinderx/Jit/hir/builder.h"

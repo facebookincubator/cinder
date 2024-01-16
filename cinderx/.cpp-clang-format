@@ -48,16 +48,22 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex:     '<gtest/.*>'
     Priority:  1
-  - Regex:     '"Jit/.*"'
+  - Regex:     '"cinderx/Jit/.*"'
     Priority:  3
-  - Regex:     '"RuntimeTests/.*"'
+  - Regex:     '"cinderx/RuntimeTests/.*"'
     Priority:  4
-  - Regex:     '".*"'
+# Third-party headers that we've vendored in are grouped right before other
+# third-party code.
+  - Regex:     '"cinderx/ThirdParty/.*"'
+    Priority:  5
+# Any other paths in cinderx/ are assumed to be files that used to be in
+# upstream directories, so we group their includes with upstream files.
+  - Regex:     '"(cinderx/)?.*"'
     Priority:  2
   - Regex:     '^<.*\.h(pp)?>'
-    Priority:  5
-  - Regex:     '^<.*'
     Priority:  6
+  - Regex:     '^<.*'
+    Priority:  7
 IndentCaseLabels: true
 IndentWidth:     2
 IndentWrappedFunctionNames: false

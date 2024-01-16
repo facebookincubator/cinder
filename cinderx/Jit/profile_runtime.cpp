@@ -2,9 +2,9 @@
 
 #include "cinderx/Jit/profile_runtime.h"
 
-#include "cinderx/Interpreter/opcode.h"
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "frameobject.h"
 
 #include "cinderx/Jit/hir/type.h"

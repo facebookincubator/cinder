@@ -2,8 +2,8 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
-#include "cinderx/StrictModules/Objects/objects.h"
 #include "cinder/exports.h"
+#include "cinderx/StrictModules/Objects/objects.h"
 #include "unicodeobject.h"
 
 #include "cinderx/Jit/inline_cache.h"

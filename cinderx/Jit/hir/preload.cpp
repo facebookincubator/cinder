@@ -2,8 +2,8 @@
 
 #include "cinderx/Jit/hir/preload.h"
 
-#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
+#include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/bytecode.h"
 #include "cinderx/Jit/codegen/gen_asm.h"

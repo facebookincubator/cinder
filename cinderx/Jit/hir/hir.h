@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
+#include "cinderx/Interpreter/opcode.h"
 #include "code.h"
 
 #include "cinderx/Jit/bytecode.h"

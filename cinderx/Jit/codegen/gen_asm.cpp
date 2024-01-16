@@ -3,8 +3,8 @@
 #include "cinderx/Jit/codegen/gen_asm.h"
 
 #include "Python.h"
-#include "cinderx/StaticPython/classloader.h"
 #include "cinder/exports.h"
+#include "cinderx/StaticPython/classloader.h"
 #include "frameobject.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"

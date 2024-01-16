@@ -6,8 +6,9 @@
 
 #include "cinderx/Jit/log.h"
 
-#include <fmt/format.h>
 #include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/phmap.h"
+
+#include <fmt/format.h>
 
 #include <iostream>
 #include <memory>

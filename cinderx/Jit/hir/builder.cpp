@@ -2,12 +2,12 @@
 
 #include "cinderx/Jit/hir/builder.h"
 
-#include "cinderx/Interpreter/opcode.h"
 #include "Python.h"
-#include "cinderx/StaticPython/checked_dict.h"
-#include "cinderx/StaticPython/checked_list.h"
 #include "boolobject.h"
 #include "ceval.h"
+#include "cinderx/Interpreter/opcode.h"
+#include "cinderx/StaticPython/checked_dict.h"
+#include "cinderx/StaticPython/checked_list.h"
 #include "object.h"
 #include "preload.h"
 #include "structmember.h"
