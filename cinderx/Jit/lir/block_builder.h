@@ -306,7 +306,7 @@ class BasicBlockBuilder {
  private:
   const hir::Instr* cur_hir_instr_{nullptr};
   std::optional<std::size_t> cur_deopt_metadata_;
-  BasicBlock* cur_bb_;
+  BasicBlock* cur_bb_{nullptr};
   std::vector<BasicBlock*> bbs_;
   jit::codegen::Environ* env_;
   Function* func_;

@@ -346,7 +346,7 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
     }
   }
 
-  FixPhiNodes(bb_map);
+  resolvePhiOperands(bb_map);
   FixOperands();
 
   return function;
@@ -583,7 +583,9 @@ void LIRGenerator::MakeDecref(
 
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
-  BasicBlockBuilder bbb(env_, lir_func_);
+  BasicBlockBuilder bbb{env_, lir_func_};
+  BasicBlock* entry_block = bbb.allocateBlock("__main__");
+  bbb.switchBlock(entry_block);
 
   for (auto& i : *hir_bb) {
     auto opcode = i.opcode();
@@ -2412,20 +2414,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kPhi: {
         auto instr = static_cast<const Phi*>(&i);
-
-        auto lir = bbb.appendInstr(instr->GetOutput(), Instruction::kPhi);
-
-        for (size_t i = 0; i < instr->NumOperands(); i++) {
-          // See FixPhiNodes, we are passing in hir BasicBlock*s here, and
-          // then we convert them to lir BasicBlocks
-          lir->allocateLabelInput(
-              reinterpret_cast<lir::BasicBlock*>(instr->basic_blocks().at(i)));
-          // The output may be defined later due to a backward edge, so we
-          // need to use createInstrInput which will handle this.
-          // Phis don't support constant inputs yet
-          bbb.createInstrInput(lir, instr->GetOperand(i)->name());
-        }
-
+        bbb.appendInstr(instr->GetOutput(), Instruction::kPhi);
+        // The phi's operands will get filled out later, once we have LIR
+        // definitions for all HIR values.
         break;
       }
       case Opcode::kMakeFunction: {
@@ -2876,17 +2867,20 @@ std::string LIRGenerator::GetSafeLabelName() {
   return fmt::format("__codegen_label_{}", label_id++);
 }
 
-void LIRGenerator::FixPhiNodes(
+void LIRGenerator::resolvePhiOperands(
     UnorderedMap<const hir::BasicBlock*, TranslatedBlock>& bb_map) {
-  for (auto& bb : basic_blocks_) {
-    bb->foreachPhiInstr([&bb_map](Instruction* instr) {
-      auto num_inputs = instr->getNumInputs();
-      for (size_t i = 0; i < num_inputs; i += 2) {
-        auto o = instr->getInput(i);
-        auto opnd = static_cast<Operand*>(o);
-        auto hir_bb =
-            reinterpret_cast<jit::hir::BasicBlock*>(opnd->getBasicBlock());
-        opnd->setBasicBlock(bb_map.at(hir_bb).last);
+  // This is creating a different builder than the first pass, but that's okay
+  // because the state is really in `env_` which is unchanged.
+  BasicBlockBuilder bbb{env_, lir_func_};
+
+  for (auto& block : basic_blocks_) {
+    block->foreachPhiInstr([&](Instruction* instr) {
+      auto hir_instr = static_cast<const Phi*>(instr->origin());
+      for (size_t i = 0; i < hir_instr->NumOperands(); ++i) {
+        hir::BasicBlock* hir_block = hir_instr->basic_blocks().at(i);
+        hir::Register* hir_value = hir_instr->GetOperand(i);
+        instr->allocateLabelInput(bb_map.at(hir_block).last);
+        instr->allocateLinkedInput(bbb.getDefInstr(hir_value));
       }
     });
   }

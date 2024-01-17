@@ -18,10 +18,7 @@
 namespace jit::lir {
 
 BasicBlockBuilder::BasicBlockBuilder(jit::codegen::Environ* env, Function* func)
-    : env_(env), func_(func) {
-  cur_bb_ = getBasicBlockByLabel("__main__");
-  bbs_.push_back(cur_bb_);
-}
+    : env_(env), func_(func) {}
 
 std::size_t BasicBlockBuilder::makeDeoptMetadata() {
   JIT_CHECK(

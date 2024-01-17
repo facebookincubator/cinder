@@ -123,8 +123,11 @@ class LIRGenerator {
   std::string GetSafeTempName();
   std::string GetSafeLabelName();
 
-  void FixPhiNodes(
+  // Fill in operands for phi instructions.  This is executed after LIR
+  // instructions have been generated for all values in the control flow graph.
+  void resolvePhiOperands(
       UnorderedMap<const hir::BasicBlock*, TranslatedBlock>& bb_map);
+
   void FixOperands();
   void emitExceptionCheck(
       const jit::hir::DeoptBase& i,
