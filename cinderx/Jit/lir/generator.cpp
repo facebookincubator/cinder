@@ -265,7 +265,7 @@ void LIRGenerator::AnalyzeCopies() {
       if (instr.GetOutput() != nullptr && !instr.IsCast() &&
           hir::isPassthrough(instr)) {
         env_->copy_propagation_map.emplace(
-            instr.GetOutput()->name(), instr.GetOperand(0)->name());
+            instr.GetOutput(), instr.GetOperand(0));
       }
     }
   }

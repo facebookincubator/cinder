@@ -108,11 +108,13 @@ struct Environ {
   jit::lir::Instruction* asm_extra_args{nullptr};
   jit::lir::Instruction* asm_func{nullptr};
 
-  // maps the original name to the propagated name.
-  // TODO(tiansi, bsimmers): this is a temporary hack. Need to do the real
-  // copy propagation after LIR cleanup is done. Related to
+  // Maps HIR values to the HIR values they were copied from. Used for LIR
+  // generation purposes.
+  //
+  // TODO(tiansi, bsimmers): this is a temporary hack. Need to do the real copy
+  // propagation after LIR cleanup is done. Related to
   // jit::lir::LIRGenerator::AnalyzeCopies().
-  UnorderedMap<std::string, std::string> copy_propagation_map;
+  UnorderedMap<const hir::Register*, hir::Register*> copy_propagation_map;
 
   UnorderedMap<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
 

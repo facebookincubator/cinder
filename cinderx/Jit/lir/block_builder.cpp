@@ -73,28 +73,24 @@ BasicBlock* BasicBlockBuilder::getBasicBlockByLabel(const std::string& label) {
   return iter->second;
 }
 
-Instruction* BasicBlockBuilder::getDefInstr(const std::string& name) {
-  auto def_instr = map_get(env_->output_map, name, nullptr);
+Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
+  auto def_instr = map_get(env_->output_map, reg->name(), nullptr);
 
   if (def_instr == nullptr) {
-    // the output has to be copy propagated.
-    auto iter = env_->copy_propagation_map.find(name);
-    const char* prop_name = nullptr;
+    // The output has to be copy propagated.
+    hir::Register* def_reg = nullptr;
+    auto iter = env_->copy_propagation_map.find(reg);
     while (iter != env_->copy_propagation_map.end()) {
-      prop_name = iter->second.c_str();
-      iter = env_->copy_propagation_map.find(prop_name);
+      def_reg = iter->second;
+      iter = env_->copy_propagation_map.find(def_reg);
     }
 
-    if (prop_name != nullptr) {
-      def_instr = map_get(env_->output_map, prop_name, nullptr);
+    if (def_reg != nullptr) {
+      def_instr = map_get(env_->output_map, def_reg->name(), nullptr);
     }
   }
 
   return def_instr;
-}
-
-Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
-  return getDefInstr(reg->name());
 }
 
 void BasicBlockBuilder::createInstrInput(
