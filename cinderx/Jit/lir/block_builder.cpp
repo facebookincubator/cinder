@@ -101,15 +101,7 @@ void BasicBlockBuilder::createInstrInput(
     Instruction* instr,
     const std::string& name) {
   auto def_instr = getDefInstr(name);
-  auto operand = instr->allocateLinkedInput(def_instr);
-
-  // if def_instr is still nullptr, it means that the output is defined
-  // later in the function. This can happen when the function has a
-  // backward edge.
-  if (def_instr == nullptr) {
-    // we need to fix later
-    env_->operand_to_fix[name].push_back(operand);
-  }
+  instr->allocateLinkedInput(def_instr);
 }
 
 void BasicBlockBuilder::createInstrOutput(
@@ -124,32 +116,6 @@ void BasicBlockBuilder::createInstrOutput(
   auto output = instr->output();
   output->setVirtualRegister();
   output->setDataType(data_type);
-}
-
-void BasicBlockBuilder::createInstrIndirect(
-    Instruction* instr,
-    const std::string& base,
-    const std::string& index,
-    int multiplier,
-    int offset) {
-  JIT_CHECK(multiplier >= 0 && multiplier <= 3, "bad multiplier");
-  auto base_instr = getDefInstr(base);
-  auto index_instr = getDefInstr(index);
-  auto indirect = instr->allocateMemoryIndirectInput(
-      base_instr, index_instr, multiplier, offset);
-  if (base_instr == nullptr) {
-    auto ind_opnd = indirect->getMemoryIndirect()->getBaseRegOperand();
-    JIT_DCHECK(
-        ind_opnd->isLinked(), "Should not have generated unlinked operand.");
-    env_->operand_to_fix[base].push_back(static_cast<LinkedOperand*>(ind_opnd));
-  }
-  if (index_instr == nullptr) {
-    auto ind_opnd = indirect->getMemoryIndirect()->getIndexRegOperand();
-    JIT_DCHECK(
-        ind_opnd->isLinked(), "Should not have generated unlinked operand.");
-    env_->operand_to_fix[index].push_back(
-        static_cast<LinkedOperand*>(ind_opnd));
-  }
 }
 
 void BasicBlockBuilder::SetBlockSection(

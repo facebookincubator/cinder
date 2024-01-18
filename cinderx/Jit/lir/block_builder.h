@@ -291,12 +291,6 @@ class BasicBlockBuilder {
       Instruction* instr,
       const std::string& name,
       Operand::DataType data_type);
-  void createInstrIndirect(
-      Instruction* instr,
-      const std::string& base,
-      const std::string& index,
-      int multiplier, // log2(scale)
-      int offset);
   void SetBlockSection(const std::string& label, codegen::CodeSection section);
 
   std::vector<BasicBlock*> Generate() {

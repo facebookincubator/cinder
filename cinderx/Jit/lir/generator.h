@@ -14,8 +14,6 @@
 
 namespace jit::lir {
 
-class BasicBlockBuilder;
-
 // XXX: this file needs to be revisited when we optimize HIR-to-LIR translation
 // in codegen.cpp/h. Currently, this file is almost an identical copy from
 // codegen.h with some interfaces changes so that it works with the new
@@ -128,7 +126,6 @@ class LIRGenerator {
   void resolvePhiOperands(
       UnorderedMap<const hir::BasicBlock*, TranslatedBlock>& bb_map);
 
-  void FixOperands();
   void emitExceptionCheck(
       const jit::hir::DeoptBase& i,
       jit::lir::BasicBlockBuilder& bbb);

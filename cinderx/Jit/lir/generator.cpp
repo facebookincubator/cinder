@@ -279,8 +279,6 @@ void LIRGenerator::AnalyzeCopies() {
 }
 
 std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
-  env_->operand_to_fix.clear();
-
   AnalyzeCopies();
 
   auto function = std::make_unique<jit::lir::Function>();
@@ -347,7 +345,6 @@ std::unique_ptr<jit::lir::Function> LIRGenerator::TranslateFunction() {
   }
 
   resolvePhiOperands(bb_map);
-  FixOperands();
 
   return function;
 }
@@ -1225,7 +1222,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadAttr: {
         auto instr = static_cast<const LoadAttr*>(&i);
-        std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
 
         auto move = bbb.appendInstr(
@@ -1383,7 +1379,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadAttrSuper: {
         auto instr = static_cast<const LoadAttrSuper*>(&i);
-        std::string tmp_id = GetSafeTempName();
         PyObject* name = instr->name();
 
         auto move = bbb.appendInstr(
@@ -2883,36 +2878,6 @@ void LIRGenerator::resolvePhiOperands(
         instr->allocateLinkedInput(bbb.getDefInstr(hir_value));
       }
     });
-  }
-}
-
-void LIRGenerator::FixOperands() {
-  for (auto& pair : env_->operand_to_fix) {
-    auto& name = pair.first;
-
-    auto def_instr = map_get(env_->output_map, name, nullptr);
-
-    if (def_instr == nullptr) {
-      // the output has to be copy propagated.
-      auto iter = env_->copy_propagation_map.find(name);
-      const char* prop_name = nullptr;
-      while (iter != env_->copy_propagation_map.end()) {
-        prop_name = iter->second.c_str();
-        iter = env_->copy_propagation_map.find(prop_name);
-      }
-
-      if (prop_name != nullptr) {
-        def_instr = map_get(env_->output_map, prop_name, nullptr);
-      }
-    }
-
-    JIT_DCHECK(
-        def_instr != nullptr, "unable to find def instruction for '{}'.", name);
-
-    auto& operands = pair.second;
-    for (auto& operand : operands) {
-      operand->setLinkedInstr(def_instr);
-    }
   }
 }
 

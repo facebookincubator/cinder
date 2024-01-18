@@ -114,10 +114,6 @@ struct Environ {
   // jit::lir::LIRGenerator::AnalyzeCopies().
   UnorderedMap<std::string, std::string> copy_propagation_map;
 
-  // the operand needs to be fixed after code generation
-  UnorderedMap<std::string, std::vector<jit::lir::LinkedOperand*>>
-      operand_to_fix;
-
   UnorderedMap<jit::lir::BasicBlock*, asmjit::Label> block_label_map;
 
   FrameMode frame_mode;
