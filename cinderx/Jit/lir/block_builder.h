@@ -191,23 +191,6 @@ class BasicBlockBuilder {
     return instr;
   }
 
-  // Allocate and append a new instruction to the instruction stream.
-  //
-  // The instruction is expecting to produce a VReg and match it to an HIR
-  // register.
-  template <class... Args>
-  Instruction*
-  appendInstr(std::string dest, Instruction::Opcode opcode, Args&&... args) {
-    std::string sval;
-    Operand::DataType type;
-    std::tie(sval, type) = getIdAndType(dest);
-    auto dest_lir = OutVReg{type};
-    auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
-    auto [it, inserted] = env_->output_map.emplace(sval, instr);
-    JIT_CHECK(inserted, "HIR value '{}' defined twice in LIR", dest);
-    return instr;
-  }
-
   // Allocate and append a new branching instruction to the instruction stream.
   template <class Arg>
   Instruction* appendBranch(
@@ -286,7 +269,7 @@ class BasicBlockBuilder {
   Instruction* getDefInstr(const std::string& name);
   Instruction* getDefInstr(const hir::Register* reg);
 
-  void createInstrInput(Instruction* instr, const std::string& name);
+  void createInstrInput(Instruction* instr, hir::Register* reg);
   void createInstrOutput(
       Instruction* instr,
       const std::string& name,
@@ -370,17 +353,10 @@ class BasicBlockBuilder {
     using CurFuncArgType = std::tuple_element_t<CurArg, FuncArgTuple>;
     auto&& cur_arg = std::get<CurArg>(std::forward_as_tuple(args...));
     if constexpr (std::is_same_v<CurFuncArgType, PyThreadState*>) {
-      static constexpr char asm_thread_state[] = "__asm_tstate";
-      static_assert(
-          std::is_same_v<CurArgType, hir::Register*> ||
-              std::is_same_v<
-                  CurArgType,
-                  std::remove_cv_t<decltype(asm_thread_state)>>,
-          "Thread state must be passed in a register or explicitly as "
-          "\"__asm_tstate\".");
       JIT_CHECK(
-          std::string_view(asm_thread_state) == cur_arg,
-          "The thread state was passed as a string that wasn't __asm_tstate.");
+          cur_arg == env_->asm_tstate,
+          "The thread state was passed as a different value than "
+          "env_->asm_tstate");
     } else if constexpr (
         std::is_same_v<CurArgType, hir::Register*> ||
         std::is_same_v<CurArgType, std::string>) {
@@ -434,16 +410,11 @@ class BasicBlockBuilder {
               reinterpret_cast<uint64_t>(tp.objectSpec()),
               Operand::DataType::kObject);
         } else {
-          createInstrInput(instr, val->name());
+          createInstrInput(instr, val);
         }
       }
     } else if constexpr (std::is_same_v<CurArgType, Instruction*>) {
       instr->allocateLinkedInput(val);
-    } else if constexpr (
-        std::is_same_v<CurArgType, std::string> ||
-        std::is_same_v<CurArgType, std::string_view> ||
-        std::is_same_v<CurArgType, char*> || std::is_array_v<CurArgType>) {
-      createInstrInput(instr, val);
     } else if constexpr (
         std::is_pointer_v<CurArgType> || std::is_function_v<CurArgType>) {
       instr->allocateImmediateInput(

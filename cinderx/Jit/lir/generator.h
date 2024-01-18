@@ -40,12 +40,12 @@ class LIRGenerator {
     BasicBlock* last;
   };
 
-  const jit::hir::Function* func_;
+  const jit::hir::Function* func_{nullptr};
 
-  jit::codegen::Environ* env_;
+  jit::codegen::Environ* env_{nullptr};
 
-  BasicBlock* entry_block_;
-  BasicBlock* exit_block_;
+  BasicBlock* entry_block_{nullptr};
+  BasicBlock* exit_block_{nullptr};
 
   std::vector<BasicBlock*> basic_blocks_;
 
@@ -116,9 +116,7 @@ class LIRGenerator {
 
   TranslatedBlock TranslateOneBasicBlock(const hir::BasicBlock* bb);
 
-  int temp_id;
-  int label_id;
-  std::string GetSafeTempName();
+  int label_id{0};
   std::string GetSafeLabelName();
 
   // Fill in operands for phi instructions.  This is executed after LIR

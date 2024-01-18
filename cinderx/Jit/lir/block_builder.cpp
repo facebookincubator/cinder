@@ -99,9 +99,8 @@ Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
 
 void BasicBlockBuilder::createInstrInput(
     Instruction* instr,
-    const std::string& name) {
-  auto def_instr = getDefInstr(name);
-  instr->allocateLinkedInput(def_instr);
+    hir::Register* reg) {
+  instr->allocateLinkedInput(getDefInstr(reg));
 }
 
 void BasicBlockBuilder::createInstrOutput(

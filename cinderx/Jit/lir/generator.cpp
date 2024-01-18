@@ -213,12 +213,7 @@ uint8_t multiplierFromSize(int num_bytes) {
 LIRGenerator::LIRGenerator(
     const jit::hir::Function* func,
     jit::codegen::Environ* env)
-    : func_(func),
-      env_(env),
-      entry_block_(nullptr),
-      exit_block_(nullptr),
-      temp_id(0),
-      label_id(0) {
+    : func_(func), env_(env) {
   for (int i = 0, n = func->env.numLoadTypeAttrCaches(); i < n; i++) {
     load_type_attr_caches_.emplace_back(
         Runtime::get()->allocateLoadTypeAttrCache());
@@ -231,19 +226,17 @@ LIRGenerator::LIRGenerator(
 
 BasicBlock* LIRGenerator::GenerateEntryBlock() {
   auto block = lir_func_->allocateBasicBlock();
-  auto bindVReg = [&](const std::string& name, int phy_reg) {
+  auto bindVReg = [&](int phy_reg) {
     auto instr = block->allocateInstr(Instruction::kBind, nullptr);
     instr->output()->setVirtualRegister();
     instr->allocatePhyRegisterInput(phy_reg);
-    env_->output_map.emplace(name, instr);
     return instr;
   };
 
-  env_->asm_extra_args =
-      bindVReg("__asm_extra_args", jit::codegen::PhyLocation::R10);
-  env_->asm_tstate = bindVReg("__asm_tstate", jit::codegen::PhyLocation::R11);
+  env_->asm_extra_args = bindVReg(jit::codegen::PhyLocation::R10);
+  env_->asm_tstate = bindVReg(jit::codegen::PhyLocation::R11);
   if (func_->uses_runtime_func) {
-    env_->asm_func = bindVReg("__asm_func", jit::codegen::PhyLocation::RDI);
+    env_->asm_func = bindVReg(jit::codegen::PhyLocation::RDI);
   }
 
   return block;
@@ -1119,7 +1112,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kSetCurrentAwaiter: {
         bbb.appendInvokeInstruction(
-            JITRT_SetCurrentAwaiter, i.GetOperand(0), "__asm_tstate");
+            JITRT_SetCurrentAwaiter, i.GetOperand(0), env_->asm_tstate);
         break;
       }
       case Opcode::kYieldValue: {
@@ -1242,7 +1235,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr->GetOutput(),
             Cix_special_lookup,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr->GetOperand(0),
             instr->id());
         break;
@@ -1676,7 +1669,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         const auto& instr = static_cast<const RaiseAwaitableError&>(i);
         bbb.appendInvokeInstruction(
             Cix_format_awaitable_error,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr.GetOperand(0),
             static_cast<int>(instr.with_prev_opcode()),
             static_cast<int>(instr.with_opcode()));
@@ -1938,7 +1931,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         Instruction* type;
         if (!hir_instr.isClassmethod()) {
           type = bbb.appendInstr(
-              GetSafeTempName(),
+              OutVReg{},
               Instruction::kMove,
               Ind{self_reg, (int32_t)offsetof(PyObject, ob_type)});
         } else {
@@ -1946,17 +1939,17 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
 
         auto load_vtable = bbb.appendInstr(
-            GetSafeTempName(),
+            OutVReg{},
             Instruction::kMove,
             Ind{type, (int32_t)offsetof(PyTypeObject, tp_cache)});
 
         auto load_state = bbb.appendInstr(
-            GetSafeTempName(),
+            OutVReg{},
             Instruction::kMove,
             Ind{load_vtable,
                 (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_state))});
         auto load_entry = bbb.appendInstr(
-            GetSafeTempName(),
+            OutVReg{},
             Instruction::kMove,
             Ind{load_vtable,
                 (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_entry))});
@@ -2094,7 +2087,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr.GetOutput(),
             Cix_match_class,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr.GetOperand(0),
             instr.GetOperand(1),
             instr.GetOperand(2),
@@ -2106,7 +2099,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr->dst(),
             Cix_match_keys,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr->GetOperand(0),
             instr->GetOperand(1));
         break;
@@ -2269,7 +2262,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             i.GetOutput(),
             JITRT_DictUpdate,
-            "__asm_tstate",
+            env_->asm_tstate,
             i.GetOperand(0),
             i.GetOperand(1));
         break;
@@ -2278,7 +2271,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             i.GetOutput(),
             JITRT_DictMerge,
-            "__asm_tstate",
+            env_->asm_tstate,
             i.GetOperand(0),
             i.GetOperand(1),
             i.GetOperand(2));
@@ -2455,7 +2448,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr->dst(),
             __Invoke_PyList_Extend,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr->GetOperand(0),
             instr->GetOperand(1));
         break;
@@ -2503,7 +2496,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kRunPeriodicTasks: {
         bbb.appendCallInstruction(
-            i.GetOutput(), Cix_eval_frame_handle_pending, "__asm_tstate");
+            i.GetOutput(), Cix_eval_frame_handle_pending, env_->asm_tstate);
         break;
       }
       case Opcode::kSnapshot: {
@@ -2529,7 +2522,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // EndInlinedFunction completely.
         if (kPyDebug) {
           bbb.appendInvokeInstruction(
-              assertShadowCallStackConsistent, "__asm_tstate");
+              assertShadowCallStackConsistent, env_->asm_tstate);
         }
         auto instr = static_cast<const BeginInlinedFunction*>(&i);
         auto caller_shadow_frame = bbb.appendInstr(
@@ -2575,14 +2568,12 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         }
         // Set our shadow frame as top of shadow stack
         bbb.appendInstr(
-            OutInd{
-                bbb.getDefInstr("__asm_tstate"),
-                offsetof(PyThreadState, shadow_frame)},
+            OutInd{env_->asm_tstate, offsetof(PyThreadState, shadow_frame)},
             Instruction::kMove,
             callee_shadow_frame);
         if (kPyDebug) {
           bbb.appendInvokeInstruction(
-              assertShadowCallStackConsistent, "__asm_tstate");
+              assertShadowCallStackConsistent, env_->asm_tstate);
         }
         break;
       }
@@ -2591,14 +2582,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // generators.
         if (kPyDebug) {
           bbb.appendInvokeInstruction(
-              assertShadowCallStackConsistent, "__asm_tstate");
+              assertShadowCallStackConsistent, env_->asm_tstate);
         }
         // callee_shadow_frame <- tstate.shadow_frame
         auto callee_shadow_frame = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
-            Ind{bbb.getDefInstr("__asm_tstate"),
-                offsetof(PyThreadState, shadow_frame)});
+            Ind{env_->asm_tstate, offsetof(PyThreadState, shadow_frame)});
 
         // Check if the callee has been materialized into a PyFrame. Use the
         // flags below.
@@ -2618,9 +2608,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             Ind{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(prev)});
         // caller_shadow_frame -> tstate.shadow_frame
         bbb.appendInstr(
-            OutInd{
-                bbb.getDefInstr("__asm_tstate"),
-                offsetof(PyThreadState, shadow_frame)},
+            OutInd{env_->asm_tstate, offsetof(PyThreadState, shadow_frame)},
             Instruction::kMove,
             caller_shadow_frame);
 
@@ -2630,11 +2618,11 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendBranch(Instruction::kBranchNC, done_block);
         // TODO(T109445584): Remove this unused label.
         bbb.appendLabel(GetSafeLabelName());
-        bbb.appendInvokeInstruction(JITRT_UnlinkFrame, "__asm_tstate");
+        bbb.appendInvokeInstruction(JITRT_UnlinkFrame, env_->asm_tstate);
         bbb.appendBlock(done_block);
         if (kPyDebug) {
           bbb.appendInvokeInstruction(
-              assertShadowCallStackConsistent, "__asm_tstate");
+              assertShadowCallStackConsistent, env_->asm_tstate);
         }
         break;
       }
@@ -2649,7 +2637,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             i.GetOutput(),
             _PyImport_ImportFrom,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr.module(),
             name);
         break;
@@ -2660,7 +2648,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             i.GetOutput(),
             JITRT_ImportName,
-            "__asm_tstate",
+            env_->asm_tstate,
             name,
             instr->GetFromList(),
             instr->GetLevel());
@@ -2684,7 +2672,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             OutVReg{OperandBase::k32bit},
             Cix_do_raise,
-            "__asm_tstate",
+            env_->asm_tstate,
             exc,
             cause);
         appendGuardAlwaysFail(bbb, instr);
@@ -2711,7 +2699,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr.dst(),
             JITRT_FormatValue,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr.GetOperand(0),
             instr.GetOperand(1),
             instr.conversion());
@@ -2753,7 +2741,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kWaitHandleRelease: {
         const auto& instr = static_cast<const WaitHandleRelease&>(i);
-        std::string null_var = GetSafeTempName();
         bbb.appendInstr(
             OutInd{
                 bbb.getDefInstr(instr.reg()),
@@ -2771,7 +2758,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kDeleteSubscr: {
-        auto tmp = GetSafeTempName();
         const auto& instr = static_cast<const DeleteSubscr&>(i);
         Instruction* call = bbb.appendInstr(
             Instruction::kCall,
@@ -2788,7 +2774,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.appendCallInstruction(
             instr->dst(),
             JITRT_UnpackExToTuple,
-            "__asm_tstate",
+            env_->asm_tstate,
             instr->seq(),
             instr->before(),
             instr->after());
@@ -2797,13 +2783,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kGetAIter: {
         auto& instr = static_cast<const GetAIter&>(i);
         bbb.appendCallInstruction(
-            instr.dst(), Ci_GetAIter, "__asm_tstate", instr.GetOperand(0));
+            instr.dst(), Ci_GetAIter, env_->asm_tstate, instr.GetOperand(0));
         break;
       }
       case Opcode::kGetANext: {
         auto& instr = static_cast<const GetAIter&>(i);
         bbb.appendCallInstruction(
-            instr.dst(), Ci_GetANext, "__asm_tstate", instr.GetOperand(0));
+            instr.dst(), Ci_GetANext, env_->asm_tstate, instr.GetOperand(0));
         break;
       }
     }
@@ -2852,10 +2838,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
   basic_blocks_.insert(basic_blocks_.end(), bbs.begin(), bbs.end());
 
   return {bbs.front(), bbs.back()};
-}
-
-std::string LIRGenerator::GetSafeTempName() {
-  return fmt::format("__codegen_temp_{}", temp_id++);
 }
 
 std::string LIRGenerator::GetSafeLabelName() {
