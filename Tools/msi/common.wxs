@@ -3,11 +3,11 @@
     <Fragment>
         <Property Id="ROOTREGISTRYKEY" Value="Software\Python\PythonCore" />
     </Fragment>
-    
+
     <Fragment>
-        <Property Id="REGISTRYKEY" Value="Software\Python\PythonCore\$(var.ShortVersion)$(var.PyArchExt)$(var.PyTestExt)" />
+        <Property Id="REGISTRYKEY" Value="Software\Python\PythonCore\$(var.ShortVersion)+meta$(var.PyArchExt)$(var.PyTestExt)" />
     </Fragment>
-    
+
     <Fragment>
         <Component Id="OptionalFeature" Guid="*" Directory="InstallDirectory">
             <Condition>OPTIONALFEATURESREGISTRYKEY</Condition>
@@ -16,16 +16,16 @@
             </RegistryKey>
         </Component>
     </Fragment>
-    
+
     <Fragment>
         <Property Id="UpgradeTable" Value="1" />
-        
+
         <?ifndef SuppressUpgradeTable ?>
         <Upgrade Id="$(var.UpgradeCode)">
             <UpgradeVersion Property="DOWNGRADE" Minimum="$(var.Version)" IncludeMinimum="no" OnlyDetect="yes" />
             <UpgradeVersion Property="UPGRADE" Minimum="$(var.UpgradeMinimumVersion)" IncludeMinimum="yes" Maximum="$(var.Version)" IncludeMaximum="no" />
         </Upgrade>
-        
+
         <?ifdef CoreUpgradeCode ?>
         <?if $(var.UpgradeCode)!=$(var.CoreUpgradeCode) ?>
         <Upgrade Id="$(var.CoreUpgradeCode)">
@@ -34,7 +34,7 @@
         <Condition Message="!(loc.IncorrectCore)">Installed OR NOT MISSING_CORE</Condition>
         <?endif ?>
         <?endif ?>
-        
+
         <Condition Message="!(loc.NoDowngrade)">Installed OR NOT DOWNGRADE</Condition>
         <Condition Message="!(loc.NoTargetDir)">Installed OR TARGETDIR OR Suppress_TARGETDIR_Check</Condition>
 
@@ -43,7 +43,7 @@
         </InstallExecuteSequence>
         <?endif ?>
     </Fragment>
-    
+
     <Fragment>
         <!-- Include an icon for the Programs and Features dialog -->
         <Icon Id="ARPIcon" SourceFile="!(bindpath.src)PC\icons\python.ico" />
@@ -51,7 +51,7 @@
         <Property Id="ARPNOMODIFY" Value="1" />
         <Property Id="DISABLEADVTSHORTCUTS" Value="1" />
     </Fragment>
-    
+
     <Fragment>
         <Directory Id="TARGETDIR" Name="SourceDir">
         <?ifdef InstallDirectoryGuidSeed ?>
@@ -73,7 +73,7 @@
         <?endif ?>
         <Property Id="DetectTargetDir" Value="1" />
     </Fragment>
-    
+
     <!-- Top-level directories -->
     <Fragment>
         <DirectoryRef Id="InstallDirectory">

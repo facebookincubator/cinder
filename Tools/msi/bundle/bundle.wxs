@@ -7,9 +7,9 @@
           Version="$(var.Version)"
           IconSourceFile="..\..\..\PC\icons\setup.ico"
           Manufacturer="!(loc.Manufacturer)"
-          AboutUrl="https://www.python.org/"
+          AboutUrl="https://fburl.com/about-python"
           Compressed="no"
-          dep:ProviderKey="CPython-$(var.MajorVersionNumber).$(var.MinorVersionNumber)$(var.PyArchExt)$(var.PyTestExt)">
+          dep:ProviderKey="MetaPython-$(var.MajorVersionNumber).$(var.MinorVersionNumber)$(var.PyArchExt)$(var.PyTestExt)">
     <BootstrapperApplication Id="PythonBA" SourceFile="$(var.BootstrapApp)">
         <Payload Compressed='yes' SourceFile='Default.thm' />
         <Payload Compressed='yes' SourceFile='$(var.DefaultWxl)' />
@@ -23,8 +23,8 @@
 
     <Variable Name="ShortVersion" Value="$(var.MajorVersionNumber).$(var.MinorVersionNumber)" />
     <Variable Name="ShortVersionNoDot" Value="$(var.MajorVersionNumber)$(var.MinorVersionNumber)" />
-    <Variable Name="WinVer" Value="$(var.MajorVersionNumber).$(var.MinorVersionNumber)$(var.PyArchExt)$(var.PyTestExt)" />
-    <Variable Name="WinVerNoDot" Value="$(var.MajorVersionNumber)$(var.MinorVersionNumber)$(var.PyArchExt)$(var.PyTestExt)" />
+    <Variable Name="WinVer" Value="$(var.MajorVersionNumber).$(var.MinorVersionNumber)+meta$(var.PyArchExt)$(var.PyTestExt)" />
+    <Variable Name="WinVerNoDot" Value="$(var.MajorVersionNumber)$(var.MinorVersionNumber)meta$(var.PyArchExt)$(var.PyTestExt)" />
 
     <Variable Name="InstallAllUsers" Value="0" bal:Overridable="yes" />
     <?if "$(var.PyTestExt)"="" ?>

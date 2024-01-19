@@ -2,7 +2,7 @@
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
     <String Id="Descriptor">Executables</String>
     <String Id="ShortDescriptor">executable</String>
-    <String Id="ShortcutName">Python {{ShortVersion}} ({{Bitness}})</String>
+    <String Id="ShortcutName">Meta Python {{ShortVersion}} ({{Bitness}})</String>
     <String Id="ShortcutDescription">Launches the !(loc.ProductName) interpreter.</String>
-    <String Id="SupportUrl">https://www.python.org/</String>
+    <String Id="SupportUrl">https://fburl.com/python-support</String>
 </WixLocalization>
