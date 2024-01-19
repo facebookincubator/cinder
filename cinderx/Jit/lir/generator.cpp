@@ -88,7 +88,7 @@ void emitVectorCall(
     const VectorCallBase& hir_instr,
     size_t flags,
     bool kwnames) {
-  auto instr = bbb.appendInstr(
+  Instruction* instr = bbb.appendInstr(
       hir_instr.dst(),
       Instruction::kVectorCall,
       // TODO(T140174965): This should be MemImm.
@@ -346,7 +346,7 @@ void LIRGenerator::appendGuardAlwaysFail(
     BasicBlockBuilder& bbb,
     const hir::DeoptBase& hir_instr) {
   auto deopt_id = bbb.makeDeoptMetadata();
-  auto instr = bbb.appendInstr(
+  Instruction* instr = bbb.appendInstr(
       Instruction::kGuard,
       Imm{InstrGuardKind::kAlwaysFail},
       Imm{deopt_id},
@@ -439,7 +439,7 @@ bool LIRGenerator::TranslateSpecializedCall(
     return false;
   }
 
-  auto instr = bbb.appendInstr(
+  Instruction* instr = bbb.appendInstr(
       hir_instr.dst(),
       Instruction::kVectorCall,
       // TODO(T140174965): This should be MemImm.
@@ -488,7 +488,7 @@ void LIRGenerator::MakeIncref(
   // immortal.  For mortal objects the refcount is a regular 64-bit integer.
   if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
     auto mortal = bbb.allocateBlock(GetSafeLabelName());
-    auto r1 = bbb.appendInstr(
+    Instruction* r1 = bbb.appendInstr(
         OutVReg{OperandBase::k32bit},
         Instruction::kMove,
         Ind{bbb.getDefInstr(obj), kRefcountOffset});
@@ -502,7 +502,7 @@ void LIRGenerator::MakeIncref(
         ->output()
         ->setDataType(Operand::k32bit);
   } else {
-    auto r1 = bbb.appendInstr(
+    Instruction* r1 = bbb.appendInstr(
         OutVReg{},
         Instruction::kMove,
         Ind{bbb.getDefInstr(obj), kRefcountOffset});
@@ -538,7 +538,7 @@ void LIRGenerator::MakeDecref(
     bbb.appendBlock(cont);
   }
 
-  auto r1 = bbb.appendInstr(
+  Instruction* r1 = bbb.appendInstr(
       OutVReg{},
       Instruction::kMove,
       Ind{bbb.getDefInstr(obj), kRefcountOffset});
@@ -1009,10 +1009,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         bbb.switchBlock(check_err);
 
         constexpr int32_t kOffset = offsetof(PyThreadState, curexc_type);
-        auto curexc_type = bbb.appendInstr(
+        Instruction* curexc_type = bbb.appendInstr(
             Instruction::kMove, OutVReg{}, Ind{env_->asm_tstate, kOffset});
 
-        auto is_no_err_set = bbb.appendInstr(
+        Instruction* is_no_err_set = bbb.appendInstr(
             Instruction::kEqual,
             OutVReg{OperandBase::k8bit},
             curexc_type,
@@ -1117,7 +1117,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kYieldValue: {
         auto hir_instr = static_cast<const YieldValue*>(&i);
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr->dst(),
             Instruction::kYieldValue,
             env_->asm_tstate,
@@ -1127,7 +1127,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kInitialYield: {
         auto hir_instr = static_cast<const InitialYield*>(&i);
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr->dst(), Instruction::kYieldInitial, env_->asm_tstate);
         finishYield(bbb, instr, hir_instr);
         break;
@@ -1144,7 +1144,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             return Instruction::kYieldFromHandleStopAsyncIteration;
           }
         }();
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             i.GetOutput(),
             op,
             env_->asm_tstate,
@@ -1217,7 +1217,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadAttr*>(&i);
         PyObject* name = instr->name();
 
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             // TODO(T140174965): This should be MemImm.
@@ -1250,7 +1250,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kFillTypeAttrCache: {
         auto instr = static_cast<const FillTypeAttrCache*>(&i);
         PyObject* name = instr->name();
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm(reinterpret_cast<uint64_t>(name)));
@@ -1272,7 +1272,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
         }
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm(reinterpret_cast<uint64_t>(name)));
@@ -1308,7 +1308,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = instr->name();
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm{reinterpret_cast<uint64_t>(name)});
@@ -1333,7 +1333,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         PyCodeObject* code = instr->frameState()->code;
         PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
 
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm{reinterpret_cast<uint64_t>(name)});
@@ -1355,7 +1355,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadMethodSuper: {
         auto instr = static_cast<const LoadMethodSuper*>(&i);
         PyObject* name = instr->name();
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm{reinterpret_cast<uint64_t>(name)});
@@ -1374,7 +1374,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadAttrSuper*>(&i);
         PyObject* name = instr->name();
 
-        auto move = bbb.appendInstr(
+        Instruction* move = bbb.appendInstr(
             Instruction::kMove,
             OutVReg{},
             Imm{reinterpret_cast<uint64_t>(name)});
@@ -1637,7 +1637,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kBatchDecref: {
         auto instr = static_cast<const BatchDecref*>(&i);
 
-        auto lir = bbb.appendInstr(Instruction::kBatchDecref);
+        Instruction* lir = bbb.appendInstr(Instruction::kBatchDecref);
         for (hir::Register* arg : instr->GetOperands()) {
           lir->addOperands(VReg{bbb.getDefInstr(arg)});
         }
@@ -1656,7 +1656,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         const auto& instr = static_cast<const DeoptPatchpoint&>(i);
         std::size_t deopt_id = bbb.makeDeoptMetadata();
         auto& regstates = instr.live_regs();
-        auto lir = bbb.appendInstr(
+        Instruction* lir = bbb.appendInstr(
             Instruction::kDeoptPatchpoint,
             MemImm{instr.patcher()},
             Imm{deopt_id});
@@ -1679,7 +1679,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kCheckErrOccurred: {
         const auto& instr = static_cast<const DeoptBase&>(i);
         constexpr int32_t kOffset = offsetof(PyThreadState, curexc_type);
-        auto load = bbb.appendInstr(
+        Instruction* load = bbb.appendInstr(
             Instruction::kMove, OutVReg{}, Ind{env_->asm_tstate, kOffset});
         appendGuard(bbb, InstrGuardKind::kZero, instr, load);
         break;
@@ -1774,7 +1774,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCallCFunc: {
         auto& hir_instr = static_cast<const CallCFunc&>(i);
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr.dst(), Instruction::kCall, Imm{hir_instr.funcAddr()});
         for (hir::Register* arg : hir_instr.GetOperands()) {
           instr->addOperands(VReg{bbb.getDefInstr(arg)});
@@ -1804,7 +1804,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kCallMethod: {
         auto& hir_instr = static_cast<const CallMethod&>(i);
         size_t flags = hir_instr.isAwaited() ? Ci_Py_AWAITED_CALL_MARKER : 0;
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr.dst(),
             Instruction::kVectorCall,
             // TODO(T140174965): This should be MemImm.
@@ -1835,7 +1835,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           }
           args.push_back(arg);
         }
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr.dst(),
             Instruction::kCall,
             // TODO(T140174965): This should be MemImm.
@@ -1847,7 +1847,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kCallStaticRetVoid: {
         auto& hir_instr = static_cast<const CallStaticRetVoid&>(i);
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             Instruction::kCall,
             // TODO(T140174965): This should be MemImm.
             Imm{reinterpret_cast<uint64_t>(hir_instr.addr())});
@@ -1907,7 +1907,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto func = hir_instr.isClassmethod()
             ? reinterpret_cast<uint64_t>(JITRT_InvokeClassMethod)
             : reinterpret_cast<uint64_t>(JITRT_InvokeMethod);
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr.dst(),
             Instruction::kVectorCall,
             // TODO(T140174965): This should be MemImm.
@@ -1938,23 +1938,23 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
           type = self_reg;
         }
 
-        auto load_vtable = bbb.appendInstr(
+        Instruction* load_vtable = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{type, (int32_t)offsetof(PyTypeObject, tp_cache)});
 
-        auto load_state = bbb.appendInstr(
+        Instruction* load_state = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{load_vtable,
                 (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_state))});
-        auto load_entry = bbb.appendInstr(
+        Instruction* load_entry = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{load_vtable,
                 (int32_t)(offsetof(_PyType_VTable, vt_entries) + slot * sizeof(_PyType_VTableEntry) + offsetof(_PyType_VTableEntry, vte_entry))});
 
-        auto instr = bbb.appendInstr(
+        Instruction* instr = bbb.appendInstr(
             hir_instr.dst(), Instruction::kCall, load_entry, load_state);
         for (hir::Register* arg : hir_instr.GetOperands()) {
           instr->addOperands(VReg{bbb.getDefInstr(arg)});
@@ -2000,7 +2000,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
       case Opcode::kStoreField: {
         auto instr = static_cast<const StoreField*>(&i);
-        auto lir = bbb.appendInstr(
+        Instruction* lir = bbb.appendInstr(
             OutInd{
                 bbb.getDefInstr(instr->receiver()),
                 static_cast<int32_t>(instr->offset())},
@@ -2050,7 +2050,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         if (instr->nvalues() > 0) {
           // TODO(T174544781): need to check for NULL before initializing,
           // currently that check only happens after assigning these values.
-          auto load = bbb.appendInstr(
+          Instruction* load = bbb.appendInstr(
               Instruction::kMove,
               OutVReg{OperandBase::k64bit},
               Ind{call, offsetof(PyListObject, ob_item)});
@@ -2118,7 +2118,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto type = instr->GetOperand(1)->type();
         if (type <= (TCInt8 | TCInt16 | TCInt32) ||
             type <= (TCUInt8 | TCUInt16 | TCUInt32)) {
-          auto lir = bbb.appendInstr(
+          Instruction* lir = bbb.appendInstr(
               Instruction::kSext, OutVReg{}, instr->GetOperand(1));
           bbb.appendCallInstruction(
               instr->dst(),
@@ -2190,7 +2190,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // Users of LoadSplitDictItem are required to verify that dict has a
         // split table, so it's safe to load and acess ma_values with no
         // additional checks here.
-        auto ma_values = bbb.appendInstr(
+        Instruction* ma_values = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{bbb.getDefInstr(dict),
@@ -2211,7 +2211,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->type().typeSpec(),
             static_cast<Py_ssize_t>(capacity));
         if (instr->nvalues() > 0) {
-          auto ob_item = bbb.appendInstr(
+          Instruction* ob_item = bbb.appendInstr(
               OutVReg{},
               Instruction::kMove,
               Ind{bbb.getDefInstr(instr->dst()),
@@ -2525,13 +2525,13 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               assertShadowCallStackConsistent, env_->asm_tstate);
         }
         auto instr = static_cast<const BeginInlinedFunction*>(&i);
-        auto caller_shadow_frame = bbb.appendInstr(
+        Instruction* caller_shadow_frame = bbb.appendInstr(
             OutVReg{},
             Instruction::kLea,
             PhyRegStack{PhyLocation(
                 static_cast<int32_t>(shadowFrameOffsetBefore(instr)))});
         // There is already a shadow frame for the caller function.
-        auto callee_shadow_frame = bbb.appendInstr(
+        Instruction* callee_shadow_frame = bbb.appendInstr(
             OutVReg{},
             Instruction::kLea,
             PhyRegStack{
@@ -2550,7 +2550,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         RuntimeFrameState* rtfs =
             env_->code_rt->allocateRuntimeFrameState(code, builtins, globals);
         uintptr_t data = _PyShadowFrame_MakeData(rtfs, PYSF_RTFS, PYSF_JIT);
-        auto data_reg = bbb.appendInstr(OutVReg{}, Instruction::kMove, data);
+        Instruction* data_reg =
+            bbb.appendInstr(OutVReg{}, Instruction::kMove, data);
         bbb.appendInstr(
             OutInd{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(data)},
             Instruction::kMove,
@@ -2585,7 +2586,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               assertShadowCallStackConsistent, env_->asm_tstate);
         }
         // callee_shadow_frame <- tstate.shadow_frame
-        auto callee_shadow_frame = bbb.appendInstr(
+        Instruction* callee_shadow_frame = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{env_->asm_tstate, offsetof(PyThreadState, shadow_frame)});
@@ -2595,14 +2596,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         static_assert(
             PYSF_PYFRAME == 1 && _PyShadowFrame_NumPtrKindBits == 2,
             "Unexpected constants");
-        auto shadow_frame_data = bbb.appendInstr(
+        Instruction* shadow_frame_data = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(data)});
         bbb.appendInstr(Instruction::kBitTest, shadow_frame_data, Imm{0});
 
         // caller_shadow_frame <- callee_shadow_frame.prev
-        auto caller_shadow_frame = bbb.appendInstr(
+        Instruction* caller_shadow_frame = bbb.appendInstr(
             OutVReg{},
             Instruction::kMove,
             Ind{callee_shadow_frame, SHADOW_FRAME_FIELD_OFF(prev)});
@@ -2680,7 +2681,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kRaiseStatic: {
         const auto& instr = static_cast<const RaiseStatic&>(i);
-        auto lir = bbb.appendInstr(
+        Instruction* lir = bbb.appendInstr(
             Instruction::kCall,
             reinterpret_cast<uint64_t>(PyErr_Format),
             // TODO(T140174965): This should be MemImm.
@@ -2712,7 +2713,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         // the callable is always null, and all the components to be
         // concatenated will be in the args argument.
 
-        auto lir = bbb.appendInstr(
+        Instruction* lir = bbb.appendInstr(
             instr.dst(),
             Instruction::kVectorCall,
             JITRT_BuildString,
