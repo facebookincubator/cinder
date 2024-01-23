@@ -735,12 +735,19 @@ static void compile_perf_trampoline_entries() {
   perf_trampoline_reg_units.clear();
 }
 
-static void multithread_compile_all() {
+static bool multithread_compile_all() {
   JIT_CHECK(jit_ctx, "JIT not initialized");
 
   std::vector<BorrowedRef<>> compilation_units;
   // units that were deleted during preloading
   std::unordered_set<PyObject*> deleted_units;
+
+  auto error_cleanup = [&]() {
+    jit_preloaders.clear();
+    compilation_units.clear();
+    deleted_units.clear();
+    handle_unit_deleted_during_preload = nullptr;
+  };
   // first we have to preload everything we are going to compile
   while (jit_reg_units.size() > 0) {
     std::vector<BorrowedRef<>> preload_units = {
@@ -753,15 +760,16 @@ static void multithread_compile_all() {
       handle_unit_deleted_during_preload = [&](PyObject* deleted_unit) {
         deleted_units.emplace(deleted_unit);
       };
-      compilation_units.push_back(unit);
       if (PyFunction_Check(unit)) {
         BorrowedRef<PyFunctionObject> func{unit};
         std::unique_ptr<hir::Preloader> preloader =
             hir::Preloader::getPreloader(func);
-        if (preloader) {
-          BorrowedRef<PyCodeObject> code{func->func_code};
-          jit_preloaders.emplace(code, std::move(preloader));
+        if (!preloader) {
+          error_cleanup();
+          return false;
         }
+        BorrowedRef<PyCodeObject> code{func->func_code};
+        jit_preloaders.emplace(code, std::move(preloader));
       } else {
         JIT_CHECK(
             PyCode_Check(unit),
@@ -775,10 +783,13 @@ static void multithread_compile_all() {
                 data.builtins,
                 data.globals,
                 codeFullname(data.module, code));
-        if (preloader) {
-          jit_preloaders.emplace(unit, std::move(preloader));
+        if (!preloader) {
+          error_cleanup();
+          return false;
         }
+        jit_preloaders.emplace(unit, std::move(preloader));
       }
+      compilation_units.push_back(unit);
     }
   }
   handle_unit_deleted_during_preload = nullptr;
@@ -828,6 +839,7 @@ static void multithread_compile_all() {
   }
   _PyRuntime.gilstate.check_enabled = old_gil_check_enabled;
   jit_preloaders.clear();
+  return true;
 }
 
 static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
@@ -841,7 +853,9 @@ static PyObject* multithreaded_compile_test(PyObject*, PyObject*) {
   JIT_LOG("(Re)compiling {} units", jit_reg_units.size());
   jit_ctx->clearCache();
   std::chrono::time_point time_start = std::chrono::steady_clock::now();
-  multithread_compile_all();
+  if (!multithread_compile_all()) {
+    return nullptr;
+  }
   std::chrono::time_point time_end = std::chrono::steady_clock::now();
   JIT_LOG(
       "Took {} ms, compiles attempted: {}, compiles retried: {}",
@@ -876,12 +890,17 @@ disable_jit(PyObject* /* self */, PyObject* const* args, Py_ssize_t nargs) {
     // Compile all of the pending functions/codes before shutting down
     std::chrono::time_point start = std::chrono::steady_clock::now();
     if (getConfig().batch_compile_workers > 0) {
-      multithread_compile_all();
+      if (!multithread_compile_all()) {
+        return nullptr;
+      }
     } else {
       std::unordered_set<BorrowedRef<>> units;
       units.swap(jit_reg_units);
       for (auto unit : units) {
-        compileUnit(unit);
+        _PyJIT_Result res = compileUnit(unit);
+        if (res == PYJIT_RESULT_PYTHON_EXCEPTION) {
+          return nullptr;
+        }
       }
     }
     std::chrono::time_point end = std::chrono::steady_clock::now();

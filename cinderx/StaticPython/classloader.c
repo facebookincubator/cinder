@@ -3902,12 +3902,6 @@ classloader_get_member(PyObject *path,
         if (d == NULL) {
             PyObject *next = PyObject_GetAttr(cur, name);
             if (next == NULL) {
-                PyErr_Format(
-                    PyExc_TypeError,
-                    "bad name provided for class loader: %R on %R from %s",
-                    path,
-                    name,
-                    cur->ob_type->tp_name);
                 goto error;
             }
             Py_DECREF(cur);

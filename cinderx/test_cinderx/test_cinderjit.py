@@ -7,6 +7,7 @@ import cinder
 import dis
 import faulthandler
 import gc
+import itertools
 import multiprocessing
 import os
 import re
@@ -5364,6 +5365,44 @@ jit disabled
 hello from b_func!
 """
         self.assertEqual(proc.stdout, expected_stdout)
+
+    def test_preload_error(self):
+        root = os.path.join(os.path.dirname(__file__), "data/preload_error")
+        jitlist = os.path.join(root, "jitlist.txt")
+        main = os.path.join(root, "main.py")
+        # don't include jit/no-jit in this matrix, decide it based on whether
+        # overall test run is jit or no-jit; this avoids the confusion of jit
+        # bugs showing up as failures in non-jit test runs
+        for (batch, lazyimports) in itertools.product(
+            [True, False] if cinder_support.CINDERJIT_ENABLED else [False],
+            [True, False],
+        ):
+            cmd = [
+                sys.executable,
+                "-X",
+                "install-strict-loader",
+            ]
+            if cinder_support.CINDERJIT_ENABLED:
+                cmd += [
+                    "-X",
+                    f"jit-list-file={jitlist}",
+                ]
+                if batch:
+                    cmd += [
+                        "-X",
+                        "jit-batch-compile-workers=2",
+                    ]
+            if lazyimports:
+                cmd += ["-L"]
+            cmd += ["main.py"]
+            with self.subTest(batch=batch, lazyimports=lazyimports):
+                proc = subprocess.run(
+                    cmd,
+                    cwd=root,
+                    capture_output=True,
+                )
+                self.assertEqual(proc.returncode, 1, proc.stderr)
+                self.assertIn(b"RuntimeError: boom\n", proc.stderr)
 
 
 class LoadMethodEliminationTests(unittest.TestCase):

@@ -1,4 +1,5 @@
 test___static__
+test_batch_compile_regression
 test_cinder
 test_cinderjit
 test_compiler
