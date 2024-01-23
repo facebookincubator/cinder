@@ -967,34 +967,40 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   // Multi-threaded compilation must use an existing Preloader, whereas
   // single-threaded compilation can make Preloaders on the fly.
   InlineResult result;
+
+  Preloader* preloader = nullptr;
+  std::unique_ptr<Preloader> new_preloader;
+
   if (g_threaded_compile_context.compileRunning()) {
-    const Preloader& preloader{getPreloader(func)};
-    if (!canInlineWithPreloader(
-            call_instr, fullname, preloader, inline_failure_stats)) {
-      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
-      return;
-    }
-    HIRBuilder hir_builder(preloader);
-    result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
+    preloader = lookupPreloader(func);
+    JIT_CHECK(
+        preloader != nullptr,
+        "Preloader not found after verifying function is preloaded");
   } else {
-    // This explicit temporary is necessary because HIRBuilder takes a const
-    // reference and stores it and we need to make sure the target doesn't go
-    // away.
-    auto preloader = Preloader::getPreloader(func);
-    if (!preloader) {
-      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
+    new_preloader = Preloader::makePreloader(func);
+    preloader = new_preloader.get();
+    if (preloader == nullptr) {
+      JIT_DLOG(
+          "Cannot inline {} into {} because preloading failed",
+          fullname,
+          caller.fullname);
       return;
     }
-    if (!canInlineWithPreloader(
-            call_instr, fullname, *preloader, inline_failure_stats)) {
-      JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
-      return;
-    }
-    HIRBuilder hir_builder(*preloader);
-    result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   }
+
+  if (!canInlineWithPreloader(
+          call_instr, fullname, *preloader, inline_failure_stats)) {
+    JIT_DLOG(
+        "Cannot inline {} into {} because of preload limitations",
+        fullname,
+        caller.fullname);
+    return;
+  }
+  HIRBuilder hir_builder(*preloader);
+  result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
   if (result.entry == nullptr) {
-    JIT_DLOG("Cannot inline {} into {}", fullname, caller.fullname);
+    JIT_DLOG(
+        "Tried and failed to inline {} into {}", fullname, caller.fullname);
     return;
   }
 

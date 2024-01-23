@@ -97,34 +97,22 @@ static std::
 
 namespace jit {
 
-hir::Preloader* tryGetPreloader(BorrowedRef<> unit) {
-  BorrowedRef<PyCodeObject> code;
-  if (PyFunction_Check(unit)) {
-    BorrowedRef<PyFunctionObject> func{unit};
-    code = BorrowedRef<PyCodeObject>{func->func_code};
-  } else {
-    code = BorrowedRef<PyCodeObject>{unit};
-  }
+hir::Preloader* lookupPreloader(BorrowedRef<> unit) {
+  BorrowedRef<PyCodeObject> code = unit != nullptr && PyFunction_Check(unit)
+      ? reinterpret_cast<PyFunctionObject*>(unit.get())->func_code
+      : unit.get();
   JIT_CHECK(code != nullptr, "Trying to map a null code object to a preloader");
   JIT_CHECK(
       PyCode_Check(code),
       "Compilation unit has to be a code object but is instead {}",
-      code->ob_base.ob_type->tp_name);
+      typeFullname(Py_TYPE(code)));
 
   auto it = jit_preloaders.find(code);
   return it != jit_preloaders.end() ? it->second.get() : nullptr;
 }
 
 bool isPreloaded(BorrowedRef<> unit) {
-  return tryGetPreloader(unit) != nullptr;
-}
-
-const hir::Preloader& getPreloader(BorrowedRef<> unit) {
-  hir::Preloader* preloader = tryGetPreloader(unit);
-  JIT_CHECK(
-      preloader != nullptr,
-      "Cannot find preloader for the given compilation unit");
-  return *preloader;
+  return lookupPreloader(unit) != nullptr;
 }
 
 } // namespace jit
@@ -698,6 +686,27 @@ static _PyJIT_Result compileUnit(BorrowedRef<> unit) {
   return jit_ctx->compileCode(data.module, code, data.builtins, data.globals);
 }
 
+static std::string unitFullname(BorrowedRef<> unit) {
+  if (unit == nullptr) {
+    return "<nullptr>";
+  }
+  if (PyFunction_Check(unit)) {
+    BorrowedRef<PyFunctionObject> func{unit};
+    return funcFullname(func);
+  }
+  if (PyCode_Check(unit)) {
+    BorrowedRef<PyCodeObject> code{unit};
+    auto iter = jit_code_data.find(code);
+    if (iter == jit_code_data.end()) {
+      return fmt::format(
+          "<Unknown code object {}>", static_cast<void*>(code.get()));
+    }
+    return codeFullname(iter->second.module, code);
+  }
+  return fmt::format(
+      "<Unknown Python object {}>", static_cast<void*>(unit.get()));
+}
+
 // Compile the given function or code object with a preloader from the global
 // map.
 static _PyJIT_Result compilePreloaded(BorrowedRef<> unit) {
@@ -705,7 +714,12 @@ static _PyJIT_Result compilePreloaded(BorrowedRef<> unit) {
   if (PyFunction_Check(unit)) {
     func = BorrowedRef<PyFunctionObject>{unit};
   }
-  return jit_ctx->compilePreloader(func, getPreloader(unit));
+  hir::Preloader* preloader = lookupPreloader(unit);
+  JIT_CHECK(
+      preloader != nullptr,
+      "Cannot find a JIT preloader for {}",
+      unitFullname(unit));
+  return jit_ctx->compilePreloader(func, *preloader);
 }
 
 static void compile_worker_thread() {
@@ -763,7 +777,7 @@ static bool multithread_compile_all() {
       if (PyFunction_Check(unit)) {
         BorrowedRef<PyFunctionObject> func{unit};
         std::unique_ptr<hir::Preloader> preloader =
-            hir::Preloader::getPreloader(func);
+            hir::Preloader::makePreloader(func);
         if (!preloader) {
           error_cleanup();
           return false;
@@ -778,7 +792,7 @@ static bool multithread_compile_all() {
         BorrowedRef<PyCodeObject> code(unit);
         const CodeData& data = map_get(jit_code_data, code);
         std::unique_ptr<hir::Preloader> preloader =
-            hir::Preloader::getPreloader(
+            hir::Preloader::makePreloader(
                 code,
                 data.builtins,
                 data.globals,
@@ -1949,11 +1963,9 @@ _PyJIT_Result _PyJIT_CompileFunction(PyFunctionObject* raw_func) {
     // we were called recursively (by emitInvokeFunction);
     // find preloader in global map and compile it.
 
-    hir::Preloader* preloader = tryGetPreloader(func);
-    if (preloader == nullptr) {
-      return PYJIT_RESULT_CANNOT_SPECIALIZE;
-    }
-    return jit_ctx->compilePreloader(func, *preloader);
+    hir::Preloader* preloader = lookupPreloader(func);
+    return preloader != nullptr ? jit_ctx->compilePreloader(func, *preloader)
+                                : PYJIT_RESULT_CANNOT_SPECIALIZE;
   }
 
   if (!shouldCompile(func)) {

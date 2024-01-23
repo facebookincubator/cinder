@@ -80,7 +80,7 @@ class Preloader {
  public:
   Preloader(Preloader&&) = default;
   Preloader() = default;
-  static std::unique_ptr<Preloader> getPreloader(
+  static std::unique_ptr<Preloader> makePreloader(
       BorrowedRef<PyFunctionObject> func) {
     auto preloader = std::unique_ptr<Preloader>(new Preloader(
         func->func_code,
@@ -94,7 +94,7 @@ class Preloader {
     return preloader;
   }
 
-  static std::unique_ptr<Preloader> getPreloader(
+  static std::unique_ptr<Preloader> makePreloader(
       BorrowedRef<PyCodeObject> code,
       BorrowedRef<PyDictObject> builtins,
       BorrowedRef<PyDictObject> globals,

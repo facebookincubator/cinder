@@ -533,12 +533,8 @@ std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func) {
   JIT_CHECK(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
-  auto preloader = Preloader::getPreloader(func);
-  if (preloader) {
-    return buildHIR(*preloader);
-  } else {
-    return nullptr;
-  }
+  std::unique_ptr<Preloader> preloader = Preloader::makePreloader(func);
+  return preloader ? buildHIR(*preloader) : nullptr;
 }
 
 std::unique_ptr<Function> buildHIR(const Preloader& preloader) {

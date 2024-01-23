@@ -132,11 +132,9 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   JIT_CHECK(
       !g_threaded_compile_context.compileRunning(),
       "multi-thread compile must preload first");
-  auto preloader = jit::hir::Preloader::getPreloader(func);
-  if (!preloader) {
-    return nullptr;
-  }
-  return Compile(*preloader);
+  std::unique_ptr<hir::Preloader> preloader =
+      hir::Preloader::makePreloader(func);
+  return preloader ? Compile(*preloader) : nullptr;
 }
 
 PassConfig createConfig() {

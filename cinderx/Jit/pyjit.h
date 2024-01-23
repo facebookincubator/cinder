@@ -322,10 +322,15 @@ PyAPI_FUNC(void) _PyPerfTrampoline_CompilePerfTrampolinePreFork(void);
 #ifdef __cplusplus
 namespace jit {
 
-hir::Preloader* tryGetPreloader(BorrowedRef<> unit);
+/*
+ * Load the preloader for a given function or code object, if it exists.
+ */
+hir::Preloader* lookupPreloader(BorrowedRef<> unit);
 
+/*
+ * Check if a function or code object has been preloaded.
+ */
 bool isPreloaded(BorrowedRef<> unit);
-const hir::Preloader& getPreloader(BorrowedRef<> unit);
 
 } // namespace jit
 #endif
