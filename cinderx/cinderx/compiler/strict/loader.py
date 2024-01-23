@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import _imp
 import builtins
 
 import importlib._bootstrap_external
+import marshal
 import os
 import sys
 from cinder import StrictModule, watch_sys_modules
 
 from enum import Enum
+# pyre-ignore[21]: typeshed doesn't know about this
+from importlib import _bootstrap, _pack_uint32
+# pyre-ignore[21]: typeshed doesn't know about this
+from importlib._bootstrap_external import _classify_pyc, _compile_bytecode, _validate_hash_pyc, _validate_timestamp_pyc
 from importlib.abc import Loader
 from importlib.machinery import (
     BYTECODE_SUFFIXES,
@@ -21,6 +27,8 @@ from importlib.machinery import (
     SourceFileLoader,
     SourcelessFileLoader,
 )
+# pyre-ignore[21]: typeshed doesn't know about _RAW_MAGIC_NUMBER
+from importlib.util import cache_from_source, _RAW_MAGIC_NUMBER
 from os import getenv, makedirs
 from os.path import dirname, isdir
 from py_compile import (
@@ -176,6 +184,31 @@ class StrictModuleTestingPatchProxy:
 __builtins__: ModuleType
 
 
+def _code_to_timestamp_pyc(code: CodeType, mtime: int = 0, source_size: int = 0) -> bytearray:
+    "Produce the data for a timestamp-based pyc."
+    data = bytearray(MAGIC_NUMBER)
+    # pyre-ignore[16]: typeshed doesn't know about this
+    data.extend(_pack_uint32(0))
+    # pyre-ignore[16]: typeshed doesn't know about this
+    data.extend(_pack_uint32(mtime))
+    # pyre-ignore[16]: typeshed doesn't know about this
+    data.extend(_pack_uint32(source_size))
+    data.extend(marshal.dumps(code))
+    return data
+
+
+def _code_to_hash_pyc(code: CodeType, source_hash: bytes, checked: bool = True) -> bytearray:
+    "Produce the data for a hash-based pyc."
+    data = bytearray(MAGIC_NUMBER)
+    flags = 0b1 | checked << 1
+    # pyre-ignore[16]: typeshed doesn't know about this
+    data.extend(_pack_uint32(flags))
+    assert len(source_hash) == 8
+    data.extend(source_hash)
+    data.extend(marshal.dumps(code))
+    return data
+
+
 class StrictSourceFileLoader(SourceFileLoader):
     strict_or_static: bool = False
     compiler: Optional[Compiler] = None
@@ -286,6 +319,93 @@ class StrictSourceFileLoader(SourceFileLoader):
             )
             data = magic + data
         return super().set_data(path, data, _mode=_mode)
+
+    def get_code(self, fullname: str) -> CodeType:
+        source_path = self.get_filename(fullname)
+        source_mtime = None
+        source_bytes = None
+        source_hash = None
+        hash_based = False
+        check_source = True
+        try:
+            bytecode_path = cache_from_source(source_path)
+        except NotImplementedError:
+            bytecode_path = None
+        else:
+            try:
+                st = self.path_stats(source_path)
+            except OSError:
+                pass
+            else:
+                source_mtime = int(st['mtime'])
+                try:
+                    data = self.get_data(bytecode_path)
+                except OSError:
+                    pass
+                else:
+                    exc_details = {
+                        'name': fullname,
+                        'path': bytecode_path,
+                    }
+                    try:
+                        # pyre-ignore[16]: typeshed doesn't know about this
+                        flags = _classify_pyc(data, fullname, exc_details)
+                        bytes_data = memoryview(data)[16:]
+                        hash_based = flags & 0b1 != 0
+                        if hash_based:
+                            check_source = flags & 0b10 != 0
+                            if (_imp.check_hash_based_pycs != 'never' and
+                                (check_source or
+                                 _imp.check_hash_based_pycs == 'always')):
+                                source_bytes = self.get_data(source_path)
+                                source_hash = _imp.source_hash(
+                                    # pyre-ignore[16]: typeshed doesn't know about this
+                                    _RAW_MAGIC_NUMBER,
+                                    source_bytes,
+                                )
+                                # pyre-ignore[16]: typeshed doesn't know about this
+                                _validate_hash_pyc(data, source_hash, fullname,
+                                                   exc_details)
+                        else:
+                            # pyre-ignore[16]: typeshed doesn't know about this
+                            _validate_timestamp_pyc(
+                                data,
+                                source_mtime,
+                                st['size'],
+                                fullname,
+                                exc_details,
+                            )
+                    except (ImportError, EOFError):
+                        pass
+                    else:
+                        # pyre-ignore[16]: typeshed doesn't know about this
+                        _bootstrap._verbose_message('{} matches {}', bytecode_path,
+                                                    source_path)
+                        # pyre-ignore[16]: typeshed doesn't know about this
+                        return _compile_bytecode(bytes_data, name=fullname,
+                                                 bytecode_path=bytecode_path,
+                                                 source_path=source_path)
+        if source_bytes is None:
+            source_bytes = self.get_data(source_path)
+        code_object = self.source_to_code(source_bytes, source_path)
+        # pyre-ignore[16]: typeshed doesn't know about this
+        _bootstrap._verbose_message('code object from {}', source_path)
+        if (not sys.dont_write_bytecode and bytecode_path is not None and
+                source_mtime is not None):
+            if hash_based:
+                if source_hash is None:
+                    # pyre-ignore[16]: typeshed doesn't know about _RAW_MAGIC_NUMBER
+                    source_hash = _imp.source_hash(_RAW_MAGIC_NUMBER, source_bytes)
+                data = _code_to_hash_pyc(code_object, source_hash, check_source)
+            else:
+                data = _code_to_timestamp_pyc(code_object, source_mtime,
+                                              len(source_bytes))
+            try:
+                # pyre-ignore[16]: typeshed doesn't know about this
+                self._cache_bytecode(source_path, bytecode_path, data)
+            except NotImplementedError:
+                pass
+        return code_object
 
     def should_force_strict(self) -> bool:
         return False
