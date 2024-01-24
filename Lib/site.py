@@ -582,6 +582,7 @@ def execusercustomize():
                 (err.__class__.__name__, err))
 
 
+#start-remove-fbcode-cinderx
 # TODO(T172877814) remove
 def init_cinder():
     # ensure the CinderX pure-Python code is importable (only needed for in-repo
@@ -594,6 +595,7 @@ def init_cinder():
         cinderx.init()
     except (ImportError, AttributeError):
         pass
+#end-remove-fbcode-cinderx
 
 
 def main():
@@ -621,7 +623,9 @@ def main():
     sethelper()
     if not sys.flags.isolated:
         enablerlcompleter()
+#start-remove-fbcode-cinderx
     init_cinder()
+#end-remove-fbcode-cinderx
     execsitecustomize()
     if ENABLE_USER_SITE:
         execusercustomize()
