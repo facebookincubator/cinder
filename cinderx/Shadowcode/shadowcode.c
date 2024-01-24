@@ -1014,9 +1014,6 @@ _PyShadow_PatchOrMiss(_PyShadow_EvalState *state,
                       attr_miss_invalidate_func miss)
 {
     _ShadowCache *cache = &state->shadow->l1_cache;
-    _Py_CODEUNIT *instr =
-        &state->shadow->code[next_instr - *state->first_instr];
-    instr--; /* we point to the next instruction, we want the current one */
 
     Py_ssize_t index = _PyShadow_CacheFind(cache, state, entry);
     if (index != -1 ||
