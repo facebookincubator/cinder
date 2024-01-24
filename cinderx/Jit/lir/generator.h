@@ -116,9 +116,6 @@ class LIRGenerator {
 
   TranslatedBlock TranslateOneBasicBlock(const hir::BasicBlock* bb);
 
-  int label_id{0};
-  std::string GetSafeLabelName();
-
   // Fill in operands for phi instructions.  This is executed after LIR
   // instructions have been generated for all values in the control flow graph.
   void resolvePhiOperands(

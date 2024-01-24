@@ -34,12 +34,8 @@ std::size_t BasicBlockBuilder::makeDeoptMetadata() {
   return cur_deopt_metadata_.value();
 }
 
-BasicBlock* BasicBlockBuilder::allocateBlock(std::string_view label) {
-  auto [it, inserted] = label_to_bb_.emplace(std::string{label}, nullptr);
-  if (inserted) {
-    it->second = func_->allocateBasicBlock();
-  }
-  return it->second;
+BasicBlock* BasicBlockBuilder::allocateBlock() {
+  return func_->allocateBasicBlock();
 }
 
 void BasicBlockBuilder::appendBlock(BasicBlock* block) {
@@ -54,23 +50,8 @@ void BasicBlockBuilder::switchBlock(BasicBlock* block) {
   cur_bb_ = block;
 }
 
-void BasicBlockBuilder::appendLabel(std::string_view s) {
-  appendBlock(allocateBlock(s));
-}
-
 Instruction* BasicBlockBuilder::createInstr(Instruction::Opcode opcode) {
   return cur_bb_->allocateInstr(opcode, cur_hir_instr_);
-}
-
-BasicBlock* BasicBlockBuilder::getBasicBlockByLabel(const std::string& label) {
-  auto iter = label_to_bb_.find(label);
-  if (iter == label_to_bb_.end()) {
-    auto bb = func_->allocateBasicBlock();
-    label_to_bb_.emplace(label, bb);
-    return bb;
-  }
-
-  return iter->second;
 }
 
 Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
@@ -110,16 +91,6 @@ void BasicBlockBuilder::createInstrOutput(
   auto output = instr->output();
   output->setVirtualRegister();
   output->setDataType(hirTypeToDataType(dst->type()));
-}
-
-void BasicBlockBuilder::SetBlockSection(
-    const std::string& label,
-    codegen::CodeSection section) {
-  BasicBlock* block = getBasicBlockByLabel(label);
-  if (block == nullptr) {
-    return;
-  }
-  block->setSection(section);
 }
 
 } // namespace jit::lir

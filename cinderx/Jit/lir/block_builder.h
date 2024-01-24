@@ -122,9 +122,7 @@ class BasicBlockBuilder {
   std::size_t makeDeoptMetadata();
 
   // Allocate a new block, not yet attached anywhere in the current CFG.
-  //
-  // If the block name already exists, then this returns the existing block.
-  BasicBlock* allocateBlock(std::string_view label);
+  BasicBlock* allocateBlock();
 
   // Append a block to the CFG and switch to it.
   void appendBlock(BasicBlock* block);
@@ -211,8 +209,6 @@ class BasicBlockBuilder {
     return instr;
   }
 
-  void appendLabel(std::string_view s);
-
   template <
       typename FuncReturnType,
       typename... FuncArgs,
@@ -270,7 +266,6 @@ class BasicBlockBuilder {
 
   void createInstrInput(Instruction* instr, hir::Register* reg);
   void createInstrOutput(Instruction* instr, hir::Register* dst);
-  void SetBlockSection(const std::string& label, codegen::CodeSection section);
 
   std::vector<BasicBlock*> Generate() {
     return bbs_;
@@ -283,7 +278,6 @@ class BasicBlockBuilder {
   std::vector<BasicBlock*> bbs_;
   jit::codegen::Environ* env_;
   Function* func_;
-  std::unordered_map<std::string, BasicBlock*> label_to_bb_;
 
   constexpr Instruction* appendInstrArguments(Instruction* instr) {
     return instr;
@@ -295,8 +289,6 @@ class BasicBlockBuilder {
     genericCreateInstrInput(instr, first_arg);
     return appendInstrArguments(instr, std::forward<T>(args)...);
   }
-
-  BasicBlock* getBasicBlockByLabel(const std::string& label);
 
   template <
       typename FuncReturnType,

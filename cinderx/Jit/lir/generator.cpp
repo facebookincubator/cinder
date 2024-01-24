@@ -476,9 +476,9 @@ void LIRGenerator::MakeIncref(
     return;
   }
 
-  auto end_incref = bbb.allocateBlock(GetSafeLabelName());
+  auto end_incref = bbb.allocateBlock();
   if (xincref) {
-    auto cont = bbb.allocateBlock(GetSafeLabelName());
+    auto cont = bbb.allocateBlock();
     bbb.appendBranch(Instruction::kCondBranch, obj, cont, end_incref);
     bbb.appendBlock(cont);
   }
@@ -487,7 +487,7 @@ void LIRGenerator::MakeIncref(
   // 32-bit integer to see if it overflows on increment, indicating that it's
   // immortal.  For mortal objects the refcount is a regular 64-bit integer.
   if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
-    auto mortal = bbb.allocateBlock(GetSafeLabelName());
+    auto mortal = bbb.allocateBlock();
     Instruction* r1 = bbb.appendInstr(
         OutVReg{OperandBase::k32bit},
         Instruction::kMove,
@@ -531,9 +531,9 @@ void LIRGenerator::MakeDecref(
     return;
   }
 
-  auto end_decref = bbb.allocateBlock(GetSafeLabelName());
+  auto end_decref = bbb.allocateBlock();
   if (xdecref) {
-    auto cont = bbb.allocateBlock(GetSafeLabelName());
+    auto cont = bbb.allocateBlock();
     bbb.appendBranch(Instruction::kCondBranch, obj, cont, end_decref);
     bbb.appendBlock(cont);
   }
@@ -544,7 +544,7 @@ void LIRGenerator::MakeDecref(
       Ind{bbb.getDefInstr(obj), kRefcountOffset});
 
   if (kImmortalInstances && obj->type().couldBe(TImmortalObject)) {
-    auto mortal = bbb.allocateBlock(GetSafeLabelName());
+    auto mortal = bbb.allocateBlock();
     bbb.appendInstr(Instruction::kTest32, r1, r1);
     bbb.appendBranch(Instruction::kBranchS, end_decref);
     bbb.appendBlock(mortal);
@@ -557,7 +557,7 @@ void LIRGenerator::MakeDecref(
     bbb.appendInstr(OutMemImm{kRefTotalAddr}, Instruction::kMove, r0);
   }
 
-  auto dealloc = bbb.allocateBlock(GetSafeLabelName());
+  auto dealloc = bbb.allocateBlock();
   bbb.appendInstr(Instruction::kDec, r1);
   bbb.appendInstr(
       OutInd{bbb.getDefInstr(obj), kRefcountOffset}, Instruction::kMove, r1);
@@ -574,7 +574,7 @@ void LIRGenerator::MakeDecref(
 LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
     const hir::BasicBlock* hir_bb) {
   BasicBlockBuilder bbb{env_, lir_func_};
-  BasicBlock* entry_block = bbb.allocateBlock("__main__");
+  BasicBlock* entry_block = bbb.allocateBlock();
   bbb.switchBlock(entry_block);
 
   for (auto& i : *hir_bb) {
@@ -1000,9 +1000,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         bbb.appendInstr(instr->dst(), Instruction::kMove, Imm{0});
 
-        auto check_err = bbb.allocateBlock(GetSafeLabelName());
-        auto set_err = bbb.allocateBlock(GetSafeLabelName());
-        auto done = bbb.allocateBlock(GetSafeLabelName());
+        auto check_err = bbb.allocateBlock();
+        auto set_err = bbb.allocateBlock();
+        auto done = bbb.allocateBlock();
 
         bbb.appendBranch(
             Instruction::kCondBranch, is_not_negative, done, check_err);
@@ -2615,10 +2615,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         // Unlink PyFrame if needed. Someone might have materialized all of the
         // PyFrames via PyEval_GetFrame or similar.
-        auto done_block = bbb.allocateBlock(GetSafeLabelName());
+        auto done_block = bbb.allocateBlock();
         bbb.appendBranch(Instruction::kBranchNC, done_block);
-        // TODO(T109445584): Remove this unused label.
-        bbb.appendLabel(GetSafeLabelName());
+        // TODO(T109445584): Remove this unused block.
+        bbb.appendBlock(bbb.allocateBlock());
         bbb.appendInvokeInstruction(JITRT_UnlinkFrame, env_->asm_tstate);
         bbb.appendBlock(done_block);
         if (kPyDebug) {
@@ -2839,10 +2839,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
   basic_blocks_.insert(basic_blocks_.end(), bbs.begin(), bbs.end());
 
   return {bbs.front(), bbs.back()};
-}
-
-std::string LIRGenerator::GetSafeLabelName() {
-  return fmt::format("__codegen_label_{}", label_id++);
 }
 
 void LIRGenerator::resolvePhiOperands(
