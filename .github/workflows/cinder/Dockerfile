@@ -11,8 +11,9 @@ ENV MAKE_JOBS="${make_jobs}" MAKE_VERBOSE="${make_verbose:-1}"
 WORKDIR /cinder/build
 COPY --chmod=r . /cinder/src
 RUN cp /cinder/src/oss-cinder-test.sh /cinder/build/
-RUN /cinder/src/configure --prefix=/cinder
+RUN /cinder/src/configure --prefix=/cinder --enable-cinderx-module
 RUN make -j${MAKE_JOBS:-$( nproc )} VERBOSE=$MAKE_VERBOSE
+RUN make -j${MAKE_JOBS:-$( nproc )} VERBOSE=$MAKE_VERBOSE cinderx_module
 
 # The "install" image - install the built Python and discard the source and build trees
 FROM build as install

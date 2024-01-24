@@ -1672,6 +1672,11 @@ libinstall:	build_all $(srcdir)/Modules/xxmodule.c
 			echo $(INSTALL_DATA) $$i $(LIBDEST); \
 		fi; \
 	done
+	cp -r $(srcdir)/cinderx/cinderx/ $(DESTDIR)$(LIBDEST)
+	cp -r $(srcdir)/cinderx/__static__/ $(DESTDIR)$(LIBDEST)
+	cp -r $(srcdir)/cinderx/__strict__/ $(DESTDIR)$(LIBDEST)
+	cp -r $(srcdir)/cinderx/compiler/ $(DESTDIR)$(LIBDEST)
+	cp '$(abs_builddir)/$(shell cat "$(abs_builddir)/pybuilddir.txt")/_cinderx.$(SOABI).so' $(DESTDIR)$(LIBDEST)
 	@if test "$(TEST_MODULES)" = yes; then \
 		subdirs="$(LIBSUBDIRS) $(TESTSUBDIRS)"; \
 	else \
