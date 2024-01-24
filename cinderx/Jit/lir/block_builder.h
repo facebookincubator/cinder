@@ -151,7 +151,7 @@ class BasicBlockBuilder {
   appendInstr(hir::Register* dest, Instruction::Opcode opcode, Args&&... args) {
     auto dest_lir = OutVReg{hirTypeToDataType(dest->type())};
     auto instr = appendInstr(opcode, dest_lir, std::forward<Args>(args)...);
-    auto [it, inserted] = env_->output_map.emplace(dest->name(), instr);
+    auto [it, inserted] = env_->output_map.emplace(dest, instr);
     JIT_CHECK(inserted, "HIR value '{}' defined twice in LIR", dest->name());
     return instr;
   }
@@ -227,7 +227,7 @@ class BasicBlockBuilder {
         "void.");
     auto instr =
         appendCallInstructionInternal(func, std::forward<AppendArgs>(args)...);
-    genericCreateInstrOutput(instr, dst);
+    createInstrOutput(instr, dst);
     return instr;
   }
 
@@ -269,10 +269,7 @@ class BasicBlockBuilder {
   Instruction* getDefInstr(const hir::Register* reg);
 
   void createInstrInput(Instruction* instr, hir::Register* reg);
-  void createInstrOutput(
-      Instruction* instr,
-      const std::string& name,
-      Operand::DataType data_type);
+  void createInstrOutput(Instruction* instr, hir::Register* dst);
   void SetBlockSection(const std::string& label, codegen::CodeSection section);
 
   std::vector<BasicBlock*> Generate() {
@@ -445,10 +442,6 @@ class BasicBlockBuilder {
     } else {
       instr->addOperands(val);
     }
-  }
-
-  void genericCreateInstrOutput(Instruction* instr, hir::Register* dst) {
-    createInstrOutput(instr, dst->name(), hirTypeToDataType(dst->type()));
   }
 };
 

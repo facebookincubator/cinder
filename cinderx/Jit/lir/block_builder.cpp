@@ -74,7 +74,7 @@ BasicBlock* BasicBlockBuilder::getBasicBlockByLabel(const std::string& label) {
 }
 
 Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
-  auto def_instr = map_get(env_->output_map, reg->name(), nullptr);
+  auto def_instr = map_get(env_->output_map, reg, nullptr);
 
   if (def_instr == nullptr) {
     // The output has to be copy propagated.
@@ -86,7 +86,7 @@ Instruction* BasicBlockBuilder::getDefInstr(const hir::Register* reg) {
     }
 
     if (def_reg != nullptr) {
-      def_instr = map_get(env_->output_map, def_reg->name(), nullptr);
+      def_instr = map_get(env_->output_map, def_reg, nullptr);
     }
   }
 
@@ -101,16 +101,15 @@ void BasicBlockBuilder::createInstrInput(
 
 void BasicBlockBuilder::createInstrOutput(
     Instruction* instr,
-    const std::string& name,
-    Operand::DataType data_type) {
-  auto pair = env_->output_map.emplace(name, instr);
+    hir::Register* dst) {
+  auto pair = env_->output_map.emplace(dst, instr);
   JIT_DCHECK(
       pair.second,
       "Multiple outputs with the same name ({})- HIR is not in SSA form.",
-      name);
+      dst->name());
   auto output = instr->output();
   output->setVirtualRegister();
-  output->setDataType(data_type);
+  output->setDataType(hirTypeToDataType(dst->type()));
 }
 
 void BasicBlockBuilder::SetBlockSection(

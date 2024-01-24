@@ -100,8 +100,8 @@ struct Environ {
   // gen is complete.
   UnorderedMap<GenYieldPoint*, asmjit::Label> unresolved_gen_entry_labels;
 
-  // maps an output name to its defining instruction
-  UnorderedMap<std::string, jit::lir::Instruction*> output_map;
+  // Maps HIR values to the LIR instruction that defines them.
+  UnorderedMap<const hir::Register*, jit::lir::Instruction*> output_map;
 
   // Instruction definitions that are pinned to physical registers.
   jit::lir::Instruction* asm_tstate{nullptr};
