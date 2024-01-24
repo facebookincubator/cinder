@@ -964,10 +964,9 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
 
   auto caller_frame_state =
       std::make_unique<FrameState>(*call_instr->instr->frameState());
-  // Multi-threaded compilation must use an existing Preloader, whereas
-  // single-threaded compilation can make Preloaders on the fly.
-  InlineResult result;
 
+  // Multi-threaded compilation uses a pre-existing preloader, but
+  // single-threaded compilation has to try to make a preloader on the fly.
   Preloader* preloader = nullptr;
   std::unique_ptr<Preloader> new_preloader;
 
@@ -979,6 +978,8 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   } else {
     new_preloader = Preloader::makePreloader(func);
     preloader = new_preloader.get();
+    // TODO(T175945252): Failing to preload implies a Python exception was
+    // generated, and that's not being handled here.
     if (preloader == nullptr) {
       JIT_DLOG(
           "Cannot inline {} into {} because preloading failed",
@@ -991,13 +992,14 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   if (!canInlineWithPreloader(
           call_instr, fullname, *preloader, inline_failure_stats)) {
     JIT_DLOG(
-        "Cannot inline {} into {} because of preload limitations",
+        "canInlineWithPreloader vetoes inline of {} into {}",
         fullname,
         caller.fullname);
     return;
   }
   HIRBuilder hir_builder(*preloader);
-  result = hir_builder.inlineHIR(&caller, caller_frame_state.get());
+  InlineResult result =
+      hir_builder.inlineHIR(&caller, caller_frame_state.get());
   if (result.entry == nullptr) {
     JIT_DLOG(
         "Tried and failed to inline {} into {}", fullname, caller.fullname);
