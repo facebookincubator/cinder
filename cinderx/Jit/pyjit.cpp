@@ -933,17 +933,19 @@ static PyObject* get_batch_compilation_time_ms(PyObject*, PyObject*) {
   return PyLong_FromLong(g_batch_compilation_time_ms);
 }
 
-static PyObject* force_compile(PyObject* /* self */, PyObject* func) {
-  if (!PyFunction_Check(func)) {
+static PyObject* force_compile(PyObject* /* self */, PyObject* func_obj) {
+  if (!PyFunction_Check(func_obj)) {
     PyErr_SetString(PyExc_TypeError, "force_compile expected a function");
     return nullptr;
   }
+
+  BorrowedRef<PyFunctionObject> func = func_obj;
 
   if (_PyJIT_IsCompiled(func)) {
     Py_RETURN_FALSE;
   }
 
-  switch (_PyJIT_CompileFunction(reinterpret_cast<PyFunctionObject*>(func))) {
+  switch (_PyJIT_CompileFunction(func)) {
     case PYJIT_RESULT_OK:
       Py_RETURN_TRUE;
     case PYJIT_RESULT_CANNOT_SPECIALIZE:
@@ -972,28 +974,21 @@ static PyObject* auto_jit_threshold(PyObject* /* self */, PyObject*) {
   return PyLong_FromLong(getConfig().auto_jit_threshold);
 }
 
-int _PyJIT_IsCompiled(PyObject* func) {
-  if (jit_ctx == nullptr) {
-    return 0;
-  }
-  JIT_DCHECK(
-      PyFunction_Check(func),
-      "Expected PyFunctionObject, got '{:.200}'",
-      Py_TYPE(func)->tp_name);
-
-  return int{jit_ctx->didCompile(func)};
+int _PyJIT_IsCompiled(PyFunctionObject* func) {
+  return jit_ctx != nullptr ? jit_ctx->didCompile(func) : 0;
 }
 
 static PyObject* is_jit_compiled(PyObject* /* self */, PyObject* func) {
-  int st = _PyJIT_IsCompiled(func);
-  PyObject* res = nullptr;
-  if (st == 1) {
-    res = Py_True;
-  } else if (st == 0) {
-    res = Py_False;
+  if (!PyFunction_Check(func)) {
+    PyErr_SetString(
+        PyExc_RuntimeError, "Must call is_jit_compiled with a function object");
+    return nullptr;
   }
-  Py_XINCREF(res);
-  return res;
+
+  if (_PyJIT_IsCompiled(reinterpret_cast<PyFunctionObject*>(func))) {
+    Py_RETURN_TRUE;
+  }
+  Py_RETURN_FALSE;
 }
 
 static PyObject* print_hir(PyObject* /* self */, PyObject* func) {

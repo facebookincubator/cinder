@@ -1865,7 +1865,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         std::stringstream ss;
         Instruction* lir;
-        if (_PyJIT_IsCompiled((PyObject*)func)) {
+        if (_PyJIT_IsCompiled(func)) {
           lir = bbb.appendInstr(
               instr->dst(),
               Instruction::kCall,

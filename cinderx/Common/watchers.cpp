@@ -81,7 +81,7 @@ static int install_func_watcher() {
         break;
       case PyFunction_EVENT_MODIFY_QUALNAME:
         // allow reconsideration of whether this function should be compiled
-        if (!_PyJIT_IsCompiled((PyObject*)func)) {
+        if (!_PyJIT_IsCompiled(func)) {
           // func_set_qualname will assign this again, but we need to assign it
           // now so that PyEntry_init can consider the new qualname
           Py_INCREF(new_value);

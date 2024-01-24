@@ -239,7 +239,7 @@ PyAPI_FUNC(PyObject*) _PyJIT_GenYieldFromValue(PyGenObject* gen);
 
  * Returns 1 if the function is JITed, 0 if not.
  */
-PyAPI_FUNC(int) _PyJIT_IsCompiled(PyObject* func);
+PyAPI_FUNC(int) _PyJIT_IsCompiled(PyFunctionObject* func);
 
 /*
  * Returns a borrowed reference to the globals for the top-most Python function

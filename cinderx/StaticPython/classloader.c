@@ -1305,7 +1305,7 @@ void set_entry_from_func(_PyType_VTableEntry *entry, PyFunctionObject *func) {
         /* this will always be invoked statically via the v-table */
         entry->vte_entry = (vectorcallfunc)vtable_static_function_dont_bolt;
     } else {
-        assert(_PyJIT_IsCompiled((PyObject *)func));
+        assert(_PyJIT_IsCompiled(func));
         entry->vte_entry = JITRT_GET_STATIC_ENTRY(func->vectorcall);
     }
 }
