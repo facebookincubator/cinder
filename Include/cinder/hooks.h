@@ -135,12 +135,6 @@ CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
 typedef PyObject *(*Ci_HookType_MaybeStrictModule_Dict)(PyObject *op);
 CiAPI_DATA(Ci_HookType_MaybeStrictModule_Dict) Ci_hook_MaybeStrictModule_Dict;
 
-typedef PyObject *(*Ci_HookType_StrictModuleGetDict)(PyObject *op);
-CiAPI_DATA(Ci_HookType_StrictModuleGetDict) Ci_hook_StrictModuleGetDict;
-
-typedef int (*Ci_HookType_StrictModule_Check)(PyObject *obj);
-CiAPI_DATA(Ci_HookType_StrictModule_Check) Ci_hook_StrictModule_Check;
-
 CiAPI_FUNC(PyObject *)
     Cix_method_get_doc(PyMethodDescrObject *descr, void *closure);
 

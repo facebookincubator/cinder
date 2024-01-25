@@ -159,14 +159,7 @@ _add_methods_to_object(PyObject *module, PyObject *name, PyMethodDef *functions)
         if (func == NULL) {
             return -1;
         }
-        if (Ci_hook_StrictModule_Check  && Ci_hook_StrictModule_Check(module)) {
-            PyObject *globals = Ci_hook_StrictModuleGetDict(module);
-            if (PyDict_SetItemString(globals, fdef->ml_name, func) != 0) {
-                Py_DECREF(func);
-                return -1;
-            }
-        }
-        else if (PyObject_SetAttrString(module, fdef->ml_name, func) != 0) {
+        if (PyObject_SetAttrString(module, fdef->ml_name, func) != 0) {
             Py_DECREF(func);
             return -1;
         }
@@ -462,12 +455,6 @@ PyModule_SetDocString(PyObject *m, const char *doc)
     if (v == NULL) {
         Py_XDECREF(v);
         return -1;
-    } else if (Ci_hook_StrictModule_Check && Ci_hook_StrictModule_Check(m)) {
-        PyObject *globals = Ci_hook_StrictModuleGetDict(m);;
-        if (_PyDict_SetItemId(globals, &PyId___doc__, v) != 0) {
-            Py_DECREF(v);
-            return -1;
-        }
     } else if(_PyObject_SetAttrId(m, &PyId___doc__, v) != 0) {
         Py_XDECREF(v);
         return -1;

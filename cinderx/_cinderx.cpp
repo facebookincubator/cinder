@@ -449,8 +449,6 @@ static int cinder_init() {
   Ci_hook_PyJIT_GenMaterializeFrame = _PyJIT_GenMaterializeFrame;
   Ci_hook__PyShadow_FreeAll = _PyShadow_FreeAll;
   Ci_hook_MaybeStrictModule_Dict = Ci_MaybeStrictModule_Dict;
-  Ci_hook_StrictModuleGetDict = Ci_StrictModuleGetDict;
-  Ci_hook_StrictModule_Check = _Ci_StrictModule_Check;
   Ci_hook_EvalFrame = Ci_EvalFrame;
   Ci_hook_PyJIT_GetFrame = _PyJIT_GetFrame;
   Ci_hook_PyJIT_GetBuiltins = _PyJIT_GetBuiltins;
@@ -543,8 +541,6 @@ static int cinder_fini() {
   Ci_hook__PyShadow_FreeAll = nullptr;
   Ci_hook_add_subclass = nullptr;
   Ci_hook_MaybeStrictModule_Dict = nullptr;
-  Ci_hook_StrictModuleGetDict = nullptr;
-  Ci_hook_StrictModule_Check = nullptr;
   Ci_hook_ShadowFrame_GetCode_JIT = nullptr;
   Ci_hook_ShadowFrame_HasGen_JIT = nullptr;
   Ci_hook_ShadowFrame_GetModuleName_JIT = nullptr;

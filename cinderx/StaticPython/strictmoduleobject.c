@@ -590,7 +590,7 @@ PyTypeObject Ci_StrictModule_Type = {
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     0,                                          /* tp_reserved */
-    (reprfunc)module_repr,                /* tp_repr */
+    (reprfunc)module_repr,                      /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -605,19 +605,19 @@ PyTypeObject Ci_StrictModule_Type = {
     (traverseproc)strictmodule_traverse,        /* tp_traverse */
     (inquiry)strictmodule_clear,                /* tp_clear */
     0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
+    offsetof(PyModuleObject, md_weaklist),      /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
     strictmodule_methods,                       /* tp_methods */
     strictmodule_members,                       /* tp_members */
     strict_module_getset,                       /* tp_getset */
-    &PyModule_Type,                             /* tp_base */
+    0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     (initproc)strictmodule_init,                /* tp_init */
     PyType_GenericAlloc,                        /* tp_alloc */
-    Ci_StrictModule_New,                         /* tp_new */
+    Ci_StrictModule_New,                        /* tp_new */
     PyObject_GC_Del,                            /* tp_free */
 };

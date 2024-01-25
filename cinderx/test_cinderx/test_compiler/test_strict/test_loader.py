@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 import textwrap
-from cinder import cinder_set_warn_handler, get_warn_handler
+from cinder import cinder_set_warn_handler, get_warn_handler, StrictModule
 from compiler.strict.common import FIXED_MODULES
 from compiler.strict.compiler import StrictModuleError
 from compiler.strict.loader import (
@@ -2023,7 +2023,7 @@ class StrictLoaderTest(StrictTestBase):
         with self.assertRaises(StrictModuleError):
             self.sbx.strict_import("a")
 
-    def test_is_module(self) -> None:
+    def test_is_strict_module(self) -> None:
         self.sbx.write_file(
             "a.py",
             """
@@ -2031,7 +2031,7 @@ class StrictLoaderTest(StrictTestBase):
         """,
         )
         a = self.sbx.strict_import("a")
-        self.assertTrue(isinstance(a, ModuleType))
+        self.assertTrue(isinstance(a, StrictModule))
 
     def test_static_python(self) -> None:
         self.sbx.write_file(

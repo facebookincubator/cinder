@@ -3,12 +3,14 @@
 #define Ci_CHECKED_DICT_H
 
 #include "Python.h"
-#include "cinder/exports.h"
+
+#include "cinderx/StaticPython/classloader.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+CiAPI_DATA(_PyGenericTypeDef) Ci_CheckedDict_Type;
 CiAPI_FUNC(PyObject *) Ci_CheckedDict_New(PyTypeObject *type);
 CiAPI_FUNC(PyObject *) Ci_CheckedDict_NewPresized(PyTypeObject *type, Py_ssize_t minused);
 

@@ -27,7 +27,7 @@ try:
             get_and_clear_type_profiles,
             get_and_clear_type_profiles_with_metadata,
             get_parallel_gc_settings,
-            init,
+            init as cinderx_init,
             set_profile_interp,
             set_profile_interp_all,
             set_profile_interp_period,
@@ -40,4 +40,22 @@ try:
     finally:
         sys.setdlopenflags(old_dlopen_flags)
 except ImportError:
-    pass
+    cinderx_init = None
+
+
+def init() -> None:
+    """Initialize CinderX."""
+    if cinderx_init is None:
+        # I don't like letting this pass silently, but currently the build
+        # breaks unless we do, due to the build bootstrapping itself with the
+        # built binary when CinderX isn't built yet. This won't be an issue
+        # after buckification and removing the `site.py` call to cinderx init.
+        return
+    cinderx_init()
+
+    # Turn _static into a StrictModule so we can do direct invokes against it
+    import _static
+
+    # if it has a __file__ attribute, libregrtest will try to write to it
+    del _static.__file__
+    sys.modules["_static"] = StrictModule(_static.__dict__, False)

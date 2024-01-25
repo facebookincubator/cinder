@@ -17,29 +17,30 @@
 
 #include "cinderx/CachedProperties/cached_properties.h"
 #include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/checked_dict.h"
+#include "cinderx/StaticPython/checked_list.h"
 #include "strictmoduleobject.h"
 
 PyDoc_STRVAR(_static__doc__,
              "_static contains types related to static Python\n");
 
-extern PyTypeObject Ci_CheckedDict_Type;
-extern PyTypeObject Ci_CheckedList_Type;
-
 static int
 _static_exec(PyObject *m)
 {
-    if (PyType_Ready((PyTypeObject *)&Ci_CheckedDict_Type) < 0)
+    if (PyType_Ready((PyTypeObject *)&Ci_CheckedDict_Type) < 0 ||
+        PyModule_AddObjectRef(m, "chkdict", (PyObject *)&Ci_CheckedDict_Type) < 0) {
         return -1;
+    }
 
-    if (PyType_Ready((PyTypeObject *)&Ci_CheckedList_Type) < 0)
+    if (PyType_Ready((PyTypeObject *)&Ci_CheckedList_Type) < 0 ||
+        PyModule_AddObjectRef(m, "chklist", (PyObject *)&Ci_CheckedList_Type) < 0) {
         return -1;
+    }
 
-    PyObject *globals = ((Ci_StrictModuleObject *)m)->globals;
-    if (PyDict_SetItemString(globals, "chkdict", (PyObject *)&Ci_CheckedDict_Type) < 0)
+    if (PyType_Ready(&PyStaticArray_Type) < 0 ||
+        PyModule_AddObjectRef(m, "staticarray", (PyObject*)&PyStaticArray_Type)) {
         return -1;
-
-    if (PyDict_SetItemString(globals, "chklist", (PyObject *)&Ci_CheckedList_Type) < 0)
-        return -1;
+    }
 
     PyObject *type_code;
 #define SET_TYPE_CODE(name)                                           \
@@ -47,7 +48,7 @@ _static_exec(PyObject *m)
     if (type_code == NULL) {                                          \
         return -1;                                                    \
     }                                                                 \
-    if (PyDict_SetItemString(globals, #name, type_code) < 0) {        \
+    if (PyModule_AddObjectRef(m, #name, type_code) < 0) {                \
         Py_DECREF(type_code);                                         \
         return -1;                                                    \
     }                                                                 \
@@ -147,79 +148,7 @@ _static_exec(PyObject *m)
     return 0;
 }
 
-static PyObject* _static_create(PyObject *spec, PyModuleDef *def) {
-
-    PyObject *mod_dict = PyDict_New();
-    if (mod_dict == NULL) {
-        return NULL;
-    }
-    PyObject *args = PyTuple_New(1);
-    if (args == NULL) {
-        Py_DECREF(mod_dict);
-        return NULL;
-    }
-
-    PyObject *loader = PyObject_GetAttrString(spec, "loader");
-    if (loader == NULL) {
-        Py_DECREF(mod_dict);
-        return NULL;
-    }
-
-    if (PyDict_SetItemString(mod_dict, "__spec__", spec) ||
-        PyDict_SetItemString(mod_dict, "__loader__", loader)) {
-        Py_DECREF(mod_dict);
-        Py_DECREF(loader);
-        return NULL;
-    }
-    Py_DECREF(loader);
-
-    PyTuple_SET_ITEM(args, 0, mod_dict);
-
-
-    PyObject *res = Ci_StrictModule_New(&Ci_StrictModule_Type, args, NULL);
-    Py_DECREF(args);
-    if (res == NULL) {
-        return NULL;
-    }
-
-    PyObject *name = PyUnicode_FromString("_static");
-    if (name == NULL) {
-        Py_DECREF(res);
-        return NULL;
-    }
-
-    PyObject *base_dict = PyDict_New();
-    if(base_dict == NULL) {
-        Py_DECREF(res);
-        Py_DECREF(name);
-        return NULL;
-    }
-
-    ((PyModuleObject*)res)->md_dict = base_dict;
-    if (PyDict_SetItemString(mod_dict, "__name__", name) ||
-       PyModule_AddObject(res, "__name__", name)) {
-        Py_DECREF(res);
-        Py_DECREF(name);
-        return NULL;
-    }
-
-    if (PyType_Ready(&PyStaticArray_Type) < 0) {
-        Py_DECREF(res);
-        Py_DECREF(name);
-        return NULL;
-    }
-
-    if (PyDict_SetItemString(mod_dict, "staticarray", (PyObject*)&PyStaticArray_Type)) {
-        Py_DECREF(res);
-        Py_DECREF(name);
-        return NULL;
-    }
-
-    return res;
-}
-
 static struct PyModuleDef_Slot _static_slots[] = {
-    {Py_mod_create, _static_create},
     {Py_mod_exec, _static_exec},
     {0, NULL},
 };
@@ -1659,9 +1588,7 @@ static struct PyModuleDef _staticmodule = {PyModuleDef_HEAD_INIT,
 PyMODINIT_FUNC
 PyInit__static(void)
 {
-    // Trying to initialize the _static module without the CinderX hooks
-    // installed raises AttributeError; raise ImportError instead so we fall
-    // back to the __static__ polyfill.
+    // _static module requires CinderX to be initialized first
     if (!Ci_cinderx_initialized) {
         PyErr_SetString(PyExc_ImportError, "must call cinderx.init() before importing _static");
         return NULL;
