@@ -488,7 +488,7 @@ def _setupCinderIgnoredTests(ns: Namespace, use_rr: bool) -> Tuple[List[str], Se
     if use_rr:
         skip_list_files.append("rr_skip_tests.txt")
 
-    if sysconfig.get_config_var('ENABLE_CINDERX_MODULE') != 1:
+    if sysconfig.get_config_var('ENABLE_CINDERX_MODULE') == "no":
         skip_list_files.append("no_cinderx_skip_tests.txt")
 
     try:
