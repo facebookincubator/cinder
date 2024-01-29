@@ -1,6 +1,6 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-from cinderx.compiler.strict.runtime import (
+from compiler.strict.runtime import (
     freeze_type,
     loose_slots,
     strict_slots,
