@@ -165,6 +165,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_BUILD_DIR}/dataflow_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/deopt_patcher_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/deopt_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/elf_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/fixtures.o \
 	${RUNTIME_TESTS_BUILD_DIR}/gen_asm_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/hir_analysis_test.o \

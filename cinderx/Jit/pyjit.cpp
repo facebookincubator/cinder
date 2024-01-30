@@ -14,6 +14,7 @@
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/config.h"
 #include "cinderx/Jit/containers.h"
+#include "cinderx/Jit/elf.h"
 #include "cinderx/Jit/frame.h"
 #include "cinderx/Jit/hir/builder.h"
 #include "cinderx/Jit/hir/preload.h"
@@ -1027,6 +1028,44 @@ static PyObject* disassemble(PyObject* /* self */, PyObject* func) {
   }
 }
 
+static PyObject* dump_elf(PyObject* /* self */, PyObject* arg) {
+  JIT_CHECK(
+      jit_ctx != nullptr,
+      "JIT context not initialized despite cinderjit module having been "
+      "loaded");
+  if (!PyUnicode_Check(arg)) {
+    PyErr_SetString(PyExc_ValueError, "dump_elf expects a filename string");
+    return nullptr;
+  }
+
+  Py_ssize_t filename_size = 0;
+  const char* filename = PyUnicode_AsUTF8AndSize(arg, &filename_size);
+
+  std::vector<ElfCodeEntry> entries;
+  for (BorrowedRef<PyFunctionObject> func : jit_ctx->compiledFuncs()) {
+    BorrowedRef<PyCodeObject> code{func->func_code};
+    CompiledFunction* compiled_func = jit_ctx->lookupFunc(func);
+
+    ElfCodeEntry entry;
+    // TODO: What about the staticEntry?
+    entry.code = {
+        reinterpret_cast<uint8_t*>(compiled_func->vectorcallEntry()),
+        static_cast<size_t>(compiled_func->codeSize())};
+    entry.func_name = funcFullname(func);
+    if (code->co_filename != nullptr && PyUnicode_Check(code->co_filename)) {
+      entry.file_name = unicodeAsString(code->co_filename);
+    }
+    entry.lineno = code->co_firstlineno;
+
+    entries.emplace_back(std::move(entry));
+  }
+
+  std::ofstream out{filename};
+  writeElfEntries(out, entries);
+
+  Py_RETURN_NONE;
+}
+
 static PyObject* get_jit_list(PyObject* /* self */, PyObject*) {
   if (g_jit_list == nullptr) {
     Py_RETURN_NONE;
@@ -1485,6 +1524,12 @@ static PyMethodDef jit_methods[] = {
      METH_FASTCALL,
      "Disable the jit."},
     {"disassemble", disassemble, METH_O, "Disassemble JIT compiled functions"},
+    {"dump_elf",
+     dump_elf,
+     METH_O,
+     "Write out all generated code into an ELF file, whose filepath is passed "
+     "as the first argument. This is currently intended for debugging "
+     "purposes."},
     {"auto_jit_threshold",
      auto_jit_threshold,
      METH_NOARGS,
