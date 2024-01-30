@@ -1310,6 +1310,7 @@ class StrictLoaderTest(StrictTestBase):
 
     def test_source_callback(self) -> None:
         calls: List[str] = []
+        import __strict__  # this test relies on this being imported already
 
         def log(
             filename: str, bytecode_path: Optional[str], bytecode_found: bool
