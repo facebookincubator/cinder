@@ -2276,6 +2276,32 @@ class StrictLoaderTest(StrictTestBase):
         with self.assertRaises(SyntaxError):
             self.sbx.strict_import("b")
 
+    def test_strict_loader_lazy_imports_cycle(self) -> None:
+        self.sbx.write_file(
+            "main.py",
+            """
+            from compiler.strict.loader import install
+            install()
+            from staticmod import f
+            print(f())
+            """,
+        )
+        self.sbx.write_file(
+            "staticmod.py",
+            """
+            import __static__
+            def f():
+                return 42
+            """,
+        )
+        proc = subprocess.run(
+            [sys.executable, "-L", "main.py"],
+            cwd=str(self.sbx.root),
+            capture_output=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(b"42", proc.stdout, proc.stdout)
+
     def test_strict_loader_installation(self) -> None:
         self.sbx.write_file(
             "a.py",

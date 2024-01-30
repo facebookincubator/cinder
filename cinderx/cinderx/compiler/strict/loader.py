@@ -2,63 +2,70 @@
 
 from __future__ import annotations
 
-import _imp
-import builtins
+try:  # ensure all imports in this module are eager, to avoid cycles
+    import _imp
+    import builtins
 
-import importlib._bootstrap_external
-import marshal
-import os
-import sys
-from cinder import StrictModule, watch_sys_modules
+    import importlib._bootstrap_external
+    import marshal
+    import os
+    import sys
+    from cinder import StrictModule, watch_sys_modules
 
-from enum import Enum
-# pyre-ignore[21]: typeshed doesn't know about this
-from importlib import _bootstrap, _pack_uint32
-# pyre-ignore[21]: typeshed doesn't know about this
-from importlib._bootstrap_external import _classify_pyc, _compile_bytecode, _validate_hash_pyc, _validate_timestamp_pyc
-from importlib.abc import Loader
-from importlib.machinery import (
-    BYTECODE_SUFFIXES,
-    EXTENSION_SUFFIXES,
-    ExtensionFileLoader,
-    FileFinder,
-    ModuleSpec,
-    SOURCE_SUFFIXES,
-    SourceFileLoader,
-    SourcelessFileLoader,
-)
-# pyre-ignore[21]: typeshed doesn't know about _RAW_MAGIC_NUMBER
-from importlib.util import cache_from_source, _RAW_MAGIC_NUMBER
-from os import getenv, makedirs
-from os.path import dirname, isdir
-from py_compile import (
-    _get_default_invalidation_mode,
-    PycInvalidationMode,
-    PyCompileError,
-)
-from types import CodeType, ModuleType
-from typing import (
-    Callable,
-    cast,
-    Collection,
-    Dict,
-    final,
-    Iterable,
-    Mapping,
-    Optional,
-    Type,
-)
+    from enum import Enum
 
-from cinderx.static import install_sp_audit_hook
+    # pyre-ignore[21]: typeshed doesn't know about this
+    from importlib import _bootstrap, _pack_uint32
 
-from ..consts import CO_STATICALLY_COMPILED
-from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
-from .compiler import Compiler, TIMING_LOGGER_TYPE
-from .flag_extractor import Flags
+    # pyre-ignore[21]: typeshed doesn't know about this
+    from importlib._bootstrap_external import (
+        _classify_pyc,
+        _compile_bytecode,
+        _validate_hash_pyc,
+        _validate_timestamp_pyc,
+    )
+    from importlib.abc import Loader
+    from importlib.machinery import (
+        BYTECODE_SUFFIXES,
+        EXTENSION_SUFFIXES,
+        ExtensionFileLoader,
+        FileFinder,
+        ModuleSpec,
+        SOURCE_SUFFIXES,
+        SourceFileLoader,
+        SourcelessFileLoader,
+    )
 
+    # pyre-ignore[21]: typeshed doesn't know about _RAW_MAGIC_NUMBER
+    from importlib.util import _RAW_MAGIC_NUMBER, cache_from_source
+    from os import getenv, makedirs
+    from os.path import dirname, isdir
+    from py_compile import (
+        _get_default_invalidation_mode,
+        PycInvalidationMode,
+        PyCompileError,
+    )
+    from types import CodeType, ModuleType
+    from typing import (
+        Callable,
+        cast,
+        Collection,
+        Dict,
+        final,
+        Iterable,
+        Mapping,
+        Optional,
+        Type,
+    )
 
-# Force immediate resolution of Compiler in case it's deferred from Lazy Imports
-Compiler = Compiler
+    from cinderx.static import install_sp_audit_hook
+
+    from ..consts import CO_STATICALLY_COMPILED
+    from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
+    from .compiler import Compiler, TIMING_LOGGER_TYPE
+    from .flag_extractor import Flags
+except:
+    raise
 
 
 _MAGIC_STRICT_OR_STATIC: bytes = (MAGIC_NUMBER + 2**15).to_bytes(
