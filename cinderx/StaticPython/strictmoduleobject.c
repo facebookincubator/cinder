@@ -4,7 +4,6 @@
 #include "Python.h"
 #include "pycore_interp.h"        // PyInterpreterState.importlib
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
-#include "pycore_moduleobject.h"  // _PyModule_GetDef()
 #include "structmember.h"         // PyMemberDef
 #include "cinderx/StaticPython/strictmoduleobject.h"
 #include "cinderx/StaticPython/classloader.h"
@@ -14,38 +13,12 @@ static inline PyObject* Ci_StrictModuleGetDictSetter(PyObject *mod) {
     return ((Ci_StrictModuleObject*) mod) -> global_setter;
 }
 
-// copied unchanged from Object/moduleobject.c
 static PyObject *
-module_repr(PyModuleObject *m)
+strictmodule_repr(Ci_StrictModuleObject *m)
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
 
     return PyObject_CallMethod(interp->importlib, "_module_repr", "O", m);
-}
-
-// copied unchanged from Object/moduleobject.c
-static void
-module_dealloc(PyModuleObject *m)
-{
-    int verbose = _Py_GetConfig()->verbose;
-
-    PyObject_GC_UnTrack(m);
-    if (verbose && m->md_name) {
-        PySys_FormatStderr("# destroy %U\n", m->md_name);
-    }
-    if (m->md_weaklist != NULL)
-        PyObject_ClearWeakRefs((PyObject *) m);
-    /* bpo-39824: Don't call m_free() if m_size > 0 and md_state=NULL */
-    if (m->md_def && m->md_def->m_free
-        && (m->md_def->m_size <= 0 || m->md_state != NULL))
-    {
-        m->md_def->m_free(m);
-    }
-    Py_XDECREF(m->md_dict);
-    Py_XDECREF(m->md_name);
-    if (m->md_state != NULL)
-        PyMem_Free(m->md_state);
-    Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
 static int
@@ -119,12 +92,15 @@ Ci_StrictModule_New(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 strictmodule_dealloc(Ci_StrictModuleObject *m)
 {
+    PyObject_GC_UnTrack(m);
     Py_XDECREF(m->globals);
     Py_XDECREF(m->global_setter);
     Py_XDECREF(m->originals);
     Py_XDECREF(m->static_thunks);
     Py_XDECREF(m->imported_from);
-    module_dealloc((PyModuleObject *)m);
+    if (m->weaklist != NULL)
+        PyObject_ClearWeakRefs((PyObject *) m);
+    Py_TYPE(m)->tp_free((PyObject *)m);
 }
 
 static int
@@ -369,7 +345,7 @@ int Ci_do_strictmodule_patch(PyObject *self, PyObject *name, PyObject *value) {
     Ci_StrictModuleObject *mod = (Ci_StrictModuleObject *) self;
     PyObject * global_setter = mod->global_setter;
     if (global_setter == NULL){
-        PyObject* repr = module_repr((PyModuleObject *) mod);
+        PyObject* repr = strictmodule_repr(mod);
         if (repr == NULL) {
             return -1;
         }
@@ -590,7 +566,7 @@ PyTypeObject Ci_StrictModule_Type = {
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
     0,                                          /* tp_reserved */
-    (reprfunc)module_repr,                      /* tp_repr */
+    (reprfunc)strictmodule_repr,                /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -605,7 +581,7 @@ PyTypeObject Ci_StrictModule_Type = {
     (traverseproc)strictmodule_traverse,        /* tp_traverse */
     (inquiry)strictmodule_clear,                /* tp_clear */
     0,                                          /* tp_richcompare */
-    offsetof(PyModuleObject, md_weaklist),      /* tp_weaklistoffset */
+    offsetof(Ci_StrictModuleObject, weaklist),  /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
     strictmodule_methods,                       /* tp_methods */

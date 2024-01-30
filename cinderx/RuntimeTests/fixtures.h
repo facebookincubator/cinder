@@ -182,7 +182,6 @@ class RuntimeTest : public ::testing::Test {
     if (dict == nullptr) {
       return dict;
     }
-    reinterpret_cast<PyModuleObject*>(module.get())->md_dict = dict.release();
     if (AddModuleWithBuiltins(module, globals)) {
       return Ref<>(nullptr);
     }

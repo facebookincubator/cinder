@@ -27,12 +27,13 @@ CiAPI_FUNC(PyObject *) Ci_StrictModule_GetDict(PyObject *);
 #endif
 
 typedef struct {
-    PyModuleObject base;
+    PyObject_HEAD
     PyObject *globals;
     PyObject *global_setter;
     PyObject *originals;
     PyObject *static_thunks;
     PyObject *imported_from;
+    PyObject *weaklist;
 } Ci_StrictModuleObject;
 
 static inline PyObject* Ci_MaybeStrictModule_Dict(PyObject *op) {
