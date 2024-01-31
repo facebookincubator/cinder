@@ -9,14 +9,16 @@ import threading
 import time
 import unittest
 
-from test.fork_wait import ForkWait
 from test import support
+
+from test.fork_wait import ForkWait
 
 
 # Skip test if fork does not exist.
-support.get_attribute(os, 'fork')
+support.get_attribute(os, "fork")
 
-class ForkTest(ForkWait):
+
+class CinderX_ForkTest(ForkWait):
     def test_threaded_import_lock_fork(self):
         """Check fork() in main thread works while a subthread is doing an import"""
         import_started = threading.Event()
@@ -25,13 +27,17 @@ class ForkTest(ForkWait):
         complete_module = "complete"
         def importer():
             imp.acquire_lock()
+
             sys.modules[fake_module_name] = partial_module
             import_started.set()
+            # CinderX: This time.sleep is added to improve test reliability.
+            time.sleep(0.01)  # Give the other thread time to try and acquire.
             sys.modules[fake_module_name] = complete_module
             imp.release_lock()
         t = threading.Thread(target=importer)
         t.start()
         import_started.wait()
+
         exitcode = 42
         pid = os.fork()
         try:
@@ -57,40 +63,6 @@ class ForkTest(ForkWait):
                 os.kill(pid, signal.SIGKILL)
             except OSError:
                 pass
-
-
-    def test_nested_import_lock_fork(self):
-        """Check fork() in main thread works while the main thread is doing an import"""
-        exitcode = 42
-        # Issue 9573: this used to trigger RuntimeError in the child process
-        def fork_with_import_lock(level):
-            release = 0
-            in_child = False
-            try:
-                try:
-                    for i in range(level):
-                        imp.acquire_lock()
-                        release += 1
-                    pid = os.fork()
-                    in_child = not pid
-                finally:
-                    for i in range(release):
-                        imp.release_lock()
-            except RuntimeError:
-                if in_child:
-                    if support.verbose > 1:
-                        print("RuntimeError in child")
-                    os._exit(1)
-                raise
-            if in_child:
-                os._exit(exitcode)
-            self.wait_impl(pid, exitcode=exitcode)
-
-        # Check this works with various levels of nested
-        # import in the main thread
-        for level in range(5):
-            fork_with_import_lock(level)
-
 
 def tearDownModule():
     support.reap_children()
