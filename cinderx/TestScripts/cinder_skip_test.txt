@@ -20,3 +20,4 @@ test.test_asyncgen.AsyncGenAsyncioTest.test_async_gen_asyncio_gc_aclose_09
 test.test_fork1.ForkTest.test_threaded_import_lock_fork
 test.test_gdb.PrettyPrintTests.test_frames
 test.test_generators.GeneratorTest.test_name
+test.test_inspect.TestSignatureBind.test_signature_bind_implicit_arg
