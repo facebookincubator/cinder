@@ -1,4 +1,4 @@
-/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
 #include "Python.h"
 
 // Including this here is a hack until _strictmodule.c is migrated to CinderX

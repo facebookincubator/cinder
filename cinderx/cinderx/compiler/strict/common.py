@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # pyre-unsafe
 
 from __future__ import annotations

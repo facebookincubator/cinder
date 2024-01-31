@@ -1,4 +1,4 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "cinderx/Jit/lir/block.h"
 #include "cinderx/Jit/lir/printer.h"

@@ -1,3 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 def g(x):
     return x + 2

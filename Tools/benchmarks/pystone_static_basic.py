@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 import sys
 from pystone_static_basic_lib import run
 

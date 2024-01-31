@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 #
 # A modified version of the regrtest system which runs multiple tests per
 # instance of a parallel worker. This compensates for JIT compilation,

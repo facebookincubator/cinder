@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 import { ArrayIter, Position } from "util.js";
 import { tokenize } from "hir/tokenizer.js";
 import { Block, CFG, Edge, Instr, Register } from "graph.js";

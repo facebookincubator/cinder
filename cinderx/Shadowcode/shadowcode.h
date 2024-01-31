@@ -1,4 +1,4 @@
-/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
 /* facebook begin t39538061 */
 #include "cinder/hooks.h"
 #include "Python.h"

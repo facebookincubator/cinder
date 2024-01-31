@@ -1,5 +1,5 @@
 #!/bin/bash -e
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 
 cd "$(dirname "$0")"/../..
 files=$(find Jit RuntimeTests -name '*.c' -o -name '*.cpp' -o -name '*.h')

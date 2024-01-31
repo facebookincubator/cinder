@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 #include "cinderx/StrictModules/Objects/strict_modules_builtins.h"
 
 #include "cinderx/StrictModules/Objects/object_interface.h"

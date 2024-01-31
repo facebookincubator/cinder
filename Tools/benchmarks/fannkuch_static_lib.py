@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 """
 The Computer Language Benchmarks Game
 http://benchmarksgame.alioth.debian.org/

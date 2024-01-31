@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from .opcode_cinder import opcode as opcode_cinder
 from .opcodebase import Opcode

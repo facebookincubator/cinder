@@ -1,4 +1,4 @@
-/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
 #ifndef Py_DESCROBJECT_VECTORCALL_H
 #define Py_DESCROBJECT_VECTORCALL_H
 

@@ -1,5 +1,5 @@
 
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 #include "cinderx/StrictModules/Objects/super.h"
 
 #include "cinderx/StrictModules/Objects/callable_wrapper.h"

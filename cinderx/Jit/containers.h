@@ -1,4 +1,4 @@
-// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 /*
  * Type-aliases for map and set containers. This acts as a shim to allow
  * swapping between STL, phmap, and one day other container implementations.

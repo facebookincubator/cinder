@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "cinderx/StrictModules/Tests/test.h"
 #include "cinderx/StrictModules/sequence_map.h"

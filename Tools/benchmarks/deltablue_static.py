@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 from deltablue_static_lib import delta_blue
 
 

@@ -1,4 +1,4 @@
-# Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 """
 Benchmark script for recursive async tree workloads. This script includes the
 following microbenchmark scenarios:

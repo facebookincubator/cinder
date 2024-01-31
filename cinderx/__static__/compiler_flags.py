@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 
 checked_dicts = True
 checked_lists = True

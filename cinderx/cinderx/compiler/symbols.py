@@ -1,4 +1,4 @@
-# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates.
 # pyre-unsafe
 
 """Module symbol-table generator"""

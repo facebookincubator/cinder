@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 #pragma once
 #include "cinderx/StrictModules/Compiler/module_info.h"
 namespace strictmod::compiler {

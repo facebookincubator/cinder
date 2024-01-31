@@ -1,4 +1,4 @@
-# Portions copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Portions copyright (c) Meta Platforms, Inc. and affiliates.
 
 # operation flags
 OP_ASSIGN = "OP_ASSIGN"

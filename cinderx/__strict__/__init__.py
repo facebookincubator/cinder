@@ -1,4 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 
 from cinderx.compiler.strict.runtime import (
     freeze_type,

@@ -1,4 +1,4 @@
-/* Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com) */
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
 #ifndef Ci_CHECKED_DICT_H
 #define Ci_CHECKED_DICT_H
 

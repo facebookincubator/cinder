@@ -1,5 +1,5 @@
 #pragma once
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 
 #include "pycore_asdl.h"
 #include "pycore_ast.h"

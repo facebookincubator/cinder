@@ -1,4 +1,4 @@
-// Copyright (c) Facebook, Inc. and its affiliates. (http://www.facebook.com)
+// Copyright (c) Meta Platforms, Inc. and affiliates.
 // This file defines the data model used by the fronted. It's currently tied
 // somewhat closely to HIR, however, with minor changes we should be able to
 // represent other IRs (ideally LIR) easily.
