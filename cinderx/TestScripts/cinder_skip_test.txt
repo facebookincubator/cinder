@@ -18,3 +18,4 @@ test.test__opcode.*
 test.test_dis.*.test_widths
 test.test_asyncgen.AsyncGenAsyncioTest.test_async_gen_asyncio_gc_aclose_09
 test.test_fork1.ForkTest.test_threaded_import_lock_fork
+test.test_gdb.PrettyPrintTests.test_frames
