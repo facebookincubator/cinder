@@ -38,8 +38,6 @@ except ImportError:
     pty = signal = None
 
 
-CINDER_SUPPORT_DICT_SUBCLASS_BUILTINS = False
-
 class Squares:
 
     def __init__(self, max):
@@ -728,12 +726,6 @@ class BuiltinTest(unittest.TestCase):
         # no builtin function
         self.assertRaisesRegex(NameError, "name 'print' is not defined",
                                exec, code, {'__builtins__': {}})
-
-        if CINDER_SUPPORT_DICT_SUBCLASS_BUILTINS:
-            # __builtins__ must be a mapping type
-            self.assertRaises(TypeError,
-                              exec, code, {'__builtins__': 123})
-
         # no __build_class__ function
         code = compile("class A: pass", "", "exec")
         self.assertRaisesRegex(NameError, "__build_class__ not found",
@@ -745,16 +737,6 @@ class BuiltinTest(unittest.TestCase):
         class frozendict(dict):
             def __setitem__(self, key, value):
                 raise frozendict_error("frozendict is readonly")
-
-        if CINDER_SUPPORT_DICT_SUBCLASS_BUILTINS:
-            # read-only builtins
-            if isinstance(__builtins__, types.ModuleType):
-                frozen_builtins = frozendict(__builtins__.__dict__)
-            else:
-                frozen_builtins = frozendict(__builtins__)
-                code = compile("__builtins__['superglobal']=2; print(superglobal)", "test", "exec")
-                self.assertRaises(frozendict_error,
-                                  exec, code, {'__builtins__': frozen_builtins})
 
         # read-only globals
         namespace = frozendict({})
