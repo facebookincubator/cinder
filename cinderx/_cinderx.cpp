@@ -11,6 +11,7 @@
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/pyjit_result.h"
 #include "cinderx/Jit/pyjit_typeslots.h"
+#include "cinderx/Jit/runtime.h"
 #include "cinderx/ParallelGC/parallel_gc.h"
 #include "cinderx/Shadowcode/shadowcode.h"
 #include "cinderx/StaticPython/classloader.h"
@@ -422,10 +423,6 @@ static int get_current_code_flags(PyThreadState* tstate) {
     return cur_code->co_flags;
 }
 
-static int _Ci_StrictModule_Check(PyObject* obj) {
-  return Ci_StrictModule_Check(obj);
-}
-
 static int cinder_init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
@@ -458,6 +455,12 @@ static int cinder_init() {
   Ci_hook_ShadowFrame_HasGen_JIT = Ci_ShadowFrame_HasGen_JIT;
   Ci_hook_ShadowFrame_GetModuleName_JIT = Ci_ShadowFrame_GetModuleName_JIT;
   Ci_hook_ShadowFrame_WalkAndPopulate = Ci_ShadowFrame_WalkAndPopulate;
+
+  JIT_CHECK(__strobe_CodeRuntime_py_code == jit::CodeRuntime::kPyCodeOffset,
+            "Invalid PyCodeOffset for Strobelight");
+  JIT_CHECK(__strobe_RuntimeFrameState_py_code ==
+                jit::RuntimeFrameState::codeOffset(),
+            "Invalid codeOffset for Strobelight");
 
   if (init_already_existing_types() < 0) {
     return -1;

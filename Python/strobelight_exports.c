@@ -1,13 +1,56 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
 
-#include "cinderx/Jit/strobelight_exports.h"
+#include "Python.h"
 
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame.h"
+#include "internal/pycore_runtime.h"
 
-#include "cinderx/Jit/runtime.h"
+CiAPI_DATA(int32_t) __strobe_PyVersion_major;
+CiAPI_DATA(int32_t) __strobe_PyVersion_micro;
+CiAPI_DATA(int32_t) __strobe_PyVersion_minor;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_co_flags;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_filename;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_name;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_qualname;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_varnames;
+// Not using "ci_cr_awaiter" for backward compatability with existing
+// Strobelight symbol lookup.
+CiAPI_DATA(int64_t) __strobe_PyCoroObject_cr_awaiter;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_back;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_code;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_gen;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_lineno;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_localsplus;
+CiAPI_DATA(int64_t) __strobe_PyGenObject_code;
+CiAPI_DATA(int64_t) __strobe_PyGenObject_gi_shadow_frame;
+CiAPI_DATA(int64_t) __strobe_PyObject_type;
+CiAPI_DATA(int64_t) __strobe_PyThreadState_frame;
+CiAPI_DATA(int64_t) __strobe_PyThreadState_shadow_frame;
+CiAPI_DATA(int64_t) __strobe_PyThreadState_thread;
+CiAPI_DATA(int64_t) __strobe_PyTupleObject_item;
+CiAPI_DATA(int64_t) __strobe_PyTypeObject_name;
+CiAPI_DATA(int64_t) __strobe_String_data;
+CiAPI_DATA(int64_t) __strobe_String_size;
+CiAPI_DATA(int64_t) __strobe_TCurrentState_offset;
+CiAPI_DATA(int64_t) __strobe_TLSKey_offset;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_CODE_RT;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYCODE;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_RTFS;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PYSF_PYFRAME;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrKindMask;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_PtrMask;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_data;
+CiAPI_DATA(int64_t) __strobe__PyShadowFrame_prev;
+CiAPI_DATA(int64_t) __strobe_PyGIL_offset;
+CiAPI_DATA(int64_t) __strobe_PyGIL_last_holder;
+CiAPI_DATA(int64_t) __strobe_PyFrameObject_lasti;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_firstlineno;
+CiAPI_DATA(int64_t) __strobe_PyCodeObject_linetable;
+CiAPI_DATA(int64_t) __strobe_PyBytesObject_data;
+CiAPI_DATA(int64_t) __strobe_PyVarObject_size;
 
-int64_t __strobe_CodeRuntime_py_code = jit::CodeRuntime::kPyCodeOffset;
+
 int32_t __strobe_PyVersion_major = PY_MAJOR_VERSION;
 int32_t __strobe_PyVersion_micro = PY_MICRO_VERSION;
 int32_t __strobe_PyVersion_minor = PY_MINOR_VERSION;
@@ -49,8 +92,6 @@ int64_t __strobe__PyShadowFrame_PtrKindMask = _PyShadowFrame_PtrKindMask;
 int64_t __strobe__PyShadowFrame_PtrMask = _PyShadowFrame_PtrMask;
 int64_t __strobe__PyShadowFrame_data = offsetof(_PyShadowFrame, data);
 int64_t __strobe__PyShadowFrame_prev = offsetof(_PyShadowFrame, prev);
-int64_t __strobe_RuntimeFrameState_py_code =
-    jit::RuntimeFrameState::codeOffset();
 
 int64_t __strobe_PyGIL_offset = offsetof(_PyRuntimeState, ceval.gil.locked);
 int64_t __strobe_PyGIL_last_holder =
@@ -62,3 +103,7 @@ int64_t __strobe_PyCodeObject_firstlineno =
 int64_t __strobe_PyCodeObject_linetable = offsetof(PyCodeObject, co_linetable);
 int64_t __strobe_PyBytesObject_data = offsetof(PyBytesObject, ob_sval);
 int64_t __strobe_PyVarObject_size = offsetof(PyVarObject, ob_size);
+
+// These values are actually 0. We assert this at CinderX initialization.
+int64_t __strobe_CodeRuntime_py_code = 0;
+int64_t __strobe_RuntimeFrameState_py_code = 0;

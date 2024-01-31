@@ -85,7 +85,6 @@ JIT_SRCS = [
     "Jit/pyjit.cpp",
     "Jit/runtime.cpp",
     "Jit/runtime_support.cpp",
-    "Jit/strobelight_exports.cpp",
     "Jit/symbolizer.cpp",
     "Jit/type_deopt_patchers.cpp",
     "Jit/type_profiler.cpp",

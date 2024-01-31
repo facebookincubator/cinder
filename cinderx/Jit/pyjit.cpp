@@ -30,7 +30,6 @@
 #include "cinderx/Jit/profile_runtime.h"
 #include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/runtime.h"
-#include "cinderx/Jit/strobelight_exports.h"
 #include "cinderx/Jit/type_profiler.h"
 #include "cinderx/Jit/util.h"
 
@@ -1850,21 +1849,6 @@ static int install_jit_audit_hook() {
 }
 
 int _PyJIT_Initialize() {
-  // If we have data symbols which are public but not used within CPython code,
-  // we need to ensure the linker doesn't GC the .data section containing them.
-  // We can do this by referencing at least symbol from that source module.
-  // In future versions of clang/gcc we may be able to eliminate this with
-  // 'keep' and/or 'used' attributes.
-  //
-  // We use 0xf0 because compiler optimizations can be smart enough to spot that
-  // things like 0 or 1 are not possible (due to alignment etc.)
-  JIT_CHECK(
-      reinterpret_cast<uintptr_t>(&__strobe_CodeRuntime_py_code) !=
-              static_cast<uintptr_t>(0xf0) &&
-          reinterpret_cast<uintptr_t>(&Ci_StrictModuleLoader_Type) !=
-              static_cast<uintptr_t>(0xf0),
-      "Missing symbol");
-
   if (getConfig().init_state == InitState::kInitialized) {
     return 0;
   }

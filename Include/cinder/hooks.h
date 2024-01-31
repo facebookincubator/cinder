@@ -170,6 +170,9 @@ typedef int (*Ci_HookType_PyJIT_GetCurrentCodeFlags)(PyThreadState *tstate);
 CiAPI_DATA(Ci_HookType_PyJIT_GetCurrentCodeFlags)
     Ci_hook_PyJIT_GetCurrentCodeFlags;
 
+CiAPI_DATA(int64_t) __strobe_RuntimeFrameState_py_code;
+CiAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

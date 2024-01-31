@@ -416,6 +416,7 @@ PYTHON_OBJS=	\
 		Python/pythonrun.o \
 		Python/pytime.o \
 		Python/bootstrap_hash.o \
+		Python/strobelight_exports.o \
 		Python/structmember.o \
 		Python/symtable.o \
 		Python/sysmodule.o \

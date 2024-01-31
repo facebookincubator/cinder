@@ -2,6 +2,8 @@
 
 #include "Python.h"
 
+#include "cinder/hooks.h"
+
 #include "pycore_ceval.h"         // _PyEval_FiniGIL()
 #include "pycore_context.h"       // _PyContext_Init()
 #include "pycore_fileutils.h"     // _Py_ResetForceASCII()
@@ -1349,6 +1351,18 @@ void
 Py_InitializeEx(int install_sigs)
 {
     PyStatus status;
+
+    // If we have data symbols which are public but not used within CPython code,
+    // we need to ensure the linker doesn't GC the .data section containing them.
+    // We can do this by referencing at least one symbol from that source module.
+    // In future versions of clang/gcc we may be able to eliminate this with
+    // 'keep' and/or 'used' attributes.
+    //
+    // We use 0xf0 because compiler optimizations can be smart enough to spot that
+    // things like 0 or 1 are not possible (due to alignment etc.)
+    if ((uintptr_t)&__strobe_CodeRuntime_py_code == (uintptr_t)0xf0) {
+        Py_FatalError("Invalid symbol value");
+    }
 
     status = _PyRuntime_Initialize();
     if (_PyStatus_EXCEPTION(status)) {
