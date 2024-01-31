@@ -267,28 +267,34 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     json_file.close();
   }
 
+  // Grab some fields off of irfunc and ngen before moving them.
+  hir::Function::InlineFunctionStats inline_stats =
+      std::move(irfunc->inline_function_stats);
+  void* static_entry = ngen->getStaticEntry();
+  CodeRuntime* code_runtime = ngen->codeRuntime();
+
   if (g_debug) {
     irfunc->setCompilationPhaseTimer(nullptr);
     return std::make_unique<CompiledFunctionDebug>(
         std::move(irfunc),
         std::move(ngen),
         reinterpret_cast<vectorcallfunc>(entry),
-        ngen->getStaticEntry(),
-        ngen->codeRuntime(),
+        static_entry,
+        code_runtime,
         func_size,
         stack_size,
         spill_stack_size,
-        std::move(irfunc->inline_function_stats),
+        std::move(inline_stats),
         hir_opcode_counts);
   } else {
     return std::make_unique<CompiledFunction>(
         reinterpret_cast<vectorcallfunc>(entry),
-        ngen->getStaticEntry(),
-        ngen->codeRuntime(),
+        static_entry,
+        code_runtime,
         func_size,
         stack_size,
         spill_stack_size,
-        std::move(irfunc->inline_function_stats),
+        std::move(inline_stats),
         hir_opcode_counts);
   }
 }

@@ -2,9 +2,9 @@
 #include "Python.h"
 
 // Including this here is a hack until _strictmodule.c is migrated to CinderX
+#include "cinder/exports.h"
 #include "cinderx/StrictModules/pystrictmodule.h"
 #include "cinderx/StrictModules/strict_module_checker_interface.h"
-#include "cinder/exports.h"
 
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
