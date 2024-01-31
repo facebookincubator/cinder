@@ -13,7 +13,6 @@ import importlib
 import importlib.abc
 import importlib.util
 import unittest
-import unittest.case
 import tempfile
 import shutil
 import types
@@ -448,7 +447,7 @@ We'll simulate a __file__ attr that ends in pyc:
     >>> tests = finder.find(sample_func)
 
     >>> print(tests)  # doctest: +ELLIPSIS
-    [<DocTest sample_func from test_doctest.py:30 (1 example)>]
+    [<DocTest sample_func from test_doctest.py:29 (1 example)>]
 
 The exact name depends on how test_doctest was invoked, so allow for
 leading path components.
