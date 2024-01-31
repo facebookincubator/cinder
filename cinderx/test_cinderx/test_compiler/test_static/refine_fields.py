@@ -1,5 +1,5 @@
 import dis
-from compiler.static.types import _TMP_VAR_PREFIX, TypedSyntaxError
+from compiler.static.types import TMP_VAR_PREFIX, TypedSyntaxError
 from unittest import skip
 
 from .common import StaticTestBase
@@ -357,7 +357,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             refined_write_count = 0
-            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.0"
+            tmp_name = f"{TMP_VAR_PREFIX}.__refined_field__.0"
             for instr in dis.get_instructions(mod.C.f):
                 if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
                     refined_write_count += 1
@@ -380,7 +380,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             refined_write_count = 0
-            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.0"
+            tmp_name = f"{TMP_VAR_PREFIX}.__refined_field__.0"
             for instr in dis.get_instructions(mod.C.f):
                 if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
                     refined_write_count += 1
@@ -406,7 +406,7 @@ class RefineFieldsTests(StaticTestBase):
         """
         with self.in_module(codestr) as mod:
             refined_write_count = 0
-            tmp_name = f"{_TMP_VAR_PREFIX}.__refined_field__.1"
+            tmp_name = f"{TMP_VAR_PREFIX}.__refined_field__.1"
             for instr in dis.get_instructions(mod.C.f):
                 if instr.opname == "STORE_FAST" and instr.argval == tmp_name:
                     refined_write_count += 1

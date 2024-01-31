@@ -681,7 +681,7 @@ class TypeEnvironment:
 # Prefix for temporary var names. It's illegal in normal
 # Python, so there's no chance it will ever clash with a
 # user defined name.
-_TMP_VAR_PREFIX = "_pystatic_.0._tmp__"
+TMP_VAR_PREFIX = "_pystatic_.0._tmp__"
 
 CMPOP_SIGILS: Mapping[Type[cmpop], str] = {
     ast.Lt: "<",
@@ -2754,7 +2754,7 @@ class ArgMapping:
                 if name == self.kwargs[candidate_kw][0]:
                     arg = self.kwargs[candidate_kw][1]
 
-                    tmp_name = f"{_TMP_VAR_PREFIX}{name}"
+                    tmp_name = f"{TMP_VAR_PREFIX}{name}"
                     self.spills[candidate_kw] = SpillArg(arg, tmp_name)
 
                     if cur_kw_arg is not None:
@@ -2772,7 +2772,7 @@ class ArgMapping:
                     # load it from the mapping
                     if variadic_idx not in self.spills:
                         self.spills[variadic_idx] = SpillArg(
-                            self.kwargs[variadic_idx][1], f"{_TMP_VAR_PREFIX}**"
+                            self.kwargs[variadic_idx][1], f"{TMP_VAR_PREFIX}**"
                         )
 
                         if cur_kw_arg is not None:
@@ -2780,7 +2780,7 @@ class ArgMapping:
                             spill_start = len(self.emitters)
 
                     self.emitters.append(
-                        KeywordMappingArg(param, f"{_TMP_VAR_PREFIX}**")
+                        KeywordMappingArg(param, f"{TMP_VAR_PREFIX}**")
                     )
                 elif param.has_default:
                     self._bind_default_value(param, visitor)
@@ -3461,7 +3461,7 @@ class Callable(Object[TClass]):
             name = each.arg
             if name is not None:
                 code_gen.visit(each.value)
-                temp_var_name = f"{_TMP_VAR_PREFIX}{name}"
+                temp_var_name = f"{TMP_VAR_PREFIX}{name}"
                 code_gen.emit("STORE_FAST", temp_var_name)
                 temporaries[name] = temp_var_name
         return temporaries
@@ -3755,7 +3755,7 @@ class Function(Callable[Class], FunctionContainer):
                 continue
 
             # store to a temporary...
-            tmp_name = f"{_TMP_VAR_PREFIX}{visitor.inline_calls}{name}"
+            tmp_name = f"{TMP_VAR_PREFIX}{visitor.inline_calls}{name}"
             cur_scope = visitor.symbols.scopes[visitor.scope]
             cur_scope.add_def(tmp_name)
 

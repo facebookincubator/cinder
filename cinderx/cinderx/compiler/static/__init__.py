@@ -49,7 +49,6 @@ from .effects import NarrowingEffect, TypeState
 from .module_table import ModuleFlag, ModuleTable
 from .type_binder import UsedRefinementField
 from .types import (
-    _TMP_VAR_PREFIX,
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     AsyncCachedPropertyMethod,
     AwaitableType,
@@ -67,6 +66,7 @@ from .types import (
     GenericClass,
     KnownBoolean,
     Slot,
+    TMP_VAR_PREFIX,
     TType,
     TypeDescr,
     Value,
@@ -321,7 +321,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
     def new_loopidx(self) -> Generator[str, None, None]:
         self._tmpvar_loopidx_count += 1
         try:
-            yield f"{_TMP_VAR_PREFIX}.{self._tmpvar_loopidx_count}"
+            yield f"{TMP_VAR_PREFIX}.{self._tmpvar_loopidx_count}"
         finally:
             self._tmpvar_loopidx_count -= 1
 

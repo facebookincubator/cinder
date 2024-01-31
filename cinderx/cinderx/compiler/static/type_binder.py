@@ -70,7 +70,6 @@ from .declaration_visitor import GenericVisitor
 from .effects import NarrowingEffect, NO_EFFECT, TypeState
 from .module_table import ModuleFlag, ModuleTable
 from .types import (
-    _TMP_VAR_PREFIX,
     access_path,
     BoolClass,
     Callable,
@@ -96,6 +95,7 @@ from .types import (
     resolve_assign_error_msg,
     resolve_instance_attr_by_name,
     Slot,
+    TMP_VAR_PREFIX,
     TransientDecoratedMethod,
     TransparentDecoratedMethod,
     TType,
@@ -2015,4 +2015,4 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return self._refined_tmpvar_indices[key]
 
     def _refined_field_name(self, idx: int) -> str:
-        return f"{_TMP_VAR_PREFIX}.__refined_field__.{idx}"
+        return f"{TMP_VAR_PREFIX}.__refined_field__.{idx}"
