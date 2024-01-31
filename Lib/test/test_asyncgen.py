@@ -1046,7 +1046,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             del g
             gc_collect()  # For PyPy or other GCs.
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(1)
 
         self.loop.run_until_complete(run())
         self.assertEqual(DONE, 1)

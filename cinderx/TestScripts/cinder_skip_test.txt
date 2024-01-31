@@ -16,3 +16,4 @@ test.test_capi.CAPITest.test_getitem_with_error
 test.test_repl.TestInteractiveInterpreter.test_no_memory
 test.test__opcode.*
 test.test_dis.*.test_widths
+test.test_asyncgen.AsyncGenAsyncioTest.test_async_gen_asyncio_gc_aclose_09
