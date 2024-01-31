@@ -23,3 +23,4 @@ test.test_generators.GeneratorTest.test_name
 test.test_inspect.TestSignatureBind.test_signature_bind_implicit_arg
 test.test_nntplib.NetworkedNNTP_SSLTests
 test.test_tracemalloc.TestTracemallocEnabled.test_get_traced_memory
+test.test_types.UnionTests.test_or_type_operator_reference_cycle
