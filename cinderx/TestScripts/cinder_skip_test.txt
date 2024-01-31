@@ -21,3 +21,4 @@ test.test_fork1.ForkTest.test_threaded_import_lock_fork
 test.test_gdb.PrettyPrintTests.test_frames
 test.test_generators.GeneratorTest.test_name
 test.test_inspect.TestSignatureBind.test_signature_bind_implicit_arg
+test.test_nntplib.NetworkedNNTP_SSLTests

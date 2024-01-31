@@ -346,7 +346,6 @@ class NetworkedNNTPTests(NetworkedNNTPTestsMixin, unittest.TestCase):
         if cls.server is not None:
             cls.server.quit()
 
-@unittest.skip('Does not work well in Cinder CI environment')
 @unittest.skipUnless(ssl, 'requires SSL support')
 class NetworkedNNTP_SSLTests(NetworkedNNTPTests):
 
