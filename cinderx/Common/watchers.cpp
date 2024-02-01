@@ -1,5 +1,8 @@
+// Copyright (c) Meta Platforms, Inc. and affiliates. (http://www.meta.com)
+
 #include "Python.h"
 
+#include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/log.h"
 #include "cinderx/Shadowcode/shadowcode.h"
@@ -21,18 +24,18 @@ static int install_dict_watcher() {
       case PyDict_EVENT_MODIFIED:
       case PyDict_EVENT_DELETED:
         if (!PyUnicode_CheckExact(key)) {
-          _PyJIT_NotifyDictUnwatch(dict);
+          jit::notifyDictUnwatch(dict);
         } else {
-          _PyJIT_NotifyDictKey(dict, key, new_value);
+          jit::notifyDictKey(dict, key, new_value);
           _PyClassLoader_NotifyDictChange((PyDictObject *)dict, key);
         }
         break;
       case PyDict_EVENT_CLEARED:
-        _PyJIT_NotifyDictClear(dict);
+        jit::notifyDictClear(dict);
         break;
       case PyDict_EVENT_CLONED:
       case PyDict_EVENT_DEALLOCATED:
-        _PyJIT_NotifyDictUnwatch(dict);
+        jit::notifyDictUnwatch(dict);
         break;
     }
     return 0;

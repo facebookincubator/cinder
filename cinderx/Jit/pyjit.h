@@ -123,26 +123,6 @@ PyAPI_FUNC(int) _PyJIT_Finalize(void);
 /* Dict-watching callbacks, invoked by dictobject.c when appropriate. */
 
 /*
- * Called when the value at a key is modified (value will contain the new
- * value) or deleted (value will be NULL).
- */
-PyAPI_FUNC(void)
-    _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value);
-
-/*
- * Called when a dict is cleared, rather than sending individual notifications
- * for every key. The dict is still in a watched state, and further callbacks
- * for it will be invoked as appropriate.
- */
-PyAPI_FUNC(void) _PyJIT_NotifyDictClear(PyObject* dict);
-
-/*
- * Called when a dict has changed in a way that is incompatible with watching,
- * or is about to be freed. No more callbacks will be invoked for this dict.
- */
-PyAPI_FUNC(void) _PyJIT_NotifyDictUnwatch(PyObject* dict);
-
-/*
  * Gets the global cache for the given builtins and globals dictionaries and
  * key.  The global that is pointed to will automatically be updated as
  * builtins and globals change.  The value that is pointed to will be NULL if

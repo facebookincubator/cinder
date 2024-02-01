@@ -4,9 +4,9 @@
 
 #include "cinderx/Common/watchers.h"
 
-#include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/global_cache.h"
 #include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/runtime.h"
 
 #include <set>
 #include <unordered_map>
@@ -74,9 +74,7 @@ void unwatchDictKey(PyObject* dict, PyObject* key, GlobalCache cache) {
   }
 }
 
-} // namespace jit
-
-void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
+void notifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
   // key is overwhemlingly likely to be interned, since in normal code it comes
   // from co_names. If it's not, we at least know that an interned string with
   // its value exists (because we're watching it), so this should just be a
@@ -88,28 +86,28 @@ void _PyJIT_NotifyDictKey(PyObject* dict, PyObject* key, PyObject* value) {
     Py_DECREF(key);
   }
 
-  auto dict_it = jit::g_dict_watchers.find(dict);
+  auto dict_it = g_dict_watchers.find(dict);
   // A dict might be watched for Static Python's purposes as well. Return early
   // if no matchers were registered.
-  if (dict_it == jit::g_dict_watchers.end()) {
+  if (dict_it == g_dict_watchers.end()) {
     return;
   }
   auto key_it = dict_it->second.find(key);
   if (key_it == dict_it->second.end()) {
     return;
   }
-  std::vector<jit::GlobalCache> to_disable;
+  std::vector<GlobalCache> to_disable;
   for (auto& cache : key_it->second) {
     cache.update(reinterpret_cast<PyObject*>(dict), value, to_disable);
   }
-  jit::disableCaches(to_disable);
+  disableCaches(to_disable);
 }
 
-void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
-  auto dict_it = jit::g_dict_watchers.find(dict);
+void notifyDictUnwatch(PyObject* dict) {
+  auto dict_it = g_dict_watchers.find(dict);
   // A dict might be watched for Static Python's purposes as well. Return early
   // if no matchers were registered.
-  if (dict_it == jit::g_dict_watchers.end()) {
+  if (dict_it == g_dict_watchers.end()) {
     return;
   }
   for (auto& pair : dict_it->second) {
@@ -133,24 +131,26 @@ void _PyJIT_NotifyDictUnwatch(PyObject* dict) {
       cache.disable();
     }
   }
-  jit::g_dict_watchers.erase(dict_it);
+  g_dict_watchers.erase(dict_it);
 }
 
-void _PyJIT_NotifyDictClear(PyObject* dict) {
-  auto dict_it = jit::g_dict_watchers.find(dict);
+void notifyDictClear(PyObject* dict) {
+  auto dict_it = g_dict_watchers.find(dict);
   // A dict might be watched for Static Python's purposes as well. Return early
   // if no matchers were registered.
-  if (dict_it == jit::g_dict_watchers.end()) {
+  if (dict_it == g_dict_watchers.end()) {
     return;
   }
-  std::vector<jit::GlobalCache> to_disable;
+  std::vector<GlobalCache> to_disable;
   for (auto& key_pair : dict_it->second) {
     for (auto& cache : key_pair.second) {
       cache.update(dict, nullptr, to_disable);
     }
   }
-  jit::disableCaches(to_disable);
+  disableCaches(to_disable);
 }
+
+} // namespace jit
 
 PyObject**
 _PyJIT_GetGlobalCache(PyObject* builtins, PyObject* globals, PyObject* key) {
@@ -178,10 +178,10 @@ void _PyJIT_ClearDictCaches() {
   }
   for (auto dict : keys) {
     auto dict_it = jit::g_dict_watchers.find(dict);
-    // NotifyDictUnwatch may clear out our dictionary and builtins,
+    // notifyDictUnwatch may clear out our dictionary and builtins,
     // so we need to make sure each dictionary is still being watched
     if (dict_it != jit::g_dict_watchers.end()) {
-      _PyJIT_NotifyDictUnwatch(dict);
+      jit::notifyDictUnwatch(dict);
       Ci_Watchers_UnwatchDict(dict);
     }
   }
