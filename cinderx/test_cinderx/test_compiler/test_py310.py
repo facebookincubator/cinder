@@ -1,7 +1,8 @@
 import io
-from compiler.dis_stable import Disassembler
-from compiler.pycodegen import PythonCodeGenerator
 from textwrap import dedent
+
+from cinderx.compiler.dis_stable import Disassembler
+from cinderx.compiler.pycodegen import PythonCodeGenerator
 
 from .common import CompilerTest
 

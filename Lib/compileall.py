@@ -17,8 +17,8 @@ import py_compile
 import struct
 import filecmp
 try:
-    from compiler.pysourceloader import PySourceFileLoader
-    from compiler.strict.loader import strict_compile as strict_compile_fn
+    from cinderx.compiler.pysourceloader import PySourceFileLoader
+    from cinderx.compiler.strict.loader import strict_compile as strict_compile_fn
 except ImportError:
     PySourceFileLoader = None
     strict_compile_fn = None

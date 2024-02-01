@@ -5,8 +5,9 @@
 import ast
 import re
 import sys
-from compiler import dis_stable
-from compiler.pycodegen import compile as py_compile
+
+from cinderx.compiler import dis_stable
+from cinderx.compiler.pycodegen import compile as py_compile
 
 
 # https://www.python.org/dev/peps/pep-0263/

@@ -1,5 +1,3 @@
-from compiler.consts import CO_STATICALLY_COMPILED
-from compiler.pycodegen import PythonCodeGenerator
 from dataclasses import (
     _DataclassParams,
     _FIELD,
@@ -11,6 +9,9 @@ from dataclasses import (
     MISSING,
 )
 from typing import Mapping
+
+from cinderx.compiler.consts import CO_STATICALLY_COMPILED
+from cinderx.compiler.pycodegen import PythonCodeGenerator
 
 from .common import StaticTestBase
 

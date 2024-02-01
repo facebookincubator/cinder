@@ -1,7 +1,8 @@
 from __static__ import TYPED_DOUBLE
 
 import re
-from compiler.errors import TypedSyntaxError
+
+from cinderx.compiler.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

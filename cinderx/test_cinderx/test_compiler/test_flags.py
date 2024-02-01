@@ -4,7 +4,10 @@ import ast
 import dis
 import sys
 import unittest
-from compiler.consts import (
+from dis import opmap, opname
+from unittest import TestCase
+
+from cinderx.compiler.consts import (
     CO_ASYNC_GENERATOR,
     CO_COROUTINE,
     CO_GENERATOR,
@@ -13,8 +16,6 @@ from compiler.consts import (
     CO_NOFREE,
     CO_OPTIMIZED,
 )
-from dis import opmap, opname
-from unittest import TestCase
 
 from .common import CompilerTest
 

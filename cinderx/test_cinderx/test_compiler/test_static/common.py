@@ -10,26 +10,27 @@ import re
 import symtable
 import sys
 from cinder import StrictModule
-from compiler.dis_stable import Disassembler
-from compiler.errors import (
+from contextlib import contextmanager
+from functools import wraps
+from types import CodeType, FunctionType
+from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
+
+from cinderx.compiler.dis_stable import Disassembler
+from cinderx.compiler.errors import (
     CollectingErrorSink,
     ErrorSink,
     PerfWarning,
     TypedSyntaxError,
 )
-from compiler.static import Static38CodeGenerator, StaticCodeGenerator
-from compiler.static.compiler import Compiler
-from compiler.static.module_table import ModuleTable
-from compiler.static.types import Value
-from compiler.strict.common import FIXED_MODULES
-from compiler.strict.compiler import Compiler as StrictCompiler
-from compiler.strict.flag_extractor import Flags
-from compiler.strict.loader import init_static_python
-from compiler.strict.runtime import set_freeze_enabled
-from contextlib import contextmanager
-from functools import wraps
-from types import CodeType, FunctionType
-from typing import Any, ContextManager, Dict, Generator, List, Mapping, Tuple, Type
+from cinderx.compiler.static import Static38CodeGenerator, StaticCodeGenerator
+from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.module_table import ModuleTable
+from cinderx.compiler.static.types import Value
+from cinderx.compiler.strict.common import FIXED_MODULES
+from cinderx.compiler.strict.compiler import Compiler as StrictCompiler
+from cinderx.compiler.strict.flag_extractor import Flags
+from cinderx.compiler.strict.loader import init_static_python
+from cinderx.compiler.strict.runtime import set_freeze_enabled
 
 from cinderx.static import (
     __build_cinder_class__,

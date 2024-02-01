@@ -4,14 +4,15 @@ import ast
 import symtable
 import sys
 import unittest
-from compiler.strict import strict_compile
-from compiler.strict.common import FIXED_MODULES
-from compiler.strict.loader import StrictModule
-from compiler.strict.rewriter import rewrite
 from textwrap import dedent
 from types import CoroutineType, FunctionType, ModuleType
 from typing import Any, Dict, final, List, Optional, Set, Type, TypeVar
 from weakref import ref
+
+from cinderx.compiler.strict import strict_compile
+from cinderx.compiler.strict.common import FIXED_MODULES
+from cinderx.compiler.strict.loader import StrictModule
+from cinderx.compiler.strict.rewriter import rewrite
 
 from .common import StrictTestWithCheckerBase
 

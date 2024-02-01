@@ -1,10 +1,11 @@
 import ast
 import re
-from compiler.static import StaticCodeGenerator
-from compiler.static.compiler import Compiler
-from compiler.static.module_table import ModuleTable, ModuleTableException
-from compiler.static.types import Class, TypeName
 from textwrap import dedent
+
+from cinderx.compiler.static import StaticCodeGenerator
+from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.module_table import ModuleTable, ModuleTableException
+from cinderx.compiler.static.types import Class, TypeName
 
 from .common import bad_ret_type, StaticTestBase
 

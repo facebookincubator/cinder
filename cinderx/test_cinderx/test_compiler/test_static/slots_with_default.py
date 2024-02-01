@@ -1,8 +1,9 @@
 import builtins
 from cinder import cached_property
-from compiler.pycodegen import PythonCodeGenerator
 from unittest import skip
 from unittest.mock import Mock, patch
+
+from cinderx.compiler.pycodegen import PythonCodeGenerator
 
 from .common import StaticTestBase
 

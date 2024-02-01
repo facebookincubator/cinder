@@ -1,7 +1,7 @@
 import __future__
 
-from compiler.consts import CO_NOFREE
-from compiler.pycodegen import CodeGenerator
+from cinderx.compiler.consts import CO_NOFREE
+from cinderx.compiler.pycodegen import CodeGenerator
 
 from .common import CompilerTest
 

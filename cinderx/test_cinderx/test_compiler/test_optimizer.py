@@ -3,11 +3,12 @@ import dis
 import math
 import sys
 import unittest
-from compiler.consts import CO_NEWLOCALS, CO_NOFREE, CO_OPTIMIZED
-from compiler.optimizer import AstOptimizer
-from compiler.pyassem import PyFlowGraph
-from compiler.pycodegen import CodeGenerator
-from compiler.unparse import to_expr
+
+from cinderx.compiler.consts import CO_NEWLOCALS, CO_NOFREE, CO_OPTIMIZED
+from cinderx.compiler.optimizer import AstOptimizer
+from cinderx.compiler.pyassem import PyFlowGraph
+from cinderx.compiler.pycodegen import CodeGenerator
+from cinderx.compiler.unparse import to_expr
 
 from .common import CompilerTest
 

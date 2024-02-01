@@ -1,8 +1,9 @@
 import ast
 from ast import FunctionDef
-from compiler import walk
-from compiler.consts import SC_GLOBAL_IMPLICIT
-from compiler.symbols import SymbolVisitor
+
+from cinderx.compiler import walk
+from cinderx.compiler.consts import SC_GLOBAL_IMPLICIT
+from cinderx.compiler.symbols import SymbolVisitor
 
 from .common import CompilerTest
 

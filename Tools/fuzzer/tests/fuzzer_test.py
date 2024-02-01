@@ -1,8 +1,9 @@
 import os
 import sys
 import unittest
-from compiler import compile, opcode_cinder, pyassem
 from inspect import cleandoc
+
+from cinderx.compiler import compile, opcode_cinder, pyassem
 
 sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
 import fuzzer

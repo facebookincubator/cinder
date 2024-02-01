@@ -1,6 +1,7 @@
 import dis
-from compiler.static.types import TMP_VAR_PREFIX, TypedSyntaxError
 from unittest import skip
+
+from cinderx.compiler.static.types import TMP_VAR_PREFIX, TypedSyntaxError
 
 from .common import StaticTestBase
 

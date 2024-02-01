@@ -2,9 +2,10 @@ import os
 import re
 import sys
 import unittest
-from compiler import compile
 from inspect import cleandoc
 from tempfile import NamedTemporaryFile
+
+from cinderx.compiler import compile
 
 sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
 from executor import extract_functions_from_file

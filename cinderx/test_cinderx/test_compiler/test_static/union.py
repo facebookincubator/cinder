@@ -1,9 +1,10 @@
 import re
 import unittest
-from compiler.static import StaticCodeGenerator
-from compiler.static.compiler import Compiler
-from compiler.static.types import TypeEnvironment
 from unittest import skip, skipIf
+
+from cinderx.compiler.static import StaticCodeGenerator
+from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.types import TypeEnvironment
 
 from .common import bad_ret_type, StaticTestBase
 

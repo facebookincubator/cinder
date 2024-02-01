@@ -4,7 +4,8 @@ import ast
 import inspect
 import re
 import unittest
-from compiler import compile
+
+from cinderx.compiler import compile
 
 from .common import CompilerTest
 

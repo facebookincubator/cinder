@@ -1,7 +1,7 @@
 import unittest
-from compiler.static.types import TypeEnvironment
-
 from unittest import skip
+
+from cinderx.compiler.static.types import TypeEnvironment
 
 from .common import StaticTestBase
 

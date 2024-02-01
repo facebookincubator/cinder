@@ -1,6 +1,6 @@
-from compiler.static.compiler import Compiler
-from compiler.static.types import TypeEnvironment
-from compiler.strict.compiler import Compiler as StrictCompiler
+from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.types import TypeEnvironment
+from cinderx.compiler.strict.compiler import Compiler as StrictCompiler
 
 from .common import StaticTestBase, StaticTestsStrictModuleLoader
 

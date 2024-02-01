@@ -3,9 +3,10 @@ import os
 import sys
 import types
 import unittest
-from compiler import compile, opcode_static as op
 from inspect import cleandoc
 from typing import List, Tuple
+
+from cinderx.compiler import compile, opcode_static as op
 
 sys.path.append(os.path.join(sys.path[0], "..", "fuzzer"))
 

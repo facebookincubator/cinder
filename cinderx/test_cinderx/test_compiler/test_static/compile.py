@@ -10,11 +10,19 @@ import re
 import sys
 import unittest
 from cinder import StrictModule
-from compiler.consts import CO_STATICALLY_COMPILED
-from compiler.pycodegen import PythonCodeGenerator
-from compiler.static import StaticCodeGenerator
-from compiler.static.compiler import Compiler
-from compiler.static.types import (
+from io import StringIO
+from os import path
+from types import ModuleType
+from typing import Callable, Optional, TypeVar
+from unittest import skip, skipIf
+from unittest.mock import patch
+
+import xxclassloader
+from cinderx.compiler.consts import CO_STATICALLY_COMPILED
+from cinderx.compiler.pycodegen import PythonCodeGenerator
+from cinderx.compiler.static import StaticCodeGenerator
+from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.types import (
     FAST_LEN_DICT,
     FAST_LEN_INEXACT,
     FAST_LEN_LIST,
@@ -27,14 +35,6 @@ from compiler.static.types import (
     TypeEnvironment,
     Value,
 )
-from io import StringIO
-from os import path
-from types import ModuleType
-from typing import Callable, Optional, TypeVar
-from unittest import skip, skipIf
-from unittest.mock import patch
-
-import xxclassloader
 
 from .common import (
     add_fixed_module,
@@ -338,7 +338,7 @@ class StaticCompilationTests(StaticTestBase):
             call_count += 1
             return orig_bind_attr(*args)
 
-        with patch("compiler.static.types.Object.bind_attr", bind_attr):
+        with patch("cinderx.compiler.static.types.Object.bind_attr", bind_attr):
             with self.in_module(codestr) as mod:
                 f = mod.f
                 x = C()

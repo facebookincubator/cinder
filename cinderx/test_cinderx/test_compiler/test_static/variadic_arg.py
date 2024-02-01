@@ -1,5 +1,4 @@
-from compiler.errors import TypedSyntaxError
-from unittest import skip, skipIf
+from cinderx.compiler.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

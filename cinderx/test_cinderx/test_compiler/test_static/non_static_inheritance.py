@@ -1,8 +1,8 @@
 import unittest
-
-from compiler.consts import CO_STATICALLY_COMPILED
-from compiler.pycodegen import CinderCodeGenerator
 from unittest import skip
+
+from cinderx.compiler.consts import CO_STATICALLY_COMPILED
+from cinderx.compiler.pycodegen import CinderCodeGenerator
 
 from .common import StaticTestBase
 

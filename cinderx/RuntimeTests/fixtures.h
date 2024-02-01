@@ -62,11 +62,11 @@ class RuntimeTest : public ::testing::Test {
   }
 
   bool runCode(const char* src) {
-    return runCodeModuleExec(src, "compiler", "exec_cinder");
+    return runCodeModuleExec(src, "cinderx.compiler", "exec_cinder");
   }
 
   bool runStaticCode(const char* src) {
-    return runCodeModuleExec(src, "compiler.static", "exec_static");
+    return runCodeModuleExec(src, "cinderx.compiler.static", "exec_static");
   }
 
   bool runCodeModuleExec(

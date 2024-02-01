@@ -1,11 +1,10 @@
-from compiler.errors import TypedSyntaxError
-from compiler.static.types import (
+from cinderx.compiler.errors import TypedSyntaxError
+from cinderx.compiler.static.types import (
     PRIM_OP_ADD_INT,
     PRIM_OP_DIV_INT,
     TYPED_INT16,
     TYPED_INT8,
 )
-from unittest import skip
 
 from .common import StaticTestBase
 

@@ -21,13 +21,13 @@ import unittest
 import warnings
 import weakref
 
-from compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_SUPPRESS_JIT
-
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
 import _testcindercapi
+
+from cinderx.compiler.consts import CO_FUTURE_BARRY_AS_BDFL, CO_SUPPRESS_JIT
 from test import cinder_support
 
 try:
@@ -5346,7 +5346,7 @@ class PreloadTests(unittest.TestCase):
                 "jit-batch-compile-workers=4",
                 # Enable lazy imports
                 "-L",
-                "-mcompiler",
+                "-mcinderx.compiler",
                 "--static",
                 self.SCRIPT_FILE,
             ],

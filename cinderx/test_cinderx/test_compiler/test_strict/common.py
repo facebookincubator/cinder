@@ -8,15 +8,16 @@ import gc
 import inspect
 import sys
 from cinder import cached_property
-from compiler.strict import strict_compile, StrictCodeGenerator
-from compiler.strict.common import FIXED_MODULES
-from compiler.strict.compiler import Compiler
-from compiler.strict.loader import StrictModule
-from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from types import CodeType
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Type
 from unittest import skip
+
+from cinderx.compiler.strict import strict_compile, StrictCodeGenerator
+from cinderx.compiler.strict.common import FIXED_MODULES
+from cinderx.compiler.strict.compiler import Compiler
+from cinderx.compiler.strict.loader import StrictModule
+from cinderx.compiler.strict.runtime import set_freeze_enabled
 
 from test_cinderx.test_compiler.common import CompilerTest
 

@@ -271,7 +271,7 @@ _install_importlib_pycompile_helper(const char* loader_installer) {
     int orig_lazy_imports = interp->lazy_imports;
     interp->lazy_imports = 0;
     PyObject* value;
-    PyObject *py_loader_module = PyImport_ImportModule("compiler.pysourceloader");
+    PyObject *py_loader_module = PyImport_ImportModule("cinderx.compiler.pysourceloader");
     if (py_loader_module == NULL) {
         return -1;
     }

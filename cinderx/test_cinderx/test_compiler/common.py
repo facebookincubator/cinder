@@ -2,12 +2,13 @@ import dis
 import glob
 import inspect
 import sys
-from compiler.pycodegen import make_compiler
 from io import StringIO
 from os import path
 from subprocess import PIPE, run
 from types import CodeType
 from unittest import TestCase
+
+from cinderx.compiler.pycodegen import make_compiler
 
 
 _UNSPECIFIED = object()

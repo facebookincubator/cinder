@@ -1,9 +1,9 @@
 import ast
-
-from compiler.strict.common import DEFAULT_STUB_PATH
-from compiler.strict.flag_extractor import FlagExtractor
 from textwrap import dedent
 from typing import final, Optional, Sequence
+
+from cinderx.compiler.strict.common import DEFAULT_STUB_PATH
+from cinderx.compiler.strict.flag_extractor import FlagExtractor
 
 from cinderx.strictmodule import StrictAnalysisResult, StrictModuleLoader
 

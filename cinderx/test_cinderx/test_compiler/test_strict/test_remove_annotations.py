@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import ast
-from compiler.strict.rewriter import AnnotationRemover, remove_annotations
 from textwrap import dedent
 from typing import cast, final
+
+from cinderx.compiler.strict.rewriter import AnnotationRemover, remove_annotations
 
 from .common import StrictTestBase
 

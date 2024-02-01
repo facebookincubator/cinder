@@ -1,7 +1,6 @@
-from compiler.pycodegen import PythonCodeGenerator
 from types import MemberDescriptorType
 
-from unittest import skip
+from cinderx.compiler.pycodegen import PythonCodeGenerator
 
 from .common import StaticTestBase, type_mismatch
 

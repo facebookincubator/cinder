@@ -12,18 +12,6 @@ import tempfile
 
 import textwrap
 from cinder import cinder_set_warn_handler, get_warn_handler, StrictModule
-from compiler.strict.common import FIXED_MODULES
-from compiler.strict.compiler import StrictModuleError
-from compiler.strict.loader import (
-    _MAGIC_LEN,
-    _MAGIC_NEITHER_STRICT_NOR_STATIC,
-    _MAGIC_STRICT_OR_STATIC,
-    install,
-    StrictModule,
-    StrictModuleTestingPatchProxy,
-    StrictSourceFileLoader,
-)
-from compiler.strict.runtime import set_freeze_enabled
 from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from os import path
@@ -43,6 +31,19 @@ from typing import (
 )
 from unittest import skip
 from unittest.mock import patch
+
+from cinderx.compiler.strict.common import FIXED_MODULES
+from cinderx.compiler.strict.compiler import StrictModuleError
+from cinderx.compiler.strict.loader import (
+    _MAGIC_LEN,
+    _MAGIC_NEITHER_STRICT_NOR_STATIC,
+    _MAGIC_STRICT_OR_STATIC,
+    install,
+    StrictModule,
+    StrictModuleTestingPatchProxy,
+    StrictSourceFileLoader,
+)
+from cinderx.compiler.strict.runtime import set_freeze_enabled
 
 from . import sandbox as base_sandbox
 from .common import init_cached_properties, StrictTestBase
@@ -2280,7 +2281,7 @@ class StrictLoaderTest(StrictTestBase):
         self.sbx.write_file(
             "main.py",
             """
-            from compiler.strict.loader import install
+            from cinderx.compiler.strict.loader import install
             install()
             from staticmod import f
             print(f())

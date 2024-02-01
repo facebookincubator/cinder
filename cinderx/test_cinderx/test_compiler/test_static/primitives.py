@@ -9,9 +9,15 @@ import warnings
 import weakref
 
 from array import array
-from compiler.errors import TypedSyntaxError
-from compiler.static import StaticCodeGenerator
-from compiler.static.types import (
+from types import FunctionType
+
+from unittest import skip, skipIf
+
+import cinderx.static
+
+from cinderx.compiler.errors import TypedSyntaxError
+from cinderx.compiler.static import StaticCodeGenerator
+from cinderx.compiler.static.types import (
     FAST_LEN_INEXACT,
     FAST_LEN_LIST,
     PRIM_OP_ADD_INT,
@@ -22,11 +28,6 @@ from compiler.static.types import (
     TypedSyntaxError,
     TypeEnvironment,
 )
-from types import FunctionType
-
-from unittest import skip, skipIf
-
-import cinderx.static
 
 from cinderx.static import TYPED_INT16, TYPED_INT32, TYPED_INT64
 

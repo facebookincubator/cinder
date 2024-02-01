@@ -1,6 +1,7 @@
 import ast
-from compiler.pycodegen import compile as py_compile
 from unittest import TestCase
+
+from cinderx.compiler.pycodegen import compile as py_compile
 
 
 class UnparseTests(TestCase):

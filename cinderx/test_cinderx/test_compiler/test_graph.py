@@ -1,9 +1,10 @@
 import ast
 import dis
 import unittest
-from compiler.pycodegen import CodeGenerator
 from dis import opmap, opname
 from unittest import TestCase
+
+from cinderx.compiler.pycodegen import CodeGenerator
 
 from .common import CompilerTest
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 import sys
 
 from compileall import compile_dir, compile_file
-from compiler.strict.loader import strict_compile
-
 from typing import final
+
+from cinderx.compiler.strict.loader import strict_compile
 
 from .common import StrictTestBase
 from .sandbox import sandbox, use_cm

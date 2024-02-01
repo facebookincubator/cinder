@@ -1,6 +1,7 @@
 import dis
-from compiler import opcode_static as opcodes
 from typing import Dict, Iterator, List, Optional
+
+from cinderx.compiler import opcode_static as opcodes
 
 CODEUNIT_SIZE = 2
 

@@ -2,13 +2,14 @@ import asyncio
 import unittest
 
 from cinder import async_cached_property, cached_property
-from compiler.errors import TypedSyntaxError
-from compiler.pycodegen import PythonCodeGenerator
-from compiler.static import (
+from unittest import skip
+
+from cinderx.compiler.errors import TypedSyntaxError
+from cinderx.compiler.pycodegen import PythonCodeGenerator
+from cinderx.compiler.static import (
     ASYNC_CACHED_PROPERTY_IMPL_PREFIX,
     CACHED_PROPERTY_IMPL_PREFIX,
 )
-from unittest import skip
 
 from .common import StaticTestBase
 

@@ -1,5 +1,5 @@
-from compiler.pycodegen import PythonCodeGenerator
-from compiler.static.types import TypedSyntaxError
+from cinderx.compiler.pycodegen import PythonCodeGenerator
+from cinderx.compiler.static.types import TypedSyntaxError
 
 from .common import StaticTestBase
 

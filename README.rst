@@ -332,7 +332,7 @@ and ``import __strict__`` annotations at the top of a file, and compile
 modules appropriately. To enable the loader, you have one of three options:
 
 1. Explicitly install the loader at the top level of your application
-via ``from compiler.strict.loader import install; install()``.
+via ``from cinderx.compiler.strict.loader import install; install()``.
 
 2. Set ``PYTHONINSTALLSTRICTLOADER=1`` in your env.
 

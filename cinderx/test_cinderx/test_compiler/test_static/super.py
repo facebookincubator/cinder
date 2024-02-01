@@ -1,4 +1,4 @@
-from compiler.pycodegen import CinderCodeGenerator
+from cinderx.compiler.pycodegen import CinderCodeGenerator
 
 from .common import StaticTestBase
 

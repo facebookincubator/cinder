@@ -1,8 +1,8 @@
 import re
 import sys
-
-from compiler.static.types import TypedSyntaxError
 from itertools import product
+
+from cinderx.compiler.static.types import TypedSyntaxError
 
 from .common import StaticTestBase
 

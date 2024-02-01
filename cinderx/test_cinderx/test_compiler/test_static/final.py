@@ -1,5 +1,6 @@
-from compiler.errors import TypedSyntaxError
 from typing import ClassVar
+
+from cinderx.compiler.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

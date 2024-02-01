@@ -1,7 +1,8 @@
 import ast
-from compiler.unparse import to_expr
-from compiler.visitor import ASTRewriter
 from unittest import TestCase
+
+from cinderx.compiler.unparse import to_expr
+from cinderx.compiler.visitor import ASTRewriter
 
 
 class VisitorTests(TestCase):

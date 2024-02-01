@@ -12,7 +12,7 @@ passing `enable_patching = True` before installing the loader.
 
 .. code-block:: python
 
-    from compiler.strict.loader import StrictSourceFileLoader
+    from cinderx.compiler.strict.loader import StrictSourceFileLoader
     from typing import final
 
     @final

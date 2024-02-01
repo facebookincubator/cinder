@@ -17,7 +17,7 @@ transition. Example:
 
     import __strict__
 
-    from compiler.strict.runtime import loose_slots
+    from cinderx.compiler.strict.runtime import loose_slots
 
     @loose_slots
     class MyClass:

@@ -1,6 +1,7 @@
 import io
-from compiler.dis_stable import Disassembler
 from textwrap import dedent
+
+from cinderx.compiler.dis_stable import Disassembler
 
 from .common import CompilerTest
 

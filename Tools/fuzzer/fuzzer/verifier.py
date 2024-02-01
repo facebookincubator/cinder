@@ -1,10 +1,11 @@
 import dis
 import types
-from compiler import compile, opcode_static as opcodes
 from math import inf
 from typing import List, Tuple, Union
 
 from cfgutil import Block, BlockMap, BytecodeOp
+
+from cinderx.compiler import compile, opcode_static as opcodes
 
 CODEUNIT_SIZE = 2
 

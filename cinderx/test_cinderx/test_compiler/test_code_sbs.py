@@ -2,12 +2,13 @@ import dis
 import os
 import sys
 from collections import deque
-from compiler import pyassem
-from compiler.pyassem import Instruction
-from compiler.pycodegen import CodeGenerator
 from functools import partial
 from io import SEEK_END
 from re import escape
+
+from cinderx.compiler import pyassem
+from cinderx.compiler.pyassem import Instruction
+from cinderx.compiler.pycodegen import CodeGenerator
 
 from .common import CompilerTest, glob_test
 

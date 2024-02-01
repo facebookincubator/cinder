@@ -2,10 +2,15 @@ from __static__ import Array, int32, int64, int8
 
 import itertools
 import re
-from compiler.static.types import FAST_LEN_ARRAY, SEQ_ARRAY_INT64, TypedSyntaxError
 from copy import deepcopy
 from typing import Mapping
 from unittest import skipIf
+
+from cinderx.compiler.static.types import (
+    FAST_LEN_ARRAY,
+    SEQ_ARRAY_INT64,
+    TypedSyntaxError,
+)
 
 from cinderx.static import SEQ_SUBSCR_UNCHECKED, TYPED_INT64
 

@@ -1,6 +1,7 @@
 import dis
-from compiler.pycodegen import compile as py_compile
 from textwrap import dedent
+
+from cinderx.compiler.pycodegen import compile as py_compile
 
 from .. import test_dis
 

@@ -6,8 +6,9 @@ import string
 import sys
 import textwrap
 import types
-from compiler import compile, opcode_cinder, pyassem, pycodegen, symbols
-from compiler.consts import (
+
+from cinderx.compiler import compile, opcode_cinder, pyassem, pycodegen, symbols
+from cinderx.compiler.consts import (
     CO_ASYNC_GENERATOR,
     CO_COROUTINE,
     CO_GENERATOR,

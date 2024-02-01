@@ -5,7 +5,7 @@ import sys
 from types import CodeType
 
 try:
-    from compiler.dis_stable import Disassembler
+    from cinderx.compiler.dis_stable import Disassembler
 except ImportError:
     # non-cinder, fallback to dis
     from dis import dis

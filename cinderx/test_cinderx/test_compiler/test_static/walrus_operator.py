@@ -1,4 +1,4 @@
-from compiler.errors import TypedSyntaxError
+from cinderx.compiler.errors import TypedSyntaxError
 
 from .common import StaticTestBase
 

@@ -1,11 +1,12 @@
 import asyncio
 import cinder
 import re
-from compiler.pycodegen import PythonCodeGenerator
 from contextlib import contextmanager
 from textwrap import dedent
 from unittest import skip, skipIf
 from unittest.mock import MagicMock, Mock, patch
+
+from cinderx.compiler.pycodegen import PythonCodeGenerator
 
 from test.support.import_helper import import_module
 
