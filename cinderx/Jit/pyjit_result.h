@@ -30,6 +30,9 @@ typedef enum {
      or give up as best fits the case. */
   PYJIT_RESULT_RETRY,
 
+  /* We are compiling with preload required, but did not find a preloader. */
+  PYJIT_RESULT_NO_PRELOADER,
+
   PYJIT_RESULT_UNKNOWN_ERROR,
 
   /* The JIT raised a Python exception, like a deferred object failing to be

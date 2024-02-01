@@ -1949,12 +1949,11 @@ bool HIRBuilder::emitInvokeFunction(
     // try to emit a direct x64 call (InvokeStaticFunction/CallStatic) if we can
 
     if (target.is_function && target.is_statically_typed) {
-      if (_PyJIT_CompileFunction(target.func()) == PYJIT_RESULT_RETRY) {
-        JIT_DLOG(
-            "Warning: recursive compile of '{}' failed as it is already "
-            "being compiled",
-            funcFullname(target.func()));
-      }
+      // Try to jit-compile the target function, only if there is a preloader
+      // available in the global map. We don't need to care about the result
+      // here; Python exception is not possible because that can only happen in
+      // preloading, any other result we just move on.
+      jit::tryCompilePreloaded(target.func());
 
       // Direct invoke is safe whether we succeeded in JIT-compiling or not,
       // it'll just have an extra indirection if not JIT compiled.

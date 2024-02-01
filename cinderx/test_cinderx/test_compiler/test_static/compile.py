@@ -7,11 +7,15 @@ import cinder
 import dis
 import inspect
 import re
+import subprocess
 import sys
 import unittest
 from cinder import StrictModule
 from io import StringIO
 from os import path
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from textwrap import dedent
 from types import ModuleType
 from typing import Callable, Optional, TypeVar
 from unittest import skip, skipIf
@@ -35,6 +39,8 @@ from cinderx.compiler.static.types import (
     TypeEnvironment,
     Value,
 )
+
+from test.cinder_support import skipUnlessJITEnabled
 
 from .common import (
     add_fixed_module,
@@ -5517,6 +5523,53 @@ class StaticCompilationTests(StaticTestBase):
                 "INVOKE_FUNCTION",
                 ((mod.__name__, "f"), 0),
             )
+
+    @skipUnlessJITEnabled("runs subprocess with JIT")
+    def test_invoke_recursive_compile_respects_jitlist(self):
+        with TemporaryDirectory() as d:
+            d = Path(d)
+            jitlist = d / "jitlist.txt"
+            jitlist.write_text("staticmod:f1\nstaticmod:f3\n")
+            (d / "staticmod.py").write_text(
+                dedent(
+                    """
+                    import __static__
+
+                    def f1():
+                        return f2() + f3()
+
+                    def f2():
+                        return 2
+
+                    def f3():
+                        return 3
+                    """
+                )
+            )
+            (d / "main.py").write_text(
+                dedent(
+                    """
+                    from staticmod import f1, f2, f3
+
+                    assert f1() == 5
+
+                    from cinderjit import is_jit_compiled
+                    assert is_jit_compiled(f1), "f1 is on jitlist but not jitted"
+                    assert not is_jit_compiled(f2), "f2 is not on jitlist but was jitted"
+                    assert is_jit_compiled(f3), "f3 is on jitlist but not jitted"
+                    """
+                )
+            )
+            cmd = [
+                sys.executable,
+                "-X",
+                f"jit-list-file={jitlist}",
+                "-X",
+                "install-strict-loader",
+                "main.py",
+            ]
+            proc = subprocess.run(cmd, capture_output=True, cwd=str(d))
+            self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_module_level_final_decl(self):
         codestr = """

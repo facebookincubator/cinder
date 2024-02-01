@@ -53,34 +53,9 @@ class Context {
   ~Context();
 
   /*
-   * JIT compile func and patch its entry point.
-   *
-   * On success, positional only calls to func will use the JIT compiled
-   * version.
-   *
-   * Will return PYJIT_RESULT_OK if the function was already compiled.
-   */
-  _PyJIT_Result compileFunc(BorrowedRef<PyFunctionObject> func);
-
-  /*
-   * JIT compile code and store the result in the context.
-   *
-   * This does not patch the entry point of any functions; it is primarily
-   * useful to pre-compile the code object for a nested function so it's
-   * available for use after disabling the JIT.
-   *
-   * Will return PYJIT_RESULT_OK if the code was already compiled.
-   */
-  _PyJIT_Result compileCode(
-      BorrowedRef<> module,
-      BorrowedRef<PyCodeObject> code,
-      BorrowedRef<PyDictObject> builtins,
-      BorrowedRef<PyDictObject> globals);
-
-  /*
    * JIT compile function/code-object from a Preloader.
    *
-   * Patches func entrypoint if the Preloader contains a func.
+   * Patches func entrypoint if a func is provided.
    *
    * Will return PYJIT_RESULT_OK if the function/code object was already
    * compiled.

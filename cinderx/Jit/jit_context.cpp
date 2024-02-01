@@ -31,28 +31,6 @@ Context::~Context() {
   }
 }
 
-_PyJIT_Result Context::compileFunc(BorrowedRef<PyFunctionObject> func) {
-  if (didCompile(func)) {
-    return PYJIT_RESULT_OK;
-  }
-  std::unique_ptr<hir::Preloader> preloader =
-      hir::Preloader::makePreloader(func);
-  return preloader != nullptr ? compilePreloader(func, *preloader)
-                              : PYJIT_RESULT_PYTHON_EXCEPTION;
-}
-
-_PyJIT_Result Context::compileCode(
-    BorrowedRef<> module,
-    BorrowedRef<PyCodeObject> code,
-    BorrowedRef<PyDictObject> builtins,
-    BorrowedRef<PyDictObject> globals) {
-  std::string fullname = codeFullname(module, code);
-  std::unique_ptr<hir::Preloader> preloader =
-      hir::Preloader::makePreloader(code, builtins, globals, fullname);
-  return preloader != nullptr ? compilePreloader(*preloader).result
-                              : PYJIT_RESULT_PYTHON_EXCEPTION;
-}
-
 _PyJIT_Result Context::compilePreloader(
     BorrowedRef<PyFunctionObject> func,
     const hir::Preloader& preloader) {

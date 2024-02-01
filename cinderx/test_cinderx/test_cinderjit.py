@@ -5332,6 +5332,25 @@ class PerfMapTests(unittest.TestCase):
         self.assertEqual(find_mapped_funcs("child2"), {"main", "child2", "compute"})
 
 
+class BatchCompileTests(unittest.TestCase):
+    @cinder_support.skipUnlessJITEnabled("Runs a subprocess with the JIT enabled")
+    def test_batch_compile_nested_func(self):
+        root = Path(
+            os.path.join(os.path.dirname(__file__), "data/batch_compile_nested_func")
+        )
+        cmd = [
+            sys.executable,
+            "-X",
+            f"jit-list-file={root / 'jitlist.txt'}",
+            "-X",
+            "jit-batch-compile-workers=2",
+            str(root / "main.py"),
+        ]
+        proc = subprocess.run(cmd, cwd=root, capture_output=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(b"42\n", proc.stdout, proc.stdout)
+
+
 class PreloadTests(unittest.TestCase):
     SCRIPT_FILE = "cinder_preload_helper_main.py"
 
@@ -5367,16 +5386,20 @@ hello from b_func!
         self.assertEqual(proc.stdout, expected_stdout)
 
     def test_preload_error(self):
-        root = os.path.join(os.path.dirname(__file__), "data/preload_error")
-        jitlist = os.path.join(root, "jitlist.txt")
-        main = os.path.join(root, "main.py")
         # don't include jit/no-jit in this matrix, decide it based on whether
         # overall test run is jit or no-jit; this avoids the confusion of jit
         # bugs showing up as failures in non-jit test runs
-        for (batch, lazyimports) in itertools.product(
+        for (recursive, batch, lazyimports) in itertools.product(
+            [True, False],
             [True, False] if cinder_support.CINDERJIT_ENABLED else [False],
             [True, False],
         ):
+            root = os.path.join(
+                os.path.dirname(__file__),
+                "data/preload_error_recursive" if recursive else "data/preload_error",
+            )
+            jitlist = os.path.join(root, "jitlist.txt")
+            main = os.path.join(root, "main.py")
             cmd = [
                 sys.executable,
                 "-X",
@@ -5395,7 +5418,9 @@ hello from b_func!
             if lazyimports:
                 cmd += ["-L"]
             cmd += ["main.py"]
-            with self.subTest(batch=batch, lazyimports=lazyimports):
+            with self.subTest(
+                recursive=recursive, batch=batch, lazyimports=lazyimports
+            ):
                 proc = subprocess.run(
                     cmd,
                     cwd=root,

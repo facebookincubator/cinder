@@ -62,6 +62,9 @@ struct InvokeTarget {
   bool builtin_returns_error_code{false};
 };
 
+using InvokeTargetMap =
+    std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>>;
+
 // The target of an INVOKE_NATIVE
 struct NativeTarget {
   // the address of target
@@ -118,6 +121,10 @@ class Preloader {
   const InvokeTarget& invokeFunctionTarget(BorrowedRef<> descr) const;
   const InvokeTarget& invokeMethodTarget(BorrowedRef<> descr) const;
   const NativeTarget& invokeNativeTarget(BorrowedRef<> target) const;
+
+  const InvokeTargetMap& invokeFunctionTargets() const {
+    return func_targets_;
+  }
 
   // get the type from argument check info for the given locals index, or
   // TObject
@@ -188,8 +195,8 @@ class Preloader {
   // keyed by type descr tuple identity (they are interned in code objects)
   std::unordered_map<PyObject*, PyTypeOpt> types_;
   std::unordered_map<PyObject*, FieldInfo> fields_;
-  std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> func_targets_;
-  std::unordered_map<PyObject*, std::unique_ptr<InvokeTarget>> meth_targets_;
+  InvokeTargetMap func_targets_;
+  InvokeTargetMap meth_targets_;
   std::unordered_map<PyObject*, std::unique_ptr<NativeTarget>> native_targets_;
   // keyed by locals index
   std::unordered_map<long, Type> check_arg_types_;

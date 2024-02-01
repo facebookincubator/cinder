@@ -297,6 +297,17 @@ PyAPI_FUNC(void) _PyPerfTrampoline_CompilePerfTrampolinePreFork(void);
 namespace jit {
 
 /*
+ * JIT compile func or code object, only if a preloader is available.
+ *
+ * Re-entrant compile that is safe to call from within compilation, because it
+ * will only use an already-created preloader, it will not preload, and
+ * therefore it cannot raise a Python exception.
+ *
+ * Returns PYJIT_RESULT_NO_PRELOADER if no preloader is available.
+ */
+_PyJIT_Result tryCompilePreloaded(BorrowedRef<> unit);
+
+/*
  * Load the preloader for a given function or code object, if it exists.
  */
 hir::Preloader* lookupPreloader(BorrowedRef<> unit);
