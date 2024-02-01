@@ -28,6 +28,19 @@ TEST(UtilTestNoFixture, Worklist) {
   EXPECT_TRUE(wl.empty());
 }
 
+TEST(UtilTest, CombineHash) {
+  EXPECT_EQ(jit::combineHash(123, 456), 0x9e379a24);
+  EXPECT_EQ(jit::combineHash(123, 456, 789), 0x28cd9c7673);
+
+  // Hash combining is left-associative, not right-associative.
+  EXPECT_EQ(
+      jit::combineHash(123, 456, 789),
+      jit::combineHash(jit::combineHash(123, 456), 789));
+  EXPECT_NE(
+      jit::combineHash(123, 456, 789),
+      jit::combineHash(123, jit::combineHash(456, 789)));
+}
+
 TEST(UtilTest, ScopeExitRunsAtScopeEnd) {
   int value = 0;
   {

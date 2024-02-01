@@ -39,8 +39,7 @@ struct std::hash<jit::CompilationKey> {
   std::size_t operator()(const jit::CompilationKey& key) const {
     std::hash<PyObject*> hasher;
     return jit::combineHash(
-        jit::combineHash(hasher(key.code), hasher(key.globals)),
-        hasher(key.builtins));
+        hasher(key.code), hasher(key.globals), hasher(key.builtins));
   }
 };
 

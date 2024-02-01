@@ -106,8 +106,14 @@ const void* getStablePointer(const void* ptr);
 // Enable or disable pointer sanitization.
 void setUseStablePointers(bool enable);
 
-inline std::size_t combineHash(std::size_t seed, std::size_t hash) {
+constexpr std::size_t combineHash(std::size_t seed, std::size_t hash) {
   return seed ^ (hash + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+template <class... Args>
+constexpr std::size_t
+combineHash(std::size_t seed, std::size_t hash, Args&&... args) {
+  return combineHash(combineHash(seed, hash), std::forward<Args&&>(args)...);
 }
 
 template <class T>

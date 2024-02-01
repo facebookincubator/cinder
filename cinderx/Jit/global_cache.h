@@ -38,8 +38,8 @@ struct GlobalCacheKey {
 struct GlobalCacheKeyHash {
   std::size_t operator()(const GlobalCacheKey& key) const {
     std::hash<PyObject*> hasher;
-    std::size_t hash = combineHash(hasher(key.builtins), hasher(key.globals));
-    return combineHash(hash, hasher(key.name));
+    return combineHash(
+        hasher(key.builtins), hasher(key.globals), hasher(key.name));
   }
 };
 
