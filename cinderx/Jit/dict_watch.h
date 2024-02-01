@@ -32,4 +32,8 @@ void notifyDictClear(PyObject* dict);
 // or is about to be freed. No more callbacks will be invoked for this dict.
 void notifyDictUnwatch(PyObject* dict);
 
+// Clears internal caches associated with the JIT.  This may cause a degradation
+// of performance and is only intended for detecting memory leaks.
+void clearDictCaches();
+
 } // namespace jit

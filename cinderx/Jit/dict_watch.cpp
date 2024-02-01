@@ -150,6 +150,22 @@ void notifyDictClear(PyObject* dict) {
   disableCaches(to_disable);
 }
 
+void clearDictCaches() {
+  std::vector<PyObject*> keys;
+  for (auto& pair : g_dict_watchers) {
+    keys.push_back(pair.first);
+  }
+  for (auto dict : keys) {
+    auto dict_it = g_dict_watchers.find(dict);
+    // notifyDictUnwatch may clear out our dictionary and builtins,
+    // so we need to make sure each dictionary is still being watched
+    if (dict_it != g_dict_watchers.end()) {
+      notifyDictUnwatch(dict);
+      Ci_Watchers_UnwatchDict(dict);
+    }
+  }
+}
+
 } // namespace jit
 
 PyObject**
@@ -168,21 +184,5 @@ PyObject** _PyJIT_GetDictCache(PyObject* globals, PyObject* key) {
     return cache.valuePtr();
   } catch (std::bad_alloc& ba) {
     return nullptr;
-  }
-}
-
-void _PyJIT_ClearDictCaches() {
-  std::vector<PyObject*> keys;
-  for (auto& pair : jit::g_dict_watchers) {
-    keys.push_back(pair.first);
-  }
-  for (auto dict : keys) {
-    auto dict_it = jit::g_dict_watchers.find(dict);
-    // notifyDictUnwatch may clear out our dictionary and builtins,
-    // so we need to make sure each dictionary is still being watched
-    if (dict_it != jit::g_dict_watchers.end()) {
-      jit::notifyDictUnwatch(dict);
-      Ci_Watchers_UnwatchDict(dict);
-    }
   }
 }

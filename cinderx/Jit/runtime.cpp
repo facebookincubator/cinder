@@ -5,6 +5,7 @@
 #include "cinderx/Common/watchers.h"
 #include "internal/pycore_interp.h"
 
+#include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/type_deopt_patchers.h"
 
 #include <sys/mman.h>
@@ -149,7 +150,7 @@ std::optional<PyMethodDef*> Builtins::find(const std::string& name) const {
 Runtime* Runtime::s_runtime_{nullptr};
 
 void Runtime::shutdown() {
-  _PyJIT_ClearDictCaches();
+  clearDictCaches();
   delete s_runtime_;
   s_runtime_ = nullptr;
 }

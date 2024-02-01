@@ -144,12 +144,6 @@ PyAPI_FUNC(PyObject**)
 PyAPI_FUNC(PyObject**) _PyJIT_GetDictCache(PyObject* dict, PyObject* key);
 
 /*
- * Clears internal caches associated with the JIT.  This may cause a degradation
- * of performance and is only intended for use for detecting memory leaks.
- */
-PyAPI_FUNC(void) _PyJIT_ClearDictCaches(void);
-
-/*
  * Send into/resume a suspended JIT generator and return the result.
  */
 PyAPI_FUNC(PyObject*) _PyJIT_GenSend(
