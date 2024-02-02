@@ -57,5 +57,6 @@ def init() -> None:
     import _static
 
     # if it has a __file__ attribute, libregrtest will try to write to it
-    del _static.__file__
+    if hasattr(_static, "__file__"):
+        del _static.__file__
     sys.modules["_static"] = StrictModule(_static.__dict__, False)
