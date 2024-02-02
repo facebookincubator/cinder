@@ -83,18 +83,14 @@ class Preloader {
  public:
   Preloader(Preloader&&) = default;
   Preloader() = default;
+
   static std::unique_ptr<Preloader> makePreloader(
       BorrowedRef<PyFunctionObject> func) {
-    auto preloader = std::unique_ptr<Preloader>(new Preloader(
+    return makePreloader(
         func->func_code,
         func->func_builtins,
         func->func_globals,
-        funcFullname(func)));
-    if (!preloader->preload()) {
-      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
-      return nullptr;
-    }
-    return preloader;
+        funcFullname(func));
   }
 
   static std::unique_ptr<Preloader> makePreloader(
@@ -104,11 +100,13 @@ class Preloader {
       const std::string& fullname) {
     auto preloader = std::unique_ptr<Preloader>(
         new Preloader(code, builtins, globals, fullname));
-    if (!preloader->preload()) {
-      JIT_DCHECK(PyErr_Occurred(), "Expected Python exception to be set");
-      return nullptr;
-    }
-    return preloader;
+    bool success = preloader->preload();
+    JIT_DCHECK(
+        success != static_cast<bool>(PyErr_Occurred()),
+        "Expecting Python exception only when preloading fails, preloading "
+        "result: {}",
+        success);
+    return success ? std::move(preloader) : nullptr;
   }
 
   Type type(BorrowedRef<> descr) const;
