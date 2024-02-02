@@ -9,23 +9,44 @@
 
 #include <cstring>
 
-using namespace jit::codegen;
-
 namespace jit {
 
+using codegen::CodeSection;
+using codegen::codeSectionFromName;
+
+namespace {
+
 // 2MiB to match Linux's huge-page size.
-const size_t kAllocSize = 1024 * 1024 * 2;
+constexpr size_t kAllocSize = 1024 * 1024 * 2;
+
+// Allocate memory for JIT'd code.
+uint8_t* allocPages(size_t size) {
+  void* res = mmap(
+      nullptr,
+      size,
+      PROT_EXEC | PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS,
+      -1,
+      0);
+  JIT_CHECK(
+      res != MAP_FAILED,
+      "Failed to allocate {} bytes of memory for code",
+      size);
+  return static_cast<uint8_t*>(res);
+}
+
+bool setHugePages(void* ptr, size_t size) {
+  if (madvise(ptr, size, MADV_HUGEPAGE) == -1) {
+    auto end = static_cast<void*>(static_cast<uint8_t*>(ptr) + size);
+    JIT_LOG("Failed to madvise [{}, {}) with MADV_HUGEPAGE", ptr, end);
+    return false;
+  }
+  return true;
+}
+
+} // namespace
 
 CodeAllocator* CodeAllocator::s_global_code_allocator_ = nullptr;
-
-std::vector<void*> CodeAllocatorCinder::s_allocations_{};
-uint8_t* CodeAllocatorCinder::s_current_alloc_ = nullptr;
-size_t CodeAllocatorCinder::s_current_alloc_free_ = 0;
-
-size_t CodeAllocatorCinder::s_used_bytes_ = 0;
-size_t CodeAllocatorCinder::s_lost_bytes_ = 0;
-size_t CodeAllocatorCinder::s_huge_allocs_ = 0;
-size_t CodeAllocatorCinder::s_fragmented_allocs_ = 0;
 
 CodeAllocator::~CodeAllocator() {}
 
@@ -37,7 +58,7 @@ void CodeAllocator::makeGlobalCodeAllocator() {
   } else if (getConfig().use_huge_pages) {
     s_global_code_allocator_ = new CodeAllocatorCinder;
   } else {
-    s_global_code_allocator_ = new CodeAllocatorAsmJit;
+    s_global_code_allocator_ = new CodeAllocator;
   }
 }
 
@@ -48,17 +69,9 @@ void CodeAllocator::freeGlobalCodeAllocator() {
 }
 
 CodeAllocatorCinder::~CodeAllocatorCinder() {
-  for (void* alloc : s_allocations_) {
+  for (void* alloc : allocations_) {
     JIT_CHECK(munmap(alloc, kAllocSize) == 0, "Freeing code memory failed");
   }
-  s_allocations_.clear();
-  s_current_alloc_ = nullptr;
-  s_current_alloc_free_ = 0;
-
-  s_used_bytes_ = 0;
-  s_lost_bytes_ = 0;
-  s_huge_allocs_ = 0;
-  s_fragmented_allocs_ = 0;
 }
 
 asmjit::Error CodeAllocatorCinder::addCode(
@@ -73,35 +86,21 @@ asmjit::Error CodeAllocatorCinder::addCode(
 
   size_t max_code_size = code->codeSize();
   size_t alloc_size = ((max_code_size / kAllocSize) + 1) * kAllocSize;
-  if (s_current_alloc_free_ < max_code_size) {
-    s_lost_bytes_ += s_current_alloc_free_;
-    void* res = mmap(
-        NULL,
-        alloc_size,
-        PROT_EXEC | PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS,
-        -1,
-        0);
-    JIT_CHECK(
-        res != MAP_FAILED,
-        "Failed to allocate {} bytes of memory for code",
-        alloc_size);
+  if (current_alloc_free_ < max_code_size) {
+    lost_bytes_ += current_alloc_free_;
 
-    if (madvise(res, alloc_size, MADV_HUGEPAGE) == -1) {
-      JIT_LOG(
-          "Failed to madvise [{}, {}) with MADV_HUGEPAGE",
-          res,
-          static_cast<char*>(res) + alloc_size);
-      s_fragmented_allocs_++;
+    uint8_t* res = allocPages(alloc_size);
+    if (!setHugePages(res, alloc_size)) {
+      fragmented_allocs_++;
     } else {
-      s_huge_allocs_++;
+      huge_allocs_++;
     }
-    s_current_alloc_ = static_cast<uint8_t*>(res);
-    s_allocations_.emplace_back(res);
-    s_current_alloc_free_ = alloc_size;
+    current_alloc_ = static_cast<uint8_t*>(res);
+    allocations_.emplace_back(res);
+    current_alloc_free_ = alloc_size;
   }
 
-  ASMJIT_PROPAGATE(code->relocateToBase(uintptr_t(s_current_alloc_)));
+  ASMJIT_PROPAGATE(code->relocateToBase(uintptr_t(current_alloc_)));
 
   size_t actual_code_size = code->codeSize();
   JIT_CHECK(actual_code_size <= max_code_size, "Code grew during relocation");
@@ -113,23 +112,21 @@ asmjit::Error CodeAllocatorCinder::addCode(
 
     JIT_CHECK(
         offset + buffer_size <= actual_code_size, "Inconsistent code size");
-    std::memcpy(s_current_alloc_ + offset, section->data(), buffer_size);
+    std::memcpy(current_alloc_ + offset, section->data(), buffer_size);
 
     if (virtual_size > buffer_size) {
       JIT_CHECK(
           offset + virtual_size <= actual_code_size, "Inconsistent code size");
       std::memset(
-          s_current_alloc_ + offset + buffer_size,
-          0,
-          virtual_size - buffer_size);
+          current_alloc_ + offset + buffer_size, 0, virtual_size - buffer_size);
     }
   }
 
-  *dst = s_current_alloc_;
+  *dst = current_alloc_;
 
-  s_current_alloc_ += actual_code_size;
-  s_current_alloc_free_ -= actual_code_size;
-  s_used_bytes_ += actual_code_size;
+  current_alloc_ += actual_code_size;
+  current_alloc_free_ -= actual_code_size;
+  used_bytes_ += actual_code_size;
 
   return asmjit::kErrorOk;
 }
@@ -138,8 +135,9 @@ MultipleSectionCodeAllocator::~MultipleSectionCodeAllocator() {
   if (code_alloc_ == nullptr) {
     return;
   }
-  int result = munmap(code_alloc_, total_allocation_size_);
-  JIT_CHECK(result == 0, "Freeing sections failed");
+  JIT_CHECK(
+      munmap(code_alloc_, total_allocation_size_) == 0,
+      "Freeing code sections failed");
 }
 
 /*
@@ -149,10 +147,8 @@ MultipleSectionCodeAllocator::~MultipleSectionCodeAllocator() {
  * each CodeSection.
  */
 void MultipleSectionCodeAllocator::createSlabs() noexcept {
-  // Linux's huge-page sizes are 2 MiB.
-  const size_t kHugePageSize = 1024 * 1024 * 2;
-  size_t hot_section_size = asmjit::Support::alignUp(
-      getConfig().hot_code_section_size, kHugePageSize);
+  size_t hot_section_size =
+      asmjit::Support::alignUp(getConfig().hot_code_section_size, kAllocSize);
   JIT_CHECK(
       hot_section_size > 0,
       "Hot code section must have non-zero size when using multiple sections.");
@@ -167,18 +163,8 @@ void MultipleSectionCodeAllocator::createSlabs() noexcept {
 
   total_allocation_size_ = hot_section_size + cold_section_size;
 
-  auto region = static_cast<uint8_t*>(mmap(
-      NULL,
-      total_allocation_size_,
-      PROT_EXEC | PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANONYMOUS,
-      -1,
-      0));
-  JIT_CHECK(region != MAP_FAILED, "Allocating the code sections failed.");
-
-  if (madvise(region, hot_section_size, MADV_HUGEPAGE) == -1) {
-    JIT_LOG("Was unable to use huge pages for the hot code section.");
-  }
+  uint8_t* region = allocPages(total_allocation_size_);
+  setHugePages(region, hot_section_size);
 
   code_alloc_ = region;
   code_sections_[CodeSection::kHot] = region;
@@ -205,7 +191,7 @@ asmjit::Error MultipleSectionCodeAllocator::addCode(
     JIT_LOG(
         "Not enough memory to split code across sections, falling back to "
         "normal allocation.");
-    return _runtime->add(dst, code);
+    return runtime_->add(dst, code);
   }
   // Fix up the offsets for each code section before resolving links.
   // Both the `.text` and `.addrtab` sections are written to the hot section,

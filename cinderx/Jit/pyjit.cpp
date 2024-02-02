@@ -1397,33 +1397,32 @@ static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
 }
 
 static PyObject* get_allocator_stats(PyObject*, PyObject*) {
-  if (!getConfig().use_huge_pages) {
+  auto allocator = dynamic_cast<CodeAllocatorCinder*>(CodeAllocator::get());
+  if (allocator == nullptr) {
     Py_RETURN_NONE;
   }
   auto stats = Ref<>::steal(PyDict_New());
   if (stats == nullptr) {
     return nullptr;
   }
-  auto used_bytes =
-      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::usedBytes()));
+
+  auto used_bytes = Ref<>::steal(PyLong_FromLong(allocator->usedBytes()));
   if (used_bytes == nullptr ||
       PyDict_SetItemString(stats, "used_bytes", used_bytes) < 0) {
     return nullptr;
   }
-  auto lost_bytes =
-      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::lostBytes()));
+  auto lost_bytes = Ref<>::steal(PyLong_FromLong(allocator->lostBytes()));
   if (lost_bytes == nullptr ||
       PyDict_SetItemString(stats, "lost_bytes", lost_bytes) < 0) {
     return nullptr;
   }
   auto fragmented_allocs =
-      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::fragmentedAllocs()));
+      Ref<>::steal(PyLong_FromLong(allocator->fragmentedAllocs()));
   if (fragmented_allocs == nullptr ||
       PyDict_SetItemString(stats, "fragmented_allocs", fragmented_allocs) < 0) {
     return nullptr;
   }
-  auto huge_allocs =
-      Ref<>::steal(PyLong_FromLong(CodeAllocatorCinder::hugeAllocs()));
+  auto huge_allocs = Ref<>::steal(PyLong_FromLong(allocator->hugeAllocs()));
   if (huge_allocs == nullptr ||
       PyDict_SetItemString(stats, "huge_allocs", huge_allocs) < 0) {
     return nullptr;

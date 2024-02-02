@@ -42,29 +42,19 @@ class CodeAllocator {
   static void freeGlobalCodeAllocator();
 
   const asmjit::Environment& asmJitEnvironment() {
-    return _runtime->environment();
+    return runtime_->environment();
   }
 
-  virtual asmjit::Error addCode(
-      void** dst,
-      asmjit::CodeHolder* code) noexcept = 0;
+  virtual asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept {
+    return runtime_->add(dst, code);
+  }
 
  protected:
-  std::unique_ptr<asmjit::JitRuntime> _runtime{
+  std::unique_ptr<asmjit::JitRuntime> runtime_{
       std::make_unique<asmjit::JitRuntime>()};
 
  private:
   static CodeAllocator* s_global_code_allocator_;
-};
-
-class CodeAllocatorAsmJit : public CodeAllocator {
- public:
-  virtual ~CodeAllocatorAsmJit() {}
-
-  asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept
-      override {
-    return _runtime->add(dst, code);
-  }
 };
 
 // A code allocator which tries to allocate all code on huge pages.
@@ -74,45 +64,43 @@ class CodeAllocatorCinder : public CodeAllocator {
 
   asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
 
-  static size_t usedBytes() {
-    return s_used_bytes_;
+  size_t usedBytes() const {
+    return used_bytes_;
   }
 
-  static size_t lostBytes() {
-    return s_lost_bytes_;
+  size_t lostBytes() const {
+    return lost_bytes_;
   }
 
-  static size_t fragmentedAllocs() {
-    return s_fragmented_allocs_;
+  size_t fragmentedAllocs() const {
+    return fragmented_allocs_;
   }
 
-  static size_t hugeAllocs() {
-    return s_huge_allocs_;
+  size_t hugeAllocs() const {
+    return huge_allocs_;
   }
 
  private:
   // List of chunks allocated for use in deallocation
-  static std::vector<void*> s_allocations_;
+  std::vector<void*> allocations_;
 
   // Pointer to next free address in the current chunk
-  static uint8_t* s_current_alloc_;
+  uint8_t* current_alloc_{nullptr};
   // Free space in the current chunk
-  static size_t s_current_alloc_free_;
+  size_t current_alloc_free_{0};
 
-  static size_t s_used_bytes_;
+  size_t used_bytes_{0};
   // Number of bytes in total lost when allocations didn't fit neatly into
   // the bytes remaining in a chunk so a new one was allocated.
-  static size_t s_lost_bytes_;
+  size_t lost_bytes_{0};
   // Number of chunks allocated (= to number of huge pages used)
-  static size_t s_huge_allocs_;
+  size_t huge_allocs_{0};
   // Number of chunks allocated which did not use huge pages.
-  static size_t s_fragmented_allocs_;
+  size_t fragmented_allocs_{0};
 };
 
 class MultipleSectionCodeAllocator : public CodeAllocator {
  public:
-  MultipleSectionCodeAllocator()
-      : total_allocation_size_{0}, code_alloc_{nullptr} {}
   virtual ~MultipleSectionCodeAllocator();
 
   asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
@@ -120,12 +108,11 @@ class MultipleSectionCodeAllocator : public CodeAllocator {
  private:
   void createSlabs() noexcept;
 
-  std::unordered_map<jit::codegen::CodeSection, uint8_t*> code_sections_;
-  std::unordered_map<jit::codegen::CodeSection, size_t>
-      code_section_free_sizes_;
+  std::unordered_map<codegen::CodeSection, uint8_t*> code_sections_;
+  std::unordered_map<codegen::CodeSection, size_t> code_section_free_sizes_;
 
-  size_t total_allocation_size_;
-  uint8_t* code_alloc_;
+  uint8_t* code_alloc_{nullptr};
+  size_t total_allocation_size_{0};
 };
 
 void populateCodeSections(
