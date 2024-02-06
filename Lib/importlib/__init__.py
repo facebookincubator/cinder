@@ -62,6 +62,47 @@ import warnings
 from ._bootstrap import __import__
 
 
+def is_lazy_imports_enabled():
+    return _imp.is_lazy_imports_enabled()
+
+
+def is_lazy_import(dictionary, key):
+    return _imp.is_lazy_import(dictionary, key)
+
+
+def hydrate_lazy_objects():
+    _imp.hydrate_lazy_objects()
+
+
+def set_lazy_imports(enable = True, *, excluding = None):
+    """Programmatic API for enabling lazy imports at runtime.
+
+    The optional argument `excluding` can be any container of strings; all imports
+    within modules whose full name is present in the container will be eager.
+    """
+    return _imp._set_lazy_imports(enable, excluding=excluding)
+
+
+def enable_lazy_imports_in_module(enable = True):
+    """Programmatic API for enabling lazy imports in a given module.
+    """
+    _imp._set_lazy_imports_in_module(enable)
+
+
+class eager_imports:
+    """A context manager that forces imports executed within to be
+       executed eagerly even if lazy imports are enabled.
+
+    Note that the implementation is intentionally trivial,
+    since imports inside *any* with block *always* execute eagerly.
+    """
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        pass
+
+
 def invalidate_caches():
     """Call the invalidate_caches() method on all meta path finders stored in
     sys.meta_path (where implemented)."""

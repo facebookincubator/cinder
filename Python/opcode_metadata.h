@@ -257,6 +257,8 @@ _PyOpcode_num_popped(int opcode, int oparg, bool jump) {
             return 2;
         case CHECK_EXC_MATCH:
             return 2;
+        case EAGER_IMPORT_NAME:
+            return 2;
         case IMPORT_NAME:
             return 2;
         case IMPORT_FROM:
@@ -653,6 +655,8 @@ _PyOpcode_num_pushed(int opcode, int oparg, bool jump) {
             return 2;
         case CHECK_EXC_MATCH:
             return 2;
+        case EAGER_IMPORT_NAME:
+            return 1;
         case IMPORT_NAME:
             return 1;
         case IMPORT_FROM:
@@ -929,6 +933,7 @@ const struct opcode_metadata _PyOpcode_opcode_metadata[256] = {
     [CONTAINS_OP] = { true, INSTR_FMT_IB },
     [CHECK_EG_MATCH] = { true, INSTR_FMT_IX },
     [CHECK_EXC_MATCH] = { true, INSTR_FMT_IX },
+    [EAGER_IMPORT_NAME] = { true, INSTR_FMT_IB },
     [IMPORT_NAME] = { true, INSTR_FMT_IB },
     [IMPORT_FROM] = { true, INSTR_FMT_IB },
     [JUMP_FORWARD] = { true, INSTR_FMT_IB },

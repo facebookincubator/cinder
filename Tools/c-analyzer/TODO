@@ -676,6 +676,7 @@ Objects/exceptions.c:PyExc_FloatingPointError                    static PyTypeOb
 Objects/exceptions.c:PyExc_FutureWarning                         static PyTypeObject PyExc_FutureWarning
 Objects/exceptions.c:PyExc_GeneratorExit                         static PyTypeObject PyExc_GeneratorExit
 Objects/exceptions.c:PyExc_IOError                               static PyTypeObject PyExc_IOError
+Objects/exceptions.c:PyExc_ImportCycleError                      static PyTypeObject PyExc_ImportCycleError
 Objects/exceptions.c:PyExc_ImportError                           static PyTypeObject PyExc_ImportError
 Objects/exceptions.c:PyExc_ImportWarning                         static PyTypeObject PyExc_ImportWarning
 Objects/exceptions.c:PyExc_IndentationError                      static PyTypeObject PyExc_IndentationError
@@ -740,6 +741,7 @@ Objects/exceptions.c:_PyExc_FileNotFoundError                    static PyTypeOb
 Objects/exceptions.c:_PyExc_FloatingPointError                   static PyTypeObject _PyExc_FloatingPointError
 Objects/exceptions.c:_PyExc_FutureWarning                        static PyTypeObject _PyExc_FutureWarning
 Objects/exceptions.c:_PyExc_GeneratorExit                        static PyTypeObject _PyExc_GeneratorExit
+Objects/exceptions.c:_PyExc_ImportCycleError                     static PyTypeObject _PyExc_ImportCycleError
 Objects/exceptions.c:_PyExc_ImportError                          static PyTypeObject _PyExc_ImportError
 Objects/exceptions.c:_PyExc_ImportWarning                        static PyTypeObject _PyExc_ImportWarning
 Objects/exceptions.c:_PyExc_IndentationError                     static PyTypeObject _PyExc_IndentationError
@@ -800,6 +802,7 @@ Objects/genobject.c:_PyCoroWrapper_Type                          PyTypeObject _P
 Objects/interpreteridobject.c:_PyInterpreterID_Type              PyTypeObject _PyInterpreterID_Type
 Objects/iterobject.c:PyCallIter_Type                             PyTypeObject PyCallIter_Type
 Objects/iterobject.c:PySeqIter_Type                              PyTypeObject PySeqIter_Type
+Objects/lazyimportobject.c:PyLazyImport_Type                     PyTypeObject PyLazyImport_Type
 Objects/listobject.c:PyListIter_Type                             PyTypeObject PyListIter_Type
 Objects/listobject.c:PyListRevIter_Type                          PyTypeObject PyListRevIter_Type
 Objects/listobject.c:PyList_Type                                 PyTypeObject PyList_Type

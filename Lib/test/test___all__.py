@@ -47,7 +47,7 @@ class AllTest(unittest.TestCase):
             ("", ResourceWarning),
             quiet=True):
             try:
-                exec("import %s" % modname, names)
+                exec("import %s; %s" % (modname, modname), names)
             except:
                 # Silent fail here seems the best route since some modules
                 # may not be available or not initialize properly in all

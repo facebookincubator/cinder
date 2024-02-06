@@ -216,6 +216,8 @@ typedef struct PyConfig {
 
     // If non-zero, we believe we're running from a source tree.
     int _is_python_build;
+
+    int lazy_imports;
 } PyConfig;
 
 PyAPI_FUNC(void) PyConfig_InitPythonConfig(PyConfig *config);

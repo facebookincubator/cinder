@@ -169,6 +169,7 @@ def import_fresh_module(name, fresh=(), blocked=(), *,
         for modname in blocked:
             sys.modules[modname] = None
 
+        previously = _imp._set_lazy_imports(False)
         try:
             with frozen_modules(usefrozen):
                 # Return None when one of the "fresh" modules can not be imported.
@@ -179,6 +180,7 @@ def import_fresh_module(name, fresh=(), blocked=(), *,
                     return None
                 return importlib.import_module(name)
         finally:
+            _imp._set_lazy_imports(*previously)
             _save_and_remove_modules(names)
             sys.modules.update(orig_modules)
 

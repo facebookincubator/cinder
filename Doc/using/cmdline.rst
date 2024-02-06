@@ -310,6 +310,11 @@ Miscellaneous options
    .. versionadded:: 3.4
 
 
+.. option:: -L
+
+   Enable lazy imports.
+
+
 .. option:: -O
 
    Remove assert statements and any code conditional on the value of

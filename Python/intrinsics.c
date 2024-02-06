@@ -2,6 +2,7 @@
 #define _PY_INTERPRETER
 
 #include "Python.h"
+#include "pycore_dict.h"
 #include "pycore_frame.h"
 #include "pycore_function.h"
 #include "pycore_runtime.h"
@@ -43,19 +44,23 @@ import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
     if (_PyObject_LookupAttr(v, &_Py_ID(__all__), &all) < 0) {
         return -1; /* Unexpected error */
     }
+
+    if (_PyObject_LookupAttr(v, &_Py_ID(__dict__), &dict) < 0) {
+        Py_XDECREF(all);
+        return -1; /* Unexpected error */
+    }
+
     if (all == NULL) {
-        if (_PyObject_LookupAttr(v, &_Py_ID(__dict__), &dict) < 0) {
-            return -1;
-        }
         if (dict == NULL) {
             _PyErr_SetString(tstate, PyExc_ImportError,
                     "from-import-* object has no __dict__ and no __all__");
             return -1;
         }
         all = PyMapping_Keys(dict);
-        Py_DECREF(dict);
-        if (all == NULL)
+        if (all == NULL) {
+            Py_DECREF(dict);
             return -1;
+        }
         skip_leading_underscores = 1;
     }
 
@@ -106,25 +111,38 @@ import_all_from(PyThreadState *tstate, PyObject *locals, PyObject *v)
                 continue;
             }
         }
-        value = PyObject_GetAttr(v, name);
-        if (value == NULL)
+        if (PyDict_CheckExact(locals) && dict != NULL && PyDict_CheckExact(dict)) {
+            value = _PyDict_GetItemKeepLazy(dict, name);
+            if (value != NULL) {
+                Py_INCREF(value);
+            } else if (!_PyErr_Occurred(tstate)) {
+                value = PyObject_GetAttr(v, name);
+            }
+        } else {
+            value = PyObject_GetAttr(v, name);
+        }
+        if (value == NULL) {
             err = -1;
-        else if (PyDict_CheckExact(locals))
+        } else if (PyDict_CheckExact(locals)) {
             err = PyDict_SetItem(locals, name, value);
-        else
+        } else {
             err = PyObject_SetItem(locals, name, value);
+        }
         Py_DECREF(name);
         Py_XDECREF(value);
         if (err < 0)
             break;
     }
     Py_DECREF(all);
+    Py_XDECREF(dict);
     return err;
 }
 
 static PyObject *
 import_star(PyThreadState* tstate, PyObject *from)
 {
+    int err;
+
     _PyInterpreterFrame *frame = tstate->cframe->current_frame;
     if (_PyFrame_FastToLocalsWithError(frame) < 0) {
         return NULL;
@@ -136,7 +154,20 @@ import_star(PyThreadState* tstate, PyObject *from)
                             "no locals found during 'import *'");
         return NULL;
     }
-    int err = import_all_from(tstate, locals, from);
+
+    if (PyLazyImport_CheckExact(from)) {
+        PyObject *mod = _PyImport_LoadLazyImportTstate(tstate, from, 1);
+        if (mod == NULL) {
+            if (!_PyErr_Occurred(tstate)) {
+                _PyErr_SetString(tstate, PyExc_SystemError, "Lazy Import cycle");
+            }
+            return NULL;
+        }
+        err = import_all_from(tstate, locals, mod);
+        Py_DECREF(mod);
+    } else {
+        err = import_all_from(tstate, locals, from);
+    }
     _PyFrame_LocalsToFast(frame, 0);
     if (err < 0) {
         return NULL;

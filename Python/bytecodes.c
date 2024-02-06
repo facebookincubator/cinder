@@ -12,7 +12,9 @@
 #include "pycore_ceval.h"         // _PyEval_SignalAsyncExc()
 #include "pycore_code.h"
 #include "pycore_function.h"
+#include "pycore_import.h"        // _PyImport_ImportName()
 #include "pycore_intrinsics.h"
+#include "pycore_lazyimport.h"    // PyLazyImport_CheckExact()
 #include "pycore_long.h"          // _PyLong_GetZero()
 #include "pycore_instruments.h"
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
@@ -1359,8 +1361,21 @@ dummy_func(
             PyDictObject *dict = (PyDictObject *)GLOBALS();
             DEOPT_IF(dict->ma_keys->dk_version != version, LOAD_GLOBAL);
             assert(DK_IS_UNICODE(dict->ma_keys));
-            PyDictUnicodeEntry *entries = DK_UNICODE_ENTRIES(dict->ma_keys);
-            res = entries[index].me_value;
+            PyDictUnicodeEntry *ep = DK_UNICODE_ENTRIES(dict->ma_keys) + index;
+            res = ep->me_value;
+            if (res != NULL && PyLazyImport_CheckExact(res)) {
+                assert(dict->ma_keys->dk_lazy_imports);
+                uint64_t version_tag = dict->ma_version_tag;
+                PyObject *resolved = _PyImport_LoadLazyImportTstate(tstate, res, 0);
+                DEOPT_IF(resolved == NULL, LOAD_GLOBAL);
+                DEOPT_IF(dict->ma_version_tag != version_tag, LOAD_GLOBAL);
+                DEOPT_IF(dict->ma_keys->dk_version != version, LOAD_GLOBAL);
+                if (ep->me_value == res) {
+                    Py_DECREF(res);
+                    ep->me_value = resolved;
+                }
+                res = resolved;
+            }
             DEOPT_IF(res == NULL, LOAD_GLOBAL);
             Py_INCREF(res);
             STAT_INC(LOAD_GLOBAL, hit);
@@ -1376,8 +1391,22 @@ dummy_func(
             DEOPT_IF(mdict->ma_keys->dk_version != mod_version, LOAD_GLOBAL);
             DEOPT_IF(bdict->ma_keys->dk_version != bltn_version, LOAD_GLOBAL);
             assert(DK_IS_UNICODE(bdict->ma_keys));
-            PyDictUnicodeEntry *entries = DK_UNICODE_ENTRIES(bdict->ma_keys);
-            res = entries[index].me_value;
+            PyDictUnicodeEntry *ep = DK_UNICODE_ENTRIES(bdict->ma_keys) + index;
+            res = ep->me_value;
+            if (res != NULL && PyLazyImport_CheckExact(res)) {
+                assert(bdict->ma_keys->dk_lazy_imports);
+                uint64_t version_tag = bdict->ma_version_tag;
+                PyObject *resolved = _PyImport_LoadLazyImportTstate(tstate, res, 0);
+                DEOPT_IF(resolved == NULL, LOAD_GLOBAL);
+                DEOPT_IF(bdict->ma_version_tag != version_tag, LOAD_GLOBAL);
+                DEOPT_IF(mdict->ma_keys->dk_version != mod_version, LOAD_GLOBAL);
+                DEOPT_IF(bdict->ma_keys->dk_version != bltn_version, LOAD_GLOBAL);
+                if (ep->me_value == res) {
+                    Py_DECREF(res);
+                    ep->me_value = resolved;
+                }
+                res = resolved;
+            }
             DEOPT_IF(res == NULL, LOAD_GLOBAL);
             Py_INCREF(res);
             STAT_INC(LOAD_GLOBAL, hit);
@@ -1822,6 +1851,19 @@ dummy_func(
             assert(index < dict->ma_keys->dk_nentries);
             PyDictUnicodeEntry *ep = DK_UNICODE_ENTRIES(dict->ma_keys) + index;
             res = ep->me_value;
+            if (res != NULL && PyLazyImport_CheckExact(res)) {
+                assert(dict->ma_keys->dk_lazy_imports);
+                uint64_t version_tag = dict->ma_version_tag;
+                PyObject *resolved = _PyImport_LoadLazyImportTstate(tstate, res, 0);
+                DEOPT_IF(resolved == NULL, LOAD_ATTR);
+                DEOPT_IF(dict->ma_version_tag != version_tag, LOAD_ATTR);
+                DEOPT_IF(dict->ma_keys->dk_version != type_version, LOAD_ATTR);
+                if (ep->me_value == res) {
+                    Py_DECREF(res);
+                    ep->me_value = resolved;
+                }
+                res = resolved;
+            }
             DEOPT_IF(res == NULL, LOAD_ATTR);
             STAT_INC(LOAD_ATTR, hit);
             Py_INCREF(res);
@@ -1846,11 +1888,35 @@ dummy_func(
                 PyDictUnicodeEntry *ep = DK_UNICODE_ENTRIES(dict->ma_keys) + hint;
                 DEOPT_IF(ep->me_key != name, LOAD_ATTR);
                 res = ep->me_value;
+                if (res != NULL && PyLazyImport_CheckExact(res)) {
+                    assert(dict->ma_keys->dk_lazy_imports);
+                    uint64_t version_tag = dict->ma_version_tag;
+                    PyObject *resolved = _PyImport_LoadLazyImportTstate(tstate, res, 0);
+                    DEOPT_IF(resolved == NULL, LOAD_ATTR);
+                    DEOPT_IF(dict->ma_version_tag != version_tag, LOAD_ATTR);
+                    if (ep->me_value == res) {
+                        Py_DECREF(res);
+                        ep->me_value = resolved;
+                    }
+                    res = resolved;
+                }
             }
             else {
                 PyDictKeyEntry *ep = DK_ENTRIES(dict->ma_keys) + hint;
                 DEOPT_IF(ep->me_key != name, LOAD_ATTR);
                 res = ep->me_value;
+                if (res != NULL && PyLazyImport_CheckExact(res)) {
+                    assert(dict->ma_keys->dk_lazy_imports);
+                    uint64_t version_tag = dict->ma_version_tag;
+                    PyObject *resolved = _PyImport_LoadLazyImportTstate(tstate, res, 0);
+                    DEOPT_IF(resolved == NULL, LOAD_ATTR);
+                    DEOPT_IF(dict->ma_version_tag != version_tag, LOAD_ATTR);
+                    if (ep->me_value == res) {
+                        Py_DECREF(res);
+                        ep->me_value = resolved;
+                    }
+                    res = resolved;
+                }
             }
             DEOPT_IF(res == NULL, LOAD_ATTR);
             STAT_INC(LOAD_ATTR, hit);
@@ -2130,16 +2196,34 @@ dummy_func(
             b = res ? Py_True : Py_False;
         }
 
+         inst(EAGER_IMPORT_NAME, (level, fromlist -- res)) {
+            PyObject *name = GETITEM(frame->f_code->co_names, oparg);
+            res = _PyImport_ImportName(
+                tstate, BUILTINS(), GLOBALS(), LOCALS(), name, fromlist, level);
+            DECREF_INPUTS();
+            ERROR_IF(res == NULL, error);
+        }
+
          inst(IMPORT_NAME, (level, fromlist -- res)) {
             PyObject *name = GETITEM(frame->f_code->co_names, oparg);
-            res = import_name(tstate, frame, name, fromlist, level);
+            if (_PyImport_IsLazyImportsActive(tstate)) {
+                res = _PyImport_LazyImportName(
+                    tstate, BUILTINS(), GLOBALS(), LOCALS(), name, fromlist, level);
+            } else {
+                res = _PyImport_ImportName(
+                    tstate, BUILTINS(), GLOBALS(), LOCALS(), name, fromlist, level);
+            }
             DECREF_INPUTS();
             ERROR_IF(res == NULL, error);
         }
 
         inst(IMPORT_FROM, (from -- from, res)) {
             PyObject *name = GETITEM(frame->f_code->co_names, oparg);
-            res = import_from(tstate, from, name);
+            if (PyLazyImport_CheckExact(from)) {
+                res = _PyImport_LazyImportFrom(tstate, from, name);
+            } else {
+                res = _PyImport_ImportFrom(tstate, from, name);
+            }
             ERROR_IF(res == NULL, error);
         }
 

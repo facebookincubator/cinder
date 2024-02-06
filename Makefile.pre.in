@@ -463,6 +463,7 @@ OBJECT_OBJS=	\
 		Objects/funcobject.o \
 		Objects/interpreteridobject.o \
 		Objects/iterobject.o \
+		Objects/lazyimportobject.o \
 		Objects/listobject.o \
 		Objects/longobject.o \
 		Objects/dictobject.o \
@@ -1620,6 +1621,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/interpreteridobject.h \
 		$(srcdir)/Include/intrcheck.h \
 		$(srcdir)/Include/iterobject.h \
+		$(srcdir)/Include/lazyimportobject.h \
 		$(srcdir)/Include/listobject.h \
 		$(srcdir)/Include/longobject.h \
 		$(srcdir)/Include/marshal.h \
@@ -1758,6 +1760,7 @@ PYTHON_HEADERS= \
 		$(srcdir)/Include/internal/pycore_initconfig.h \
 		$(srcdir)/Include/internal/pycore_interp.h \
 		$(srcdir)/Include/internal/pycore_intrinsics.h \
+		$(srcdir)/Include/internal/pycore_lazyimport.h \
 		$(srcdir)/Include/internal/pycore_list.h \
 		$(srcdir)/Include/internal/pycore_long.h \
 		$(srcdir)/Include/internal/pycore_moduleobject.h \
@@ -1825,6 +1828,12 @@ cleantest: all
 .PHONY: test
 test: all
 		$(TESTRUNNER) $(TESTOPTS)
+
+# Run the basic set of regression tests with Lazy Imports.
+# The covered tests is the same as `make test`.
+TESTRUNNERLZ= $(TESTPYTHON) -L $(srcdir)/Tools/scripts/run_tests.py
+test_with_lazy_imports: all platform
+	$(TESTRUNNERLZ) $(TESTOPTS)
 
 # Run the full test suite twice - once without .pyc files, and once with.
 # In the past, we've had problems where bugs in the marshalling or

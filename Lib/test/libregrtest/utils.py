@@ -175,7 +175,9 @@ def setup_threading_excepthook():
 
 def clear_caches():
     # Clear the warnings registry, so they can be displayed again
-    for mod in sys.modules.values():
+    # Modules with __getattr__ could trigger imports and change sys.modules,
+    # so we use put the modules in a list of modules.
+    for mod in list(sys.modules.values()):
         if hasattr(mod, '__warningregistry__'):
             del mod.__warningregistry__
 

@@ -111,6 +111,7 @@ const uint8_t _PyOpcode_Deopt[256] = {
     [DELETE_SUBSCR] = DELETE_SUBSCR,
     [DICT_MERGE] = DICT_MERGE,
     [DICT_UPDATE] = DICT_UPDATE,
+    [EAGER_IMPORT_NAME] = EAGER_IMPORT_NAME,
     [END_ASYNC_FOR] = END_ASYNC_FOR,
     [END_FOR] = END_FOR,
     [END_SEND] = END_SEND,
@@ -353,7 +354,7 @@ static const char *const _PyOpcode_OpName[267] = {
     [BUILD_MAP] = "BUILD_MAP",
     [LOAD_ATTR] = "LOAD_ATTR",
     [COMPARE_OP] = "COMPARE_OP",
-    [IMPORT_NAME] = "IMPORT_NAME",
+    [EAGER_IMPORT_NAME] = "EAGER_IMPORT_NAME",
     [IMPORT_FROM] = "IMPORT_FROM",
     [JUMP_FORWARD] = "JUMP_FORWARD",
     [LOAD_GLOBAL_BUILTIN] = "LOAD_GLOBAL_BUILTIN",
@@ -428,7 +429,7 @@ static const char *const _PyOpcode_OpName[267] = {
     [180] = "<180>",
     [181] = "<181>",
     [182] = "<182>",
-    [183] = "<183>",
+    [IMPORT_NAME] = "IMPORT_NAME",
     [184] = "<184>",
     [185] = "<185>",
     [186] = "<186>",
@@ -524,7 +525,6 @@ static const char *const _PyOpcode_OpName[267] = {
     case 180: \
     case 181: \
     case 182: \
-    case 183: \
     case 184: \
     case 185: \
     case 186: \

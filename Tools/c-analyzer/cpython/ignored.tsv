@@ -111,6 +111,7 @@ Python/initconfig.c	-	Py_NoUserSiteDirectory	-
 Python/initconfig.c	-	Py_UnbufferedStdioFlag	-
 Python/initconfig.c	-	Py_HashRandomizationFlag	-
 Python/initconfig.c	-	Py_IsolatedFlag	-
+Python/initconfig.c	-	Py_LazyImportsFlag	-
 Python/initconfig.c	-	Py_LegacyWindowsFSEncodingFlag	-
 Python/initconfig.c	-	Py_LegacyWindowsStdioFlag	-
 

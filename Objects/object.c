@@ -1123,7 +1123,8 @@ _PyObject_LookupAttr(PyObject *v, PyObject *name, PyObject **result)
     if (*result != NULL) {
         return 1;
     }
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError) &&
+        !(PyErr_ExceptionMatches(PyExc_ImportCycleError))) {
         return -1;
     }
     PyErr_Clear();

@@ -6,6 +6,7 @@ PyMODINIT_FUNC PyInit__imp(void);
 
 PyAPI_FUNC(int) _PyImport_IsInitialized(PyInterpreterState *);
 
+PyAPI_FUNC(PyObject *) _PyImport_GetModule(PyThreadState *tstate, PyObject *name);
 PyAPI_FUNC(PyObject *) _PyImport_GetModuleId(_Py_Identifier *name);
 PyAPI_FUNC(int) _PyImport_SetModule(PyObject *name, PyObject *module);
 PyAPI_FUNC(int) _PyImport_SetModuleString(const char *name, PyObject* module);
@@ -25,6 +26,14 @@ PyAPI_FUNC(int) _PyImport_FixupExtensionObject(PyObject*, PyObject *,
 PyAPI_FUNC(PyObject *) _Ci_PyImport_CallInitFuncWithContext(const char* context,
                                                             PyObject* (*initfunc)(void));
 // END META PATCH
+
+PyAPI_FUNC(int) _PyImport_IsLazyImportsActive(PyThreadState *tstate);
+
+PyAPI_FUNC(int) PyImport_IsLazyImportsEnabled(void);
+PyAPI_FUNC(PyObject *) PyImport_SetLazyImports(
+    PyObject *enabled, PyObject *excluding);
+PyAPI_FUNC(PyObject *) _PyImport_SetLazyImportsInModule(
+    PyObject *enabled);
 
 struct _inittab {
     const char *name;           /* ASCII encoded string */

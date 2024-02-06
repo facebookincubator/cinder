@@ -37,6 +37,7 @@ PyAPI_FUNC(PyObject *) _PyDict_GetItem_KnownHash(PyObject *mp, PyObject *key,
 PyAPI_FUNC(PyObject *) _PyDict_GetItemWithError(PyObject *dp, PyObject *key);
 PyAPI_FUNC(PyObject *) _PyDict_GetItemIdWithError(PyObject *dp,
                                                   _Py_Identifier *key);
+PyAPI_FUNC(PyObject *) _PyDict_GetItemKeepLazy(PyObject *dp, PyObject *key);
 PyAPI_FUNC(PyObject *) _PyDict_GetItemStringWithError(PyObject *, const char *);
 PyAPI_FUNC(PyObject *) PyDict_SetDefault(
     PyObject *mp, PyObject *key, PyObject *defaultobj);
@@ -48,6 +49,10 @@ PyAPI_FUNC(int) _PyDict_DelItemIf(PyObject *mp, PyObject *key,
                                   int (*predicate)(PyObject *value));
 PyAPI_FUNC(int) _PyDict_Next(
     PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value, Py_hash_t *hash);
+PyAPI_FUNC(int) PyDict_NextWithError(
+    PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value);
+PyAPI_FUNC(int) _PyDict_NextKeepLazy(
+    PyObject *mp, Py_ssize_t *pos, PyObject **key, PyObject **value);
 
 /* Get the number of items of a dictionary. */
 static inline Py_ssize_t PyDict_GET_SIZE(PyObject *op) {
@@ -66,6 +71,9 @@ PyAPI_FUNC(int) _PyDict_HasOnlyStringKeys(PyObject *mp);
 PyAPI_FUNC(Py_ssize_t) _PyDict_SizeOf(PyDictObject *);
 PyAPI_FUNC(PyObject *) _PyDict_Pop(PyObject *, PyObject *, PyObject *);
 #define _PyDict_HasSplitTable(d) ((d)->ma_values != NULL)
+
+PyAPI_FUNC(Py_ssize_t) PyDict_ResolveLazyImports(PyObject *);
+PyAPI_FUNC(int) PyDict_IsLazyImport(PyObject *mp, PyObject *name);
 
 /* Like PyDict_Merge, but override can be 0, 1 or 2.  If override is 0,
    the first occurrence of a key wins, if override is 1, the last occurrence

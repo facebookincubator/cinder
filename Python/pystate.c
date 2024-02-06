@@ -708,6 +708,10 @@ init_interpreter(PyInterpreterState *interp,
         interp->dtoa = (struct _dtoa_state)_dtoa_state_INIT(interp);
     }
     interp->f_opcode_trace_set = false;
+    interp->lazy_imports = -1;
+    interp->lazy_import_verbose_seen = NULL;
+    interp->eager_imports = NULL;
+    interp->lazy_modules = NULL;
 
     assert(runtime->xidregistry.mutex != NULL);
     interp->xidregistry.mutex = runtime->xidregistry.mutex;
@@ -876,6 +880,9 @@ interpreter_clear(PyInterpreterState *interp, PyThreadState *tstate)
 
     Py_CLEAR(interp->sysdict_copy);
     Py_CLEAR(interp->builtins_copy);
+    Py_CLEAR(interp->lazy_import_verbose_seen);
+    Py_CLEAR(interp->eager_imports);
+    Py_CLEAR(interp->lazy_modules);
     Py_CLEAR(interp->dict);
 #ifdef HAVE_FORK
     Py_CLEAR(interp->before_forkers);

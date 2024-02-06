@@ -230,6 +230,12 @@ struct _is {
 
    /* the initial PyInterpreterState.threads.head */
     PyThreadState _initial_thread;
+
+    // Lazy Imports
+    int lazy_imports;  /* whether lazy imports was enabled at runtime */
+    PyObject *lazy_import_verbose_seen;
+    PyObject *eager_imports;
+    PyObject *lazy_modules;
 };
 
 

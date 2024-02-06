@@ -52,6 +52,9 @@ def main(regrtest_args):
         environ = os.environ.copy()
         args.append("-E")
 
+    if sys.flags.lazy_imports:
+        args.extend(['-L'])
+
     # Allow user-specified interpreter options to override our defaults.
     args.extend(test.support.args_from_interpreter_flags())
 

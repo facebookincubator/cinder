@@ -176,3 +176,5 @@ extern PyObject *_PyErr_SetImportErrorWithNameFrom(
 
 
 #define Py_FatalError(message) _Py_FatalErrorFunc(__func__, (message))
+
+PyAPI_DATA(PyObject *) PyExc_ImportCycleError;

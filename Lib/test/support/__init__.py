@@ -1729,6 +1729,13 @@ def missing_compiler_executable(cmd_names=[]):
     missing.
 
     """
+    try:
+        # FIXME: Eager import `_distutils_hack.override` here, if it exists,
+        # otherwise we can get spurious errors about `No module named 'distutils'`
+        # when importing setuptools.
+        import _distutils_hack.override
+    except ModuleNotFoundError:
+        pass
     from setuptools._distutils import ccompiler, sysconfig, spawn
     from setuptools import errors
 

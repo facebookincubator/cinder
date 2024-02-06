@@ -24,6 +24,8 @@ def fixdir(lst):
         lst.remove("__builtins__")
     if "__initializing__" in lst:
         lst.remove("__initializing__")
+    if "__lazy_submodules__" in lst:
+        lst.remove("__lazy_submodules__")
     return lst
 
 
@@ -183,7 +185,7 @@ class TestPkg(unittest.TestCase):
     def test_5(self):
         hier = [
         ("t5", None),
-        ("t5 __init__.py", "import t5.foo"),
+        ("t5 __init__.py", "import t5.foo; t5.foo"),
         ("t5 string.py", "spam = 1"),
         ("t5 foo.py",
          "from . import string; assert string.spam == 1"),

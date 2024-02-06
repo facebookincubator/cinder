@@ -3206,7 +3206,7 @@ class SuggestionFormattingTestBase:
 
         def callable():
             try:
-                exec(f"from {modname} import {name}")
+                exec(f"from {modname} import {name}; {name}")
             except ImportError as e:
                 raise e from None
             except Exception as e:

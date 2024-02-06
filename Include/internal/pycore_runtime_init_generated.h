@@ -656,6 +656,8 @@ extern "C" {
     INIT_ID(__iter__), \
     INIT_ID(__itruediv__), \
     INIT_ID(__ixor__), \
+    INIT_ID(__lazy_imports_enabled__), \
+    INIT_ID(__lazy_submodules__), \
     INIT_ID(__le__), \
     INIT_ID(__len__), \
     INIT_ID(__length_hint__), \
@@ -910,6 +912,7 @@ extern "C" {
     INIT_ID(exc_value), \
     INIT_ID(excepthook), \
     INIT_ID(exception), \
+    INIT_ID(excluding), \
     INIT_ID(existing_file_name), \
     INIT_ID(exp), \
     INIT_ID(extend), \

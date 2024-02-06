@@ -172,6 +172,37 @@ extern const struct _module_alias * _PyImport_FrozenAliases;
 PyAPI_FUNC(int) _PyImport_CheckSubinterpIncompatibleExtensionAllowed(
     const char *name);
 
+PyAPI_FUNC(PyObject *) _PyImport_ImportName(PyThreadState *tstate,
+                                            PyObject *builtins,
+                                            PyObject *globals,
+                                            PyObject *locals,
+                                            PyObject *name,
+                                            PyObject *fromlist,
+                                            PyObject *level);
+
+PyAPI_FUNC(PyObject *) _PyImport_ImportFrom(PyThreadState *tstate,
+                                            PyObject *v,
+                                            PyObject *name);
+
+PyAPI_FUNC(PyObject *) _PyImport_LazyImportName(PyThreadState *tstate,
+                                                PyObject *builtins,
+                                                PyObject *globals,
+                                                PyObject *locals,
+                                                PyObject *name,
+                                                PyObject *fromlist,
+                                                PyObject *level);
+
+PyAPI_FUNC(PyObject *) _PyImport_LazyImportFrom(PyThreadState *tstate,
+                                                PyObject *v,
+                                                PyObject *name);
+
+PyAPI_FUNC(PyObject *) _PyImport_LoadLazyImportTstate(PyThreadState *tstate,
+                                                      PyObject *lazy_import,
+                                                      int full);
+
+PyAPI_FUNC(PyObject *) _PyImport_LoadLazyImport(PyObject *lazy_import,
+                                                int full);
+
 
 // for testing
 PyAPI_FUNC(int) _PyImport_ClearExtension(PyObject *name, PyObject *filename);

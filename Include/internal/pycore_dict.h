@@ -47,9 +47,13 @@ extern size_t _PyDict_KeysSize(PyDictKeysObject *keys);
  */
 extern Py_ssize_t _Py_dict_lookup(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr);
 
+/* _Py_dict_lookup_keep_lazy() is the same as _Py_dict_lookup(), but keeps lazy objects unresolved */
+extern Py_ssize_t _Py_dict_lookup_keep_lazy(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr);
+
 extern Py_ssize_t _PyDict_LookupIndex(PyDictObject *, PyObject *);
 extern Py_ssize_t _PyDictKeys_StringLookup(PyDictKeysObject* dictkeys, PyObject *key);
 extern PyObject *_PyDict_LoadGlobal(PyDictObject *, PyDictObject *, PyObject *);
+extern PyObject *_PyDict_GetItemKeepLazy(PyObject *, PyObject *);
 
 /* Consumes references to key and value */
 extern int _PyDict_SetItem_Take2(PyDictObject *op, PyObject *key, PyObject *value);
@@ -61,6 +65,7 @@ extern PyObject *_PyDict_Pop_KnownHash(PyObject *, PyObject *, Py_hash_t, PyObje
 #define DKIX_DUMMY (-2)  /* Used internally */
 #define DKIX_ERROR (-3)
 #define DKIX_KEY_CHANGED (-4) /* Used internally */
+#define DKIX_VALUE_ERROR (-5) /* Used internally */
 
 typedef enum {
     DICT_KEYS_GENERAL = 0,
@@ -79,7 +84,10 @@ struct _dictkeysobject {
     uint8_t dk_log2_index_bytes;
 
     /* Kind of keys */
-    uint8_t dk_kind;
+    uint8_t dk_kind : 7;
+
+    /* Contains lazy imports */
+    uint8_t dk_lazy_imports : 1;
 
     /* Version number -- Reset to 0 by any modification to keys */
     uint32_t dk_version;

@@ -118,6 +118,8 @@ As a consequence of this, split keys have a maximum size of 16.
 #include "pycore_code.h"          // stats
 #include "pycore_dict.h"          // PyDictKeysObject
 #include "pycore_gc.h"            // _PyObject_GC_IS_TRACKED()
+#include "pycore_import.h"        // _PyImport_LoadLazyImport
+#include "pycore_lazyimport.h"    // PyLazyImportObject
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "pycore_pyerrors.h"      // _PyErr_GetRaisedException()
 #include "pycore_pystate.h"       // _PyThreadState_GET()
@@ -233,9 +235,11 @@ equally good collision statistics, needed less code & used less memory.
 */
 
 static int dictresize(PyInterpreterState *interp, PyDictObject *mp,
-                      uint8_t log_newsize, int unicode);
+                      uint8_t log_newsize, int unicode, int lazy_imports);
 
 static PyObject* dict_iter(PyDictObject *dict);
+
+static Py_ssize_t resolve_lazy_imports(PyDictObject *mp);
 
 #include "clinic/dictobject.c.h"
 
@@ -464,6 +468,7 @@ static PyDictKeysObject empty_keys_struct = {
         0, /* dk_log2_size */
         0, /* dk_log2_index_bytes */
         DICT_KEYS_UNICODE, /* dk_kind */
+        0, /* dk_lazy_imports */
         1, /* dk_version */
         0, /* dk_usable (immutable) */
         0, /* dk_nentries */
@@ -552,6 +557,7 @@ _PyDict_CheckConsistency(PyObject *op, int check_content)
                     /* test_dict fails if PyObject_Hash() is called again */
                     CHECK(entry->me_hash != -1);
                     CHECK(entry->me_value != NULL);
+                    CHECK(keys->dk_lazy_imports || !PyLazyImport_CheckExact(entry->me_value));
 
                     if (PyUnicode_CheckExact(key)) {
                         Py_hash_t hash = unicode_get_hash(key);
@@ -572,6 +578,7 @@ _PyDict_CheckConsistency(PyObject *op, int check_content)
                     CHECK(hash != -1);
                     if (!splitted) {
                         CHECK(entry->me_value != NULL);
+                        CHECK(keys->dk_lazy_imports || !PyLazyImport_CheckExact(entry->me_value));
                     }
                 }
 
@@ -590,6 +597,7 @@ _PyDict_CheckConsistency(PyObject *op, int check_content)
                 CHECK((duplicate_check & (1<<index)) == 0);
                 duplicate_check |= (1<<index);
                 CHECK(mp->ma_values->values[index] != NULL);
+                CHECK(keys->dk_lazy_imports || !PyLazyImport_CheckExact(mp->ma_values->values[index]));
             }
         }
     }
@@ -600,7 +608,7 @@ _PyDict_CheckConsistency(PyObject *op, int check_content)
 
 
 static PyDictKeysObject*
-new_keys_object(PyInterpreterState *interp, uint8_t log2_size, bool unicode)
+new_keys_object(PyInterpreterState *interp, uint8_t log2_size, bool unicode, bool lazy_imports)
 {
     PyDictKeysObject *dk;
     Py_ssize_t usable;
@@ -653,6 +661,7 @@ new_keys_object(PyInterpreterState *interp, uint8_t log2_size, bool unicode)
     dk->dk_log2_size = log2_size;
     dk->dk_log2_index_bytes = log2_bytes;
     dk->dk_kind = unicode ? DICT_KEYS_UNICODE : DICT_KEYS_GENERAL;
+    dk->dk_lazy_imports = lazy_imports;
     dk->dk_nentries = 0;
     dk->dk_usable = usable;
     dk->dk_version = 0;
@@ -1044,12 +1053,12 @@ probe indices are computed as explained earlier.
 
 All arithmetic on hash should ignore overflow.
 
-_Py_dict_lookup() is general-purpose, and may return DKIX_ERROR if (and only if) a
-comparison raises an exception.
+_Py_dict_lookup_keep_lazy() is general-purpose, and may return DKIX_ERROR if
+(and only if) a comparison raises an exception.
 When the key isn't found a DKIX_EMPTY is returned.
 */
 Py_ssize_t
-_Py_dict_lookup(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr)
+_Py_dict_lookup_keep_lazy(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr)
 {
     PyDictKeysObject *dk;
     DictKeysKind kind;
@@ -1098,16 +1107,108 @@ start:
     return ix;
 }
 
+/*
+_Py_dict_lookup() is general-purpose, and may return DKIX_ERROR if
+(and only if) a comparison raises an exception.
+If the requested object is an unresolved lazy import, it resolves the object. It
+may return a DKIX_VALUE_ERROR if the related import fails, raising an exception.
+When the key isn't found a DKIX_EMPTY is returned.
+*/
+Py_ssize_t
+_Py_dict_lookup(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject **value_addr)
+{
+    PyDictKeysObject *dk;
+    DictKeysKind kind;
+    Py_ssize_t ix;
+    PyObject *startkey;
+    PyObject **value_ptr;
+    PyObject *value;
+
+start:
+    dk = mp->ma_keys;
+    kind = dk->dk_kind;
+
+    if (kind != DICT_KEYS_GENERAL) {
+        if (PyUnicode_CheckExact(key)) {
+            ix = unicodekeys_lookup_unicode(dk, key, hash);
+        }
+        else {
+            ix = unicodekeys_lookup_generic(mp, dk, key, hash);
+            if (ix == DKIX_KEY_CHANGED) {
+                goto start;
+            }
+        }
+
+        if (ix >= 0) {
+            PyDictUnicodeEntry *ep = &DK_UNICODE_ENTRIES(dk)[ix];
+            startkey = ep->me_key;
+            if (kind == DICT_KEYS_SPLIT) {
+                assert(mp->ma_values != NULL);
+                value_ptr = &mp->ma_values->values[ix];
+            }
+            else {
+                value_ptr = &ep->me_value;
+            }
+        }
+        else {
+            *value_addr = NULL;
+            return ix;
+        }
+    }
+    else {
+        ix = dictkeys_generic_lookup(mp, dk, key, hash);
+        if (ix == DKIX_KEY_CHANGED) {
+            goto start;
+        }
+        if (ix >= 0) {
+            PyDictKeyEntry *ep = &DK_ENTRIES(dk)[ix];
+            startkey = ep->me_key;
+            value_ptr = &ep->me_value;
+        }
+        else {
+            *value_addr = NULL;
+            return ix;
+        }
+    }
+
+    value = *value_ptr;
+    if (value && PyLazyImport_CheckExact(value)) {
+        assert(dk->dk_lazy_imports);
+        PyObject *resolved_value = _PyImport_LoadLazyImport(value, 0);
+        if (resolved_value == NULL) {
+            *value_addr = NULL;
+            if (PyErr_Occurred()) {
+                return DKIX_VALUE_ERROR;
+            }
+            return DKIX_EMPTY;
+        }
+        /* If the dict hasn't mutated, update resolved_value */
+        if (dk == mp->ma_keys && kind == dk->dk_kind) {
+            if (kind != DICT_KEYS_GENERAL
+                ? DK_UNICODE_ENTRIES(dk)[ix].me_key == startkey
+                : DK_ENTRIES(dk)[ix].me_key == startkey) {
+                if (*value_ptr == value) {
+                    Py_DECREF(*value_ptr);
+                    *value_ptr = resolved_value;
+                }
+            }
+        }
+        value = resolved_value;
+    }
+    *value_addr = value;
+    return ix;
+}
+
 int
 _PyDict_HasOnlyStringKeys(PyObject *dict)
 {
     Py_ssize_t pos = 0;
-    PyObject *key, *value;
+    PyObject *key;
     assert(PyDict_Check(dict));
     /* Shortcut */
     if (((PyDictObject *)dict)->ma_keys->dk_kind != DICT_KEYS_GENERAL)
         return 1;
-    while (PyDict_Next(dict, &pos, &key, &value))
+    while (_PyDict_Next(dict, &pos, &key, NULL, NULL))
         if (!PyUnicode_Check(key))
             return 0;
     return 1;
@@ -1191,7 +1292,7 @@ find_empty_slot(PyDictKeysObject *keys, Py_hash_t hash)
 static int
 insertion_resize(PyInterpreterState *interp, PyDictObject *mp, int unicode)
 {
-    return dictresize(interp, mp, calculate_log2_keysize(GROWTH_RATE(mp)), unicode);
+    return dictresize(interp, mp, calculate_log2_keysize(GROWTH_RATE(mp)), unicode, 0);
 }
 
 static Py_ssize_t
@@ -1226,6 +1327,44 @@ insert_into_dictkeys(PyDictKeysObject *keys, PyObject *name)
     return ix;
 }
 
+static void
+lazy_import_verbose(PyObject *value)
+{
+    PyThreadState *tstate = _PyThreadState_GET();
+    int verbose = _PyInterpreterState_GetConfig(tstate->interp)->verbose;
+    if (verbose) {
+        PyObject *lazy_import_verbose_seen = tstate->interp->lazy_import_verbose_seen;
+        if (lazy_import_verbose_seen == NULL) {
+            lazy_import_verbose_seen = PySet_New(NULL);
+            if (lazy_import_verbose_seen == NULL) {
+                PyErr_Clear();
+                return;
+            }
+            tstate->interp->lazy_import_verbose_seen = lazy_import_verbose_seen;
+        }
+        PyObject *name = _PyLazyImport_GetName(value);
+        if (name == NULL) {
+            PyErr_Clear();
+            return;
+        }
+        int has_it = PySet_Contains(lazy_import_verbose_seen, name);
+        if (has_it < 0) {
+            Py_DECREF(name);
+            PyErr_Clear();
+            return;
+        }
+        if (!has_it) {
+            fprintf(stderr, "# lazy import '%s'\n", PyUnicode_AsUTF8(name));
+            if (PySet_Add(lazy_import_verbose_seen, name) < 0) {
+                Py_DECREF(name);
+                PyErr_Clear();
+                return;
+            }
+        }
+        Py_DECREF(name);
+    }
+}
+
 /*
 Internal routine to insert a new item into the table.
 Used both by the internal resize routine and by the public insert routine.
@@ -1244,7 +1383,7 @@ insertdict(PyInterpreterState *interp, PyDictObject *mp,
         assert(mp->ma_keys->dk_kind == DICT_KEYS_GENERAL);
     }
 
-    Py_ssize_t ix = _Py_dict_lookup(mp, key, hash, &old_value);
+    Py_ssize_t ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &old_value);
     if (ix == DKIX_ERROR)
         goto Fail;
 
@@ -1287,6 +1426,10 @@ insertdict(PyInterpreterState *interp, PyDictObject *mp,
             ep->me_value = value;
         }
         mp->ma_used++;
+        if (PyLazyImport_CheckExact(value)) {
+            mp->ma_keys->dk_lazy_imports = 1;
+            lazy_import_verbose(value);
+        }
         mp->ma_version_tag = new_version;
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
@@ -1314,6 +1457,10 @@ insertdict(PyInterpreterState *interp, PyDictObject *mp,
                 DK_ENTRIES(mp->ma_keys)[ix].me_value = value;
             }
         }
+        if (PyLazyImport_CheckExact(value)) {
+            mp->ma_keys->dk_lazy_imports = 1;
+            lazy_import_verbose(value);
+        }
         mp->ma_version_tag = new_version;
     }
     Py_XDECREF(old_value); /* which **CAN** re-enter (see issue #22653) */
@@ -1339,8 +1486,9 @@ insert_to_emptydict(PyInterpreterState *interp, PyDictObject *mp,
             interp, PyDict_EVENT_ADDED, mp, key, value);
 
     int unicode = PyUnicode_CheckExact(key);
+    int lazy_imports = PyLazyImport_CheckExact(value);
     PyDictKeysObject *newkeys = new_keys_object(
-            interp, PyDict_LOG_MINSIZE, unicode);
+            interp, PyDict_LOG_MINSIZE, unicode, lazy_imports);
     if (newkeys == NULL) {
         Py_DECREF(key);
         Py_DECREF(value);
@@ -1366,9 +1514,13 @@ insert_to_emptydict(PyInterpreterState *interp, PyDictObject *mp,
         ep->me_value = value;
     }
     mp->ma_used++;
+    if (lazy_imports) {
+        lazy_import_verbose(value);
+    }
     mp->ma_version_tag = new_version;
     mp->ma_keys->dk_usable--;
     mp->ma_keys->dk_nentries++;
+    ASSERT_CONSISTENT(mp);
     return 0;
 }
 
@@ -1422,7 +1574,7 @@ This function supports:
 */
 static int
 dictresize(PyInterpreterState *interp, PyDictObject *mp,
-           uint8_t log2_newsize, int unicode)
+           uint8_t log2_newsize, int unicode, int lazy_imports)
 {
     PyDictKeysObject *oldkeys;
     PyDictValues *oldvalues;
@@ -1440,13 +1592,17 @@ dictresize(PyInterpreterState *interp, PyDictObject *mp,
         unicode = 0;
     }
 
+    if (oldkeys->dk_lazy_imports) {
+        lazy_imports = 1;
+    }
+
     /* NOTE: Current odict checks mp->ma_keys to detect resize happen.
      * So we can't reuse oldkeys even if oldkeys->dk_size == newsize.
      * TODO: Try reusing oldkeys when reimplement odict.
      */
 
     /* Allocate a new table. */
-    mp->ma_keys = new_keys_object(interp, log2_newsize, unicode);
+    mp->ma_keys = new_keys_object(interp, log2_newsize, unicode, lazy_imports);
     if (mp->ma_keys == NULL) {
         mp->ma_keys = oldkeys;
         return -1;
@@ -1578,7 +1734,7 @@ dictresize(PyInterpreterState *interp, PyDictObject *mp,
 }
 
 static PyObject *
-dict_new_presized(PyInterpreterState *interp, Py_ssize_t minused, bool unicode)
+dict_new_presized(PyInterpreterState *interp, Py_ssize_t minused, bool unicode, bool lazy_imports)
 {
     const uint8_t log2_max_presize = 17;
     const Py_ssize_t max_presize = ((Py_ssize_t)1) << log2_max_presize;
@@ -1599,7 +1755,7 @@ dict_new_presized(PyInterpreterState *interp, Py_ssize_t minused, bool unicode)
         log2_newsize = estimate_log2_keysize(minused);
     }
 
-    new_keys = new_keys_object(interp, log2_newsize, unicode);
+    new_keys = new_keys_object(interp, log2_newsize, unicode, lazy_imports);
     if (new_keys == NULL)
         return NULL;
     return new_dict(interp, new_keys, NULL, 0, 0);
@@ -1609,7 +1765,7 @@ PyObject *
 _PyDict_NewPresized(Py_ssize_t minused)
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
-    return dict_new_presized(interp, minused, false);
+    return dict_new_presized(interp, minused, false, false);
 }
 
 PyObject *
@@ -1629,7 +1785,7 @@ _PyDict_FromItems(PyObject *const *keys, Py_ssize_t keys_offset,
         ks += keys_offset;
     }
 
-    PyObject *dict = dict_new_presized(interp, length, unicode);
+    PyObject *dict = dict_new_presized(interp, length, unicode, false);
     if (dict == NULL) {
         return NULL;
     }
@@ -1769,6 +1925,33 @@ PyDict_GetItemWithError(PyObject *op, PyObject *key)
     return value;
 }
 
+/* Similar to PyDict_GetItemWithError, but it doesn't resolve
+ * any lazy import objects. */
+PyObject *
+_PyDict_GetItemKeepLazy(PyObject *op, PyObject *key)
+{
+    Py_ssize_t ix; (void)ix;
+    Py_hash_t hash;
+    PyDictObject*mp = (PyDictObject *)op;
+    PyObject *value;
+
+    if (!PyDict_Check(op)) {
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    if (!PyUnicode_CheckExact(key) || (hash = unicode_get_hash(key)) == -1)
+    {
+        hash = PyObject_Hash(key);
+        if (hash == -1) {
+            return NULL;
+        }
+    }
+
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &value);
+    assert(ix >= 0 || value == NULL);
+    return value;
+}
+
 PyObject *
 _PyDict_GetItemWithError(PyObject *dp, PyObject *kv)
 {
@@ -1830,7 +2013,7 @@ _PyDict_LoadGlobal(PyDictObject *globals, PyDictObject *builtins, PyObject *key)
 
     /* namespace 1: globals */
     ix = _Py_dict_lookup(globals, key, hash, &value);
-    if (ix == DKIX_ERROR)
+    if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         return NULL;
     if (ix != DKIX_EMPTY && value != NULL)
         return value;
@@ -1994,7 +2177,7 @@ _PyDict_DelItem_KnownHash(PyObject *op, PyObject *key, Py_hash_t hash)
     assert(key);
     assert(hash != -1);
     mp = (PyDictObject *)op;
-    ix = _Py_dict_lookup(mp, key, hash, &old_value);
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &old_value);
     if (ix == DKIX_ERROR)
         return -1;
     if (ix == DKIX_EMPTY || old_value == NULL) {
@@ -2031,7 +2214,7 @@ _PyDict_DelItemIf(PyObject *op, PyObject *key,
     if (hash == -1)
         return -1;
     mp = (PyDictObject *)op;
-    ix = _Py_dict_lookup(mp, key, hash, &old_value);
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &old_value);
     if (ix == DKIX_ERROR)
         return -1;
     if (ix == DKIX_EMPTY || old_value == NULL) {
@@ -2097,22 +2280,20 @@ PyDict_Clear(PyObject *op)
     ASSERT_CONSISTENT(mp);
 }
 
-/* Internal version of PyDict_Next that returns a hash value in addition
- * to the key and value.
+/* Internal version of PyDict_Next that returns a hash value and a value ptr
+ * in addition to the key and value.
  * Return 1 on success, return 0 when the reached the end of the dictionary
  * (or if op is not a dictionary)
  */
 int
 _PyDict_Next(PyObject *op, Py_ssize_t *ppos, PyObject **pkey,
-             PyObject **pvalue, Py_hash_t *phash)
+               PyObject **pvalue, Py_hash_t *phash)
 {
     Py_ssize_t i;
     PyDictObject *mp;
     PyObject *key, *value;
     Py_hash_t hash;
-
-    if (!PyDict_Check(op))
-        return 0;
+    assert(PyDict_Check(op));
     mp = (PyDictObject *)op;
     i = *ppos;
     if (mp->ma_values) {
@@ -2171,21 +2352,91 @@ _PyDict_Next(PyObject *op, Py_ssize_t *ppos, PyObject **pkey,
  *     Py_ssize_t i;
  *     PyObject *key, *value;
  *     i = 0;   # important!  i should not otherwise be changed by you
- *     while (PyDict_Next(yourdict, &i, &key, &value)) {
+ *     while (PyDict_NextWithError(yourdict, &i, &key, &value)) {
  *         Refer to borrowed references in key and value.
  *     }
  *
  * Return 1 on success, return 0 when the reached the end of the dictionary
  * (or if op is not a dictionary)
  *
- * CAUTION:  In general, it isn't safe to use PyDict_Next in a loop that
+ * CAUTION:  In general, it isn't safe to use PyDict_NextWithError in a loop that
  * mutates the dict.  One exception:  it is safe if the loop merely changes
  * the values associated with the keys (but doesn't insert new keys or
  * delete keys), via PyDict_SetItem().
+ *
+*/
+int
+PyDict_NextWithError(PyObject *op, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue)
+{
+    if (!PyDict_Check(op)) {
+        PyErr_Format(PyExc_TypeError,
+                     "A dict argument is required, not '%s'",
+                     Py_TYPE(op)->tp_name);
+        return 0;
+    }
+    if (pvalue != NULL) {
+        if (((PyDictObject *)op)->ma_keys->dk_lazy_imports) {
+            if (*ppos == 0) {
+                if (resolve_lazy_imports((PyDictObject *)op) != 0) {
+                    return 0;
+                }
+            } else {
+                PyErr_Format(PyExc_ValueError,
+                            "A dict without lazy imports is required");
+                return 0;
+            }
+        }
+    }
+    return _PyDict_Next(op, ppos, pkey, pvalue, NULL);
+}
+
+/*
+ * For historical reasons, PyDict_Next() suppresses all errors that may occur
+ * (originally dicts didn't support unresolved (lazy) objects, and exceptions
+ * weren't possible).  So, while the original intent was that a 0 return meant
+ * the end of the dictionary was reached, in reality it can mean that, or that
+ * an error (suppressed) occurred while resolving the values, or that some error
+ * (suppressed) occurred when receiving an invalid type of object. An unraisable
+ * error will be printed in these cases.
  */
 int
 PyDict_Next(PyObject *op, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue)
 {
+    if (!PyDict_Check(op)) {
+        PyErr_Format(PyExc_TypeError,
+                     "A dict argument is required, not '%s'",
+                     Py_TYPE(op)->tp_name);
+        PyErr_WriteUnraisable(NULL);
+        return 0;
+    }
+    if (pvalue != NULL) {
+        if (((PyDictObject *)op)->ma_keys->dk_lazy_imports) {
+            if (*ppos == 0) {
+                if (resolve_lazy_imports((PyDictObject *)op) != 0) {
+                    PyErr_WriteUnraisable(NULL);
+                    return 0;
+                }
+            } else {
+                PyErr_Format(PyExc_ValueError,
+                            "A dict without lazy imports is required");
+                PyErr_WriteUnraisable(NULL);
+                return 0;
+            }
+        }
+    }
+    return _PyDict_Next(op, ppos, pkey, pvalue, NULL);
+}
+
+int
+_PyDict_NextKeepLazy(PyObject *op, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue)
+{
+    if (!PyDict_Check(op)) {
+        PyErr_Format(PyExc_TypeError,
+                     "A dict argument is required, not '%s'",
+                     Py_TYPE(op)->tp_name);
+        PyErr_WriteUnraisable(NULL);
+        return 0;
+    }
     return _PyDict_Next(op, ppos, pkey, pvalue, NULL);
 }
 
@@ -2209,7 +2460,7 @@ _PyDict_Pop_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject *d
         return NULL;
     }
     ix = _Py_dict_lookup(mp, key, hash, &old_value);
-    if (ix == DKIX_ERROR)
+    if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         return NULL;
     if (ix == DKIX_EMPTY || old_value == NULL) {
         if (deflt) {
@@ -2264,20 +2515,21 @@ _PyDict_FromKeys(PyObject *cls, PyObject *iterable, PyObject *value)
     if (PyDict_CheckExact(d) && ((PyDictObject *)d)->ma_used == 0) {
         if (PyDict_CheckExact(iterable)) {
             PyDictObject *mp = (PyDictObject *)d;
-            PyObject *oldvalue;
             Py_ssize_t pos = 0;
             PyObject *key;
             Py_hash_t hash;
 
-            int unicode = DK_IS_UNICODE(((PyDictObject*)iterable)->ma_keys);
+            PyDictKeysObject *dk = ((PyDictObject*)iterable)->ma_keys;
+            int unicode = DK_IS_UNICODE(dk);
+            int lazy_imports = dk->dk_lazy_imports;
             if (dictresize(interp, mp,
                            estimate_log2_keysize(PyDict_GET_SIZE(iterable)),
-                           unicode)) {
+                           unicode, lazy_imports)) {
                 Py_DECREF(d);
                 return NULL;
             }
 
-            while (_PyDict_Next(iterable, &pos, &key, &oldvalue, &hash)) {
+            while (_PyDict_Next(iterable, &pos, &key, NULL, &hash)) {
                 if (insertdict(interp, mp,
                                Py_NewRef(key), hash, Py_NewRef(value))) {
                     Py_DECREF(d);
@@ -2292,8 +2544,9 @@ _PyDict_FromKeys(PyObject *cls, PyObject *iterable, PyObject *value)
             PyObject *key;
             Py_hash_t hash;
 
+            int lazy_imports = PyLazyImport_CheckExact(value);
             if (dictresize(interp, mp,
-                           estimate_log2_keysize(PySet_GET_SIZE(iterable)), 0)) {
+                           estimate_log2_keysize(PySet_GET_SIZE(iterable)), 0, lazy_imports)) {
                 Py_DECREF(d);
                 return NULL;
             }
@@ -2410,6 +2663,12 @@ dict_repr(PyDictObject *mp)
         return PyUnicode_FromString("{}");
     }
 
+    if (mp->ma_keys->dk_lazy_imports) {
+        if (resolve_lazy_imports(mp) != 0) {
+            return NULL;
+        }
+    }
+
     _PyUnicodeWriter_Init(&writer);
     writer.overallocate = 1;
     /* "{" + "1: 2" + ", 3: 4" * (len - 1) + "}" */
@@ -2422,7 +2681,7 @@ dict_repr(PyDictObject *mp)
        Note that repr may mutate the dict. */
     i = 0;
     first = 1;
-    while (PyDict_Next((PyObject *)mp, &i, &key, &value)) {
+    while (_PyDict_Next((PyObject *)mp, &i, &key, &value, NULL)) {
         PyObject *s;
         int res;
 
@@ -2494,7 +2753,7 @@ dict_subscript(PyDictObject *mp, PyObject *key)
             return NULL;
     }
     ix = _Py_dict_lookup(mp, key, hash, &value);
-    if (ix == DKIX_ERROR)
+    if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         return NULL;
     if (ix == DKIX_EMPTY || value == NULL) {
         if (!PyDict_CheckExact(mp)) {
@@ -2568,6 +2827,12 @@ dict_values(PyDictObject *mp)
     PyObject *v;
     Py_ssize_t n;
 
+    if (mp->ma_keys->dk_lazy_imports) {
+        if (resolve_lazy_imports(mp) != 0) {
+            return NULL;
+        }
+    }
+
   again:
     n = mp->ma_used;
     v = PyList_New(n);
@@ -2594,7 +2859,7 @@ dict_values(PyDictObject *mp)
 }
 
 static PyObject *
-dict_items(PyDictObject *mp)
+dict_items_keep_lazy(PyDictObject *mp)
 {
     PyObject *v;
     Py_ssize_t i, n;
@@ -2637,6 +2902,86 @@ dict_items(PyDictObject *mp)
     }
     assert(j == n);
     return v;
+}
+
+static PyObject *
+dict_items(PyDictObject *mp)
+{
+    if (mp->ma_keys->dk_lazy_imports) {
+        if (resolve_lazy_imports(mp) != 0) {
+            return NULL;
+        }
+    }
+
+    return dict_items_keep_lazy(mp);
+}
+
+static Py_ssize_t
+resolve_lazy_imports(PyDictObject *mp)
+{
+    PyObject *v;
+    PyObject *item, *key, *value;
+    PyObject *resolved_value;
+    Py_ssize_t i, n = 0;
+    uint64_t version_tag;
+
+    PyThreadState *tstate = _PyThreadState_GET();
+
+top:
+    version_tag = mp->ma_version_tag;
+
+    /* try importing as many lazy import objects as possible */
+    v = dict_items_keep_lazy(mp);
+    if (v == NULL) {
+        return -1;
+    }
+    n = PyList_Size(v);
+    for (i = 0; i < n; i++) {
+        item = PyList_GET_ITEM(v, i);
+        value = PyTuple_GET_ITEM(item, 1);
+        if (PyLazyImport_CheckExact(value)) {
+            resolved_value = _PyImport_LoadLazyImportTstate(tstate, value, 0);
+            if (resolved_value == NULL) {
+                if (!_PyErr_Occurred(tstate)) {
+                    PyErr_Format(PyExc_ImportError,
+                        "Unable to resolve all lazy imports");
+                }
+                Py_DECREF(v);
+                return -1;
+            }
+            key = PyTuple_GET_ITEM(item, 0);
+            if (PyDict_SetItem((PyObject *)mp, key, resolved_value) < 0) {
+                Py_DECREF(resolved_value);
+                Py_DECREF(v);
+                return -1;
+            }
+            Py_DECREF(resolved_value);
+        }
+    }
+    Py_DECREF(v);
+
+    if (version_tag != mp->ma_version_tag) {
+        /* The dict has mutated, try again */
+        goto top;
+    }
+
+    mp->ma_keys->dk_lazy_imports = 0;
+    ASSERT_CONSISTENT(mp);
+    return 0;
+}
+
+Py_ssize_t
+PyDict_ResolveLazyImports(PyObject *dict)
+{
+    PyDictObject *mp = (PyDictObject *)dict;
+    if (!PyDict_Check(dict)) {
+        PyErr_SetString(PyExc_ValueError, "Cannot resolve non-dictionary");
+        return 0;
+    }
+    if (mp->ma_keys->dk_lazy_imports) {
+        return resolve_lazy_imports(mp);
+    }
+    return 0;
 }
 
 /*[clinic input]
@@ -2870,9 +3215,10 @@ dict_merge(PyInterpreterState *interp, PyObject *a, PyObject *b, int override)
          */
         if (USABLE_FRACTION(DK_SIZE(mp->ma_keys)) < other->ma_used) {
             int unicode = DK_IS_UNICODE(other->ma_keys);
+            int lazy_imports = other->ma_keys->dk_lazy_imports;
             if (dictresize(interp, mp,
                            estimate_log2_keysize(mp->ma_used + other->ma_used),
-                           unicode)) {
+                           unicode, lazy_imports)) {
                return -1;
             }
         }
@@ -3045,6 +3391,7 @@ PyDict_Copy(PyObject *o)
             PyObject *value = mp->ma_values->values[i];
             split_copy->ma_values->values[i] = Py_XNewRef(value);
         }
+        ASSERT_CONSISTENT(split_copy);
         if (_PyObject_GC_IS_TRACKED(mp))
             _PyObject_GC_TRACK(split_copy);
         return (PyObject *)split_copy;
@@ -3181,7 +3528,7 @@ dict_equal(PyDictObject *a, PyDictObject *b)
             /* ditto for key */
             Py_INCREF(key);
             /* reuse the known hash value */
-            _Py_dict_lookup(b, key, hash, &bval);
+            _Py_dict_lookup_keep_lazy(b, key, hash, &bval);
             if (bval == NULL) {
                 Py_DECREF(key);
                 Py_DECREF(aval);
@@ -3246,7 +3593,7 @@ dict___contains__(PyDictObject *self, PyObject *key)
         if (hash == -1)
             return NULL;
     }
-    ix = _Py_dict_lookup(mp, key, hash, &value);
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &value);
     if (ix == DKIX_ERROR)
         return NULL;
     if (ix == DKIX_EMPTY || value == NULL)
@@ -3278,7 +3625,7 @@ dict_get_impl(PyDictObject *self, PyObject *key, PyObject *default_value)
             return NULL;
     }
     ix = _Py_dict_lookup(self, key, hash, &val);
-    if (ix == DKIX_ERROR)
+    if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         return NULL;
     if (ix == DKIX_EMPTY || val == NULL) {
         val = default_value;
@@ -3320,7 +3667,7 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
     }
 
     Py_ssize_t ix = _Py_dict_lookup(mp, key, hash, &value);
-    if (ix == DKIX_ERROR)
+    if (ix == DKIX_ERROR || ix == DKIX_VALUE_ERROR)
         return NULL;
 
     if (ix == DKIX_EMPTY) {
@@ -3358,6 +3705,9 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
         }
         MAINTAIN_TRACKING(mp, key, value);
         mp->ma_used++;
+        if (PyLazyImport_CheckExact(value)) {
+            mp->ma_keys->dk_lazy_imports = 1;
+        }
         mp->ma_version_tag = new_version;
         mp->ma_keys->dk_usable--;
         mp->ma_keys->dk_nentries++;
@@ -3373,6 +3723,9 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
         mp->ma_values->values[ix] = Py_NewRef(value);
         _PyDictValues_AddToInsertionOrder(mp->ma_values, ix);
         mp->ma_used++;
+        if (PyLazyImport_CheckExact(value)) {
+            mp->ma_keys->dk_lazy_imports = 1;
+        }
         mp->ma_version_tag = new_version;
     }
 
@@ -3467,7 +3820,7 @@ dict_popitem_impl(PyDictObject *self)
     }
     /* Convert split table to combined table */
     if (self->ma_keys->dk_kind == DICT_KEYS_SPLIT) {
-        if (dictresize(interp, self, DK_LOG_SIZE(self->ma_keys), 1)) {
+        if (dictresize(interp, self, DK_LOG_SIZE(self->ma_keys), 1, 0)) {
             Py_DECREF(res);
             return NULL;
         }
@@ -3515,6 +3868,19 @@ dict_popitem_impl(PyDictObject *self)
     assert(j >= 0);
     assert(dictkeys_get_index(self->ma_keys, j) == i);
     dictkeys_set_index(self->ma_keys, j, DKIX_DUMMY);
+
+    if (value && PyLazyImport_CheckExact(value)) {
+        assert(self->ma_keys->dk_lazy_imports);
+        PyObject *resolved_value = _PyImport_LoadLazyImport(value, 0);
+        if (resolved_value == NULL) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_KeyError, "popitem(): Lazy Import cycle");
+            }
+            Py_DECREF(res);
+            return NULL;
+        }
+        value = resolved_value;
+    }
 
     PyTuple_SET_ITEM(res, 0, key);
     PyTuple_SET_ITEM(res, 1, value);
@@ -3698,10 +4064,24 @@ PyDict_Contains(PyObject *op, PyObject *key)
         if (hash == -1)
             return -1;
     }
-    ix = _Py_dict_lookup(mp, key, hash, &value);
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &value);
     if (ix == DKIX_ERROR)
         return -1;
     return (ix != DKIX_EMPTY && value != NULL);
+}
+
+/* Return 1 if `name` is a lazy import object in dict `mp`, 0 if not, and -1 on error. */
+int
+PyDict_IsLazyImport(PyObject *mp, PyObject *name)
+{
+    PyObject *value = _PyDict_GetItemKeepLazy(mp, name);
+    if (value == NULL) {
+        return -1;
+    }
+    if (PyLazyImport_CheckExact(value)) {
+        return 1;
+    }
+    return 0;
 }
 
 /* Internal version of PyDict_Contains used when the hash value is already known */
@@ -3712,7 +4092,7 @@ _PyDict_Contains_KnownHash(PyObject *op, PyObject *key, Py_hash_t hash)
     PyObject *value;
     Py_ssize_t ix;
 
-    ix = _Py_dict_lookup(mp, key, hash, &value);
+    ix = _Py_dict_lookup_keep_lazy(mp, key, hash, &value);
     if (ix == DKIX_ERROR)
         return -1;
     return (ix != DKIX_EMPTY && value != NULL);
@@ -4573,6 +4953,14 @@ _PyDictView_New(PyObject *dict, PyTypeObject *type)
                      type->tp_name, Py_TYPE(dict)->tp_name);
         return NULL;
     }
+    if (type == &PyDictItems_Type ||
+        type == &PyDictValues_Type) {
+        if (((PyDictObject *)dict)->ma_keys->dk_lazy_imports) {
+            if (resolve_lazy_imports((PyDictObject *)dict) != 0) {
+                return NULL;
+            }
+        }
+    }
     dv = PyObject_GC_New(_PyDictViewObject, type);
     if (dv == NULL)
         return NULL;
@@ -4889,6 +5277,17 @@ dictitems_xor(PyObject *self, PyObject *other)
     assert(PyDictItems_Check(other));
     PyObject *d1 = (PyObject *)((_PyDictViewObject *)self)->dv_dict;
     PyObject *d2 = (PyObject *)((_PyDictViewObject *)other)->dv_dict;
+
+    if (((PyDictObject *)d1)->ma_keys->dk_lazy_imports) {
+        if (resolve_lazy_imports((PyDictObject *)d1) != 0) {
+            return NULL;
+        }
+    }
+    if (((PyDictObject *)d2)->ma_keys->dk_lazy_imports) {
+        if (resolve_lazy_imports((PyDictObject *)d2) != 0) {
+            return NULL;
+        }
+    }
 
     PyObject *temp_dict = PyDict_Copy(d1);
     if (temp_dict == NULL) {
@@ -5319,7 +5718,7 @@ _PyDict_NewKeysForClass(void)
 {
     PyInterpreterState *interp = _PyInterpreterState_GET();
     PyDictKeysObject *keys = new_keys_object(
-            interp, NEXT_LOG2_SHARED_KEYS_MAX_SIZE, 1);
+            interp, NEXT_LOG2_SHARED_KEYS_MAX_SIZE, 1, 0);
     if (keys == NULL) {
         PyErr_Clear();
     }

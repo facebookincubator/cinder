@@ -66,7 +66,7 @@ extern "C" {
 #define BUILD_MAP                              105
 #define LOAD_ATTR                              106
 #define COMPARE_OP                             107
-#define IMPORT_NAME                            108
+#define EAGER_IMPORT_NAME                      108
 #define IMPORT_FROM                            109
 #define JUMP_FORWARD                           110
 #define POP_JUMP_IF_FALSE                      114
@@ -120,6 +120,7 @@ extern "C" {
 #define CALL_INTRINSIC_2                       174
 #define LOAD_FROM_DICT_OR_GLOBALS              175
 #define LOAD_FROM_DICT_OR_DEREF                176
+#define IMPORT_NAME                            183
 #define MIN_INSTRUMENTED_OPCODE                237
 #define INSTRUMENTED_LOAD_SUPER_ATTR           237
 #define INSTRUMENTED_POP_JUMP_IF_NONE          238

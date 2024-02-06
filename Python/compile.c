@@ -1175,6 +1175,15 @@ codegen_addop_j(instr_sequence *seq, location loc,
 #define ADDOP_NAME(C, LOC, OP, O, TYPE) \
     RETURN_IF_ERROR(compiler_addop_name((C)->u, (LOC), (OP), (C)->u->u_metadata.u_ ## TYPE, (O)))
 
+#define ADDOP_IMPORT(C, LOC, O, TYPE) { \
+    if (((C)->u->u_scope_type == COMPILER_SCOPE_MODULE) \
+        && ((C)->u->u_nfblocks == 0)) { \
+        ADDOP_NAME((C), (LOC), IMPORT_NAME, (O), TYPE); \
+    } else { \
+        ADDOP_NAME((C), (LOC), EAGER_IMPORT_NAME, (O), TYPE); \
+    } \
+}
+
 #define ADDOP_I(C, LOC, OP, O) \
     RETURN_IF_ERROR(codegen_addop_i(INSTR_SEQUENCE(C), (OP), (O), (LOC)))
 
@@ -3774,7 +3783,7 @@ compiler_import(struct compiler *c, stmt_ty s)
 
         ADDOP_LOAD_CONST(c, loc, zero);
         ADDOP_LOAD_CONST(c, loc, Py_None);
-        ADDOP_NAME(c, loc, IMPORT_NAME, alias->name, names);
+        ADDOP_IMPORT(c, loc, alias->name, names);
 
         if (alias->asname) {
             r = compiler_import_as(c, loc, alias->name, alias->asname);
@@ -3829,11 +3838,11 @@ compiler_from_import(struct compiler *c, stmt_ty s)
     ADDOP_LOAD_CONST_NEW(c, LOC(s), names);
 
     if (s->v.ImportFrom.module) {
-        ADDOP_NAME(c, LOC(s), IMPORT_NAME, s->v.ImportFrom.module, names);
+        ADDOP_IMPORT(c, LOC(s), s->v.ImportFrom.module, names);
     }
     else {
         _Py_DECLARE_STR(empty, "");
-        ADDOP_NAME(c, LOC(s), IMPORT_NAME, &_Py_STR(empty), names);
+        ADDOP_IMPORT(c, LOC(s), &_Py_STR(empty), names);
     }
     for (Py_ssize_t i = 0; i < n; i++) {
         alias_ty alias = (alias_ty)asdl_seq_GET(s->v.ImportFrom.names, i);

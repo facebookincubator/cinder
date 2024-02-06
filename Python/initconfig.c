@@ -61,6 +61,7 @@ Options (and corresponding environment variables):\n\
          when given twice, print more information about the build\n\
 -W arg : warning control; arg is action:message:category:module:lineno\n\
          also PYTHONWARNINGS=arg\n\
+-L     : enable lazy imports\n\
 -x     : skip first line of source, allowing use of non-Unix forms of #!cmd\n\
 -X opt : set implementation-specific option\n\
 --check-hash-based-pycs always|default|never:\n\
@@ -181,6 +182,7 @@ static const char usage_envvars[] =
 "PYTHONINSPECT           : inspect interactively after running script (-i)\n"
 "PYTHONINTMAXSTRDIGITS   : limit max digit characters in an int value\n"
 "                          (-X int_max_str_digits=number)\n"
+"PYTHONLAZYIMPORTSALL    : enable lazy imports.\n"
 "PYTHONNOUSERSITE        : disable user site directory (-s)\n"
 "PYTHONOPTIMIZE          : enable level 1 optimizations (-O)\n"
 "PYTHONSAFEPATH          : don't prepend a potentially unsafe path to sys.path (-P)\n"
@@ -215,6 +217,7 @@ int Py_NoUserSiteDirectory = 0; /* for -s and site.py */
 int Py_UnbufferedStdioFlag = 0; /* Unbuffered binary std{in,out,err} */
 int Py_HashRandomizationFlag = 0; /* for -R and PYTHONHASHSEED */
 int Py_IsolatedFlag = 0; /* for -I, isolate from user's env */
+int Py_LazyImportsFlag = 0; /* for -L, lazy imports */
 #ifdef MS_WINDOWS
 int Py_LegacyWindowsFSEncodingFlag = 0; /* Uses mbcs instead of utf-8 */
 int Py_LegacyWindowsStdioFlag = 0; /* Uses FileIO instead of WindowsConsoleIO */
@@ -276,6 +279,7 @@ _Py_COMP_DIAG_IGNORE_DEPR_DECLS
     SET_ITEM_INT(Py_UnbufferedStdioFlag);
     SET_ITEM_INT(Py_HashRandomizationFlag);
     SET_ITEM_INT(Py_IsolatedFlag);
+    SET_ITEM_INT(Py_LazyImportsFlag);
 
 #ifdef MS_WINDOWS
     SET_ITEM_INT(Py_LegacyWindowsFSEncodingFlag);
@@ -703,6 +707,7 @@ config_check_consistency(const PyConfig *config)
     assert(config->_is_python_build >= 0);
     assert(config->safe_path >= 0);
     assert(config->int_max_str_digits >= 0);
+    assert(config->lazy_imports >= 0);
     // config->use_frozen_modules is initialized later
     // by _PyConfig_InitImportConfig().
     return 1;
@@ -761,6 +766,7 @@ _PyConfig_InitCompatConfig(PyConfig *config)
 
     config->_config_init = (int)_PyConfig_INIT_COMPAT;
     config->isolated = -1;
+    config->lazy_imports = -1;
     config->use_environment = -1;
     config->dev_mode = -1;
     config->install_signal_handlers = 1;
@@ -808,6 +814,7 @@ config_init_defaults(PyConfig *config)
     _PyConfig_InitCompatConfig(config);
 
     config->isolated = 0;
+    config->lazy_imports = 0;
     config->use_environment = 1;
     config->site_import = 1;
     config->bytes_warning = 0;
@@ -845,6 +852,7 @@ PyConfig_InitIsolatedConfig(PyConfig *config)
 
     config->_config_init = (int)_PyConfig_INIT_ISOLATED;
     config->isolated = 1;
+    config->lazy_imports = 0;
     config->use_environment = 0;
     config->user_site_directory = 0;
     config->dev_mode = 0;
@@ -1026,6 +1034,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_WSTRLIST(orig_argv);
     COPY_ATTR(_is_python_build);
     COPY_ATTR(int_max_str_digits);
+    COPY_ATTR(lazy_imports);
 
 #undef COPY_ATTR
 #undef COPY_WSTR_ATTR
@@ -1133,6 +1142,7 @@ _PyConfig_AsDict(const PyConfig *config)
     SET_ITEM_INT(safe_path);
     SET_ITEM_INT(_is_python_build);
     SET_ITEM_INT(int_max_str_digits);
+    SET_ITEM_INT(lazy_imports);
 
     return dict;
 
@@ -1426,6 +1436,7 @@ _PyConfig_FromDict(PyConfig *config, PyObject *dict)
     GET_UINT(safe_path);
     GET_UINT(_is_python_build);
     GET_INT(int_max_str_digits);
+    GET_UINT(lazy_imports);
 
 #undef CHECK_VALUE
 #undef GET_UINT
@@ -1504,6 +1515,7 @@ _Py_COMP_DIAG_IGNORE_DEPR_DECLS
         }
 
     COPY_FLAG(isolated, Py_IsolatedFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
     COPY_NOT_FLAG(use_environment, Py_IgnoreEnvironmentFlag);
     COPY_FLAG(bytes_warning, Py_BytesWarningFlag);
     COPY_FLAG(inspect, Py_InspectFlag);
@@ -1544,6 +1556,7 @@ _Py_COMP_DIAG_IGNORE_DEPR_DECLS
         }
 
     COPY_FLAG(isolated, Py_IsolatedFlag);
+    COPY_FLAG(lazy_imports, Py_LazyImportsFlag);
     COPY_NOT_FLAG(use_environment, Py_IgnoreEnvironmentFlag);
     COPY_FLAG(bytes_warning, Py_BytesWarningFlag);
     COPY_FLAG(inspect, Py_InspectFlag);
@@ -1653,6 +1666,7 @@ config_read_env_vars(PyConfig *config)
     _Py_get_env_flag(use_env, &config->verbose, "PYTHONVERBOSE");
     _Py_get_env_flag(use_env, &config->optimization_level, "PYTHONOPTIMIZE");
     _Py_get_env_flag(use_env, &config->inspect, "PYTHONINSPECT");
+    _Py_get_env_flag(use_env, &config->lazy_imports, "PYTHONLAZYIMPORTSALL");
 
     int dont_write_bytecode = 0;
     _Py_get_env_flag(use_env, &dont_write_bytecode, "PYTHONDONTWRITEBYTECODE");
@@ -2518,6 +2532,10 @@ config_parse_cmdline(PyConfig *config, PyWideStringList *warnoptions,
             config->verbose++;
             break;
 
+        case 'L':
+            config->lazy_imports = 1;
+            break;
+
         case 'x':
             config->skip_source_first_line = 1;
             break;
@@ -3164,6 +3182,7 @@ _Py_DumpPathConfig(PyThreadState *tstate)
     PySys_WriteStderr("  safe_path = %i\n", config->safe_path);
     PySys_WriteStderr("  import site = %i\n", config->site_import);
     PySys_WriteStderr("  is in build tree = %i\n", config->_is_python_build);
+    PySys_WriteStderr("  lazy imports = %i\n", config->lazy_imports);
     DUMP_CONFIG("stdlib dir", stdlib_dir);
 #undef DUMP_CONFIG
 

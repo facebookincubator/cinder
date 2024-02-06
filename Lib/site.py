@@ -183,7 +183,7 @@ def addpackage(sitedir, name, known_paths):
                 continue
             try:
                 if line.startswith(("import ", "import\t")):
-                    exec(line)
+                    exec(f"try:\n  {line}\nfinally:\n  pass")
                     continue
                 line = line.rstrip()
                 dir, dircase = makepath(sitedir, line)

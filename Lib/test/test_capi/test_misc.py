@@ -1511,6 +1511,11 @@ class TestPendingCalls(unittest.TestCase):
             import time
             import _testinternalcapi
             from test.support import threading_helper
+
+            # FIXME: To prevent threading._shutdown() from locking (locked _shutdown_locks)
+            # when using Lazy Imports, we need to eagerly import threading here.
+            # Possibly related to gh-105716.
+            threading
             """)
 
         def create_pipe():

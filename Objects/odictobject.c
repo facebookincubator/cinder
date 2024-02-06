@@ -40,12 +40,12 @@ we've considered:
 
 The approach with the least performance impact (time and space) is #2,
 mirroring the key order of dict's dk_entries with an array of node pointers.
-While _Py_dict_lookup() does not give us the index into the array,
+While _Py_dict_lookup_keep_lazy() does not give us the index into the array,
 we make use of pointer arithmetic to get that index.  An alternative would
-be to refactor _Py_dict_lookup() to provide the index, explicitly exposing
-the implementation detail.  We could even just use a custom lookup function
-for OrderedDict that facilitates our need.  However, both approaches are
-significantly more complicated than just using pointer arithmetic.
+be to refactor _Py_dict_lookup_keep_lazy() to provide the index, explicitly
+exposing the implementation detail.  We could even just use a custom lookup
+function for OrderedDict that facilitates our need.  However, both approaches
+are significantly more complicated than just using pointer arithmetic.
 
 The catch with mirroring the hash table ordering is that we have to keep
 the ordering in sync through any dict resizes.  However, that order only
@@ -467,7 +467,7 @@ later:
 #include "Python.h"
 #include "pycore_call.h"          // _PyObject_CallNoArgs()
 #include "pycore_object.h"        // _PyObject_GC_UNTRACK()
-#include "pycore_dict.h"          // _Py_dict_lookup()
+#include "pycore_dict.h"          // _Py_dict_lookup_keep_lazy()
 #include <stddef.h>               // offsetof()
 
 #include "clinic/odictobject.c.h"
@@ -533,7 +533,7 @@ _odict_get_index_raw(PyODictObject *od, PyObject *key, Py_hash_t hash)
     PyDictKeysObject *keys = ((PyDictObject *)od)->ma_keys;
     Py_ssize_t ix;
 
-    ix = _Py_dict_lookup((PyDictObject *)od, key, hash, &value);
+    ix = _Py_dict_lookup_keep_lazy((PyDictObject *)od, key, hash, &value);
     if (ix == DKIX_EMPTY) {
         return keys->dk_nentries;  /* index of new entry */
     }
