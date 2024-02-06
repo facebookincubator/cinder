@@ -89,3 +89,6 @@ test.test_doctest.test_pdb_set_trace
 test.test_doctest.test_pdb_set_trace_nested
 test.test_patma.TestTracing.*
 test.test_pstats.StatsTestCase.test_get_stats_profile
+
+# These are CinderX override test functions that should also be ignored based on the contents of this file.
+test_cinderx.test_cpython_overrides.test_trace.CinderX_TestLineCounts.test_trace_list_comprehension

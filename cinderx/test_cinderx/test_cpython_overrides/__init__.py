@@ -7,5 +7,6 @@ from .test_gdb import CinderX_DebuggerTests, CinderX_PrettyPrintTests
 from .test_generators import CinderX_GeneratorTest
 from .test_inspect import CinderX_TestSignatureBind
 from .test_repl import CinderX_TestInteractiveInterpreter
+from .test_trace import CinderX_TestLineCounts
 from .test_tracemalloc import CinderX_TestTracemallocEnabled
 from .test_types import CinderX_UnionTests
