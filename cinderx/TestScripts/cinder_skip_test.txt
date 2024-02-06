@@ -25,3 +25,7 @@ test.test_nntplib.NetworkedNNTP_SSLTests
 test.test_tracemalloc.TestTracemallocEnabled.test_get_traced_memory
 test.test_types.UnionTests.test_or_type_operator_reference_cycle
 test.test_trace.TestLineCounts.test_trace_list_comprehension
+test.test_dis.DisTests.test_bug_1333982
+test.test_dis.DisTests.test_disassemble_recursive
+test.test_dis.DisWithFileTests.test_bug_1333982
+test.test_dis.DisWithFileTests.test_disassemble_recursive
