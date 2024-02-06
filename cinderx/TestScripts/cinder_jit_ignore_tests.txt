@@ -75,9 +75,6 @@ test.test_generators.FinalizationTest.test_refcycle
 # in shadow-frame mode.
 test.test_io.*.test_reader_writer_close_error_on_close
 
-# The JIT does not eagerly execute coroutines.
-test.test_coroutines.CoroutineAwaiterTest.test_eager_await
-
 # The JIT does not support locals()
 test.test_unicode_identifiers.PEP3131Test.test_non_bmp_normalized
 
@@ -92,3 +89,4 @@ test.test_pstats.StatsTestCase.test_get_stats_profile
 
 # These are CinderX override test functions that should also be ignored based on the contents of this file.
 test_cinderx.test_cpython_overrides.test_trace.CinderX_TestLineCounts.test_trace_list_comprehension
+test_cinderx.test_coro_extensions.CoroutineAwaiterTest.test_eager_await
