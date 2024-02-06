@@ -5,6 +5,7 @@
 #include "Python.h"
 
 #include "cinderx/Jit/ref.h"
+#include "cinderx/Jit/threaded_compile.h"
 #include "cinderx/Jit/util.h"
 
 #include <unordered_map>
@@ -80,10 +81,9 @@ class GlobalCache {
       PyObject* new_value,
       std::vector<GlobalCache>& to_disable) const;
 
-  // Disable the cache by clearing out its value. Unsubscribing from any
-  // watched dicts is left to the caller since it can involve complicated
-  // dances with iterators.
-  void disable() const;
+  // Clear the cache's value. Unsubscribing from any watched dicts is left to
+  // the caller since it can involve complicated dances with iterators.
+  void clear();
 
   bool operator<(const GlobalCache& other) const {
     return pair_ < other.pair_;

@@ -242,8 +242,7 @@ _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
 }
 
 void Runtime::forgetLoadGlobalCache(GlobalCache cache) {
-  auto it = global_caches_.find(cache.key());
-  global_caches_.erase(it);
+  global_caches_.erase(cache.key());
 }
 
 std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {

@@ -3,7 +3,6 @@
 #include "cinderx/Jit/global_cache.h"
 
 #include "cinderx/Jit/dict_watch.h"
-#include "cinderx/Jit/runtime.h"
 
 namespace jit {
 
@@ -74,9 +73,8 @@ void GlobalCache::update(
   }
 }
 
-void GlobalCache::disable() const {
+void GlobalCache::clear() {
   *valuePtr() = nullptr;
-  jit::Runtime::get()->forgetLoadGlobalCache(*this);
 }
 
 } // namespace jit

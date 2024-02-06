@@ -22,11 +22,16 @@ std::unordered_map<
     std::unordered_map<PyObject*, std::set<GlobalCache>>>
     g_dict_watchers;
 
+void disableCache(GlobalCache cache) {
+  cache.clear();
+  jit::Runtime::get()->forgetLoadGlobalCache(cache);
+}
+
 void disableCaches(const std::vector<GlobalCache>& to_disable) {
   for (auto& cache : to_disable) {
     PyObject* name = cache.key().name;
     PyObject* dict = cache.key().globals;
-    cache.disable();
+    disableCache(cache);
     unwatchDictKey(dict, name, cache);
   }
 }
@@ -128,7 +133,7 @@ void notifyDictUnwatch(PyObject* dict) {
         }
       }
 
-      cache.disable();
+      disableCache(cache);
     }
   }
   g_dict_watchers.erase(dict_it);
