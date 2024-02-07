@@ -528,15 +528,6 @@ BasicBlock* HIRBuilder::getBlockAtOff(BCOffset off) {
   return it->second;
 }
 
-// Convenience wrapper, used only in tests
-std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func) {
-  JIT_CHECK(
-      !g_threaded_compile_context.compileRunning(),
-      "multi-thread compile must preload first");
-  std::unique_ptr<Preloader> preloader = Preloader::makePreloader(func);
-  return preloader ? buildHIR(*preloader) : nullptr;
-}
-
 std::unique_ptr<Function> buildHIR(const Preloader& preloader) {
   return HIRBuilder{preloader}.buildHIR();
 }

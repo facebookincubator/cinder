@@ -81,9 +81,6 @@ class BlockCanonicalizer {
   std::unordered_map<Register*, Register*> moved_;
 };
 
-// Convenience wrapper, used only in tests
-std::unique_ptr<Function> buildHIR(BorrowedRef<PyFunctionObject> func);
-
 // Translate the bytecode for preloader.code into HIR, in the context of the
 // preloaded globals and classloader lookups in the preloader.
 //

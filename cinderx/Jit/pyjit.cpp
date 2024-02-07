@@ -91,8 +91,6 @@ static UnitDeletedCallback handle_unit_deleted_during_preload = nullptr;
 // Every unit that is a code object has corresponding entry in jit_code_data.
 static std::unordered_map<BorrowedRef<PyCodeObject>, CodeData> jit_code_data;
 // Every unit has an entry in jit_preloaders during batch compile.
-using PreloaderMap = std::
-    unordered_map<BorrowedRef<PyCodeObject>, std::unique_ptr<hir::Preloader>>;
 static PreloaderMap jit_preloaders;
 
 namespace jit {
@@ -100,6 +98,10 @@ namespace jit {
 static hir::Preloader* ensurePreloader(BorrowedRef<> unit) {
   std::unique_ptr<hir::Preloader> preloader;
   BorrowedRef<PyCodeObject> code;
+  hir::Preloader* res = lookupPreloader(unit);
+  if (res) {
+    return res;
+  }
   if (PyFunction_Check(unit)) {
     BorrowedRef<PyFunctionObject> func{unit};
     preloader = hir::Preloader::makePreloader(func);
@@ -115,8 +117,10 @@ static hir::Preloader* ensurePreloader(BorrowedRef<> unit) {
         code, data.builtins, data.globals, codeFullname(data.module, code));
   }
   if (preloader) {
-    hir::Preloader* res = preloader.get();
-    jit_preloaders.emplace(code, std::move(preloader));
+    res = preloader.get();
+    JIT_CHECK(
+        jit_preloaders.emplace(code, std::move(preloader)).second,
+        "created a duplicate preloader");
     return res;
   }
   return nullptr;
@@ -1713,20 +1717,25 @@ static bool shouldCompile(
       (g_jit_list->lookupName(module_name, code->co_qualname) == 1));
 }
 
-// preload func and any static-invoke targets, then compile func
-static _PyJIT_Result compile_func(BorrowedRef<PyFunctionObject> func) {
-  // we may get called from within preloading a batch compile (if preloading
-  // triggers calls to jitable functions), so we have to isolate our use of
-  // jit_preloaders map
-  PreloaderMap orig_preloaders;
-  // we should not, however, ever be called from within the actual
-  // multi-threaded-compile portion of a batch compile, and if we were it
-  // wouldn't be safe to mess with `jit_preloaders`
+namespace jit {
+
+IsolatedPreloaders::IsolatedPreloaders() {
+  // we should never be called from within the actual multi-threaded-compile;
+  // it's not safe to mess with `jit_preloaders` in that context
   JIT_CHECK(
       !g_threaded_compile_context.compileRunning(),
-      "cannot call compile_func from within multi-threaded compile");
-  orig_preloaders.swap(jit_preloaders);
-  SCOPE_EXIT(jit_preloaders.swap(orig_preloaders));
+      "cannot preload single func from within multi-threaded compile");
+  orig_preloaders_.swap(jit_preloaders);
+}
+
+IsolatedPreloaders::~IsolatedPreloaders() {
+  JIT_CHECK(
+      !g_threaded_compile_context.compileRunning(),
+      "cannot preload single func from within multi-threaded compile");
+  jit_preloaders.swap(orig_preloaders_);
+}
+
+bool preloadFuncAndDeps(BorrowedRef<PyFunctionObject> func) {
   std::vector<BorrowedRef<PyFunctionObject>> worklist;
   worklist.push_back(func);
   while (worklist.size() > 0) {
@@ -1734,7 +1743,7 @@ static _PyJIT_Result compile_func(BorrowedRef<PyFunctionObject> func) {
     worklist.pop_back();
     hir::Preloader* preloader = ensurePreloader(f);
     if (!preloader) {
-      return PYJIT_RESULT_PYTHON_EXCEPTION;
+      return false;
     }
     for (const auto& [descr, target] : preloader->invokeFunctionTargets()) {
       if (target->is_function && target->is_statically_typed &&
@@ -1742,9 +1751,30 @@ static _PyJIT_Result compile_func(BorrowedRef<PyFunctionObject> func) {
         worklist.push_back(target->func());
       }
     }
+    for (const auto& [idx, name] : preloader->globalNames()) {
+      BorrowedRef<> obj = preloader->global(idx);
+      if (!obj || !PyFunction_Check(obj)) {
+        continue;
+      }
+      BorrowedRef<PyFunctionObject> func =
+          reinterpret_cast<PyFunctionObject*>(obj.get());
+      if (!isPreloaded(func) && shouldCompile(func)) {
+        worklist.push_back(func);
+      }
+    }
   }
-  _PyJIT_Result res = tryCompilePreloaded(func);
-  return res;
+  return true;
+}
+
+} // namespace jit
+
+// preload func and dependencies, then compile func
+static _PyJIT_Result compile_func(BorrowedRef<PyFunctionObject> func) {
+  // isolate preloaders state since batch preloading might trigger a call to a
+  // jitable function, resulting in a single-function compile
+  IsolatedPreloaders ip;
+  return preloadFuncAndDeps(func) ? tryCompilePreloaded(func)
+                                  : PYJIT_RESULT_PYTHON_EXCEPTION;
 }
 
 // Call posix.register_at_fork(None, None, cinderjit.after_fork_child), if it

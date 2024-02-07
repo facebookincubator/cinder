@@ -21,6 +21,7 @@ Type prim_type_to_type(int prim_type);
 
 using PyTypeOpt = std::tuple<Ref<PyTypeObject>, bool, bool>;
 using ArgToType = std::map<long, Type>;
+using GlobalNamesMap = std::unordered_map<int, BorrowedRef<>>;
 
 struct FieldInfo {
   Py_ssize_t offset;
@@ -124,6 +125,10 @@ class Preloader {
     return func_targets_;
   }
 
+  const GlobalNamesMap& globalNames() const {
+    return global_names_;
+  }
+
   // get the type from argument check info for the given locals index, or
   // TObject
   Type checkArgType(long local_idx) const;
@@ -200,7 +205,7 @@ class Preloader {
   std::unordered_map<long, Type> check_arg_types_;
   std::map<long, PyTypeOpt> check_arg_pytypes_;
   // keyed by name index, names borrowed from code object
-  std::unordered_map<int, BorrowedRef<>> global_names_;
+  GlobalNamesMap global_names_;
   Type return_type_{TObject};
   bool has_primitive_args_{false};
   bool has_primitive_first_arg_{false};

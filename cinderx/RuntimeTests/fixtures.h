@@ -46,9 +46,11 @@ class RuntimeTest : public ::testing::Test {
       globals_ = MakeGlobals();
     }
     ASSERT_NE(globals_, nullptr);
+    isolated_preloaders_.emplace();
   }
 
   void TearDown() override {
+    isolated_preloaders_.reset();
     if (setUpJit()) {
       jit::getMutableConfig().force_init = false;
     }
@@ -200,6 +202,9 @@ class RuntimeTest : public ::testing::Test {
     return false;
   }
 
+  std::unique_ptr<jit::hir::Function> buildHIR(
+      BorrowedRef<PyFunctionObject> func);
+
   // Out param is a limitation of googletest.
   // See https://fburl.com/z3fzhl9p for more details.
   void CompileToHIR(
@@ -209,7 +214,7 @@ class RuntimeTest : public ::testing::Test {
     Ref<PyFunctionObject> func(compileAndGet(src, func_name));
     ASSERT_NE(func.get(), nullptr) << "failed creating function";
 
-    irfunc = jit::hir::buildHIR(func);
+    irfunc = buildHIR(func);
     ASSERT_NE(irfunc, nullptr) << "failed constructing HIR";
   }
 
@@ -220,7 +225,7 @@ class RuntimeTest : public ::testing::Test {
     Ref<PyFunctionObject> func(compileStaticAndGet(src, func_name));
     ASSERT_NE(func.get(), nullptr) << "failed creating function";
 
-    irfunc = jit::hir::buildHIR(func);
+    irfunc = buildHIR(func);
     ASSERT_NE(irfunc, nullptr) << "failed constructing HIR";
   }
 
@@ -229,6 +234,7 @@ class RuntimeTest : public ::testing::Test {
 
  private:
   Ref<> globals_;
+  std::optional<jit::IsolatedPreloaders> isolated_preloaders_;
 };
 
 class HIRTest : public RuntimeTest {

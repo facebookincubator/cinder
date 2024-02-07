@@ -317,6 +317,32 @@ hir::Preloader* lookupPreloader(BorrowedRef<> unit);
  */
 bool isPreloaded(BorrowedRef<> unit);
 
+/*
+ * Preload given function and its compilation dependencies.
+ *
+ * Dependencies are functions that this function statically invokes (so we want
+ * to ensure they are compiled first so we can emit a direct x64 call), and any
+ * functions we can detect that this function may call, so they can potentially
+ * be inlined. Exposed for test use.
+ *
+ */
+bool preloadFuncAndDeps(BorrowedRef<PyFunctionObject> func);
+
+using PreloaderMap = std::
+    unordered_map<BorrowedRef<PyCodeObject>, std::unique_ptr<hir::Preloader>>;
+
+/*
+ * RAII device for isolating preloaders state. Exposed for test use.
+ */
+class IsolatedPreloaders {
+ public:
+  IsolatedPreloaders();
+  ~IsolatedPreloaders();
+
+ private:
+  PreloaderMap orig_preloaders_;
+};
+
 } // namespace jit
 #endif
 

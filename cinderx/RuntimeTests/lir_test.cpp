@@ -43,7 +43,7 @@ class LIRGeneratorTest : public RuntimeTest {
       return nullptr;
     }
 
-    std::unique_ptr<jit::hir::Function> irfunc(jit::hir::buildHIR(func));
+    std::unique_ptr<jit::hir::Function> irfunc(buildHIR(func));
     if (irfunc == nullptr) {
       return nullptr;
     }

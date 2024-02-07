@@ -895,13 +895,6 @@ static bool canInline(
         inline_failure_stats, InlineFailureType::kNeedsRuntimeAccess, fullname);
     return false;
   }
-  if (g_threaded_compile_context.compileRunning() && !isPreloaded(func)) {
-    dlogAndCollectFailureStats(
-        inline_failure_stats,
-        InlineFailureType::kMultithreadedCompileNeedsPreload,
-        fullname);
-    return false;
-  }
   return true;
 }
 
@@ -965,28 +958,18 @@ void inlineFunctionCall(Function& caller, AbstractCall* call_instr) {
   auto caller_frame_state =
       std::make_unique<FrameState>(*call_instr->instr->frameState());
 
-  // Multi-threaded compilation uses a pre-existing preloader, but
-  // single-threaded compilation has to try to make a preloader on the fly.
-  Preloader* preloader = nullptr;
-  std::unique_ptr<Preloader> new_preloader;
-
-  if (g_threaded_compile_context.compileRunning()) {
-    preloader = lookupPreloader(func);
-    JIT_CHECK(
-        preloader != nullptr,
-        "Preloader not found after verifying function is preloaded");
-  } else {
-    new_preloader = Preloader::makePreloader(func);
-    preloader = new_preloader.get();
-    // TODO(T175945252): Failing to preload implies a Python exception was
-    // generated, and that's not being handled here.
-    if (preloader == nullptr) {
-      JIT_DLOG(
-          "Cannot inline {} into {} because preloading failed",
-          fullname,
-          caller.fullname);
-      return;
-    }
+  // We are only able to inline functions that were already preloaded, since we
+  // can't safely preload anything mid-compile (preloading can execute arbitrary
+  // Python code and raise Python exceptions). Currently this means that in
+  // single-function-compile mode we are limited to inlining functions loaded as
+  // globals, or statically invoked. See `preloadFuncAndDeps` for what
+  // dependencies we will preload. In batch-compile mode we can inline anything
+  // that is part of the batch.
+  Preloader* preloader = lookupPreloader(func);
+  if (!preloader) {
+    dlogAndCollectFailureStats(
+        inline_failure_stats, InlineFailureType::kNeedsPreload, fullname);
+    return;
   }
 
   if (!canInlineWithPreloader(

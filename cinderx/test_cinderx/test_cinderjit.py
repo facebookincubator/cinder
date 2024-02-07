@@ -334,6 +334,37 @@ class InlinedFunctionTests(unittest.TestCase):
         )
         self.assertEqual(func_that_change_defaults(), 9)
 
+    def test_error_preloading_inlined(self):
+        root = Path(
+            os.path.join(os.path.dirname(__file__), "data/error_preloading_inlined")
+        )
+        for (lazy_imports, jit) in itertools.product(
+            [True, False],
+            [True, False] if cinder_support.CINDERJIT_ENABLED else [False],
+        ):
+            with self.subTest(lazy_imports=lazy_imports, jit=jit):
+                cmd = [sys.executable]
+                if jit:
+                    cmd.extend(
+                        [
+                            "-X",
+                            f"jit-list-file={root / 'jitlist.txt'}",
+                            "-X",
+                            "jit-enable-hir-inliner",
+                        ]
+                    )
+                if lazy_imports:
+                    cmd.append("-L")
+                cmd.append(str(root / "main.py"))
+                proc = subprocess.run(cmd, cwd=root, capture_output=True)
+                # We expect an exception, but not a crash!
+                self.assertEqual(proc.returncode, 1, proc.stderr)
+                self.assertEqual(
+                    proc.stderr.decode().splitlines()[-1],
+                    "RuntimeError: boom",
+                    proc.stderr,
+                )
+
 
 class InlineCacheStatsTests(unittest.TestCase):
     @jit_suppress

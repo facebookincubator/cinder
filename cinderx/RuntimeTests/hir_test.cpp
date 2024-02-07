@@ -16,6 +16,7 @@
 #include "cinderx/RuntimeTests/fixtures.h"
 #include "cinderx/RuntimeTests/testutil.h"
 
+using namespace jit;
 using namespace jit::hir;
 
 TEST(BasicBlockTest, CanAppendInstrs) {

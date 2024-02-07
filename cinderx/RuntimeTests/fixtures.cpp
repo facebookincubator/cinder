@@ -23,6 +23,16 @@ void RuntimeTest::runAndProfileCode(const char* src) {
   }
 }
 
+std::unique_ptr<jit::hir::Function> RuntimeTest::buildHIR(
+    BorrowedRef<PyFunctionObject> func) {
+  if (!jit::preloadFuncAndDeps(func)) {
+    return nullptr;
+  }
+  jit::hir::Preloader* preloader = jit::lookupPreloader(func);
+  JIT_CHECK(preloader != nullptr, "Failed to find just-created preloader");
+  return jit::hir::buildHIR(*preloader);
+}
+
 void HIRTest::TestBody() {
   using namespace jit::hir;
 
@@ -37,7 +47,7 @@ void HIRTest::TestBody() {
   if (use_profile_data_) {
     ASSERT_NO_FATAL_FAILURE(runAndProfileCode(src_.c_str()));
     Ref<PyFunctionObject> func = getGlobal("test");
-    irfunc = jit::hir::buildHIR(func);
+    irfunc = buildHIR(func);
   } else if (src_is_hir_) {
     irfunc = HIRParser{}.ParseHIR(src_.c_str());
     ASSERT_FALSE(passes_.empty())

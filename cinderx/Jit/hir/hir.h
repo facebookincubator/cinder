@@ -4453,8 +4453,7 @@ bool usesRuntimeFunc(BorrowedRef<PyCodeObject> code);
   V(HasCellvars, "it has cellvars")                                        \
   V(HasFreevars, "it has freevars")                                        \
   V(NeedsRuntimeAccess, "it needs runtime access to its PyFunctionObject") \
-  V(MultithreadedCompileNeedsPreload,                                      \
-    "multithreaded compile is enabled and the function is not preloaded")  \
+  V(NeedsPreload, "the function is not preloaded")                         \
   V(IsVectorCallWithPrimitives,                                            \
     "it is a vectorcalled static function with pimitive args")             \
   V(GlobalsNotDict, "globals is not a dict")                               \
