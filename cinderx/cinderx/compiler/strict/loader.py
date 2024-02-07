@@ -37,7 +37,7 @@ try:  # ensure all imports in this module are eager, to avoid cycles
     )
 
     # pyre-ignore[21]: typeshed doesn't know about _RAW_MAGIC_NUMBER
-    from importlib.util import _RAW_MAGIC_NUMBER, cache_from_source
+    from importlib.util import _RAW_MAGIC_NUMBER, cache_from_source, MAGIC_NUMBER
     from os import getenv, makedirs
     from os.path import dirname, isdir
     from py_compile import (
@@ -61,14 +61,18 @@ try:  # ensure all imports in this module are eager, to avoid cycles
     from cinderx.static import install_sp_audit_hook
 
     from ..consts import CO_STATICALLY_COMPILED
-    from .common import DEFAULT_STUB_PATH, FIXED_MODULES, MAGIC_NUMBER
+    from .common import (
+        DEFAULT_STUB_PATH,
+        FIXED_MODULES,
+        MAGIC_NUMBER as STRICT_MAGIC_NUMBER,
+    )
     from .compiler import Compiler, TIMING_LOGGER_TYPE
     from .flag_extractor import Flags
 except:
     raise
 
 
-_MAGIC_STRICT_OR_STATIC: bytes = (MAGIC_NUMBER + 2**15).to_bytes(
+_MAGIC_STRICT_OR_STATIC: bytes = (STRICT_MAGIC_NUMBER + 2**15).to_bytes(
     2, "little"
 ) + b"\r\n"
 # We don't actually need to increment anything here, because the strict modules
@@ -191,9 +195,37 @@ class StrictModuleTestingPatchProxy:
 __builtins__: ModuleType
 
 
-def _code_to_timestamp_pyc(code: CodeType, mtime: int = 0, source_size: int = 0) -> bytearray:
-    "Produce the data for a timestamp-based pyc."
-    data = bytearray(MAGIC_NUMBER)
+class StrictBytecodeError(ImportError):
+    pass
+
+
+def classify_strict_pyc(
+    data: bytes, name: str, exc_details: dict[str, str]
+) -> tuple[int, bool]:
+    # pyre-ignore[16]: typeshed doesn't know about this
+    flags = _classify_pyc(data[4:], name, exc_details)
+    magic = data[:_MAGIC_LEN]
+    if magic == _MAGIC_NEITHER_STRICT_NOR_STATIC:
+        strict_or_static = False
+    elif magic == _MAGIC_STRICT_OR_STATIC:
+        strict_or_static = True
+    else:
+        raise StrictBytecodeError(
+            f"Bad magic number {magic!r} in {exc_details['path']}"
+        )
+    return (flags, strict_or_static)
+
+
+def code_to_strict_timestamp_pyc(
+    code: CodeType, strict_or_static: bool, mtime: int = 0, source_size: int = 0
+) -> bytearray:
+    "Produce the data for a strict timestamp-based pyc."
+    data = bytearray(
+        _MAGIC_STRICT_OR_STATIC
+        if strict_or_static
+        else _MAGIC_NEITHER_STRICT_NOR_STATIC
+    )
+    data.extend(MAGIC_NUMBER)
     # pyre-ignore[16]: typeshed doesn't know about this
     data.extend(_pack_uint32(0))
     # pyre-ignore[16]: typeshed doesn't know about this
@@ -204,9 +236,16 @@ def _code_to_timestamp_pyc(code: CodeType, mtime: int = 0, source_size: int = 0)
     return data
 
 
-def _code_to_hash_pyc(code: CodeType, source_hash: bytes, checked: bool = True) -> bytearray:
-    "Produce the data for a hash-based pyc."
-    data = bytearray(MAGIC_NUMBER)
+def code_to_strict_hash_pyc(
+    code: CodeType, strict_or_static: bool, source_hash: bytes, checked: bool = True
+) -> bytearray:
+    "Produce the data for a strict hash-based pyc."
+    data = bytearray(
+        _MAGIC_STRICT_OR_STATIC
+        if strict_or_static
+        else _MAGIC_NEITHER_STRICT_NOR_STATIC
+    )
+    data.extend(MAGIC_NUMBER)
     flags = 0b1 | checked << 1
     # pyre-ignore[16]: typeshed doesn't know about this
     data.extend(_pack_uint32(flags))
@@ -290,43 +329,6 @@ class StrictSourceFileLoader(SourceFileLoader):
             )
         return comp
 
-    def get_data(self, path: bytes | str) -> bytes:
-        assert isinstance(path, str)
-        is_pyc = False
-        if path.endswith(tuple(BYTECODE_SUFFIXES)):
-            is_pyc = True
-            path = add_strict_tag(path, self.enable_patching)
-            self.bytecode_path = path
-        data = super().get_data(path)
-        if is_pyc:
-            self.bytecode_found = True
-            magic = data[:_MAGIC_LEN]
-            if magic == _MAGIC_NEITHER_STRICT_NOR_STATIC:
-                self.strict_or_static = False
-            elif magic == _MAGIC_STRICT_OR_STATIC:
-                self.strict_or_static = True
-            else:
-                # This is a bit ugly: OSError is the only kind of error that
-                # get_code() ignores from get_data(). But this is way better
-                # than the alternative of copying and modifying everything.
-                raise OSError(f"Bad magic number {data[:4]!r} in {path}")
-            data = data[_MAGIC_LEN:]
-        return data
-
-    # pyre-fixme[14]: `set_data` overrides method defined in `SourceFileLoader`
-    #  inconsistently.
-    def set_data(self, path: bytes | str, data: bytes, *, _mode=0o666) -> None:
-        assert isinstance(path, str)
-        if path.endswith(tuple(BYTECODE_SUFFIXES)):
-            path = add_strict_tag(path, self.enable_patching)
-            magic = (
-                _MAGIC_STRICT_OR_STATIC
-                if self.strict_or_static
-                else _MAGIC_NEITHER_STRICT_NOR_STATIC
-            )
-            data = magic + data
-        return super().set_data(path, data, _mode=_mode)
-
     def get_code(self, fullname: str) -> CodeType:
         source_path = self.get_filename(fullname)
         source_mtime = None
@@ -339,31 +341,37 @@ class StrictSourceFileLoader(SourceFileLoader):
         except NotImplementedError:
             bytecode_path = None
         else:
+            bytecode_path = self.bytecode_path = add_strict_tag(
+                bytecode_path, self.enable_patching
+            )
             try:
                 st = self.path_stats(source_path)
             except OSError:
                 pass
             else:
-                source_mtime = int(st['mtime'])
+                source_mtime = int(st["mtime"])
                 try:
                     data = self.get_data(bytecode_path)
                 except OSError:
                     pass
                 else:
+                    self.bytecode_found = True
                     exc_details = {
-                        'name': fullname,
-                        'path': bytecode_path,
+                        "name": fullname,
+                        "path": bytecode_path,
                     }
                     try:
-                        # pyre-ignore[16]: typeshed doesn't know about this
-                        flags = _classify_pyc(data, fullname, exc_details)
-                        bytes_data = memoryview(data)[16:]
+                        flags, strict_or_static = classify_strict_pyc(
+                            data, fullname, exc_details
+                        )
+                        self.strict_or_static = strict_or_static
+                        bytes_data = memoryview(data)[20:]
                         hash_based = flags & 0b1 != 0
                         if hash_based:
                             check_source = flags & 0b10 != 0
-                            if (_imp.check_hash_based_pycs != 'never' and
-                                (check_source or
-                                 _imp.check_hash_based_pycs == 'always')):
+                            if _imp.check_hash_based_pycs != "never" and (
+                                check_source or _imp.check_hash_based_pycs == "always"
+                            ):
                                 source_bytes = self.get_data(source_path)
                                 source_hash = _imp.source_hash(
                                     # pyre-ignore[16]: typeshed doesn't know about this
@@ -371,14 +379,15 @@ class StrictSourceFileLoader(SourceFileLoader):
                                     source_bytes,
                                 )
                                 # pyre-ignore[16]: typeshed doesn't know about this
-                                _validate_hash_pyc(data, source_hash, fullname,
-                                                   exc_details)
+                                _validate_hash_pyc(
+                                    data, source_hash, fullname, exc_details
+                                )
                         else:
                             # pyre-ignore[16]: typeshed doesn't know about this
                             _validate_timestamp_pyc(
                                 data,
                                 source_mtime,
-                                st['size'],
+                                st["size"],
                                 fullname,
                                 exc_details,
                             )
@@ -386,27 +395,37 @@ class StrictSourceFileLoader(SourceFileLoader):
                         pass
                     else:
                         # pyre-ignore[16]: typeshed doesn't know about this
-                        _bootstrap._verbose_message('{} matches {}', bytecode_path,
-                                                    source_path)
+                        _bootstrap._verbose_message(
+                            "{} matches {}", bytecode_path, source_path
+                        )
                         # pyre-ignore[16]: typeshed doesn't know about this
-                        return _compile_bytecode(bytes_data, name=fullname,
-                                                 bytecode_path=bytecode_path,
-                                                 source_path=source_path)
+                        return _compile_bytecode(
+                            bytes_data,
+                            name=fullname,
+                            bytecode_path=bytecode_path,
+                            source_path=source_path,
+                        )
         if source_bytes is None:
             source_bytes = self.get_data(source_path)
         code_object = self.source_to_code(source_bytes, source_path)
         # pyre-ignore[16]: typeshed doesn't know about this
-        _bootstrap._verbose_message('code object from {}', source_path)
-        if (not sys.dont_write_bytecode and bytecode_path is not None and
-                source_mtime is not None):
+        _bootstrap._verbose_message("code object from {}", source_path)
+        if (
+            not sys.dont_write_bytecode
+            and bytecode_path is not None
+            and source_mtime is not None
+        ):
             if hash_based:
                 if source_hash is None:
                     # pyre-ignore[16]: typeshed doesn't know about _RAW_MAGIC_NUMBER
                     source_hash = _imp.source_hash(_RAW_MAGIC_NUMBER, source_bytes)
-                data = _code_to_hash_pyc(code_object, source_hash, check_source)
+                data = code_to_strict_hash_pyc(
+                    code_object, self.strict_or_static, source_hash, check_source
+                )
             else:
-                data = _code_to_timestamp_pyc(code_object, source_mtime,
-                                              len(source_bytes))
+                data = code_to_strict_timestamp_pyc(
+                    code_object, self.strict_or_static, source_mtime, len(source_bytes)
+                )
             try:
                 # pyre-ignore[16]: typeshed doesn't know about this
                 self._cache_bytecode(source_path, bytecode_path, data)
@@ -572,7 +591,6 @@ def strict_compile(
     This version does not support cfile=None, since compileall never passes that.
 
     """
-
     modname = file
     for dir in sys.path:
         if file.startswith(dir):
@@ -589,13 +607,14 @@ def strict_compile(
     if loader_options is None:
         loader_options = {}
 
-    # TODO we ignore loader_override; this module should be ported to Cinder
+    # TODO we ignore loader_override
     loader = StrictSourceFileLoader(
         modname,
         file,
         import_path=sys.path,
         **loader_options,
     )
+    cfile = add_strict_tag(cfile, enable_patching=loader.enable_patching)
     source_bytes = loader.get_data(file)
     try:
         code = loader.source_to_code(source_bytes, dfile or file, _optimize=optimize)
@@ -630,8 +649,7 @@ def strict_compile(
             (invalidation_mode == PycInvalidationMode.CHECKED_HASH),
         )
 
-    # Incomplete typeshed stub.
-    # pyre-fixme[16]: `StrictSourceFileLoader` has no attribute `_cache_bytecode`.
+    # pyre-ignore[16]: typeshed doesn't know about this
     loader._cache_bytecode(file, cfile, bytecode)
     return cfile
 
