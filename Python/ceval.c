@@ -2305,11 +2305,8 @@ PyObject *
 _PyEval_GetBuiltin(PyObject *name)
 {
     PyThreadState *tstate = _PyThreadState_GET();
-    PyObject *attr = PyDict_GetItemWithError(PyEval_GetBuiltins(), name);
-    if (attr) {
-        Py_INCREF(attr);
-    }
-    else if (!_PyErr_Occurred(tstate)) {
+    PyObject *attr = PyObject_GetItem(PyEval_GetBuiltins(), name);
+    if (attr == NULL && _PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
         _PyErr_SetObject(tstate, PyExc_AttributeError, name);
     }
     return attr;

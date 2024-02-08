@@ -79,6 +79,7 @@ Lib/keyword.py                                      linguist-generated=true diff
 Lib/test/levenshtein_examples.json                  linguist-generated=true diff=generated
 Lib/test/test_stable_abi_ctypes.py                  linguist-generated=true diff=generated
 Lib/token.py                                        linguist-generated=true diff=generated
+Misc/sbom.spdx.json                                 linguist-generated=true diff=generated
 Objects/typeslots.inc                               linguist-generated=true diff=generated
 PC/python3dll.c                                     linguist-generated=true diff=generated
 Parser/parser.c                                     linguist-generated=true diff=generated

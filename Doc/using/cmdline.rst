@@ -374,7 +374,7 @@ Miscellaneous options
 
    Hash randomization is intended to provide protection against a
    denial-of-service caused by carefully chosen inputs that exploit the worst
-   case performance of a dict construction, O(n\ :sup:`2`) complexity.  See
+   case performance of a dict construction, *O*\ (*n*\ :sup:`2`) complexity.  See
    http://ocert.org/advisories/ocert-2011-003.html for details.
 
    :envvar:`PYTHONHASHSEED` allows you to set a fixed value for the hash
@@ -582,9 +582,7 @@ Miscellaneous options
 
    .. versionadded:: 3.10
       The ``-X warn_default_encoding`` option.
-
-   .. deprecated-removed:: 3.9 3.10
-      The ``-X oldparser`` option.
+      Removed the ``-X oldparser`` option.
 
    .. versionadded:: 3.11
       The ``-X no_debug_ranges`` option.

@@ -212,11 +212,11 @@ test_dict_inner(int count)
     for (i = 0; i < count; i++) {
         v = PyLong_FromLong(i);
         if (v == NULL) {
-            return -1;
+            goto error;
         }
         if (PyDict_SetItem(dict, v, v) < 0) {
             Py_DECREF(v);
-            return -1;
+            goto error;
         }
         Py_DECREF(v);
     }
@@ -230,11 +230,12 @@ test_dict_inner(int count)
         assert(v != UNINITIALIZED_PTR);
         i = PyLong_AS_LONG(v) + 1;
         o = PyLong_FromLong(i);
-        if (o == NULL)
-            return -1;
+        if (o == NULL) {
+            goto error;
+        }
         if (PyDict_SetItem(dict, k, o) < 0) {
             Py_DECREF(o);
-            return -1;
+            goto error;
         }
         Py_DECREF(o);
         k = v = UNINITIALIZED_PTR;
@@ -252,6 +253,9 @@ test_dict_inner(int count)
     } else {
         return 0;
     }
+error:
+    Py_DECREF(dict);
+    return -1;
 }
 
 
@@ -1700,7 +1704,9 @@ test_structseq_newtype_doesnt_leak(PyObject *Py_UNUSED(self),
     descr.n_in_sequence = 1;
 
     PyTypeObject* structseq_type = PyStructSequence_NewType(&descr);
-    assert(structseq_type != NULL);
+    if (structseq_type == NULL) {
+        return NULL;
+    }
     assert(PyType_Check(structseq_type));
     assert(PyType_FastSubclass(structseq_type, Py_TPFLAGS_TUPLE_SUBCLASS));
     Py_DECREF(structseq_type);
@@ -2524,6 +2530,32 @@ type_get_version(PyObject *self, PyObject *type)
     return res;
 }
 
+static PyObject *
+type_modified(PyObject *self, PyObject *type)
+{
+    if (!PyType_Check(type)) {
+        PyErr_SetString(PyExc_TypeError, "argument must be a type");
+        return NULL;
+    }
+    PyType_Modified((PyTypeObject *)type);
+    Py_RETURN_NONE;
+}
+
+// Circumvents standard version assignment machinery - use with caution and only on
+// short-lived heap types
+static PyObject *
+type_assign_specific_version_unsafe(PyObject *self, PyObject *args)
+{
+    PyTypeObject *type;
+    unsigned int version;
+    if (!PyArg_ParseTuple(args, "Oi:type_assign_specific_version_unsafe", &type, &version)) {
+        return NULL;
+    }
+    assert(!PyType_HasFeature(type, Py_TPFLAGS_IMMUTABLETYPE));
+    type->tp_version_tag = version;
+    type->tp_flags |= Py_TPFLAGS_VALID_VERSION_TAG;
+    Py_RETURN_NONE;
+}
 
 static PyObject *
 type_assign_version(PyObject *self, PyObject *type)
@@ -3351,6 +3383,9 @@ static PyMethodDef TestMethods[] = {
     {"test_py_is_macros", test_py_is_macros, METH_NOARGS},
     {"test_py_is_funcs", test_py_is_funcs, METH_NOARGS},
     {"type_get_version", type_get_version, METH_O, PyDoc_STR("type->tp_version_tag")},
+    {"type_modified", type_modified, METH_O, PyDoc_STR("PyType_Modified")},
+    {"type_assign_specific_version_unsafe", type_assign_specific_version_unsafe, METH_VARARGS,
+     PyDoc_STR("forcefully assign type->tp_version_tag")},
     {"type_assign_version", type_assign_version, METH_O, PyDoc_STR("PyUnstable_Type_AssignVersionTag")},
     {"type_get_tp_bases", type_get_tp_bases, METH_O},
     {"type_get_tp_mro", type_get_tp_mro, METH_O},

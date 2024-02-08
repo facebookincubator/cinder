@@ -2995,15 +2995,16 @@ _PyImport_ImportName(PyThreadState *tstate, PyObject *builtins, PyObject *global
     PyObject *import_func, *res;
     PyObject* stack[5];
 
-    import_func = _PyDict_GetItemWithError(builtins, &_Py_ID(__import__));
+    import_func = PyObject_GetItem(builtins, &_Py_ID(__import__));
     if (import_func == NULL) {
-        if (!_PyErr_Occurred(tstate)) {
+        if (_PyErr_ExceptionMatches(tstate, PyExc_KeyError)) {
             _PyErr_SetString(tstate, PyExc_ImportError, "__import__ not found");
         }
         return NULL;
     }
     /* Fast path for not overloaded __import__. */
     if (_PyImport_IsDefaultImportFunc(tstate->interp, import_func)) {
+        Py_DECREF(import_func);
         int ilevel = _PyLong_AsInt(level);
         if (ilevel == -1 && _PyErr_Occurred(tstate)) {
             return NULL;
@@ -3015,8 +3016,6 @@ _PyImport_ImportName(PyThreadState *tstate, PyObject *builtins, PyObject *global
                                                ilevel);
         return res;
     }
-
-    Py_INCREF(import_func);
 
     stack[0] = name;
     stack[1] = globals;
@@ -4106,7 +4105,7 @@ _imp_get_frozen_object_impl(PyObject *module, PyObject *name,
     struct frozen_info info = {0};
     Py_buffer buf = {0};
     if (PyObject_CheckBuffer(dataobj)) {
-        if (PyObject_GetBuffer(dataobj, &buf, PyBUF_READ) != 0) {
+        if (PyObject_GetBuffer(dataobj, &buf, PyBUF_SIMPLE) != 0) {
             return NULL;
         }
         info.data = (const char *)buf.buf;

@@ -15,6 +15,7 @@ import unittest
 import unittest.mock
 import tarfile
 
+from test import archiver_tests
 from test import support
 from test.support import os_helper
 from test.support import script_helper
@@ -3429,7 +3430,7 @@ class TestExtractionFilters(unittest.TestCase):
         path = pathlib.Path(os.path.normpath(self.destdir / name))
         self.assertIn(path, self.expected_paths)
         self.expected_paths.remove(path)
-        if mode is not None and os_helper.can_chmod():
+        if mode is not None and os_helper.can_chmod() and os.name != 'nt':
             got = stat.filemode(stat.S_IMODE(path.stat().st_mode))
             self.assertEqual(got, mode)
         if type is None and isinstance(name, str) and name.endswith('/'):
@@ -4087,6 +4088,38 @@ class TestExtractionFilters(unittest.TestCase):
 
         with self.check_context(arc.open(errorlevel='boo!'), filtererror_filter):
             self.expect_exception(TypeError)  # errorlevel is not int
+
+
+class OverwriteTests(archiver_tests.OverwriteTests, unittest.TestCase):
+    testdir = os.path.join(TEMPDIR, "testoverwrite")
+
+    @classmethod
+    def setUpClass(cls):
+        p = cls.ar_with_file = os.path.join(TEMPDIR, 'tar-with-file.tar')
+        cls.addClassCleanup(os_helper.unlink, p)
+        with tarfile.open(p, 'w') as tar:
+            t = tarfile.TarInfo('test')
+            t.size = 10
+            tar.addfile(t, io.BytesIO(b'newcontent'))
+
+        p = cls.ar_with_dir = os.path.join(TEMPDIR, 'tar-with-dir.tar')
+        cls.addClassCleanup(os_helper.unlink, p)
+        with tarfile.open(p, 'w') as tar:
+            tar.addfile(tar.gettarinfo(os.curdir, 'test'))
+
+        p = os.path.join(TEMPDIR, 'tar-with-implicit-dir.tar')
+        cls.ar_with_implicit_dir = p
+        cls.addClassCleanup(os_helper.unlink, p)
+        with tarfile.open(p, 'w') as tar:
+            t = tarfile.TarInfo('test/file')
+            t.size = 10
+            tar.addfile(t, io.BytesIO(b'newcontent'))
+
+    def open(self, path):
+        return tarfile.open(path, 'r')
+
+    def extractall(self, ar):
+        ar.extractall(self.testdir, filter='fully_trusted')
 
 
 def setUpModule():
