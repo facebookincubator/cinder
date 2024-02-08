@@ -662,7 +662,7 @@ class Instr {
     setBytecodeOffset(instr.bytecodeOffset());
   }
 
-  int lineNumber() const {
+  virtual int lineNumber() const {
     PyCodeObject* code = this->code();
     if (code == nullptr) {
       return -1;
@@ -2166,6 +2166,14 @@ class INSTR_CLASS(BeginInlinedFunction, (), Operands<0>), public InlineBase {
 
   BorrowedRef<PyCodeObject> code() const {
     return code_.get();
+  }
+
+  // we have the bytecode offset from the caller, so we need to use the caller
+  // code object to find the line number
+  int lineNumber() const {
+    PyCodeObject* code = caller_state_->code;
+    return code == nullptr ? -1
+                           : PyCode_Addr2Line(code, bytecodeOffset().value());
   }
 
   std::string fullname() const {
