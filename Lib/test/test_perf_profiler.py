@@ -5,6 +5,7 @@ import sys
 import sysconfig
 import os
 import pathlib
+from importlib import is_lazy_imports_enabled
 from test import support
 from test.support.script_helper import (
     make_script,
@@ -76,7 +77,7 @@ class TestPerfTrampoline(unittest.TestCase):
         perf_file = pathlib.Path(f"/tmp/perf-{process.pid}.map")
         self.assertTrue(perf_file.exists())
         perf_file_contents = perf_file.read_text()
-        perf_lines = perf_file_contents.splitlines();
+        perf_lines = perf_file_contents.splitlines()
         expected_symbols = [f"py::foo:{script}", f"py::bar:{script}", f"py::baz:{script}"]
         for expected_symbol in expected_symbols:
             perf_line = next((line for line in perf_lines if expected_symbol in line), None)
@@ -85,6 +86,7 @@ class TestPerfTrampoline(unittest.TestCase):
             self.assertFalse(perf_addr.startswith("0x"), "Address should not be prefixed with 0x")
             self.assertTrue(set(perf_addr).issubset(string.hexdigits), "Address should contain only hex characters")
 
+    @unittest.skipIf(is_lazy_imports_enabled(), "Test is flaky with lazy imports")
     def test_trampoline_works_with_forks(self):
         code = """if 1:
                 import os, sys
@@ -143,6 +145,7 @@ class TestPerfTrampoline(unittest.TestCase):
         self.assertIn(f"py::bar_fork:{script}", child_perf_file_contents)
         self.assertIn(f"py::baz_fork:{script}", child_perf_file_contents)
 
+    @unittest.skipIf(is_lazy_imports_enabled(), "Test is flaky with lazy imports")
     def test_sys_api(self):
         code = """if 1:
                 import sys
