@@ -6,7 +6,7 @@ try:  # ensure all imports in this module are eager, to avoid cycles
     import _imp
     import builtins
 
-    import importlib._bootstrap_external
+    import importlib
     import marshal
     import os
     import sys
@@ -36,8 +36,7 @@ try:  # ensure all imports in this module are eager, to avoid cycles
         SourcelessFileLoader,
     )
 
-    # pyre-ignore[21]: typeshed doesn't know about _RAW_MAGIC_NUMBER
-    from importlib.util import _RAW_MAGIC_NUMBER, cache_from_source, MAGIC_NUMBER
+    from importlib.util import cache_from_source, MAGIC_NUMBER
     from os import getenv, makedirs
     from os.path import dirname, isdir
     from py_compile import (
@@ -373,11 +372,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                                 check_source or _imp.check_hash_based_pycs == "always"
                             ):
                                 source_bytes = self.get_data(source_path)
-                                source_hash = _imp.source_hash(
-                                    # pyre-ignore[16]: typeshed doesn't know about this
-                                    _RAW_MAGIC_NUMBER,
-                                    source_bytes,
-                                )
+                                source_hash = importlib.util.source_hash(source_bytes)
                                 # pyre-ignore[16]: typeshed doesn't know about this
                                 _validate_hash_pyc(
                                     data[_MAGIC_LEN:],
@@ -420,10 +415,14 @@ class StrictSourceFileLoader(SourceFileLoader):
         ):
             if hash_based:
                 if source_hash is None:
-                    # pyre-ignore[16]: typeshed doesn't know about _RAW_MAGIC_NUMBER
-                    source_hash = _imp.source_hash(_RAW_MAGIC_NUMBER, source_bytes)
+                    source_hash = importlib.util.source_hash(source_bytes)
                 data = code_to_strict_hash_pyc(
-                    code_object, self.strict_or_static, source_hash, check_source
+                    code_object,
+                    self.strict_or_static,
+                    # pyre-ignore[6]: bad typeshed stub for importlib.util.source_hash
+                    # pyre-ignore[6]: For 3rd argument expected `bytes` but got `int`.
+                    source_hash,
+                    check_source,
                 )
             else:
                 data = code_to_strict_timestamp_pyc(
@@ -632,9 +631,7 @@ def strict_compile(
 
     makedirs(dirname(cfile), exist_ok=True)
 
-    # Incomplete typeshed stub.  T54150924
     if invalidation_mode is None:
-        # Incomplete typeshed stub.  T54150924
         invalidation_mode = _get_default_invalidation_mode()
     if invalidation_mode == PycInvalidationMode.TIMESTAMP:
         source_stats = loader.path_stats(file)
@@ -642,7 +639,6 @@ def strict_compile(
             code, loader.strict_or_static, source_stats["mtime"], source_stats["size"]
         )
     else:
-        # Incomplete typeshed stub.  T54150924
         source_hash = importlib.util.source_hash(source_bytes)
         bytecode = code_to_strict_hash_pyc(
             code,
