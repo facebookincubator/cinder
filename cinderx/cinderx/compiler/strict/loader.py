@@ -638,16 +638,17 @@ def strict_compile(
         invalidation_mode = _get_default_invalidation_mode()
     if invalidation_mode == PycInvalidationMode.TIMESTAMP:
         source_stats = loader.path_stats(file)
-        # pyre-fixme[16]: Module `importlib` has no attribute `_bootstrap_external`.
-        bytecode = importlib._bootstrap_external._code_to_timestamp_pyc(
-            code, source_stats["mtime"], source_stats["size"]
+        bytecode = code_to_strict_timestamp_pyc(
+            code, loader.strict_or_static, source_stats["mtime"], source_stats["size"]
         )
     else:
         # Incomplete typeshed stub.  T54150924
         source_hash = importlib.util.source_hash(source_bytes)
-        # pyre-fixme[16]: Module `importlib` has no attribute `_bootstrap_external`.
-        bytecode = importlib._bootstrap_external._code_to_hash_pyc(
+        bytecode = code_to_strict_hash_pyc(
             code,
+            loader.strict_or_static,
+            # pyre-ignore[6]: bad typeshed stub for importlib.util.source_hash
+            # pyre-ignore[6]: For 3rd argument expected `bytes` but got `int`.
             source_hash,
             (invalidation_mode == PycInvalidationMode.CHECKED_HASH),
         )

@@ -14,6 +14,7 @@ import textwrap
 from cinder import cinder_set_warn_handler, get_warn_handler, StrictModule
 from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
+from importlib.util import cache_from_source
 from os import path
 from types import ModuleType
 from typing import (
@@ -39,6 +40,7 @@ from cinderx.compiler.strict.loader import (
     _MAGIC_NEITHER_STRICT_NOR_STATIC,
     _MAGIC_STRICT_OR_STATIC,
     install,
+    strict_compile,
     StrictModule,
     StrictModuleTestingPatchProxy,
     StrictSourceFileLoader,
@@ -298,6 +300,19 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(type(mod1), StrictModule)
         self.assertEqual(type(mod2), StrictModule)
 
+    def test_strict_compile(self) -> None:
+        self.sbx.write_file("a.py", "import __strict__\nx = 2")
+        fn = str(self.sbx.root / "a.py")
+        strict_compile(fn, cache_from_source(fn))
+
+        # patch source_to_code on the loader to ensure we are loading from pyc
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ):
+            mod = self.sbx.strict_import("a")
+
+        self.assertEqual(type(mod), StrictModule)
+
     def test_cached_attr(self) -> None:
         """__cached__ attribute of a strict or non-strict module is correct."""
         self.sbx.write_file("strict.py", "import __strict__\nx = 2")
@@ -340,8 +355,6 @@ class StrictLoaderTest(StrictTestBase):
         self.assertTrue(os.path.exists(mod4.__cached__))
 
     def test_builtins_modified(self) -> None:
-        """__cached__ attribute of a strict or non-strict module is correct."""
-
         self.sbx.write_file(
             "strict.py", "import __strict__\nfrom dependency import abc"
         )
@@ -357,7 +370,7 @@ class StrictLoaderTest(StrictTestBase):
             mod1 = self.sbx.import_modules("strict")
 
     def test_magic_number(self) -> None:
-        """Extra magic number is written to pycs, and validated."""
+        """Extra magic number is written to strict pycs, and validated."""
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
         mod = self.sbx.strict_import("a")
 
@@ -376,7 +389,7 @@ class StrictLoaderTest(StrictTestBase):
             self.assertEqual(fh.read(_MAGIC_LEN), _MAGIC_STRICT_OR_STATIC)
 
     def test_magic_number_non_strict(self) -> None:
-        """Extra magic number is written to pycs, and validated."""
+        """Extra magic number is written to non-strict pycs, and validated."""
         self.sbx.write_file("a.py", "x=2")
         mod = self.sbx.strict_import("a")
 
