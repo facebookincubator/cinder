@@ -203,7 +203,7 @@ def classify_strict_pyc(
     data: bytes, name: str, exc_details: dict[str, str]
 ) -> tuple[int, bool]:
     # pyre-ignore[16]: typeshed doesn't know about this
-    flags = _classify_pyc(data[4:], name, exc_details)
+    flags = _classify_pyc(data[_MAGIC_LEN:], name, exc_details)
     magic = data[:_MAGIC_LEN]
     if magic == _MAGIC_NEITHER_STRICT_NOR_STATIC:
         strict_or_static = False
@@ -380,12 +380,15 @@ class StrictSourceFileLoader(SourceFileLoader):
                                 )
                                 # pyre-ignore[16]: typeshed doesn't know about this
                                 _validate_hash_pyc(
-                                    data, source_hash, fullname, exc_details
+                                    data[_MAGIC_LEN:],
+                                    source_hash,
+                                    fullname,
+                                    exc_details,
                                 )
                         else:
                             # pyre-ignore[16]: typeshed doesn't know about this
                             _validate_timestamp_pyc(
-                                data,
+                                data[_MAGIC_LEN:],
                                 source_mtime,
                                 st["size"],
                                 fullname,

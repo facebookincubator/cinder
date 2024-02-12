@@ -289,7 +289,11 @@ class StrictLoaderTest(StrictTestBase):
         """Second import of unmodified strict module (from pyc) is still strict."""
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
         mod1 = self.sbx.strict_import("a")
-        mod2 = self.sbx.strict_import("a")
+        # patch source_to_code on the loader to ensure we are loading from pyc
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ):
+            mod2 = self.sbx.strict_import("a")
 
         self.assertEqual(type(mod1), StrictModule)
         self.assertEqual(type(mod2), StrictModule)
