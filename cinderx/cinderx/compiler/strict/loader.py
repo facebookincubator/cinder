@@ -255,7 +255,6 @@ def code_to_strict_hash_pyc(
 
 
 class StrictSourceFileLoader(SourceFileLoader):
-    strict_or_static: bool = False
     compiler: Optional[Compiler] = None
     module: Optional[ModuleType] = None
 
@@ -303,6 +302,8 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.init_cached_properties = init_cached_properties
         self.log_time_func = log_time_func
         self.use_py_compiler = use_py_compiler
+        self.strict_or_static: bool = False
+        self.is_static: bool = False
 
     @classmethod
     def ensure_compiler(
@@ -412,6 +413,9 @@ class StrictSourceFileLoader(SourceFileLoader):
             not sys.dont_write_bytecode
             and bytecode_path is not None
             and source_mtime is not None
+            # TODO(T88560840) don't write pycs for static modules for now, to
+            # work around lack of proper invalidation
+            and not self.is_static
         ):
             if hash_based:
                 if source_hash is None:
@@ -488,6 +492,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                 override_flags=Flags(is_strict=force),
             )
             self.strict_or_static = is_valid_strict or is_static
+            self.is_static = is_static
             assert code is not None
             return code
 

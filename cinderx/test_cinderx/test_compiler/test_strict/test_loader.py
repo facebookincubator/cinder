@@ -300,6 +300,14 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(type(mod1), StrictModule)
         self.assertEqual(type(mod2), StrictModule)
 
+    def test_static_writes_no_pyc(self) -> None:
+        # Temporary workaround for T88560840, remove when we fix pyc invalidation
+        self.sbx.write_file("a.py", "import __static__\nx = 2")
+        self.sbx.strict_import("a")
+        pycs = list(self.sbx.root.rglob("*.pyc"))
+
+        self.assertEqual(len(pycs), 0, pycs)
+
     def test_strict_compile(self) -> None:
         self.sbx.write_file("a.py", "import __strict__\nx = 2")
         fn = str(self.sbx.root / "a.py")
