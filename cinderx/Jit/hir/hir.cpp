@@ -2,7 +2,6 @@
 
 #include "cinderx/Jit/hir/hir.h"
 
-#include "cinderx/Jit/hir/printer.h"
 #include "cinderx/Jit/log.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/ref.h"
@@ -885,16 +884,6 @@ void Function::setCode(BorrowedRef<PyCodeObject> code) {
   this->code.reset(code);
   uses_runtime_func = usesRuntimeFunc(code);
   frameMode = getConfig().frame_mode;
-}
-
-void Function::Print() const {
-  HIRPrinter printer;
-  printer.Print(*this);
-}
-
-void BasicBlock::Print() const {
-  HIRPrinter printer;
-  printer.Print(*this);
 }
 
 std::size_t Function::CountInstrs(InstrPredicate pred) const {

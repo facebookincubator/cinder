@@ -4207,8 +4207,6 @@ class BasicBlock {
   // A trampoline block consists of a single direct jump to another block
   bool IsTrampoline();
 
-  void Print() const;
-
   // Call f with each Phi instruction at the beginning of this block.
   template <typename F>
   void forEachPhi(F f) {
@@ -4536,8 +4534,6 @@ class Function {
 
   // Set code and a number of other members that are derived from it.
   void setCode(BorrowedRef<PyCodeObject> code);
-
-  void Print() const;
 
   // Count the number of instructions that match the predicate
   std::size_t CountInstrs(InstrPredicate pred) const;
