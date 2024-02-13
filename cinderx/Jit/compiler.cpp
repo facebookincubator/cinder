@@ -22,8 +22,6 @@
 
 namespace jit {
 
-ThreadedCompileContext g_threaded_compile_context;
-
 void CompiledFunction::disassemble() const {
   JIT_ABORT("disassemble() cannot be called in a release build.");
 }

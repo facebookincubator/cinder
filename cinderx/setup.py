@@ -86,6 +86,7 @@ JIT_SRCS = [
     "Jit/runtime.cpp",
     "Jit/runtime_support.cpp",
     "Jit/symbolizer.cpp",
+    "Jit/threaded_compile.cpp",
     "Jit/type_deopt_patchers.cpp",
     "Jit/type_profiler.cpp",
     "Jit/util.cpp",
