@@ -2,8 +2,8 @@
 
 #include "cinderx/Jit/hir/type.h"
 
-#include "cinderx/Jit/hir/hir.h"
 #include "cinderx/Jit/log.h"
+#include "cinderx/StaticPython/classloader.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -245,15 +245,6 @@ static auto typeToName() {
   return map;
 }
 
-static auto nameToType() {
-  std::unordered_map<std::string_view, Type> map{
-#define TY(name, ...) {#name, T##name},
-      HIR_TYPES(TY)
-#undef TY
-  };
-  return map;
-}
-
 // Return a list of pairs of predefined type bit patterns and their name, used
 // to create string representations of nontrivial union types.
 static auto makeSortedBits() {
@@ -347,88 +338,6 @@ std::string Type::toString() const {
   }
 
   return hasSpec() ? fmt::format("{}[{}]", base, specString()) : base;
-}
-
-Type Type::parse(Environment* env, std::string_view str) {
-  static auto const name_types = nameToType();
-
-  std::string_view spec_string;
-  auto open_bracket = str.find('[');
-  if (open_bracket != std::string::npos) {
-    auto close_bracket = str.find(']');
-    auto spec_len = close_bracket - (open_bracket + 1);
-    if (close_bracket == std::string::npos || spec_len < 1) {
-      return TBottom;
-    }
-    spec_string = str.substr(open_bracket + 1, spec_len);
-    str = str.substr(0, open_bracket);
-  }
-
-  auto it = name_types.find(str);
-  if (it == name_types.end()) {
-    return TBottom;
-  }
-
-  Type base = it->second;
-  if (spec_string.empty()) {
-    return base;
-  }
-
-  if (base <= TCBool) {
-    if (spec_string == "true") {
-      return Type::fromCBool(true);
-    }
-    if (spec_string == "false") {
-      return Type::fromCBool(false);
-    }
-    return TBottom;
-  }
-
-  if (base <= TBool) {
-    if (spec_string == "True") {
-      return Type::fromObject(Py_True);
-    }
-    if (spec_string == "False") {
-      return Type::fromObject(Py_False);
-    }
-    return TBottom;
-  }
-
-  if (base <= TLong) {
-    JIT_CHECK(
-        Py_IsInitialized(),
-        "Python runtime must be initialized for the HIR parser to parse "
-        "PyObject*s (can't parse '{}')",
-        str);
-    JIT_CHECK(
-        env != nullptr,
-        "HIR Environment must be initialized for the HIR parser to allocate "
-        "PyObject*s (can't parse '{}')",
-        str);
-    auto spec_value = parseInt<intptr_t>(spec_string);
-    if (!spec_value.has_value()) {
-      return TBottom;
-    }
-
-    auto result = Ref<>::steal(PyLong_FromLong(*spec_value));
-    return Type::fromObject(env->addReference(std::move(result)));
-  }
-
-  std::optional<intptr_t> spec_value;
-  if (base <= TCInt8 || base <= TCInt16 || base <= TCInt32 || base <= TCInt64) {
-    spec_value = parseInt<intptr_t>(spec_string);
-  } else if (
-      base <= TCUInt8 || base <= TCUInt16 || base <= TCUInt32 ||
-      base <= TCUInt64) {
-    spec_value = parseInt<intptr_t>(spec_string);
-  } else {
-    return TBottom;
-  }
-
-  if (!spec_value.has_value()) {
-    return TBottom;
-  }
-  return Type{base.bits_, kLifetimeBottom, SpecKind::kSpecInt, *spec_value};
 }
 
 Type Type::fromTypeImpl(PyTypeObject* type, bool exact) {

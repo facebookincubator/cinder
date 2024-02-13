@@ -24,8 +24,6 @@
 
 namespace jit::hir {
 
-class Environment;
-
 class Type {
  public:
   using bits_t = uint64_t;
@@ -48,10 +46,6 @@ class Type {
 
   std::size_t hash() const;
   std::string toString() const;
-
-  // Parse a Type from the given string. Unions and PyObject* specializations
-  // are not supported. Returns TBottom on error.
-  static Type parse(Environment* env, std::string_view str);
 
   // Create a Type from a PyTypeObject, optionally flagged as not allowing
   // subtypes. The resulting Type is not guaranteed to be specialized (for
@@ -179,6 +173,10 @@ class Type {
   Type& operator-=(Type other);
 
  private:
+  // HIRParser needs to be able to construct Type objects and then add them to
+  // an Environment.
+  friend class HIRParser;
+
   // Validity and kind of specialization. Note that this is a regular enum
   // rather than a bitset, so the bit values of each kind aren't important.
   enum SpecKind : bits_t {

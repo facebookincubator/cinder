@@ -19,6 +19,11 @@ class HIRParser {
  public:
   std::unique_ptr<Function> ParseHIR(const char* hir);
 
+  // Parse a Type from the given string. Unions and PyObject* specializations
+  // are not supported. Returns TBottom on error. Note that TBottom can also be
+  // returned from a successful parsing of "Bottom".
+  Type parseType(std::string_view str);
+
  private:
   enum class ListOrTuple {
     List,

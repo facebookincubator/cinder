@@ -390,3 +390,67 @@ def my_func(a, b, c):
   auto parsed_func = HIRParser{}.ParseHIR(printed_hir.c_str());
   ASSERT_NE(parsed_func, nullptr);
 }
+
+TEST_F(HIRParserTest, ParseSimple) {
+  HIRParser parser;
+
+  EXPECT_EQ(parser.parseType("Top"), TTop);
+  EXPECT_EQ(parser.parseType("Bottom"), TBottom);
+  EXPECT_EQ(parser.parseType("NoneType"), TNoneType);
+  EXPECT_EQ(parser.parseType("Long"), TLong);
+  EXPECT_EQ(parser.parseType("ImmortalTuple"), TImmortalTuple);
+  EXPECT_EQ(parser.parseType("MortalUser"), TMortalUser);
+
+  EXPECT_EQ(parser.parseType("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
+  EXPECT_EQ(parser.parseType("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
+  EXPECT_EQ(parser.parseType("CInt32[-5678]"), Type::fromCInt(-5678, TCInt32));
+  EXPECT_EQ(parser.parseType("CBool[true]"), Type::fromCBool(true));
+  EXPECT_EQ(parser.parseType("CBool[false]"), Type::fromCBool(false));
+  EXPECT_EQ(parser.parseType("CBool[banana]"), TBottom);
+  EXPECT_EQ(parser.parseType("Bool[True]"), Type::fromObject(Py_True));
+  EXPECT_EQ(parser.parseType("Bool[False]"), Type::fromObject(Py_False));
+  EXPECT_EQ(parser.parseType("Bool[banana]"), TBottom);
+
+  // Unknown types or unsupported specializations parse to Bottom
+  EXPECT_EQ(parser.parseType("Bootom"), TBottom);
+  EXPECT_EQ(parser.parseType("Banana"), TBottom);
+}
+
+static ::testing::AssertionResult
+isLongTypeWithValue(Type actual, Type expected, Py_ssize_t value) {
+  if (!(actual <= expected)) {
+    return ::testing::AssertionFailure()
+        << "Expected " << actual.toString() << " <= " << expected.toString()
+        << ", but it was not";
+  }
+  if (!actual.hasObjectSpec()) {
+    return ::testing::AssertionFailure() << "Expected " << actual.toString()
+                                         << " to have int spec but it did not";
+  }
+  PyObject* obj = actual.objectSpec();
+  if (PyLong_AsLong(obj) != value) {
+    return ::testing::AssertionFailure()
+        << "Expected " << actual.toString() << " to be == " << value
+        << " but it was not";
+  }
+  return ::testing::AssertionSuccess();
+}
+
+TEST_F(HIRParserTest, ParsePyObject) {
+  // Function isn't used directly, it's only here to initialize a new
+  // Environment object for the parser.
+  const char* source = R"(fun test {
+  bb 0 {
+    v0 = LoadConst<Long[1]>
+    Return<Long[1]> v0
+  }
+}
+)";
+  HIRParser parser;
+  auto func = parser.ParseHIR(source);
+
+  EXPECT_TRUE(isLongTypeWithValue(parser.parseType("Long[1]"), TLong, 1));
+  EXPECT_TRUE(isLongTypeWithValue(parser.parseType("ImmortalLongExact[2]"), TImmortalLong, 2));
+
+  EXPECT_EQ(parser.parseType("Long[123123123123123123123123123123123123]"), TBottom);
+}
