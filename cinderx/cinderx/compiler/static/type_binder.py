@@ -1777,11 +1777,18 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             elif not terminates:
                 # Merge end of orelse with end of if
                 branch.merge(if_end)
-        elif terminates:
-            effect.reverse(self.type_state)
         else:
-            # Merge end of if w/ opening (with test effect reversed)
-            branch.merge(effect.reverse(branch.entry_type_state))
+            match terminates:
+                case TerminalKind.NonTerminal:
+                    # Merge end of if w/ opening (with test effect reversed)
+                    effect.reverse(branch.entry_type_state)
+                    branch.merge()
+                case TerminalKind.BreakOrContinue:
+                    branch.merge()
+                    effect.reverse(self.type_state)
+                case TerminalKind.RaiseOrReturn:
+                    branch.restore()
+                    effect.reverse(self.type_state)
 
     def visitTry(self, node: Try) -> None:
         # There's a bit of a subtlety here: When executing each exception handler,

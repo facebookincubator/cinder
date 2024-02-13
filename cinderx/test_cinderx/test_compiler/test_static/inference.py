@@ -274,6 +274,17 @@ class InferenceTests(StaticTestBase):
         """
         self.type_error(codestr, r"Literal\[3\] cannot be assigned to str", at="x = 3")
 
+    def test_does_not_narrow_if_body(self) -> None:
+        codestr = """
+            def f(flag: bool):
+                x: int | None = None
+                if flag:
+                    x = 1
+                    return
+                reveal_type(x)
+        """
+        self.revealed_type(codestr, "Exact[None]")
+
     def test_try_except_both_terminal(self) -> None:
         codestr = """
             def f(x: int | None):
