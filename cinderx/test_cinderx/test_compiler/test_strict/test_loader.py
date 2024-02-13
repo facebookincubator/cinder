@@ -2405,38 +2405,6 @@ class StrictLoaderTest(StrictTestBase):
         )
         self.assertIn("StrictModuleError", output)
 
-    def test_strict_loader_legacy_import_shim(self) -> None:
-        # TODO T172781923 delete this test when we remove the compat import shim
-        self.sbx.write_file(
-            "main.py",
-            """
-            from compiler.strict.loader import install as legacy_install
-            legacy_install()
-            import staticmod
-            import dis
-            dis.dis(staticmod.f)
-            from cinderx.compiler.strict.loader import install
-            assert legacy_install is install
-            """,
-        )
-        self.sbx.write_file(
-            "staticmod.py",
-            """
-            import __static__
-            def g() -> int:
-                return 1
-            def f() -> int:
-                return g()
-            """,
-        )
-        proc = subprocess.run(
-            [sys.executable, "main.py"],
-            cwd=str(self.sbx.root),
-            capture_output=True,
-        )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn(b"INVOKE_FUNCTION", proc.stdout)
-
     def test_strict_loader_stub_path(self) -> None:
         self.sbx.write_file(
             "a.py",
