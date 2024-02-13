@@ -71,7 +71,6 @@ class ModuleTableException(Exception):
 class ReferenceVisitor(GenericVisitor[Optional[Value]]):
     def __init__(self, module: ModuleTable) -> None:
         super().__init__(module)
-        self.types: Dict[AST, Value] = {}
         self.subscr_nesting = 0
         self.local_names: Dict[str, Value] = {}
 
