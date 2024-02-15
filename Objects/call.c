@@ -243,7 +243,7 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
     memcpy(&func, (char *) callable + offset, sizeof(func));
     if (func == NULL) {
         _PyErr_Format(tstate, PyExc_TypeError,
-                      "'%.200s' object does not support vectorcall",
+                      "'%.200s' instance does not support vectorcall",
                       Py_TYPE(callable)->tp_name);
         return NULL;
     }
@@ -283,15 +283,15 @@ Ci_PyVectorcall_Call_WithFlags(PyObject *callable, PyObject *tuple, PyObject *kw
     Py_ssize_t offset = Py_TYPE(callable)->tp_vectorcall_offset;
     if (offset <= 0) {
         _PyErr_Format(tstate, PyExc_TypeError,
-                      "'%.200s' object does not support vectorcall",
-                      Py_TYPE(callable)->tp_name);
+                      "'%.200s' object does not support vectorcall (%d)",
+                      Py_TYPE(callable)->tp_name, flags);
         return NULL;
     }
     memcpy(&func, (char *) callable + offset, sizeof(func));
     if (func == NULL) {
         _PyErr_Format(tstate, PyExc_TypeError,
-                      "'%.200s' object does not support vectorcall",
-                      Py_TYPE(callable)->tp_name);
+                      "'%.200s' instance does not support vectorcall (%d)",
+                      Py_TYPE(callable)->tp_name, flags);
         return NULL;
     }
 
