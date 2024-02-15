@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Fragment>
         <PackageGroup Id="postinstall">
-            <MsiPackage Id="path_AllUsers"
+            <!-- <MsiPackage Id="path_AllUsers"
                         SourceFile="path.msi"
                         Compressed="$(var.CompressMSI)"
                         DownloadUrl="$(var.DownloadUrl)"
@@ -38,10 +38,10 @@
                         InstallCondition="not InstallAllUsers and AppendPath and not LauncherOnly">
                 <MsiProperty Name="TARGETDIR" Value="[TargetDir]" />
                 <MsiProperty Name="OPTIONALFEATURESREGISTRYKEY" Value="[OptionalFeaturesRegistryKey]" />
-            </MsiPackage>
+            </MsiPackage> -->
 
 
-            
+
             <?define CompileAllCommand=-E -s -Wi "[TargetDir]\Lib\compileall.py" -f -x "bad_coding|badsyntax|site-packages|py2_|lib2to3\\tests|venv\\scripts" "[TargetDir]\Lib"?>
             <ExePackage Id="compileall_AllUsers"
                         SourceFile="py.exe"

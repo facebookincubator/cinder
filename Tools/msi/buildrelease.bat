@@ -27,8 +27,8 @@ rem     {version}       version number      3.5.0
 rem     {arch}          architecture        amd64, win32
 rem     {releasename}   release name        a1, b2, rc3 (or blank for final)
 rem     {msi}           MSI filename        core.msi
-set DOWNLOAD_URL=""
-set DOWNLOAD_URL_BASE=""
+set DOWNLOAD_URL=
+set DOWNLOAD_URL_BASE=
 
 set D=%~dp0
 set PCBUILD=%D%..\..\PCbuild\

@@ -15,7 +15,7 @@
             <ComponentRef Id="OptionalFeature" />
         </Feature>
 
-        <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
+        <!-- <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
             <ComponentGroupRef Id="exe_python" />
             <Component Id="exe_shortcut" Directory="MenuDir" Guid="*">
                 <Shortcut Id="python.exe"
@@ -28,6 +28,6 @@
                     <RegistryValue Key="InstalledFeatures" Name="Shortcuts" Type="string" Value="$(var.Version)" />
                 </RegistryKey>
             </Component>
-        </Feature>
+        </Feature> -->
     </Product>
 </Wix>

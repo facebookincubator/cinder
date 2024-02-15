@@ -3,19 +3,19 @@
     <Product Id="*" Language="!(loc.LCID)" Name="!(loc.Title)" Version="$(var.Version)" Manufacturer="!(loc.Manufacturer)" UpgradeCode="$(var.UpgradeCode)">
         <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" />
         <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
-        
+
         <PropertyRef Id="DetectTargetDir" />
         <PropertyRef Id="UpgradeTable" />
         <PropertyRef Id="REGISTRYKEY" />
-        
+
         <Feature Id="DefaultFeature" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
             <ComponentGroupRef Id="doc_html" Primary="yes" />
             <ComponentRef Id="OptionalFeature" />
 
             <Component Id="doc_reg" Directory="Doc" Guid="*">
-                <RegistryKey Root="HKMU" Key="[REGISTRYKEY]">                                                 
+                <RegistryKey Root="HKMU" Key="[REGISTRYKEY]">
                     <RegistryValue Key="Help\Main Python Documentation" Type="string" Value="[#Doc_html_index.html]" KeyPath="yes" />
-                </RegistryKey>                                                                                
+                </RegistryKey>
             </Component>
 
             <Component Id="doc_folder" Directory="Doc" Guid="{22FD42DB-EC66-4B1C-B1FC-44E0CF7B2462}">
@@ -23,9 +23,9 @@
                 <RemoveFolder Id="Remove_doc_folder" On="uninstall" />
             </Component>
         </Feature>
-        <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
+        <!-- <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
             <ComponentGroupRef Id="doc_html" />
-            
+
             <Component Id="doc_shortcut" Directory="MenuDir" Guid="*">
                 <RegistryKey Root="HKMU" Key="[OPTIONALFEATURESREGISTRYKEY]">
                     <RegistryValue Name="$(var.OptionalFeatureName)_shortcut" Type="string" Value="$(var.Version)" KeyPath="yes" />
@@ -38,6 +38,6 @@
                           Show="maximized" />
                 <RemoveFolder Id="Remove_MenuDir" On="uninstall" />
             </Component>
-        </Feature>
+        </Feature> -->
     </Product>
 </Wix>

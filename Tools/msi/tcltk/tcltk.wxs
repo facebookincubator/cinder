@@ -3,23 +3,23 @@
     <Product Id="*" Language="!(loc.LCID)" Name="!(loc.Title)" Version="$(var.Version)" Manufacturer="!(loc.Manufacturer)" UpgradeCode="$(var.UpgradeCode)">
         <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" />
         <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
-        
+
         <PropertyRef Id="DetectTargetDir" />
         <PropertyRef Id="UpgradeTable" />
         <PropertyRef Id="REGISTRYKEY" />
-        
+
         <Property Id="PYTHON_EXE" Secure="yes">
             <ComponentSearch Id="PythonExe" Guid="$(var.PythonExeComponentGuid)">
                 <FileSearch Name="python.exe" />
             </ComponentSearch>
         </Property>
-        
+
         <Property Id="PYTHONW_EXE" Secure="yes">
             <ComponentSearch Id="PythonwExe" Guid="$(var.PythonwExeComponentGuid)">
                 <FileSearch Name="pythonw.exe" />
             </ComponentSearch>
         </Property>
-        
+
         <Condition Message="!(loc.NoPython)">PYTHON_EXE and PYTHONW_EXE</Condition>
 
         <Feature Id="DefaultFeature" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
@@ -27,7 +27,7 @@
             <ComponentGroupRef Id="tcltk_dlls" />
             <ComponentGroupRef Id="tcltk_lib" />
             <ComponentGroupRef Id="tkinter_lib" Primary="yes" />
-            
+
             <Component Id="idle_reg" Directory="InstallDirectory">
                 <RegistryValue KeyPath="yes" Root="HKMU" Key="[REGISTRYKEY]\Idle" Type="string" Value="[#Lib_idlelib_idle.pyw]" />
             </Component>
@@ -37,9 +37,9 @@
             <ComponentGroupRef Id="tkinter_lib" />
             <ComponentGroupRef Id="idle_reg" />
         </Feature>
-        <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
+        <!-- <Feature Id="Shortcuts" AllowAdvertise="no" Title="!(loc.Title)" Description="!(loc.Description)">
             <ComponentGroupRef Id="tkinter_lib" />
-            
+
             <Component Id="idle_shortcut" Directory="MenuDir">
                 <RegistryValue Root="HKMU" Key="[REGISTRYKEY]\IdleShortcuts" Type="integer" Value="1" KeyPath="yes" />
                 <RemoveFolder Id="Remove_MenuDir" On="uninstall" />
@@ -62,6 +62,6 @@
                           Icon="idle.exe"
                           WorkingDirectory="InstallDirectory" />
             </Component>
-        </Feature>
+        </Feature> -->
     </Product>
 </Wix>

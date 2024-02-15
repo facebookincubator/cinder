@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Fragment>
-        <Property Id="ROOTREGISTRYKEY" Value="Software\Python\PythonCore" />
+        <Property Id="ROOTREGISTRYKEY" Value="Software\Python\MetaCorp" />
     </Fragment>
 
     <Fragment>
-        <Property Id="REGISTRYKEY" Value="Software\Python\PythonCore\$(var.ShortVersion)+meta$(var.PyArchExt)$(var.PyTestExt)" />
+        <Property Id="REGISTRYKEY" Value="Software\Python\MetaCorp\$(var.ShortVersion)+meta$(var.PyArchExt)$(var.PyTestExt)" />
     </Fragment>
 
     <Fragment>
