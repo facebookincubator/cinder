@@ -34,6 +34,7 @@ from ast import (
     JoinedStr,
     Lambda,
     ListComp,
+    Match,
     Module,
     Name,
     NameConstant,
@@ -205,7 +206,7 @@ class LocalsBranch:
 
     def restore(self, state: Optional[TypeState] = None) -> None:
         """Restore the locals to the state when we entered"""
-        self.scope.type_state = state or self.entry_type_state
+        self.scope.type_state = state or self.entry_type_state.copy()
 
     def merge(self, entry_type_state: Optional[TypeState] = None) -> None:
         """Merge the entry type state, or a specific copy, into the current type state"""
@@ -1994,6 +1995,25 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.visit(node.items)
         for stmt in node.body:
             self.visit(stmt)
+
+    def visitMatch(self, node: Match) -> None:
+        self.set_node_data(node, PreserveRefinedFields, PRESERVE_REFINED_FIELDS)
+        self.visit(node.subject)
+
+        branch = self.binding_scope.branch()
+        # branches that exit the match statement without terminating
+        exiting_branches = []
+
+        for case in node.cases:
+            case_terminates = self.visit_check_terminal(case.body)
+            case_branch = branch.copy()
+            branch.restore()
+            if case_terminates != TerminalKind.RaiseOrReturn:
+                exiting_branches.append(case_branch)
+
+        branch.restore()
+        for case in exiting_branches:
+            branch.merge(case)
 
     def visitwithitem(self, node: ast.withitem) -> None:
         self.visit(node.context_expr)

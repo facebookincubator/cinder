@@ -28,6 +28,9 @@ class TypeState:
         type_state.refined_fields = dict(self.refined_fields)
         return type_state
 
+    def __repr__(self) -> str:
+        return f"TypeState({self.local_types}, {self.refined_fields})"
+
 
 class NarrowingEffect:
     """captures type narrowing effects on variables"""
