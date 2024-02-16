@@ -1,10 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #include "cinderx/StrictModules/Compiler/stub.h"
 
+#include "cinderx/Common/ref.h"
 #include "cinderx/StrictModules/Compiler/abstract_module_loader.h"
 #include "cinderx/StrictModules/pycore_dependencies.h"
-
-#include "cinderx/Jit/ref.h"
 
 #include <unordered_map>
 

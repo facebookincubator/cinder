@@ -2,12 +2,13 @@
 
 #include "cinderx/Jit/hir/ssa.h"
 
+#include "cinderx/Common/log.h"
+
 #include "cinderx/Jit/bitvector.h"
 #include "cinderx/Jit/hir/analysis.h"
 #include "cinderx/Jit/hir/hir.h"
 #include "cinderx/Jit/hir/printer.h"
 #include "cinderx/Jit/hir/type.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/runtime.h"
 
 #include <fmt/ostream.h>

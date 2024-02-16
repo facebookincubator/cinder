@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/lir/printer.h"
-#include "cinderx/Jit/util.h"
 
 namespace jit {
 

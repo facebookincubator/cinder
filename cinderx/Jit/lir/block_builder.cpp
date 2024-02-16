@@ -2,9 +2,10 @@
 
 #include "cinderx/Jit/lir/block_builder.h"
 
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/lir/generator.h"
 #include "cinderx/Jit/lir/instruction.h"
-#include "cinderx/Jit/util.h"
 
 #include <dlfcn.h>
 

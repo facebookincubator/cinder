@@ -2,10 +2,9 @@
 
 #pragma once
 
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 #include "sys/mman.h"
-
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
 
 #include <cstddef>
 #include <cstdlib>

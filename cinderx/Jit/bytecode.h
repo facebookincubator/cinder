@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/log.h"
 #include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/bytecode_offsets.h"
-#include "cinderx/Jit/log.h"
 
 #include <iterator>
 #include <unordered_set>

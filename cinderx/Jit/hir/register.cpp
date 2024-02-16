@@ -2,7 +2,7 @@
 
 #include "cinderx/Jit/hir/register.h"
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 
 #include <fmt/format.h>
 

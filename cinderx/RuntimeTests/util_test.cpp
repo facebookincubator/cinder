@@ -1,8 +1,9 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #include <gtest/gtest.h>
 
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/symbolizer.h"
-#include "cinderx/Jit/util.h"
 
 #include "cinderx/RuntimeTests/fixtures.h"
 

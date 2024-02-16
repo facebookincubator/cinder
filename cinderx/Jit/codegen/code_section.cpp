@@ -2,7 +2,7 @@
 
 #include "cinderx/Jit/codegen/code_section.h"
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 
 namespace jit::codegen {
 const char* codeSectionName(CodeSection section) {

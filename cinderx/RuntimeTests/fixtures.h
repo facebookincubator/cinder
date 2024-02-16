@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/StaticPython/strictmoduleobject.h"
 #include "internal/pycore_interp.h"
 
@@ -15,7 +16,6 @@
 #include "cinderx/Jit/hir/printer.h"
 #include "cinderx/Jit/hir/ssa.h"
 #include "cinderx/Jit/pyjit.h"
-#include "cinderx/Jit/ref.h"
 
 #include "cinderx/RuntimeTests/testutil.h"
 

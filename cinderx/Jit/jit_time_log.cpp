@@ -2,9 +2,8 @@
 
 #include "cinderx/Jit/jit_time_log.h"
 
+#include "cinderx/Common/log.h"
 #include "fmt/core.h"
-
-#include "cinderx/Jit/log.h"
 
 #include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/phmap.h"
 

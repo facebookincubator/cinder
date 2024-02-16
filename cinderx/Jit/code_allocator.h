@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "cinderx/Common/log.h"
+
 #include "cinderx/Jit/codegen/code_section.h"
-#include "cinderx/Jit/log.h"
 
 #include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 

@@ -3,6 +3,7 @@
 #include "cinderx/Jit/compiler.h"
 
 #include "Python.h"
+#include "cinderx/Common/log.h"
 
 #include "cinderx/Jit/config.h"
 #include "cinderx/Jit/disassembler.h"
@@ -13,7 +14,6 @@
 #include "cinderx/Jit/hir/printer.h"
 #include "cinderx/Jit/hir/ssa.h"
 #include "cinderx/Jit/jit_time_log.h"
-#include "cinderx/Jit/log.h"
 
 #include "cinderx/ThirdParty/json/json.hpp"
 

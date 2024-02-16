@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/ref.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
 
 typedef struct _typeobject PyTypeObject;
 

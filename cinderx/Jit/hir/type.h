@@ -5,9 +5,10 @@
 #include "Python.h"
 #include "frameobject.h"
 
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/hir/type_generated.h"
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
 
 #include <cstddef>
 #include <cstdint>

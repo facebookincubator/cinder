@@ -3,9 +3,8 @@
 #include "cinderx/Jit/runtime_support.h"
 
 #include "Python.h"
+#include "cinderx/Common/log.h"
 #include "internal/pycore_pyerrors.h"
-
-#include "cinderx/Jit/log.h"
 
 namespace jit {
 

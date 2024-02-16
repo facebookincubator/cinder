@@ -2,7 +2,8 @@
 
 #include "cinderx/Jit/disassembler.h"
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
+
 #include "cinderx/Jit/runtime.h"
 
 #include <cstdarg>

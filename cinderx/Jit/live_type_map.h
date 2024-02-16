@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "cinderx/Common/ref.h"
+
 #include "cinderx/Jit/containers.h"
-#include "cinderx/Jit/ref.h"
 
 #include <string>
 

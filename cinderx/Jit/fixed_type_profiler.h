@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "cinderx/Jit/ref.h"
+#include "cinderx/Common/ref.h"
 
 #include <array>
 

@@ -2,8 +2,8 @@
 
 #include "cinderx/Jit/lir/blocksorter.h"
 
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 
 #include <algorithm>
 #include <limits>

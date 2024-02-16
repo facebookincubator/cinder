@@ -1,9 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/lir/dce.h"
 #include "cinderx/Jit/lir/instruction.h"
 #include "cinderx/Jit/lir/printer.h"
-#include "cinderx/Jit/util.h"
 
 namespace jit::lir {
 

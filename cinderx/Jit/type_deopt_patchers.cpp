@@ -2,10 +2,10 @@
 
 #include "cinderx/Jit/type_deopt_patchers.h"
 
+#include "cinderx/Common/util.h"
 #include "structmember.h"
 
 #include "cinderx/Jit/runtime.h"
-#include "cinderx/Jit/util.h"
 
 namespace jit {
 

@@ -4,12 +4,12 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Common/watchers.h"
 #include "cinderx/StaticPython/strictmoduleobject.h"
 
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/containers.h"
-#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <memory>

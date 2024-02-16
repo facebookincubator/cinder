@@ -2,13 +2,14 @@
 
 #pragma once
 
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/bitvector.h"
 #include "cinderx/Jit/codegen/copy_graph.h"
 #include "cinderx/Jit/codegen/x86_64.h"
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/lir/printer.h"
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
 
 #include <list>
 #include <memory>

@@ -3,10 +3,10 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/threaded_compile.h"
-#include "cinderx/Jit/util.h"
 
 #include <unordered_map>
 

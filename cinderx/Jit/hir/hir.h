@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Interpreter/opcode.h"
 #include "code.h"
 
@@ -14,9 +16,7 @@
 #include "cinderx/Jit/intrusive_list.h"
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/jit_time_log.h"
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/stack.h"
-#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <array>

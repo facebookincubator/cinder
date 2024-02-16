@@ -3,6 +3,7 @@
 #include "cinderx/Jit/hir/optimization.h"
 
 #include "Python.h"
+#include "cinderx/Common/util.h"
 #include "code.h"
 #include "internal/pycore_interp.h"
 
@@ -16,7 +17,6 @@
 #include "cinderx/Jit/hir/ssa.h"
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/pyjit.h"
-#include "cinderx/Jit/util.h"
 
 #include <fmt/format.h>
 

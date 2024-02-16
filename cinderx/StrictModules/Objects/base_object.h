@@ -1,12 +1,11 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #pragma once
 
+#include "cinderx/Common/ref.h"
 #include "cinderx/StrictModules/caller_context.h"
 #include "cinderx/StrictModules/py_headers.h"
 #include "cinderx/StrictModules/rewriter_attributes.h"
 #include "cinderx/StrictModules/sequence_map.h"
-
-#include "cinderx/Jit/ref.h"
 
 #include <fmt/format.h>
 

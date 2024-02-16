@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/compiler.h"
@@ -11,7 +12,6 @@
 #include "cinderx/Jit/hir/parser.h"
 #include "cinderx/Jit/hir/printer.h"
 #include "cinderx/Jit/hir/ssa.h"
-#include "cinderx/Jit/ref.h"
 
 #include "cinderx/RuntimeTests/fixtures.h"
 #include "cinderx/RuntimeTests/testutil.h"

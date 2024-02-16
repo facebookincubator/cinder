@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/util.h"
 
 #include "cinderx/Jit/bytecode.h"
 #include "cinderx/Jit/bytecode_offsets.h"
@@ -10,7 +11,6 @@
 #include "cinderx/Jit/hir/preload.h"
 #include "cinderx/Jit/profile_runtime.h"
 #include "cinderx/Jit/stack.h"
-#include "cinderx/Jit/util.h"
 
 #include <deque>
 #include <functional>

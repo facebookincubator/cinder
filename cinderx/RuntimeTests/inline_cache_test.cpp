@@ -3,11 +3,11 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/StrictModules/Objects/objects.h"
 #include "unicodeobject.h"
 
 #include "cinderx/Jit/inline_cache.h"
-#include "cinderx/Jit/ref.h"
 
 #include "cinderx/RuntimeTests/fixtures.h"
 #include "cinderx/RuntimeTests/testutil.h"

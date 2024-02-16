@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/bitvector.h"
@@ -11,7 +12,6 @@
 #include "cinderx/Jit/hir/hir.h"
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/lir/printer.h"
-#include "cinderx/Jit/util.h"
 
 #include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 

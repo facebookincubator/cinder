@@ -2,11 +2,11 @@
 
 #include "Python.h"
 
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/watchers.h"
 #include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/pyjit.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Shadowcode/shadowcode.h"
-#include "cinderx/Common/watchers.h"
 
 static int dict_watcher_id = -1;
 static int type_watcher_id = -1;

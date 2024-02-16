@@ -5,6 +5,9 @@
 #include "Objects/dict-common.h"
 #include "Python.h"
 #include "cinder/exports.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/StaticPython/classloader.h"
 #include "frameobject.h"
 #include "listobject.h"
@@ -14,12 +17,9 @@
 
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/frame.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/pyjit.h"
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/runtime.h"
 #include "cinderx/Jit/runtime_support.h"
-#include "cinderx/Jit/util.h"
 
 // clang-format off
 #include "internal/pycore_pyerrors.h"

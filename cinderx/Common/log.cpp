@@ -1,6 +1,6 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 
 #include "cinderx/Jit/threaded_compile.h"
 

@@ -1,11 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/util.h"
 
 #include "cinder/exports.h"
-
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/ref.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
 
 #include <zlib.h>
 

@@ -3,14 +3,14 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 
 #include "cinderx/Jit/compiler.h"
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/hir/preload.h"
 #include "cinderx/Jit/pyjit_result.h"
 #include "cinderx/Jit/pyjit_typeslots.h"
-#include "cinderx/Jit/ref.h"
-#include "cinderx/Jit/util.h"
 
 #include <memory>
 #include <vector>

@@ -4,12 +4,12 @@
 
 #include "Objects/dict-common.h"
 #include "Python.h"
+#include "cinderx/Common/log.h"
 #include "cinderx/Interpreter/opcode.h"
 #include "frameobject.h"
 
 #include "cinderx/Jit/hir/type.h"
 #include "cinderx/Jit/live_type_map.h"
-#include "cinderx/Jit/log.h"
 
 #include <folly/tracing/StaticTracepoint.h>
 

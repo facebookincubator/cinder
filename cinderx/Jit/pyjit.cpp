@@ -5,6 +5,9 @@
 #include "Python.h"
 #include "cinder/exports.h"
 #include "cinder/genobject_jit.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/StrictModules/pystrictmodule.h"
 #include "internal/pycore_ceval.h"
 #include "internal/pycore_shadow_frame.h"
@@ -25,13 +28,10 @@
 #include "cinderx/Jit/jit_list.h"
 #include "cinderx/Jit/jit_time_log.h"
 #include "cinderx/Jit/lir/inliner.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/perf_jitdump.h"
 #include "cinderx/Jit/profile_runtime.h"
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/runtime.h"
 #include "cinderx/Jit/type_profiler.h"
-#include "cinderx/Jit/util.h"
 
 #include "cinderx/ThirdParty/i386-dis/dis-asm.h"
 

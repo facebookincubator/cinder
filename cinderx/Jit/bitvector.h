@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 
 #include <cstddef>
 #include <cstdint>

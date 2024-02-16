@@ -3,9 +3,9 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/util.h"
 
 #include "cinderx/Jit/containers.h"
-#include "cinderx/Jit/util.h"
 
 #include <chrono>
 #include <memory>

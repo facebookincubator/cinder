@@ -3,13 +3,13 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 
 #include "cinderx/Jit/bytecode_offsets.h"
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/hir/type.h"
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/type_profiler.h"
-#include "cinderx/Jit/util.h"
 
 #include <iosfwd>
 #include <regex>

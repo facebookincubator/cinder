@@ -2,12 +2,13 @@
 
 #include "cinderx/Jit/codegen/autogen.h"
 
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/codegen/gen_asm_utils.h"
 #include "cinderx/Jit/codegen/x86_64.h"
 #include "cinderx/Jit/deopt_patcher.h"
 #include "cinderx/Jit/frame.h"
 #include "cinderx/Jit/lir/instruction.h"
-#include "cinderx/Jit/util.h"
 
 #include "cinderx/ThirdParty/asmjit/src/asmjit/x86/x86operand.h"
 

@@ -2,8 +2,8 @@
 
 #include "cinderx/Jit/live_type_map.h"
 
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 
 namespace jit {
 

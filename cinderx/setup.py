@@ -38,6 +38,8 @@ INCLUDE_DEPS_DIRS = [
 
 CINDERX_SRCS = [
     "_cinderx.cpp",
+    "Common/log.cpp",
+    "Common/util.cpp",
     "Common/watchers.cpp",
     "Interpreter/interpreter.c",
     "ParallelGC/parallel_gc.c",
@@ -79,7 +81,6 @@ JIT_SRCS = [
     "Jit/jit_rt.cpp",
     "Jit/jit_time_log.cpp",
     "Jit/live_type_map.cpp",
-    "Jit/log.cpp",
     "Jit/perf_jitdump.cpp",
     "Jit/profile_runtime.cpp",
     "Jit/pyjit.cpp",
@@ -89,7 +90,6 @@ JIT_SRCS = [
     "Jit/threaded_compile.cpp",
     "Jit/type_deopt_patchers.cpp",
     "Jit/type_profiler.cpp",
-    "Jit/util.cpp",
     "Jit/codegen/annotations.cpp",
     "Jit/codegen/autogen.cpp",
     "Jit/codegen/code_section.cpp",

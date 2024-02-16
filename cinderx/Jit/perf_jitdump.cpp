@@ -3,12 +3,12 @@
 #include "cinderx/Jit/perf_jitdump.h"
 
 #include "Python.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 #include "pycore_ceval.h"
 
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/threaded_compile.h"
-#include "cinderx/Jit/util.h"
 
 #include <elf.h>
 #include <fcntl.h>

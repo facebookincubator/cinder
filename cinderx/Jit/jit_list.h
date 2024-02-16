@@ -3,9 +3,8 @@
 #pragma once
 
 #include "Python.h"
-
-#include "cinderx/Jit/ref.h"
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 
 #include <memory>
 #include <string>

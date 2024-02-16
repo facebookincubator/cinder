@@ -3,11 +3,11 @@
 #pragma once
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
 #include "frameobject.h"
 
 #include "cinderx/Jit/bytecode_offsets.h"
 #include "cinderx/Jit/containers.h"
-#include "cinderx/Jit/ref.h"
 
 #include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 

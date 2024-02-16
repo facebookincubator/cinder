@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "cinderx/Common/log.h"
+
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/lir/x86_64.h"
-#include "cinderx/Jit/log.h"
 
 #include <cstdint>
 #include <memory>

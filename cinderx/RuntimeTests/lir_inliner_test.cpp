@@ -1,9 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #include <gtest/gtest.h>
 
+#include "cinderx/Common/ref.h"
+
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/lir/inliner.h"
-#include "cinderx/Jit/ref.h"
 
 #include "cinderx/RuntimeTests/fixtures.h"
 #include "cinderx/RuntimeTests/testutil.h"

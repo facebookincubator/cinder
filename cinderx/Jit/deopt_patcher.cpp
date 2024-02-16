@@ -2,8 +2,8 @@
 
 #include "cinderx/Jit/deopt_patcher.h"
 
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 
 #include <cstring>
 

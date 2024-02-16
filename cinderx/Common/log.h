@@ -5,7 +5,7 @@
 #include "Python.h"
 #include "internal/pycore_pystate.h"
 
-#include "cinderx/Jit/ref.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/Jit/threaded_compile.h"
 
 #include <fmt/format.h>

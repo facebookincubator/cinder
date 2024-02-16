@@ -4,6 +4,8 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/StaticPython/classloader.h"
 #include "frameobject.h"
 #include "internal/pycore_pystate.h"
@@ -26,11 +28,9 @@
 #include "cinderx/Jit/lir/postgen.h"
 #include "cinderx/Jit/lir/regalloc.h"
 #include "cinderx/Jit/lir/verify.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/perf_jitdump.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/runtime.h"
-#include "cinderx/Jit/util.h"
 
 #include <fmt/format.h>
 

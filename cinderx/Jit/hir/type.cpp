@@ -2,7 +2,7 @@
 
 #include "cinderx/Jit/hir/type.h"
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 #include "cinderx/StaticPython/classloader.h"
 
 #include <fmt/format.h>

@@ -2,7 +2,7 @@
 
 #include "cinderx/Jit/jit_list.h"
 
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/util.h"
 
 #include <cstring>
 #include <fstream>

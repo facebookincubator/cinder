@@ -3,8 +3,7 @@
 #pragma once
 
 #include "Python.h"
-
-#include "cinderx/Jit/util.h"
+#include "cinderx/Common/util.h"
 
 #include <limits>
 #include <ostream>

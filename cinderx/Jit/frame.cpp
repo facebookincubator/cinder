@@ -5,15 +5,15 @@
 #include "Python.h"
 #include "cinder/exports.h"
 #include "cinder/genobject_jit.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 #include "internal/pycore_pystate.h"
 #include "internal/pycore_shadow_frame.h"
 #include "pycore_object.h"
 
 #include "cinderx/Jit/bytecode_offsets.h"
 #include "cinderx/Jit/debug_info.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/runtime.h"
-#include "cinderx/Jit/util.h"
 
 #include <algorithm>
 #include <functional>

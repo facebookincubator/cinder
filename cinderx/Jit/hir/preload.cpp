@@ -3,13 +3,13 @@
 #include "cinderx/Jit/hir/preload.h"
 
 #include "Python.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/bytecode.h"
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/hir/optimization.h"
-#include "cinderx/Jit/ref.h"
-#include "cinderx/Jit/util.h"
 
 #include <utility>
 

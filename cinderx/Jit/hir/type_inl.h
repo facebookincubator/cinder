@@ -4,7 +4,7 @@
 #error "hir_type_inl.h should only be included by hir_type.h"
 #endif
 
-#include "cinderx/Jit/log.h"
+#include "cinderx/Common/log.h"
 
 #include <cstring>
 

@@ -4,6 +4,7 @@
 
 #include "Python.h"
 #include "cinder/genobject_jit.h"
+#include "cinderx/Common/util.h"
 
 #include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/debug_info.h"
@@ -17,7 +18,6 @@
 #include "cinderx/Jit/slab_arena.h"
 #include "cinderx/Jit/symbolizer.h"
 #include "cinderx/Jit/threaded_compile.h"
-#include "cinderx/Jit/util.h"
 
 #include <optional>
 #include <string_view>

@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
+
 #include "cinderx/Jit/hir/hir.h"
 #include "cinderx/Jit/hir/type.h"
-#include "cinderx/Jit/ref.h"
-#include "cinderx/Jit/util.h"
 
 #include <functional>
 #include <memory>

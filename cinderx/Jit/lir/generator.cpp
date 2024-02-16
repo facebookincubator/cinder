@@ -4,6 +4,8 @@
 
 #include "Python.h"
 #include "cinder/exports.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Interpreter/interpreter.h"
 #include "cinderx/StaticPython/checked_dict.h"
 #include "cinderx/StaticPython/checked_list.h"
@@ -24,11 +26,9 @@
 #include "cinderx/Jit/inline_cache.h"
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/lir/block_builder.h"
-#include "cinderx/Jit/log.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/runtime_support.h"
 #include "cinderx/Jit/threaded_compile.h"
-#include "cinderx/Jit/util.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

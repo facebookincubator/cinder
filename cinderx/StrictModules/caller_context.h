@@ -1,9 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #pragma once
 
+#include "cinderx/Common/ref.h"
 #include "cinderx/StrictModules/error_sink.h"
-
-#include "cinderx/Jit/ref.h"
 
 #include <cassert>
 #include <memory>

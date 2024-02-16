@@ -2,6 +2,9 @@
 #include <gtest/gtest.h>
 
 #include "Python.h"
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
+#include "cinderx/Common/util.h"
 #include "cinderx/Interpreter/opcode.h"
 
 #include "cinderx/Jit/codegen/gen_asm.h"
@@ -12,9 +15,6 @@
 #include "cinderx/Jit/hir/builder.h"
 #include "cinderx/Jit/hir/hir.h"
 #include "cinderx/Jit/hir/optimization.h"
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/ref.h"
-#include "cinderx/Jit/util.h"
 
 #include "cinderx/RuntimeTests/fixtures.h"
 

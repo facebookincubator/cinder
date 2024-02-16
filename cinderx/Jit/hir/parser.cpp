@@ -2,12 +2,12 @@
 
 #include "cinderx/Jit/hir/parser.h"
 
+#include "cinderx/Common/log.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/StaticPython/classloader.h"
 #include "pycore_tuple.h"
 
 #include "cinderx/Jit/hir/hir.h"
-#include "cinderx/Jit/log.h"
-#include "cinderx/Jit/ref.h"
 
 #include <algorithm>
 #include <cctype>

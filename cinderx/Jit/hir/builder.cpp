@@ -5,6 +5,7 @@
 #include "Python.h"
 #include "boolobject.h"
 #include "ceval.h"
+#include "cinderx/Common/ref.h"
 #include "cinderx/Interpreter/opcode.h"
 #include "cinderx/StaticPython/checked_dict.h"
 #include "cinderx/StaticPython/checked_list.h"
@@ -24,7 +25,6 @@
 #include "cinderx/Jit/hir/type.h"
 #include "cinderx/Jit/profile_runtime.h"
 #include "cinderx/Jit/pyjit.h"
-#include "cinderx/Jit/ref.h"
 #include "cinderx/Jit/threaded_compile.h"
 
 #include <folly/tracing/StaticTracepoint.h>
