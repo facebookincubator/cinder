@@ -50,5 +50,6 @@ from .sys_hexversion import SysHexVersionTests
 from .top_level import TopLevelTests
 from .typed_dict import TypedDictTests
 from .union import UnionCompilationTests
+from .unknown_names import UnknownNameTests
 from .variadic_arg import VariadicArgTests
 from .walrus_operator import WalrusOperatorTests

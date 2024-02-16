@@ -67,7 +67,7 @@ class UnknownNameTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    def test_inline_import_supported(self) -> None:
+    def test_inline_import_unknown_module(self) -> None:
         codestr = """
         def f():
             import math
@@ -75,7 +75,20 @@ class UnknownNameTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    def test_inline_import_as_supported(self) -> None:
+    def test_inline_import_known_module(self) -> None:
+        acode = """
+            x: int = 42
+        """
+        bcode = """
+            def f() -> int:
+                import a
+                return a.x
+        """
+        f = self.find_code(self.compiler(a=acode, b=bcode).compile_module("b"), "f")
+        # verify we have the type information
+        self.assertNotInBytecode(f, "CAST")
+
+    def test_inline_import_as_unknown_module(self) -> None:
         codestr = """
         def f():
             import os.path as road # Modernization.
@@ -83,16 +96,29 @@ class UnknownNameTests(StaticTestBase):
         """
         self.compile(codestr)
 
-    def test_inline_from_import_names_supported(self) -> None:
+    def test_inline_import_as_known_module(self) -> None:
+        acode = """
+            x: int = 42
+        """
+        bcode = """
+            def f() -> int:
+                import a as z
+                return z.x
+        """
+        f = self.find_code(self.compiler(a=acode, b=bcode).compile_module("b"), "f")
+        self.assertNotInBytecode(f, "CAST")
+
+    def test_inline_from_import_names(self) -> None:
         acode = """
         x: int = 42
         """
         bcode = """
-            def f():
+            def f() -> int:
                 from a import x
                 return x
         """
-        bcomp = self.compiler(a=acode, b=bcode).compile_module("b")
+        f = self.find_code(self.compiler(a=acode, b=bcode).compile_module("b"), "f")
+        self.assertNotInBytecode(f, "CAST")
 
     def test_inline_from_import_names_supported_alias(self) -> None:
         acode = """

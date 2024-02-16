@@ -1690,6 +1690,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     name.name.split(".")[0] if name.asname is None else name.name
                 )
                 declaration_name = name.asname or import_name.split(".")[0]
+                if import_name not in self.compiler.modules:
+                    self.compiler.import_module(import_name, optimize=self.optimize)
                 if import_name in self.compiler.modules:
                     typ = ModuleInstance(import_name, self.compiler)
                 else:
@@ -1708,6 +1710,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     self.syntax_error("from __static__ import * is disallowed", node)
                 elif self.compiler.statics.get_child(name) is None:
                     self.syntax_error(f"unsupported static import {name}", node)
+        if mod_name not in self.compiler.modules:
+            self.compiler.import_module(mod_name, optimize=self.optimize)
         # Unknown module, let's add a local dynamic type to ensure we don't try to infer too much.
         if mod_name not in self.compiler.modules:
             for alias in node.names:
