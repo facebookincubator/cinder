@@ -256,12 +256,8 @@ class ModuleTable:
         self.ann_visitor = AnnotationVisitor(self)
         self.ref_visitor = ReferenceVisitor(self)
 
-    @overload
-    def get_child(self, name: str, default: Value = ...) -> Value:
-        ...
-
-    def get_child(self, name: str, default: Optional[Value] = None) -> Optional[Value]:
-        res = self._children.get(name, default)
+    def get_child(self, name: str) -> Optional[Value]:
+        res = self._children.get(name)
         if isinstance(res, DeferredImport):
             self._children[name] = res = res.resolve()
         return res

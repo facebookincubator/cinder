@@ -9560,7 +9560,7 @@ class ModuleInstance(Object["ModuleType"]):
         if module_table is None:
             return visitor.type_env.DYNAMIC
 
-        return module_table.get_child(node.attr, visitor.type_env.DYNAMIC)
+        return module_table.get_child(node.attr) or visitor.type_env.DYNAMIC
 
 
 class ProdAssertFunction(Object[Class]):

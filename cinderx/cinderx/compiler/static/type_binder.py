@@ -1726,8 +1726,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 name: str = asname if asname is not None else alias.name
                 self.declare_local(
                     name,
-                    self.compiler.modules[mod_name].get_child(
-                        alias.name, self.type_env.DYNAMIC
+                    (
+                        self.compiler.modules[mod_name].get_child(alias.name)
+                        or self.type_env.DYNAMIC
                     ),
                 )
 
