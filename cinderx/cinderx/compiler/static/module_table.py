@@ -46,6 +46,7 @@ from .types import (
     InitVar,
     KnownBoolean,
     MethodType,
+    ModuleInstance,
     NativeDecorator,
     TType,
     TypeDescr,
@@ -180,18 +181,44 @@ class AnnotationVisitor(ReferenceVisitor):
             return self.visit(n)
 
 
-class DeferredValue:
-    def __init__(self, mod_name: str, name: str, compiler: Compiler) -> None:
-        self.mod_name = mod_name
+class DeferredImport:
+    def __init__(
+        self,
+        mod_to_import: str,
+        optimize: int,
+        compiler: Compiler,
+        name: str | None = None,
+        mod_to_return: str | None = None,
+    ) -> None:
+        self.mod_to_import = mod_to_import
         self.name = name
+        self.mod_to_return = mod_to_return
         self.compiler = compiler
+        self.optimize = optimize
+
+    def import_mod(self, mod_name: str) -> ModuleTable | None:
+        return self.compiler.import_module(mod_name, optimize=self.optimize)
 
     def resolve(self) -> Value:
-        mod = self.compiler.modules.get(self.mod_name)
+        if self.mod_to_import not in self.compiler.modules:
+            self.import_mod(self.mod_to_import)
+        mod = self.compiler.modules.get(self.mod_to_import)
         if mod is not None:
+            if self.name is None:
+                return ModuleInstance(
+                    self.mod_to_return or self.mod_to_import, self.compiler
+                )
             val = mod.get_child(self.name)
             if val is not None:
                 return val
+            try_mod = f"{self.mod_to_import}.{self.name}"
+            self.import_mod(try_mod)
+            if try_mod in self.compiler.modules:
+                return ModuleInstance(try_mod, self.compiler)
+            if not mod.first_pass_done:
+                raise ModuleTableException(
+                    f"Cannot find {self.mod_to_import}.{self.name} due to cyclic reference"
+                )
         return self.compiler.type_env.DYNAMIC
 
 
@@ -202,10 +229,11 @@ class ModuleTable:
         filename: str,
         compiler: Compiler,
         members: Optional[Dict[str, Value]] = None,
+        first_pass_done: bool = True,
     ) -> None:
         self.name = name
         self.filename = filename
-        self._children: Dict[str, Value | DeferredValue] = {}
+        self._children: Dict[str, Value | DeferredImport] = {}
         if members is not None:
             self._children.update(members)
         self.compiler = compiler
@@ -224,7 +252,7 @@ class ModuleTable:
         # Have we completed our first pass through the module, populating
         # imports and types defined in the module? Until we have, resolving
         # type annotations is not safe.
-        self.first_pass_done = False
+        self.first_pass_done = first_pass_done
         self.ann_visitor = AnnotationVisitor(self)
         self.ref_visitor = ReferenceVisitor(self)
 
@@ -234,7 +262,7 @@ class ModuleTable:
 
     def get_child(self, name: str, default: Optional[Value] = None) -> Optional[Value]:
         res = self._children.get(name, default)
-        if isinstance(res, DeferredValue):
+        if isinstance(res, DeferredImport):
             self._children[name] = res = res.resolve()
         return res
 
@@ -407,7 +435,7 @@ class ModuleTable:
             return final_val
 
     def declare_import(
-        self, name: str, source: Tuple[str, str] | None, val: Value | DeferredValue
+        self, name: str, source: Tuple[str, str] | None, val: Value | DeferredImport
     ) -> None:
         """Declare a name imported into this module.
 

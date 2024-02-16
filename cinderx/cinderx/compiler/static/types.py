@@ -8814,7 +8814,6 @@ class CastFunction(Object[Class]):
             visitor.visitExpectedType(
                 arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
             )
-
         cast_type = visitor.module.resolve_annotation(node.args[0])
         if cast_type is None:
             visitor.syntax_error("cast to unknown type", node)

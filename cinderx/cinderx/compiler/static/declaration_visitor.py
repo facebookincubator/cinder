@@ -25,7 +25,7 @@ from ast import (
 )
 from typing import List, TYPE_CHECKING, Union
 
-from .module_table import DeferredValue, ModuleTable
+from .module_table import DeferredImport, ModuleTable
 from .types import (
     AwaitableTypeRef,
     Class,
@@ -67,7 +67,9 @@ class DeclarationVisitor(GenericVisitor[None]):
     def __init__(
         self, mod_name: str, filename: str, symbols: Compiler, optimize: int
     ) -> None:
-        module = symbols[mod_name] = ModuleTable(mod_name, filename, symbols)
+        module = symbols[mod_name] = ModuleTable(
+            mod_name, filename, symbols, first_pass_done=False
+        )
         super().__init__(module)
         self.scopes: List[TScopeTypes] = [self.module]
         self.optimize = optimize
@@ -207,46 +209,37 @@ class DeclarationVisitor(GenericVisitor[None]):
 
     def visitImport(self, node: Import) -> None:
         for name in node.names:
-            self.compiler.import_module(name.name, self.optimize)
             asname = name.asname
             if asname is None:
                 top_level_module = name.name.split(".")[0]
                 self.module.declare_import(
                     top_level_module,
                     None,
-                    ModuleInstance(top_level_module, self.compiler),
+                    DeferredImport(
+                        name.name,
+                        self.optimize,
+                        self.compiler,
+                        mod_to_return=top_level_module,
+                    ),
                 )
             else:
                 self.module.declare_import(
-                    asname, None, ModuleInstance(name.name, self.compiler)
+                    asname,
+                    None,
+                    DeferredImport(name.name, self.optimize, self.compiler),
                 )
 
     def visitImportFrom(self, node: ImportFrom) -> None:
         mod_name = node.module
         if not mod_name or node.level:
             raise NotImplementedError("relative imports aren't supported")
-        self.compiler.import_module(mod_name, self.optimize)
-        mod = self.compiler.modules.get(mod_name)
         for name in node.names:
             child_name = name.asname or name.name
-            if mod is None:
-                self.module.declare_import(child_name, None, self.type_env.DYNAMIC)
-                continue
-            val = mod.get_child(name.name)
-            if val is not None:
-                self.module.declare_import(child_name, (mod_name, name.name), val)
-            else:
-                # We might be facing a module imported as an attribute.
-                module_as_attribute = f"{mod_name}.{name.name}"
-                self.compiler.import_module(module_as_attribute, self.optimize)
-                # Even if the static compiler doesn't understand an annotation,
-                # declare it as dynamic to ensure we don't throw spurious unknown
-                # name errors.
-                if module_as_attribute in self.compiler.modules:
-                    typ = ModuleInstance(module_as_attribute, self.compiler)
-                else:
-                    typ = DeferredValue(mod_name, name.name, self.compiler)
-                self.module.declare_import(child_name, (mod_name, name.name), typ)
+            self.module.declare_import(
+                child_name,
+                (mod_name, name.name),
+                DeferredImport(mod_name, self.optimize, self.compiler, name.name),
+            )
 
     # We don't pick up declarations in nested statements
     def visitFor(self, node: For) -> None:

@@ -1,4 +1,5 @@
 from cinderx.compiler.static.compiler import Compiler
+from cinderx.compiler.static.module_table import ModuleTableException
 from cinderx.compiler.static.types import TypeEnvironment
 from cinderx.compiler.strict.compiler import Compiler as StrictCompiler
 
@@ -214,3 +215,41 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "b": bcode})
         compiler.compile_module("b")
+
+    def test_recursive_imports_subclassing(self) -> None:
+        acode = """
+            from typing import TYPE_CHECKING
+            if TYPE_CHECKING:
+                from b import X
+
+            class C:
+                pass
+        """
+        bcode = """
+            from a import C
+            from typing import Optional
+            from __static__ import cast
+
+            class X(C):
+                def f(self, v) -> Optional[C]:
+                    if isinstance(v, C):
+                        return cast(C, v)
+        """
+        compiler = self.decl_visit(**{"a": acode, "b": bcode})
+        compiler.compile_module("b")
+
+    def test_actual_cyclic_reference(self) -> None:
+        acode = """
+            from b import B
+
+            class A(B):
+                pass
+        """
+        bcode = """
+            from a import A
+
+            class B(A):
+                pass
+        """
+        with self.assertRaisesRegex(ModuleTableException, "due to cyclic reference"):
+            compiler = self.decl_visit(**{"a": acode, "b": bcode})
