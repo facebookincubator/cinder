@@ -37,6 +37,7 @@ import unittest
 import uuid
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from test import support
 from test.support import os_helper
@@ -335,6 +336,18 @@ class ASANLogManipulator:
             self._base_asan_options +
             [f"log_path={self._log_path_base}-sub_process_of-{module_name}"])
         os.putenv("ASAN_OPTIONS", ','.join(new_asan_options))
+
+
+def get_cinderx_dir() -> Path:
+    return Path(__file__).parent.parent
+
+
+def get_test_cinderx_dir(cinderx_dir: Path) -> Path:
+    # For internal builds there can be an extra test_cinderx directory layer
+    # because of how the package gets laid out.
+    test_dir = cinderx_dir / "test_cinderx"
+    test_test_dir = test_dir / "test_cinderx"
+    return test_test_dir if test_test_dir.exists() else test_dir
 
 
 class WorkReceiver:
@@ -686,12 +699,16 @@ class MultiWorkerCinderRegrtest(Regrtest):
 
         test_filters = _setupCinderIgnoredTests(self.ns, self._use_rr)
 
-        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
-        self.ns.testdir = cinderx_dir
-        sys.path.append(cinderx_dir)
+        cinderx_dir = get_cinderx_dir()
+        test_cinderx_dir = get_test_cinderx_dir(cinderx_dir)
+
+        # Added to sys.path for test modules.  `test_cinderx_dir.parent` is just
+        # `cinderx_dir` in the Git repository, but it can be different for
+        # internal builds.
+        self.ns.testdir = str(test_cinderx_dir.parent)
 
         if tests is None:
-            self._selectDefaultCinderTests(test_filters, cinderx_dir)
+            self._selectDefaultCinderTests(test_filters, test_cinderx_dir)
         else:
             self.find_tests(tests)
 
@@ -722,14 +739,13 @@ class MultiWorkerCinderRegrtest(Regrtest):
         sys.exit(0)
 
     def _selectDefaultCinderTests(
-            self, test_filters: Tuple[List[str], Set[str]], cinderx_dir: str) -> None:
+            self, test_filters: Tuple[List[str], Set[str]], test_cinderx_dir: Path) -> None:
         stdtest, nottests = test_filters
-        # Initial set of tests are the core Python/Cinder ones
+        # Initial set of tests are the core Python/Cinder ones.
         tests = ["test." + t for t in findtests(None, stdtest, nottests)]
 
         # Add CinderX tests
-        cinderx_tests = findtests(
-                os.path.join(cinderx_dir, "test_cinderx"), list(), nottests)
+        cinderx_tests = findtests(str(test_cinderx_dir), [], nottests)
         tests.extend("test_cinderx." + t for t in cinderx_tests)
 
         self.selected = tests
@@ -824,9 +840,6 @@ class UserSelectedCinderRegrtest(Regrtest):
     def _main(self, tests, kwargs):
         import test.libregrtest.runtest as runtest
         runtest._runtest_inner2 = _patched_runtest_inner2
-
-        cinderx_dir = os.path.dirname(os.path.dirname(__file__))
-        sys.path.append(cinderx_dir)
 
         self.ns.fail_env_changed = True
         setup_tests(self.ns)
