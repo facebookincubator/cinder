@@ -144,7 +144,7 @@ if TYPE_CHECKING:
     from . import PyFlowGraph38Static, Static38CodeGenerator
     from .compiler import Compiler
     from .declaration_visitor import DeclarationVisitor
-    from .module_table import AnnotationVisitor, ModuleTable
+    from .module_table import ModuleTable
     from .type_binder import BindingScope, TypeBinder
 
 try:
@@ -856,8 +856,7 @@ class Value:
     ) -> None:
         visitor.set_type(
             node,
-            self.resolve_attr(node, visitor.module.ann_visitor)
-            or visitor.type_env.DYNAMIC,
+            self.resolve_attr(node, visitor) or visitor.type_env.DYNAMIC,
         )
 
     def bind_await(
@@ -913,15 +912,14 @@ class Value:
         visitor.check_can_assign_from(visitor.type_env.dynamic, type.klass, node)
         visitor.set_type(
             node,
-            self.resolve_subscr(node, type, visitor.module.ann_visitor)
-            or visitor.type_env.DYNAMIC,
+            self.resolve_subscr(node, type, visitor) or visitor.type_env.DYNAMIC,
         )
 
     def resolve_subscr(
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: AnnotationVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         visitor.syntax_error(f"cannot index {self.name}", node)
 
@@ -1287,7 +1285,7 @@ class Object(Value, Generic[TClass]):
     ) -> None:
         visitor.set_type(
             node,
-            self.resolve_descr_get(node, inst, ctx, visitor.module.ann_visitor)
+            self.resolve_descr_get(node, inst, ctx, visitor)
             or visitor.type_env.DYNAMIC,
         )
 
@@ -1295,7 +1293,7 @@ class Object(Value, Generic[TClass]):
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: AnnotationVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         return None
 
@@ -2129,7 +2127,7 @@ class GenericClass(Class):
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: AnnotationVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         slice = node.slice
 
@@ -2141,14 +2139,20 @@ class GenericClass(Class):
         if isinstance(slice, ast.Tuple):
             multiple: List[Class] = []
             for elt in slice.elts:
-                klass = visitor.resolve_annotation(elt) or self.type_env.dynamic
+                klass = (
+                    visitor.module.ann_visitor.resolve_annotation(elt)
+                    or self.type_env.dynamic
+                )
                 multiple.append(klass)
 
             index = tuple(multiple)
             actual_argnum = len(slice.elts)
         else:
             actual_argnum = 1
-            single = visitor.resolve_annotation(slice) or self.type_env.dynamic
+            single = (
+                visitor.module.ann_visitor.resolve_annotation(slice)
+                or self.type_env.dynamic
+            )
             index = (single,)
 
         if (not self.is_variadic) and actual_argnum != expected_argnum:
@@ -7940,7 +7944,7 @@ class AnnotatedType(Class):
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: AnnotationVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         slice = node.slice
 
@@ -7954,7 +7958,7 @@ class AnnotatedType(Class):
             )
             return None
         actual_type, *annotations = slice.elts
-        actual_type = visitor.resolve_annotation(actual_type)
+        actual_type = visitor.module.ann_visitor.resolve_annotation(actual_type)
         if actual_type is None:
             return visitor.type_env.DYNAMIC
         if (
@@ -7972,7 +7976,7 @@ class LiteralType(Class):
         self,
         node: ast.Subscript,
         type: Value,
-        visitor: AnnotationVisitor,
+        visitor: GenericVisitor[object],
     ) -> Optional[Value]:
         slice = node.slice
 
