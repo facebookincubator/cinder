@@ -3,7 +3,7 @@
 #include "cinderx/Jit/hir/type.h"
 
 #include "cinderx/Common/log.h"
-#include "cinderx/StaticPython/classloader.h"
+#include "cinderx/StaticPython/static_array.h"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>

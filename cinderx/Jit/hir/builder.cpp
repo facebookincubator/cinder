@@ -9,6 +9,7 @@
 #include "cinderx/Interpreter/opcode.h"
 #include "cinderx/StaticPython/checked_dict.h"
 #include "cinderx/StaticPython/checked_list.h"
+#include "cinderx/StaticPython/static_array.h"
 #include "object.h"
 #include "preload.h"
 #include "structmember.h"
