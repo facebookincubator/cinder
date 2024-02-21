@@ -2139,6 +2139,7 @@ void HIRBuilder::emitJumpIf(
   switch (bc_instr.opcode()) {
     case JUMP_IF_NONZERO_OR_POP:
       check_truthy = false;
+      [[fallthrough]];
     case JUMP_IF_TRUE_OR_POP: {
       true_offset = bc_instr.GetJumpTarget();
       false_offset = bc_instr.NextInstrOffset();
@@ -2146,6 +2147,7 @@ void HIRBuilder::emitJumpIf(
     }
     case JUMP_IF_ZERO_OR_POP:
       check_truthy = false;
+      [[fallthrough]];
     case JUMP_IF_FALSE_OR_POP: {
       false_offset = bc_instr.GetJumpTarget();
       true_offset = bc_instr.NextInstrOffset();
