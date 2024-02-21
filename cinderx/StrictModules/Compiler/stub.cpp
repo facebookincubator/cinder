@@ -26,9 +26,9 @@ bool hasImplicitDecorator(asdl_expr_seq* decorators) {
           return true;
         }
       }
-
-      default:
-        continue;
+      default: {
+        break;
+      }
     }
   }
   return false;
