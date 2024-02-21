@@ -716,6 +716,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kSext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftLeft32);
                 break;
@@ -729,6 +730,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kSext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftRight32);
                 break;
@@ -742,6 +744,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kZext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ShiftRightUnsigned32);
                 break;
@@ -761,6 +764,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kSext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_Mod32);
                 break;
@@ -774,6 +778,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kZext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_ModUnsigned32);
                 break;
@@ -787,6 +792,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kSext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_Power32);
                 break;
@@ -800,6 +806,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
               case 1:
               case 2:
                 extend = Instruction::kZext;
+                [[fallthrough]];
               case 3:
                 helper = reinterpret_cast<uint64_t>(JITRT_PowerUnsigned32);
                 break;
@@ -2665,7 +2672,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             break;
           case Raise::Kind::kRaiseWithExcAndCause:
             cause = instr.GetOperand(1);
-            // Fallthrough
+            [[fallthrough]];
           case Raise::Kind::kRaiseWithExc:
             exc = instr.GetOperand(0);
             break;
