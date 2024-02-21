@@ -636,7 +636,7 @@ bool ModuleLoader::isAllowListed(const std::string& modName) {
         }
       }
       case AllowListKind::kExact: {
-        continue;
+        break;
       }
     }
   }
