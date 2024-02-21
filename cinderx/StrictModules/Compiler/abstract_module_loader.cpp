@@ -110,16 +110,15 @@ std::pair<ModuleKind, ShouldAnalyze> getModuleKindFromStmts(
                 "strict flag may not be aliased");
             return {ModuleKind::kNonStrict, should_analyze};
           }
-          if (modKind == std::nullopt) {
+          if (modKind == std::nullopt || modKind == ModuleKind::kStrict) {
             modKind = tempModKind;
-            goto loop_continue;
-          } else if (modKind == ModuleKind::kStrict) {
-            modKind = tempModKind;
-            goto loop_continue;
-          } else {
-            goto loop_continue;
           }
+          break;
         }
+        if (!modKind) {
+          modKind = ModuleKind::kNonStrict;
+        }
+        break;
       }
       case Expr_kind: {
         if (!seenDocStr) {
@@ -127,13 +126,13 @@ std::pair<ModuleKind, ShouldAnalyze> getModuleKindFromStmts(
           if (expr->kind == Constant_kind &&
               PyUnicode_Check(expr->v.Constant.value)) {
             seenDocStr = true;
-            goto loop_continue;
+            break;
           }
         }
         if (!modKind) {
           modKind = ModuleKind::kNonStrict;
         }
-        goto loop_continue;
+        break;
       }
       case ImportFrom_kind: {
         auto importFromStmt = stmt->v.ImportFrom;
@@ -142,24 +141,23 @@ std::pair<ModuleKind, ShouldAnalyze> getModuleKindFromStmts(
           const char* futureFlag = "__future__";
           // skip future imports
           if (strncmp(modName, futureFlag, strlen(futureFlag)) == 0) {
-            goto loop_continue;
+            break;
           } else if (strncmp(modName, strictFlag, strlen(strictFlag)) == 0) {
             if (containsAllowSideEffectsFlag(importFromStmt.names)) {
               should_analyze = ShouldAnalyze::kNo;
-              goto loop_continue;
+              break;
             }
           }
         }
         if (!modKind) {
           modKind = ModuleKind::kNonStrict;
         }
-        goto loop_continue;
+        break;
       }
       default: {
         return {modKind.value_or(ModuleKind::kNonStrict), should_analyze};
       }
     }
-  loop_continue:;
   }
 
   return {modKind.value_or(ModuleKind::kNonStrict), should_analyze};
