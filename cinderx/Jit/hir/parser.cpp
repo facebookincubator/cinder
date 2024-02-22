@@ -138,7 +138,8 @@ Type HIRParser::parseType(std::string_view str) {
   if (!spec_value.has_value()) {
     return TBottom;
   }
-  return Type{base.bits_, Type::kLifetimeBottom, Type::SpecKind::kSpecInt, *spec_value};
+  return Type{
+      base.bits_, Type::kLifetimeBottom, Type::SpecKind::kSpecInt, *spec_value};
 }
 
 Register* HIRParser::ParseRegister() {

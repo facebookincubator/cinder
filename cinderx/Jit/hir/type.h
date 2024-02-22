@@ -3,10 +3,9 @@
 #pragma once
 
 #include "Python.h"
-#include "frameobject.h"
-
 #include "cinderx/Common/log.h"
 #include "cinderx/Common/util.h"
+#include "frameobject.h"
 
 #include "cinderx/Jit/hir/type_generated.h"
 

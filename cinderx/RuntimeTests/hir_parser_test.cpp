@@ -401,7 +401,8 @@ TEST_F(HIRParserTest, ParseSimple) {
   EXPECT_EQ(parser.parseType("ImmortalTuple"), TImmortalTuple);
   EXPECT_EQ(parser.parseType("MortalUser"), TMortalUser);
 
-  EXPECT_EQ(parser.parseType("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
+  EXPECT_EQ(
+      parser.parseType("CInt64[123456]"), Type::fromCInt(123456, TCInt64));
   EXPECT_EQ(parser.parseType("CUInt8[42]"), Type::fromCUInt(42, TCUInt8));
   EXPECT_EQ(parser.parseType("CInt32[-5678]"), Type::fromCInt(-5678, TCInt32));
   EXPECT_EQ(parser.parseType("CBool[true]"), Type::fromCBool(true));
@@ -450,7 +451,9 @@ TEST_F(HIRParserTest, ParsePyObject) {
   auto func = parser.ParseHIR(source);
 
   EXPECT_TRUE(isLongTypeWithValue(parser.parseType("Long[1]"), TLong, 1));
-  EXPECT_TRUE(isLongTypeWithValue(parser.parseType("ImmortalLongExact[2]"), TImmortalLong, 2));
+  EXPECT_TRUE(isLongTypeWithValue(
+      parser.parseType("ImmortalLongExact[2]"), TImmortalLong, 2));
 
-  EXPECT_EQ(parser.parseType("Long[123123123123123123123123123123123123]"), TBottom);
+  EXPECT_EQ(
+      parser.parseType("Long[123123123123123123123123123123123123]"), TBottom);
 }
