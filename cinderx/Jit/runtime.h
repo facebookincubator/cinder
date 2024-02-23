@@ -14,7 +14,6 @@
 #include "cinderx/Jit/inline_cache.h"
 #include "cinderx/Jit/jit_rt.h"
 #include "cinderx/Jit/profile_runtime.h"
-#include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/slab_arena.h"
 #include "cinderx/Jit/symbolizer.h"
 #include "cinderx/Jit/threaded_compile.h"

@@ -17,7 +17,6 @@
 
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/frame.h"
-#include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/runtime.h"
 #include "cinderx/Jit/runtime_support.h"
 

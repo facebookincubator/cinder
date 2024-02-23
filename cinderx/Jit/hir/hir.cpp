@@ -4,7 +4,6 @@
 
 #include "cinderx/Common/log.h"
 
-#include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/threaded_compile.h"
 
 #include <fmt/format.h>

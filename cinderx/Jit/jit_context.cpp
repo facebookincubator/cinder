@@ -6,7 +6,6 @@
 
 #include "cinderx/Jit/codegen/gen_asm.h"
 #include "cinderx/Jit/jit_gdb_support.h"
-#include "cinderx/Jit/pyjit.h"
 
 #include <unordered_set>
 
