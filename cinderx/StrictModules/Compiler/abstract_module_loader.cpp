@@ -634,6 +634,7 @@ bool ModuleLoader::isAllowListed(const std::string& modName) {
         if (startPos == 0 && modName[allowed.first.size()] == '.') {
           return true;
         }
+        break;
       }
       case AllowListKind::kExact: {
         break;

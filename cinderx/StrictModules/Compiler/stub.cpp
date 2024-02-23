@@ -25,6 +25,7 @@ bool hasImplicitDecorator(asdl_expr_seq* decorators) {
         if (nameStr == kImplicitMarker) {
           return true;
         }
+        break;
       }
       default: {
         break;
