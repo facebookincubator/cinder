@@ -423,6 +423,106 @@ static int get_current_code_flags(PyThreadState* tstate) {
     return cur_code->co_flags;
 }
 
+static int cinderx_code_watcher(PyCodeEvent event, PyCodeObject* co) {
+  if (event == PY_CODE_EVENT_DESTROY) {
+    _PyShadow_ClearCache((PyObject *)co);
+    _PyJIT_CodeDestroyed(co);
+  }
+  return 0;
+}
+
+static int cinderx_dict_watcher(
+  PyDict_WatchEvent event,
+  PyObject* dict_obj,
+  PyObject* key_obj,
+  PyObject* new_value
+) {
+  JIT_DCHECK(PyDict_Check(dict_obj), "Expecting dict from dict watcher");
+  BorrowedRef<PyDictObject> dict{dict_obj};
+
+  jit::GlobalCacheManager& globalCaches = jit::Runtime::get()->globalCaches();
+
+  switch (event) {
+    case PyDict_EVENT_ADDED:
+    case PyDict_EVENT_MODIFIED:
+    case PyDict_EVENT_DELETED: {
+      if (key_obj == nullptr || !PyUnicode_CheckExact(key_obj)) {
+        globalCaches.notifyDictUnwatch(dict);
+        break;
+      }
+      // key is overwhemingly likely to be interned, since in normal code it
+      // comes from co_names. If it's not, we at least know that an interned
+      // string with its value exists (because we're watching it), so this
+      // should just be a quick lookup.
+      if (!PyUnicode_CHECK_INTERNED(key_obj)) {
+        Py_INCREF(key_obj);
+        PyUnicode_InternInPlace(&key_obj);
+        Py_DECREF(key_obj);
+      }
+      BorrowedRef<PyUnicodeObject> key{key_obj};
+      globalCaches.notifyDictUpdate(dict, key, new_value);
+      _PyClassLoader_NotifyDictChange(dict, key);
+      break;
+    }
+    case PyDict_EVENT_CLEARED:
+      globalCaches.notifyDictClear(dict);
+      break;
+    case PyDict_EVENT_CLONED:
+    case PyDict_EVENT_DEALLOCATED:
+      globalCaches.notifyDictUnwatch(dict);
+      break;
+  }
+
+  return 0;
+}
+
+static int cinderx_func_watcher(
+  PyFunction_WatchEvent event,
+  PyFunctionObject* func,
+  PyObject* new_value
+) {
+  switch (event) {
+    case PyFunction_EVENT_CREATE:
+      PyEntry_init(func);
+      break;
+    case PyFunction_EVENT_MODIFY_CODE:
+      _PyJIT_FuncModified(func);
+      // having deopted the func, we want to immediately consider recompiling.
+      // func_set_code will assign this again later, but we do it early so
+      // PyEntry_init can consider the new code object now
+      Py_INCREF(new_value);
+      Py_XSETREF(func->func_code, new_value);
+      PyEntry_init(func);
+      break;
+    case PyFunction_EVENT_MODIFY_DEFAULTS:
+      break;
+    case PyFunction_EVENT_MODIFY_KWDEFAULTS:
+      break;
+    case PyFunction_EVENT_MODIFY_QUALNAME:
+      // allow reconsideration of whether this function should be compiled
+      if (!_PyJIT_IsCompiled(func)) {
+        // func_set_qualname will assign this again, but we need to assign it
+        // now so that PyEntry_init can consider the new qualname
+        Py_INCREF(new_value);
+        Py_XSETREF(func->func_qualname, new_value);
+        PyEntry_init(func);
+      }
+      break;
+    case PyFunction_EVENT_DESTROY:
+      _PyJIT_FuncDestroyed(func);
+      break;
+  }
+
+  return 0;
+}
+
+static int cinderx_type_watcher(PyTypeObject* type) {
+  _PyShadow_TypeModified(type);
+  _PyJIT_TypeModified(type);
+
+  return 0;
+}
+
 static int cinder_init() {
   Ci_hook_type_created = _PyJIT_TypeCreated;
   Ci_hook_type_destroyed = _PyJIT_TypeDestroyed;
@@ -479,7 +579,12 @@ static int cinder_init() {
   }
   Py_DECREF(res);
 
-  if (Ci_Watchers_Init()) {
+  WatcherState watcher_state;
+  watcher_state.code_watcher = cinderx_code_watcher;
+  watcher_state.dict_watcher = cinderx_dict_watcher;
+  watcher_state.func_watcher = cinderx_func_watcher;
+  watcher_state.type_watcher = cinderx_type_watcher;
+  if (Ci_Watchers_Init(&watcher_state)) {
     return -1;
   }
 
