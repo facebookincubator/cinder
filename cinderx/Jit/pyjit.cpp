@@ -2275,6 +2275,21 @@ int _PyJIT_Finalize() {
   return 0;
 }
 
+PyObject**
+_PyJIT_GetGlobalCache(PyObject* builtins, PyObject* globals, PyObject* key) {
+  try {
+    auto cache = jit::Runtime::get()->globalCaches().findGlobalCache(
+        builtins, globals, key);
+    return cache.valuePtr();
+  } catch (std::bad_alloc&) {
+    return nullptr;
+  }
+}
+
+PyObject** _PyJIT_GetDictCache(PyObject* dict, PyObject* key) {
+  return _PyJIT_GetGlobalCache(dict, dict, key);
+}
+
 PyObject* _PyJIT_GenSend(
     PyGenObject* gen,
     PyObject* arg,

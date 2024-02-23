@@ -7,7 +7,6 @@
 #include "cinderx/CachedProperties/cached_properties.h"
 #include "cinderx/Common/watchers.h"
 #include "cinderx/Interpreter/interpreter.h"
-#include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/frame.h"
 #include "cinderx/Jit/pyjit.h"
 #include "cinderx/Jit/pyjit_result.h"
@@ -27,7 +26,7 @@
  */
 
 static PyObject *clear_caches(PyObject *, PyObject *) {
-  jit::clearDictCaches();
+  jit::Runtime::get()->globalCaches().clear();
   Py_RETURN_NONE;
 }
 

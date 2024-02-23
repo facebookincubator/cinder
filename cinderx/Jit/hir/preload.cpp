@@ -292,11 +292,14 @@ Type Preloader::checkArgType(long local_idx) const {
   return map_get(check_arg_types_, local_idx, TObject);
 }
 
-GlobalCache Preloader::getGlobalCache(BorrowedRef<> name) const {
+GlobalCache Preloader::getGlobalCache(BorrowedRef<> name_obj) const {
   JIT_DCHECK(
       canCacheGlobals(),
       "trying to get a globals cache with unwatchable builtins and/or globals");
-  return jit::Runtime::get()->findGlobalCache(builtins_, globals_, name);
+  JIT_CHECK(PyUnicode_CheckExact(name_obj), "Name must be a str");
+  BorrowedRef<PyUnicodeObject> name{name_obj};
+  return jit::Runtime::get()->globalCaches().findGlobalCache(
+      builtins_, globals_, name);
 }
 
 bool Preloader::canCacheGlobals() const {

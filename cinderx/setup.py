@@ -54,7 +54,6 @@ JIT_SRCS = [
     "Jit/debug_info.cpp",
     "Jit/deopt.cpp",
     "Jit/deopt_patcher.cpp",
-    "Jit/dict_watch.cpp",
     "Jit/disassembler.cpp",
     "Jit/elf.cpp",
     "Jit/frame.cpp",

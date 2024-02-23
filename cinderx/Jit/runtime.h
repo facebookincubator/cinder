@@ -316,17 +316,6 @@ class Runtime {
 
   void mlockProfilerDependencies();
 
-  // Create or look up a cache for the global with the given name, in the
-  // context of the given globals dict.  This cache will fall back to
-  // builtins if the value isn't defined in this dict.
-  GlobalCache
-  findGlobalCache(PyObject* builtins, PyObject* globals, PyObject* name);
-
-  // Create or look up a cache for a member with the given name, in the
-  // context of the given dict.  This cache will not fall back to builtins
-  // if the value isn't defined in the dict.
-  GlobalCache findDictCache(PyObject* globals, PyObject* name);
-
   // Find a cache for the indirect static entry point for a function.
   void** findFunctionEntryCache(PyFunctionObject* function);
 
@@ -336,11 +325,6 @@ class Runtime {
   // Gets information about the primitive arguments that a function
   // is typed to.  Typed object references are explicitly excluded.
   _PyTypedArgsInfo* findFunctionPrimitiveArgInfo(PyFunctionObject* function);
-
-  // Forget given cache. Note that for now, this only removes bookkeeping for
-  // the cache; the cache itself is not freed and may still be reachable from
-  // compiled code.
-  void forgetLoadGlobalCache(GlobalCache cache);
 
   // Add metadata used during deopt. Returns a handle that can be used to
   // fetch the metadata from generated code.
@@ -426,6 +410,7 @@ class Runtime {
   }
 
   ProfileRuntime& profileRuntime();
+  GlobalCacheManager& globalCaches();
 
   // Some profilers need to walk the code_rt->code->qualname chain for jitted
   // functions on the call stack. The JIT rarely touches this memory and, as a
@@ -479,7 +464,7 @@ class Runtime {
   SlabArena<StoreAttrCache, AttributeCacheSizeTrait> store_attr_caches_;
   SlabArena<void*> pointer_caches_;
 
-  GlobalCacheMap global_caches_;
+  GlobalCacheManager global_caches_;
   FunctionEntryCacheMap function_entry_caches_;
 
   std::vector<DeoptMetadata> deopt_metadata_;

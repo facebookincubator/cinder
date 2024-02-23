@@ -1,11 +1,12 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
+#include "cinderx/Common/watchers.h"
+
 #include "Python.h"
 
 #include "cinderx/Common/log.h"
-#include "cinderx/Common/watchers.h"
-#include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/pyjit.h"
+#include "cinderx/Jit/runtime.h"
 #include "cinderx/Shadowcode/shadowcode.h"
 
 static int dict_watcher_id = -1;
@@ -16,26 +17,42 @@ static int code_watcher_id = -1;
 static int install_dict_watcher() {
   int watcher_id = PyDict_AddWatcher([](
       PyDict_WatchEvent event,
-      PyObject* dict,
-      PyObject* key,
+      PyObject* dict_obj,
+      PyObject* key_obj,
       PyObject* new_value) {
+    JIT_DCHECK(PyDict_Check(dict_obj), "Expecting dict from dict watcher");
+    BorrowedRef<PyDictObject> dict{dict_obj};
+
+    jit::GlobalCacheManager& globalCaches = jit::Runtime::get()->globalCaches();
+
     switch (event) {
       case PyDict_EVENT_ADDED:
       case PyDict_EVENT_MODIFIED:
-      case PyDict_EVENT_DELETED:
-        if (!PyUnicode_CheckExact(key)) {
-          jit::notifyDictUnwatch(dict);
-        } else {
-          jit::notifyDictKey(dict, key, new_value);
-          _PyClassLoader_NotifyDictChange((PyDictObject *)dict, key);
+      case PyDict_EVENT_DELETED: {
+        if (key_obj == nullptr || !PyUnicode_CheckExact(key_obj)) {
+          globalCaches.notifyDictUnwatch(dict);
+          break;
         }
+        // key is overwhemingly likely to be interned, since in normal code it
+        // comes from co_names. If it's not, we at least know that an interned
+        // string with its value exists (because we're watching it), so this
+        // should just be a quick lookup.
+        if (!PyUnicode_CHECK_INTERNED(key_obj)) {
+          Py_INCREF(key_obj);
+          PyUnicode_InternInPlace(&key_obj);
+          Py_DECREF(key_obj);
+        }
+        BorrowedRef<PyUnicodeObject> key{key_obj};
+        globalCaches.notifyDictUpdate(dict, key, new_value);
+        _PyClassLoader_NotifyDictChange(dict, key);
         break;
+      }
       case PyDict_EVENT_CLEARED:
-        jit::notifyDictClear(dict);
+        globalCaches.notifyDictClear(dict);
         break;
       case PyDict_EVENT_CLONED:
       case PyDict_EVENT_DEALLOCATED:
-        jit::notifyDictUnwatch(dict);
+        globalCaches.notifyDictUnwatch(dict);
         break;
     }
     return 0;

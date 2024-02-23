@@ -5,7 +5,6 @@
 #include "cinderx/Common/watchers.h"
 #include "internal/pycore_interp.h"
 
-#include "cinderx/Jit/dict_watch.h"
 #include "cinderx/Jit/type_deopt_patchers.h"
 
 #include <sys/mman.h>
@@ -150,7 +149,7 @@ std::optional<PyMethodDef*> Builtins::find(const std::string& name) const {
 Runtime* Runtime::s_runtime_{nullptr};
 
 void Runtime::shutdown() {
-  clearDictCaches();
+  s_runtime_->globalCaches().clear();
   delete s_runtime_;
   s_runtime_ = nullptr;
 }
@@ -166,6 +165,10 @@ void Runtime::mlockProfilerDependencies() {
 
 ProfileRuntime& Runtime::profileRuntime() {
   return profile_runtime_;
+}
+
+GlobalCacheManager& Runtime::globalCaches() {
+  return global_caches_;
 }
 
 Ref<> Runtime::pageInProfilerDependencies() {
@@ -188,27 +191,6 @@ Ref<> Runtime::pageInProfilerDependencies() {
     }
   }
   return qualnames;
-}
-
-GlobalCache Runtime::findGlobalCache(
-    PyObject* builtins,
-    PyObject* globals,
-    PyObject* name) {
-  JIT_CHECK(PyUnicode_CheckExact(name), "Name must be a str");
-  JIT_CHECK(PyUnicode_CHECK_INTERNED(name), "Name must be interned");
-  auto result = global_caches_.emplace(
-      std::piecewise_construct,
-      std::forward_as_tuple(builtins, globals, name),
-      std::forward_as_tuple());
-  GlobalCache cache(&*result.first);
-  if (result.second) {
-    cache.init(reinterpret_cast<PyObject**>(pointer_caches_.allocate()));
-  }
-  return cache;
-}
-
-GlobalCache Runtime::findDictCache(PyObject* dict, PyObject* name) {
-  return findGlobalCache(dict, dict, name);
 }
 
 void** Runtime::findFunctionEntryCache(PyFunctionObject* function) {
@@ -239,10 +221,6 @@ _PyTypedArgsInfo* Runtime::findFunctionPrimitiveArgInfo(
     return nullptr;
   }
   return cache->second.arg_info.get();
-}
-
-void Runtime::forgetLoadGlobalCache(GlobalCache cache) {
-  global_caches_.erase(cache.key());
 }
 
 std::size_t Runtime::addDeoptMetadata(DeoptMetadata&& deopt_meta) {
