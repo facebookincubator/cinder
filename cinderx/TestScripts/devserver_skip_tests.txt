@@ -1,5 +1,8 @@
 test_distutils
 test_gdb
+# Expects shutil.disk_usage() to report number of bytes used, but this isn't
+# supported with Eden.  It always reports 0 bytes used.
+test_shutil
 test_socket
 test_unicodedata
 test_urllib2net
