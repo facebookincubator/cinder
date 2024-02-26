@@ -3,10 +3,10 @@
 #include "cinderx/Jit/jit_time_log.h"
 
 #include "cinderx/Common/log.h"
-#include "fmt/core.h"
 
-#include "cinderx/ThirdParty/parallel-hashmap/parallel_hashmap/phmap.h"
+#include "cinderx/Jit/containers.h"
 
+#include <fmt/core.h>
 #include <fmt/format.h>
 
 #include <iostream>
@@ -78,7 +78,7 @@ void CompilationPhaseTimer::dumpPhaseTimingsAndTidy() {
   // flatten phase timings into one vector
   std::vector<std::tuple<int, SubPhaseTimer*>> toproc;
   std::vector<std::tuple<int, SubPhaseTimer*, int, bool, int>> flat_rows;
-  phmap::flat_hash_map<SubPhaseTimer*, int> subphase_to_group_total_time;
+  jit::UnorderedMap<SubPhaseTimer*, int> subphase_to_group_total_time;
 
   toproc.emplace_back(0, root_.get());
   while (!toproc.empty()) {
