@@ -1018,7 +1018,7 @@ nlohmann::json JSONPrinter::Print(const Instr& instr) {
       result["type"] = escape_non_ascii(output->type().toString());
     }
   }
-  std::string opcode = instr.opname();
+  auto opcode = std::string{instr.opname()};
   auto immed = format_immediates(instr);
   if (!immed.empty()) {
     // Output must be escaped since literal Python values such as \222 can be

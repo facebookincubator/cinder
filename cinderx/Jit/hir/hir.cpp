@@ -69,12 +69,6 @@ std::size_t Phi::blockIndex(const BasicBlock* block) const {
   return std::distance(basic_blocks_.begin(), it);
 }
 
-const char* const kOpcodeNames[] = {
-#define NAME_OP(opname) #opname,
-    FOREACH_OPCODE(NAME_OP)
-#undef NAME_OP
-};
-
 OpcodeCounts count_opcodes(const Function& func) {
   OpcodeCounts counts{};
   for (const BasicBlock& block : func.cfg.blocks) {

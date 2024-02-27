@@ -404,7 +404,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
 
   std::string descr = instr.descr();
   if (descr.empty()) {
-    descr = hir::kOpcodeNames[static_cast<size_t>(instr.opcode())];
+    descr = instr.opname();
   }
 
   {
