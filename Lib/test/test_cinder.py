@@ -1940,6 +1940,44 @@ class GetEntireCallStackTest(unittest.TestCase):
 
         verify_stack(self, stack, ["a2", "a3"])
 
+    def test_get_entire_call_stack_as_qualnames_frame_without_name(self):
+        # This test case is inspired by the Jinja templating library which caused get_callstack to break
+        # https://fburl.com/es7ajzgn
+        codestr = """
+        import cinder
+        def a1():
+            global res
+            res = cinder._get_entire_call_stack_as_qualnames()
+        a1()
+        """
+
+        # Validate that we properly insert an <unknown> frame instead of raising a SystemError
+        namespace = {"res": []}
+        exec(dedent(codestr), namespace)
+        verify_stack(
+            self,
+            namespace["res"],
+            [
+                "test.test_cinder:GetEntireCallStackTest.test_get_entire_call_stack_as_qualnames_frame_without_name",
+                "<unknown>:<module>",
+                "<unknown>:a1",
+            ],
+        )
+
+        # The other unit tests only validate the function name, and not the module name.
+        # Adding these line in will validate that we don't accidentally replace all module names with <unknown>.
+        namespace = {"res": [], "__name__": "<renamed_module>"}
+        exec(dedent(codestr), namespace)
+        verify_stack(
+            self,
+            namespace["res"],
+            [
+                "test.test_cinder:GetEntireCallStackTest.test_get_entire_call_stack_as_qualnames_frame_without_name",
+                "<renamed_module>:<module>",
+                "<renamed_module>:a1",
+            ],
+        )
+
 
 @cinder_support.skipUnderJIT("Profiling only works under interpreter")
 class TestInterpProfiling(unittest.TestCase):

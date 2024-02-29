@@ -220,6 +220,12 @@ static inline PyObject* _PyShadowFrame_GetModuleName(_PyShadowFrame* shadow_fram
   assert(globals);
   PyObject* result = PyDict_GetItemString(globals, "__name__");
   Py_XINCREF(result);
+  if (!result) {
+    result = PyUnicode_FromString("<unknown>");
+    if (!result) {
+        assert(PyErr_Occurred());
+    }
+  }
   return result;
 }
 

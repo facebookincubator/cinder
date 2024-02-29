@@ -90,7 +90,14 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       JIT_ABORT("unknown ptr kind");
     }
   }
-  Py_XINCREF(result);
+  if (!result) {
+    result = PyUnicode_FromString("<unknown>");
+    if (!result) {
+      assert(PyErr_Occurred());
+    }
+    return result;
+  }
+  Py_INCREF(result);
   return result;
 }
 
