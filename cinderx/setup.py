@@ -240,6 +240,7 @@ STATICPYTHON_SRCS = [
     "StaticPython/methodobject_vectorcall.c",
     "StaticPython/static_array.c",
     "StaticPython/strictmoduleobject.c",
+    "StaticPython/vtable.c",
 ]
 
 CACHEDPROPS_SRCS = [
