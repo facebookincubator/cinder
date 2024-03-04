@@ -43,33 +43,23 @@ def get_gdb_version():
     match = re.search(r"^(?:GNU|HP) gdb.*?\b(\d+)\.(\d+)", version)
     if match is None:
         raise Exception("unable to parse GDB version: %r" % version)
-    return (version, int(match.group(1)), int(match.group(2)))
 
-gdb_version, gdb_major_version, gdb_minor_version = get_gdb_version()
-if gdb_major_version < 7:
-    raise unittest.SkipTest("gdb versions before 7.0 didn't support python "
-                            "embedding. Saw %s.%s:\n%s"
-                            % (gdb_major_version, gdb_minor_version,
-                               gdb_version))
+    major_version = int(match.group(1))
+    minor_version = int(match.group(2))
 
-if not sysconfig.is_python_build():
-    raise unittest.SkipTest("test_gdb only works on source builds at the moment.")
+    if major_version < 7:
+        raise unittest.SkipTest("gdb versions before 7.0 didn't support python "
+                                "embedding. Saw %s.%s:\n%s"
+                                % (major_version, minor_version,
+                                   version))
 
-if 'Clang' in platform.python_compiler() and sys.platform == 'darwin':
-    raise unittest.SkipTest("test_gdb doesn't work correctly when python is"
-                            " built with LLVM clang")
+    return (version, major_version, minor_version)
 
-if ((sysconfig.get_config_var('PGO_PROF_USE_FLAG') or 'xxx') in
-    (sysconfig.get_config_var('PY_CORE_CFLAGS') or '')):
-    raise unittest.SkipTest("test_gdb is not reliable on PGO builds")
-
-# Location of custom hooks file in a repository checkout.
-checkout_hook_path = os.path.join(os.path.dirname(sys.executable),
-                                  'python-gdb.py')
 
 PYTHONHASHSEED = '123'
 
 
+# Control-flow enforcement technology
 def cet_protection():
     cflags = sysconfig.get_config_var('CFLAGS')
     if not cflags:
@@ -81,9 +71,6 @@ def cet_protection():
             and any((flag.startswith('-fcf-protection')
                      and not flag.endswith(("=none", "=return")))
                     for flag in flags))
-
-# Control-flow enforcement technology
-CET_PROTECTION = cet_protection()
 
 
 def run_gdb(*args, **env_vars):
@@ -99,7 +86,11 @@ def run_gdb(*args, **env_vars):
     # -nx: Do not execute commands from any .gdbinit initialization files
     #      (issue #22188)
     base_cmd = ('gdb', '--batch', '-nx')
+    _, gdb_major_version, gdb_minor_version = get_gdb_version()
     if (gdb_major_version, gdb_minor_version) >= (7, 4):
+        # Location of custom hooks file in a repository checkout.
+        checkout_hook_path = os.path.join(os.path.dirname(sys.executable),
+                                          'python-gdb.py')
         base_cmd += ('-iex', 'add-auto-load-safe-path ' + checkout_hook_path)
     proc = subprocess.Popen(base_cmd + args,
                             # Redirect stdin to prevent GDB from messing with
@@ -112,22 +103,36 @@ def run_gdb(*args, **env_vars):
         out, err = proc.communicate()
     return out.decode('utf-8', 'replace'), err.decode('utf-8', 'replace')
 
-# Verify that "gdb" was built with the embedded python support enabled:
-gdbpy_version, _ = run_gdb("--eval-command=python import sys; print(sys.version_info)")
-if not gdbpy_version:
-    raise unittest.SkipTest("gdb not built with embedded python support")
+def should_skip() -> None:
+    if not sysconfig.is_python_build():
+        raise unittest.SkipTest("test_gdb only works on source builds at the moment.")
 
-# Verify that "gdb" can load our custom hooks, as OS security settings may
-# disallow this without a customized .gdbinit.
-_, gdbpy_errors = run_gdb('--args', sys.executable)
-if "auto-loading has been declined" in gdbpy_errors:
-    msg = "gdb security settings prevent use of custom hooks: "
-    raise unittest.SkipTest(msg + gdbpy_errors.rstrip())
+    if 'Clang' in platform.python_compiler() and sys.platform == 'darwin':
+        raise unittest.SkipTest("test_gdb doesn't work correctly when python is"
+                                " built with LLVM clang")
+
+    if ((sysconfig.get_config_var('PGO_PROF_USE_FLAG') or 'xxx') in
+        (sysconfig.get_config_var('PY_CORE_CFLAGS') or '')):
+        raise unittest.SkipTest("test_gdb is not reliable on PGO builds")
+
+    # Verify that "gdb" was built with the embedded python support enabled:
+    gdbpy_version, _ = run_gdb("--eval-command=python import sys; print(sys.version_info)")
+    if not gdbpy_version:
+        raise unittest.SkipTest("gdb not built with embedded python support")
+
+    # Verify that "gdb" can load our custom hooks, as OS security settings may
+    # disallow this without a customized .gdbinit.
+    _, gdbpy_errors = run_gdb('--args', sys.executable)
+    if "auto-loading has been declined" in gdbpy_errors:
+        msg = "gdb security settings prevent use of custom hooks: "
+        raise unittest.SkipTest(msg + gdbpy_errors.rstrip())
+
 
 BREAKPOINT_FN='builtin_id'
 
+
 # CinderX: This is unchanged, kept as the parent class of CinderX_PrettyPrintTests
-@unittest.skipIf(support.PGO, "not useful for PGO")
+@unittest.skipIf(support.PGO or should_skip(), "not useful for PGO")
 class CinderX_DebuggerTests(unittest.TestCase):
     """Test that the debugger can debug Python."""
 
@@ -180,11 +185,12 @@ class CinderX_DebuggerTests(unittest.TestCase):
         # which leads to the selftests failing with errors like this:
         #   AssertionError: 'v@entry=()' != '()'
         # Disable this:
+        _, gdb_major_version, gdb_minor_version = get_gdb_version()
         if (gdb_major_version, gdb_minor_version) >= (7, 4):
             commands += ['set print entry-values no']
 
         if cmds_after_breakpoint:
-            if CET_PROTECTION:
+            if cet_protection():
                 # bpo-32962: When Python is compiled with -mcet
                 # -fcf-protection, function arguments are unusable before
                 # running the first instruction of the function entry point.
@@ -259,6 +265,7 @@ id(foo.__code__)''',
 
 def setUpModule():
     if support.verbose:
+        gdb_version, gdb_major_version, gdb_minor_version = get_gdb_version()
         print("GDB version %s.%s:" % (gdb_major_version, gdb_minor_version))
         for line in gdb_version.splitlines():
             print(" " * 4 + line)
