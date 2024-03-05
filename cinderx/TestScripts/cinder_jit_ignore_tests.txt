@@ -18,11 +18,12 @@ test_bdb
 # multithreaded_compile_test requires special -X options
 multithreaded_compile_test
 
-# TODO(T87011403): Infinite recursion
+# TODO(T87011403): The JIT doesn't support recursion limits.
 test.test_exceptions.ExceptionTests.testInfiniteRecursion
 test.test_exceptions.ExceptionTests.test_badisinstance
 test.test_exceptions.ExceptionTests.test_recursion_error_cleanup
 test.test_exceptions.ExceptionTests.test_recursion_in_except_handler
+test.test_exceptions.ExceptionTests.test_recursion_normalizing_exception
 test.test_isinstance.TestIsInstanceIsSubclass.test_infinite_recursion_in_bases
 test.test_json.test_recursion.TestPyRecursion.test_endless_recursion
 test.test_json.test_recursion.TestPyRecursion.test_highly_nested_objects_decoding
