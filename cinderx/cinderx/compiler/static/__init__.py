@@ -111,7 +111,7 @@ class InitSubClassGenerator:
         return code
 
 
-class Static38CodeGenerator(StrictCodeGenerator):
+class Static310CodeGenerator(StrictCodeGenerator):
     flow_graph = PyFlowGraph38Static
     _default_cache: Dict[Type[ast.AST], typingCallable[[...], None]] = {}
 
@@ -275,7 +275,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         ast_optimizer_enabled: bool = True,
         enable_patching: bool = False,
         builtins: Dict[str, Any] = builtins.__dict__,
-    ) -> Static38CodeGenerator:
+    ) -> Static310CodeGenerator:
         assert ast_optimizer_enabled
 
         compiler = Compiler(cls)
@@ -397,7 +397,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             for unassigned in visitor.unassigned:
                 node_type = self.get_type(unassigned)
                 if isinstance(node_type, CInstance):
-                    assert type(gen) is Static38CodeGenerator
+                    assert type(gen) is Static310CodeGenerator
                     node_type.emit_init(unassigned, gen)
 
         super().processBody(node, body, gen)
@@ -471,7 +471,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
             gen.emit("MAKE_FUNCTION", 8)
             gen.emit("STORE_NAME", "__init_subclass__")
 
-        assert isinstance(gen, Static38CodeGenerator)
+        assert isinstance(gen, Static310CodeGenerator)
         klass.emit_extra_members(node, gen)
 
         class_mems_with_overrides = [
@@ -1057,7 +1057,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         )
 
     def defaultCall(self, node: object, name: str, *args: object) -> None:
-        meth = getattr(super(Static38CodeGenerator, Static38CodeGenerator), name)
+        meth = getattr(super(Static310CodeGenerator, Static310CodeGenerator), name)
         return meth(self, node, *args)
 
     def defaultVisit(self, node: object, *args: object) -> None:
@@ -1066,7 +1066,7 @@ class Static38CodeGenerator(StrictCodeGenerator):
         if meth is None:
             className = klass.__name__
             meth = getattr(
-                super(Static38CodeGenerator, Static38CodeGenerator),
+                super(Static310CodeGenerator, Static310CodeGenerator),
                 "visit" + className,
                 StaticCodeGenerator.generic_visit,
             )
@@ -1158,4 +1158,4 @@ class Static38CodeGenerator(StrictCodeGenerator):
         return self.compiler.error_sink.perf_warning(msg, self.graph.filename, node)
 
 
-StaticCodeGenerator = Static38CodeGenerator
+StaticCodeGenerator = Static310CodeGenerator

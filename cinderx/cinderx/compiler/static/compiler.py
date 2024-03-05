@@ -47,7 +47,7 @@ else:
 
 
 if TYPE_CHECKING:
-    from . import Static38CodeGenerator
+    from . import Static310CodeGenerator
 
 try:
     import xxclassloader
@@ -82,7 +82,7 @@ class StrictBuiltins(Object[Class]):
 class Compiler:
     def __init__(
         self,
-        code_generator: Type[Static38CodeGenerator],
+        code_generator: Type[Static310CodeGenerator],
         error_sink: Optional[ErrorSink] = None,
     ) -> None:
         self.modules: Dict[str, ModuleTable] = {}
@@ -529,7 +529,7 @@ class Compiler:
         optimize: int,
         enable_patching: bool = False,
         builtins: Dict[str, Any] = builtins.__dict__,
-    ) -> Static38CodeGenerator:
+    ) -> Static310CodeGenerator:
         tree, s = self._bind(name, filename, tree, optimize, enable_patching)
         if self.error_sink.has_errors:
             raise self.error_sink.errors[0]

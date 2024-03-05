@@ -22,7 +22,7 @@ from cinderx.compiler.errors import (
     PerfWarning,
     TypedSyntaxError,
 )
-from cinderx.compiler.static import Static38CodeGenerator, StaticCodeGenerator
+from cinderx.compiler.static import Static310CodeGenerator, StaticCodeGenerator
 from cinderx.compiler.static.compiler import Compiler
 from cinderx.compiler.static.module_table import ModuleTable
 from cinderx.compiler.static.types import Value
@@ -108,7 +108,7 @@ class TestCompiler(Compiler):
         self,
         source_by_name: Mapping[str, str],
         test_case: StaticTestBase,
-        code_generator: Type[Static38CodeGenerator] = StaticCodeGenerator,
+        code_generator: Type[Static310CodeGenerator] = StaticCodeGenerator,
         error_sink: ErrorSink | None = None,
         strict_modules: bool = False,
         enable_patching: bool = False,
