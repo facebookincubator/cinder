@@ -87,6 +87,7 @@ test.test_threading.ThreadTests.test_main_thread_during_shutdown
 test.test_traceback.TracebackCases.test_print_traceback_at_exit
 
 # The JIT does not support settrace() or setprofile()
+test.test_audit.AuditTest.test_cantrace
 test.test_doctest.test_pdb_set_trace
 test.test_doctest.test_pdb_set_trace_nested
 test.test_patma.TestTracing.*
