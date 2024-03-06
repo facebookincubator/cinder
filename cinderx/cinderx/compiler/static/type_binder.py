@@ -35,6 +35,14 @@ from ast import (
     Lambda,
     ListComp,
     Match,
+    MatchAs,
+    MatchClass,
+    MatchMapping,
+    MatchOr,
+    MatchSequence,
+    MatchSingleton,
+    MatchStar,
+    MatchValue,
     Module,
     Name,
     NameConstant,
@@ -924,9 +932,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 final_type = self.widen(
                     final_type,
                     # For Optional[T], we use `T` when widening, to handle `my_optional or something`
-                    old_type.klass.opt_type.instance
-                    if isinstance(old_type, OptionalInstance)
-                    else old_type,
+                    (
+                        old_type.klass.opt_type.instance
+                        if isinstance(old_type, OptionalInstance)
+                        else old_type
+                    ),
                 )
                 self.set_type(value, old_type)
 
@@ -1219,6 +1229,23 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 decl_type = self.scopes[0].decl_types.get(name)
         return decl_type
 
+    def assign_name(
+        self,
+        target: AST,
+        name: str,
+        value: Value,
+    ) -> None:
+        decl_type = self.get_target_decl(name)
+        if decl_type is None:
+            self.declare_local(name, value, is_inferred=True)
+        else:
+            if decl_type.is_final:
+                self.syntax_error("Cannot assign to a Final variable", target)
+            self.check_can_assign_from(decl_type.type.klass, value.klass, target)
+
+        local_type = self.maybe_set_local_type(name, value)
+        self.set_type(target, local_type)
+
     def assign_value(
         self,
         target: expr,
@@ -1227,16 +1254,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         assignment: Optional[AST] = None,
     ) -> None:
         if isinstance(target, Name):
-            decl_type = self.get_target_decl(target.id)
-            if decl_type is None:
-                self.declare_local(target.id, value, is_inferred=True)
-            else:
-                if decl_type.is_final:
-                    self.syntax_error("Cannot assign to a Final variable", target)
-                self.check_can_assign_from(decl_type.type.klass, value.klass, target)
-
-            local_type = self.maybe_set_local_type(target.id, value)
-            self.set_type(target, local_type)
+            self.assign_name(target, target.id, value)
         elif isinstance(target, (ast.Tuple, ast.List)):
             if isinstance(src, (ast.Tuple, ast.List)) and len(target.elts) == len(
                 src.elts
@@ -2006,19 +2024,71 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         self.visit(node.subject)
 
         branch = self.binding_scope.branch()
-        # branches that exit the match statement without terminating
-        exiting_branches = []
 
+        continuing_branches = []
         for case in node.cases:
-            case_terminates = self.visit_check_terminal(case.body)
-            case_branch = branch.copy()
-            branch.restore()
-            if case_terminates != TerminalKind.RaiseOrReturn:
-                exiting_branches.append(case_branch)
+            self.visit(case.pattern)
 
-        branch.restore()
-        for case in exiting_branches:
-            branch.merge(case)
+            # TODO: Visit the case guard and handle next_branches accordingly
+            case_terminates = self.visit_check_terminal(case.body)
+
+            match case_terminates:
+                case TerminalKind.RaiseOrReturn:
+                    pass
+                case TerminalKind.BreakOrContinue | TerminalKind.NonTerminal:
+                    continuing_branches.append(branch.copy())
+
+            branch.restore()
+
+        for b in continuing_branches:
+            branch.merge(b)
+
+    def visitMatchValue(self, node: MatchValue) -> None:
+        self.visit(node.value)
+
+    def visitMatchSingleton(self, node: MatchSingleton) -> None:
+        pass
+
+    def visitMatchSequence(self, node: MatchSequence) -> None:
+        for pattern in node.patterns:
+            self.visit(pattern)
+
+    def visitMatchStar(self, node: MatchStar) -> None:
+        name = node.name
+        if name:
+            self.assign_name(node, name, self.type_env.DYNAMIC)
+
+    def visitMatchMapping(self, node: MatchMapping) -> None:
+        for pattern in node.patterns:
+            self.visit(pattern)
+
+        rest = node.rest
+        if rest:
+            self.assign_name(node, rest, self.type_env.DYNAMIC)
+
+    def visitMatchClass(self, node: MatchClass) -> None:
+        for pattern in node.patterns:
+            self.visit(pattern)
+
+        for kwd_pattern in node.kwd_patterns:
+            self.visit(kwd_pattern)
+
+    def visitMatchAs(self, node: MatchAs) -> None:
+        # If name is None, pattern must also be None and the node represents the wildcard pattern.
+        name = node.name
+        if name is None:
+            return
+
+        # If the pattern is None, the node represents a capture pattern (i.e a bare name) and will always succeed.
+        if node.pattern is not None:
+            self.visit(node.pattern)
+
+        self.assign_name(node, name, self.type_env.DYNAMIC)
+
+    def visitMatchOr(self, node: MatchOr) -> None:
+        branch = self.binding_scope.branch()
+        for pattern in node.patterns:
+            self.visit(pattern)
 
     def visitwithitem(self, node: ast.withitem) -> None:
         self.visit(node.context_expr)
