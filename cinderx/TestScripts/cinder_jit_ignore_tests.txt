@@ -92,6 +92,9 @@ test.test_doctest.test_pdb_set_trace_nested
 test.test_patma.TestTracing.*
 test.test_pstats.StatsTestCase.test_get_stats_profile
 
+# The JIT doesn't support pdb and this test runs it as part of a subprocess.
+test.test_zipimport_support.ZipSupportTests.test_pdb_issue4201
+
 # These are CinderX override test functions that should also be ignored based on the contents of this file.
 test_cinderx.test_cpython_overrides.test_trace.CinderX_TestLineCounts.test_trace_list_comprehension
 test_cinderx.test_coro_extensions.CoroutineAwaiterTest.test_eager_await
