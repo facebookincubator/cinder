@@ -7,7 +7,7 @@
  * of this source tree.
  */
 
- /*
+/*
   This is an alternative Native Python entry-point that starts a Python
   environment similar to what people might expect when running a stock 'python'
   binary. The idea is to leverage the cinder_binary() Buck macro to ease
@@ -27,8 +27,8 @@
   be able to handle this. However, they do not today and I don't have the time
   right now to figure out all the cases which need to be supported for this.
   Particularly, this implementation has a hard assumption that we're using
-  Native Python and CinderX. There may also be issuese with how the environment
-  initially setup by the PAR startup scripts are propagated (or not) to further
+  Native Python and CinderX. There may also be issues with how the environment
+  initially set up by the PAR startup scripts is propagated (or not) to further
   forked processes.
 
   This is only expected to be good enough for Cinder/Python Runtime developers
