@@ -615,10 +615,9 @@ class MagicNumberTests(unittest.TestCase):
     """
     Test release compatibility issues relating to importlib
     """
-    @unittest.skipUnless(
-        sys.version_info.releaselevel in ('candidate', 'final'),
-        'only applies to candidate or final python release levels'
-    )
+    # START META PATCH (skip magic number test)
+    @unittest.skip('only applies to upstream')
+    # END META PATCH
     def test_magic_number(self):
         # Each python minor release should generally have a MAGIC_NUMBER
         # that does not change once the release reaches candidate status.

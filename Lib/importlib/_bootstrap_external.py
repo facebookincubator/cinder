@@ -446,6 +446,7 @@ _code_type = type(_write_atomic.__code__)
 #     Python 3.12b1 3529 (Inline list/dict/set comprehensions)
 #     Python 3.12b1 3530 (Shrink the LOAD_SUPER_ATTR caches)
 #     Python 3.12b1 3531 (Add PEP 695 changes)
+#     [META] Python 3.12.2 3532 (Apply lazy imports patch)
 
 #     Python 3.13 will start with 3550
 
@@ -462,7 +463,9 @@ _code_type = type(_write_atomic.__code__)
 # Whenever MAGIC_NUMBER is changed, the ranges in the magic_values array
 # in PC/launcher.c must also be updated.
 
-MAGIC_NUMBER = (3531).to_bytes(2, 'little') + b'\r\n'
+# START META PATCH (bump magic number to account for lazy imports opcode change)
+MAGIC_NUMBER = (3532).to_bytes(2, 'little') + b'\r\n'
+# END META PATCH
 
 _RAW_MAGIC_NUMBER = int.from_bytes(MAGIC_NUMBER, 'little')  # For import.c
 
