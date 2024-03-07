@@ -764,7 +764,7 @@ class TypeName:
         element appended. For generic types we append a tuple of the generic
         args' type_descrs.
         """
-        return (self.module, self.qualname)
+        return (self.module, *(self.qualname.split(".")))
 
     @property
     def readable_name(self) -> str:
@@ -1560,6 +1560,10 @@ class Class(Object["Class"]):
         if self.is_exact:
             return f"Exact[{name}]"
         return name
+
+    @property
+    def qualname(self) -> str:
+        return self.type_name.qualname
 
     def declare_class(self, node: ClassDef, klass: Class) -> None:
         self._member_nodes[node.name] = node
@@ -3313,6 +3317,13 @@ class Callable(Object[TClass]):
         if cont:
             return f"{cont.readable_name}.{self.func_name}"
         return f"{self.module_name}.{self.func_name}"
+
+    @property
+    def qualname(self) -> str:
+        cont = self.container_type
+        if cont and cont.qualname is not None:
+            return f"{cont.qualname}.{self.func_name}"
+        return self.func_name
 
     @property
     def type_descr(self) -> TypeDescr:

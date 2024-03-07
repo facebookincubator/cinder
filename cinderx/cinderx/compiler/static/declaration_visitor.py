@@ -39,7 +39,7 @@ from .types import (
     TypeRef,
     UnknownDecoratedMethod,
 )
-from .util import sys_hexversion_check
+from .util import make_qualname, sys_hexversion_check
 from .visitor import GenericVisitor
 
 if TYPE_CHECKING:
@@ -47,6 +47,9 @@ if TYPE_CHECKING:
 
 
 class NestedScope:
+    def __init__(self, parent_qualname: str | None) -> None:
+        self.qualname: str = make_qualname(parent_qualname, "<nested>")
+
     def declare_class(self, node: AST, klass: Class) -> None:
         pass
 
@@ -88,6 +91,12 @@ class DeclarationVisitor(GenericVisitor[None]):
     def exit_scope(self) -> None:
         self.scopes.pop()
 
+    def make_nested_scope(self) -> NestedScope:
+        return NestedScope(self.parent_scope().qualname)
+
+    def enter_nested_scope(self) -> None:
+        self.enter_scope(self.make_nested_scope())
+
     def visitAnnAssign(self, node: AnnAssign) -> None:
         self.parent_scope().declare_variable(node, self.module)
 
@@ -102,12 +111,19 @@ class DeclarationVisitor(GenericVisitor[None]):
         if not bases:
             bases.append(self.type_env.object)
 
+        parent_scope = self.parent_scope()
+
         with self.compiler.error_sink.error_context(self.filename, node):
             klasses = []
             for base in bases:
                 klasses.append(
-                    # TODO (self.module_name, node.name) here is wrong for all nested scopes
-                    base.make_subclass(TypeName(self.module_name, node.name), bases)
+                    base.make_subclass(
+                        TypeName(
+                            self.module_name,
+                            make_qualname(parent_scope.qualname, node.name),
+                        ),
+                        bases,
+                    )
                 )
             for cur_type in klasses:
                 if type(cur_type) != type(klasses[0]):
@@ -139,15 +155,13 @@ class DeclarationVisitor(GenericVisitor[None]):
                     node,
                 )
 
-        parent_scope = self.parent_scope()
-
-        # we can't statically load classes nested inside functions, and for now
-        # we don't bother with ones nested inside classes (would need to fix
-        # the TypeName construction above)
-        if not isinstance(parent_scope, ModuleTable):
+        # we can't statically load classes nested inside functions
+        if not isinstance(parent_scope, (ModuleTable, Class)):
             klass = self.type_env.dynamic
 
-        self.enter_scope(NestedScope() if klass is self.type_env.dynamic else klass)
+        self.enter_scope(
+            self.make_nested_scope() if klass is self.type_env.dynamic else klass
+        )
         for item in node.body:
             with self.compiler.error_sink.error_context(self.filename, item):
                 self.visit(item)
@@ -243,17 +257,17 @@ class DeclarationVisitor(GenericVisitor[None]):
 
     # We don't pick up declarations in nested statements
     def visitFor(self, node: For) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()
 
     def visitAsyncFor(self, node: AsyncFor) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()
 
     def visitWhile(self, node: While) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()
 
@@ -272,26 +286,26 @@ class DeclarationVisitor(GenericVisitor[None]):
                     self.visit(node.orelse)
                 return
             else:
-                self.enter_scope(NestedScope())
+                self.enter_nested_scope()
                 self.visit(node.body)
                 self.exit_scope()
 
         if node.orelse:
-            self.enter_scope(NestedScope())
+            self.enter_nested_scope()
             self.visit(node.orelse)
             self.exit_scope()
 
     def visitWith(self, node: With) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()
 
     def visitAsyncWith(self, node: AsyncWith) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()
 
     def visitTry(self, node: Try) -> None:
-        self.enter_scope(NestedScope())
+        self.enter_nested_scope()
         self.generic_visit(node)
         self.exit_scope()

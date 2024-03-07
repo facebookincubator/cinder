@@ -17,6 +17,12 @@ COMPARE_OPS: Mapping[Type[ast.cmpop], Callable[[object, object], bool]] = {
 }
 
 
+def make_qualname(parent_qualname: str | None, name: str) -> str:
+    if parent_qualname is None:
+        return name
+    return f"{parent_qualname}.{name}"
+
+
 def _is_sys_hexversion_attr_load(node: ast.expr) -> bool:
     if isinstance(node, ast.Attribute):
         container = node.value

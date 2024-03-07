@@ -255,6 +255,10 @@ class ModuleTable:
         self.first_pass_done = first_pass_done
         self.ann_visitor = AnnotationVisitor(self)
         self.ref_visitor = ReferenceVisitor(self)
+        # the prefix children will get on their qualname; always None for
+        # modules (the qualname of a class or function is within-module, it
+        # doesn't include the module name)
+        self.qualname: None = None
 
     def get_child(self, name: str) -> Optional[Value]:
         res = self._children.get(name)
