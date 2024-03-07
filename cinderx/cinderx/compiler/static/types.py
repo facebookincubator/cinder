@@ -751,9 +751,9 @@ TypeDescr = Tuple[object, ...]
 
 
 class TypeName:
-    def __init__(self, module: str, name: str) -> None:
+    def __init__(self, module: str, qualname: str) -> None:
         self.module = module
-        self.name = name
+        self.qualname = qualname
 
     @property
     def type_descr(self) -> TypeDescr:
@@ -764,13 +764,13 @@ class TypeName:
         element appended. For generic types we append a tuple of the generic
         args' type_descrs.
         """
-        return (self.module, self.name)
+        return (self.module, self.qualname)
 
     @property
-    def friendly_name(self) -> str:
+    def readable_name(self) -> str:
         if self.module and self.module not in ("builtins", "__static__", "typing"):
-            return f"{self.module}.{self.name}"
-        return self.name
+            return f"{self.module}.{self.qualname}"
+        return self.qualname
 
 
 class GenericTypeName(TypeName):
@@ -783,12 +783,12 @@ class GenericTypeName(TypeName):
         gen_args: List[TypeDescr] = []
         for arg in self.args:
             gen_args.append(arg.type_descr)
-        return (self.module, self.name, tuple(gen_args))
+        return (self.module, self.qualname, tuple(gen_args))
 
     @property
-    def friendly_name(self) -> str:
+    def readable_name(self) -> str:
         args = ", ".join(arg.instance.name for arg in self.args)
-        return f"{super().friendly_name}[{args}]"
+        return f"{super().readable_name}[{args}]"
 
 
 TType = TypeVar("TType")
@@ -806,10 +806,7 @@ class Value:
     """base class for all values tracked at compile time."""
 
     def __init__(self, klass: Class) -> None:
-        """name: the name of the value, for instances this is used solely for
-        debug/reporting purposes.  In Class subclasses this will be the
-        qualified name (e.g. module.Foo).
-        klass: the Class of this object"""
+        """klass: the Class of this object"""
         self.klass = klass
 
     @property
@@ -1218,7 +1215,7 @@ class Object(Value, Generic[TClass]):
 
     @property
     def name(self) -> str:
-        return self.klass.qualname
+        return self.klass.readable_name
 
     @property
     def name_with_exact(self) -> str:
@@ -1598,8 +1595,8 @@ class Class(Object["Class"]):
         return self.members.get(name)
 
     @property
-    def qualname(self) -> str:
-        return self.type_name.friendly_name
+    def readable_name(self) -> str:
+        return self.type_name.readable_name
 
     @property
     def is_generic_parameter(self) -> bool:
@@ -2231,7 +2228,9 @@ class GenericClass(Class):
         self,
         index: Tuple[Class, ...],
     ) -> Class:
-        type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
+        type_name = GenericTypeName(
+            self.type_name.module, self.type_name.qualname, index
+        )
         generic_bases: List[Optional[Class]] = [
             (
                 self.type_env.get_generic_type(base, index)
@@ -2295,7 +2294,7 @@ class GenericParameter(Class):
 
     @property
     def name(self) -> str:
-        return self.type_name.name
+        return self.type_name.qualname
 
     @property
     def is_generic_parameter(self) -> bool:
@@ -2357,7 +2356,7 @@ class CType(Class):
 
     def make_subclass(self, name: TypeName, bases: List[Class]) -> Class:
         raise TypedSyntaxError(
-            f"Primitive type {self.instance_name} cannot be subclassed: {name.friendly_name}",
+            f"Primitive type {self.instance_name} cannot be subclassed: {name.readable_name}",
         )
 
     def emit_type_check(self, src: Class, code_gen: Static310CodeGenerator) -> None:
@@ -2377,7 +2376,7 @@ class DynamicClass(Class):
         )
 
     @property
-    def qualname(self) -> str:
+    def readable_name(self) -> str:
         return "dynamic"
 
     @property
@@ -2661,7 +2660,7 @@ class ArgMapping:
         for idx, (param, arg) in enumerate(zip(expected_args, self.args)):
             if param.is_kwonly:
                 visitor.syntax_error(
-                    f"{self.callable.qualname} takes {idx + skip_self} positional args but "
+                    f"{self.callable.readable_name} takes {idx + skip_self} positional args but "
                     f"{len(self.args) + skip_self} {'was' if len(self.args) + skip_self == 1 else 'were'} given",
                     self.call,
                 )
@@ -2701,7 +2700,7 @@ class ArgMapping:
             if argname not in self.callable.args_by_name:
                 visitor.syntax_error(
                     f"Given argument {argname} "
-                    f"does not exist in the definition of {self.callable.qualname}",
+                    f"does not exist in the definition of {self.callable.readable_name}",
                     self.call,
                 )
 
@@ -2795,7 +2794,7 @@ class ArgMapping:
                 else:
                     # It's an error if this arg did not have a default value in the definition
                     visitor.syntax_error(
-                        f"Function {self.callable.qualname} expects a value for "
+                        f"Function {self.callable.readable_name} expects a value for "
                         f"argument {param.name}",
                         self.call,
                     )
@@ -3309,10 +3308,10 @@ class Callable(Object[TClass]):
         self._return_type = value
 
     @property
-    def qualname(self) -> str:
+    def readable_name(self) -> str:
         cont = self.container_type
         if cont:
-            return f"{cont.qualname}.{self.func_name}"
+            return f"{cont.readable_name}.{self.func_name}"
         return f"{self.module_name}.{self.func_name}"
 
     @property
@@ -3336,7 +3335,7 @@ class Callable(Object[TClass]):
 
         if not ret_type.can_assign_from(override_ret_type):
             module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                 f"Returned type `{override_ret_type.instance_name}` "
                 "is not a subtype "
                 f"of the overridden return `{ret_type.instance_name}`",
@@ -3359,7 +3358,7 @@ class Callable(Object[TClass]):
 
         if len(args) != len(override_args):
             module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                 "Number of arguments differ",
                 override.node,
             )
@@ -3373,21 +3372,21 @@ class Callable(Object[TClass]):
                     arg_desc = f"Positional argument {arg.index + 1} named `{arg.name}`"
 
                 module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                     f"{arg_desc} is overridden as `{override_arg.name}`",
                     override.node,
                 )
 
             if override_arg.is_posonly and not arg.is_posonly:
                 module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                     f"`{override_arg.name}` is positional-only in override, not in base",
                     override.node,
                 )
 
             if arg.is_kwonly != override_arg.is_kwonly:
                 module.syntax_error(
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                     f"`{arg.name}` differs by keyword only vs positional",
                     override.node,
                 )
@@ -3396,7 +3395,7 @@ class Callable(Object[TClass]):
             arg_type = arg.type_ref.resolved()
             if not override_type.can_assign_from(arg_type):
                 reason = (
-                    f"{override.qualname} overrides {self.qualname} inconsistently. "
+                    f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                     + f"Parameter {arg.name}"
                     + " of type `{1}` is not a supertype of the overridden parameter `{0}`"
                 )
@@ -3405,14 +3404,14 @@ class Callable(Object[TClass]):
 
         if self.has_vararg != override.has_vararg:
             module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                 f"Functions differ by including *args",
                 override.node,
             )
 
         if self.has_kwarg != override.has_kwarg:
             module.syntax_error(
-                f"{override.qualname} overrides {self.qualname} inconsistently. "
+                f"{override.readable_name} overrides {self.readable_name} inconsistently. "
                 f"Functions differ by including **kwargs",
                 override.node,
             )
@@ -3536,7 +3535,9 @@ class AwaitableType(GenericClass):
 
     def make_generic_type(self, index: Tuple[Class, ...]) -> Class:
         assert len(index) == 1
-        type_name = GenericTypeName(self.type_name.module, self.type_name.name, index)
+        type_name = GenericTypeName(
+            self.type_name.module, self.type_name.qualname, index
+        )
         return AwaitableType(self.type_env, type_name, type_def=self)
 
 
@@ -3696,7 +3697,7 @@ class Function(Callable[Class], FunctionContainer):
 
     @property
     def name(self) -> str:
-        return f"function {self.qualname}"
+        return f"function {self.readable_name}"
 
     def declare_class(self, node: AST, klass: Class) -> None:
         # currently, we don't allow declaring classes within functions
@@ -3982,7 +3983,7 @@ class MethodType(Object[Class]):
 
     @property
     def name(self) -> str:
-        return "method " + self.function.qualname
+        return "method " + self.function.readable_name
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -4170,7 +4171,7 @@ class StaticMethod(DecoratedMethod):
     def can_override(self, override: Value, klass: Class, module: ModuleTable) -> bool:
         if self.is_final:
             raise TypedSyntaxError(
-                f"Cannot assign to a Final attribute of {klass.instance.name}:{self.real_function.qualname}"
+                f"Cannot assign to a Final attribute of {klass.instance.name}:{self.real_function.readable_name}"
             )
         assert isinstance(override, DecoratedMethod)
         self.real_function.validate_compat_signature(
@@ -4180,7 +4181,7 @@ class StaticMethod(DecoratedMethod):
 
     @property
     def name(self) -> str:
-        return "staticmethod " + self.real_function.qualname
+        return "staticmethod " + self.real_function.readable_name
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return StaticMethod(self.function.replace_function(func), self.decorator)
@@ -4252,7 +4253,7 @@ class ClassMethod(DecoratedMethod):
 
     @property
     def name(self) -> str:
-        return "classmethod " + self.real_function.qualname
+        return "classmethod " + self.real_function.readable_name
 
     def replace_function(self, func: Function) -> Function | DecoratedMethod:
         return ClassMethod(self.function.replace_function(func), self.decorator)
@@ -4352,7 +4353,7 @@ class PropertyMethod(DecoratedMethod):
 
     @property
     def name(self) -> str:
-        return self.real_function.qualname
+        return self.real_function.readable_name
 
     def resolve_descr_get(
         self,
@@ -5034,7 +5035,7 @@ class DataclassDecorator(Callable[Class]):
             # fall back to dynamic behavior to pick up __dataclass_fields__ at runtime
             if base is self.type_env.dynamic:
                 visitor.perf_warning(
-                    f"Dataclass {klass.qualname} has a dynamic base. Convert all of "
+                    f"Dataclass {klass.readable_name} has a dynamic base. Convert all of "
                     "its bases to Static Python to resolve dataclass at compile time.",
                     decorator,
                 )
@@ -5258,7 +5259,7 @@ class DataclassField(Object[DataclassFieldType]):
                 visitor.type_env.set,
             ):
                 raise TypedSyntaxError(
-                    f"mutable default {default_type.qualname} for field "
+                    f"mutable default {default_type.readable_name} for field "
                     f"{self.field_name} is not allowed: use default_factory"
                 )
         if self.kind is DataclassFieldKind.INITVAR and not self.init:
@@ -5350,7 +5351,7 @@ class Dataclass(Class):
             for name in ("__lt__", "__le__", "__gt__", "__ge__"):
                 if name in self.wrapped_class.members:
                     raise TypedSyntaxError(
-                        f"Cannot overwrite attribute {name} in class {self.type_name.name}. "
+                        f"Cannot overwrite attribute {name} in class {self.type_name.qualname}. "
                         "Consider using functools.total_ordering"
                     )
 
@@ -5358,12 +5359,12 @@ class Dataclass(Class):
             for name in ("__setattr__", "__delattr__"):
                 if name in self.wrapped_class.members:
                     raise TypedSyntaxError(
-                        f"Cannot overwrite attribute {name} in class {self.type_name.name}"
+                        f"Cannot overwrite attribute {name} in class {self.type_name.qualname}"
                     )
 
         if unsafe_hash and self.has_explicit_hash:
             raise TypedSyntaxError(
-                f"Cannot overwrite attribute __hash__ in class {self.type_name.name}"
+                f"Cannot overwrite attribute __hash__ in class {self.type_name.qualname}"
             )
 
     @property
@@ -5405,7 +5406,7 @@ class Dataclass(Class):
         if new_type is not existing_type:
             raise TypedSyntaxError(
                 f"Type of field '{name}' on class "
-                f"'{self.qualname}' conflicts with base type. "
+                f"'{self.readable_name}' conflicts with base type. "
                 f"Base field has annotation {existing.type_annotation}, "
                 f"but overridden field has annotation {field.type_annotation}"
             )
@@ -5635,7 +5636,7 @@ class Dataclass(Class):
         oparg: int,
     ) -> None:
         code_gen.emit("LOAD_CONST", graph)
-        code_gen.emit("LOAD_CONST", f"{self.type_name.name}.{graph.name}")
+        code_gen.emit("LOAD_CONST", f"{self.type_name.qualname}.{graph.name}")
         code_gen.emit("MAKE_FUNCTION", oparg)
         code_gen.emit("STORE_NAME", graph.name)
 
@@ -5909,7 +5910,7 @@ class Dataclass(Class):
         code_gen.emit("IMPORT_FROM", "recursive_repr")
         code_gen.emit("CALL_FUNCTION", 0)
         code_gen.emit("LOAD_CONST", graph)
-        code_gen.emit("LOAD_CONST", f"{self.type_name.name}.{graph.name}")
+        code_gen.emit("LOAD_CONST", f"{self.type_name.qualname}.{graph.name}")
         code_gen.emit("MAKE_FUNCTION", 0)
         code_gen.emit("CALL_FUNCTION", 1)
         code_gen.emit("STORE_NAME", "__repr__")
@@ -6304,7 +6305,7 @@ class BuiltinMethod(Callable[Class]):
 
     @property
     def name(self) -> str:
-        return self.qualname
+        return self.readable_name
 
     def bind_call(
         self, node: ast.Call, visitor: TypeBinder, type_ctx: Optional[Class]
@@ -8084,14 +8085,14 @@ class UnionTypeName(GenericTypeName):
         return self.type_env.dynamic.type_descr
 
     @property
-    def friendly_name(self) -> str:
+    def readable_name(self) -> str:
         opt_type = self.opt_type
         if opt_type is not None:
             return f"Optional[{opt_type.instance.name}]"
         float_type = self.float_type
         if float_type is not None:
             return float_type.instance.name
-        return super().friendly_name
+        return super().readable_name
 
 
 class UnionType(GenericClass):
@@ -8151,11 +8152,11 @@ class UnionType(GenericClass):
         if len(type_args) == 1 and not type_args[0].is_generic_parameter:
             return type_args[0]
         type_name = UnionTypeName(
-            self.type_name.module, self.type_name.name, type_args, self.type_env
+            self.type_name.module, self.type_name.qualname, type_args, self.type_env
         )
         if any(isinstance(a, CType) for a in type_args):
             raise TypedSyntaxError(
-                f"invalid union type {type_name.friendly_name}; unions cannot include primitive types"
+                f"invalid union type {type_name.readable_name}; unions cannot include primitive types"
             )
         ThisUnionType = type(self)
         if type_name.opt_type is not None:
@@ -8430,7 +8431,7 @@ class ArrayInstance(Object["ArrayClass"]):
             super().emit_store_subscr(node, code_gen)
 
     def __repr__(self) -> str:
-        return f"{self.klass.type_name.name}[{self.klass.index.name!r}]"
+        return f"{self.klass.type_name.qualname}[{self.klass.index.name!r}]"
 
     def get_fast_len_type(self) -> int:
         return FAST_LEN_ARRAY | ((not self.klass.is_exact) << 4)
@@ -8528,7 +8529,7 @@ class ArrayClass(GenericClass):
         for tp in index:
             if tp not in self.type_env.allowed_array_types:
                 raise TypedSyntaxError(
-                    f"Invalid {self.gen_name.name} element type: {tp.instance.name}"
+                    f"Invalid {self.gen_name.qualname} element type: {tp.instance.name}"
                 )
         return super().make_generic_type(index)
 
@@ -8855,7 +8856,7 @@ class CInstance(Value, Generic[TClass]):
 
     @property
     def name(self) -> str:
-        return self.klass.qualname
+        return self.klass.readable_name
 
     @property
     def name_with_exact(self) -> str:
@@ -9625,7 +9626,7 @@ class ContextDecoratorClass(Class):
             not subclass and not is_exact
         ):  # exact versions copy members dict, no need to redefine methods
             may_suppress = False
-            if name.name == "ExcContextDecorator":
+            if name.qualname == "ExcContextDecorator":
                 may_suppress = True
                 # only the base ExcContextDecorator needs this, ContextDecorator inherits
                 self.members["_recreate_cm"] = BuiltinMethodDescriptor(
@@ -9773,7 +9774,7 @@ class ContextDecoratedMethod(DecoratedMethod):
         dec_index = function.node.decorator_list.index(decorator)
 
         if klass is not None:
-            klass_name = klass.type_name.name
+            klass_name = klass.type_name.qualname
             return f"<{klass_name}.{function.func_name}_decorator_{dec_index}>"
 
         return f"<{function.func_name}_decorator_{dec_index}>"
@@ -9794,7 +9795,7 @@ class ContextDecoratedMethod(DecoratedMethod):
             if ContextDecoratedMethod.can_load_from_class(klass, fn):
                 load_name = ast.Name(node.args.args[0].arg, ast.Load())
             else:
-                load_name = ast.Name(klass.type_name.name, ast.Load())
+                load_name = ast.Name(klass.type_name.qualname, ast.Load())
             decorator_var = ast.Attribute(load_name, dec_name, ast.Load())
         else:
             decorator_var = ast.Name(dec_name, ast.Load())
