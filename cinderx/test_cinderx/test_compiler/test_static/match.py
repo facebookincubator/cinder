@@ -217,7 +217,7 @@ class MatchTests(StaticTestBase):
         """
         self.revealed_type(codestr, "Exact[list]")
 
-    def test_visit_match_sequence_assignment(self) -> None:
+    def test_match_sequence_assignment(self) -> None:
         codestr = """
             def f() -> int:
                 l: list[int] = [1, 2, 3]
@@ -229,7 +229,7 @@ class MatchTests(StaticTestBase):
         """
         self.revealed_type(codestr, "dynamic")
 
-    def test_visit_match_sequence_empty(self) -> None:
+    def test_match_sequence_empty(self) -> None:
         codestr = """
             def f() -> int:
                 l: list[int] = [1, 2, 3]
@@ -238,6 +238,17 @@ class MatchTests(StaticTestBase):
                         reveal_type(l)
         """
         self.revealed_type(codestr, "Exact[list]")
+
+    def test_match_sequence_shadow(self) -> None:
+        codestr = """
+            def f() -> None:
+                l: list[int] = [1, 2, 3]
+                match l:
+                    case [l, 2, 3]:
+                        pass
+        """
+        f = self.find_code(self.compile(codestr, modname="foo"))
+        self.assertInBytecode(f, "CAST", ("builtins", "list"))
 
     # TODO: We can narrow the type of `rest` to `Exact[list]` here with further analysis.
     def test_match_star_named(self) -> None:
@@ -355,6 +366,19 @@ class MatchTests(StaticTestBase):
         """
         self.revealed_type(codestr, "dynamic")
 
+    def test_match_mapping_shadow(self) -> None:
+        codestr = """
+            from typing import Dict
+
+            def f() -> None:
+                d: Dict[int, str] = { 1: "foo", 2: "bar" }
+                match d:
+                    case { 1: _, 2: d }:
+                        pass
+        """
+        f = self.find_code(self.compile(codestr, modname="foo"))
+        self.assertInBytecode(f, "CAST", ("builtins", "dict"))
+
     # TODO: We can narrow the type of `q` to `int64` here with further analysis.
     def test_match_class(self) -> None:
         codestr = """
@@ -373,6 +397,25 @@ class MatchTests(StaticTestBase):
                         reveal_type(q)
         """
         self.revealed_type(codestr, "dynamic")
+
+    def test_match_class_shadow(self) -> None:
+        codestr = """
+            from __static__ import int64
+            from dataclasses import dataclass
+
+            @dataclass
+            class Point2D:
+                x: int64
+                y: int64
+
+            def f() -> None:
+                p: Point2D = Point2D(x=0, y=0)
+                match p:
+                    case Point2D(x=p):
+                        pass
+        """
+        f = self.find_code(self.compile(codestr, modname="foo"), name="f")
+        self.assertInBytecode(f, "CAST", ("foo", "Point2D"))
 
     # TODO: We can narrow the type of `q` to `int64` here with further analysis.
     def test_match_class_redefine(self) -> None:
@@ -462,6 +505,18 @@ class MatchTests(StaticTestBase):
         """,
             "dynamic",
         )
+
+    def test_match_as_shadow(self) -> None:
+        codestr = """
+            def f() -> None:
+                s: str = "foo"
+                match s:
+                    case 13 as s:
+                        print(s)
+        """
+        # This should cast `13` to a string, but will result in a runtime error.
+        f = self.find_code(self.compile(codestr, modname="foo"))
+        self.assertInBytecode(f, "CAST", ("builtins", "str"))
 
     # TODO: We can narrow `t` to `str | None`
     def test_match_as_redefine(self) -> None:

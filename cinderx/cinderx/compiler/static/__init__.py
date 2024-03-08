@@ -40,7 +40,7 @@ from typing import (
 from .. import consts, opcode_static
 from ..opcodebase import Opcode
 from ..pyassem import Block, IndexedSet, PyFlowGraph, PyFlowGraphCinder
-from ..pycodegen import CodeGenerator, compile, CompNode, FuncOrLambda
+from ..pycodegen import CodeGenerator, compile, CompNode, FuncOrLambda, PatternContext
 from ..strict import FIXED_MODULES, StrictCodeGenerator
 from ..symbols import ClassScope, ModuleScope, Scope, SymbolVisitor
 from .compiler import Compiler
@@ -96,6 +96,21 @@ def exec_static(
     exec(code, locals, globals)
 
 
+class StaticPatternContext(PatternContext):
+    def __init__(self) -> None:
+        super().__init__()
+        self.type_dict: Dict[str, Class] = {}
+
+    def clone(self) -> StaticPatternContext:
+        pc = StaticPatternContext()
+        pc.stores = list(self.stores)
+        pc.allow_irrefutable = self.allow_irrefutable
+        pc.fail_pop = list(self.fail_pop)
+        pc.on_top = self.on_top
+        pc.type_dict = self.type_dict.copy()
+        return pc
+
+
 class PyFlowGraph38Static(PyFlowGraphCinder):
     opcode: Opcode = opcode_static.opcode
 
@@ -114,6 +129,7 @@ class InitSubClassGenerator:
 class Static310CodeGenerator(StrictCodeGenerator):
     flow_graph = PyFlowGraph38Static
     _default_cache: Dict[Type[ast.AST], typingCallable[[...], None]] = {}
+    pattern_context = StaticPatternContext
 
     def __init__(
         self,
@@ -1156,6 +1172,19 @@ class Static310CodeGenerator(StrictCodeGenerator):
 
     def perf_warning(self, msg: str, node: AST) -> None:
         return self.compiler.error_sink.perf_warning(msg, self.graph.filename, node)
+
+    def storePatternName(self, name: str, pc: PatternContext) -> None:
+        pc = cast(StaticPatternContext, pc)
+        pc.type_dict[name].emit_type_check(self.compiler.type_env.DYNAMIC.klass, self)
+        self.storeName(name)
+
+    def _pattern_helper_store_name(
+        self, name: str | None, pc: PatternContext, loc: ast.AST
+    ) -> None:
+        super()._pattern_helper_store_name(name, pc, loc)
+        pc = cast(StaticPatternContext, pc)
+        if name is not None:
+            pc.type_dict[name] = self.get_type(loc).klass
 
 
 StaticCodeGenerator = Static310CodeGenerator

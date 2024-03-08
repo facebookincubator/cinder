@@ -235,6 +235,7 @@ class CodeGenerator(ASTVisitor):
     future_flags = 0
     flow_graph = pyassem.PyFlowGraph
     _SymbolVisitor = symbols.SymbolVisitor
+    pattern_context: Type[PatternContext] = PatternContext
 
     def __init__(
         self,
@@ -2200,9 +2201,12 @@ class CodeGenerator(ASTVisitor):
         if not have_dict:
             self.emit("BUILD_MAP")
 
+    def storePatternName(self, name: str, pc: PatternContext) -> None:
+        return self.storeName(name)
+
     def visitMatch(self, node: ast.Match) -> None:
         """See compiler_match_inner in compile.c"""
-        pc = PatternContext()
+        pc = self.pattern_context()
         self.visit(node.subject)
         end = self.newBlock("match_end")
         assert node.cases, node.cases
@@ -2228,7 +2232,7 @@ class CodeGenerator(ASTVisitor):
             assert not pc.on_top
             # It's a match! Store all of the captured names (they're on the stack).
             for name in pc.stores:
-                self.storeName(name)
+                self.storePatternName(name, pc)
             guard = case.guard
             if guard:
                 self._ensure_fail_pop(pc, 0)

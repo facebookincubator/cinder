@@ -2059,6 +2059,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.assign_name(node, name, self.type_env.DYNAMIC)
 
     def visitMatchMapping(self, node: MatchMapping) -> None:
+        for key in node.keys:
+            self.visit(key)
+
         for pattern in node.patterns:
             self.visit(pattern)
 
@@ -2067,6 +2070,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.assign_name(node, rest, self.type_env.DYNAMIC)
 
     def visitMatchClass(self, node: MatchClass) -> None:
+        self.visit(node.cls)
+
         for pattern in node.patterns:
             self.visit(pattern)
 
