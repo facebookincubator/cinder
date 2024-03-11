@@ -290,14 +290,14 @@ regen-all: regen-opcode regen-opcode-targets regen-jit
 
 .PHONY: regen-opcode
 regen-opcode:
-	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Tools/scripts/generate_opcode_h.py \
+	PYTHONPATH=$(CURDIR)/PythonLib python3 $(abs_srcdir)/Tools/scripts/generate_opcode_h.py \
 		$(abs_srcdir)/Lib/opcode.py \
 		Interpreter/opcode.h.new
 	$(UPDATE_FILE) Interpreter/opcode.h Interpreter/opcode.h.new
 
 .PHONY: regen-opcode-targets
 regen-opcode-targets:
-	PYTHONPATH=$(CURDIR) python3 $(abs_srcdir)/Python/makeopcodetargets.py Interpreter/cinderx_opcode_targets.h.new
+	PYTHONPATH=$(CURDIR)/PythonLib python3 $(abs_srcdir)/Python/makeopcodetargets.py Interpreter/cinderx_opcode_targets.h.new
 	$(UPDATE_FILE) Interpreter/cinderx_opcode_targets.h Interpreter/cinderx_opcode_targets.h.new
 
 .PHONY: regen-jit

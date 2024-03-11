@@ -695,9 +695,6 @@ class MultiWorkerCinderRegrtest(Regrtest):
 
     def _main(self, tests, kwargs):
         self.ns.fail_env_changed = True
-        setup_tests(self.ns)
-
-        test_filters = _setupCinderIgnoredTests(self.ns, self._use_rr)
 
         cinderx_dir = get_cinderx_dir()
         test_cinderx_dir = get_test_cinderx_dir(cinderx_dir)
@@ -706,6 +703,10 @@ class MultiWorkerCinderRegrtest(Regrtest):
         # `cinderx_dir` in the Git repository, but it can be different for
         # internal builds.
         self.ns.testdir = str(test_cinderx_dir.parent)
+
+        setup_tests(self.ns)
+
+        test_filters = _setupCinderIgnoredTests(self.ns, self._use_rr)
 
         if tests is None:
             self._selectDefaultCinderTests(test_filters, test_cinderx_dir)
