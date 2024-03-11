@@ -1551,8 +1551,7 @@ Optional Features:
   --disable-test-modules  don't build nor install test modules
   --enable-cinder-ref-debug
                           Enable Cinder refcount debugging
-  --disable-cinderx-module
-                          build CinderX module
+  --enable-cinderx-module build CinderX module
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -18228,15 +18227,15 @@ $as_echo_n "checking whether to build CinderX module... " >&6; }
 # Check whether --enable-cinderx-module was given.
 if test "${enable_cinderx_module+set}" = set; then :
   enableval=$enable_cinderx_module;
-  ENABLE_CINDERX_MODULE=no
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-else
-
   ENABLE_CINDERX_MODULE=yes
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
+
+else
+
+  ENABLE_CINDERX_MODULE=no
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 fi
 

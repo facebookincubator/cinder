@@ -6149,14 +6149,14 @@ AC_ARG_ENABLE(cinder-ref-debug,
 
 AC_MSG_CHECKING(whether to build CinderX module)
 AC_ARG_ENABLE(cinderx-module,
-    AS_HELP_STRING([--disable-cinderx-module], [build CinderX module]),
-[
-  ENABLE_CINDERX_MODULE=no
-  AC_MSG_RESULT([no])
-],
+    AS_HELP_STRING([--enable-cinderx-module], [build CinderX module]),
 [
   ENABLE_CINDERX_MODULE=yes
   AC_MSG_RESULT([yes])
+],
+[
+  ENABLE_CINDERX_MODULE=no
+  AC_MSG_RESULT([no])
 ])
 
 AC_SUBST(ENABLE_CINDERX_MODULE)
