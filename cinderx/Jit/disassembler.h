@@ -3,8 +3,7 @@
 #pragma once
 
 #include "cinderx/Common/util.h"
-
-#include "cinderx/ThirdParty/i386-dis/dis-asm.h"
+#include "i386-dis/dis-asm.h"
 
 #include <string>
 

@@ -9,6 +9,7 @@
 #include "cinderx/Common/ref.h"
 #include "cinderx/Common/util.h"
 #include "cinderx/StrictModules/pystrictmodule.h"
+#include "i386-dis/dis-asm.h"
 #include "internal/pycore_ceval.h"
 #include "internal/pycore_shadow_frame.h"
 #include "pycore_interp.h"
@@ -32,8 +33,6 @@
 #include "cinderx/Jit/profile_runtime.h"
 #include "cinderx/Jit/runtime.h"
 #include "cinderx/Jit/type_profiler.h"
-
-#include "cinderx/ThirdParty/i386-dis/dis-asm.h"
 
 #include <atomic>
 #include <chrono>

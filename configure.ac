@@ -5701,7 +5701,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     cinderx/ThirdParty/asmjit/src/asmjit/core \
     cinderx/ThirdParty/asmjit/src/asmjit/x86 \
     cinderx/ThirdParty/googletest-1.8.1/googletest \
-    cinderx/ThirdParty/i386-dis"
+    cinderx/ThirdParty"
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then

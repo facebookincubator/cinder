@@ -17306,7 +17306,7 @@ SRCDIRS="Parser Objects Python Modules Programs \
     cinderx/ThirdParty/asmjit/src/asmjit/core \
     cinderx/ThirdParty/asmjit/src/asmjit/x86 \
     cinderx/ThirdParty/googletest-1.8.1/googletest \
-    cinderx/ThirdParty/i386-dis"
+    cinderx/ThirdParty"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for build directories" >&5
 $as_echo_n "checking for build directories... " >&6; }
 for dir in $SRCDIRS; do

@@ -25,9 +25,9 @@ INCLUDE_DIRS = [
     f"{PYTHON_DIR}/Include/internal",
     f"{THIRD_PARTY_DIR}/asmjit/src",
     f"{THIRD_PARTY_DIR}/fmt-8.1.1/include",
-    f"{THIRD_PARTY_DIR}/i386-dis",
     f"{THIRD_PARTY_DIR}/json",
     f"{THIRD_PARTY_DIR}/parallel-hashmap",
+    THIRD_PARTY_DIR,
 ]
 
 # Changes to any .h files in these paths will cause a complete rebuild
