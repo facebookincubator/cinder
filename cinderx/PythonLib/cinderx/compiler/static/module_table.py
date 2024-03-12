@@ -434,9 +434,6 @@ class ModuleTable:
             return val, None
         return None, None
 
-    def resolve_name(self, name: str) -> Optional[Value]:
-        return self.resolve_name_with_descr(name)[0]
-
     def get_final_literal(self, node: AST, scope: Scope) -> Optional[ast.Constant]:
         if not isinstance(node, Name):
             return None

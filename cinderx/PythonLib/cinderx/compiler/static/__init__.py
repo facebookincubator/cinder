@@ -161,6 +161,9 @@ class Static310CodeGenerator(StrictCodeGenerator):
         self._tmpvar_loopidx_count = 0
         self.cur_mod: ModuleTable = self.compiler.modules[modname]
         self.enable_patching = enable_patching
+        self.scope_to_node: dict[Scope, AST] = {
+            scope: node for node, scope in self.scopes.items()
+        }
 
     def _is_static_compiler_disabled(self, node: AST) -> bool:
         if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef)):
@@ -169,9 +172,10 @@ class Static310CodeGenerator(StrictCodeGenerator):
         if node in self.cur_mod.compile_non_static:
             return True
         scope = self.scope
+        scope_node = self.scope_to_node[scope]
         fn = None
-        if isinstance(scope, ClassScope):
-            klass = self.cur_mod.resolve_name(scope.name)
+        if isinstance(scope_node, ClassDef):
+            klass = self.get_type(scope_node)
             if klass:
                 assert isinstance(klass, Class)
                 if klass.donotcompile:
@@ -182,7 +186,7 @@ class Static310CodeGenerator(StrictCodeGenerator):
 
         if fn is None:
             # Wasn't a method, let's check if it's a module level function
-            fn = self.cur_mod.resolve_name(node.name)
+            fn = self.get_type(node)
 
         if isinstance(fn, (Function, DecoratedMethod)):
             return fn.donotcompile
@@ -342,8 +346,7 @@ class Static310CodeGenerator(StrictCodeGenerator):
             self._tmpvar_loopidx_count -= 1
 
     def _resolve_class(self, node: ClassDef) -> Optional[Class]:
-        cur_mod = self.compiler.modules[self.modname]
-        klass = cur_mod.resolve_name(node.name)
+        klass = self.get_type(node)
         if not isinstance(klass, Class) or klass is self.compiler.type_env.dynamic:
             return
         return klass
