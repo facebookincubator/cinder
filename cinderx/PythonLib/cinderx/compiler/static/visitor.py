@@ -34,6 +34,20 @@ class GenericVisitor(ASTVisitor, Generic[TVisitRet]):
         self.compiler: Compiler = module.compiler
         self.error_sink: ErrorSink = module.compiler.error_sink
         self.type_env: TypeEnvironment = module.compiler.type_env
+        self._context_qualname: str = ""
+
+    @property
+    def context_qualname(self) -> str:
+        return self._context_qualname
+
+    @contextmanager
+    def temporary_context_qualname(self, qualname: str) -> Generator[None, None, None]:
+        old_qualname = self._context_qualname
+        self._context_qualname = qualname
+        try:
+            yield
+        finally:
+            self._context_qualname = old_qualname
 
     def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> TVisitRet:
         # if we have a sequence of nodes, don't catch TypedSyntaxError here;

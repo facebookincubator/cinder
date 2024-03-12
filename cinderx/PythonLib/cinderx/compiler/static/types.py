@@ -9584,6 +9584,9 @@ class ModuleInstance(Object["ModuleType"]):
         if module_table is None:
             return visitor.type_env.DYNAMIC
 
+        visitor.module.record_dependency(
+            visitor.context_qualname, (self.module_name, node.attr)
+        )
         return module_table.get_child(node.attr) or visitor.type_env.DYNAMIC
 
 

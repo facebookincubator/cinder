@@ -13,6 +13,7 @@ from .context_decorator import ContextDecoratorTests
 from .crange import CRangeTests
 from .dataclass import DataclassTests
 from .decl_visitor import DeclarationVisitorTests
+from .dependencies import DependencyTrackingTests
 from .double import DoubleTests
 from .dynamic_return import DynamicReturnTests
 from .elide_type_checks import ElideTypeChecksTests

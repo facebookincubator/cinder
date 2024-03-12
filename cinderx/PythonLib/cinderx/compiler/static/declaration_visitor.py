@@ -104,24 +104,22 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.parent_scope().declare_variables(node, self.module)
 
     def visitClassDef(self, node: ClassDef) -> None:
+        parent_scope = self.parent_scope()
+        qualname = make_qualname(parent_scope.qualname, node.name)
+
         bases = [
-            self.module.resolve_type(base) or self.type_env.dynamic
+            self.module.resolve_type(base, qualname) or self.type_env.dynamic
             for base in node.bases
         ]
         if not bases:
             bases.append(self.type_env.object)
-
-        parent_scope = self.parent_scope()
 
         with self.compiler.error_sink.error_context(self.filename, node):
             klasses = []
             for base in bases:
                 klasses.append(
                     base.make_subclass(
-                        TypeName(
-                            self.module_name,
-                            make_qualname(parent_scope.qualname, node.name),
-                        ),
+                        TypeName(self.module_name, qualname),
                         bases,
                     )
                 )

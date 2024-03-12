@@ -113,6 +113,7 @@ from .types import (
     UnionInstance,
     Value,
 )
+from .util import make_qualname
 
 if TYPE_CHECKING:
     from .compiler import Compiler
@@ -136,15 +137,24 @@ PRESERVE_REFINED_FIELDS = PreserveRefinedFields()
 
 
 class BindingScope:
+    name: str
+    qualname: str | None
+
     def __init__(
         self,
         node: AST,
         type_env: TypeEnvironment,
+        parent_qualname: str | None,
     ) -> None:
         self.node = node
         self.type_state = TypeState()
         self.decl_types: Dict[str, TypeDeclaration] = {}
         self.type_env: TypeEnvironment = type_env
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            self.name = node.name
+        else:
+            self.name = f"<unknown>"
+        self.qualname = make_qualname(parent_qualname, self.name)
 
     def branch(self) -> LocalsBranch:
         return LocalsBranch(self)
@@ -166,9 +176,10 @@ class EnumBindingScope(BindingScope):
         self,
         node: AST,
         type_env: TypeEnvironment,
+        parent_qualname: str | None,
         enum_type: EnumType,
     ) -> None:
-        super().__init__(node, type_env)
+        super().__init__(node, type_env, parent_qualname)
         self.enum_type = enum_type
 
     def declare(
@@ -185,8 +196,9 @@ class ModuleBindingScope(BindingScope):
         module: ModuleTable,
         type_env: TypeEnvironment,
     ) -> None:
-        super().__init__(node, type_env)
-        self.module = module
+        super().__init__(node, type_env, None)
+        self.name = "<module>"
+        self.qualname: str | None = None
 
     def declare(
         self, name: str, typ: Value, is_final: bool = False, is_inferred: bool = False
@@ -347,6 +359,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     @property
     def scope(self) -> AST:
         return self.binding_scope.node
+
+    @property
+    def context_qualname(self) -> str | None:
+        return self.binding_scope.qualname
 
     def maybe_set_local_type(self, name: str, local_type: Value) -> Value:
         decl = self.get_target_decl(name)
@@ -573,6 +589,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return BindingScope(
             node,
             type_env=self.type_env,
+            parent_qualname=self.context_qualname,
         )
 
     def get_func_container(
@@ -630,9 +647,11 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             self.module.compile_non_static.add(node)
         else:
             if isinstance(res, EnumType):
-                scope = EnumBindingScope(node, self.type_env, res)
+                scope = EnumBindingScope(
+                    node, self.type_env, self.context_qualname, res
+                )
             else:
-                scope = BindingScope(node, self.type_env)
+                scope = self.new_scope(node)
             self.scopes.append(scope)
 
             for stmt in node.body:
@@ -999,10 +1018,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     def visitLambda(
         self, node: Lambda, type_ctx: Optional[Class] = None
     ) -> NarrowingEffect:
-        scope = BindingScope(
-            node,
-            type_env=self.type_env,
-        )
+        scope = self.new_scope(node)
         self._visitParameters(node.args, scope)
 
         self.scopes.append(scope)
@@ -1285,10 +1301,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     ) -> NarrowingEffect:
         self.visit(node.generators[0].iter)
 
-        scope = BindingScope(
-            node,
-            type_env=self.type_env,
-        )
+        scope = self.new_scope(node)
         self.scopes.append(scope)
 
         iter_type = self.get_type(node.generators[0].iter).get_iter_type(
@@ -1330,10 +1343,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
     ) -> None:
         self.visit(generators[0].iter)
 
-        scope = BindingScope(
-            node,
-            type_env=self.type_env,
-        )
+        scope = self.new_scope(node)
         self.scopes.append(scope)
 
         iter_type = self.get_type(generators[0].iter).get_iter_type(
@@ -1579,7 +1589,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             var_type = self.type_state.local_types.get(node.id, self.type_env.DYNAMIC)
             self.set_type(node, var_type)
         else:
-            typ, descr = self.module.resolve_name_with_descr(node.id)
+            typ, descr = self.module.resolve_name_with_descr(
+                node.id, self.context_qualname
+            )
             if typ is None and len(self.scopes) > 0:
                 # We might be dealing with a context decorated method, in which case we mint
                 # temporary decorator names. These won't be exposed in the module table, but
@@ -1742,6 +1754,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
             for alias in node.names:
                 asname = alias.asname
                 name: str = asname if asname is not None else alias.name
+                context_qualname = self.context_qualname
+                # it's only None at module scope, we know we are at function scope here
+                assert context_qualname is not None
+                self.module.record_dependency(context_qualname, (mod_name, alias.name))
                 self.declare_local(
                     name,
                     (

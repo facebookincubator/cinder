@@ -79,7 +79,7 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
         if node.id in self.local_names:
             return self.local_names[node.id]
         return self.module.get_child(
-            node.id
+            node.id, self.context_qualname
         ) or self.module.compiler.builtins.get_child(node.id)
 
     def visitAttribute(self, node: Attribute) -> Optional[Value]:
@@ -243,6 +243,10 @@ class ModuleTable:
         self.decls: List[Tuple[AST, Optional[str], Optional[Value]]] = []
         self.implicit_decl_names: Set[str] = set()
         self.compile_non_static: Set[AST] = set()
+        # {local-name: {(mod, qualname)}} for decl-time deps
+        self.decl_deps: Dict[str, set[Tuple[str, str]]] = {}
+        # {local-name: {(mod, qualname)}} for bind-time deps
+        self.bind_deps: Dict[str, set[Tuple[str, str]]] = {}
         # (source module, source name) for every name this module imports-from
         # another static module at top level
         self.imported_from: Dict[str, Tuple[str, str]] = {}
@@ -260,7 +264,21 @@ class ModuleTable:
         # doesn't include the module name)
         self.qualname: None = None
 
-    def get_child(self, name: str) -> Optional[Value]:
+    def record_dependency(self, name: str, target: Tuple[str, str]) -> None:
+        """Record a dependency from a local name to a name in another module.
+
+        `name` is the name in this module's namespace. `target` is a (str, str)
+        tuple of (source_module, source_name).
+
+        """
+        deps = self.bind_deps if self.first_pass_done else self.decl_deps
+        deps.setdefault(name, set()).add(target)
+
+    def get_child(self, name: str, requester: str | None = None) -> Optional[Value]:
+        if requester is not None:
+            source = self.imported_from.get(name)
+            if source is not None:
+                self.record_dependency(requester, source)
         res = self._children.get(name)
         if isinstance(res, DeferredImport):
             self._children[name] = res = res.resolve()
@@ -373,8 +391,9 @@ class ModuleTable:
         self.decls.clear()
         self.implicit_decl_names.clear()
 
-    def resolve_type(self, node: ast.AST) -> Optional[Class]:
-        typ = self.ann_visitor.visit(node)
+    def resolve_type(self, node: ast.AST, requester: str) -> Optional[Class]:
+        with self.ann_visitor.temporary_context_qualname(requester):
+            typ = self.ann_visitor.visit(node)
         if isinstance(typ, Class):
             return typ
 
@@ -407,9 +426,9 @@ class ModuleTable:
         return self.ann_visitor.resolve_annotation(node, is_declaration=is_declaration)
 
     def resolve_name_with_descr(
-        self, name: str
+        self, name: str, requester: str | None = None
     ) -> Tuple[Optional[Value], Optional[TypeDescr]]:
-        if val := self.get_child(name):
+        if val := self.get_child(name, requester):
             return val, (self.name, name)
         elif val := self.compiler.builtins.get_child(name):
             return val, None
@@ -435,13 +454,13 @@ class ModuleTable:
             return final_val
 
     def declare_import(
-        self, name: str, source: Tuple[str, str] | None, val: Value | DeferredImport
+        self, name: str, target: Tuple[str, str] | None, val: Value | DeferredImport
     ) -> None:
         """Declare a name imported into this module.
 
-        `name` is the name in this module's namespace. `source` is a (str, str)
+        `name` is the name in this module's namespace. `target` is a (str, str)
         tuple of (source_module, source_name) for an `import from`. For a
-        top-level module import, `source` should be `None`.
+        top-level module import, `target` should be `None`.
 
         """
         if self.first_pass_done:
@@ -449,8 +468,9 @@ class ModuleTable:
                 "Attempted to declare an import after the declaration visit"
             )
         self._children[name] = val
-        if source is not None:
-            self.imported_from[name] = source
+        if target is not None:
+            self.imported_from[name] = target
+            self.record_dependency(name, target)
 
     def declare_variable(self, node: ast.AnnAssign, module: ModuleTable) -> None:
         self.decls.append((node, None, None))

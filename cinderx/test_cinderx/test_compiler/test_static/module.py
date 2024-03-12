@@ -235,6 +235,7 @@ class ModuleTests(StaticTestBase):
                     if isinstance(v, C):
                         return cast(C, v)
         """
+        # we decl-visit `a` first, making this a cycle (if imports are eager)
         compiler = self.decl_visit(**{"a": acode, "b": bcode})
         compiler.compile_module("b")
 
