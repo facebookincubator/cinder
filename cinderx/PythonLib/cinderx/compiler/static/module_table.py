@@ -204,13 +204,17 @@ DEFERRED_IMPORT_OPT_OUT = DepTrackingOptOut("Tracked in ModuleTable.declare_impo
 class DeferredImport:
     def __init__(
         self,
+        in_module: ModuleTable,
         mod_to_import: str,
+        asname: str,
         optimize: int,
         compiler: Compiler,
         name: str | None = None,
         mod_to_return: str | None = None,
     ) -> None:
+        self.in_module = in_module
         self.mod_to_import = mod_to_import
+        self.asname = asname
         self.name = name
         self.mod_to_return = mod_to_return
         self.compiler = compiler
@@ -241,6 +245,11 @@ class DeferredImport:
                 raise ModuleTableException(
                     f"Cannot find {self.mod_to_import}.{self.name} due to cyclic reference"
                 )
+        # For unknown modules, we don't need to record each individual object
+        # used from them; it doesn't matter, as we won't track transitive deps
+        # across them. We just need to record a dependency to the module in
+        # general.
+        self.in_module.record_dependency(self.asname, (self.mod_to_import, "<any>"))
         return self.compiler.type_env.DYNAMIC
 
 

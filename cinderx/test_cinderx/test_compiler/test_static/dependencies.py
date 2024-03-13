@@ -398,15 +398,30 @@ class DependencyTrackingTests(StaticTestBase):
 
     def test_dep_on_unknown_module(self) -> None:
         """We record deps on non-static modules; they could become static."""
-        code = """
-            from unknown import U
+        for from_import in [True, False]:
+            if from_import:
+                code = """
+                    from unknown import U
 
-            class C(U):
-                pass
-        """
-        compiler = self.compiler(mod=code)
-        compiler.compile_module("mod")
-        self.assertDep(compiler.modules["mod"].decl_deps, "C", {("unknown", "U")})
+                    class C(U):
+                        pass
+                """
+            else:
+                code = """
+                    import unknown as unk
+
+                    class C(unk.U):
+                        pass
+                """
+            with self.subTest(from_import=from_import):
+                compiler = self.compiler(mod=code)
+                compiler.compile_module("mod")
+                expected = {("unknown", "U")} if from_import else {("mod", "unk")}
+                self.assertDep(compiler.modules["mod"].decl_deps, "C", expected)
+                if not from_import:
+                    self.assertDep(
+                        compiler.modules["mod"].decl_deps, "unk", {("unknown", "<any>")}
+                    )
 
 
 class GetDependenciesTests(StaticTestBase):

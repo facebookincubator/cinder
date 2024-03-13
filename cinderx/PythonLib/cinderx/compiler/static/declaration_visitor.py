@@ -236,7 +236,9 @@ class DeclarationVisitor(GenericVisitor[None]):
                     top_level_module,
                     None,
                     DeferredImport(
+                        self.module,
                         name.name,
+                        top_level_module,
                         self.optimize,
                         self.compiler,
                         mod_to_return=top_level_module,
@@ -246,7 +248,9 @@ class DeclarationVisitor(GenericVisitor[None]):
                 self.module.declare_import(
                     asname,
                     None,
-                    DeferredImport(name.name, self.optimize, self.compiler),
+                    DeferredImport(
+                        self.module, name.name, asname, self.optimize, self.compiler
+                    ),
                 )
 
     def visitImportFrom(self, node: ImportFrom) -> None:
@@ -258,7 +262,14 @@ class DeclarationVisitor(GenericVisitor[None]):
             self.module.declare_import(
                 child_name,
                 (mod_name, name.name),
-                DeferredImport(mod_name, self.optimize, self.compiler, name.name),
+                DeferredImport(
+                    self.module,
+                    mod_name,
+                    name.name,
+                    self.optimize,
+                    self.compiler,
+                    name.name,
+                ),
             )
 
     # We don't pick up declarations in nested statements
