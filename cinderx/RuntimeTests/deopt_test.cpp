@@ -340,7 +340,7 @@ class DeoptStressTest : public RuntimeTest {
       ASSERT_NE(jitfunc, nullptr);
       ngen_rt->setGuardFailureCallback(delete_one_deopt);
       auto res =
-          jitfunc(reinterpret_cast<PyObject*>(pyfunc), args, nargs, NULL);
+          jitfunc(reinterpret_cast<PyObject*>(pyfunc), args, nargs, nullptr);
       ngen_rt->clearGuardFailureCallback();
       if ((res == nullptr) ||
           (PyObject_RichCompareBool(res, expected, Py_EQ) < 1)) {

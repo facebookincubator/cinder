@@ -152,7 +152,7 @@ void FlagProcessor::setFlags(PyObject* cmdline_args) {
     Py_DECREF(key);
     string found;
 
-    if (resolves_to != NULL) {
+    if (resolves_to != nullptr) {
       const char* got =
           PyUnicode_Check(resolves_to) ? PyUnicode_AsUTF8(resolves_to) : "";
       option->callback_on_match(got);

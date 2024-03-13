@@ -675,7 +675,7 @@ RAAssignment::WorkToPhysMap* BaseRAPass::newWorkToPhysMap() noexcept {
   size_t size = WorkToPhysMap::sizeOf(count);
 
   // If no registers are used it could be zero, in that case return a dummy
-  // map instead of NULL.
+  // map instead of nullptr.
   if (ASMJIT_UNLIKELY(!size)) {
     static const RAAssignment::WorkToPhysMap nullMap = {{ 0 }};
     return const_cast<RAAssignment::WorkToPhysMap*>(&nullMap);

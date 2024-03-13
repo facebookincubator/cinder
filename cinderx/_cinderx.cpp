@@ -43,10 +43,10 @@ static PyObject *strict_module_patch(PyObject *, PyObject *args) {
   PyObject *name;
   PyObject *value;
   if (!PyArg_ParseTuple(args, "OUO", &mod, &name, &value)) {
-    return NULL;
+    return nullptr;
   }
   if (Ci_do_strictmodule_patch(mod, name, value) < 0) {
-    return NULL;
+    return nullptr;
   }
   Py_RETURN_NONE;
 }
@@ -59,10 +59,10 @@ static PyObject *strict_module_patch_delete(PyObject *, PyObject *args) {
   PyObject *mod;
   PyObject *name;
   if (!PyArg_ParseTuple(args, "OU", &mod, &name)) {
-    return NULL;
+    return nullptr;
   }
-  if (Ci_do_strictmodule_patch(mod, name, NULL) < 0) {
-    return NULL;
+  if (Ci_do_strictmodule_patch(mod, name, nullptr) < 0) {
+    return nullptr;
   }
   Py_RETURN_NONE;
 }
@@ -73,9 +73,9 @@ Gets whether patching is enabled on the strict module");
 static PyObject *strict_module_patch_enabled(PyObject *, PyObject *mod) {
   if (!Ci_StrictModule_Check(mod)) {
     PyErr_SetString(PyExc_TypeError, "expected strict module object");
-    return NULL;
+    return nullptr;
   }
-  if (Ci_StrictModule_GetDictSetter(mod) != NULL) {
+  if (Ci_StrictModule_GetDictSetter(mod) != nullptr) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -91,7 +91,7 @@ static PyObject *clear_classloader_caches(PyObject *, PyObject *) {
 static PyObject *set_profile_interp(PyObject *, PyObject *arg) {
   int is_true = PyObject_IsTrue(arg);
   if (is_true < 0) {
-    return NULL;
+    return nullptr;
   }
 
   PyThreadState *tstate = PyThreadState_Get();
@@ -107,7 +107,7 @@ static PyObject *set_profile_interp(PyObject *, PyObject *arg) {
 static PyObject *set_profile_interp_all(PyObject *, PyObject *arg) {
   int is_true = PyObject_IsTrue(arg);
   if (is_true < 0) {
-    return NULL;
+    return nullptr;
   }
   _PyJIT_SetProfileNewInterpThreads(is_true);
   Ci_ThreadState_SetProfileInterpAll(is_true);
@@ -119,11 +119,11 @@ static PyObject *set_profile_interp_period(PyObject *, PyObject *arg) {
   if (!PyLong_Check(arg)) {
     PyErr_Format(PyExc_TypeError, "Expected int object, got %.200s",
                  Py_TYPE(arg)->tp_name);
-    return NULL;
+    return nullptr;
   }
   long val = PyLong_AsLong(arg);
   if (val == -1 && PyErr_Occurred()) {
-    return NULL;
+    return nullptr;
   }
 
   Ci_RuntimeState_SetProfileInterpPeriod(val);
@@ -132,8 +132,8 @@ static PyObject *set_profile_interp_period(PyObject *, PyObject *arg) {
 
 static PyObject *get_and_clear_type_profiles(PyObject *, PyObject *) {
   PyObject *full_data = _PyJIT_GetAndClearTypeProfiles();
-  if (full_data == NULL) {
-    return NULL;
+  if (full_data == nullptr) {
+    return nullptr;
   }
   PyObject *profiles = PyDict_GetItemString(full_data, "profile");
   Py_XINCREF(profiles);
@@ -153,13 +153,13 @@ static PyObject *clear_type_profiles(PyObject *, PyObject *) {
 
 static PyObject *watch_sys_modules(PyObject *, PyObject *) {
   PyObject *sys = PyImport_ImportModule("sys");
-  if (sys == NULL) {
+  if (sys == nullptr) {
     Py_RETURN_NONE;
   }
 
   PyObject *modules = PyObject_GetAttrString(sys, "modules");
   Py_DECREF(sys);
-  if (modules == NULL) {
+  if (modules == nullptr) {
     Py_RETURN_NONE;
   }
   Ci_Watchers_WatchDict(modules);
@@ -182,28 +182,28 @@ A ValueError is raised if the generation or number of threads is invalid.");
 static PyObject *cinder_enable_parallel_gc(PyObject *, PyObject *args,
                                            PyObject *kwargs) {
   static char *argnames[] = {const_cast<char *>("min_generation"),
-                             const_cast<char *>("num_threads"), NULL};
+                             const_cast<char *>("num_threads"), nullptr};
 
   int min_gen = 2;
   int num_threads = 0;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii", argnames, &min_gen,
                                    &num_threads)) {
-    return NULL;
+    return nullptr;
   }
 
   if (min_gen < 0) {
     PyErr_SetString(PyExc_ValueError, "invalid generation");
-    return NULL;
+    return nullptr;
   }
 
   if (num_threads < 0) {
     PyErr_SetString(PyExc_ValueError, "invalid num_threads");
-    return NULL;
+    return nullptr;
   }
 
   if (Cinder_EnableParallelGC(min_gen, num_threads) < 0) {
-    return NULL;
+    return nullptr;
   }
   Py_RETURN_NONE;
 }
@@ -262,18 +262,18 @@ static CiStackWalkDirective frame_data_collector(void *data, PyObject *fqname,
   int failed;
 
   StackWalkState *state = (StackWalkState *)data;
-  if (fqname == NULL) {
+  if (fqname == nullptr) {
     fqname = ((PyCodeObject *)code)->co_qualname;
     if (!fqname || !PyUnicode_Check(fqname)) {
       fqname = ((PyCodeObject *)code)->co_name;
     }
   }
   PyObject *t = PyTuple_New(2 + state->collectFrame);
-  if (t == NULL) {
+  if (t == nullptr) {
     goto fail;
   }
   lineNoObj = PyLong_FromLong(lineno);
-  if (lineNoObj == NULL) {
+  if (lineNoObj == nullptr) {
     Py_DECREF(t);
     goto fail;
   }
@@ -303,8 +303,8 @@ fail:
 
 static PyObject *collect_stack(int collectFrame) {
   PyObject *stack = PyList_New(0);
-  if (stack == NULL) {
-    return NULL;
+  if (stack == nullptr) {
+    return nullptr;
   }
   StackWalkState state = {
       .list = stack, .hasError = 0, .collectFrame = collectFrame};
@@ -344,13 +344,13 @@ static int override_tp_getset(PyTypeObject *type, PyGetSetDef *tp_getset) {
   type->tp_getset = tp_getset;
   PyGetSetDef *gsp = type->tp_getset;
   PyObject *dict = type->tp_dict;
-  for (; gsp->name != NULL; gsp++) {
+  for (; gsp->name != nullptr; gsp++) {
       PyObject *descr = PyDescr_NewGetSet(type, gsp);
-      if (descr == NULL) {
+      if (descr == nullptr) {
           return -1;
       }
 
-      if (PyDict_SetDefault(dict, PyDescr_NAME(descr), descr) == NULL) {
+      if (PyDict_SetDefault(dict, PyDescr_NAME(descr), descr) == nullptr) {
           Py_DECREF(descr);
           return -1;
       }
@@ -411,7 +411,7 @@ static void shadowcode_code_sizeof(struct _PyShadowCode *shadow, Py_ssize_t *res
 }
 
 static int get_current_code_flags(PyThreadState* tstate) {
-    PyCodeObject *cur_code = NULL;
+    PyCodeObject *cur_code = nullptr;
     Ci_WalkStack(tstate, [](void *ptr, PyCodeObject *code, int) {
       PyCodeObject **topmost_code = (PyCodeObject **) ptr;
       *topmost_code = code;
@@ -684,7 +684,7 @@ static PyObject* init(PyObject * /*self*/, PyObject * /*obj*/) {
   }
   if (cinder_init()) {
     PyErr_SetString(PyExc_RuntimeError, "Failed to initialize CinderX");
-    return NULL;
+    return nullptr;
   }
   g_was_initialized = true;
   Py_RETURN_TRUE;
@@ -767,49 +767,49 @@ static struct PyModuleDef _cinderx_module = {
 PyMODINIT_FUNC PyInit__cinderx(void) {
   if ((_PyInterpreterState_GET()->dlopenflags & RTLD_GLOBAL) == 0) {
     PyErr_SetString(PyExc_ImportError, "Do not import _cinderx directly. Use cinderx instead.");
-    return NULL;
+    return nullptr;
   }
 
   // Deliberate single-phase initialization.
   PyObject *m = PyModule_Create(&_cinderx_module);
-  if (m == NULL) {
-    return NULL;
+  if (m == nullptr) {
+    return nullptr;
   }
 
   if (PyType_Ready(&PyCachedProperty_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
   if (PyType_Ready(&PyCachedPropertyWithDescr_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
   if (PyType_Ready(&Ci_StrictModule_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
   if (PyType_Ready(&PyAsyncCachedProperty_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
   if (PyType_Ready(&PyAsyncCachedPropertyWithDescr_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
   if (PyType_Ready(&PyAsyncCachedClassProperty_Type) < 0) {
-    return NULL;
+    return nullptr;
   }
 
   PyObject *cached_classproperty =
       PyType_FromSpec(&_PyCachedClassProperty_TypeSpec);
-  if (cached_classproperty == NULL) {
-    return NULL;
+  if (cached_classproperty == nullptr) {
+    return nullptr;
   }
   if (PyObject_SetAttrString(m, "cached_classproperty", cached_classproperty) <
       0) {
     Py_DECREF(cached_classproperty);
-    return NULL;
+    return nullptr;
   }
   Py_DECREF(cached_classproperty);
 
 #define ADDITEM(NAME, OBJECT)                                                  \
   if (PyObject_SetAttrString(m, NAME, (PyObject *)OBJECT) < 0) {               \
-    return NULL;                                                               \
+    return nullptr;                                                               \
   }
 
   ADDITEM("StrictModule", &Ci_StrictModule_Type);

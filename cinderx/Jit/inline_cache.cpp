@@ -685,7 +685,7 @@ PyObject* LoadTypeAttrCache::doInvoke(PyObject* obj, PyObject* name) {
     Py_XDECREF(meta_attribute);
 
     if (local_get != nullptr) {
-      /* NULL 2nd argument indicates the descriptor was
+      /* nullptr 2nd argument indicates the descriptor was
        * found on the target object itself (or a base)  */
       PyObject* res =
           local_get(attribute, nullptr, reinterpret_cast<PyObject*>(type));
@@ -721,7 +721,7 @@ PyObject* LoadTypeAttrCache::doInvoke(PyObject* obj, PyObject* name) {
       "type object '%.50s' has no attribute '%U'",
       type->tp_name,
       name);
-  return NULL;
+  return nullptr;
 }
 
 PyObject* LoadTypeAttrCache::invoke(
@@ -1086,7 +1086,7 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
         // the method as an unbound method.
         fill(obj, cm_callable, true);
         return {cm_callable, obj};
-      } else if (Py_TYPE(cm_callable)->tp_descr_get != NULL) {
+      } else if (Py_TYPE(cm_callable)->tp_descr_get != nullptr) {
         // cm_callable has custom tp_descr_get that can run arbitrary
         // user code. Do not cache in this instance.
         maybeCollectCacheStats(
@@ -1121,7 +1121,7 @@ JITRT_LoadMethodResult LoadTypeMethodCache::lookup(
     /* Implement descriptor functionality, if any */
     descrgetfunc local_get = Py_TYPE(attribute)->tp_descr_get;
     if (local_get != nullptr) {
-      /* NULL 2nd argument indicates the descriptor was
+      /* nullptr 2nd argument indicates the descriptor was
        * found on the target object itself (or a base)  */
       maybeCollectCacheStats(
           cache_stats_, metatype, name, CacheMissReason::kUncategorized);

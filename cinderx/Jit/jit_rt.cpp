@@ -45,13 +45,13 @@ static int JITRT_BindKeywordArgs(
   Py_ssize_t argcount = PyVectorcall_NARGS(nargsf);
 
   for (int i = 0; i < total_args; i++) {
-    arg_space[i] = NULL;
+    arg_space[i] = nullptr;
   }
 
   // Create a dictionary for keyword parameters (**kwags)
   if (co->co_flags & CO_VARKEYWORDS) {
     kwdict = Ref<>::steal(PyDict_New());
-    if (kwdict == NULL) {
+    if (kwdict == nullptr) {
       return 0;
     }
     arg_space[total_args - 1] = kwdict;
@@ -66,7 +66,7 @@ static int JITRT_BindKeywordArgs(
   // Pack other positional arguments into the *args argument
   if (co->co_flags & CO_VARARGS) {
     varargs = Ref<>::steal(_PyTuple_FromArray(args + n, argcount - n));
-    if (varargs == NULL) {
+    if (varargs == nullptr) {
       return 0;
     }
 
@@ -78,14 +78,14 @@ static int JITRT_BindKeywordArgs(
   }
 
   // Handle keyword arguments passed as two strided arrays
-  if (kwnames != NULL) {
+  if (kwnames != nullptr) {
     for (Py_ssize_t i = 0; i < PyTuple_Size(kwnames); i++) {
       PyObject** co_varnames;
       PyObject* keyword = PyTuple_GET_ITEM(kwnames, i);
       PyObject* value = args[argcount + i];
       Py_ssize_t j;
 
-      if (keyword == NULL || !PyUnicode_Check(keyword)) {
+      if (keyword == nullptr || !PyUnicode_Check(keyword)) {
         return 0;
       }
 
@@ -110,13 +110,13 @@ static int JITRT_BindKeywordArgs(
         }
       }
 
-      if (kwdict == NULL || PyDict_SetItem(kwdict, keyword, value) == -1) {
+      if (kwdict == nullptr || PyDict_SetItem(kwdict, keyword, value) == -1) {
         return 0;
       }
       continue;
 
     kw_found:
-      if (arg_space[j] != NULL) {
+      if (arg_space[j] != nullptr) {
         return 0;
       }
       arg_space[j] = value;
@@ -131,7 +131,7 @@ static int JITRT_BindKeywordArgs(
   // Add missing positional arguments (copy default values from defs)
   if (argcount < co->co_argcount) {
     Py_ssize_t defcount;
-    if (func->func_defaults != NULL) {
+    if (func->func_defaults != nullptr) {
       defcount = PyTuple_Size(func->func_defaults);
     } else {
       defcount = 0;
@@ -139,7 +139,7 @@ static int JITRT_BindKeywordArgs(
     Py_ssize_t m = co->co_argcount - defcount;
     Py_ssize_t missing = 0;
     for (Py_ssize_t i = argcount; i < m; i++) {
-      if (arg_space[i] == NULL) {
+      if (arg_space[i] == nullptr) {
         missing++;
       }
     }
@@ -151,7 +151,7 @@ static int JITRT_BindKeywordArgs(
       PyObject* const* defs =
           &((PyTupleObject*)func->func_defaults)->ob_item[0];
       for (Py_ssize_t i = std::max<Py_ssize_t>(n - m, 0); i < defcount; i++) {
-        if (arg_space[m + i] == NULL) {
+        if (arg_space[m + i] == nullptr) {
           PyObject* def = defs[i];
           arg_space[m + i] = def;
         }
@@ -165,10 +165,10 @@ static int JITRT_BindKeywordArgs(
     PyObject* kwdefs = func->func_kwdefaults;
     for (Py_ssize_t i = co->co_argcount; i < total_args; i++) {
       PyObject* name;
-      if (arg_space[i] != NULL)
+      if (arg_space[i] != nullptr)
         continue;
       name = PyTuple_GET_ITEM(co->co_varnames, i);
-      if (kwdefs != NULL) {
+      if (kwdefs != nullptr) {
         PyObject* def = PyDict_GetItemWithError(kwdefs, name);
         if (def) {
           arg_space[i] = def;
@@ -244,7 +244,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
   PyObject* defaults = func->func_defaults;
   if (defaults == nullptr) {
     // Function has no defaults; there's nothing we can do.
-    Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+    Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, nullptr);
     return {0.0, 0.0};
   }
   Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
@@ -254,7 +254,7 @@ JITRT_StaticCallFPReturn JITRT_CallWithIncorrectArgcountFPReturn(
 
   if (nargs + defcount < argcount || nargs > argcount) {
     // Not enough args with defaults, or too many args without defaults.
-    Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
+    Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, nullptr);
     return {0.0, 0.0};
   }
 
@@ -290,8 +290,8 @@ JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
     // Fallback to the default _PyFunction_Vectorcall implementation
     // to produce an appropriate exception.
     return {
-        Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL),
-        NULL};
+        Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, nullptr),
+        nullptr};
   }
   Py_ssize_t defcount = PyTuple_GET_SIZE(defaults);
   Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
@@ -301,8 +301,8 @@ JITRT_StaticCallReturn JITRT_CallWithIncorrectArgcount(
   if (nargs + defcount < argcount || nargs > argcount) {
     // Not enough args with defaults, or too many args without defaults.
     return {
-        Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL),
-        NULL};
+        Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, nullptr),
+        nullptr};
   }
 
   Py_ssize_t i;
@@ -388,12 +388,12 @@ TRetType JITRT_CallStaticallyWithPrimitiveSignatureWorker(
   }
 
   return reinterpret_cast<TVectorcall>(JITRT_GET_REENTRY(func->vectorcall))(
-      (PyObject*)func, (PyObject**)arg_space, nargsf, NULL);
+      (PyObject*)func, (PyObject**)arg_space, nargsf, nullptr);
 
 fail:
   PyObject* res =
-      Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, NULL);
-  JIT_DCHECK(res == NULL, "should alway be reporting an error");
+      Ci_StaticFunction_Vectorcall((PyObject*)func, args, nargsf, nullptr);
+  JIT_DCHECK(res == nullptr, "should alway be reporting an error");
   return TRetType();
 }
 
@@ -403,7 +403,7 @@ static inline Py_ssize_t vectorcall_flags(size_t n) {
 
 // This can either be a static method returning a primitive or a Python object,
 // so we use JITRT_StaticCallReturn.  If it's returning a primitive we'll return
-// rdx from the function, or return NULL for rdx when we dispatch to
+// rdx from the function, or return nullptr for rdx when we dispatch to
 // _PyFunction_Vectorcall for error generation.  If it returns a Python object
 // we'll return an additional garbage rdx from our caller, but our caller won't
 // care about it either.
@@ -479,8 +479,8 @@ JITRT_StaticCallFPReturn JITRT_ReportStaticArgTypecheckErrorsWithDoubleReturn(
     size_t nargsf,
     PyObject* /* kwnames */) {
   PyObject* res =
-      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
-  JIT_CHECK(res == NULL, "should always return an error");
+      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, nullptr);
+  JIT_CHECK(res == nullptr, "should always return an error");
   return {0, 0};
 }
 
@@ -490,9 +490,9 @@ JITRT_StaticCallReturn JITRT_ReportStaticArgTypecheckErrorsWithPrimitiveReturn(
     size_t nargsf,
     PyObject* /* kwnames */) {
   PyObject* res =
-      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, NULL);
-  JIT_CHECK(res == NULL, "should always return an error");
-  return {NULL, NULL};
+      JITRT_ReportStaticArgTypecheckErrors(func, args, nargsf, nullptr);
+  JIT_CHECK(res == nullptr, "should always return an error");
+  return {nullptr, nullptr};
 }
 
 PyObject* JITRT_ReportStaticArgTypecheckErrors(
@@ -535,7 +535,7 @@ static PyFrameObject* allocateFrame(
     PyCodeObject* code,
     PyObject* builtins,
     PyObject* globals) {
-  if (code->co_mutable->co_zombieframe != NULL) {
+  if (code->co_mutable->co_zombieframe != nullptr) {
     __builtin_prefetch(code->co_mutable->co_zombieframe);
   }
   PyFrameConstructor frame_ctor = {};
@@ -550,7 +550,7 @@ PyThreadState* JITRT_AllocateAndLinkFrame(
     PyObject* builtins,
     PyObject* globals) {
   PyThreadState* tstate = PyThreadState_GET();
-  JIT_DCHECK(tstate != NULL, "thread state cannot be null");
+  JIT_DCHECK(tstate != nullptr, "thread state cannot be null");
 
   PyFrameObject* frame = allocateFrame(tstate, code, builtins, globals);
   if (frame == nullptr) {
@@ -588,7 +588,7 @@ PyObject*
 JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
   PyObject* result =
       _PyDict_LoadGlobal((PyDictObject*)globals, (PyDictObject*)builtins, name);
-  if ((result == NULL) && !PyErr_Occurred()) {
+  if ((result == nullptr) && !PyErr_Occurred()) {
     // name is converted to a `char*` by format_exc_check_arg
     Cix_format_exc_check_arg(
         _PyThreadState_GET(),
@@ -605,7 +605,7 @@ static inline PyObject*
 call_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {
   size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
       (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
-  return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, NULL);
+  return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, nullptr);
 }
 
 PyObject*
@@ -662,8 +662,8 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
   if (kwargs) {
     if (!PyDict_CheckExact(kwargs)) {
       PyObject* d = PyDict_New();
-      if (d == NULL) {
-        return NULL;
+      if (d == nullptr) {
+        return nullptr;
       }
       if (PyDict_Update(d, kwargs) != 0) {
         Py_DECREF(d);
@@ -676,7 +676,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
               PyEval_GetFuncDesc(func),
               kwargs->ob_type->tp_name);
         }
-        return NULL;
+        return nullptr;
       }
       kwargs = d;
       new_kwargs = Ref<>::steal(kwargs);
@@ -684,7 +684,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
     JIT_DCHECK(PyDict_CheckExact(kwargs), "Expect kwargs to be a dict");
   }
   if (!PyTuple_CheckExact(pargs)) {
-    if (pargs->ob_type->tp_iter == NULL && !PySequence_Check(pargs)) {
+    if (pargs->ob_type->tp_iter == nullptr && !PySequence_Check(pargs)) {
       PyErr_Format(
           PyExc_TypeError,
           "%.200s%.200s argument after * "
@@ -692,17 +692,17 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
           PyEval_GetFuncName(func),
           PyEval_GetFuncDesc(func),
           pargs->ob_type->tp_name);
-      return NULL;
+      return nullptr;
     }
     pargs = PySequence_Tuple(pargs);
-    if (pargs == NULL) {
-      return NULL;
+    if (pargs == nullptr) {
+      return nullptr;
     }
     new_pargs = Ref<>::steal(pargs);
   }
   JIT_DCHECK(PyTuple_CheckExact(pargs), "Expected pargs to be a tuple");
 
-  if (_PyVectorcall_Function(func) != NULL) {
+  if (_PyVectorcall_Function(func) != nullptr) {
     return Ci_PyVectorcall_Call_WithFlags(
         func, pargs, kwargs, is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
   }
@@ -712,7 +712,7 @@ call_function_ex(PyObject* func, PyObject* pargs, PyObject* kwargs) {
 PyObject* JITRT_LoadFunctionIndirect(PyObject** func, PyObject* descr) {
   PyObject* res = *func;
   if (!res) {
-    res = _PyClassLoader_ResolveFunction(descr, NULL);
+    res = _PyClassLoader_ResolveFunction(descr, nullptr);
     Py_XDECREF(res);
   }
 
@@ -734,7 +734,7 @@ static inline PyObject*
 invoke_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {
   size_t flags = PY_VECTORCALL_ARGUMENTS_OFFSET |
       (is_awaited ? Ci_Py_AWAITED_CALL_MARKER : 0);
-  return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, NULL);
+  return _PyObject_Vectorcall(func, args + 1, (nargs - 1) | flags, nullptr);
 }
 
 PyObject*
@@ -800,7 +800,7 @@ PyObject* JITRT_UnaryNot(PyObject* value) {
     Py_INCREF(Py_False);
     return Py_False;
   }
-  return NULL;
+  return nullptr;
 }
 
 JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
@@ -818,8 +818,8 @@ JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
       name,
       no_args_in_super_call,
       &meth_found);
-  if (result == NULL) {
-    return {NULL, nullptr};
+  if (result == nullptr) {
+    return {nullptr, nullptr};
   }
   if (meth_found) {
     if (!(PyFunction_Check(result) || Py_TYPE(result) == &PyMethodDescr_Type ||
@@ -851,7 +851,7 @@ PyObject* JITRT_GetAttrFromSuper(
       self,
       name,
       no_args_in_super_call,
-      NULL);
+      nullptr);
 }
 
 PyObject* JITRT_InvokeMethod(
@@ -889,7 +889,7 @@ PyObject* JITRT_Cast(PyObject* obj, PyTypeObject* type) {
       type->tp_name,
       Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 PyObject* JITRT_CastOptional(PyObject* obj, PyTypeObject* type) {
@@ -903,7 +903,7 @@ PyObject* JITRT_CastOptional(PyObject* obj, PyTypeObject* type) {
       type->tp_name,
       Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 PyObject* JITRT_CastExact(PyObject* obj, PyTypeObject* type) {
@@ -917,7 +917,7 @@ PyObject* JITRT_CastExact(PyObject* obj, PyTypeObject* type) {
       type->tp_name,
       Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 PyObject* JITRT_CastOptionalExact(PyObject* obj, PyTypeObject* type) {
@@ -931,7 +931,7 @@ PyObject* JITRT_CastOptionalExact(PyObject* obj, PyTypeObject* type) {
       type->tp_name,
       Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 /* Needed because cast to float does extra work that would be a pain to add to
@@ -951,7 +951,7 @@ PyObject* JITRT_CastToFloat(PyObject* obj) {
   PyErr_Format(
       PyExc_TypeError, "expected 'float', got '%s'", Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 PyObject* JITRT_CastToFloatOptional(PyObject* obj) {
@@ -970,7 +970,7 @@ PyObject* JITRT_CastToFloatOptional(PyObject* obj) {
   PyErr_Format(
       PyExc_TypeError, "expected 'float', got '%s'", Py_TYPE(obj)->tp_name);
 
-  return NULL;
+  return nullptr;
 }
 
 int64_t JITRT_ShiftLeft64(int64_t x, int64_t y) {
@@ -1162,16 +1162,16 @@ PyObject* JITRT_ImportName(
   JIT_DCHECK(
       import_func || !PyErr_Occurred(),
       "_PyDict_GetItemIdWithError should only fail with invalid identifiers");
-  if (import_func == NULL) {
+  if (import_func == nullptr) {
     PyErr_SetString(PyExc_ImportError, "__import__ not found");
-    return NULL;
+    return nullptr;
   }
 
   /* Fast path for not overloaded __import__. */
   if (import_func == tstate->interp->import_func) {
     int ilevel = _PyLong_AsInt(level);
     if (ilevel == -1 && _PyErr_Occurred(tstate)) {
-      return NULL;
+      return nullptr;
     }
     res = PyImport_ImportModuleLevelObject(
         name,
@@ -1206,10 +1206,10 @@ void JITRT_DoRaise(PyThreadState* tstate, PyObject* exc, PyObject* cause) {
   // prepareForDeopt() handle this. We can't let do_raise() handle this by
   // raising a RuntimeError as this would mean prepareForDeopt() does not call
   // PyTraceBack_Here().
-  if (exc == NULL) {
+  if (exc == nullptr) {
     auto* exc_info = _PyErr_GetTopmostException(tstate);
     auto type = exc_info->exc_type;
-    if (type == Py_None || type == NULL) {
+    if (type == Py_None || type == nullptr) {
       return;
     }
   }
@@ -1376,8 +1376,8 @@ void JITRT_SetCurrentAwaiter(PyObject* awaitable, PyThreadState* ts) {
 
 JITRT_YieldFromRes
 JITRT_YieldFrom(PyObject* gen, PyObject* v, uint64_t finish_yield_from) {
-  if (v == NULL) {
-    return {NULL, 1};
+  if (v == nullptr) {
+    return {nullptr, 1};
   }
   if (finish_yield_from) {
     Py_INCREF(v);
@@ -1390,7 +1390,7 @@ JITRT_YieldFrom(PyObject* gen, PyObject* v, uint64_t finish_yield_from) {
     return {retval, 1};
   }
   if (gen_status == PYGEN_ERROR) {
-    return {NULL, 1};
+    return {nullptr, 1};
   }
   JIT_DCHECK(gen_status == PYGEN_NEXT, "Unexpected gen_status: {}", gen_status);
   return {retval, 0};
@@ -1401,7 +1401,7 @@ JITRT_YieldFromRes JITRT_YieldFromHandleStopAsyncIteration(
     PyObject* v,
     uint64_t finish_yield_from) {
   JITRT_YieldFromRes res = JITRT_YieldFrom(gen, v, finish_yield_from);
-  if ((res.retval == NULL) && (res.done == 1) &&
+  if ((res.retval == nullptr) && (res.done == 1) &&
       PyErr_ExceptionMatches(PyExc_StopAsyncIteration)) {
     PyErr_Clear();
     Py_INCREF(&jit::g_iterDoneSentinel);
@@ -1420,7 +1420,7 @@ PyObject* JITRT_FormatValue(
   /* See if any conversion is specified. */
   switch (conversion) {
     case FVC_NONE:
-      conv_fn = NULL;
+      conv_fn = nullptr;
       break;
     case FVC_STR:
       conv_fn = PyObject_Str;
@@ -1437,14 +1437,14 @@ PyObject* JITRT_FormatValue(
           PyExc_SystemError,
           "unexpected conversion flag %d",
           conversion);
-      return NULL;
+      return nullptr;
   }
 
   /* If there's a conversion function, call it and replace
      value with that result. Otherwise, just use value,
      without conversion. */
   Ref<> converted;
-  if (conv_fn != NULL) {
+  if (conv_fn != nullptr) {
     converted = Ref<>::steal(conv_fn(value));
     if (converted == nullptr) {
       return nullptr;
@@ -1457,7 +1457,7 @@ PyObject* JITRT_FormatValue(
      itself. In that case, skip calling format(). I plan to
      move this optimization in to PyObject_Format()
      itself. */
-  if (PyUnicode_CheckExact(value) && fmt_spec == NULL) {
+  if (PyUnicode_CheckExact(value) && fmt_spec == nullptr) {
     /* Do nothing, just return. */
     Py_INCREF(value);
     return value;
@@ -1562,7 +1562,7 @@ JITRT_StaticCallReturn JITRT_FailedDeferredCompileShim(
   }
 
   PyObject* res =
-      _PyObject_Vectorcall((PyObject*)func, dest_args, total_args, NULL);
+      _PyObject_Vectorcall((PyObject*)func, dest_args, total_args, nullptr);
 
   for (int i = 0; i < allocated_count; i++) {
     Py_DECREF(allocated_args[i]);
@@ -1610,9 +1610,9 @@ PyObject* JITRT_UnpackExToTuple(
   JIT_DCHECK(iterable != nullptr, "The iterable cannot be null.");
 
   Ref<> it = Ref<>::steal(PyObject_GetIter(iterable));
-  if (it == NULL) {
+  if (it == nullptr) {
     if (_PyErr_ExceptionMatches(tstate, PyExc_TypeError) &&
-        iterable->ob_type->tp_iter == NULL && !PySequence_Check(iterable)) {
+        iterable->ob_type->tp_iter == nullptr && !PySequence_Check(iterable)) {
       _PyErr_Format(
           tstate,
           PyExc_TypeError,
@@ -1631,7 +1631,7 @@ PyObject* JITRT_UnpackExToTuple(
 
   for (int i = 0; i < before; i++) {
     PyObject* w = PyIter_Next(it);
-    if (w == NULL) {
+    if (w == nullptr) {
       /* Iterator done, via error or exhaustion. */
       if (!_PyErr_Occurred(tstate)) {
         if (after == -1) {
@@ -1662,7 +1662,7 @@ PyObject* JITRT_UnpackExToTuple(
       "This function should only be used for UNPACK_EX, where after >= 0.");
 
   PyObject* list = PySequence_List(it);
-  if (list == NULL) {
+  if (list == nullptr) {
     return nullptr;
   }
   tuple->ob_item[ti++] = list;

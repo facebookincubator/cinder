@@ -433,7 +433,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   // Resulting generator is now in RAX for filling in below and epilogue return.
   const auto gen_reg = x86::rax;
 
-  // Exit early if return from JITRT_MakeGenObject was NULL.
+  // Exit early if return from JITRT_MakeGenObject was nullptr.
   as->test(gen_reg, gen_reg);
   as->jz(env->hard_exit_label);
 
@@ -559,7 +559,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
           ? JITRT_YieldFromHandleStopAsyncIteration
           : JITRT_YieldFrom);
   emitCall(*env, func, instr);
-  // Yielded or final result value now in RAX. If the result was NULL then
+  // Yielded or final result value now in RAX. If the result was nullptr then
   // done will be set so we'll correctly jump to the following CheckExc.
   const auto yf_result_phys_reg = PhyLocation::RAX;
   const auto done_r = x86::rdx;

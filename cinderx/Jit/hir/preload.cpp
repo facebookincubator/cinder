@@ -115,8 +115,8 @@ static void fill_primitive_arg_types_builtin(
     BorrowedRef<> callable,
     ArgToType& map) {
   Ci_PyTypedMethodDef* def = _PyClassLoader_GetTypedMethodDef(callable);
-  JIT_CHECK(def != NULL, "expected typed method def");
-  for (Py_ssize_t i = 0; def->tmd_sig[i] != NULL; i++) {
+  JIT_CHECK(def != nullptr, "expected typed method def");
+  for (Py_ssize_t i = 0; def->tmd_sig[i] != nullptr; i++) {
     const Ci_Py_SigElement* elem = def->tmd_sig[i];
     int code = Ci_Py_SIG_TYPE_MASK(elem->se_argtype);
     Type typ = prim_type_to_type(code);
@@ -147,7 +147,7 @@ std::unique_ptr<InvokeTarget> Preloader::resolve_target_descr(
           callable, &optional, &exact, &func_flags));
 
   target->container_is_immutable = _PyClassLoader_IsImmutable(container);
-  if (return_pytype != NULL) {
+  if (return_pytype != nullptr) {
     if (func_flags & Ci_FUNC_FLAGS_COROUTINE) {
       // TODO properly handle coroutine returns awaitable type
       target->return_type = TObject;
@@ -372,7 +372,7 @@ bool Preloader::preload() {
       }
       PyTypeOpt pytype_opt =
           resolve_type_descr(PyTuple_GET_ITEM(checks, i + 1));
-      if (std::get<0>(pytype_opt) == NULL) {
+      if (std::get<0>(pytype_opt) == nullptr) {
         JIT_LOG(
             "unknown type descr {} during preloading of {}",
             repr(PyTuple_GET_ITEM(checks, i + 1)),

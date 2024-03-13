@@ -371,7 +371,7 @@ Error BaseAssembler::comment(const char* data, size_t size) {
   }
 
 #ifndef ASMJIT_NO_LOGGING
-  // Logger cannot be NULL if `EmitterFlags::kLogComments` is set.
+  // Logger cannot be nullptr if `EmitterFlags::kLogComments` is set.
   ASMJIT_ASSERT(_logger != nullptr);
 
   _logger->log(data, size);

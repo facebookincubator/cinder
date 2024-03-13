@@ -120,7 +120,8 @@ static void reifyStack(
       // LoadMethod returned a bound method object in order to properly
       // reconstruct the stack for the interpreter. We use Py_None as the
       // LoadMethodResult to indicate that it was a non-method like object,
-      // which we need to replace with NULL to match the interpreter semantics.
+      // which we need to replace with nullptr to match the interpreter
+      // semantics.
       if (obj == Py_None) {
         frame->f_valuestack[i] = nullptr;
       } else {
@@ -183,8 +184,8 @@ static void reifyFrameImpl(
     bool for_gen_resume,
     const DeoptFrameMetadata& frame_meta,
     const uint64_t* regs) {
-  frame->f_locals = NULL;
-  frame->f_trace = NULL;
+  frame->f_locals = nullptr;
+  frame->f_trace = nullptr;
   frame->f_trace_opcodes = 0;
   frame->f_trace_lines = 1;
   if (meta.reason == DeoptReason::kGuardFailure || for_gen_resume) {
@@ -378,7 +379,7 @@ DeoptMetadata DeoptMetadata::fromInstr(
 
   int num_frames = fs->inlineDepth();
   meta.frame_meta.resize(num_frames + 1); // +1 for caller
-  for (hir::FrameState* frame = fs; frame != NULL; frame = frame->parent) {
+  for (hir::FrameState* frame = fs; frame != nullptr; frame = frame->parent) {
     int i = num_frames--;
     // Translate locals and cells
     populate_localsplus(meta.frame_meta.at(i), frame);

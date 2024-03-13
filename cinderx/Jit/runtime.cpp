@@ -71,7 +71,7 @@ void CodeRuntime::addReference(BorrowedRef<> obj) {
 
 PyObject* GenYieldPoint::yieldFromValue(GenDataFooter* gen_footer) const {
   if (!isYieldFrom_) {
-    return NULL;
+    return nullptr;
   }
   return reinterpret_cast<PyObject*>(
       *(reinterpret_cast<uint64_t*>(gen_footer) + yieldFromOffs_));
@@ -110,7 +110,8 @@ void Builtins::init() {
     name_to_cfunc_[name] = meth;
   };
   // Find all free functions.
-  for (PyMethodDef* fdef = builtins->m_methods; fdef->ml_name != NULL; fdef++) {
+  for (PyMethodDef* fdef = builtins->m_methods; fdef->ml_name != nullptr;
+       fdef++) {
     add(fdef->ml_name, fdef);
   }
   // Find all methods on types.
@@ -121,7 +122,8 @@ void Builtins::init() {
       &PyUnicode_Type,
   };
   for (auto type : types) {
-    for (PyMethodDef* fdef = type->tp_methods; fdef->ml_name != NULL; fdef++) {
+    for (PyMethodDef* fdef = type->tp_methods; fdef->ml_name != nullptr;
+         fdef++) {
       add(fmt::format("{}.{}", type->tp_name, fdef->ml_name), fdef);
     }
   }

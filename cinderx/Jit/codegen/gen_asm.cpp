@@ -1623,7 +1623,7 @@ static PyObject* resumeInInterpreter(
 
     err_occurred = result == nullptr;
     // Push the previous frame's result onto the value stack. We can't push
-    // after resuming because f_stacktop is NULL during execution of a frame.
+    // after resuming because f_stacktop is nullptr during execution of a frame.
     if (!err_occurred) {
       if (inline_depth > 0) {
         // The caller is at inline depth 0, so we only attempt to push the

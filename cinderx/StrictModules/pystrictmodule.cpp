@@ -13,16 +13,16 @@ extern "C" {
 static PyObject* AnalysisResult_new(PyTypeObject* type, PyObject*, PyObject*) {
   StrictModuleAnalysisResult* self;
   self = (StrictModuleAnalysisResult*)type->tp_alloc(type, 0);
-  if (self == NULL)
-    return NULL;
+  if (self == nullptr)
+    return nullptr;
   self->valid_module = 0;
-  self->module_name = NULL;
-  self->file_name = NULL;
+  self->module_name = nullptr;
+  self->file_name = nullptr;
   self->module_kind = 0;
   self->stub_kind = 0;
-  self->ast = NULL;
-  self->symtable = NULL;
-  self->errors = NULL;
+  self->ast = nullptr;
+  self->symtable = nullptr;
+  self->errors = nullptr;
   return (PyObject*)self;
 }
 
@@ -96,11 +96,11 @@ static PyObject* create_AnalysisResult(
     PyObject* module_name,
     PyObject* errors,
     PyArena* arena) {
-  if (mod == NULL) {
+  if (mod == nullptr) {
     Py_INCREF(module_name);
     Py_INCREF(errors);
     return create_AnalysisResult_Helper(
-        0, module_name, NULL, 0, 0, NULL, NULL, errors);
+        0, module_name, nullptr, 0, 0, nullptr, nullptr, errors);
   }
   // all interface functions return new references
   PyObject* filename = StrictAnalyzedModule_GetFilename(mod);
@@ -115,7 +115,7 @@ static PyObject* create_AnalysisResult(
 }
 
 static void AnalysisResult_dealloc(StrictModuleAnalysisResult* self) {
-  if (self != NULL) {
+  if (self != nullptr) {
     PyObject_GC_UnTrack(self);
     Py_XDECREF(self->module_name);
     Py_XDECREF(self->file_name);
@@ -188,14 +188,14 @@ static PyMemberDef AnalysisResult_members[] = {
      offsetof(StrictModuleAnalysisResult, errors),
      0,
      "list of errors"},
-    {NULL, 0, 0, 0, NULL} /* Sentinel */
+    {nullptr, 0, 0, 0, nullptr} /* Sentinel */
 };
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject Ci_StrictModuleAnalysisResult_Type = {
     PyVarObject_HEAD_INIT(
-        NULL,
+        nullptr,
         0) "strictmodule.StrictModuleAnalysisResult", /* tp_name */
     sizeof(StrictModuleAnalysisResult), /* tp_basicsize */
     0, /* tp_itemsize */
@@ -241,8 +241,8 @@ static PyObject*
 StrictModuleLoaderObject_new(PyTypeObject* type, PyObject*, PyObject*) {
   StrictModuleLoaderObject* self;
   self = (StrictModuleLoaderObject*)type->tp_alloc(type, 0);
-  if (self == NULL)
-    return NULL;
+  if (self == nullptr)
+    return nullptr;
   self->checker = StrictModuleChecker_New();
   return (PyObject*)self;
 }
@@ -261,7 +261,7 @@ PyListToCharArray(PyObject* pyList, const char** arr, Py_ssize_t size) {
       return -1;
     }
     const char* elem_str = PyUnicode_AsUTF8(elem);
-    if (elem_str == NULL) {
+    if (elem_str == nullptr) {
       return -1;
     }
     arr[_i] = elem_str;
@@ -405,7 +405,7 @@ static int StrictModuleLoaderObject_init(
 
   // stub paths
   const char* stub_str = PyUnicode_AsUTF8(stub_import_path_obj);
-  if (stub_str == NULL) {
+  if (stub_str == nullptr) {
     return -1;
   }
   int stub_path_set =
@@ -470,9 +470,9 @@ static void StrictModuleLoader_dealloc(StrictModuleLoaderObject* self) {
 
 /* Returns new reference */
 static PyObject* errorInfoToTuple(ErrorInfo* info) {
-  PyObject* py_lineno = NULL;
-  PyObject* py_col = NULL;
-  PyObject* result = NULL;
+  PyObject* py_lineno = nullptr;
+  PyObject* py_col = nullptr;
+  PyObject* result = nullptr;
   py_lineno = PyLong_FromLong(info->lineno);
   if (!py_lineno) {
     goto err_cleanup;
@@ -491,7 +491,7 @@ static PyObject* errorInfoToTuple(ErrorInfo* info) {
 err_cleanup:
   Py_XDECREF(py_lineno);
   Py_XDECREF(py_col);
-  return NULL;
+  return nullptr;
 }
 
 static PyObject* StrictModuleLoader_check(
@@ -502,7 +502,7 @@ static PyObject* StrictModuleLoader_check(
   PyArena* arena;
   PyObject* result;
   if (!PyArg_ParseTuple(args, "U", &mod_name)) {
-    return NULL;
+    return nullptr;
   }
   int error_count = 0;
   int is_strict = 0;
@@ -510,7 +510,7 @@ static PyObject* StrictModuleLoader_check(
       self->checker, mod_name, &error_count, &is_strict);
   errors = PyList_New(error_count);
   ErrorInfo error_infos[error_count];
-  if (error_count > 0 && mod != NULL) {
+  if (error_count > 0 && mod != nullptr) {
     if (StrictModuleChecker_GetErrors(mod, error_infos, error_count) < 0) {
       goto err_cleanup;
     }
@@ -538,7 +538,7 @@ err_cleanup:
     ErrorInfo_Clean(&(error_infos[i]));
   }
   Py_XDECREF(errors);
-  return NULL;
+  return nullptr;
 }
 
 static PyObject* StrictModuleLoader_check_source(
@@ -563,7 +563,7 @@ static PyObject* StrictModuleLoader_check_source(
           &file_name,
           &mod_name,
           &submodule_search_locations)) {
-    return NULL;
+    return nullptr;
   }
   // source str
   const char* source_str;
@@ -573,13 +573,13 @@ static PyObject* StrictModuleLoader_check_source(
         PyExc_TypeError,
         "submodule_search_locations is expect to be list, but got %S object",
         submodule_search_locations);
-    return NULL;
+    return nullptr;
   }
   Py_ssize_t search_list_size = PyList_GET_SIZE(submodule_search_locations);
   const char* search_list[search_list_size];
   if (PyListToCharArray(
           submodule_search_locations, search_list, search_list_size) < 0) {
-    return NULL;
+    return nullptr;
   }
 
   // verify source
@@ -588,8 +588,8 @@ static PyObject* StrictModuleLoader_check_source(
   PyObject* source_copy;
   source_str =
       _Py_SourceAsString(source, "parse", "str or bytes", &cf, &source_copy);
-  if (source_str == NULL) {
-    return NULL;
+  if (source_str == nullptr) {
+    return nullptr;
   }
 
   int error_count = 0;
@@ -606,7 +606,7 @@ static PyObject* StrictModuleLoader_check_source(
 
   errors = PyList_New(error_count);
   ErrorInfo error_infos[error_count];
-  if (error_count > 0 && mod != NULL) {
+  if (error_count > 0 && mod != nullptr) {
     if (StrictModuleChecker_GetErrors(mod, error_infos, error_count) < 0) {
       goto err_cleanup;
     }
@@ -635,7 +635,7 @@ err_cleanup:
   }
   Py_XDECREF(errors);
   Py_XDECREF(source_copy);
-  return NULL;
+  return nullptr;
 }
 
 static PyObject* StrictModuleLoader_set_force_strict(
@@ -643,7 +643,7 @@ static PyObject* StrictModuleLoader_set_force_strict(
     PyObject* args) {
   PyObject* force_strict;
   if (!PyArg_ParseTuple(args, "O", &force_strict)) {
-    return NULL;
+    return nullptr;
   }
   int ok = StrictModuleChecker_SetForceStrict(self->checker, force_strict);
   if (ok == 0) {
@@ -657,7 +657,7 @@ static PyObject* StrictModuleLoader_set_force_strict_by_name(
     PyObject* args) {
   const char* forced_strict_module;
   if (!PyArg_ParseTuple(args, "s", &forced_strict_module)) {
-    return NULL;
+    return nullptr;
   }
   int ok = StrictModuleChecker_SetForceStrictByName(
       self->checker, forced_strict_module);
@@ -678,7 +678,7 @@ static PyObject* StrictModuleLoader_delete_module(
     PyObject* args) {
   PyObject* name;
   if (!PyArg_ParseTuple(args, "U", &name)) {
-    return NULL;
+    return nullptr;
   }
   int ok =
       StrictModuleChecker_DeleteModule(self->checker, PyUnicode_AsUTF8(name));
@@ -716,14 +716,14 @@ static PyMethodDef StrictModuleLoader_methods[] = {
      (PyCFunction)StrictModuleLoader_delete_module,
      METH_VARARGS,
      PyDoc_STR("delete_module(name: str) -> bool")},
-    {NULL, NULL, 0, NULL} /* sentinel */
+    {nullptr, nullptr, 0, nullptr} /* sentinel */
 };
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 PyTypeObject Ci_StrictModuleLoader_Type = {
     PyVarObject_HEAD_INIT(
-        NULL,
+        nullptr,
         0) "strictmodule.StrictModuleLoader", /* tp_name */
     sizeof(StrictModuleLoaderObject), /* tp_basicsize */
     0, /* tp_itemsize */

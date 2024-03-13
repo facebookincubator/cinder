@@ -77,7 +77,7 @@ int ss_vsprintf(jit_string_t* ss, const char* format, va_list args) {
       memcpy(ss->str, ss->_string, ss->pos);
     }
     JIT_CHECK(
-        ss->str != NULL,
+        ss->str != nullptr,
         "Unable to allocate memory size = {} bytes",
         ss->capacity);
   }

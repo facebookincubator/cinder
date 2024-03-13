@@ -56,7 +56,7 @@ Parser::Token Parser::getNextToken(const char* str) {
     }
 
     if (m.size() > 1) {
-      return {pattern.type, m.length(), strtoll(m.str(1).c_str(), NULL, 0)};
+      return {pattern.type, m.length(), strtoll(m.str(1).c_str(), nullptr, 0)};
     }
     return {pattern.type, m.length()};
   }

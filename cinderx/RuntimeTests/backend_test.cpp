@@ -160,9 +160,9 @@ class BackendTest : public RuntimeTest {
 
     auto test_noerror = [&](PyObject* a_in, PyTypeObject* b_in) -> void {
       auto ret_test = func(a_in, b_in);
-      ASSERT_TRUE(PyErr_Occurred() == NULL);
+      ASSERT_TRUE(PyErr_Occurred() == nullptr);
       auto ret_jitrt = JITRT_Cast(a_in, b_in);
-      ASSERT_TRUE(PyErr_Occurred() == NULL);
+      ASSERT_TRUE(PyErr_Occurred() == nullptr);
       ASSERT_EQ(ret_test, ret_jitrt);
     };
 
@@ -237,12 +237,12 @@ def get_user_id(user):
   ASSERT_NE(user_id.get(), nullptr) << "Couldn't create user id";
 
   auto user = Ref<>::steal(
-      PyObject_CallFunctionObjArgs(user_klass, user_id.get(), NULL));
+      PyObject_CallFunctionObjArgs(user_klass, user_id.get(), nullptr));
   ASSERT_NE(user.get(), nullptr) << "Couldn't create user";
 
   // Finally, call get_user_id
-  auto result =
-      Ref<>::steal(PyObject_CallFunctionObjArgs(get_user_id, user.get(), NULL));
+  auto result = Ref<>::steal(
+      PyObject_CallFunctionObjArgs(get_user_id, user.get(), nullptr));
   ASSERT_NE(result.get(), nullptr) << "Failed getting user id";
   ASSERT_TRUE(PyLong_CheckExact(result)) << "Incorrect type returned";
   ASSERT_EQ(PyLong_AsLong(result), PyLong_AsLong(user_id))

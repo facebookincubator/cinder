@@ -122,7 +122,7 @@ StrictAnalyzedModule* StrictModuleChecker_Check(
     int* out_error_count,
     int* is_strict_out) {
   if (!PyUnicode_Check(module_name)) {
-    return NULL;
+    return nullptr;
   }
   strictmod::compiler::ModuleLoader* loader =
       reinterpret_cast<strictmod::compiler::ModuleLoader*>(checker);

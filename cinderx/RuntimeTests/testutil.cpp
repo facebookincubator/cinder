@@ -215,7 +215,7 @@ std::unique_ptr<HIRTestSuite> ReadHIRTestSuite(const std::string& suite_path) {
 const char* parseAndSetEnvVar(const char* env_name) {
   if (strchr(env_name, '=')) {
     const char* key = strtok(strdup(env_name), "=");
-    const char* value = strtok(NULL, "=");
+    const char* value = strtok(nullptr, "=");
     setenv(key, value, 1);
     return key;
   } else {
@@ -225,7 +225,7 @@ const char* parseAndSetEnvVar(const char* env_name) {
 }
 
 PyObject* addToXargsDict(const wchar_t* flag) {
-  PyObject *key = NULL, *value = NULL;
+  PyObject *key = nullptr, *value = nullptr;
 
   PyObject* opts = PySys_GetXOptions();
 

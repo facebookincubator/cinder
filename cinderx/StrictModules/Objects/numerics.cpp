@@ -1043,7 +1043,7 @@ std::shared_ptr<BaseStrictObject> StrictFloat::float__round__(
     }
     Ref<> ndigitObj = ndigitNum->getPyObject();
     result.reset(
-        PyObject_CallFunctionObjArgs(round.get(), ndigitObj.get(), NULL));
+        PyObject_CallFunctionObjArgs(round.get(), ndigitObj.get(), nullptr));
   }
   auto strictResult = fromPyNumberHelper(caller, result);
   if (strictResult == nullptr) {

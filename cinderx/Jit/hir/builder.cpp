@@ -358,7 +358,7 @@ void HIRBuilder::addInitializeCells(
     auto dst = tc.frame.cells[i];
     JIT_CHECK(dst != nullptr, "No register for cell {}", i);
     Register* cell_contents = null_reg;
-    if (code_->co_cell2arg != NULL &&
+    if (code_->co_cell2arg != nullptr &&
         (arg = code_->co_cell2arg[i]) != CO_CELL_NOT_AN_ARG) {
       // cell is for argument local number `arg`
       JIT_CHECK(
@@ -1842,7 +1842,7 @@ bool HIRBuilder::tryEmitDirectMethodCall(
     long nargs) {
   if (target.is_statically_typed || nargs == target.builtin_expected_nargs) {
     Instr* staticCall;
-    Register* out = NULL;
+    Register* out = nullptr;
     if (target.builtin_returns_void) {
       staticCall = tc.emit<CallStaticRetVoid>(nargs, target.builtin_c_func);
     } else {
@@ -1861,7 +1861,7 @@ bool HIRBuilder::tryEmitDirectMethodCall(
 
     if (target.builtin_returns_error_code) {
       tc.emit<CheckNeg>(out, out, tc.frame);
-    } else if (out != NULL && !(target.return_type.couldBe(TPrimitive))) {
+    } else if (out != nullptr && !(target.return_type.couldBe(TPrimitive))) {
       tc.emit<CheckExc>(out, out, tc.frame);
     }
     if (target.builtin_returns_void || target.builtin_returns_error_code) {

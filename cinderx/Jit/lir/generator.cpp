@@ -2056,7 +2056,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             PyList_New,
             static_cast<Py_ssize_t>(instr->nvalues()));
         if (instr->nvalues() > 0) {
-          // TODO(T174544781): need to check for NULL before initializing,
+          // TODO(T174544781): need to check for nullptr before initializing,
           // currently that check only happens after assigning these values.
           Instruction* load = bbb.appendInstr(
               Instruction::kMove,

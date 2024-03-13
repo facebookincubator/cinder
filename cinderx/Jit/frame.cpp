@@ -58,7 +58,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       globals = pyframe->f_globals;
       JIT_DCHECK(
           globals != nullptr,
-          "Python frame ({}) has NULL globals",
+          "Python frame ({}) has nullptr globals",
           reinterpret_cast<void*>(pyframe));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -70,7 +70,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       globals = code_rt->frameState()->globals();
       JIT_DCHECK(
           globals != nullptr,
-          "JIT Runtime frame ({}) has NULL globals",
+          "JIT Runtime frame ({}) has nullptr globals",
           reinterpret_cast<void*>(code_rt));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -81,7 +81,7 @@ PyObject* getModuleName(_PyShadowFrame* shadow_frame) {
       globals = frame_state->globals();
       JIT_DCHECK(
           globals != nullptr,
-          "JIT Runtime frame ({}) has NULL globals",
+          "JIT Runtime frame ({}) has nullptr globals",
           reinterpret_cast<void*>(frame_state));
       result = PyDict_GetItemString(globals, "__name__");
       break;
@@ -584,7 +584,7 @@ void walkAsyncShadowStack(PyThreadState* tstate, AsyncFrameHandler handler) {
     }
     _PyShadowFrame* awaiter_frame =
         _PyShadowFrame_GetAwaiterFrame(shadow_frame);
-    if (awaiter_frame != NULL) {
+    if (awaiter_frame != nullptr) {
       shadow_frame = awaiter_frame;
     } else {
       shadow_frame = shadow_frame->prev;

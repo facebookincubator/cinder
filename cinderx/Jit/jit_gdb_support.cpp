@@ -49,7 +49,7 @@ void __attribute__((noinline)) __jit_debug_register_code() {
 
 /* We will add new code entries to the link list rooted here. If the JIT ever
  * becomes multithreaded this will need to be protected by a mutex. */
-JITDescriptor __jit_debug_descriptor = {1, JIT_NOACTION, NULL, NULL};
+JITDescriptor __jit_debug_descriptor = {1, JIT_NOACTION, nullptr, nullptr};
 
 /* End GDB hook */
 
@@ -77,7 +77,7 @@ register_elf_ctx(ELFObjectContext* ctx, const char* type, void* ptr) {
   size_t elf_object_size = elfctx_get_object_size(ctx);
   char* raw =
       static_cast<char*>(calloc(1, sizeof(JITCodeEntry) + elf_object_size));
-  if (raw == NULL) {
+  if (raw == nullptr) {
     JIT_DLOG("Failed to allocate space for JITCodeEntry + ELFObject");
     return 0;
   }
@@ -106,7 +106,7 @@ register_elf_ctx(ELFObjectContext* ctx, const char* type, void* ptr) {
   entry->symfile_size = elf_object_size;
 
   // Link into the list.
-  entry->prev_entry = NULL;
+  entry->prev_entry = nullptr;
   JITCodeEntry* next_entry = __jit_debug_descriptor.first_entry;
   entry->next_entry = next_entry;
   if (next_entry) {
@@ -141,7 +141,7 @@ int register_raw_debug_symbol(
       code_size,
       stack_size);
 
-  if (ctx == NULL) {
+  if (ctx == nullptr) {
     JIT_DLOG("Failed to allocate ELFObjectContext");
     return 0;
   }
@@ -193,9 +193,9 @@ int register_pycode_debug_symbol(
 
   PyObject* sourcefile = codeobj->co_filename;
   const char* filename = "<unknown>";
-  if (sourcefile != NULL && PyUnicode_Check(sourcefile)) {
+  if (sourcefile != nullptr && PyUnicode_Check(sourcefile)) {
     filename = PyUnicode_AsUTF8(sourcefile);
-    if (filename == NULL) {
+    if (filename == nullptr) {
       filename = "<filename failed to encode to UTF8>";
       JIT_DLOG("Failed to encode filename for ELFObjectContext");
     }
@@ -209,7 +209,7 @@ int register_pycode_debug_symbol(
       code_size,
       stack_size);
 
-  if (ctx == NULL) {
+  if (ctx == nullptr) {
     JIT_DLOG("Failed to allocate ELFObjectContext");
     return 0;
   }
@@ -525,8 +525,8 @@ static void elf_init_symtab(ELFObjectContext* ctx) {
   sym = &ctx->obj.sym[ELF_SYM_FUNC];
   sym->name = elfctx_append_string(
       ctx,
-      ctx->function_name == NULL ? "<unknown>"
-                                 : ss_get_string(ctx->function_name));
+      ctx->function_name == nullptr ? "<unknown>"
+                                    : ss_get_string(ctx->function_name));
   sym->sectidx = ELF_SECT_text;
   sym->value = 0;
   sym->size = ctx->code_size;
@@ -544,7 +544,8 @@ static void elf_init_debuginfo(ELFObjectContext* ctx) {
 
       DWRF_UV(1); /* Abbrev #1: DWRF_TAG_compile_unit. */
       DWRF_STR(
-          ctx->filename == NULL ? "<unknown>" : ss_get_string(ctx->filename));
+          ctx->filename == nullptr ? "<unknown>"
+                                   : ss_get_string(ctx->filename));
       DWRF_ADDR(ctx->code_addr); /* DWRF_AT_low_pc. */
       DWRF_ADDR(ctx->code_addr + ctx->code_size); /* DWRF_AT_high_pc. */
       DWRF_U32(0); /* DWRF_AT_stmt_list. */
@@ -597,8 +598,8 @@ static void elf_init_debugline(ELFObjectContext* ctx) {
                    DWRF_U8(0);
                    /* File name table. */
                    DWRF_STR(
-                       ctx->filename == NULL ? "<unknown>"
-                                             : ss_get_string(ctx->filename));
+                       ctx->filename == nullptr ? "<unknown>"
+                                                : ss_get_string(ctx->filename));
                    DWRF_UV(0);
                    DWRF_UV(0);
                    DWRF_UV(0);
@@ -682,8 +683,8 @@ static ELFObjectContext* elfctx_new(
   JIT_DCHECK(stack_size >= 0, "stack_size must be greater than zero");
   ELFObjectContext* ctx =
       static_cast<ELFObjectContext*>(calloc(1, sizeof(ELFObjectContext)));
-  if (ctx == NULL) {
-    return NULL;
+  if (ctx == nullptr) {
+    return nullptr;
   }
 
   ctx->code_addr = (uintptr_t)code;
