@@ -24,7 +24,7 @@ from cinderx.compiler.errors import (
 )
 from cinderx.compiler.static import Static310CodeGenerator, StaticCodeGenerator
 from cinderx.compiler.static.compiler import Compiler
-from cinderx.compiler.static.module_table import ModuleTable
+from cinderx.compiler.static.module_table import DepTrackingOptOut, ModuleTable
 from cinderx.compiler.static.types import Value
 from cinderx.compiler.strict.common import FIXED_MODULES
 from cinderx.compiler.strict.compiler import Compiler as StrictCompiler
@@ -59,6 +59,8 @@ try:
     import cinderjit
 except ImportError:
     cinderjit = None
+
+TEST_OPT_OUT = DepTrackingOptOut("tests")
 
 
 def type_mismatch(from_type: str, to_type: str) -> str:
@@ -101,6 +103,10 @@ PRIM_NAME_TO_TYPE = {
 
 def dis(code):
     Disassembler().dump_code(code, file=sys.stdout)
+
+
+def get_child(mod: ModuleTable, name: str) -> Value | None:
+    return mod.get_child(name, TEST_OPT_OUT)
 
 
 class TestCompiler(Compiler):

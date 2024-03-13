@@ -1,9 +1,9 @@
 from cinderx.compiler.static.compiler import Compiler
-from cinderx.compiler.static.module_table import ModuleTableException
-from cinderx.compiler.static.types import TypeEnvironment
+from cinderx.compiler.static.module_table import ModuleTable, ModuleTableException
+from cinderx.compiler.static.types import TypeEnvironment, Value
 from cinderx.compiler.strict.compiler import Compiler as StrictCompiler
 
-from .common import StaticTestBase, StaticTestsStrictModuleLoader
+from .common import get_child, StaticTestBase, StaticTestsStrictModuleLoader
 
 
 class ModuleTests(StaticTestBase):
@@ -24,11 +24,11 @@ class ModuleTests(StaticTestBase):
         compiler = self.decl_visit(a=acode, b=bcode)
 
         self.assertIn("b", compiler.modules)
-        self.assertIsNotNone(compiler.modules["b"].get_child("a"))
+        self.assertIsNotNone(get_child(compiler.modules["b"], "a"))
         self.assertEqual(
-            compiler.modules["b"].get_child("a").klass, compiler.type_env.module
+            get_child(compiler.modules["b"], "a").klass, compiler.type_env.module
         )
-        self.assertEqual(compiler.modules["b"].get_child("a").module_name, "a")
+        self.assertEqual(get_child(compiler.modules["b"], "a").module_name, "a")
 
     def test_import_name_as(self) -> None:
         acode = """
@@ -40,7 +40,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(a=acode, b=bcode)
 
-        foo = compiler.modules["b"].get_child("foo")
+        foo = get_child(compiler.modules["b"], "foo")
         self.assertIsNotNone(foo)
         self.assertEqual(foo.klass, compiler.type_env.module)
         self.assertEqual(foo.module_name, "a")
@@ -55,7 +55,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
-        a = compiler.modules["c"].get_child("a")
+        a = get_child(compiler.modules["c"], "a")
         self.assertIsNotNone(a)
         self.assertEqual(a.klass, compiler.type_env.module)
         self.assertEqual(a.module_name, "a")
@@ -70,7 +70,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a.b": abcode, "c": ccode})
 
-        m = compiler.modules["c"].get_child("m")
+        m = get_child(compiler.modules["c"], "m")
         self.assertIsNotNone(m)
         self.assertEqual(m.klass, compiler.type_env.module)
         self.assertEqual(m.module_name, "a.b")
@@ -88,7 +88,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        b = compiler.modules["c"].get_child("b")
+        b = get_child(compiler.modules["c"], "b")
         self.assertEqual(b.klass, compiler.type_env.module)
         self.assertEqual(b.module_name, "a.b")
 
@@ -105,7 +105,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        zoidberg = compiler.modules["c"].get_child("zoidberg")
+        zoidberg = get_child(compiler.modules["c"], "zoidberg")
         self.assertIsNotNone(zoidberg)
         self.assertEqual(zoidberg.klass, compiler.type_env.module)
         self.assertEqual(zoidberg.module_name, "a.b")
@@ -123,7 +123,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        b = compiler.modules["c"].get_child("b")
+        b = get_child(compiler.modules["c"], "b")
         self.assertIsNotNone(b)
         self.assertEqual(b.klass, compiler.type_env.int)
 
@@ -142,7 +142,7 @@ class ModuleTests(StaticTestBase):
         """
         compiler = self.decl_visit(**{"a": acode, "a.b": abcode, "c": ccode})
 
-        b = compiler.modules["c"].get_child("b")
+        b = get_child(compiler.modules["c"], "b")
         # Matching the runtime, the b name in a will be the int, taking precedence over
         # the module.
         self.assertEqual(b.klass, compiler.type_env.dynamic)

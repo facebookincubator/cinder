@@ -3,7 +3,7 @@ from unittest import skip
 
 from cinderx.compiler.static.types import TypeEnvironment
 
-from .common import StaticTestBase
+from .common import get_child, StaticTestBase
 
 
 class SubclassTests(StaticTestBase):
@@ -40,7 +40,7 @@ class SubclassTests(StaticTestBase):
 
     def test_issubclass_with_awaitable_covariant(self):
         mod, comp = self.bind_module("class Num(int): pass", 0)
-        num = comp.modules["foo"].get_child("Num")
+        num = get_child(comp.modules["foo"], "Num")
         awaitable_bool = comp.type_env.get_generic_type(
             comp.type_env.awaitable,
             (comp.type_env.bool,),

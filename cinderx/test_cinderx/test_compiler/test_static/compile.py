@@ -46,6 +46,7 @@ from .common import (
     add_fixed_module,
     bad_ret_type,
     disable_hir_inliner,
+    get_child,
     StaticTestBase,
     type_mismatch,
 )
@@ -783,7 +784,7 @@ class StaticCompilationTests(StaticTestBase):
         """
         )
         modtable = comp.modules["foo"]
-        self.assertTrue(isinstance(modtable.get_child("f"), Function))
+        self.assertTrue(isinstance(get_child(modtable, "f"), Function))
 
     def test_strict_module(self) -> None:
         code = """

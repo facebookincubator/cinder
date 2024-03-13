@@ -361,8 +361,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return self.binding_scope.node
 
     @property
-    def context_qualname(self) -> str | None:
-        return self.binding_scope.qualname
+    def context_qualname(self) -> str:
+        return self.binding_scope.qualname or ""
 
     def maybe_set_local_type(self, name: str, local_type: Value) -> Value:
         decl = self.get_target_decl(name)
@@ -472,6 +472,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         default_index = len(args.defaults or []) - (
             len(args.posonlyargs) + len(args.args)
         )
+        qualname = scope.qualname or ""
         for arg in args.posonlyargs:
             ann = arg.annotation
             if ann:
@@ -480,7 +481,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     self.type_env.DYNAMIC,
                     "argument annotation cannot be a primitive",
                 )
-                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
+                arg_type = (
+                    self.module.resolve_annotation(ann, qualname)
+                    or self.type_env.dynamic
+                )
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
@@ -510,7 +514,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     self.type_env.DYNAMIC,
                     "argument annotation cannot be a primitive",
                 )
-                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
+                arg_type = (
+                    self.module.resolve_annotation(ann, qualname)
+                    or self.type_env.dynamic
+                )
             elif arg.arg in scope.decl_types:
                 # Already handled self
                 default_index += 1
@@ -553,7 +560,10 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     self.type_env.DYNAMIC,
                     "argument annotation cannot be a primitive",
                 )
-                arg_type = self.module.resolve_annotation(ann) or self.type_env.dynamic
+                arg_type = (
+                    self.module.resolve_annotation(ann, qualname)
+                    or self.type_env.dynamic
+                )
             else:
                 self.perf_warning(
                     "Missing type annotation for keyword-only argument "
@@ -589,7 +599,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
         return BindingScope(
             node,
             type_env=self.type_env,
-            parent_qualname=self.context_qualname,
+            parent_qualname=self.binding_scope.qualname,
         )
 
     def get_func_container(
@@ -752,7 +762,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
         target = node.target
         comp_type = (
-            self.module.resolve_annotation(node.annotation, is_declaration=True)
+            self.module.resolve_annotation(
+                node.annotation, self.context_qualname, is_declaration=True
+            )
             or self.type_env.dynamic
         )
         is_final = False
@@ -1738,7 +1750,8 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 name = alias.name
                 if name == "*":
                     self.syntax_error("from __static__ import * is disallowed", node)
-                elif self.compiler.statics.get_child(name) is None:
+                # no need to track depencencies to statics
+                elif self.compiler.statics.get_child_intrinsic(name) is None:
                     self.syntax_error(f"unsupported static import {name}", node)
         if mod_name not in self.compiler.modules:
             self.compiler.import_module(mod_name, optimize=self.optimize)
@@ -1761,7 +1774,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 self.declare_local(
                     name,
                     (
-                        self.compiler.modules[mod_name].get_child(alias.name)
+                        self.compiler.modules[mod_name].get_child(
+                            alias.name, context_qualname
+                        )
                         or self.type_env.DYNAMIC
                     ),
                 )

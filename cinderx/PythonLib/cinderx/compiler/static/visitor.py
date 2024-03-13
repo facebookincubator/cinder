@@ -34,20 +34,33 @@ class GenericVisitor(ASTVisitor, Generic[TVisitRet]):
         self.compiler: Compiler = module.compiler
         self.error_sink: ErrorSink = module.compiler.error_sink
         self.type_env: TypeEnvironment = module.compiler.type_env
+        # the qualname that should be the "requester" of types used (for dep tracking)
         self._context_qualname: str = ""
+        # if true, all deps tracked in visiting should be considered decl deps
+        self.force_decl_deps: bool = False
 
     @property
     def context_qualname(self) -> str:
         return self._context_qualname
 
     @contextmanager
-    def temporary_context_qualname(self, qualname: str) -> Generator[None, None, None]:
+    def temporary_context_qualname(
+        self, qualname: str | None, force_decl: bool = False
+    ) -> Generator[None, None, None]:
         old_qualname = self._context_qualname
-        self._context_qualname = qualname
+        self._context_qualname = qualname or ""
+        old_decl = self.force_decl_deps
+        self.force_decl_deps = force_decl
         try:
             yield
         finally:
             self._context_qualname = old_qualname
+            self.force_decl_deps = old_decl
+
+    def record_dependency(self, source: tuple[str, str]) -> None:
+        self.module.record_dependency(
+            self.context_qualname, source, force_decl=self.force_decl_deps
+        )
 
     def visit(self, node: Union[AST, Sequence[AST]], *args: object) -> TVisitRet:
         # if we have a sequence of nodes, don't catch TypedSyntaxError here;

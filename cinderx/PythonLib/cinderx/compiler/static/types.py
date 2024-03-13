@@ -705,18 +705,21 @@ class TypeRef:
     """Stores unresolved typed references, capturing the referring module
     as well as the annotation"""
 
-    def __init__(self, module: ModuleTable, ref: ast.expr) -> None:
+    def __init__(self, module: ModuleTable, requester: str, ref: ast.expr) -> None:
         self._module = module
+        self._requester = requester
         self._ref = ref
 
     def resolved(self, is_declaration: bool = False) -> Class:
-        res = self._module.resolve_annotation(self._ref, is_declaration=is_declaration)
+        res = self._module.resolve_annotation(
+            self._ref, self._requester, is_declaration=is_declaration, is_decl_dep=True
+        )
         if res is None:
             return self._module.compiler.type_env.dynamic
         return res
 
     def __repr__(self) -> str:
-        return f"TypeRef({self._module.name}, {ast.dump(self._ref)})"
+        return f"TypeRef({self._module.name}, {self._requester}, {ast.dump(self._ref)})"
 
 
 class ResolvedTypeRef(TypeRef):
@@ -1399,7 +1402,7 @@ class InitVisitor(GenericVisitor[None]):
                 self.klass.define_slot(
                     attr,
                     target,
-                    TypeRef(self.module, node.annotation),
+                    TypeRef(self.module, self.klass.qualname, node.annotation),
                     assignment=node,
                 )
 
@@ -1577,7 +1580,7 @@ class Class(Object["Class"]):
             self.define_slot(
                 target.id,
                 target,
-                TypeRef(module, node.annotation),
+                TypeRef(module, self.qualname, node.annotation),
                 # Note down whether the slot has been assigned a value.
                 assignment=node if node.value else None,
                 declared_on_class=True,
@@ -3864,7 +3867,7 @@ class Function(Callable[Class], FunctionContainer):
             default_val = get_default_value(default)
 
         if annotation:
-            ref = TypeRef(module, annotation)
+            ref = TypeRef(module, self.qualname, annotation)
         elif idx == 0:
             if self.node.name in ("__new__", "__init_subclass__"):
                 ref = ResolvedTypeRef(self.klass.type_env.type)
@@ -8836,7 +8839,9 @@ class CastFunction(Object[Class]):
             visitor.visitExpectedType(
                 arg, visitor.type_env.DYNAMIC, CALL_ARGUMENT_CANNOT_BE_PRIMITIVE
             )
-        cast_type = visitor.module.resolve_annotation(node.args[0])
+        cast_type = visitor.module.resolve_annotation(
+            node.args[0], visitor.context_qualname
+        )
         if cast_type is None:
             visitor.syntax_error("cast to unknown type", node)
             cast_type = self.klass.type_env.dynamic
@@ -9584,10 +9589,11 @@ class ModuleInstance(Object["ModuleType"]):
         if module_table is None:
             return visitor.type_env.DYNAMIC
 
-        visitor.module.record_dependency(
-            visitor.context_qualname, (self.module_name, node.attr)
+        visitor.record_dependency((self.module_name, node.attr))
+        return (
+            module_table.get_child(node.attr, visitor.context_qualname)
+            or visitor.type_env.DYNAMIC
         )
-        return module_table.get_child(node.attr) or visitor.type_env.DYNAMIC
 
 
 class ProdAssertFunction(Object[Class]):

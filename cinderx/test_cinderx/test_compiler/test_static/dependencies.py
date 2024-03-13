@@ -4,6 +4,15 @@ from .common import StaticTestBase
 
 
 class DependencyTrackingTests(StaticTestBase):
+    def assertDep(
+        self,
+        deps: dict[str, set[tuple[str, str]]],
+        key: str,
+        value: set[tuple[str, str]],
+    ) -> None:
+        self.assertIn(key, deps)
+        self.assertEqual(deps[key], value)
+
     def test_decl_dep(self) -> None:
         """A dependency of the API surface is recorded in `decl_deps`.
 
@@ -127,11 +136,224 @@ class DependencyTrackingTests(StaticTestBase):
         compiler.compile_module("a")
         self.assertDep(compiler.modules["a"].decl_deps, "Outer1.Outer2.C", {("b", "B")})
 
-    def assertDep(
-        self,
-        deps: dict[str, set[tuple[str, str]]],
-        key: str,
-        value: set[tuple[str, str]],
-    ) -> None:
-        self.assertIn(key, deps)
-        self.assertEqual(deps[key], value)
+    def test_function_argument_annotation_is_decl_dep(self) -> None:
+        """Function arg annotations are decl deps.
+
+        They are decl deps because they should create transitive dependencies:
+        if modC calls modB.func(), and modB.func() has an annotation from modA,
+        then modC has a dependency on modA. (If modA switches from non-static to
+        static; compiling modC may now need additional CAST to make the call to
+        modB.func() safe.)
+        """
+        acode = """
+            class A:
+                pass
+
+            class A2:
+                pass
+        """
+        bcode = """
+            from a import A1, A2
+
+            def f(a1: A1, /, a2: A2):
+                pass
+
+            def g():
+                f(A1(), A2())
+        """
+        ccode = """
+            from b import f, A1, A2
+
+            def g():
+                f(A1(), A2())
+        """
+        for direct in [True, False]:
+            with self.subTest(direct=direct):
+                compiler = self.compiler(a=acode, b=bcode, c=ccode)
+                compiler.compile_module("b" if direct else "c")
+                self.assertDep(
+                    compiler.modules["b"].decl_deps, "f", {("a", "A1"), ("a", "A2")}
+                )
+
+    def test_function_return_annotation_is_decl_dep(self) -> None:
+        """Function annotations are decl deps.
+
+        Return annotations are also decl deps: consider modC calls modB.func(),
+        which returns modA.A. If modA switches from non-static to static, modC
+        requires recompilation; it now has a static type rather than dynamic in
+        the code following the call.
+        """
+        acode = """
+            class A:
+                pass
+        """
+        for from_import in [True, False]:
+            if from_import:
+                bcode = """
+                    from a import A
+
+                    def f() -> A:
+                        return A()
+
+                    def g():
+                        f()
+                """
+            else:
+                bcode = """
+                    import a
+
+                    def f() -> a.A:
+                        return a.A()
+
+                    def g():
+                        f()
+                """
+            ccode = """
+                from b import f
+
+                def g():
+                    f()
+            """
+            for direct in [True, False]:
+                with self.subTest(direct=direct, from_import=from_import):
+                    compiler = self.compiler(a=acode, b=bcode, c=ccode)
+                    compiler.compile_module("b" if direct else "c")
+                    expected = {("a", "A")}
+                    self.assertDep(compiler.modules["b"].decl_deps, "f", expected)
+
+    def test_module_level_annassign_is_decl_dep(self) -> None:
+        """An annotated assignment at module level is a decl dep."""
+        acode = """
+            from b import B
+
+            x: B = B()
+        """
+        bcode = """
+            class B:
+                pass
+        """
+        ccode = """
+            from a import x
+        """
+        for direct in [True, False]:
+            with self.subTest(direct=direct):
+                compiler = self.compiler(a=acode, b=bcode, c=ccode)
+                compiler.compile_module("a" if direct else "c")
+                self.assertDep(compiler.modules["a"].decl_deps, "x", {("b", "B")})
+
+    def test_class_level_annassign_is_decl_dep(self) -> None:
+        """An annotated assignment at class level is a decl dep."""
+        acode = """
+            from b import B
+
+            class C:
+                x: B
+        """
+        bcode = """
+            class B:
+                pass
+        """
+        ccode = """
+            from a import C
+            C.x
+        """
+        for direct in [True, False]:
+            with self.subTest(direct=direct):
+                compiler = self.compiler(a=acode, b=bcode, c=ccode)
+                compiler.compile_module("a" if direct else "c")
+                self.assertDep(compiler.modules["a"].decl_deps, "C", {("b", "B")})
+
+    def test_init_annassign_is_decl_dep(self) -> None:
+        """An annotated assignment in __init__ is a decl dep.
+
+        It declares an attribute slot on the class, which is public API.
+        """
+        acode = """
+            from b import B
+
+            class C:
+                def __init__(self):
+                    self.x: B = B()
+        """
+        bcode = """
+            class B:
+                pass
+        """
+        ccode = """
+            from a import C
+        """
+        for direct in [True, False]:
+            with self.subTest(direct=direct):
+                compiler = self.compiler(a=acode, b=bcode, c=ccode)
+                compiler.compile_module("a" if direct else "c")
+                self.assertDep(compiler.modules["a"].decl_deps, "C", {("b", "B")})
+
+    def test_function_scope_annassign_is_bind_dep(self) -> None:
+        """An annotated assignment inside a function is a bind dep."""
+        acode = """
+            from b import B
+
+            def f():
+                x: B = B()
+        """
+        bcode = """
+            class B:
+                pass
+        """
+        compiler = self.compiler(a=acode, b=bcode)
+        compiler.compile_module("a")
+        self.assertNotIn("f", compiler.modules["a"].decl_deps)
+        self.assertDep(compiler.modules["a"].bind_deps, "f", {("b", "B")})
+
+    def test_cast_first_arg_is_bind_dep(self) -> None:
+        """Casts are bind deps.
+
+        This is true even for casts used at module or class scope; in such cases
+        the decl dep should come from an annotation (e.g. on the name the cast
+        expression is being assigned to), not from the cast itself. Except in
+        very specific cases (e.g. module-level Final[Any], which we handle), we
+        don't infer decl types from the RHS.
+        """
+        acode = """
+            from typing import cast
+            from b import B
+
+            def f():
+                b = cast(B, None)
+        """
+        bcode = """
+            class B:
+                pass
+        """
+        compiler = self.compiler(a=acode, b=bcode)
+        compiler.compile_module("a")
+        self.assertNotIn("f", compiler.modules["a"].decl_deps)
+        self.assertDep(
+            compiler.modules["a"].bind_deps, "f", {("b", "B"), ("typing", "cast")}
+        )
+
+    def test_module_level_final_inference_is_decl_dep(self) -> None:
+        """Module-level Final[Any] type inference creates a decl dep.
+
+        The module-level Final is part of the public API of the module, so
+        should create a transitive dep. And the result of the type inference
+        depends on the referenced module.
+        """
+        for alias in [True, False]:
+            with self.subTest(alias=alias):
+                acode = f"""
+                    from typing import Any, Final
+                    from b import x{' as x1' if alias else ''}
+
+                    y: Final[Any] = x{'1' if alias else ''}
+                """
+                bcode = """
+                    x: int = 42
+                """
+                compiler = self.compiler(a=acode, b=bcode)
+                compiler.compile_module("a")
+                self.assertDep(
+                    compiler.modules["a"].decl_deps,
+                    "y",
+                    {("b", "x"), ("typing", "Any"), ("typing", "Final")},
+                )

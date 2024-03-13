@@ -15,7 +15,7 @@ from ..pycodegen import find_futures
 from ..strict import _static_module_ported
 from ..symbols import SymbolVisitor
 from .declaration_visitor import DeclarationVisitor
-from .module_table import ModuleTable
+from .module_table import IntrinsicModuleTable, ModuleTable
 from .type_binder import TypeBinder
 from .types import (
     BoxFunction,
@@ -328,19 +328,19 @@ class Compiler:
             fixed_modules, self.type_env
         )
 
-        self.builtins = self.modules["builtins"] = ModuleTable(
+        self.builtins = self.modules["builtins"] = IntrinsicModuleTable(
             "builtins",
             "<builtins>",
             self,
             builtins_children,
         )
-        self.typing = self.modules["typing"] = ModuleTable(
+        self.typing = self.modules["typing"] = IntrinsicModuleTable(
             "typing", "<typing>", self, typing_children
         )
         self.modules["typing_extensions"] = ModuleTable(
             "typing_extensions", "<typing_extensions>", self, typing_extensions_children
         )
-        self.statics = self.modules["__static__"] = ModuleTable(
+        self.statics = self.modules["__static__"] = IntrinsicModuleTable(
             "__static__",
             "<__static__>",
             self,

@@ -79,8 +79,8 @@ class ReferenceVisitor(GenericVisitor[Optional[Value]]):
         if node.id in self.local_names:
             return self.local_names[node.id]
         return self.module.get_child(
-            node.id, self.context_qualname
-        ) or self.module.compiler.builtins.get_child(node.id)
+            node.id, self.context_qualname, force_decl=self.force_decl_deps
+        ) or self.module.compiler.builtins.get_child_intrinsic(node.id)
 
     def visitAttribute(self, node: Attribute) -> Optional[Value]:
         val = self.visit(node.value)
@@ -181,6 +181,26 @@ class AnnotationVisitor(ReferenceVisitor):
             return self.visit(n)
 
 
+class DepTrackingOptOut:
+    """A reason for opting out of module dependency tracking.
+
+    This helps ensure our dependency tracking is complete; we can't request type
+    information from a module via ModuleTable.get_child(...) without either
+    providing a `requester` (to track the dependency) or providing an opt-out
+    reason.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+
+INTRINSIC_OPT_OUT = DepTrackingOptOut(
+    "We don't need to track dependencies to intrinsic modules; "
+    "they won't change during development and require pyc updates. "
+    "If they change, we should bump the static pyc magic number."
+)
+DEFERRED_IMPORT_OPT_OUT = DepTrackingOptOut("Tracked in ModuleTable.declare_import()")
+
+
 class DeferredImport:
     def __init__(
         self,
@@ -208,7 +228,9 @@ class DeferredImport:
                 return ModuleInstance(
                     self.mod_to_return or self.mod_to_import, self.compiler
                 )
-            val = mod.get_child(self.name)
+            val = mod.get_child(
+                self.name, DEFERRED_IMPORT_OPT_OUT
+            )
             if val is not None:
                 return val
             try_mod = f"{self.mod_to_import}.{self.name}"
@@ -257,6 +279,7 @@ class ModuleTable:
         # imports and types defined in the module? Until we have, resolving
         # type annotations is not safe.
         self.first_pass_done = first_pass_done
+        self.finish_bind_done = False
         self.ann_visitor = AnnotationVisitor(self)
         self.ref_visitor = ReferenceVisitor(self)
         # the prefix children will get on their qualname; always None for
@@ -264,21 +287,29 @@ class ModuleTable:
         # doesn't include the module name)
         self.qualname: None = None
 
-    def record_dependency(self, name: str, target: Tuple[str, str]) -> None:
+    def record_dependency(
+        self, name: str, target: Tuple[str, str], force_decl: bool = False
+    ) -> None:
         """Record a dependency from a local name to a name in another module.
 
         `name` is the name in this module's namespace. `target` is a (str, str)
         tuple of (source_module, source_name).
 
         """
-        deps = self.bind_deps if self.first_pass_done else self.decl_deps
+        deps = (
+            self.bind_deps
+            if (self.finish_bind_done and not force_decl)
+            else self.decl_deps
+        )
         deps.setdefault(name, set()).add(target)
 
-    def get_child(self, name: str, requester: str | None = None) -> Optional[Value]:
-        if requester is not None:
+    def get_child(
+        self, name: str, requester: str | DepTrackingOptOut, force_decl: bool = False
+    ) -> Optional[Value]:
+        if not isinstance(requester, DepTrackingOptOut):
             source = self.imported_from.get(name)
             if source is not None:
-                self.record_dependency(requester, source)
+                self.record_dependency(requester, source, force_decl)
         res = self._children.get(name)
         if isinstance(res, DeferredImport):
             self._children[name] = res = res.resolve()
@@ -321,10 +352,10 @@ class ModuleTable:
         self.decls.append((func.node, func.func_name, new_member))
         self._children[func.func_name] = new_member
 
-    def _get_inferred_type(self, value: ast.expr) -> Optional[Value]:
+    def _get_inferred_type(self, value: ast.expr, requester: str) -> Optional[Value]:
         if not isinstance(value, ast.Name):
             return None
-        return self.get_child(value.id)
+        return self.get_child(value.id, requester)
 
     def finish_bind(self) -> None:
         self.first_pass_done = True
@@ -343,44 +374,46 @@ class ModuleTable:
                     elif new_value is not value:
                         self._children[name] = new_value
 
-                if isinstance(node, ast.AnnAssign):
-                    typ = self.resolve_annotation(node.annotation, is_declaration=True)
-                    is_final_dynamic = False
+                if isinstance(node, ast.AnnAssign) and isinstance(
+                    node.target, ast.Name
+                ):
+                    # isinstance(target := node.target, ast.Name) above would be
+                    # nicer, but pyre doesn't narrow the type of target :/
+                    target = node.target
+                    assert isinstance(target, ast.Name)
+                    typ = self.resolve_annotation(
+                        node.annotation, target.id, is_declaration=True
+                    )
                     if typ is not None:
                         # Special case Final[dynamic] to use inferred type.
-                        target = node.target
                         instance = typ.instance
                         value = node.value
-                        is_final_dynamic = False
-                        if (
-                            value is not None
-                            and isinstance(typ, FinalClass)
-                            and isinstance(typ.unwrap(), DynamicClass)
-                        ):
-                            is_final_dynamic = True
-                            instance = (
-                                self._get_inferred_type(value) or typ.unwrap().instance
-                            )
+                        if isinstance(typ, FinalClass):
+                            # We keep track of annotated finals in the
+                            # named_finals field - we can safely remove that
+                            # information here to ensure that the rest of the
+                            # type system can safely ignore it.
+                            unwrapped = typ.unwrap()
+                            if value is not None and isinstance(
+                                unwrapped, DynamicClass
+                            ):
+                                instance = (
+                                    self._get_inferred_type(value, target.id)
+                                    or unwrapped.instance
+                                )
+                            else:
+                                instance = unwrapped.instance
 
-                        # We keep track of annotated finals in the named_finals field - we can
-                        # safely remove that information here to ensure that the rest of the type
-                        # system can safely ignore it.
-                        if isinstance(target, ast.Name):
-                            if (not is_final_dynamic) and isinstance(typ, FinalClass):
-                                instance = typ.unwrap().instance
-                            self._children[target.id] = instance
+                        self._children[target.id] = instance
 
                     if isinstance(typ, FinalClass):
-                        target = node.target
                         value = node.value
                         if not value:
                             raise TypedSyntaxError(
                                 "Must assign a value when declaring a Final"
                             )
-                        elif (
-                            not isinstance(typ, CType)
-                            and isinstance(target, ast.Name)
-                            and isinstance(value, ast.Constant)
+                        elif not isinstance(typ, CType) and isinstance(
+                            value, ast.Constant
                         ):
                             self.named_finals[target.id] = value
 
@@ -390,6 +423,7 @@ class ModuleTable:
         # We don't need these anymore...
         self.decls.clear()
         self.implicit_decl_names.clear()
+        self.finish_bind_done = True
 
     def resolve_type(self, node: ast.AST, requester: str) -> Optional[Class]:
         with self.ann_visitor.temporary_context_qualname(requester):
@@ -416,21 +450,30 @@ class ModuleTable:
     def resolve_annotation(
         self,
         node: ast.AST,
+        requester: str,
         *,
+        # annotation on a variable or attribute declaration (could be inside a
+        # function, thus not public)
         is_declaration: bool = False,
+        # annotation on public API (also includes e.g. function arg/return
+        # annotations, does not include function-internal declarations)
+        is_decl_dep: bool = False,
     ) -> Optional[Class]:
         assert self.first_pass_done, (
             "Type annotations cannot be resolved until after initial pass, "
             "so that all imports and types are available."
         )
-        return self.ann_visitor.resolve_annotation(node, is_declaration=is_declaration)
+        with self.ann_visitor.temporary_context_qualname(requester, is_decl_dep):
+            return self.ann_visitor.resolve_annotation(
+                node, is_declaration=is_declaration
+            )
 
     def resolve_name_with_descr(
-        self, name: str, requester: str | None = None
+        self, name: str, requester: str
     ) -> Tuple[Optional[Value], Optional[TypeDescr]]:
         if val := self.get_child(name, requester):
             return val, (self.name, name)
-        elif val := self.compiler.builtins.get_child(name):
+        elif val := self.compiler.builtins.get_child_intrinsic(name):
             return val, None
         return None, None
 
@@ -495,3 +538,10 @@ class ModuleTable:
         self.set_node_data(
             node, KnownBoolean, KnownBoolean.TRUE if value else KnownBoolean.FALSE
         )
+
+
+class IntrinsicModuleTable(ModuleTable):
+    """A ModuleTable for modules that are intrinsic in the compiler."""
+
+    def get_child_intrinsic(self, name: str) -> Optional[Value]:
+        return self.get_child(name, INTRINSIC_OPT_OUT)

@@ -91,6 +91,9 @@ class DeclarationVisitor(GenericVisitor[None]):
     def exit_scope(self) -> None:
         self.scopes.pop()
 
+    def qualify_name(self, name: str) -> str:
+        return make_qualname(self.parent_scope().qualname, name)
+
     def make_nested_scope(self) -> NestedScope:
         return NestedScope(self.parent_scope().qualname)
 
@@ -181,13 +184,16 @@ class DeclarationVisitor(GenericVisitor[None]):
         self.parent_scope().declare_function(function)
 
     def _make_function(self, node: Union[FunctionDef, AsyncFunctionDef]) -> Function:
+        qualname = self.qualify_name(node.name)
         if node.name == "__init_subclass__":
-            func = InitSubclassFunction(node, self.module, self.type_ref(node))
+            func = InitSubclassFunction(
+                node, self.module, self.return_type_ref(node, qualname)
+            )
             parent_scope = self.parent_scope()
             if isinstance(parent_scope, Class):
                 parent_scope.has_init_subclass = True
         else:
-            func = Function(node, self.module, self.type_ref(node))
+            func = Function(node, self.module, self.return_type_ref(node, qualname))
         self.enter_scope(func)
         for item in node.body:
             self.visit(item)
@@ -209,12 +215,14 @@ class DeclarationVisitor(GenericVisitor[None]):
     def visitAsyncFunctionDef(self, node: AsyncFunctionDef) -> None:
         self._visitFunc(node)
 
-    def type_ref(self, node: Union[FunctionDef, AsyncFunctionDef]) -> TypeRef:
+    def return_type_ref(
+        self, node: Union[FunctionDef, AsyncFunctionDef], requester: str
+    ) -> TypeRef:
         ann = node.returns
         if not ann:
             res = ResolvedTypeRef(self.type_env.dynamic)
         else:
-            res = TypeRef(self.module, ann)
+            res = TypeRef(self.module, requester, ann)
         if isinstance(node, AsyncFunctionDef):
             res = AwaitableTypeRef(res, self.module.compiler)
         return res
