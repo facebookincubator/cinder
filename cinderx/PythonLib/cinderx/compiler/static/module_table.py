@@ -307,9 +307,20 @@ class ModuleTable:
         self, name: str, requester: str | DepTrackingOptOut, force_decl: bool = False
     ) -> Optional[Value]:
         if not isinstance(requester, DepTrackingOptOut):
-            source = self.imported_from.get(name)
-            if source is not None:
-                self.record_dependency(requester, source, force_decl)
+
+            # Using imported_from here is just an optimization that lets us skip
+            # one level of transitive-dependency-following later. If modA has
+            # "from modB import B", we already record `modA.B -> modB.B`, so
+            # technically if `modA.f -> modA.B`, we could just record that
+            # dependency, and following the transitive closure would later give
+            # us `modA.f -> modB.B`. But since we have the `imported_from` data
+            # available, we use it to just record `modA.f -> modB.B` initially.
+            # We don't need `modA.f -> modA.B` recorded as a dependency in that
+            # case, since intra-module dependencies have no direct impact on
+            # recompilation, they are only needed for following the transitive
+            # chain across modules.
+            source = self.imported_from.get(name, (self.name, name))
+            self.record_dependency(requester, source, force_decl)
         res = self._children.get(name)
         if isinstance(res, DeferredImport):
             self._children[name] = res = res.resolve()

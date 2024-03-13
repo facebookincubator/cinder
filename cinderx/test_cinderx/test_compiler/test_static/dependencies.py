@@ -41,7 +41,10 @@ class DependencyTrackingTests(StaticTestBase):
                 """
                 compiler = self.compiler(a=acode, b=bcode)
                 compiler.compile_module("a")
-                self.assertDep(compiler.modules["a"].decl_deps, "C", {("b", "B")})
+                expected = {("b", "B")}
+                if not from_import:
+                    expected.add(("a", "b1" if alias else "b"))
+                self.assertDep(compiler.modules["a"].decl_deps, "C", expected)
 
     def test_bind_dep(self) -> None:
         """A dependency used only internally is recorded in `bind_deps`.
@@ -71,7 +74,10 @@ class DependencyTrackingTests(StaticTestBase):
                 """
                 compiler = self.compiler(a=acode, b=bcode)
                 compiler.compile_module("a")
-                self.assertDep(compiler.modules["a"].bind_deps, "f", {("b", "x")})
+                expected = {("b", "x")}
+                if not from_import:
+                    expected.add(("a", "b1" if alias else "b"))
+                self.assertDep(compiler.modules["a"].bind_deps, "f", expected)
 
     def test_module_level_import_is_decl_dep(self) -> None:
         """Every module-level import is a decl_dep.
@@ -219,6 +225,8 @@ class DependencyTrackingTests(StaticTestBase):
                     compiler = self.compiler(a=acode, b=bcode, c=ccode)
                     compiler.compile_module("b" if direct else "c")
                     expected = {("a", "A")}
+                    if not from_import:
+                        expected.add(("b", "a"))
                     self.assertDep(compiler.modules["b"].decl_deps, "f", expected)
 
     def test_module_level_annassign_is_decl_dep(self) -> None:
@@ -357,3 +365,30 @@ class DependencyTrackingTests(StaticTestBase):
                     "y",
                     {("b", "x"), ("typing", "Any"), ("typing", "Final")},
                 )
+
+    def test_dep_within_module(self) -> None:
+        """Dependencies are also tracked between objects within the same module.
+
+        If some other module depends on `f`, and `C` depends on something from
+        another module, we need to follow that transitive chain across the
+        modules, through the intra-module dependencies.
+
+        """
+        code = """
+            class C:
+                pass
+
+            class D:
+                c: C
+
+            def f(d: D) -> None:
+                pass
+
+            def g():
+                f(D())
+        """
+        compiler = self.compiler(mod=code)
+        compiler.compile_module("mod")
+        decl_deps = compiler.modules["mod"].decl_deps
+        self.assertDep(decl_deps, "f", {("mod", "D")})
+        self.assertDep(decl_deps, "D", {("mod", "C")})

@@ -171,8 +171,7 @@ class Static310CodeGenerator(StrictCodeGenerator):
             return False
         if node in self.cur_mod.compile_non_static:
             return True
-        scope = self.scope
-        scope_node = self.scope_to_node[scope]
+        scope_node = self.scope_to_node[self.scope]
         fn = None
         if isinstance(scope_node, ClassDef):
             klass = self.get_type(scope_node)
