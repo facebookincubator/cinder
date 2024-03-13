@@ -1,4 +1,7 @@
 import itertools
+from unittest import TestCase
+
+from cinderx.compiler.static.module_table import find_transitive_deps
 
 from .common import StaticTestBase
 
@@ -392,3 +395,171 @@ class DependencyTrackingTests(StaticTestBase):
         decl_deps = compiler.modules["mod"].decl_deps
         self.assertDep(decl_deps, "f", {("mod", "D")})
         self.assertDep(decl_deps, "D", {("mod", "C")})
+
+    def test_dep_on_unknown_module(self) -> None:
+        """We record deps on non-static modules; they could become static."""
+        code = """
+            from unknown import U
+
+            class C(U):
+                pass
+        """
+        compiler = self.compiler(mod=code)
+        compiler.compile_module("mod")
+        self.assertDep(compiler.modules["mod"].decl_deps, "C", {("unknown", "U")})
+
+
+class GetDependenciesTests(StaticTestBase):
+    def assertDeps(self, compiler, mod: str, deps: set[str]) -> None:
+        self.assertEqual(
+            deps,
+            {mod.name for mod in compiler.modules[mod].get_dependencies()},
+        )
+
+    def test_none(self) -> None:
+        code = """
+            class A:
+                pass
+        """
+        compiler = self.compiler(a=code)
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", set())
+
+    def test_simple(self) -> None:
+        code = """
+            from b import B
+        """
+        compiler = self.compiler(a=code, b="class B: pass")
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", {"b"})
+
+    def test_follow_immediate_bind_dep(self) -> None:
+        acode = """
+            import b
+
+            def f():
+                return b.B()
+        """
+        compiler = self.compiler(a=acode, b="class B: pass")
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", {"b"})
+
+    def test_transitive_bind_dep(self) -> None:
+        acode = """
+            from b import f
+        """
+        bcode = """
+            import c
+
+            def f():
+                return c.C()
+        """
+        compiler = self.compiler(a=acode, b=bcode, c="class C: pass")
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", {"b"})
+
+    def test_transitive_decl_dep(self) -> None:
+        acode = """
+            from b import f
+
+            def g():
+                return f()
+        """
+        bcode = """
+            import c
+
+            def f() -> c.C:
+                return c.C()
+        """
+        compiler = self.compiler(a=acode, b=bcode, c="class C: pass")
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", {"b", "c"})
+
+    def test_dont_follow_deps_of_unused_item(self) -> None:
+        acode = """
+            from b import f
+
+            def x():
+                return f()
+        """
+        bcode = """
+            import c, d
+
+            def f() -> c.C:
+                return c.C()
+
+            def g() -> d.D:
+                return d.D()
+        """
+        compiler = self.compiler(a=acode, b=bcode, c="class C: pass", d="class D: pass")
+        compiler.compile_module("a")
+        self.assertDeps(compiler, "a", {"b", "c"})
+
+    def test_dep_on_unknown_module(self) -> None:
+        code = """
+            from unknown import U
+
+            class C(U):
+                pass
+        """
+        compiler = self.compiler(mod=code)
+        compiler.compile_module("mod")
+        self.assertDeps(compiler, "mod", {"unknown"})
+
+
+class FindTransitiveDepsTests(TestCase):
+    def test_empty(self) -> None:
+        self.assertEqual(find_transitive_deps("a", {}), set())
+
+    def test_no_external_deps(self) -> None:
+        self.assertEqual(find_transitive_deps("a", {"a": {"x": {("a", "X")}}}), set())
+
+    def test_simple(self) -> None:
+        self.assertEqual(
+            find_transitive_deps(
+                "a",
+                {"a": {"A": {("b", "B")}}},
+            ),
+            {"b"},
+        )
+
+    def test_transitive(self) -> None:
+        self.assertEqual(
+            find_transitive_deps(
+                "a",
+                {
+                    "a": {"A": {("b", "B")}},
+                    "b": {"B": {("c", "C")}},
+                },
+            ),
+            {"b", "c"},
+        )
+
+    def test_multiple_transitive(self) -> None:
+        self.assertEqual(
+            find_transitive_deps(
+                "a",
+                {
+                    "a": {
+                        "x": {("b", "B"), ("c", "C")},
+                        "y": {("d", "D")},
+                    },
+                    "b": {"B": {("e", "E"), ("f", "F")}},
+                    "c": {"C": {("d", "D")}},
+                    "d": {"D": {("e", "E")}, "D1": {("g", "G")}},
+                },
+            ),
+            {"b", "c", "d", "e", "f"},
+        )
+
+    def test_cycle(self) -> None:
+        self.assertEqual(
+            find_transitive_deps(
+                "a",
+                {
+                    "a": {"A": {("b", "B")}},
+                    "b": {"B": {("a", "A")}},
+                },
+            ),
+            {"b"},
+        )

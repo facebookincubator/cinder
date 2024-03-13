@@ -244,6 +244,11 @@ class DeferredImport:
         return self.compiler.type_env.DYNAMIC
 
 
+class UnknownModule:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
 class ModuleTable:
     def __init__(
         self,
@@ -286,6 +291,23 @@ class ModuleTable:
         # modules (the qualname of a class or function is within-module, it
         # doesn't include the module name)
         self.qualname: None = None
+
+    def __repr__(self) -> str:
+        return f"<ModuleTable {self.name}>"
+
+    def get_dependencies(self) -> set[ModuleTable | UnknownModule]:
+        """Return all modules this module depends on."""
+        # We only include bind deps for the current module; for transitive deps
+        # we follow only decl_deps
+        immediate_deps = {**self.bind_deps, **self.decl_deps}
+        all_modules_deps = {
+            name: mod.decl_deps for name, mod in self.compiler.modules.items()
+        }
+        all_modules_deps[self.name] = immediate_deps
+        dep_names = find_transitive_deps(self.name, all_modules_deps)
+        return {
+            self.compiler.modules.get(name) or UnknownModule(name) for name in dep_names
+        }
 
     def record_dependency(
         self, name: str, target: Tuple[str, str], force_decl: bool = False
@@ -556,3 +578,25 @@ class IntrinsicModuleTable(ModuleTable):
 
     def get_child_intrinsic(self, name: str) -> Optional[Value]:
         return self.get_child(name, INTRINSIC_OPT_OUT)
+
+
+def find_transitive_deps(
+    modname: str, all_deps: dict[str, dict[str, set[tuple[str, str]]]]
+) -> set[str]:
+    """Find all transitive dependency modules of `modname`.
+
+    Given an `alldeps` dictionary of {modname: {name: {(module, name)}}}, return
+    the transitive closure of module names depended on by `modname` (not
+    including `modname` itself).
+    """
+    worklist = {dep for deps in all_deps.get(modname, {}).values() for dep in deps}
+    ret = set()
+    seen = set()
+    while worklist:
+        dep = worklist.pop()
+        seen.add(dep)
+        mod, name = dep
+        ret.add(mod)
+        worklist.update(all_deps.get(mod, {}).get(name, set()).difference(seen))
+    ret.discard(modname)
+    return ret
