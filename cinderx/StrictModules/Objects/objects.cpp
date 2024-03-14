@@ -463,6 +463,15 @@ std::shared_ptr<StrictType> RuntimeErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> TimeoutErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "TimeoutError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> DivisionByZeroType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ZeroDivisionError",
@@ -848,6 +857,7 @@ bool initializeBuiltinsModuleDict() {
         {"StopIteration", StopIterationType()},
         {"KeyError", KeyErrorType()},
         {"RuntimeError", RuntimeErrorType()},
+        {"TimeoutError", TimeoutErrorType()},
         {"ZeroDivisionError", DivisionByZeroType()},
         {"SyntaxError", SyntaxErrorType()},
         {"DeprecationWarning", DeprecationWarningType()},
@@ -917,6 +927,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"StopIteration", StopIterationType()},
       {"KeyError", KeyErrorType()},
       {"RuntimeError", RuntimeErrorType()},
+      {"TimeoutError", TimeoutErrorType()},
       {"ZeroDivisionError", DivisionByZeroType()},
       {"SyntaxError", SyntaxErrorType()},
   });
