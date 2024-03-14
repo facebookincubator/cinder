@@ -9987,3 +9987,9 @@ LookupError
 ---
 ---
 ---
+test_IndexError
+---
+IndexError
+---
+---
+---

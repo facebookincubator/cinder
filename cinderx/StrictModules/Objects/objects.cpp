@@ -397,6 +397,15 @@ std::shared_ptr<StrictType> AttributeErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> IndexErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "IndexError",
+      kBuiltinsModule,
+      TObjectPtrVec{LookupErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LookupErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "LookupError",
@@ -831,6 +840,7 @@ bool initializeBuiltinsModuleDict() {
         {"Exception", ExceptionType()},
         {"TypeError", TypeErrorType()},
         {"AttributeError", AttributeErrorType()},
+        {"IndexError", IndexErrorType()},
         {"LookupError", LookupErrorType()},
         {"ValueError", ValueErrorType()},
         {"NameError", NameErrorType()},
@@ -899,6 +909,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"Exception", ExceptionType()},
       {"TypeError", TypeErrorType()},
       {"AttributeError", AttributeErrorType()},
+      {"IndexError", IndexErrorType()},
       {"LookupError", LookupErrorType()},
       {"ValueError", ValueErrorType()},
       {"NameError", NameErrorType()},
