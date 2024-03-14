@@ -6151,12 +6151,18 @@ AC_MSG_CHECKING(whether to build CinderX module)
 AC_ARG_ENABLE(cinderx-module,
     AS_HELP_STRING([--enable-cinderx-module], [build CinderX module]),
 [
-  ENABLE_CINDERX_MODULE=yes
-  AC_MSG_RESULT([yes])
+  if test "$enableval" != no
+  then
+    ENABLE_CINDERX_MODULE=yes
+    AC_MSG_RESULT([yes]);
+  else
+    ENABLE_CINDERX_MODULE=no
+    AC_MSG_RESULT([no]);
+  fi
 ],
 [
-  ENABLE_CINDERX_MODULE=no
-  AC_MSG_RESULT([no])
+  ENABLE_CINDERX_MODULE=yes
+  AC_MSG_RESULT([yes]);
 ])
 
 AC_SUBST(ENABLE_CINDERX_MODULE)
