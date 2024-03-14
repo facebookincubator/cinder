@@ -85,6 +85,7 @@ std::shared_ptr<StrictType> GetSetDescriptorType();
 std::shared_ptr<StrictType> ExceptionType();
 std::shared_ptr<StrictType> TypeErrorType();
 std::shared_ptr<StrictType> AttributeErrorType();
+std::shared_ptr<StrictType> LookupErrorType();
 std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> NameErrorType();
 std::shared_ptr<StrictType> NotImplementedErrorType();

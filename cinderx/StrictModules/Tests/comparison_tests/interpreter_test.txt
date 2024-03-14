@@ -9981,3 +9981,9 @@ x = issubclass(list, l)
 ---
 2 4 StrictModuleUnhandledException(TypeError)
 ---
+test_LookupError
+---
+LookupError
+---
+---
+---
