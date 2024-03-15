@@ -10011,3 +10011,15 @@ FileNotFoundError
 ---
 ---
 ---
+test_IsADirectoryError
+---
+IsADirectoryError
+---
+---
+---
+test_NotADirectoryError
+---
+NotADirectoryError
+---
+---
+---

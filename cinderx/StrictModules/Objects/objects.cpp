@@ -433,6 +433,24 @@ std::shared_ptr<StrictType> FileNotFoundErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> IsADirectoryErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "IsADirectoryError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> NotADirectoryErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "NotADirectoryError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> ValueErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ValueError",
@@ -872,6 +890,8 @@ bool initializeBuiltinsModuleDict() {
         {"ValueError", ValueErrorType()},
         {"FileExistsError", FileExistsErrorType()},
         {"FileNotFoundError", FileNotFoundErrorType()},
+        {"IsADirectoryError", IsADirectoryErrorType()},
+        {"NotADirectoryError", NotADirectoryErrorType()},
         {"NameError", NameErrorType()},
         {"NotImplementedError", NotImplementedErrorType()},
         {"StopIteration", StopIterationType()},
@@ -944,6 +964,8 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"ValueError", ValueErrorType()},
       {"FileExistsError", FileExistsErrorType()},
       {"FileNotFoundError", FileNotFoundErrorType()},
+      {"IsADirectoryError", IsADirectoryErrorType()},
+      {"NotADirectoryError", NotADirectoryErrorType()},
       {"NameError", NameErrorType()},
       {"NotImplementedError", NotImplementedErrorType()},
       {"StopIteration", StopIterationType()},

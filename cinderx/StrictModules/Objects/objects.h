@@ -90,6 +90,8 @@ std::shared_ptr<StrictType> LookupErrorType();
 std::shared_ptr<StrictType> ValueErrorType();
 std::shared_ptr<StrictType> FileExistsErrorType();
 std::shared_ptr<StrictType> FileNotFoundErrorType();
+std::shared_ptr<StrictType> IsADirectoryErrorType();
+std::shared_ptr<StrictType> NotADirectoryErrorType();
 std::shared_ptr<StrictType> NameErrorType();
 std::shared_ptr<StrictType> NotImplementedErrorType();
 std::shared_ptr<StrictType> StopIterationType();
