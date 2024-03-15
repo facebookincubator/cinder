@@ -415,6 +415,24 @@ std::shared_ptr<StrictType> LookupErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> FileExistsErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "FileExistsError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> FileNotFoundErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "FileNotFoundError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> ValueErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ValueError",
@@ -852,6 +870,8 @@ bool initializeBuiltinsModuleDict() {
         {"IndexError", IndexErrorType()},
         {"LookupError", LookupErrorType()},
         {"ValueError", ValueErrorType()},
+        {"FileExistsError", FileExistsErrorType()},
+        {"FileNotFoundError", FileNotFoundErrorType()},
         {"NameError", NameErrorType()},
         {"NotImplementedError", NotImplementedErrorType()},
         {"StopIteration", StopIterationType()},
@@ -922,6 +942,8 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"IndexError", IndexErrorType()},
       {"LookupError", LookupErrorType()},
       {"ValueError", ValueErrorType()},
+      {"FileExistsError", FileExistsErrorType()},
+      {"FileNotFoundError", FileNotFoundErrorType()},
       {"NameError", NameErrorType()},
       {"NotImplementedError", NotImplementedErrorType()},
       {"StopIteration", StopIterationType()},

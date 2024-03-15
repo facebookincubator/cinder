@@ -9999,3 +9999,15 @@ TimeoutError
 ---
 ---
 ---
+test_FileExistsError
+---
+FileExistsError
+---
+---
+---
+test_FileNotFoundError
+---
+FileNotFoundError
+---
+---
+---
