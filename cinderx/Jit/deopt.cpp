@@ -309,10 +309,8 @@ DeoptMetadata DeoptMetadata::fromInstr(
     }
     return LiveValue::Source::kUnknown;
   };
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-  DeoptMetadata meta{.code_rt = code_rt};
-#pragma GCC diagnostic pop
+
+  DeoptMetadata meta;
 
   std::unordered_map<jit::hir::Register*, int> reg_idx;
   int i = 0;

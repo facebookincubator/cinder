@@ -59,7 +59,6 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -67,7 +66,6 @@ def test(a, b):
   dfm.localsplus = {0, 1};
   dfm.next_instr_offset = BCOffset{0};
   dm.frame_meta.push_back(dfm);
-  dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   auto frame = Ref<PyFrameObject>::steal(
@@ -111,7 +109,6 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -120,7 +117,6 @@ def test(a, b):
   dfm.stack = {0, 1};
   dfm.next_instr_offset = BCOffset{4};
   dm.frame_meta.push_back(dfm);
-  dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   auto frame = Ref<PyFrameObject>::steal(
@@ -166,7 +162,6 @@ def test(a, b):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {a_val, b_val};
@@ -175,7 +170,6 @@ def test(a, b):
   dfm.stack = {0, 1};
   dfm.next_instr_offset = BCOffset{4};
   dm.frame_meta.push_back(dfm);
-  dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   PyObject* globals = PyFunction_GetGlobals(func);
@@ -232,7 +226,6 @@ def test(num):
 
   PyCodeObject* code =
       reinterpret_cast<PyCodeObject*>(PyFunction_GetCode(func));
-  CodeRuntime code_rt{func, FrameMode::kNormal};
 
   DeoptMetadata dm;
   dm.live_values = {num_val, fact_val, tmp_val};
@@ -241,7 +234,6 @@ def test(num):
   dfm.stack = {0, 2};
   dfm.next_instr_offset = BCOffset{8};
   dm.frame_meta.push_back(dfm);
-  dm.code_rt = &code_rt;
 
   PyThreadState* tstate = PyThreadState_Get();
   PyObject* globals = PyFunction_GetGlobals(func);
@@ -288,8 +280,6 @@ def test(x, y):
     const int jump_index = 18;
     ASSERT_EQ(PyBytes_AS_STRING(code->co_code)[22], (char)POP_JUMP_IF_ZERO);
 
-    CodeRuntime code_rt{func, FrameMode::kNormal};
-
     DeoptMetadata dm;
     dm.live_values = {a_val};
     DeoptFrameMetadata dfm;
@@ -297,7 +287,6 @@ def test(x, y):
     dfm.stack = {0};
     dfm.next_instr_offset = BCOffset(jump_index);
     dm.frame_meta.push_back(dfm);
-    dm.code_rt = &code_rt;
 
     PyThreadState* tstate = PyThreadState_Get();
     auto frame = Ref<PyFrameObject>::steal(

@@ -134,10 +134,6 @@ struct DeoptMetadata {
   // Stack of inlined frame metadata unwound from the deopting instruction.
   std::vector<DeoptFrameMetadata> frame_meta;
 
-  // Runtime metadata associated with the JIT-compiled function from which this
-  // was generated.
-  CodeRuntime* code_rt{nullptr};
-
   // A human-readable description of why this deopt happened.
   const char* descr{nullptr};
 
