@@ -419,7 +419,7 @@ std::shared_ptr<StrictType> FileExistsErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "FileExistsError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{OSErrorType()},
       TypeType());
   return t;
 }
@@ -428,7 +428,7 @@ std::shared_ptr<StrictType> FileNotFoundErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "FileNotFoundError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{OSErrorType()},
       TypeType());
   return t;
 }
@@ -437,7 +437,7 @@ std::shared_ptr<StrictType> IsADirectoryErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "IsADirectoryError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{OSErrorType()},
       TypeType());
   return t;
 }
@@ -446,7 +446,7 @@ std::shared_ptr<StrictType> NotADirectoryErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "NotADirectoryError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{OSErrorType()},
       TypeType());
   return t;
 }
@@ -486,7 +486,10 @@ std::shared_ptr<StrictType> StopIterationType() {
 
 std::shared_ptr<StrictType> KeyErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
-      "KeyError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
+      "KeyError",
+      kBuiltinsModule,
+      TObjectPtrVec{LookupErrorType()},
+      TypeType());
   return t;
 }
 
@@ -503,7 +506,7 @@ std::shared_ptr<StrictType> TimeoutErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "TimeoutError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{OSErrorType()},
       TypeType());
   return t;
 }
@@ -530,7 +533,8 @@ std::shared_ptr<StrictType> DeprecationWarningType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "DeprecationWarning",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{ExceptionType()}, // TODO(T182182618) Base class should be
+                                      // Warning type
       TypeType());
   return t;
 }
