@@ -10023,3 +10023,15 @@ NotADirectoryError
 ---
 ---
 ---
+test_OSError
+---
+OSError
+---
+---
+---
+test_ConnectionError
+---
+ConnectionError
+---
+---
+---

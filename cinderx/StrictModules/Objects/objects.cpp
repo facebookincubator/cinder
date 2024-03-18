@@ -550,6 +550,21 @@ std::shared_ptr<StrictType> AssertionErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> OSErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "OSError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ConnectionErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ConnectionError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LazyObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
       "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
@@ -903,6 +918,8 @@ bool initializeBuiltinsModuleDict() {
         {"DeprecationWarning", DeprecationWarningType()},
         {"IOError", IOErrorType()},
         {"AssertionError", AssertionErrorType()},
+        {"OSError", OSErrorType()},
+        {"ConnectionError", ConnectionErrorType()},
         {"NotImplemented", NotImplemented()},
         {"None", NoneObject()},
         {"True", StrictTrue()},
@@ -974,6 +991,8 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"TimeoutError", TimeoutErrorType()},
       {"ZeroDivisionError", DivisionByZeroType()},
       {"SyntaxError", SyntaxErrorType()},
+      {"OSError", OSErrorType()},
+      {"ConnectionError", ConnectionErrorType()},
   });
   auto it = dict.find(excName);
   if (it == dict.end()) {
