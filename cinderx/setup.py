@@ -98,7 +98,6 @@ JIT_SRCS = [
     "Jit/codegen/x86_64.cpp",
     "Jit/lir/block_builder.cpp",
     "Jit/lir/dce.cpp",
-    "Jit/lir/lir.cpp",
     "Jit/lir/block.cpp",
     "Jit/lir/blocksorter.cpp",
     "Jit/lir/c_helper_translations.cpp",
