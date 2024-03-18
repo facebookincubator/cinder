@@ -2058,9 +2058,15 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
 
         continuing_branches = []
         for case in node.cases:
+
             self.visit(case.pattern)
 
-            # TODO: Visit the case guard and handle next_branches accordingly
+            post_if_guard_branch = None
+            if case.guard:
+                # TODO: Apply narrowing effect of the case guard
+                self.visit(case.guard)
+                post_if_guard_branch = branch.copy()
+
             case_terminates = self.visit_check_terminal(case.body)
 
             match case_terminates:
@@ -2070,6 +2076,9 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                     continuing_branches.append(branch.copy())
 
             branch.restore()
+
+            if post_if_guard_branch is not None:
+                branch.merge(post_if_guard_branch)
 
         for b in continuing_branches:
             branch.merge(b)

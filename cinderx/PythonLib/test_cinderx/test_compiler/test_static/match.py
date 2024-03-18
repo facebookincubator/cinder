@@ -643,3 +643,25 @@ class MatchTests(StaticTestBase):
                     reveal_type(q)
         """
         self.revealed_type(codestr, "dynamic")
+
+    # TODO: We can narrow `x` to `Exact[int]` with further analysis.
+    def test_match_guard(self) -> None:
+        codestr = """
+            def f(x: int | None) -> int:
+                match x:
+                    case y if x is not None:
+                        reveal_type(x)
+        """
+        self.revealed_type(codestr, "Optional[int]")
+
+    def test_match_guard_walrus_side_effect(self) -> None:
+        codestr = """
+            def f(b: bool) -> int:
+                x = 1
+                match b:
+                    case True if (x := None):
+                        pass
+                    case False:
+                        reveal_type(x)
+        """
+        self.revealed_type(codestr, "Optional[Literal[1]]")
