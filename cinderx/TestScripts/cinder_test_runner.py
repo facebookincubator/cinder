@@ -345,7 +345,7 @@ def get_cinderx_dir() -> Path:
 def get_test_cinderx_dir(cinderx_dir: Path) -> Path:
     # For internal builds there can be an extra test_cinderx directory layer
     # because of how the package gets laid out.
-    test_dir = cinderx_dir / "test_cinderx"
+    test_dir = cinderx_dir / "PythonLib" / "test_cinderx"
     test_test_dir = test_dir / "test_cinderx"
     return test_test_dir if test_test_dir.exists() else test_dir
 
