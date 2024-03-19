@@ -1453,7 +1453,7 @@ class FunctionGroup(Value):
                     f"function '{known_funcs[1].name}' conflicts with other member"
                 )
         elif not known_funcs:
-            return None
+            return module.compiler.type_env.dynamic
 
         return known_funcs[0]
 

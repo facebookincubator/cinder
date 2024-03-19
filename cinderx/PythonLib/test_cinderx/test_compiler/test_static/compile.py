@@ -292,6 +292,28 @@ class StaticCompilationTests(StaticTestBase):
         """
         self.assertReturns(codestr, "Optional[int]")
 
+    def test_typing_overload_toplevel_all_overloads(self) -> None:
+        """Typing overloads are ignored, don't cause member name conflict."""
+        codestr = """
+            from typing import Optional, overload
+            from unknown_module import unknown_call
+
+            @overload
+            def bar(x: int) -> int:
+                ...
+
+            @overload
+            def bar(x: Optional[int]) -> Optional[int]:
+                ...
+
+            bar = unknown_call()
+
+            def f(x: int) -> Optional[int]:
+                return bar(x)
+        """
+        f = self.find_code(self.compile(codestr), "f")
+        self.assertInBytecode(f, "CALL_FUNCTION", 1)
+
     def test_typing_overload_type(self) -> None:
         """Typing overloads are explicitly understood by the static compiler."""
         codestr = """
