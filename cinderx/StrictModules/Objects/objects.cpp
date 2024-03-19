@@ -511,11 +511,20 @@ std::shared_ptr<StrictType> TimeoutErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> ArithmeticErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ArithmeticError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> DivisionByZeroType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ZeroDivisionError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{ArithmeticErrorType()},
       TypeType());
   return t;
 }
@@ -545,11 +554,20 @@ std::shared_ptr<StrictType> IOErrorType() {
   return t;
 }
 
-std::shared_ptr<StrictType> ArithmeticErrorType() {
+std::shared_ptr<StrictType> FloatingPointErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
-      "ArithmeticError",
+      "FloatingPointError",
       kBuiltinsModule,
-      TObjectPtrVec{ExceptionType()},
+      TObjectPtrVec{ArithmeticErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> OverflowErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "OverflowError",
+      kBuiltinsModule,
+      TObjectPtrVec{ArithmeticErrorType()},
       TypeType());
   return t;
 }
@@ -900,6 +918,7 @@ bool initializeBuiltinsModuleDict() {
         {"False", StrictFalse()},
         {"FileExistsError", FileExistsErrorType()},
         {"FileNotFoundError", FileNotFoundErrorType()},
+        {"FloatingPointError", FloatingPointErrorType()},
         {"IOError", IOErrorType()},
         {"IndexError", IndexErrorType()},
         {"IsADirectoryError", IsADirectoryErrorType()},
@@ -911,6 +930,7 @@ bool initializeBuiltinsModuleDict() {
         {"NotImplemented", NotImplemented()},
         {"NotImplementedError", NotImplementedErrorType()},
         {"OSError", OSErrorType()},
+        {"OverflowError", OverflowErrorType()},
         {"RuntimeError", RuntimeErrorType()},
         {"StopIteration", StopIterationType()},
         {"SyntaxError", SyntaxErrorType()},
@@ -993,6 +1013,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"Exception", ExceptionType()},
       {"FileExistsError", FileExistsErrorType()},
       {"FileNotFoundError", FileNotFoundErrorType()},
+      {"FloatingPointError", FloatingPointErrorType()},
       {"IndexError", IndexErrorType()},
       {"IsADirectoryError", IsADirectoryErrorType()},
       {"KeyError", KeyErrorType()},
@@ -1001,6 +1022,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"NotADirectoryError", NotADirectoryErrorType()},
       {"NotImplementedError", NotImplementedErrorType()},
       {"OSError", OSErrorType()},
+      {"OverflowError", OverflowErrorType()},
       {"RuntimeError", RuntimeErrorType()},
       {"StopIteration", StopIterationType()},
       {"SyntaxError", SyntaxErrorType()},
