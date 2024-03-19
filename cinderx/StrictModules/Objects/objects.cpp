@@ -545,6 +545,15 @@ std::shared_ptr<StrictType> IOErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> ArithmeticErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ArithmeticError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> AssertionErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "AssertionError",
@@ -881,6 +890,7 @@ bool initializeBuiltinsModuleDict() {
   if (!initialized) {
     initialized = true;
     DictType* builtinsDict = new DictType({
+        {"ArithmeticError", ArithmeticErrorType()},
         {"AssertionError", AssertionErrorType()},
         {"AttributeError", AttributeErrorType()},
         {"ConnectionError", ConnectionErrorType()},
@@ -977,6 +987,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
     const std::string& excName,
     std::shared_ptr<StrictType> def) {
   static std::unordered_map<std::string, std::shared_ptr<StrictType>> dict({
+      {"ArithmeticError", ArithmeticErrorType()},
       {"AttributeError", AttributeErrorType()},
       {"ConnectionError", ConnectionErrorType()},
       {"Exception", ExceptionType()},

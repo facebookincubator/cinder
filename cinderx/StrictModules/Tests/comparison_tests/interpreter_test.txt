@@ -10035,3 +10035,9 @@ ConnectionError
 ---
 ---
 ---
+test_ArithmeticError
+---
+ArithmeticError
+---
+---
+---
