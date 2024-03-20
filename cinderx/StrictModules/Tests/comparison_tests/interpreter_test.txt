@@ -10143,3 +10143,9 @@ ProcessLookupError
 ---
 ---
 ---
+test_EOFError
+---
+EOFError
+---
+---
+---

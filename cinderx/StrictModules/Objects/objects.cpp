@@ -581,6 +581,12 @@ std::shared_ptr<StrictType> AssertionErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> EOFErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "EOFError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> OSErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "OSError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
@@ -1048,6 +1054,7 @@ bool initializeBuiltinsModuleDict() {
         {"DeprecationWarning", DeprecationWarningType()},
         {"Ellipsis", EllipsisObject()},
         {"Exception", ExceptionType()},
+        {"EOFError", EOFErrorType()},
         {"False", StrictFalse()},
         {"FileExistsError", FileExistsErrorType()},
         {"FileNotFoundError", FileNotFoundErrorType()},
@@ -1158,6 +1165,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"ConnectionRefusedError", ConnectionRefusedErrorType()},
       {"ConnectionResetError", ConnectionResetErrorType()},
       {"Exception", ExceptionType()},
+      {"EOFError", EOFErrorType()},
       {"FileExistsError", FileExistsErrorType()},
       {"FileNotFoundError", FileNotFoundErrorType()},
       {"FloatingPointError", FloatingPointErrorType()},
