@@ -641,6 +641,42 @@ std::shared_ptr<StrictType> ConnectionResetErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> UnicodeErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "UnicodeError",
+      kBuiltinsModule,
+      TObjectPtrVec{ValueErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> UnicodeDecodeErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "UnicodeDecodeError",
+      kBuiltinsModule,
+      TObjectPtrVec{UnicodeErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> UnicodeEncodeErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "UnicodeEncodeError",
+      kBuiltinsModule,
+      TObjectPtrVec{UnicodeErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> UnicodeTranslateErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "UnicodeTranslateError",
+      kBuiltinsModule,
+      TObjectPtrVec{UnicodeErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LazyObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
       "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
@@ -987,6 +1023,10 @@ bool initializeBuiltinsModuleDict() {
         {"TimeoutError", TimeoutErrorType()},
         {"True", StrictTrue()},
         {"TypeError", TypeErrorType()},
+        {"UnicodeDecodeError", UnicodeDecodeErrorType()},
+        {"UnicodeEncodeError", UnicodeEncodeErrorType()},
+        {"UnicodeError", UnicodeErrorType()},
+        {"UnicodeTranslateError", UnicodeTranslateErrorType()},
         {"ValueError", ValueErrorType()},
         {"ZeroDivisionError", DivisionByZeroType()},
         {"__builtins__", DunderBuiltins()},
@@ -1083,6 +1123,10 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"SyntaxError", SyntaxErrorType()},
       {"TimeoutError", TimeoutErrorType()},
       {"TypeError", TypeErrorType()},
+      {"UnicodeDecodeError", UnicodeDecodeErrorType()},
+      {"UnicodeEncodeError", UnicodeEncodeErrorType()},
+      {"UnicodeError", UnicodeErrorType()},
+      {"UnicodeTranslateError", UnicodeTranslateErrorType()},
       {"ValueError", ValueErrorType()},
       {"ZeroDivisionError", DivisionByZeroType()},
   });
