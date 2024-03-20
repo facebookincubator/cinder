@@ -596,6 +596,15 @@ std::shared_ptr<StrictType> ConnectionErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> BufferErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "BufferError",
+      kBuiltinsModule,
+      TObjectPtrVec{ExceptionType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LazyObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
       "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
@@ -911,6 +920,7 @@ bool initializeBuiltinsModuleDict() {
         {"ArithmeticError", ArithmeticErrorType()},
         {"AssertionError", AssertionErrorType()},
         {"AttributeError", AttributeErrorType()},
+        {"BufferError", BufferErrorType()},
         {"ConnectionError", ConnectionErrorType()},
         {"DeprecationWarning", DeprecationWarningType()},
         {"Ellipsis", EllipsisObject()},
@@ -1009,6 +1019,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
   static std::unordered_map<std::string, std::shared_ptr<StrictType>> dict({
       {"ArithmeticError", ArithmeticErrorType()},
       {"AttributeError", AttributeErrorType()},
+      {"BufferError", BufferErrorType()},
       {"ConnectionError", ConnectionErrorType()},
       {"Exception", ExceptionType()},
       {"FileExistsError", FileExistsErrorType()},

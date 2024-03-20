@@ -10059,3 +10059,9 @@ OverflowError
 ---
 ---
 ---
+test_BufferError
+---
+BufferError
+---
+---
+---
