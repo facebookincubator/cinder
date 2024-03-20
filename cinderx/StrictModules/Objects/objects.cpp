@@ -587,6 +587,51 @@ std::shared_ptr<StrictType> OSErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> BlockingIOErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "BlockingIOError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ChildProcessErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ChildProcessError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> InterruptedErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "InterruptedError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> PermissionErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "PermissionError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ProcessLookupErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ProcessLookupError",
+      kBuiltinsModule,
+      TObjectPtrVec{OSErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> ConnectionErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "ConnectionError",
@@ -992,8 +1037,10 @@ bool initializeBuiltinsModuleDict() {
         {"ArithmeticError", ArithmeticErrorType()},
         {"AssertionError", AssertionErrorType()},
         {"AttributeError", AttributeErrorType()},
+        {"BlockingIOError", BlockingIOErrorType()},
         {"BufferError", BufferErrorType()},
         {"BrokenPipeError", BrokenPipeErrorType()},
+        {"ChildProcessError", ChildProcessErrorType()},
         {"ConnectionAbortedError", ConnectionAbortedErrorType()},
         {"ConnectionError", ConnectionErrorType()},
         {"ConnectionRefusedError", ConnectionRefusedErrorType()},
@@ -1007,6 +1054,7 @@ bool initializeBuiltinsModuleDict() {
         {"FloatingPointError", FloatingPointErrorType()},
         {"IOError", IOErrorType()},
         {"IndexError", IndexErrorType()},
+        {"InterruptedError", InterruptedErrorType()},
         {"IsADirectoryError", IsADirectoryErrorType()},
         {"KeyError", KeyErrorType()},
         {"LookupError", LookupErrorType()},
@@ -1017,6 +1065,8 @@ bool initializeBuiltinsModuleDict() {
         {"NotImplementedError", NotImplementedErrorType()},
         {"OSError", OSErrorType()},
         {"OverflowError", OverflowErrorType()},
+        {"PermissionError", PermissionErrorType()},
+        {"ProcessLookupError", ProcessLookupErrorType()},
         {"RuntimeError", RuntimeErrorType()},
         {"StopIteration", StopIterationType()},
         {"SyntaxError", SyntaxErrorType()},
@@ -1099,8 +1149,10 @@ std::shared_ptr<StrictType> getExceptionFromString(
   static std::unordered_map<std::string, std::shared_ptr<StrictType>> dict({
       {"ArithmeticError", ArithmeticErrorType()},
       {"AttributeError", AttributeErrorType()},
+      {"BlockingIOError", BlockingIOErrorType()},
       {"BufferError", BufferErrorType()},
       {"BrokenPipeError", BrokenPipeErrorType()},
+      {"ChildProcessError", ChildProcessErrorType()},
       {"ConnectionAbortedError", ConnectionAbortedErrorType()},
       {"ConnectionError", ConnectionErrorType()},
       {"ConnectionRefusedError", ConnectionRefusedErrorType()},
@@ -1110,6 +1162,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"FileNotFoundError", FileNotFoundErrorType()},
       {"FloatingPointError", FloatingPointErrorType()},
       {"IndexError", IndexErrorType()},
+      {"InterruptedError", InterruptedErrorType()},
       {"IsADirectoryError", IsADirectoryErrorType()},
       {"KeyError", KeyErrorType()},
       {"LookupError", LookupErrorType()},
@@ -1118,6 +1171,8 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"NotImplementedError", NotImplementedErrorType()},
       {"OSError", OSErrorType()},
       {"OverflowError", OverflowErrorType()},
+      {"PermissionError", PermissionErrorType()},
+      {"ProcessLookupError", ProcessLookupErrorType()},
       {"RuntimeError", RuntimeErrorType()},
       {"StopIteration", StopIterationType()},
       {"SyntaxError", SyntaxErrorType()},
