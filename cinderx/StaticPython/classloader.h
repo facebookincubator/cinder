@@ -6,6 +6,7 @@
 #include "cinder/hooks.h"
 #include "internal/pycore_moduleobject.h"
 
+#include "cinderx/StaticPython/awaitable.h"
 #include "cinderx/StaticPython/strictmoduleobject.h"
 #include "cinderx/StaticPython/vtable.h"
 
@@ -85,34 +86,10 @@ typedef struct {
 
 CiAPI_FUNC(PyObject *) Ci_PyMethodDef_GetTypedSignature(PyMethodDef *method);
 
-struct _PyClassLoader_Awaitable;
-
-typedef PyObject * (*awaitable_cb)(struct _PyClassLoader_Awaitable *self, PyObject *state);
-
-typedef int (*awaitable_presend)(struct _PyClassLoader_Awaitable *self);
-
-/**
-    Type-checking coroutines is more involved than normal, because all awaitables just
-    yield new awaitables. In this case, we wrap up any awaitable into this struct,
-    and do the required checks whenever a value is returned.
-*/
-typedef struct _PyClassLoader_Awaitable {
-    PyObject_HEAD
-    PyObject *state;
-    PyObject *coro;
-    PyObject *iter;
-    awaitable_cb cb;
-    awaitable_presend onsend;
-    PyObject *awaiter;
-} _PyClassLoader_Awaitable;
-
 typedef struct {
     _PyClassLoader_RetTypeInfo tcs_rt;
     PyObject *tcs_value;
 } _PyClassLoader_TypeCheckState;
-
-CiAPI_FUNC(PyObject *)
-_PyClassLoader_NewAwaitableWrapper(PyObject *coro, int eager, PyObject *state, awaitable_cb cb, awaitable_presend onsend);
 
 CiAPI_FUNC(Py_ssize_t) _PyClassLoader_ResolveMethod(PyObject *path);
 CiAPI_FUNC(Py_ssize_t) _PyClassLoader_ResolveFieldOffset(PyObject *path, int *field_type);

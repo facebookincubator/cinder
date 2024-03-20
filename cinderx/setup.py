@@ -232,6 +232,7 @@ SHADOWCODE_SRCS = [
 ]
 
 STATICPYTHON_SRCS = [
+    "StaticPython/awaitable.c",
     "StaticPython/checked_dict.c",
     "StaticPython/checked_list.c",
     "StaticPython/classloader.c",
