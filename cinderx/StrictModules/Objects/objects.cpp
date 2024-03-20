@@ -605,6 +605,42 @@ std::shared_ptr<StrictType> BufferErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> BrokenPipeErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "BrokenPipeError",
+      kBuiltinsModule,
+      TObjectPtrVec{ConnectionErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ConnectionAbortedErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ConnectionAbortedError",
+      kBuiltinsModule,
+      TObjectPtrVec{ConnectionErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ConnectionRefusedErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ConnectionRefusedError",
+      kBuiltinsModule,
+      TObjectPtrVec{ConnectionErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> ConnectionResetErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "ConnectionResetError",
+      kBuiltinsModule,
+      TObjectPtrVec{ConnectionErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> LazyObjectType() {
   static std::shared_ptr<StrictType> t = makeType<StrictLazyObjectType>(
       "<lazy type>", kBuiltinsModule, TObjectPtrVec{}, TypeType());
@@ -921,7 +957,11 @@ bool initializeBuiltinsModuleDict() {
         {"AssertionError", AssertionErrorType()},
         {"AttributeError", AttributeErrorType()},
         {"BufferError", BufferErrorType()},
+        {"BrokenPipeError", BrokenPipeErrorType()},
+        {"ConnectionAbortedError", ConnectionAbortedErrorType()},
         {"ConnectionError", ConnectionErrorType()},
+        {"ConnectionRefusedError", ConnectionRefusedErrorType()},
+        {"ConnectionResetError", ConnectionResetErrorType()},
         {"DeprecationWarning", DeprecationWarningType()},
         {"Ellipsis", EllipsisObject()},
         {"Exception", ExceptionType()},
@@ -1020,7 +1060,11 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"ArithmeticError", ArithmeticErrorType()},
       {"AttributeError", AttributeErrorType()},
       {"BufferError", BufferErrorType()},
+      {"BrokenPipeError", BrokenPipeErrorType()},
+      {"ConnectionAbortedError", ConnectionAbortedErrorType()},
       {"ConnectionError", ConnectionErrorType()},
+      {"ConnectionRefusedError", ConnectionRefusedErrorType()},
+      {"ConnectionResetError", ConnectionResetErrorType()},
       {"Exception", ExceptionType()},
       {"FileExistsError", FileExistsErrorType()},
       {"FileNotFoundError", FileNotFoundErrorType()},
