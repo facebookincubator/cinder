@@ -10149,3 +10149,15 @@ EOFError
 ---
 ---
 ---
+test_IndentationError
+---
+IndentationError
+---
+---
+---
+test_TabError
+---
+TabError
+---
+---
+---

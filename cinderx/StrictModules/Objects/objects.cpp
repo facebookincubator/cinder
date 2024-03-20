@@ -581,6 +581,24 @@ std::shared_ptr<StrictType> AssertionErrorType() {
   return t;
 }
 
+std::shared_ptr<StrictType> IndentationErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "IndentationError",
+      kBuiltinsModule,
+      TObjectPtrVec{SyntaxErrorType()},
+      TypeType());
+  return t;
+}
+
+std::shared_ptr<StrictType> TabErrorType() {
+  static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
+      "TabError",
+      kBuiltinsModule,
+      TObjectPtrVec{IndentationErrorType()},
+      TypeType());
+  return t;
+}
+
 std::shared_ptr<StrictType> EOFErrorType() {
   static std::shared_ptr<StrictType> t = makeType<StrictExceptionType>(
       "EOFError", kBuiltinsModule, TObjectPtrVec{ExceptionType()}, TypeType());
@@ -1059,9 +1077,10 @@ bool initializeBuiltinsModuleDict() {
         {"FileExistsError", FileExistsErrorType()},
         {"FileNotFoundError", FileNotFoundErrorType()},
         {"FloatingPointError", FloatingPointErrorType()},
-        {"IOError", IOErrorType()},
+        {"IndentationError", IndentationErrorType()},
         {"IndexError", IndexErrorType()},
         {"InterruptedError", InterruptedErrorType()},
+        {"IOError", IOErrorType()},
         {"IsADirectoryError", IsADirectoryErrorType()},
         {"KeyError", KeyErrorType()},
         {"LookupError", LookupErrorType()},
@@ -1077,6 +1096,7 @@ bool initializeBuiltinsModuleDict() {
         {"RuntimeError", RuntimeErrorType()},
         {"StopIteration", StopIterationType()},
         {"SyntaxError", SyntaxErrorType()},
+        {"TabError", TabErrorType()},
         {"TimeoutError", TimeoutErrorType()},
         {"True", StrictTrue()},
         {"TypeError", TypeErrorType()},
@@ -1169,6 +1189,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"FileExistsError", FileExistsErrorType()},
       {"FileNotFoundError", FileNotFoundErrorType()},
       {"FloatingPointError", FloatingPointErrorType()},
+      {"IndentationError", IndentationErrorType()},
       {"IndexError", IndexErrorType()},
       {"InterruptedError", InterruptedErrorType()},
       {"IsADirectoryError", IsADirectoryErrorType()},
@@ -1184,6 +1205,7 @@ std::shared_ptr<StrictType> getExceptionFromString(
       {"RuntimeError", RuntimeErrorType()},
       {"StopIteration", StopIterationType()},
       {"SyntaxError", SyntaxErrorType()},
+      {"TabError", TabErrorType()},
       {"TimeoutError", TimeoutErrorType()},
       {"TypeError", TypeErrorType()},
       {"UnicodeDecodeError", UnicodeDecodeErrorType()},
