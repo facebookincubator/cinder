@@ -7,6 +7,8 @@
 #include "frameobject.h"
 #include "internal/pycore_shadow_frame_struct.h"
 
+#include "cinderx/Jit/runtime.h"
+
 namespace jit {
 
 class CodeRuntime;
@@ -40,6 +42,14 @@ BorrowedRef<PyFrameObject> materializePyFrameForGen(
     PyGenObject* gen);
 
 void assertShadowCallStackConsistent(PyThreadState* tstate);
+
+// Load a runtime frame state object from a given shadow frame.
+RuntimeFrameState runtimeFrameStateFromShadowFrame(
+    _PyShadowFrame* shadow_frame);
+
+// Load a runtime frame state object from a given Python thread.  Handles Python
+// frames and shadow frames.
+RuntimeFrameState runtimeFrameStateFromThreadState(PyThreadState* tstate);
 
 } // namespace jit
 

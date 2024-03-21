@@ -2382,49 +2382,26 @@ PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
   return yf;
 }
 
-namespace {
-const jit::RuntimeFrameState* getRuntimeFrameState(
-    _PyShadowFrame* shadow_frame) {
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_RTFS) {
-    return static_cast<jit::RuntimeFrameState*>(
-        _PyShadowFrame_GetPtr(shadow_frame));
-  }
-  // TODO(T110700318): Collapse into RTFS case
-  JIT_DCHECK(
-      _PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_CODE_RT,
-      "Unexpected shadow frame type");
-  jit::CodeRuntime* code_rt =
-      static_cast<jit::CodeRuntime*>(_PyShadowFrame_GetPtr(shadow_frame));
-  return code_rt->frameState();
-}
-} // namespace
-
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-  if (shadow_frame == nullptr) {
+  if (tstate->shadow_frame == nullptr) {
     JIT_CHECK(
         tstate->frame == nullptr,
-        "py frame w/out corresponding shadow frame\n");
+        "Python frame {} without corresponding shadow frame",
+        static_cast<void*>(tstate->frame));
     return nullptr;
   }
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-    return _PyShadowFrame_GetPyFrame(shadow_frame)->f_globals;
-  }
-  return getRuntimeFrameState(shadow_frame)->globals();
+  return runtimeFrameStateFromThreadState(tstate).globals();
 }
 
 PyObject* _PyJIT_GetBuiltins(PyThreadState* tstate) {
-  _PyShadowFrame* shadow_frame = tstate->shadow_frame;
-  if (shadow_frame == nullptr) {
+  if (tstate->shadow_frame == nullptr) {
     JIT_CHECK(
         tstate->frame == nullptr,
-        "py frame w/out corresponding shadow frame\n");
+        "Python frame {} without corresponding shadow frame",
+        static_cast<void*>(tstate->frame));
     return tstate->interp->builtins;
   }
-  if (_PyShadowFrame_GetPtrKind(shadow_frame) == PYSF_PYFRAME) {
-    return _PyShadowFrame_GetPyFrame(shadow_frame)->f_builtins;
-  }
-  return getRuntimeFrameState(shadow_frame)->builtins();
+  return runtimeFrameStateFromThreadState(tstate).builtins();
 }
 
 int _PyJIT_IsProfilingCandidate(PyCodeObject* code) {
