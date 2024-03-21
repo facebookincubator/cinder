@@ -1207,34 +1207,27 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kDeleteAttr: {
         auto instr = static_cast<const DeleteAttr*>(&i);
-        PyObject* name = instr->name();
+        Instruction* name = getNameFromIdx(bbb, instr);
         Instruction* call = bbb.appendInstr(
             Instruction::kCall,
             OutVReg{OperandBase::k32bit},
             // TODO(T140174965): This should be MemImm.
             Imm{reinterpret_cast<uint64_t>(PyObject_SetAttr)},
             instr->GetOperand(0),
-            // TODO(T140174965): This should be MemImm.
-            Imm{reinterpret_cast<uint64_t>(name)},
+            name,
             Imm{0});
         appendGuard(bbb, InstrGuardKind::kNotNegative, *instr, call);
         break;
       }
       case Opcode::kLoadAttr: {
         auto instr = static_cast<const LoadAttr*>(&i);
-        PyObject* name = instr->name();
-
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            // TODO(T140174965): This should be MemImm.
-            Imm{reinterpret_cast<uint64_t>(name)});
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),
             jit::LoadAttrCache::invoke,
             Runtime::get()->allocateLoadAttrCache(),
             instr->GetOperand(0),
-            move);
+            name);
         break;
       }
       case Opcode::kLoadAttrSpecial: {
@@ -1256,39 +1249,31 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kFillTypeAttrCache: {
         auto instr = static_cast<const FillTypeAttrCache*>(&i);
-        PyObject* name = instr->name();
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm(reinterpret_cast<uint64_t>(name)));
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->GetOutput(),
             jit::LoadTypeAttrCache::invoke,
             load_type_attr_caches_.at(instr->cache_id()),
             instr->receiver(),
-            move);
+            name);
         break;
       }
       case Opcode::kFillTypeMethodCache: {
         auto instr = static_cast<const FillTypeMethodCache*>(&i);
         PyCodeObject* code = instr->frameState()->code;
-        PyObject* name = instr->name();
+        Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = load_type_method_caches_.at(instr->cache_id());
         if (g_collect_inline_cache_stats) {
           cache_entry->initCacheStats(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
         }
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm(reinterpret_cast<uint64_t>(name)));
         bbb.appendCallInstruction(
             instr->GetOutput(),
             jit::LoadTypeMethodCache::lookupHelper,
             cache_entry,
             instr->receiver(),
-            move);
+            name);
         break;
       }
       case Opcode::kLoadTypeMethodCacheEntryType: {
@@ -1314,11 +1299,7 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const LoadMethod*>(&i);
 
         PyCodeObject* code = instr->frameState()->code;
-        PyObject* name = instr->name();
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm{reinterpret_cast<uint64_t>(name)});
+        Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = Runtime::get()->allocateLoadMethodCache();
         if (g_collect_inline_cache_stats) {
           cache_entry->initCacheStats(
@@ -1330,28 +1311,20 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             LoadMethodCache::lookupHelper,
             cache_entry,
             instr->receiver(),
-            move);
+            name);
 
         break;
       }
       case Opcode::kLoadModuleMethod: {
         auto instr = static_cast<const LoadModuleMethod*>(&i);
-
-        PyCodeObject* code = instr->frameState()->code;
-        PyObject* name = PyTuple_GET_ITEM(code->co_names, instr->name_idx());
-
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm{reinterpret_cast<uint64_t>(name)});
-
+        Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = Runtime::get()->allocateLoadModuleMethodCache();
         bbb.appendCallInstruction(
             instr->dst(),
             LoadModuleMethodCache::lookupHelper,
             cache_entry,
             instr->receiver(),
-            move);
+            name);
         break;
       }
       case Opcode::kGetSecondOutput: {
@@ -1361,40 +1334,28 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadMethodSuper: {
         auto instr = static_cast<const LoadMethodSuper*>(&i);
-        PyObject* name = instr->name();
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm{reinterpret_cast<uint64_t>(name)});
-
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),
             JITRT_GetMethodFromSuper,
             instr->global_super(),
             instr->type(),
             instr->receiver(),
-            move,
-            instr->no_args_in_super_call() ? true : false);
+            name,
+            instr->no_args_in_super_call());
         break;
       }
       case Opcode::kLoadAttrSuper: {
         auto instr = static_cast<const LoadAttrSuper*>(&i);
-        PyObject* name = instr->name();
-
-        Instruction* move = bbb.appendInstr(
-            Instruction::kMove,
-            OutVReg{},
-            Imm{reinterpret_cast<uint64_t>(name)});
-
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),
             JITRT_GetAttrFromSuper,
             instr->global_super(),
             instr->type(),
             instr->receiver(),
-            move,
+            name,
             instr->no_args_in_super_call());
-
         break;
       }
       case Opcode::kBinaryOp: {
@@ -1734,19 +1695,18 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       }
       case Opcode::kLoadGlobal: {
         auto instr = static_cast<const LoadGlobal*>(&i);
+        Instruction* name = getNameFromIdx(bbb, instr);
         PyObject* builtins = instr->frameState()->builtins;
         env_->code_rt->addReference(builtins);
         PyObject* globals = instr->frameState()->globals;
         env_->code_rt->addReference(globals);
-        PyObject* name = instr->name();
         bbb.appendCallInstruction(
             instr->GetOutput(), JITRT_LoadGlobal, globals, builtins, name);
         break;
       }
       case Opcode::kStoreAttr: {
         auto instr = static_cast<const StoreAttr*>(&i);
-
-        PyObject* name = instr->name();
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),
             jit::StoreAttrCache::invoke,
@@ -2641,19 +2601,19 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kImportFrom: {
-        auto& instr = static_cast<const ImportFrom&>(i);
-        PyObject* name = instr.name();
+        auto instr = static_cast<const ImportFrom*>(&i);
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             i.GetOutput(),
             _PyImport_ImportFrom,
             env_->asm_tstate,
-            instr.module(),
+            instr->module(),
             name);
         break;
       }
       case Opcode::kImportName: {
         auto instr = static_cast<const ImportName*>(&i);
-        PyObject* name = instr->name();
+        Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             i.GetOutput(),
             JITRT_ImportName,
@@ -2866,6 +2826,17 @@ void LIRGenerator::resolvePhiOperands(
       }
     });
   }
+}
+
+Instruction* LIRGenerator::getNameFromIdx(
+    BasicBlockBuilder& bbb,
+    const hir::DeoptBaseWithNameIdx* instr) {
+  BorrowedRef<PyUnicodeObject> name = instr->name();
+  return bbb.appendInstr(
+      OutVReg{},
+      Instruction::kMove,
+      // TODO(T140174965): This should be MemImm.
+      Imm{reinterpret_cast<uint64_t>(name.get()), OperandBase::kObject});
 }
 
 } // namespace jit::lir

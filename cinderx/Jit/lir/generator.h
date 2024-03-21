@@ -125,6 +125,11 @@ class LIRGenerator {
       const jit::hir::DeoptBase& i,
       jit::lir::BasicBlockBuilder& bbb);
 
+  // Load a string name from an HIR instruction that contains a name index.
+  Instruction* getNameFromIdx(
+      BasicBlockBuilder& bbb,
+      const hir::DeoptBaseWithNameIdx* instr);
+
   Function* lir_func_{nullptr};
 };
 
