@@ -67,12 +67,16 @@ class BorrowedRef : public RefBase<T> {
     ptr_ = obj;
   }
 
+  // Allow conversion from PyObject* to any BorrowedRef<V>.
+  //
+  // PyObject doesn't have "subclasses" in the same way that C++ does, so we
+  // can't do a std::is_base_of_v<PyObject, X> check here.
   template <
       typename X = T,
       typename = std::enable_if_t<!std::is_same_v<X, PyObject>>>
   BorrowedRef(PyObject* ptr) : BorrowedRef(reinterpret_cast<X*>(ptr)) {}
 
-  // Allow conversion from any BorrowedRef to BorrowedRef<PyObject>
+  // Allow conversion from any BorrowedRef<V> to BorrowedRef<PyObject>.
   template <
       typename V,
       typename X = T,
@@ -118,13 +122,18 @@ struct std::hash<BorrowedRef<T>> {
  * One common use case is to use a Ref to create a new reference from a
  * borrowed reference that was returned from a call to the runtime, e.g.
  *
- *  Ref<> new_ref(PyDict_GetItemString(d, "key"));
+ *   auto new_ref = Ref<>::create(PyDict_GetItemString(d, "key"));
  *
  * In many cases we want to use a Ref to manage a new reference that is
  * returned as a raw PyObject* from the runtime. To do so, we steal the
  * reference that was returned by the runtime and store it in a Ref:
  *
  *   auto stolen_ref = Ref<>::steal(PyLong_FromLong(100));
+ *
+ * Note that a Ref cannot be constructed directly with a pointer value, as it's
+ * not evident whether this would be creating a new reference or stealing one:
+ *
+ *   Ref<> ref{functionThatReturnsPyObjectStar()}; // Will not compile!
  *
  * Refs should also be used to indicate the ownership semantics of functions
  * w.r.t their arguments. Arguments that will be stolen should be Refs, whereas
