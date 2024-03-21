@@ -2403,6 +2403,14 @@ a = getattr(c, "x", 42)
 ---
 6 4 StrictModuleUnhandledException(TypeError) 4 8 StrictModuleUserException TypeError
 ---
+test_getattr_with_int
+---
+x = 1
+y = getattr(x, "__dict__")
+---
+---
+2 4 StrictModuleUnhandledException(AttributeError)
+---
 test_setattr_builtin
 ---
 class C:
@@ -2469,6 +2477,13 @@ a = hasattr(c, "x")
 ---
 ---
 6 4 StrictModuleUnhandledException(TypeError) 4 8 StrictModuleUserException TypeError
+---
+test_hasattr_with_int
+---
+x = 1
+y = hasattr(x, "__dict__")
+---
+---
 ---
 test_math
 ---

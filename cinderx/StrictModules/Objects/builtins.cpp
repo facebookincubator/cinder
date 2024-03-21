@@ -512,7 +512,7 @@ std::shared_ptr<BaseStrictObject> getattrImpl(
       throw;
     }
   }
-  if (result == nullptr) {
+  if (result == nullptr || result->isUnknown()) {
     caller.raiseExceptionStr(AttributeErrorType(), "");
   }
   return result;
@@ -565,7 +565,7 @@ std::shared_ptr<BaseStrictObject> hasattrImpl(
       throw;
     }
   }
-  if (result == nullptr) {
+  if (result == nullptr || result->isUnknown()) {
     return StrictFalse();
   }
   return StrictTrue();

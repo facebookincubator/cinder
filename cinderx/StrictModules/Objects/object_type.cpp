@@ -416,8 +416,6 @@ std::shared_ptr<BaseStrictObject> getDunderDictDisallowed(
     std::shared_ptr<BaseStrictObject> inst,
     std::shared_ptr<StrictType>,
     const CallerContext& caller) {
-  caller.error<UnsupportedException>(
-      "getting __dict__", inst->getTypeRef().getName());
   return makeUnknown(caller, "{}.__dict__", inst);
 }
 
