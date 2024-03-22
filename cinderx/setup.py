@@ -237,6 +237,7 @@ STATICPYTHON_SRCS = [
     "StaticPython/checked_list.c",
     "StaticPython/classloader.c",
     "StaticPython/descrobject_vectorcall.c",
+    "StaticPython/generic_type.c",
     "StaticPython/methodobject_vectorcall.c",
     "StaticPython/static_array.c",
     "StaticPython/strictmoduleobject.c",

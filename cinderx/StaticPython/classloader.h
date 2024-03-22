@@ -7,6 +7,7 @@
 #include "internal/pycore_moduleobject.h"
 
 #include "cinderx/StaticPython/awaitable.h"
+#include "cinderx/StaticPython/generic_type.h"
 #include "cinderx/StaticPython/strictmoduleobject.h"
 #include "cinderx/StaticPython/vtable.h"
 
@@ -341,33 +342,6 @@ int _PyObject_TypeCheckOptional(PyObject *val, PyTypeObject *type, int optional,
            (!exact && PyObject_TypeCheck(val, type));
 }
 
-// The rest of the TPFLAGS are in Include/object.h
-/* This is a generic type instantiation */
-#define Ci_Py_TPFLAGS_GENERIC_TYPE_INST (1UL << 15)
-/* This type is a generic type definition */
-#define Ci_Py_TPFLAGS_GENERIC_TYPE_DEF (1UL << 16)
-
-typedef struct {
-    PyTypeObject gtd_type; /* base type object */
-    newfunc gtd_new;       /* real tp_new func for instances */
-    Py_ssize_t gtd_size;   /* number of generic type parameters */
-} _PyGenericTypeDef;
-
-typedef struct {
-    PyTypeObject *gtp_type;
-    int gtp_optional;
-} _PyGenericTypeParam;
-
-typedef struct {
-    PyHeapTypeObject gti_type; /* base type object */
-    _PyGenericTypeDef *gti_gtd;
-    Py_ssize_t gti_size;            /* number of generic type parameters */
-    _PyGenericTypeParam gti_inst[]; /* generic type parameters */
-} _PyGenericTypeInst;
-
-CiAPI_FUNC(int) _PyClassLoader_TypeDealloc(PyTypeObject *type);
-CiAPI_FUNC(int) _PyClassLoader_TypeTraverse(PyTypeObject *type, visitproc visit, void *arg);
-CiAPI_FUNC(void) _PyClassLoader_TypeClear(PyTypeObject *type);
 CiAPI_FUNC(int) _PyClassLoader_AddSubclass(PyTypeObject *base, PyTypeObject *type);
 
 typedef struct {
@@ -401,31 +375,6 @@ _PyClassLoader_CheckParamType(PyObject *self, PyObject *arg, int index)
            PyObject_TypeCheck(arg, param->gtp_type);
 }
 
-CiAPI_FUNC(PyObject *)_PyClassLoader_GtdGetItem(_PyGenericTypeDef *type, PyObject *args);
-
-CiAPI_STATIC_INLINE_FUNC(_PyGenericTypeDef *)
-_PyClassLoader_GetGenericTypeDefFromType(PyTypeObject *gen_type);
-CiAPI_STATIC_INLINE_FUNC(_PyGenericTypeDef *)
-_PyClassLoader_GetGenericTypeDef(PyObject *gen_inst);
-
-/* gets the generic type definition for an instance if it is an instance of a
- * generic type, or returns NULL if it is not */
-static inline _PyGenericTypeDef *
-_PyClassLoader_GetGenericTypeDefFromType(PyTypeObject *gen_type)
-{
-    if (!(gen_type->tp_flags & Ci_Py_TPFLAGS_GENERIC_TYPE_INST)) {
-        return NULL;
-    }
-    return ((_PyGenericTypeInst *)gen_type)->gti_gtd;
-}
-
-static inline _PyGenericTypeDef *
-_PyClassLoader_GetGenericTypeDef(PyObject *gen_inst)
-{
-    PyTypeObject *inst_type = Py_TYPE(gen_inst);
-    return _PyClassLoader_GetGenericTypeDefFromType(inst_type);
-}
-
 CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0;
 CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T1;
 CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_T0_Opt;
@@ -447,7 +396,39 @@ CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT32;
 CiAPI_DATA(const Ci_Py_SigElement) Ci_Py_Sig_UINT64;
 
 static inline int
-_PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value);
+_PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
+  static uint64_t overflow_masks[] = {
+      0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000, 0xFFFFFFFF00000000, 0x0};
+  static uint64_t soverflow_masks[] = {
+      0xFFFFFFFFFFFFFF80, 0xFFFFFFFFFFFF8000, 0xFFFFFFFF80000000, 0x8000000000000000};
+
+  assert(Py_TYPE(arg) == &PyLong_Type);
+
+  if (type & TYPED_INT_SIGNED) {
+    Py_ssize_t ival = PyLong_AsSsize_t(arg);
+    if (ival == -1 && PyErr_Occurred()) {
+        PyErr_Clear();
+        return 0;
+    }
+    if ((ival & soverflow_masks[type >> 1]) &&
+        (ival & soverflow_masks[type >> 1]) != soverflow_masks[type >> 1]) {
+      return 0;
+    }
+    *value = (size_t)ival;
+  } else {
+    size_t ival = PyLong_AsSize_t(arg);
+    if (ival == (size_t)-1 && PyErr_Occurred()) {
+        PyErr_Clear();
+        return 0;
+    }
+
+    if (ival & overflow_masks[type >> 1]) {
+      return 0;
+    }
+    *value = (size_t)ival;
+  }
+  return 1;
+}
 
 static inline void *
 _PyClassLoader_ConvertArg(PyObject *ctx,
@@ -620,41 +601,6 @@ static inline int
 _PyClassLoader_IsStaticCallable(PyObject *obj)
 {
     return _PyClassLoader_IsStaticFunction(obj) || _PyClassLoader_IsStaticBuiltin(obj);
-}
-
-static inline int
-_PyClassLoader_OverflowCheck(PyObject* arg, int type, size_t* value) {
-  static uint64_t overflow_masks[] = {
-      0xFFFFFFFFFFFFFF00, 0xFFFFFFFFFFFF0000, 0xFFFFFFFF00000000, 0x0};
-  static uint64_t soverflow_masks[] = {
-      0xFFFFFFFFFFFFFF80, 0xFFFFFFFFFFFF8000, 0xFFFFFFFF80000000, 0x8000000000000000};
-
-  assert(Py_TYPE(arg) == &PyLong_Type);
-
-  if (type & TYPED_INT_SIGNED) {
-    Py_ssize_t ival = PyLong_AsSsize_t(arg);
-    if (ival == -1 && PyErr_Occurred()) {
-        PyErr_Clear();
-        return 0;
-    }
-    if ((ival & soverflow_masks[type >> 1]) &&
-        (ival & soverflow_masks[type >> 1]) != soverflow_masks[type >> 1]) {
-      return 0;
-    }
-    *value = (size_t)ival;
-  } else {
-    size_t ival = PyLong_AsSize_t(arg);
-    if (ival == (size_t)-1 && PyErr_Occurred()) {
-        PyErr_Clear();
-        return 0;
-    }
-
-    if (ival & overflow_masks[type >> 1]) {
-      return 0;
-    }
-    *value = (size_t)ival;
-  }
-  return 1;
 }
 
 CiAPI_FUNC(int) _PyClassLoader_NotifyDictChange(PyDictObject *dict, PyObject *key);
