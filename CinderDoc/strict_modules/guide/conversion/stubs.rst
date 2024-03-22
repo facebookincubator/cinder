@@ -21,11 +21,11 @@ the source code.
 
 If the module you depend on is already actually strict-compliant you can
 simplify the stub file down to just contain the single line `__implicit__`,
-which just says "go use the real module contents, they're fine".
-See `cinderx/cinderx/compiler/strict/stubs/_collections_abc.pys` for an existing example.
-Per-class/function stubs are only needed where the stdlib module does
-non-strict things at module level, so we need to extract just the bits we
-depend on and verify them for strictness.
+which just says "go use the real module contents, they're fine".  See
+`cinderx/PythonLib/cinderx/compiler/strict/stubs/_collections_abc.pys` for an
+existing example.  Per-class/function stubs are only needed where the stdlib
+module does non-strict things at module level, so we need to extract just the
+bits we depend on and verify them for strictness.
 
 If both a `.py` file and a `.pys` file exist, the strict module analyzer will
 prioritize the `.pys` file. This means adding stubs to existing
