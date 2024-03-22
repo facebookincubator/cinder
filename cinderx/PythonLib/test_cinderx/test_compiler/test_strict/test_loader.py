@@ -64,8 +64,7 @@ if TYPE_CHECKING:
     # warnings about using Any.
     @final
     class TModule(ModuleType):
-        def __getattr__(self, attr: str) -> int:
-            ...
+        def __getattr__(self, attr: str) -> int: ...
 
 
 NORMAL_LOADER: Tuple[Type[SourceFileLoader], List[str]] = (

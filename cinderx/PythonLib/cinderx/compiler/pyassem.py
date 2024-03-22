@@ -1108,7 +1108,8 @@ class PyFlowGraph(FlowGraph):
 
     def normalize_basic_block(self, block: Block) -> None:
         """Sets the `fallthrough` and `exit` properties of a block, and ensures that the targets of
-        any jumps point to non-empty blocks by following the next pointer of empty blocks."""
+        any jumps point to non-empty blocks by following the next pointer of empty blocks.
+        """
         for instr in block.getInstructions():
             # TODO(T128853358): The RETURN_PRIMITIVE logic should live in the Static flow graph.
             if instr.opname in (

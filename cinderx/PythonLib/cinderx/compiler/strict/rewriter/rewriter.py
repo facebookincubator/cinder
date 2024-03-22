@@ -309,9 +309,7 @@ TScopeData = TypeVar("TData")
 
 
 class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
-    def __init__(
-        self, scopes: ScopeStack[TVar, TScopeData]
-    ) -> None:
+    def __init__(self, scopes: ScopeStack[TVar, TScopeData]) -> None:
         self.scopes = scopes
 
     @property
@@ -484,9 +482,7 @@ class SymbolVisitor(Generic[TVar, TScopeData], NodeVisitor):
 
 @final
 class ImmutableVisitor(SymbolVisitor[None, None]):
-    def __init__(
-        self, scopes: ScopeStack[None, None]
-    ) -> None:
+    def __init__(self, scopes: ScopeStack[None, None]) -> None:
         super().__init__(scopes)
         self.globals: Set[str] = set()
         self.global_sets: Set[str] = set()
@@ -626,6 +622,7 @@ class ClassScope(ScopeData):
         target = node.target
         if node.value is None and isinstance(target, Name):
             self.instance_fields.add(target.id)
+
 
 @final
 class FunctionScope(ScopeData):

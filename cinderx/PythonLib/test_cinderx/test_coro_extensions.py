@@ -216,6 +216,7 @@ class TestEagerExecution(unittest.TestCase):
 
                 await f(x=1)
                 raise RuntimeError
+
         async def expected_2():
 
             try:
@@ -227,10 +228,9 @@ class TestEagerExecution(unittest.TestCase):
                 await coro
 
                 raise RuntimeError
+
         self._check(expected_1(), actual_1())
         self._check(expected_2(), actual_2())
-
-
 
     def _do_test_no_err(self, f):
         async def actual_1():
@@ -241,23 +241,23 @@ class TestEagerExecution(unittest.TestCase):
             coro = f()
             await coro
             raise RuntimeError
-        async def actual_2():
 
+        async def actual_2():
 
             await f(x=1)
 
             raise RuntimeError
+
         async def expected_2():
 
             coro = f(x=1)
 
-
             await coro
             raise RuntimeError
+
         self._check(expected_1(), actual_1())
 
         self._check(expected_2(), actual_2())
-
 
     def test_eager_await_no_error_eager(self):
 

@@ -1007,6 +1007,7 @@ def f(x):
             x = C()
             f(x)
             self.assertEqual(x.x, 100)
+
         # Mutate the type with a new descriptor
         def setter(self, value):
             self.y = value

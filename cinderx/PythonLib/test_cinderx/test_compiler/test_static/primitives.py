@@ -405,7 +405,6 @@ class PrimitivesTests(StaticTestBase):
         self.type_error(codestr, "type mismatch: int64 cannot be assigned to dynamic")
 
     def test_mixed_cmpop_sign(self):
-
         """mixed signed/unsigned ops should be promoted to signed"""
         codestr = """
             from __static__ import int8, uint8, box

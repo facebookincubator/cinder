@@ -1,11 +1,12 @@
 """ Tests for the internal type cache in CPython. """
+
 import unittest
 
 from test import support
 from test.support import import_helper
 
-try:
 
+try:
     from sys import _clear_type_cache
 except ImportError:
     _clear_type_cache = None

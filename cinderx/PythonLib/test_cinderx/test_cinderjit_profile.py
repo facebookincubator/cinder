@@ -19,6 +19,7 @@ try:
 except ModuleNotFoundError:
     cinderjit = None
 
+
 # Some tests want to make sure the type-specialized code behaves correctly when
 # given a type that was not seen during profiling. The simplest and most
 # reliable way to do this (given the current system) is to allow the code under
@@ -253,6 +254,7 @@ class LoadTypeMethodCacheTests(ProfileTest):
         self.assertEqual(run_static_meth(obj), 1)
 
         self._prime_cache(obj, run_regular_meth, 40)
+
         # Invalidate cache
         def _new_regular_meth():
             return 0

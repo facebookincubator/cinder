@@ -339,7 +339,7 @@ class InlinedFunctionTests(unittest.TestCase):
         root = Path(
             os.path.join(os.path.dirname(__file__), "data/error_preloading_inlined")
         )
-        for (lazy_imports, jit) in itertools.product(
+        for lazy_imports, jit in itertools.product(
             [True, False],
             [True, False] if cinder_support.CINDERJIT_ENABLED else [False],
         ):
@@ -5446,7 +5446,7 @@ hello from b_func!
         # don't include jit/no-jit in this matrix, decide it based on whether
         # overall test run is jit or no-jit; this avoids the confusion of jit
         # bugs showing up as failures in non-jit test runs
-        for (recursive, batch, lazyimports) in itertools.product(
+        for recursive, batch, lazyimports in itertools.product(
             [True, False],
             [True, False] if cinder_support.CINDERJIT_ENABLED else [False],
             [True, False],

@@ -294,9 +294,9 @@ class StrictSourceFileLoader(SourceFileLoader):
         self.allow_list_exact: Iterable[str] = allow_list_exact or []
         self.allow_list_regex: Iterable[str] = allow_list_regex or []
         self.enable_patching = enable_patching
-        self.log_source_load: Optional[
-            Callable[[str, Optional[str], bool], None]
-        ] = log_source_load
+        self.log_source_load: Optional[Callable[[str, Optional[str], bool], None]] = (
+            log_source_load
+        )
         self.bytecode_found = False
         self.bytecode_path: Optional[str] = None
         self.init_cached_properties = init_cached_properties

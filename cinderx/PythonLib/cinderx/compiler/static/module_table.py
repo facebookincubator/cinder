@@ -193,6 +193,7 @@ class DepTrackingOptOut:
     def __init__(self, reason: str) -> None:
         self.reason = reason
 
+
 INTRINSIC_OPT_OUT = DepTrackingOptOut(
     "We don't need to track dependencies to intrinsic modules; "
     "they won't change during development and require pyc updates. "
@@ -232,9 +233,7 @@ class DeferredImport:
                 return ModuleInstance(
                     self.mod_to_return or self.mod_to_import, self.compiler
                 )
-            val = mod.get_child(
-                self.name, DEFERRED_IMPORT_OPT_OUT
-            )
+            val = mod.get_child(self.name, DEFERRED_IMPORT_OPT_OUT)
             if val is not None:
                 return val
             try_mod = f"{self.mod_to_import}.{self.name}"

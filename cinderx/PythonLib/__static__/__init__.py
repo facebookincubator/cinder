@@ -335,9 +335,7 @@ class StaticGeneric:
     ) -> Union[StaticGeneric, Type[object]]:
         if not isinstance(elem_type, tuple):
             # we specifically recurse to hit the type cache
-            return cls[
-                elem_type,
-            ]
+            return cls[elem_type,]
 
         if cls is StaticGeneric:
             res = StaticGeneric()
