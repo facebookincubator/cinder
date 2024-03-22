@@ -2911,13 +2911,13 @@ class INSTR_CLASS(BitCast, (TTop), HasOutput, Operands<1>) {
 // non-LoadArg instruction.
 class INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
  public:
-  LoadArg(Register* dst, uint arg_idx)
+  LoadArg(Register* dst, uint32_t arg_idx)
       : InstrT(dst), arg_idx_(arg_idx), type_(TObject) {}
 
-  LoadArg(Register* dst, uint arg_idx, Type type)
+  LoadArg(Register* dst, uint32_t arg_idx, Type type)
       : InstrT(dst), arg_idx_(arg_idx), type_(type) {}
 
-  uint arg_idx() const {
+  uint32_t arg_idx() const {
     return arg_idx_;
   }
 
@@ -2926,7 +2926,7 @@ class INSTR_CLASS(LoadArg, (), HasOutput, Operands<0>) {
   }
 
  private:
-  uint arg_idx_;
+  uint32_t arg_idx_;
   Type type_;
 };
 
