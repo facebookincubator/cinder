@@ -3911,7 +3911,6 @@ class StaticCompilationTests(StaticTestBase):
         with self.assertRaisesRegex(TypedSyntaxError, type_mismatch("str", "int")):
             self.compile(codestr, modname="foo")
 
-    @skipIf(cinderjit is not None, "can't report error from JIT")
     def test_load_uninit_module(self):
         """verify we don't crash if we receive a module w/o a dictionary"""
         codestr = """
@@ -3930,12 +3929,7 @@ class StaticCompilationTests(StaticTestBase):
                     pass
 
             sys.modules[mod.__name__] = UninitModule()
-            with self.assertRaisesRegex(
-                TypeError,
-                r"bad name provided for class loader: \('"
-                + mod.__name__
-                + r"', 'C'\), not a class",
-            ):
+            with self.assertRaisesRegex(AttributeError, r"module has no attribute 'C'"):
                 C()
 
     def test_module_subclass(self):

@@ -3411,7 +3411,10 @@ PyObject *_PyClassLoader_GetGenericInst(PyObject *type,
     Makes sure the given type is a PyTypeObject (raises an error if not)
 */
 static int classloader_verify_type(PyObject *type, PyObject *path) {
-    if (type == NULL || !PyType_Check(type)) {
+    if (type == NULL) {
+        assert(PyErr_Occurred());
+        return -1;
+    } else if (!PyType_Check(type)) {
         PyErr_Format(
             PyExc_TypeError,
             "bad name provided for class loader: %R, not a class",

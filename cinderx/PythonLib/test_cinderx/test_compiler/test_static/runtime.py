@@ -2434,3 +2434,22 @@ class StaticRuntimeTests(StaticTestBase):
                 TypeError, r"f expected 'str' for argument j, got 'int'"
             ):
                 f(1, j=2)
+
+    def test_bad_classloader_type(self):
+        codestr = """
+        class A:
+            class B:
+                pass
+
+        def f() -> object:
+            return A.B()
+
+        del A.B
+        """
+        with self.in_module(codestr) as mod:
+            f = mod.f
+            with self.assertRaisesRegex(
+                TypeError,
+                rf"bad name provided for class loader, 'B' doesn't exist in \('{mod.__name__}', 'A', 'B', '!'\)",
+            ):
+                f()
