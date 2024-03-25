@@ -1,14 +1,18 @@
 import ast
+import os
 from textwrap import dedent
 from typing import final, Optional, Sequence
 
+from cinderx.compiler.static.module_table import ModuleTable
+
 from cinderx.compiler.strict.common import DEFAULT_STUB_PATH
+from cinderx.compiler.strict.compiler import Compiler, Dependencies, SourceInfo
 from cinderx.compiler.strict.flag_extractor import FlagExtractor
 
 from cinderx.strictmodule import StrictAnalysisResult, StrictModuleLoader
 
 from .common import StrictTestBase
-from .sandbox import sandbox
+from .sandbox import sandbox, use_cm
 
 
 class CompilerTests(StrictTestBase):
@@ -322,3 +326,128 @@ class GetModuleKindTest(StrictTestBase):
         """
         kind, _ = self._get_kind(code)
         self.assertEqual(kind, 0)
+
+
+class GetDependenciesTest(StrictTestBase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.sbx = use_cm(sandbox, self)
+        self.compiler = Compiler(
+            import_path=[str(self.sbx.root)],
+            stub_root=self.sbx.root,
+            allow_list_prefix=[],
+            allow_list_exact=[],
+        )
+
+    def compile_module(self, name: str) -> Dependencies:
+        source_info = self.compiler.get_source(name)
+        code, valid_strict, is_static = self.compiler.load_compiled_module_from_source(
+            source_info.source, source_info.relative_path, name, 0
+        )
+        return self.compiler.get_dependencies(name)
+
+    def get_source_info(self, name: str, relpath: str) -> SourceInfo:
+        path = self.sbx.root / relpath
+        source = path.read_bytes()
+        st = os.stat(path)
+        return SourceInfo(
+            name=name,
+            prefix=str(self.sbx.root),
+            relative_path=relpath,
+            path=str(path),
+            source=source,
+            mtime=int(st.st_mtime),
+            size=st.st_size,
+        )
+
+    def test_static_dep(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import f
+                def g():
+                    return f()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                def f():
+                    return 42
+            """,
+        )
+        deps = self.compile_module("a")
+        self.assertEqual(deps.static, [self.get_source_info("b", "b.py")])
+        self.assertEqual(deps.nonstatic, [])
+
+    def test_nonstatic_dep(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import f
+                def g():
+                    return f()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                def f():
+                    return 42
+            """,
+        )
+        deps = self.compile_module("a")
+        self.assertEqual(deps.static, [])
+        self.assertEqual(deps.nonstatic, ["b"])
+
+    def test_unknown_dep(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import f
+                def g():
+                    return f()
+            """,
+        )
+        deps = self.compile_module("a")
+        self.assertEqual(deps.static, [])
+        self.assertEqual(deps.nonstatic, ["b"])
+
+    def test_nonstatic_has_no_deps(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                from b import f
+                def g():
+                    return f()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                def f():
+                    return 42
+            """,
+        )
+        deps = self.compile_module("a")
+        self.assertEqual(deps.static, [])
+        self.assertEqual(deps.nonstatic, [])
+
+    def test_no_dep_on_intrinsic(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from typing import Optional
+                def f() -> Optional[int]:
+                    return 42
+            """,
+        )
+        deps = self.compile_module("a")
+        self.assertEqual(deps.static, [])
+        self.assertEqual(deps.nonstatic, [])

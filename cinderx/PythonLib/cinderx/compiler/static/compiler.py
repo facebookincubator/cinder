@@ -450,6 +450,8 @@ class Compiler:
                 },
             )
 
+        self.intrinsic_modules: set[str] = set(self.modules.keys())
+
     def __getitem__(self, name: str) -> ModuleTable:
         return self.modules[name]
 

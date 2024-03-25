@@ -9,6 +9,7 @@ import os
 import symtable
 import sys
 from contextlib import nullcontext
+from dataclasses import dataclass
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
 from typing import (
@@ -60,6 +61,33 @@ def getSymbolTable(mod: StrictAnalysisResult) -> PythonSymbolTable:
 TIMING_LOGGER_TYPE = Callable[[str, str, str], ContextManager[None]]
 
 
+@dataclass(frozen=True)
+class SourceInfo:
+    """Data about a Python module source file."""
+
+    # module name
+    name: str
+    # import path prefix within which the module was found
+    prefix: str
+    # path to module file, relative to import path prefix
+    relative_path: str
+    # should always be os.path.join(prefix, relative_path)
+    path: str
+    # data we might need for pyc invalidation
+    source: bytes
+    mtime: int
+    size: int
+
+
+@dataclass(frozen=True)
+class Dependencies:
+    static: list[SourceInfo]
+    nonstatic: list[str]
+
+
+NOT_FOUND = object()
+
+
 @final
 class Compiler(StaticCompiler):
     def __init__(
@@ -106,6 +134,35 @@ class Compiler(StaticCompiler):
         self.use_py_compiler = use_py_compiler
         self.original_builtins: Dict[str, object] = dict(__builtins__)
         self.logger: logging.Logger = self._setup_logging()
+        self.sources: dict[str, SourceInfo | None] = {}
+
+    def get_dependencies(self, name: str) -> Dependencies:
+        """Get static and non-static dependencies of given module."""
+        mod = self.modules.get(name)
+        if mod is None:
+            return Dependencies(static=[], nonstatic=[])
+
+        static = []
+        nonstatic = []
+        for depmod in mod.get_dependencies():
+            if isinstance(depmod, ModuleTable):
+                # changes to these should be reflected in our compiler magic
+                # number, and don't need to be recorded as dependencies
+                if depmod.name in self.intrinsic_modules:
+                    continue
+
+                source_info = self.sources.get(depmod.name)
+                if source_info is None:
+                    # the dependency may have been previously compiled as the
+                    # main module in the same Compiler, in which case we'll have
+                    # a ModuleTable already but no SourceInfo
+                    source_info = self.get_source(depmod.name)
+                assert source_info is not None
+                static.append(source_info)
+            else:  # UnknownModule, non-static
+                nonstatic.append(depmod.name)
+
+        return Dependencies(static=static, nonstatic=nonstatic)
 
     def import_module(self, name: str, optimize: int) -> Optional[ModuleTable]:
         res = self.modules.get(name)
@@ -115,9 +172,11 @@ class Compiler(StaticCompiler):
         if name in self.not_static:
             return None
 
-        source, filename = self._get_source(name)
-        if source is None or filename is None:
+        source_info = self.get_source(name)
+        if source_info is None:
             return None
+        source = source_info.source
+        filename = source_info.relative_path
 
         pyast = ast.parse(source)
         flags = FlagExtractor().get_flags(pyast)
@@ -208,33 +267,52 @@ class Compiler(StaticCompiler):
             code = self._compile_strict(pyast, symbols, filename, name, optimize)
             return (code, is_valid_strict, False)
 
-    def _get_source(
-        self,
-        name: str,
-    ) -> Tuple[bytes | str | None, str | None]:
+    def get_source(self, name: str) -> SourceInfo | None:
+        if (source_info := self.sources.get(name, NOT_FOUND)) is not NOT_FOUND:
+            # pyre-ignore[7]: pyre doesn't understand this can't be NOT_FOUND
+            return source_info
+        source_info = self._get_source(name)
+        self.sources[name] = source_info
+        return source_info
+
+    def _get_source(self, name: str) -> SourceInfo | None:
         module_path = name.replace(".", os.sep)
 
         for path in self.import_path:
-            filename = module_path + ".py"
-            py_path = os.path.join(path, filename)
-            if os.path.exists(py_path):
-                with open(py_path, "rb") as f:
-                    return f.read(), filename
+            source_info = self._get_source_info(name, path, module_path + ".py")
+            if source_info is not None:
+                return source_info
 
-            filename = module_path + os.sep + "__init__.py"
-            py_path = os.path.join(path, filename)
-            if os.path.exists(py_path):
-                with open(py_path, "rb") as f:
-                    return f.read(), filename
+            source_info = self._get_source_info(
+                name, path, module_path + os.sep + "__init__.py"
+            )
+            if source_info is not None:
+                return source_info
 
         for path in self.import_path:
-            filename = module_path + ".pyi"
-            py_path = os.path.join(path, filename)
-            if os.path.exists(py_path):
-                with open(py_path, "rb") as f:
-                    return f.read(), filename
+            source_info = self._get_source_info(name, path, module_path + ".pyi")
+            if source_info is not None:
+                return source_info
 
-        return None, None
+        return None
+
+    def _get_source_info(
+        self, name: str, prefix: str, relpath: str
+    ) -> SourceInfo | None:
+        path = os.path.join(prefix, relpath)
+        if not os.path.exists(path):
+            return None
+        st = os.stat(path)
+        with open(path, "rb") as f:
+            return SourceInfo(
+                name=name,
+                prefix=prefix,
+                relative_path=relpath,
+                path=path,
+                source=f.read(),
+                mtime=int(st.st_mtime),
+                size=st.st_size,
+            )
 
     def _strict_analyze(
         self,
