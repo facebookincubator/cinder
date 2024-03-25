@@ -2,7 +2,7 @@
   "logger": "/usr/local/bin/scribe_cat",
   "version": "ee7c7d4eb7b6ed907d939983b23511b8c5bb3b03",
   "source_directories": [
-    "cinderx/cinderx",
+    "cinderx/PythonLib/cinderx",
     "Tools/scripts/facebook/perf",
     "Tools/scripts/facebook/workflow",
     "Tools/scripts/typed"
