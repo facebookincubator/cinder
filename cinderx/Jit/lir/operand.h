@@ -556,10 +556,29 @@ struct OperandArg<MemoryIndirect, Output> {
   OperandArg(
       Reg b,
       Reg i,
-      uint8_t m,
+      unsigned int num_bytes,
       int32_t off,
       OperandBase::DataType dt = OperandBase::kObject)
-      : base(b), index(i), multiplier(m), offset(off), data_type(dt) {}
+      : base(b), index(i), offset(off), data_type(dt) {
+    // x86 encodes scales as size==2**X, so this does log2(num_bytes), but we
+    // have a limited set of inputs.
+    switch (num_bytes) {
+      case 1:
+        multiplier = 0;
+        break;
+      case 2:
+        multiplier = 1;
+        break;
+      case 4:
+        multiplier = 2;
+        break;
+      case 8:
+        multiplier = 3;
+        break;
+      default:
+        JIT_ABORT("Unexpected num_bytes {}", num_bytes);
+    }
+  }
 
   Reg base{PhyLocation::REG_INVALID};
   Reg index{PhyLocation::REG_INVALID};

@@ -608,7 +608,7 @@ TEST_F(BackendTest, GetI32FromArrayTest) {
       VReg(start),
       VReg(offset));
 
-  auto address = Ind(base_address, index, 3, 0);
+  auto address = Ind(base_address, index, 8, 0);
 
   auto ret = bb->allocateInstr(
       Instruction::kMove, nullptr, OutVReg(OperandBase::k64bit), address);

@@ -190,24 +190,6 @@ ssize_t shadowFrameOffsetOf(const InlineBase* instr) {
   return shadowFrameOffsetBefore(instr) - ssize_t{kJITShadowFrameSize};
 }
 
-// x86 encodes scales as size==2**X, so this does log2(num_bytes), but we have
-// a limited set of inputs.
-uint8_t multiplierFromSize(int num_bytes) {
-  switch (num_bytes) {
-    case 1:
-      return 0;
-    case 2:
-      return 1;
-    case 4:
-      return 2;
-    case 8:
-      return 3;
-    default:
-      break;
-  }
-  JIT_ABORT("Unexpected num_bytes {}", num_bytes);
-}
-
 } // namespace
 
 LIRGenerator::LIRGenerator(
@@ -2107,11 +2089,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         hir::Register* dest = instr->dst();
         Instruction* ob_item = bbb.getDefInstr(instr->ob_item());
         Instruction* idx = bbb.getDefInstr(instr->idx());
-        // TODO(T139547908): x86-64 semantics bleeding into LIR generator.
-        uint8_t multiplier = multiplierFromSize(instr->type().sizeInBytes());
         int32_t offset = instr->offset();
         // Might know the index at compile-time.
-        auto ind = Ind{ob_item, idx, multiplier, offset};
+        auto ind = Ind{ob_item, idx, instr->type().sizeInBytes(), offset};
         if (instr->idx()->type().hasIntSpec()) {
           auto scaled_offset = static_cast<int32_t>(
               instr->idx()->type().intSpec() * instr->type().sizeInBytes() +
