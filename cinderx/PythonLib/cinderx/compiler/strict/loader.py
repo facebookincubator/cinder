@@ -37,6 +37,7 @@ try:  # ensure all imports in this module are eager, to avoid cycles
     )
 
     from importlib.util import cache_from_source, MAGIC_NUMBER
+    from io import BytesIO
     from os import getenv, makedirs
     from os.path import dirname, isdir
     from py_compile import (
@@ -65,7 +66,7 @@ try:  # ensure all imports in this module are eager, to avoid cycles
         FIXED_MODULES,
         MAGIC_NUMBER as STRICT_MAGIC_NUMBER,
     )
-    from .compiler import Compiler, TIMING_LOGGER_TYPE
+    from .compiler import Compiler, Dependencies, SourceInfo, TIMING_LOGGER_TYPE
     from .flag_extractor import Flags
 except:
     raise
@@ -215,8 +216,70 @@ def classify_strict_pyc(
     return (flags, strict_or_static)
 
 
+# A dependency is (name, mtime_and_size_or_hash)
+DependencyTuple = tuple[str, bytes]
+
+
+def validate_dependencies(
+    compiler: Compiler, deps: tuple[DependencyTuple, ...], hash_based: bool
+) -> None:
+    """Raise ImportError if any dependency has changed."""
+    for modname, data in deps:
+        # empty invalidation data means non-static
+        was_static = bool(data)
+        source_info = compiler.get_source(
+            modname, need_contents=(hash_based or not was_static)
+        )
+        if source_info is None:
+            if was_static:
+                raise ImportError(f"{modname} is missing")
+            continue
+        if was_static:
+            expected_data = get_dependency_data(source_info, hash_based)
+            if data != expected_data:
+                raise ImportError(f"{modname} has changed")
+        else:
+            assert source_info.source is not None
+            # if a previously non-static dependency is now found and has the text
+            # "import __static__" in it, we invalidate
+            if b"import __static__" in source_info.source:
+                raise ImportError(f"{modname} may now be static")
+
+
+def get_deps(
+    deps: Dependencies | None, hash_based: bool
+) -> tuple[DependencyTuple, ...]:
+    ret = []
+    if deps is None:
+        return ()
+    for source_info in deps.static:
+        ret.append(
+            (
+                source_info.name,
+                get_dependency_data(source_info, hash_based),
+            )
+        )
+    for modname in deps.nonstatic:
+        ret.append((modname, b""))
+    return tuple(ret)
+
+
+def get_dependency_data(source_info: SourceInfo, hash_based: bool) -> bytes:
+    if hash_based:
+        assert source_info.source is not None
+        # pyre-ignore[7]: wrong typeshed return type for source_hash
+        return importlib.util.source_hash(source_info.source)
+    else:
+        # pyre-ignore[16]: typeshed doesn't know about this
+        return _pack_uint32(source_info.mtime) + _pack_uint32(source_info.size)
+
+
 def code_to_strict_timestamp_pyc(
-    code: CodeType, strict_or_static: bool, mtime: int = 0, source_size: int = 0
+    code: CodeType,
+    strict_or_static: bool,
+    deps: Dependencies | None,
+    mtime: int = 0,
+    source_size: int = 0,
 ) -> bytearray:
     "Produce the data for a strict timestamp-based pyc."
     data = bytearray(
@@ -231,12 +294,17 @@ def code_to_strict_timestamp_pyc(
     data.extend(_pack_uint32(mtime))
     # pyre-ignore[16]: typeshed doesn't know about this
     data.extend(_pack_uint32(source_size))
+    data.extend(marshal.dumps(get_deps(deps, hash_based=False)))
     data.extend(marshal.dumps(code))
     return data
 
 
 def code_to_strict_hash_pyc(
-    code: CodeType, strict_or_static: bool, source_hash: bytes, checked: bool = True
+    code: CodeType,
+    strict_or_static: bool,
+    deps: Dependencies | None,
+    source_hash: bytes,
+    checked: bool = True,
 ) -> bytearray:
     "Produce the data for a strict hash-based pyc."
     data = bytearray(
@@ -250,6 +318,7 @@ def code_to_strict_hash_pyc(
     data.extend(_pack_uint32(flags))
     assert len(source_hash) == 8
     data.extend(source_hash)
+    data.extend(marshal.dumps(get_deps(deps, hash_based=True)))
     data.extend(marshal.dumps(code))
     return data
 
@@ -329,6 +398,17 @@ class StrictSourceFileLoader(SourceFileLoader):
             )
         return comp
 
+    def get_compiler(self) -> Compiler:
+        return self.ensure_compiler(
+            self.import_path,
+            self.stub_path,
+            self.allow_list_prefix,
+            self.allow_list_exact,
+            self.log_time_func,
+            self.enable_patching,
+            self.allow_list_regex,
+        )
+
     def get_code(self, fullname: str) -> CodeType:
         source_path = self.get_filename(fullname)
         source_mtime = None
@@ -365,7 +445,10 @@ class StrictSourceFileLoader(SourceFileLoader):
                             data, fullname, exc_details
                         )
                         self.strict_or_static = strict_or_static
-                        bytes_data = memoryview(data)[20:]
+                        # unmarshal dependencies
+                        bytes_data = BytesIO(data)
+                        bytes_data.seek(20)
+                        deps = marshal.load(bytes_data)
                         hash_based = flags & 0b1 != 0
                         if hash_based:
                             check_source = flags & 0b10 != 0
@@ -381,6 +464,10 @@ class StrictSourceFileLoader(SourceFileLoader):
                                     fullname,
                                     exc_details,
                                 )
+                                if deps:
+                                    validate_dependencies(
+                                        self.get_compiler(), deps, hash_based=True
+                                    )
                         else:
                             # pyre-ignore[16]: typeshed doesn't know about this
                             _validate_timestamp_pyc(
@@ -390,6 +477,10 @@ class StrictSourceFileLoader(SourceFileLoader):
                                 fullname,
                                 exc_details,
                             )
+                            if deps:
+                                validate_dependencies(
+                                    self.get_compiler(), deps, hash_based=False
+                                )
                     except (ImportError, EOFError):
                         pass
                     else:
@@ -399,7 +490,7 @@ class StrictSourceFileLoader(SourceFileLoader):
                         )
                         # pyre-ignore[16]: typeshed doesn't know about this
                         return _compile_bytecode(
-                            bytes_data,
+                            memoryview(data)[bytes_data.tell() :],
                             name=fullname,
                             bytecode_path=bytecode_path,
                             source_path=source_path,
@@ -413,16 +504,18 @@ class StrictSourceFileLoader(SourceFileLoader):
             not sys.dont_write_bytecode
             and bytecode_path is not None
             and source_mtime is not None
-            # TODO(T88560840) don't write pycs for static modules for now, to
-            # work around lack of proper invalidation
-            and not self.is_static
         ):
+            if self.is_static:
+                deps = self.get_compiler().get_dependencies(fullname)
+            else:
+                deps = None
             if hash_based:
                 if source_hash is None:
                     source_hash = importlib.util.source_hash(source_bytes)
                 data = code_to_strict_hash_pyc(
                     code_object,
                     self.strict_or_static,
+                    deps,
                     # pyre-ignore[6]: bad typeshed stub for importlib.util.source_hash
                     # pyre-ignore[6]: For 3rd argument expected `bytes` but got `int`.
                     source_hash,
@@ -430,7 +523,11 @@ class StrictSourceFileLoader(SourceFileLoader):
                 )
             else:
                 data = code_to_strict_timestamp_pyc(
-                    code_object, self.strict_or_static, source_mtime, len(source_bytes)
+                    code_object,
+                    self.strict_or_static,
+                    deps,
+                    source_mtime,
+                    len(source_bytes),
                 )
             try:
                 # pyre-ignore[16]: typeshed doesn't know about this
@@ -475,15 +572,11 @@ class StrictSourceFileLoader(SourceFileLoader):
             # Let the ast transform attempt to validate the strict module.  This
             # will return an unmodified module if import __strict__ isn't
             # actually at the top-level
-            code, is_valid_strict, is_static = self.ensure_compiler(
-                self.import_path,
-                self.stub_path,
-                self.allow_list_prefix,
-                self.allow_list_exact,
-                self.log_time_func,
-                self.enable_patching,
-                self.allow_list_regex,
-            ).load_compiled_module_from_source(
+            (
+                code,
+                is_valid_strict,
+                is_static,
+            ) = self.get_compiler().load_compiled_module_from_source(
                 data,
                 path,
                 self.name,
@@ -570,9 +663,7 @@ def strict_compile(
     dfile: str | None = None,
     doraise: bool = False,
     optimize: int = -1,
-    # Since typeshed doesn't yet know about PycInvalidationMode, no way to
-    # convince Pyre it's a valid type here.  T54150924
-    invalidation_mode: object = None,
+    invalidation_mode: PycInvalidationMode | None = None,
     loader_override: object = None,
     loader_options: Dict[str, str | int | bool] | None = None,
 ) -> str | None:
@@ -625,6 +716,7 @@ def strict_compile(
     source_bytes = loader.get_data(file)
     try:
         code = loader.source_to_code(source_bytes, dfile or file, _optimize=optimize)
+        deps = loader.get_compiler().get_dependencies(modname)
     except Exception as err:
         raise
         py_exc = PyCompileError(err.__class__, err, dfile or file)
@@ -641,13 +733,18 @@ def strict_compile(
     if invalidation_mode == PycInvalidationMode.TIMESTAMP:
         source_stats = loader.path_stats(file)
         bytecode = code_to_strict_timestamp_pyc(
-            code, loader.strict_or_static, source_stats["mtime"], source_stats["size"]
+            code,
+            loader.strict_or_static,
+            deps,
+            source_stats["mtime"],
+            source_stats["size"],
         )
     else:
         source_hash = importlib.util.source_hash(source_bytes)
         bytecode = code_to_strict_hash_pyc(
             code,
             loader.strict_or_static,
+            deps,
             # pyre-ignore[6]: bad typeshed stub for importlib.util.source_hash
             # pyre-ignore[6]: For 3rd argument expected `bytes` but got `int`.
             source_hash,

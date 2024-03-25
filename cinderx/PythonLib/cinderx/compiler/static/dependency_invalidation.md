@@ -40,20 +40,18 @@ We will insert information on dependency modules after the existing five-word he
 
 The process for reading a `pyc` will remain the same as before, except that we will insert a new step in between (4) and (5) above, to check for staleness of any dependency. This means the strict/static loader will have to reimplement more of the built-in loader’s behavior than it currently does; we can no longer take care of the strict/static-specific parts up front and then hand off the rest of the data to the built-in loader, because dependency checking should come after checking built-in magic number and self-staleness, but before loading the code object.
 
-The dependency module information is a tuple of tuples dumped via `marshal`. Each dependency tuple is `("path/to/source/file.py", mtime_and_size_or_hash, was_static)` for one dependency module.
-
-The path is relative to an entry on `sys.path`. Since the contents of `sys.path` can change between python invocations and `pyc` files must be relocatable, this is as precise as we can be. We resolve a relative path to an absolute path by appending it to each `sys.path` entry in order, until we find one that exists. If no file is found, we invalidate the `pyc` depending on it.
+The dependency module information is a tuple of tuples dumped via `marshal`. Each dependency tuple is `("module.name", mtime_and_size_or_hash)` for one dependency module.
 
 The `mtime_and_size_or_hash` is 64 bits (representing the mtime and size in bytes of the dependency module, each as a 32-bit integer, or its 8-byte hash) marshaled as a Python bytes object. This will be interpreted as mtime-and-size or as a hash depending on the classification of the `pyc` file containing this dependency data; i.e. a given `pyc` will always invalidate based either on all-timestamps or all-hashes, for its own source and the sources of all its dependencies.
 
-The `was_static` flag is a boolean; `True` if this dependency was a static module at the time we recorded it as a dependency, `False` if it was not.
+We also track dependencies on non-static modules; these dependencies will be recorded with an empty (zero-length) `mtime_and_size_or_hash`.
 
 The algorithm for dependency staleness check is as follows, for each listed dependency in order:
 
-1. Find the source file relative to a `sys.path` entry.
+1. Find the source file for the given module name. If none is found, invalidate if the dependency was static, otherwise don't invalidate (unknown/not-found/not-static are all equivalent.)
 2. Stat or hash the source file, depending on the invalidation mode.
-3. Compare the mtime/size or hash to that recorded in the dependency tuple, and fail if they don’t match.
-    1. If `was_static` is `False`, grep the module source for `import __static__` . If it is not present, don’t fail the dependency check even if mtime/size/hash did not match. Since the only change to a non-static dependency that can trigger recompilation is a conversion to static, this heuristic will help reduce unnecessary recompilations.
+3. For a was-static dependency, compare the mtime/size or hash to that recorded in the dependency tuple, and fail if they don’t match.
+4. For a wasn't-static dependency, grep the module source (if any) for `import __static__` . If it is found, invalidate.
 
 For non-static modules (or for static modules with no dependencies), the recorded dependency information will simply be an empty tuple.
 
@@ -61,7 +59,7 @@ The dependencies recorded in the pyc file are the full list of concrete dependen
 
 ### Performance
 
-The search for a given source file against `sys.path` will be slow for large numbers of dependencies, and this has to be done every time we load from a static `pyc`. To mitigate this, the loader may maintain a global cache mapping relative file names to absolute file names. Once a module is imported, further changes to its file contents don’t matter to this process, so it can be added to another cache mapping relative file name all the way to mtime/size/hash, so that future dependency checks against it don’t require filesystem access at all.
+The search for a given source file against `sys.path` will be slow for large numbers of dependencies, and this has to be done every time we load from a static `pyc`. To mitigate this, the loader may maintain a global cache mapping module name to mtime/size/hash, so that future dependency checks against it don’t require filesystem access at all.
 
 ## Acquiring dependency information at compile time
 

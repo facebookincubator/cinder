@@ -9,7 +9,7 @@ import os
 import symtable
 import sys
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from symtable import SymbolTable as PythonSymbolTable, SymbolTableFactory
 from types import CodeType
 from typing import (
@@ -74,7 +74,7 @@ class SourceInfo:
     # should always be os.path.join(prefix, relative_path)
     path: str
     # data we might need for pyc invalidation
-    source: bytes
+    source: bytes | None
     mtime: int
     size: int
 
@@ -176,6 +176,7 @@ class Compiler(StaticCompiler):
         if source_info is None:
             return None
         source = source_info.source
+        assert source is not None
         filename = source_info.relative_path
 
         pyast = ast.parse(source)
@@ -267,52 +268,69 @@ class Compiler(StaticCompiler):
             code = self._compile_strict(pyast, symbols, filename, name, optimize)
             return (code, is_valid_strict, False)
 
-    def get_source(self, name: str) -> SourceInfo | None:
-        if (source_info := self.sources.get(name, NOT_FOUND)) is not NOT_FOUND:
-            # pyre-ignore[7]: pyre doesn't understand this can't be NOT_FOUND
-            return source_info
-        source_info = self._get_source(name)
-        self.sources[name] = source_info
+    def get_source(self, name: str, *, need_contents: bool = True) -> SourceInfo | None:
+        source_info = self.sources.get(name, NOT_FOUND)
+        if source_info is NOT_FOUND:
+            self.sources[name] = source_info = self._get_source(
+                name, need_contents=need_contents
+            )
+        assert source_info is None or isinstance(source_info, SourceInfo)
+        if source_info and source_info.source is None and need_contents:
+            # We don't need to re-do the sys.path finding, but we should update
+            # the size and mtime to match the current source.
+            self.sources[name] = source_info = self._get_source_info(
+                name, source_info.prefix, source_info.relative_path, need_contents=True
+            )
         return source_info
 
-    def _get_source(self, name: str) -> SourceInfo | None:
+    def _get_source(self, name: str, *, need_contents: bool) -> SourceInfo | None:
         module_path = name.replace(".", os.sep)
 
         for path in self.import_path:
-            source_info = self._get_source_info(name, path, module_path + ".py")
+            source_info = self._get_source_info(
+                name, path, module_path + ".py", need_contents=need_contents
+            )
             if source_info is not None:
                 return source_info
 
             source_info = self._get_source_info(
-                name, path, module_path + os.sep + "__init__.py"
+                name,
+                path,
+                module_path + os.sep + "__init__.py",
+                need_contents=need_contents,
             )
             if source_info is not None:
                 return source_info
 
         for path in self.import_path:
-            source_info = self._get_source_info(name, path, module_path + ".pyi")
+            source_info = self._get_source_info(
+                name, path, module_path + ".pyi", need_contents=need_contents
+            )
             if source_info is not None:
                 return source_info
 
         return None
 
     def _get_source_info(
-        self, name: str, prefix: str, relpath: str
+        self, name: str, prefix: str, relpath: str, *, need_contents: bool
     ) -> SourceInfo | None:
         path = os.path.join(prefix, relpath)
         if not os.path.exists(path):
             return None
         st = os.stat(path)
-        with open(path, "rb") as f:
-            return SourceInfo(
-                name=name,
-                prefix=prefix,
-                relative_path=relpath,
-                path=path,
-                source=f.read(),
-                mtime=int(st.st_mtime),
-                size=st.st_size,
-            )
+        source = None
+        if need_contents:
+            with open(path, "rb") as f:
+                source = f.read()
+        return SourceInfo(
+            name=name,
+            prefix=prefix,
+            relative_path=relpath,
+            path=path,
+            source=source,
+            mtime=int(st.st_mtime),
+            size=st.st_size,
+        )
 
     def _strict_analyze(
         self,

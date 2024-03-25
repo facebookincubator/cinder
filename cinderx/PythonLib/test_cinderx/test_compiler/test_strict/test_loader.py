@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from importlib.machinery import SOURCE_SUFFIXES, SourceFileLoader
 from importlib.util import cache_from_source
 from os import path
+from py_compile import PycInvalidationMode
 from types import ModuleType
 from typing import (
     Callable,
@@ -299,18 +300,126 @@ class StrictLoaderTest(StrictTestBase):
         self.assertEqual(type(mod1), StrictModule)
         self.assertEqual(type(mod2), StrictModule)
 
-    def test_static_writes_no_pyc(self) -> None:
-        # Temporary workaround for T88560840, remove when we fix pyc invalidation
-        self.sbx.write_file("a.py", "import __static__\nx = 2")
-        self.sbx.strict_import("a")
-        pycs = list(self.sbx.root.rglob("*.pyc"))
+    def test_static_dependency_pyc_invalidation(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import C
+                def g():
+                    return C()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                def C():
+                    return 42
+            """,
+        )
+        with self.sbx.in_strict_module("a") as a1:
+            self.assertEqual(a1.g(), 42)
+            self.assertInBytecode(a1.g, "INVOKE_FUNCTION", (("a", "C"), 0))
+        # ensure pycs exist and we can import from them
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ), self.sbx.in_strict_module("a") as a2:
+            self.assertInBytecode(a2.g, "INVOKE_FUNCTION", (("a", "C"), 0))
+            self.assertEqual(a2.g(), 42)
+        # modify dependency, but not module a
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                class C:
+                    pass
+            """,
+        )
+        # if we use the previous bytecode for 'a', it will include an
+        # INVOKE_FUNCTION, which is no longer correct
+        with self.sbx.in_strict_module("a") as a3:
+            self.assertInBytecode(a3.g, "TP_ALLOC", ("b", "C", "!"))
+            self.assertIsInstance(a3.g(), a3.C)
 
-        self.assertEqual(len(pycs), 0, pycs)
+    def test_static_dependency_on_nonstatic_pyc_invalidation(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import f
+                def g():
+                    return f()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                def f():
+                    return 42
+            """,
+        )
+        with self.sbx.in_strict_module("a") as a1:
+            self.assertEqual(a1.g(), 42)
+            self.assertInBytecode(a1.g, "CALL_FUNCTION", 0)
+        # ensure pycs exist and we can import from them
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ), self.sbx.in_strict_module("a") as a2:
+            self.assertInBytecode(a2.g, "CALL_FUNCTION", 0)
+            self.assertEqual(a2.g(), 42)
+        # modify dependency, but not module a
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                def f():
+                    return 43
+            """,
+        )
+        # bytecode for 'a' should now have an INVOKE_FUNCTION
+        with self.sbx.in_strict_module("a") as a3:
+            self.assertInBytecode(a3.g, "INVOKE_FUNCTION", (("a", "f"), 0))
+            self.assertEqual(a3.g(), 43)
+
+    def test_static_dependency_deleted_pyc_invalidation(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                def g():
+                    from b import f
+                    return f()
+            """,
+        )
+        b_path = self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                def f():
+                    return 42
+            """,
+        )
+        with self.sbx.in_strict_module("a") as a1:
+            self.assertEqual(a1.g(), 42)
+            self.assertInBytecode(a1.g, "INVOKE_FUNCTION", (("b", "f"), 0))
+        # ensure pycs exist and we can import from them
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ), self.sbx.in_strict_module("a") as a2:
+            self.assertInBytecode(a2.g, "INVOKE_FUNCTION", (("b", "f"), 0))
+            self.assertEqual(a2.g(), 42)
+        b_path.unlink()
+        # bytecode for 'a' should now have CALL_FUNCTION instead
+        with self.sbx.in_strict_module("a") as a3:
+            self.assertInBytecode(a3.g, "CALL_FUNCTION", 0)
+            # will fail because module b is gone
+            with self.assertRaises(ModuleNotFoundError):
+                a3.g()
 
     def test_strict_compile(self) -> None:
-        self.sbx.write_file("a.py", "import __strict__\nx = 2")
-        fn = str(self.sbx.root / "a.py")
-        strict_compile(fn, cache_from_source(fn))
+        fn = self.sbx.write_file("a.py", "import __strict__\nx = 2")
+        strict_compile(str(fn), cache_from_source(fn))
 
         # patch source_to_code on the loader to ensure we are loading from pyc
         with patch.object(
@@ -319,6 +428,108 @@ class StrictLoaderTest(StrictTestBase):
             mod = self.sbx.strict_import("a")
 
         self.assertEqual(type(mod), StrictModule)
+
+    def test_hash_based_pyc_dependency_invalidation(self) -> None:
+        a_path = str(
+            self.sbx.write_file(
+                "a.py",
+                """
+                    import __static__
+                    from b import C
+                    def g():
+                        return C()
+                """,
+            )
+        )
+        b_path = str(
+            self.sbx.write_file(
+                "b.py",
+                """
+                    import __static__
+                    def C():
+                        return 42
+                """,
+            )
+        )
+        strict_compile(
+            b_path,
+            cache_from_source(b_path),
+            invalidation_mode=PycInvalidationMode.CHECKED_HASH,
+        )
+        strict_compile(
+            a_path,
+            cache_from_source(a_path),
+            invalidation_mode=PycInvalidationMode.CHECKED_HASH,
+        )
+        # ensure pycs exist and we can import from them
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ), self.sbx.in_strict_module("a") as a2:
+            self.assertInBytecode(a2.g, "INVOKE_FUNCTION", (("a", "C"), 0))
+            self.assertEqual(a2.g(), 42)
+        # modify dependency, but not module a
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                class C:
+                    pass
+            """,
+        )
+        with self.sbx.in_strict_module("a") as a3:
+            self.assertInBytecode(a3.g, "TP_ALLOC", ("b", "C", "!"))
+            self.assertIsInstance(a3.g(), a3.C)
+
+    def test_unchecked_hash_pyc_no_invalidate_dependency(self) -> None:
+        a_path = str(
+            self.sbx.write_file(
+                "a.py",
+                """
+                    import __static__
+                    from b import C
+                    def g():
+                        return C()
+                """,
+            )
+        )
+        b_path = str(
+            self.sbx.write_file(
+                "b.py",
+                """
+                    import __static__
+                    def C():
+                        return 42
+                """,
+            )
+        )
+        strict_compile(
+            b_path,
+            cache_from_source(b_path),
+            invalidation_mode=PycInvalidationMode.UNCHECKED_HASH,
+        )
+        strict_compile(
+            a_path,
+            cache_from_source(a_path),
+            invalidation_mode=PycInvalidationMode.UNCHECKED_HASH,
+        )
+        # ensure pycs exist and we can import from them
+        with patch.object(
+            StrictSourceFileLoader, "source_to_code", lambda *a, **kw: None
+        ), self.sbx.in_strict_module("a") as a2:
+            self.assertInBytecode(a2.g, "INVOKE_FUNCTION", (("a", "C"), 0))
+            self.assertEqual(a2.g(), 42)
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+                class C:
+                    pass
+            """,
+        )
+        # unchecked hash, so changes are not respected
+        with self.sbx.in_strict_module("a") as a3:
+            self.assertInBytecode(a3.g, "INVOKE_FUNCTION", (("a", "C"), 0))
+            self.assertEqual(a3.g(), 42)
 
     def test_cached_attr(self) -> None:
         """__cached__ attribute of a strict or non-strict module is correct."""
@@ -2324,8 +2535,8 @@ class StrictLoaderTest(StrictTestBase):
             cwd=str(self.sbx.root),
             capture_output=True,
         )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertIn(b"42", proc.stdout, proc.stdout)
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode())
+        self.assertIn(b"42", proc.stdout, proc.stdout.decode())
 
     def test_strict_loader_installation(self) -> None:
         self.sbx.write_file(
