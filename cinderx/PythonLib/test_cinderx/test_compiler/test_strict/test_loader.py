@@ -287,6 +287,38 @@ class StrictLoaderTest(StrictTestBase):
             with file_loader(STRICT_LOADER_ALWAYS_STRICT):
                 mod = self.sbx._import("a")
 
+    def test_package_over_module(self) -> None:
+        self.sbx.write_file(
+            "a.py",
+            """
+                import __static__
+                from b import g
+                def f() -> int:
+                    return g()
+            """,
+        )
+        self.sbx.write_file(
+            "b.py",
+            """
+                import __static__
+
+                def g() -> str:
+                    return "foo"
+            """,
+        )
+        self.sbx.write_file(
+            "b/__init__.py",
+            """
+                import __static__
+
+                def g() -> int:
+                    return 42
+            """,
+        )
+        with self.sbx.in_strict_module("a") as a:
+            self.assertInBytecode(a.f, "INVOKE_FUNCTION", (("a", "g"), 0))
+            self.assertEqual(a.f(), 42)
+
     def test_strict_second_import(self) -> None:
         """Second import of unmodified strict module (from pyc) is still strict."""
         self.sbx.write_file("a.py", "import __strict__\nx = 2")

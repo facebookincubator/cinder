@@ -288,16 +288,16 @@ class Compiler(StaticCompiler):
 
         for path in self.import_path:
             source_info = self._get_source_info(
-                name, path, module_path + ".py", need_contents=need_contents
+                name,
+                path,
+                module_path + os.sep + "__init__.py",
+                need_contents=need_contents,
             )
             if source_info is not None:
                 return source_info
 
             source_info = self._get_source_info(
-                name,
-                path,
-                module_path + os.sep + "__init__.py",
-                need_contents=need_contents,
+                name, path, module_path + ".py", need_contents=need_contents
             )
             if source_info is not None:
                 return source_info
