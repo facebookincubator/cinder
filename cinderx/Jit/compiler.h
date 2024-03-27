@@ -114,9 +114,28 @@ typedef std::function<
     void(hir::Function& func, const char* pass_name, std::size_t time_ns)>
     PostPassFunction;
 
+// Control what compiler passes are run.
 enum PassConfig : uint64_t {
-  kDefault = 0,
-  kEnableHIRInliner = 1 << 0,
+  // Only run compiler passes that are necessary for correctness, e.g. SSAify.
+  kMinimal = 0,
+
+  // Bits to toggle individual optimization passes.
+
+  kBeginInlinedFunctionElim = 1 << 0,
+  kBuiltinLoadMethodElim = 1 << 1,
+  kCleanCFG = 1 << 2,
+  kDeadCodeElim = 1 << 3,
+  kDynamicComparisonElim = 1 << 4,
+  kGuardTypeRemoval = 1 << 5,
+  kInliner = 1 << 6,
+  kPhiElim = 1 << 7,
+  kSimplify = 1 << 8,
+
+  // Run all the passes.
+  kAll = ~uint64_t{0},
+
+  // Run all the passes except for inlining.
+  kAllExceptInliner = kAll & ~kInliner,
 };
 
 // Compiler is the high-level interface for translating Python functions into

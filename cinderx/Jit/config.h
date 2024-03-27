@@ -18,6 +18,20 @@ enum class FrameMode : uint8_t {
   kShadow,
 };
 
+// List of HIR optimization passes to run.
+struct HIROptimizations {
+  bool begin_inlined_function_elim{true};
+  bool builtin_load_method_elim{true};
+  bool clean_cfg{true};
+  bool dead_code_elim{true};
+  bool dynamic_comparison_elim{true};
+  bool guard_type_removal{true};
+  // TODO(T156009029): Inliner should be on by default.
+  bool inliner{false};
+  bool phi_elim{true};
+  bool simplify{true};
+};
+
 struct Config {
   // Initialization state of the JIT.
   InitState init_state{InitState::kNotInitialized};
@@ -29,10 +43,10 @@ struct Config {
   FrameMode frame_mode{FrameMode::kNormal};
   bool allow_jit_list_wildcards{false};
   bool compile_all_static_functions{false};
-  bool hir_inliner_enabled{false};
   bool multiple_code_sections{false};
   bool multithreaded_compile_test{false};
   bool use_huge_pages{true};
+  HIROptimizations hir_opts;
   size_t batch_compile_workers{0};
   // Sizes (in bytes) of the hot and cold code sections. Only applicable if
   // multiple code sections are enabled.

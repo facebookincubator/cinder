@@ -33,7 +33,7 @@ class AllPasses : public Pass {
   AllPasses() : Pass("@AllPasses") {}
 
   void Run(Function& irfunc) override {
-    Compiler::runPasses(irfunc, PassConfig::kEnableHIRInliner);
+    Compiler::runPasses(irfunc, PassConfig::kAll);
   }
 
   static std::unique_ptr<AllPasses> Factory() {

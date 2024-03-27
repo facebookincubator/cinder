@@ -313,7 +313,7 @@ class DeoptStressTest : public RuntimeTest {
     std::unique_ptr<Function> irfunc(buildHIR(funcobj));
     ASSERT_NE(irfunc, nullptr);
     auto guards = insertDeopts(*irfunc);
-    jit::Compiler::runPasses(*irfunc, PassConfig::kDefault);
+    jit::Compiler::runPasses(*irfunc, PassConfig::kAllExceptInliner);
     auto delete_one_deopt = [&](const DeoptMetadata& deopt_meta) {
       auto it = guards.find(deopt_meta.nonce);
       JIT_CHECK(it != guards.end(), "No guard for nonce {}", deopt_meta.nonce);
@@ -741,7 +741,7 @@ def test(n):
   auto arg1 = Ref<>::steal(PyLong_FromLong(10));
   PyObject* args[] = {arg1};
   auto result = Ref<>::steal(PyLong_FromLong(11));
-  getMutableConfig().hir_inliner_enabled = true;
+  getMutableConfig().hir_opts.inliner = true;
   runTest(src, args, 1, result);
 }
 

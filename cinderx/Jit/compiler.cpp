@@ -55,8 +55,7 @@ struct PassTimer {
 };
 
 template <typename T>
-static void runPass(hir::Function& func, PostPassFunction callback) {
-  T pass;
+static void runPass(T&& pass, hir::Function& func, PostPassFunction callback) {
   COMPILE_TIMER(func.compilation_phase_timer,
                 pass.name(),
                 JIT_LOGIF(
@@ -103,23 +102,41 @@ void Compiler::runPasses(
     PassConfig config,
     PostPassFunction callback) {
   // SSAify must come first; nothing but SSAify should ever see non-SSA HIR.
-  runPass<jit::hir::SSAify>(irfunc, callback);
-  runPass<jit::hir::Simplify>(irfunc, callback);
-  runPass<jit::hir::DynamicComparisonElimination>(irfunc, callback);
-  runPass<jit::hir::GuardTypeRemoval>(irfunc, callback);
-  runPass<jit::hir::PhiElimination>(irfunc, callback);
-  if (config & PassConfig::kEnableHIRInliner) {
-    runPass<jit::hir::InlineFunctionCalls>(irfunc, callback);
-    runPass<jit::hir::Simplify>(irfunc, callback);
-    runPass<jit::hir::BeginInlinedFunctionElimination>(irfunc, callback);
+  runPass(jit::hir::SSAify{}, irfunc, callback);
+
+  // Written this way because it's hard to forward the P type variable down to
+  // runPass if it's not tied to one of the lambda's arguments.
+  auto runPassIf = [&]<typename P>(P&& pass, PassConfig bit) {
+    if (config & bit) {
+      runPass(pass, irfunc, callback);
+    }
+  };
+
+  runPassIf(hir::Simplify{}, PassConfig::kSimplify);
+  runPassIf(
+      hir::DynamicComparisonElimination{}, PassConfig::kDynamicComparisonElim);
+  runPassIf(hir::GuardTypeRemoval{}, PassConfig::kGuardTypeRemoval);
+  runPassIf(hir::PhiElimination{}, PassConfig::kPhiElim);
+
+  if (config & PassConfig::kInliner) {
+    runPass(jit::hir::InlineFunctionCalls{}, irfunc, callback);
+
+    runPassIf(hir::Simplify{}, PassConfig::kSimplify);
+    runPassIf(
+        hir::BeginInlinedFunctionElimination{},
+        PassConfig::kBeginInlinedFunctionElim);
   }
-  runPass<jit::hir::BuiltinLoadMethodElimination>(irfunc, callback);
-  runPass<jit::hir::Simplify>(irfunc, callback);
-  runPass<jit::hir::CleanCFG>(irfunc, callback);
-  runPass<jit::hir::DeadCodeElimination>(irfunc, callback);
-  runPass<jit::hir::CleanCFG>(irfunc, callback);
-  // RefcountInsertion must come last
-  runPass<jit::hir::RefcountInsertion>(irfunc, callback);
+
+  runPassIf(
+      hir::BuiltinLoadMethodElimination{}, PassConfig::kBuiltinLoadMethodElim);
+  runPassIf(hir::Simplify{}, PassConfig::kSimplify);
+  runPassIf(hir::CleanCFG{}, PassConfig::kCleanCFG);
+  runPassIf(hir::DeadCodeElimination{}, PassConfig::kDeadCodeElim);
+  runPassIf(hir::CleanCFG{}, PassConfig::kCleanCFG);
+
+  // RefcountInsertion must come last.
+  runPass(jit::hir::RefcountInsertion{}, irfunc, callback);
+
   JIT_LOGIF(
       g_dump_final_hir, "Optimized HIR for {}:\n{}", irfunc.fullname, irfunc);
 }
@@ -136,11 +153,26 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
 }
 
 PassConfig createConfig() {
-  PassConfig result{PassConfig::kDefault};
-  if (getConfig().hir_inliner_enabled) {
-    result = static_cast<PassConfig>(result | PassConfig::kEnableHIRInliner);
-  }
-  return result;
+  auto result = static_cast<uint64_t>(PassConfig::kMinimal);
+
+  auto set = [&](bool global, PassConfig pass) {
+    if (global) {
+      result |= pass;
+    }
+  };
+
+  auto const& hir_opts = getConfig().hir_opts;
+  set(hir_opts.begin_inlined_function_elim,
+      PassConfig::kBeginInlinedFunctionElim);
+  set(hir_opts.builtin_load_method_elim, PassConfig::kBuiltinLoadMethodElim);
+  set(hir_opts.clean_cfg, PassConfig::kCleanCFG);
+  set(hir_opts.dynamic_comparison_elim, PassConfig::kDynamicComparisonElim);
+  set(hir_opts.guard_type_removal, PassConfig::kGuardTypeRemoval);
+  set(hir_opts.inliner, PassConfig::kInliner);
+  set(hir_opts.phi_elim, PassConfig::kPhiElim);
+  set(hir_opts.simplify, PassConfig::kSimplify);
+
+  return static_cast<PassConfig>(result);
 }
 
 std::unique_ptr<CompiledFunction> Compiler::Compile(

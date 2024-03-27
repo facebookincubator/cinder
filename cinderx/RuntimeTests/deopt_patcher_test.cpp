@@ -83,7 +83,7 @@ def func():
   patchpoint->InsertBefore(*term);
 
   // Generate machine code and link the patcher
-  jit::Compiler::runPasses(*irfunc, jit::PassConfig::kDefault);
+  jit::Compiler::runPasses(*irfunc, jit::PassConfig::kAllExceptInliner);
   jit::codegen::NativeGenerator ngen(irfunc.get());
   auto jitfunc = generateCode(ngen);
   ASSERT_NE(jitfunc, nullptr);

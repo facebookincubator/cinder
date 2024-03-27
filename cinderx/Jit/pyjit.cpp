@@ -544,6 +544,58 @@ void initFlagProcessor() {
         },
         "enable shadow frame mode");
 
+    // HIR optimizations.
+
+#define HIR_OPTIMIZATION_OPTION(NAME, OPT, CLI, ENV) \
+  xarg_flag_processor.addOption(                     \
+      (CLI),                                         \
+      (ENV),                                         \
+      [](int val) {                                  \
+        if (use_jit) {                               \
+          getMutableConfig().hir_opts.OPT = !!val;   \
+        } else {                                     \
+          warnJITOff(CLI);                           \
+        }                                            \
+      },                                             \
+      "Enable the HIR " NAME " optimization pass")
+
+    HIR_OPTIMIZATION_OPTION(
+        "BeginInlinedFunction elimination",
+        begin_inlined_function_elim,
+        "jit-begin-inlined-function-elim",
+        "PYTHONJITBEGININLINEDFUNCTIONELIM");
+    HIR_OPTIMIZATION_OPTION(
+        "builtin LoadMethod elimination",
+        builtin_load_method_elim,
+        "jit-builtin-load-method-elim",
+        "PYTHONJITBUILTINLOADMETHODELIM");
+    HIR_OPTIMIZATION_OPTION(
+        "CFG cleaning", clean_cfg, "jit-clean-cfg", "PYTHONJITCLEANCFG");
+    HIR_OPTIMIZATION_OPTION(
+        "dead code elimination",
+        dead_code_elim,
+        "jit-dead-code-elim",
+        "PYTHONJITDEADCODEELIM");
+    HIR_OPTIMIZATION_OPTION(
+        "dynamic comparison elimination",
+        dynamic_comparison_elim,
+        "jit-dynamic-comparison-elim",
+        "PYTHONJITDYNAMICCOMPARISIONELIM");
+    HIR_OPTIMIZATION_OPTION(
+        "guard type removal",
+        guard_type_removal,
+        "jit-guard-type-removal",
+        "PYTHONJITGUARDTYPEREMOVAL");
+    HIR_OPTIMIZATION_OPTION(
+        "inliner",
+        inliner,
+        "jit-enable-hir-inliner",
+        "PYTHONJITENABLEHIRINLINER");
+    HIR_OPTIMIZATION_OPTION(
+        "phi elimination", phi_elim, "jit-phi-elim", "PYTHONJITPHIELIM");
+    HIR_OPTIMIZATION_OPTION(
+        "simplify", simplify, "jit-simplify", "PYTHONJITSIMPLIFY");
+
     xarg_flag_processor
         .addOption(
             "jit-batch-compile-workers",
@@ -591,18 +643,6 @@ void initFlagProcessor() {
         .withFlagParamName("function_list")
         .withDebugMessageOverride(
             "Will capture time taken in compilation phases and output summary");
-
-    xarg_flag_processor.addOption(
-        "jit-enable-hir-inliner",
-        "PYTHONJITENABLEHIRINLINER",
-        [](int val) {
-          if (use_jit && val) {
-            getMutableConfig().hir_inliner_enabled = true;
-          } else {
-            warnJITOff("jit-enable-hir-inliner");
-          }
-        },
-        "Enable the JIT's HIR inliner");
 
     xarg_flag_processor.addOption(
         "jit-dump-hir-passes-json",
@@ -1434,7 +1474,7 @@ static PyObject* get_allocator_stats(PyObject*, PyObject*) {
 }
 
 static PyObject* is_hir_inliner_enabled(PyObject* /* self */, PyObject*) {
-  if (getConfig().hir_inliner_enabled) {
+  if (getConfig().hir_opts.inliner) {
     Py_RETURN_TRUE;
   }
   Py_RETURN_FALSE;
@@ -1450,12 +1490,12 @@ static PyObject* is_inline_cache_stats_collection_enabled(
 }
 
 static PyObject* enable_hir_inliner(PyObject* /* self */, PyObject*) {
-  getMutableConfig().hir_inliner_enabled = true;
+  getMutableConfig().hir_opts.inliner = true;
   Py_RETURN_NONE;
 }
 
 static PyObject* disable_hir_inliner(PyObject* /* self */, PyObject*) {
-  getMutableConfig().hir_inliner_enabled = false;
+  getMutableConfig().hir_opts.inliner = false;
   Py_RETURN_NONE;
 }
 
