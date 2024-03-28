@@ -544,6 +544,20 @@ void initFlagProcessor() {
         },
         "enable shadow frame mode");
 
+    xarg_flag_processor.addOption(
+        "jit-stable-globals",
+        "PYTHONJITSTABLEGLOBALS",
+        [](int val) {
+          if (use_jit) {
+            getMutableConfig().stable_globals = !!val;
+          } else {
+            warnJITOff("jit-stable-globals");
+          }
+        },
+        "Assume that globals and builtins dictionaries will remain stable "
+        "across function calls. Enables guarding on and caching global "
+        "values.");
+
     // HIR optimizations.
 
 #define HIR_OPTIMIZATION_OPTION(NAME, OPT, CLI, ENV) \

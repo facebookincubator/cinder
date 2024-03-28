@@ -1661,6 +1661,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadGlobalCached: {
+        JIT_DCHECK(
+            getConfig().stable_globals,
+            "Can only use LoadGlobalCached when globals dictionaries are "
+            "stable across function calls");
         ThreadedCompileSerialize guard;
         auto instr = static_cast<const LoadGlobalCached*>(&i);
         PyObject* globals = instr->globals();
@@ -1678,6 +1682,14 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
       case Opcode::kLoadGlobal: {
         auto instr = static_cast<const LoadGlobal*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
+        if (!getConfig().stable_globals) {
+          bbb.appendCallInstruction(
+              instr->GetOutput(),
+              JITRT_LoadGlobalFromThreadState,
+              env_->asm_tstate,
+              name);
+          break;
+        }
         PyObject* builtins = instr->frameState()->builtins;
         env_->code_rt->addReference(builtins);
         PyObject* globals = instr->frameState()->globals;
@@ -2359,8 +2371,24 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         auto instr = static_cast<const MakeFunction*>(&i);
         auto qualname = instr->GetOperand(0);
         auto code = instr->GetOperand(1);
-        PyObject* globals = instr->frameState()->globals;
-        env_->code_rt->addReference(globals);
+
+        Instruction* globals;
+        if (getConfig().stable_globals) {
+          BorrowedRef<> obj = instr->frameState()->globals;
+          env_->code_rt->addReference(obj);
+          globals = bbb.appendInstr(
+              OutVReg{},
+              Instruction::kMove,
+              // TODO(T140174965): This should be MemImm.
+              Imm{reinterpret_cast<uint64_t>(obj.get()), OperandBase::kObject});
+        } else {
+          globals = bbb.appendInstr(
+              OutVReg{},
+              Instruction::kCall,
+              // TODO(T140174965): This should be MemImm.
+              Imm{reinterpret_cast<uint64_t>(JITRT_LoadGlobalsDict)},
+              env_->asm_tstate);
+        }
 
         bbb.appendCallInstruction(
             instr->GetOutput(),

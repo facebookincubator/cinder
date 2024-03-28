@@ -118,6 +118,18 @@ PyObject*
 JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name);
 
 /*
+ * Load a global value given a Python thread state.
+ */
+PyObject* JITRT_LoadGlobalFromThreadState(
+    PyThreadState* tstate,
+    PyObject* name);
+
+/*
+ * Load the globals dict from a Python thread state.
+ */
+PyObject* JITRT_LoadGlobalsDict(PyThreadState* tstate);
+
+/*
  * Perform a positional-only function call
  *
  * args[0] is expected to point to the callable and args[1] through args[nargs -

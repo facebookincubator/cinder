@@ -600,6 +600,18 @@ JITRT_LoadGlobal(PyObject* globals, PyObject* builtins, PyObject* name) {
   return result;
 }
 
+PyObject* JITRT_LoadGlobalFromThreadState(
+    PyThreadState* tstate,
+    PyObject* name) {
+  jit::RuntimeFrameState rtfs = jit::runtimeFrameStateFromThreadState(tstate);
+  return JITRT_LoadGlobal(rtfs.globals(), rtfs.builtins(), name);
+}
+
+PyObject* JITRT_LoadGlobalsDict(PyThreadState* tstate) {
+  jit::RuntimeFrameState rtfs = jit::runtimeFrameStateFromThreadState(tstate);
+  return rtfs.globals();
+}
+
 template <bool is_awaited>
 static inline PyObject*
 call_function(PyObject* func, PyObject** args, Py_ssize_t nargs) {

@@ -2805,6 +2805,9 @@ void HIRBuilder::emitLoadGlobal(
   Register* result = temps_.AllocateStack();
 
   auto try_fast_path = [&] {
+    if (!getConfig().stable_globals) {
+      return false;
+    }
     BorrowedRef<> value = preloader_.global(name_idx);
     if (value == nullptr) {
       return false;
