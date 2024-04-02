@@ -111,7 +111,7 @@ class StaticPatternContext(PatternContext):
         return pc
 
 
-class PyFlowGraph38Static(PyFlowGraphCinder):
+class PyFlowGraph310Static(PyFlowGraphCinder):
     opcode: Opcode = opcode_static.opcode
 
 
@@ -127,7 +127,7 @@ class InitSubClassGenerator:
 
 
 class Static310CodeGenerator(StrictCodeGenerator):
-    flow_graph = PyFlowGraph38Static
+    flow_graph = PyFlowGraph310Static
     _default_cache: Dict[Type[ast.AST], typingCallable[[...], None]] = {}
     pattern_context = StaticPatternContext
 
