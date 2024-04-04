@@ -3759,8 +3759,9 @@ classloader_init_slot(PyObject *path)
     PyObject *new_index = PyDict_GetItem(slot_map, slot_name);
     if (new_index == NULL) {
         PyErr_Format(
-            PyExc_RuntimeError, "unable to resolve v-table slot '%R' in %s",
-                slot_name, target_type->tp_name);
+            PyExc_RuntimeError, "unable to resolve v-table slot %R in %s for %s (%R) is_static: %s used: %s",
+                slot_name, target_type->tp_name, Py_TYPE(cur)->tp_name, cur, 
+                is_static_type(target_type) ? "true" : "false", used_in_vtable(cur) ? "true" : "false");
         Py_DECREF(target_type);
         Py_DECREF(cur);
         return -1;
