@@ -227,8 +227,8 @@ struct CacheStats {
 class LoadMethodCache {
  public:
   struct Entry {
-    BorrowedRef<PyTypeObject> type{nullptr};
-    BorrowedRef<> value{nullptr};
+    BorrowedRef<PyTypeObject> type;
+    BorrowedRef<> value;
   };
 
   ~LoadMethodCache();
@@ -289,7 +289,7 @@ class LoadTypeMethodCache {
  private:
   void
   fill(BorrowedRef<PyTypeObject> type, BorrowedRef<> value, bool is_bound_meth);
-  void reset();
+
   std::unique_ptr<CacheStats> cache_stats_;
 };
 
