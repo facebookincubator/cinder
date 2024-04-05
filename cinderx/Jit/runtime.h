@@ -26,73 +26,7 @@
 
 namespace jit {
 
-class GenYieldPoint;
 class TypeDeoptPatcher;
-
-// In a regular JIT function spill-data is stored at negative offsets from RBP
-// and RBP points into the system stack. In JIT generators spilled data is still
-// stored backwards from RBP, but RBP points to a heap allocated block and this
-// persists when the generator is suspended.
-//
-// While the content of spill data is arbitrary depending on the function, we
-// also have a few items of data about the current generator we want to access
-// quickly. We can do this via positive offsets from RBP into the
-// GenDataFooter struct defined below.
-//
-// Together the spill data and GenDataFooter make up the complete JIT-specific
-// data needed for a generator. PyGenObject::gi_jit_data points above the _top_
-// of the spill data (i.e. at the start of the footer). This allows us to
-// easily set RBP to the pointer value on generator resume.
-//
-// The base address of the complete heap allocated suspend data is:
-//   PyGenObject::gi_jit_data - GenDataFooter::spillWords
-typedef struct _GenDataFooter {
-  // Tools which examine/walk the stack expect the following two values to be
-  // ahead of RBP.
-  uint64_t linkAddress;
-  uint64_t returnAddress;
-
-  // RBP that was swapped out to point to this spill-data.
-  uint64_t originalRbp;
-
-  // Static data specific to the current yield point. Only non-null when we are
-  // suspended.
-  GenYieldPoint* yieldPoint;
-
-  // Current overall state of the JIT.
-  CiJITGenState state;
-
-  // Allocated space before this struct in 64-bit words.
-  size_t spillWords;
-
-  // Entry-point to resume a JIT generator.
-  GenResumeFunc resumeEntry;
-
-  // Associated generator object
-  PyGenObject* gen;
-
-  // JIT metadata for associated code object
-  CodeRuntime* code_rt{nullptr};
-} GenDataFooter;
-
-// These fields need to be at a fixed offset so they can be quickly accessed
-// from C code.
-static_assert(
-    offsetof(GenDataFooter, state) == Ci_GEN_JIT_DATA_OFFSET_STATE,
-    "Byte offset for state shifted");
-static_assert(
-    offsetof(GenDataFooter, yieldPoint) == Ci_GEN_JIT_DATA_OFFSET_YIELD_POINT,
-    "Byte offset for yieldPoint shifted");
-
-// The number of words for pre-allocated blocks in the generator suspend data
-// free-list. I chose this based on it covering 99% of the JIT generator
-// spill-sizes needed when running 'make testcinder_jit' at the time I collected
-// this data. For reference:
-//   99.9% coverage came at 256 spill size
-//   99.99% was at 1552
-//   max was 4999
-// There were about ~15k JIT generators in total during the run.
-const size_t kMinGenSpillWords = 89;
 
 class GenYieldPoint {
  public:
@@ -116,9 +50,13 @@ class GenYieldPoint {
     return deopt_idx_;
   }
 
-  int visitRefs(PyGenObject* gen, visitproc visit, void* arg) const;
-  void releaseRefs(PyGenObject* gen) const;
-  PyObject* yieldFromValue(GenDataFooter* gen_footer) const;
+  bool isYieldFrom() const {
+    return isYieldFrom_;
+  }
+
+  ptrdiff_t yieldFromOffset() const {
+    return yieldFromOffs_;
+  }
 
   static constexpr int resumeTargetOffset() {
     return offsetof(GenYieldPoint, resume_target_);
@@ -261,6 +199,85 @@ class alignas(16) CodeRuntime {
 
   DebugInfo debug_info_;
 };
+
+// In a regular JIT function spill-data is stored at negative offsets from RBP
+// and RBP points into the system stack. In JIT generators spilled data is still
+// stored backwards from RBP, but RBP points to a heap allocated block and this
+// persists when the generator is suspended.
+//
+// While the content of spill data is arbitrary depending on the function, we
+// also have a few items of data about the current generator we want to access
+// quickly. We can do this via positive offsets from RBP into the
+// GenDataFooter struct defined below.
+//
+// Together the spill data and GenDataFooter make up the complete JIT-specific
+// data needed for a generator. PyGenObject::gi_jit_data points above the _top_
+// of the spill data (i.e. at the start of the footer). This allows us to
+// easily set RBP to the pointer value on generator resume.
+//
+// The base address of the complete heap allocated suspend data is:
+//   PyGenObject::gi_jit_data - GenDataFooter::spillWords
+struct GenDataFooter {
+  // Tools which examine/walk the stack expect the following two values to be
+  // ahead of RBP.
+  uint64_t linkAddress;
+  uint64_t returnAddress;
+
+  // RBP that was swapped out to point to this spill-data.
+  uint64_t originalRbp;
+
+  // Static data specific to the current yield point. Only non-null when we are
+  // suspended.
+  GenYieldPoint* yieldPoint;
+
+  // Current overall state of the JIT.
+  CiJITGenState state;
+
+  // Allocated space before this struct in 64-bit words.
+  size_t spillWords;
+
+  // Entry-point to resume a JIT generator.
+  GenResumeFunc resumeEntry;
+
+  // Associated generator object
+  PyGenObject* gen;
+
+  // JIT metadata for associated code object
+  CodeRuntime* code_rt{nullptr};
+};
+
+inline GenDataFooter* genDataFooter(PyGenObject* gen) {
+  return reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+}
+
+inline PyObject* yieldFromValue(
+    GenDataFooter* gen_footer,
+    const GenYieldPoint* yield_point) {
+  return yield_point->isYieldFrom()
+      ? reinterpret_cast<PyObject*>(
+            *(reinterpret_cast<uint64_t*>(gen_footer) +
+              yield_point->yieldFromOffset()))
+      : nullptr;
+}
+
+// These fields need to be at a fixed offset so they can be quickly accessed
+// from C code.
+static_assert(
+    offsetof(GenDataFooter, state) == Ci_GEN_JIT_DATA_OFFSET_STATE,
+    "Byte offset for state shifted");
+static_assert(
+    offsetof(GenDataFooter, yieldPoint) == Ci_GEN_JIT_DATA_OFFSET_YIELD_POINT,
+    "Byte offset for yieldPoint shifted");
+
+// The number of words for pre-allocated blocks in the generator suspend data
+// free-list. I chose this based on it covering 99% of the JIT generator
+// spill-sizes needed when running 'make testcinder_jit' at the time I collected
+// this data. For reference:
+//   99.9% coverage came at 256 spill size
+//   99.99% was at 1552
+//   max was 4999
+// There were about ~15k JIT generators in total during the run.
+constexpr size_t kMinGenSpillWords = 89;
 
 // Information about the runtime behavior of a single deopt point: how often
 // it's been hit, and the frequency of guilty types, if applicable.
@@ -444,6 +461,27 @@ class Runtime {
   void notifyTypeModified(
       BorrowedRef<PyTypeObject> lookup_type,
       BorrowedRef<PyTypeObject> new_type);
+
+  template <typename F>
+  REQUIRES_CALLABLE(F, int, PyObject*)
+  int forEachOwnedRef(PyGenObject* gen, std::size_t deopt_idx, F func) {
+    const DeoptMetadata& meta = getDeoptMetadata(deopt_idx);
+    auto base = reinterpret_cast<char*>(genDataFooter(gen));
+    for (const LiveValue& value : meta.live_values) {
+      if (value.ref_kind != hir::RefKind::kOwned) {
+        continue;
+      }
+      codegen::PhyLocation loc = value.location;
+      JIT_CHECK(
+          !loc.is_register(),
+          "DeoptMetadata for Yields should not reference registers");
+      int ret = func(*reinterpret_cast<PyObject**>(base + loc.loc));
+      if (ret != 0) {
+        return ret;
+      }
+    }
+    return 0;
+  }
 
  private:
   static Runtime* s_runtime_;

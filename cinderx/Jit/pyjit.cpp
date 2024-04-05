@@ -1516,7 +1516,7 @@ static PyObject* disable_hir_inliner(PyObject* /* self */, PyObject*) {
 // If the given generator-like object is a suspended JIT generator, deopt it
 // and return 1. Otherwise, return 0.
 static int deopt_gen_impl(PyGenObject* gen) {
-  auto footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  GenDataFooter* footer = genDataFooter(gen);
   if (Ci_GenIsCompleted(gen) || footer == nullptr) {
     return 0;
   }
@@ -2350,7 +2350,7 @@ PyObject* _PyJIT_GenSend(
     PyFrameObject* f,
     PyThreadState* tstate,
     int finish_yield_from) {
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  GenDataFooter* gen_footer = genDataFooter(gen);
 
   // state should be valid and the generator should not be completed
   JIT_DCHECK(
@@ -2407,33 +2407,43 @@ PyFrameObject* _PyJIT_GenMaterializeFrame(PyGenObject* gen) {
 }
 
 int _PyJIT_GenVisitRefs(PyGenObject* gen, visitproc visit, void* arg) {
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  GenDataFooter* gen_footer = genDataFooter(gen);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
-    return reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)
-        ->visitRefs(gen, visit, arg);
+  const GenYieldPoint* yield_point = gen_footer->yieldPoint;
+  if (gen_footer->state != Ci_JITGenState_Completed && yield_point) {
+    size_t deopt_idx = yield_point->deoptIdx();
+    return Runtime::get()->forEachOwnedRef(gen, deopt_idx, [&](PyObject* v) {
+      Py_VISIT(v);
+      return 0;
+    });
   }
   return 0;
 }
 
 void _PyJIT_GenDealloc(PyGenObject* gen) {
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  GenDataFooter* gen_footer = genDataFooter(gen);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
-    reinterpret_cast<GenYieldPoint*>(gen_footer->yieldPoint)->releaseRefs(gen);
+  const GenYieldPoint* yield_point = gen_footer->yieldPoint;
+  if (gen_footer->state != Ci_JITGenState_Completed && yield_point) {
+    size_t deopt_idx = yield_point->deoptIdx();
+    Runtime::get()->forEachOwnedRef(gen, deopt_idx, [](PyObject* v) {
+      Py_DECREF(v);
+      return 0;
+    });
   }
   JITRT_GenJitDataFree(gen);
 }
 
 PyObject* _PyJIT_GenYieldFromValue(PyGenObject* gen) {
-  auto gen_footer = reinterpret_cast<GenDataFooter*>(gen->gi_jit_data);
+  GenDataFooter* gen_footer = genDataFooter(gen);
   JIT_DCHECK(gen_footer, "Generator missing JIT data");
-  PyObject* yf = nullptr;
-  if (gen_footer->state != Ci_JITGenState_Completed && gen_footer->yieldPoint) {
-    yf = gen_footer->yieldPoint->yieldFromValue(gen_footer);
-    Py_XINCREF(yf);
+  const GenYieldPoint* yield_point = gen_footer->yieldPoint;
+  PyObject* yield_from = nullptr;
+  if (gen_footer->state != Ci_JITGenState_Completed && yield_point) {
+    yield_from = yieldFromValue(gen_footer, yield_point);
+    Py_XINCREF(yield_from);
   }
-  return yf;
+  return yield_from;
 }
 
 PyObject* _PyJIT_GetGlobals(PyThreadState* tstate) {

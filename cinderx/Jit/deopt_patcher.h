@@ -6,8 +6,6 @@
 
 namespace jit {
 
-class CodeRuntime;
-
 // A DeoptPatcher is used by the runtime to invalidate compiled code when an
 // invariant that the compiled code relies on is invalidated. It is intended
 // to be used in conjuction with the DeoptPatchpoint HIR instruction.
