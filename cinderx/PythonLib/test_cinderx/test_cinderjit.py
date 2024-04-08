@@ -997,7 +997,8 @@ class LoadModuleMethodCacheTests(unittest.TestCase):
         cinderjit.force_compile(tmp_b.test)
         self.assertTrue(cinderjit.is_jit_compiled(tmp_b.test))
         self.assertTrue(
-            "LoadModuleMethodCached" in cinderjit.get_function_hir_opcode_counts(tmp_b.test)
+            "LoadModuleMethodCached"
+            in cinderjit.get_function_hir_opcode_counts(tmp_b.test)
         )
         # prime the cache
         self.assertEqual(tmp_b.test(), 3)

@@ -2197,7 +2197,6 @@ void HIRBuilder::emitLoadMethod(
     Environment& env,
     const jit::BytecodeInstruction& bc_instr) {
   Register* receiver = tc.frame.stack.pop();
-  env.allocateLoadMethodCache();
   Register* result = temps_.AllocateStack();
   Register* method_instance = temps_.AllocateStack();
   tc.emit<LoadMethodCached>(result, receiver, bc_instr.oparg(), tc.frame);

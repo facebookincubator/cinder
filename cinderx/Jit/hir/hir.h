@@ -4036,14 +4036,6 @@ class Environment {
     return next_load_type_attr_cache_;
   }
 
-  int allocateLoadMethodCache() {
-    return next_load_method_cache_++;
-  }
-
-  int numLoadMethodCaches() const {
-    return next_load_method_cache_;
-  }
-
   int allocateLoadTypeMethodCache() {
     return next_load_type_method_cache_++;
   }
@@ -4059,7 +4051,6 @@ class Environment {
   ReferenceSet references_;
   int next_register_id_{0};
   int next_load_type_attr_cache_{0};
-  int next_load_method_cache_{0};
   int next_load_type_method_cache_{0};
 };
 
