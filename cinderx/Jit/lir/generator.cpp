@@ -1698,8 +1698,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->GetOutput(), JITRT_LoadGlobal, globals, builtins, name);
         break;
       }
-      case Opcode::kStoreAttr: {
-        auto instr = static_cast<const StoreAttr*>(&i);
+      case Opcode::kStoreAttrCached: {
+        auto instr = static_cast<const StoreAttrCached*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),

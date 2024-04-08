@@ -134,7 +134,7 @@ namespace jit::hir {
   V(Snapshot)                          \
   V(StealCellItem)                     \
   V(StoreArrayItem)                    \
-  V(StoreAttr)                         \
+  V(StoreAttrCached)                   \
   V(StoreField)                        \
   V(StoreSubscr)                       \
   V(TpAlloc)                           \

@@ -634,7 +634,7 @@ fun jittestmodule:test {
   bb 0 {
     v4:Object = LoadArg<0; "x">
     v5:Object = LoadArg<1; "val">
-    v8:NoneType = StoreAttr<0; "foo"> v4 v5 {
+    v8:NoneType = StoreAttrCached<0; "foo"> v4 v5 {
       LiveValues<2> b:v4 b:v5
       FrameState {
         NextInstrOffset 6

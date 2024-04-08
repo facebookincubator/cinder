@@ -146,7 +146,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kSetUpdate:
     case Opcode::kStealCellItem:
     case Opcode::kStoreArrayItem:
-    case Opcode::kStoreAttr:
+    case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
     case Opcode::kTpAlloc:
     case Opcode::kUnaryOp:

@@ -162,7 +162,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kSetUpdate:
-    case Opcode::kStoreAttr:
+    case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
       return {true, AEmpty, {}, AManagedHeapAny};
 

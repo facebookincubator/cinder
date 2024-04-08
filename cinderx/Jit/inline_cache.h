@@ -132,7 +132,7 @@ struct AttributeCacheSizeTrait {
   }
 };
 
-// A cache for an individual StoreAttr instruction.
+// A cache for an individual StoreAttrCached instruction.
 //
 // The logic of StoreAttrCache::invoke is equivalent to PyObject_SetAttr,
 // however, it can be specialized and accelerated depending on the kinds of

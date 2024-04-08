@@ -383,13 +383,13 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
         /*builtins=*/nullptr,
         /*globals=*/nullptr,
         name_idx);
-  } else if (opcode == "StoreAttr") {
+  } else if (opcode == "StoreAttrCached") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
     auto value = ParseRegister();
-    instruction = newInstr<StoreAttr>(dst, receiver, value, idx);
+    instruction = newInstr<StoreAttrCached>(dst, receiver, value, idx);
   } else if (opcode == "GetLength") {
     auto container = ParseRegister();
     NEW_INSTR(GetLength, dst, container, FrameState{});

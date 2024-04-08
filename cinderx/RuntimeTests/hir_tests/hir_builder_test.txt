@@ -533,7 +533,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v2 = StoreAttr<0; "foo"> v0 v1 {
+    v2 = StoreAttrCached<0; "foo"> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
@@ -677,7 +677,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v8 = StoreAttr<0; "input"> v0 v1 {
+    v8 = StoreAttrCached<0; "input"> v0 v1 {
       FrameState {
         NextInstrOffset 16
         Locals<3> v0 v1 v2
@@ -692,7 +692,7 @@ fun jittestmodule:test {
         Stack<1> v9
       }
     }
-    v10 = StoreAttr<1; "packet_pending"> v0 v9 {
+    v10 = StoreAttrCached<1; "packet_pending"> v0 v9 {
       FrameState {
         NextInstrOffset 22
         Locals<3> v0 v1 v2

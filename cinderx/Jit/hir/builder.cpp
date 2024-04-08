@@ -3046,7 +3046,7 @@ void HIRBuilder::emitStoreAttr(
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<StoreAttr>(result, receiver, value, bc_instr.oparg(), tc.frame);
+  tc.emit<StoreAttrCached>(result, receiver, value, bc_instr.oparg(), tc.frame);
 }
 
 void HIRBuilder::moveOverwrittenStackRegisters(

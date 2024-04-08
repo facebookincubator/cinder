@@ -593,7 +593,7 @@ def test(x, y):
         Stack<1> v1
       }
     }
-    v2 = StoreAttr<0; "foo"> v0 v1 {
+    v2 = StoreAttrCached<0; "foo"> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1

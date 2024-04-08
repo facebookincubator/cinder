@@ -2445,11 +2445,11 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>,
     DeoptBaseWithNameIdx);
 
-// Set the attribute of an object
+// Set the attribute of an object, using an inline cache.
 //
 // Places NULL in dst if an error occurred or a non-NULL value otherwise
 DEFINE_SIMPLE_INSTR(
-    StoreAttr,
+    StoreAttrCached,
     (TObject, TObject),
     HasOutput,
     Operands<2>,

@@ -261,7 +261,7 @@ bool Instr::isReplayable() const {
     case Opcode::kStoreField:
     case Opcode::kSnapshot:
     case Opcode::kStoreArrayItem:
-    case Opcode::kStoreAttr:
+    case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
     case Opcode::kTpAlloc:
     case Opcode::kUnaryOp:

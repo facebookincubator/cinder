@@ -55,8 +55,8 @@ struct Config {
   // multiple code sections are enabled.
   size_t cold_code_section_size{0};
   size_t hot_code_section_size{0};
-  // Size (in number of entries) of the LoadAttrCached and StoreAttr inline
-  // caches used by the JIT.
+  // Size (in number of entries) of the LoadAttrCached and StoreAttrCached
+  // inline caches used by the JIT.
   uint32_t attr_cache_size{1};
   uint32_t auto_jit_threshold{0};
   uint32_t auto_jit_profile_threshold{0};
