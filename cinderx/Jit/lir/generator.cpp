@@ -1277,8 +1277,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->receiver());
         break;
       }
-      case Opcode::kLoadMethod: {
-        auto instr = static_cast<const LoadMethod*>(&i);
+      case Opcode::kLoadMethodCached: {
+        auto instr = static_cast<const LoadMethodCached*>(&i);
 
         PyCodeObject* code = instr->frameState()->code;
         Instruction* name = getNameFromIdx(bbb, instr);
@@ -1297,8 +1297,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
 
         break;
       }
-      case Opcode::kLoadModuleMethod: {
-        auto instr = static_cast<const LoadModuleMethod*>(&i);
+      case Opcode::kLoadModuleMethodCached: {
+        auto instr = static_cast<const LoadModuleMethodCached*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = Runtime::get()->allocateLoadModuleMethodCache();
         bbb.appendCallInstruction(

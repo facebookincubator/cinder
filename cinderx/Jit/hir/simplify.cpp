@@ -497,14 +497,18 @@ Register* simplifyLoadVarObjectSize(Env& env, const LoadVarObjectSize* instr) {
   return nullptr;
 }
 
-Register* simplifyLoadModuleMethod(Env& env, const LoadMethod* load_meth) {
+Register* simplifyLoadModuleMethodCached(
+    Env& env,
+    const LoadMethodCached* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
   int name_idx = load_meth->name_idx();
-  return env.emit<LoadModuleMethod>(
+  return env.emit<LoadModuleMethodCached>(
       receiver, name_idx, *load_meth->frameState());
 }
 
-Register* simplifyLoadTypeMethod(Env& env, const LoadMethod* load_meth) {
+Register* simplifyLoadTypeMethodCached(
+    Env& env,
+    const LoadMethodCached* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
   const int cache_id = env.func.env.allocateLoadTypeMethodCache();
   env.emit<UseType>(receiver, TType);
@@ -525,15 +529,15 @@ Register* simplifyLoadTypeMethod(Env& env, const LoadMethod* load_meth) {
       });
 }
 
-Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
+Register* simplifyLoadMethod(Env& env, const LoadMethodCached* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
   Type ty = receiver->type();
   if (receiver->isA(TType)) {
-    return simplifyLoadTypeMethod(env, load_meth);
+    return simplifyLoadTypeMethodCached(env, load_meth);
   }
   BorrowedRef<PyTypeObject> type{ty.runtimePyType()};
   if (type == &PyModule_Type || type == &Ci_StrictModule_Type) {
-    return simplifyLoadModuleMethod(env, load_meth);
+    return simplifyLoadModuleMethodCached(env, load_meth);
   }
   return nullptr;
 }
@@ -1320,8 +1324,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kLoadAttrCached:
       return simplifyLoadAttrCached(
           env, static_cast<const LoadAttrCached*>(instr));
-    case Opcode::kLoadMethod:
-      return simplifyLoadMethod(env, static_cast<const LoadMethod*>(instr));
+    case Opcode::kLoadMethodCached:
+      return simplifyLoadMethod(
+          env, static_cast<const LoadMethodCached*>(instr));
     case Opcode::kLoadField:
       return simplifyLoadField(env, static_cast<const LoadField*>(instr));
     case Opcode::kLoadTupleItem:

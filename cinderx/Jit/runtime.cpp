@@ -213,8 +213,8 @@ InlineCacheStats Runtime::getAndClearLoadMethodCacheStats() {
   InlineCacheStats stats;
   for (auto& cache : load_method_caches_) {
     if (cache.cacheStats() == nullptr) {
-      // Cache stat may not have been initialized if LoadMethod instr
-      // was optimized away.
+      // Cache stat may not have been initialized if LoadMethodCached instr was
+      // optimized away.
       continue;
     }
     stats.push_back(*cache.cacheStats());

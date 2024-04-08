@@ -1149,7 +1149,7 @@ void BeginInlinedFunctionElimination::Run(Function& irfunc) {
 }
 
 struct MethodInvoke {
-  LoadMethod* load_method{nullptr};
+  LoadMethodBase* load_method{nullptr};
   GetSecondOutput* get_instance{nullptr};
   CallMethod* call_method{nullptr};
 };
@@ -1202,7 +1202,7 @@ static bool tryEliminateLoadMethod(Function& irfunc, MethodInvoke& invoke) {
     // bytearray/bytes/str.maketrans. Not worth optimizing.
     return false;
   }
-  Register* method_reg = invoke.load_method->dst();
+  Register* method_reg = invoke.load_method->GetOutput();
   auto load_const = LoadConst::create(
       method_reg, Type::fromObject(irfunc.env.addReference(method_obj.get())));
   auto call_static = VectorCallStatic::create(
@@ -1245,7 +1245,7 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
   bool changed = true;
   while (changed) {
     changed = false;
-    UnorderedMap<LoadMethod*, MethodInvoke> invokes;
+    UnorderedMap<LoadMethodBase*, MethodInvoke> invokes;
     for (auto& block : irfunc.cfg.blocks) {
       for (auto& instr : block) {
         if (!instr.IsCallMethod()) {
@@ -1272,7 +1272,7 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
             "Load{{,Module}}Method/CallMethod should be paired but got "
             "{}/CallMethod",
             func_instr->opname());
-        auto lm = static_cast<LoadMethod*>(func_instr);
+        auto lm = static_cast<LoadMethodBase*>(func_instr);
 
         JIT_DCHECK(
             cm->self()->instr()->IsGetSecondOutput(),
@@ -1280,7 +1280,7 @@ void BuiltinLoadMethodElimination::Run(Function& irfunc) {
             "{}/CallMethod",
             cm->self()->instr()->opname());
         auto glmi = static_cast<GetSecondOutput*>(cm->self()->instr());
-        auto result = invokes.insert({lm, MethodInvoke{lm, glmi, cm}});
+        auto result = invokes.emplace(lm, MethodInvoke{lm, glmi, cm});
         if (!result.second) {
           // This pass currently only handles 1:1 LoadMethod/CallMethod
           // combinations. If there are multiple CallMethod for a given

@@ -2930,7 +2930,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: time'
     }
     Snapshot
-    v9:Object = LoadModuleMethod<0; "time"> v5 {
+    v9:Object = LoadModuleMethodCached<0; "time"> v5 {
       FrameState {
         NextInstrOffset 4
       }
@@ -2970,7 +2970,7 @@ fun jittestmodule:test {
       }
     }
     Snapshot
-    v8:Object = LoadMethod<1; "hello"> v7 {
+    v8:Object = LoadMethodCached<1; "hello"> v7 {
       FrameState {
         NextInstrOffset 6
       }

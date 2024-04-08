@@ -2200,7 +2200,7 @@ void HIRBuilder::emitLoadMethod(
   env.allocateLoadMethodCache();
   Register* result = temps_.AllocateStack();
   Register* method_instance = temps_.AllocateStack();
-  tc.emit<LoadMethod>(result, receiver, bc_instr.oparg(), tc.frame);
+  tc.emit<LoadMethodCached>(result, receiver, bc_instr.oparg(), tc.frame);
   tc.emit<GetSecondOutput>(method_instance, TOptObject, result);
   tc.frame.stack.push(result);
   tc.frame.stack.push(method_instance);

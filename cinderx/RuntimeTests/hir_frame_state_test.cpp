@@ -347,7 +347,7 @@ def test(f, a):
         Locals<2> v0 v1
       }
     }
-    v2 = LoadMethod<0; "bar"> v0 {
+    v2 = LoadMethodCached<0; "bar"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v0 v1

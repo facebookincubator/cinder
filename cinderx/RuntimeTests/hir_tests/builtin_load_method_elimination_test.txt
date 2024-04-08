@@ -118,7 +118,7 @@ fun jittestmodule:test {
     v10:MortalObjectUser[method_descriptor:0xdeadbeef] = LoadConst<MortalObjectUser[method_descriptor:0xdeadbeef]>
     v11:MortalUnicodeExact["{}.{}"] = Assign v9
     Snapshot
-    v14:Object = LoadMethod<1; "upper"> v8 {
+    v14:Object = LoadMethodCached<1; "upper"> v8 {
       FrameState {
         NextInstrOffset 10
         Locals<1> v8
@@ -331,7 +331,7 @@ fun jittestmodule:test {
   bb 0 {
     Snapshot
     v4:MortalUnicodeExact["hello"] = LoadConst<MortalUnicodeExact["hello"]>
-    v5:Object = LoadMethod<0; "unknown"> v4 {
+    v5:Object = LoadMethodCached<0; "unknown"> v4 {
       FrameState {
         NextInstrOffset 4
       }

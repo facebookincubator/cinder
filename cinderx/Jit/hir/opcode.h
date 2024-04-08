@@ -95,8 +95,8 @@ namespace jit::hir {
   V(LoadFunctionIndirect)              \
   V(LoadGlobalCached)                  \
   V(LoadGlobal)                        \
-  V(LoadMethod)                        \
-  V(LoadModuleMethod)                  \
+  V(LoadMethodCached)                  \
+  V(LoadModuleMethodCached)            \
   V(LoadMethodSuper)                   \
   V(LoadSplitDictItem)                 \
   V(LoadTupleItem)                     \

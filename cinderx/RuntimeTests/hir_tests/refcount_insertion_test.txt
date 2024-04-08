@@ -764,7 +764,7 @@ fun jittestmodule:test {
       }
     }
     Incref v16
-    v17:Object = LoadMethod<0; "foo"> v16 {
+    v17:Object = LoadMethodCached<0; "foo"> v16 {
       LiveValues<3> unc:v13 o:v14 o:v16
       FrameState {
         NextInstrOffset 4

@@ -250,8 +250,8 @@ class LoadMethodCache {
   std::unique_ptr<CacheStats> cache_stats_;
 };
 
-// A cache for LoadMethod instructions where we expect the receiver to be a type
-// object.
+// A cache for LoadMethodCached instructions where we expect the receiver to be
+// a type object.
 //
 // The first entry in `entry` is the type receiver. The second entry in `entry`
 // is the cached value.

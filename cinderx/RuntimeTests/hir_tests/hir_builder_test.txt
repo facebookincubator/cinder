@@ -773,7 +773,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v15 = LoadMethod<3; "append_to"> v1 {
+    v15 = LoadMethodCached<3; "append_to"> v1 {
       FrameState {
         NextInstrOffset 46
         Locals<3> v0 v1 v2

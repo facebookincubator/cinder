@@ -294,12 +294,12 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
     }
     expect(">");
     NEW_INSTR(LoadArg, dst, idx, ty);
-  } else if (opcode == "LoadMethod") {
+  } else if (opcode == "LoadMethodCached") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
-    instruction = newInstr<LoadMethod>(dst, receiver, idx);
+    instruction = newInstr<LoadMethodCached>(dst, receiver, idx);
   } else if (opcode == "LoadTupleItem") {
     expect("<");
     int idx = GetNextNameIdx();

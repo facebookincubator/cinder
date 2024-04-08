@@ -2583,7 +2583,7 @@ class LoadMethodBase : public DeoptBaseWithNameIdx {
 // Like LoadAttr, but when we know that we're loading an attribute that will be
 // used for a method call.
 DEFINE_SIMPLE_INSTR(
-    LoadMethod,
+    LoadMethodCached,
     (TObject),
     HasOutput,
     Operands<1>,
@@ -2591,7 +2591,7 @@ DEFINE_SIMPLE_INSTR(
 
 // Like LoadMethod, but specialized for loading a method from a module
 DEFINE_SIMPLE_INSTR(
-    LoadModuleMethod,
+    LoadModuleMethodCached,
     (TObject),
     HasOutput,
     Operands<1>,

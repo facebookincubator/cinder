@@ -486,8 +486,8 @@ static std::string format_immediates(const Instr& instr) {
       _Py_Identifier* id = load.id();
       return fmt::format("\"{}\"", id->string);
     }
-    case Opcode::kLoadMethod:
-    case Opcode::kLoadModuleMethod: {
+    case Opcode::kLoadMethodCached:
+    case Opcode::kLoadModuleMethodCached: {
       const auto& load = static_cast<const LoadMethodBase&>(instr);
       return format_name(load, load.name_idx());
     }

@@ -396,8 +396,8 @@ Type outputType(
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadGlobal:
-    case Opcode::kLoadMethod:
-    case Opcode::kLoadModuleMethod:
+    case Opcode::kLoadMethodCached:
+    case Opcode::kLoadModuleMethodCached:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLoadTupleItem:
     case Opcode::kMatchKeys:
