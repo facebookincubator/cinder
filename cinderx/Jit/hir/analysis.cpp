@@ -98,7 +98,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kListExtend:
     case Opcode::kLoadArg:
     case Opcode::kLoadArrayItem:
-    case Opcode::kLoadAttr:
+    case Opcode::kLoadAttrCached:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadCellItem:

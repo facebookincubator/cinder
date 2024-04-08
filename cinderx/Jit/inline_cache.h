@@ -152,7 +152,7 @@ class StoreAttrCache : public AttributeCache {
   PyObject* invokeSlowPath(PyObject* obj, PyObject* name, PyObject* value);
 };
 
-// A cache for an individual LoadAttr instruction.
+// A cache for an individual LoadAttrCached instruction.
 //
 // The logic of LoadAttrCache::invoke is equivalent to PyObject_GetAttr,
 // however, it can be specialized and accelerated depending on the kinds of

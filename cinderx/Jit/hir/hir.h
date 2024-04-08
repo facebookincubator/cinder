@@ -2437,9 +2437,9 @@ class DeoptBaseWithNameIdx : public DeoptBase {
   int name_idx_;
 };
 
-// Load an attribute from an object
+// Load an attribute from an object, using an inline cache.
 DEFINE_SIMPLE_INSTR(
-    LoadAttr,
+    LoadAttrCached,
     (TObject),
     HasOutput,
     Operands<1>,

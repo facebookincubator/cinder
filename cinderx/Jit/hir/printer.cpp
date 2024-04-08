@@ -585,7 +585,7 @@ static std::string format_immediates(const Instr& instr) {
       return ss.str();
     }
     case Opcode::kDeleteAttr:
-    case Opcode::kLoadAttr:
+    case Opcode::kLoadAttrCached:
     case Opcode::kStoreAttr: {
       const auto& named = static_cast<const DeoptBaseWithNameIdx&>(instr);
       return format_name(named, named.name_idx());

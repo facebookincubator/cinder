@@ -84,7 +84,7 @@ namespace jit::hir {
   V(LoadArrayItem)                     \
   V(LoadFieldAddress)                  \
   V(LoadArg)                           \
-  V(LoadAttr)                          \
+  V(LoadAttrCached)                    \
   V(LoadAttrSpecial)                   \
   V(LoadAttrSuper)                     \
   V(LoadCellItem)                      \

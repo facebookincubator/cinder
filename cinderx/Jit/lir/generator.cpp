@@ -1201,8 +1201,8 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         appendGuard(bbb, InstrGuardKind::kNotNegative, *instr, call);
         break;
       }
-      case Opcode::kLoadAttr: {
-        auto instr = static_cast<const LoadAttr*>(&i);
+      case Opcode::kLoadAttrCached: {
+        auto instr = static_cast<const LoadAttrCached*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
             instr->dst(),

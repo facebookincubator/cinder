@@ -794,7 +794,7 @@ Register* simplifyUnbox(Env& env, const Instr* instr) {
 // - The type doesn't have a descriptor at the attribute name.
 Register* simplifyLoadAttrSplitDict(
     Env& env,
-    const LoadAttr* load_attr,
+    const LoadAttrCached* load_attr,
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<PyUnicodeObject> name) {
   if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) ||
@@ -850,7 +850,7 @@ Register* simplifyLoadAttrSplitDict(
 // For LoadAttr instructions that resolve to a descriptor, DescrInfo holds
 // unpacked state that's used by a number of different simplification cases.
 struct DescrInfo {
-  const LoadAttr* load_attr;
+  FrameState* frame_state;
   Register* receiver;
   Type type;
   BorrowedRef<PyTypeObject> py_type;
@@ -902,8 +902,8 @@ Register* simplifyLoadAttrMemberDescr(Env& env, const DescrInfo& info) {
     Register* field =
         env.emit<LoadField>(info.receiver, name_cstr, def->offset, TOptObject);
     if (def->type == T_OBJECT_EX) {
-      auto check_field = env.emitInstr<CheckField>(
-          field, info.attr_name, *info.load_attr->frameState());
+      auto check_field =
+          env.emitInstr<CheckField>(field, info.attr_name, *info.frame_state);
       check_field->setGuiltyReg(info.receiver);
       return check_field->GetOutput();
     }
@@ -939,7 +939,7 @@ Register* simplifyLoadAttrProperty(Env& env, const DescrInfo& info) {
       2,
       env.func.env.AllocateRegister(),
       /* is_awaited= */ false,
-      *info.load_attr->frameState());
+      *info.frame_state);
   call->SetOperand(0, getter_obj);
   call->SetOperand(1, info.receiver);
   return call->GetOutput();
@@ -974,14 +974,14 @@ Register* simplifyLoadAttrGenericDescriptor(Env& env, const DescrInfo& info) {
   call->SetOperand(0, descr_reg);
   call->SetOperand(1, info.receiver);
   call->SetOperand(2, type_reg);
-  return env.emit<CheckExc>(call->GetOutput(), *info.load_attr->frameState());
+  return env.emit<CheckExc>(call->GetOutput(), *info.frame_state);
 }
 
-// Attempt to handle LoadAttr cases where the load is a common case for object
+// Attempt to handle LOAD_ATTR cases where the load is a common case for object
 // instances (not types).
 Register* simplifyLoadAttrInstanceReceiver(
     Env& env,
-    const LoadAttr* load_attr) {
+    const LoadAttrCached* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   Type type = receiver->type();
   BorrowedRef<PyTypeObject> py_type{type.runtimePyType()};
@@ -1007,7 +1007,8 @@ Register* simplifyLoadAttrInstanceReceiver(
     return simplifyLoadAttrSplitDict(env, load_attr, py_type, attr_name);
   }
 
-  DescrInfo info{load_attr, receiver, type, py_type, attr_name, descr};
+  DescrInfo info{
+      load_attr->frameState(), receiver, type, py_type, attr_name, descr};
   auto descr_funcs = {
       simplifyLoadAttrMemberDescr,
       simplifyLoadAttrProperty,
@@ -1021,7 +1022,9 @@ Register* simplifyLoadAttrInstanceReceiver(
   return nullptr;
 }
 
-Register* simplifyLoadAttrTypeReceiver(Env& env, const LoadAttr* load_attr) {
+Register* simplifyLoadAttrTypeReceiver(
+    Env& env,
+    const LoadAttrCached* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   if (!receiver->isA(TType)) {
     return nullptr;
@@ -1046,7 +1049,7 @@ Register* simplifyLoadAttrTypeReceiver(Env& env, const LoadAttr* load_attr) {
       });
 }
 
-Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
+Register* simplifyLoadAttrCached(Env& env, const LoadAttrCached* load_attr) {
   if (Register* reg = simplifyLoadAttrInstanceReceiver(env, load_attr)) {
     return reg;
   }
@@ -1314,8 +1317,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIsTruthy:
       return simplifyIsTruthy(env, static_cast<const IsTruthy*>(instr));
 
-    case Opcode::kLoadAttr:
-      return simplifyLoadAttr(env, static_cast<const LoadAttr*>(instr));
+    case Opcode::kLoadAttrCached:
+      return simplifyLoadAttrCached(
+          env, static_cast<const LoadAttrCached*>(instr));
     case Opcode::kLoadMethod:
       return simplifyLoadMethod(env, static_cast<const LoadMethod*>(instr));
     case Opcode::kLoadField:

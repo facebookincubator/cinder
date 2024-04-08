@@ -450,7 +450,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: os'
     }
     Snapshot
-    v16:Object = LoadAttr<1; "argv"> v15 {
+    v16:Object = LoadAttrCached<1; "argv"> v15 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v13 v13
@@ -486,7 +486,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: os'
     }
     Snapshot
-    v28:Object = LoadAttr<1; "argv"> v27 {
+    v28:Object = LoadAttrCached<1; "argv"> v27 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v22 v13
@@ -813,7 +813,7 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: sys'
     }
     Snapshot
-    v4:Object = LoadAttr<1; "path"> v3 {
+    v4:Object = LoadAttrCached<1; "path"> v3 {
       FrameState {
         NextInstrOffset 4
       }

@@ -19,7 +19,6 @@ class BasicBlock;
 class Environment;
 class Function;
 class Instr;
-class LoadAttr;
 class Register;
 
 class Pass {

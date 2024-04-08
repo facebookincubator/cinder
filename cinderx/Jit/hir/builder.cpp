@@ -2188,7 +2188,7 @@ void HIRBuilder::emitLoadAttr(
     const jit::BytecodeInstruction& bc_instr) {
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<LoadAttr>(result, receiver, bc_instr.oparg(), tc.frame);
+  tc.emit<LoadAttrCached>(result, receiver, bc_instr.oparg(), tc.frame);
   tc.frame.stack.push(result);
 }
 

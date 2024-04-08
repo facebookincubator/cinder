@@ -404,7 +404,7 @@ def test(f):
         Locals<1> v0
       }
     }
-    v1 = LoadAttr<0; "a"> v0 {
+    v1 = LoadAttrCached<0; "a"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<1> v0
@@ -415,7 +415,7 @@ def test(f):
       Locals<1> v0
       Stack<1> v1
     }
-    v2 = LoadAttr<1; "b"> v1 {
+    v2 = LoadAttrCached<1; "b"> v1 {
       FrameState {
         NextInstrOffset 6
         Locals<1> v0

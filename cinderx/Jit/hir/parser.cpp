@@ -357,12 +357,12 @@ HIRParser::parseInstr(std::string_view opcode, Register* dst, int bb_index) {
   } else if (opcode == "Incref") {
     auto var = ParseRegister();
     NEW_INSTR(Incref, var);
-  } else if (opcode == "LoadAttr") {
+  } else if (opcode == "LoadAttrCached") {
     expect("<");
     int idx = GetNextNameIdx();
     expect(">");
     auto receiver = ParseRegister();
-    instruction = newInstr<LoadAttr>(dst, receiver, idx);
+    instruction = newInstr<LoadAttrCached>(dst, receiver, idx);
   } else if (opcode == "LoadConst") {
     expect("<");
     Type ty = parseType(GetNextToken());
