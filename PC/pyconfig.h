@@ -307,13 +307,13 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
                         /* So MSVC users need not specify the .lib
                         file in their Makefile (other compilers are
                         generally taken care of by distutils.) */
-#                       if defined(_DEBUG)
+#                       if defined(META_PLATFORMS_NOT_LIKELY_TO_BE_DEFINED_DEBUG)
 #                               pragma comment(lib,"python312_d.lib")
-#                       elif defined(Py_LIMITED_API)
+#                       elif defined(META_PLATFORMS_NOT_LIKELY_TO_BE_DEFINED_Py_LIMITED_API)
 #                               pragma comment(lib,"python3.lib")
 #                       else
 #                               pragma comment(lib,"python312.lib")
-#                       endif /* _DEBUG */
+#                       endif /* META_PLATFORMS_NOT_LIKELY_TO_BE_DEFINED_DEBUG */
 #               endif /* _MSC_VER */
 #       endif /* Py_BUILD_CORE */
 #endif /* MS_COREDLL */
@@ -355,7 +355,7 @@ Py_NO_ENABLE_SHARED to find out.  Also support MS_NO_COREDLL for b/w compat */
 #       define ALIGNOF_MAX_ALIGN_T 8
 #endif
 
-#ifdef _DEBUG
+#ifdef META_PLATFORMS_NOT_LIKELY_TO_BE_DEFINED_DEBUG
 #       define Py_DEBUG
 #endif
 
