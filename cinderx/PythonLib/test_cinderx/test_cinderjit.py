@@ -4378,8 +4378,42 @@ class CinderJitModuleTests(StaticTestBase):
                 # allocation is; we assume < 200K.
                 self.assertLess(used_size, 1024 * 200)
 
-            run_test(zero_asserts, ["-X", f"jit-max-code-size=0"])
-            run_test(onek_asserts, ["-X", f"jit-max-code-size=1024"])
+            run_test(zero_asserts, ["-X", "jit-max-code-size=0"])
+            run_test(
+                zero_asserts,
+                ["-X", "jit-max-code-size=0", "-X", "jit-disable-huge-pages"],
+            )
+            run_test(
+                zero_asserts,
+                [
+                    "-X",
+                    "jit-max-code-size=0",
+                    "-X",
+                    "jit-multiple-code-sections=1",
+                    "-X",
+                    "jit-hot-code-section-size=1048576",
+                    "-X",
+                    "jit-cold-code-section-size=1048576",
+                ],
+            )
+            run_test(onek_asserts, ["-X", "jit-max-code-size=1024"])
+            run_test(
+                onek_asserts,
+                ["-X", "jit-max-code-size=1024", "-X", "jit-disable-huge-pages"],
+            )
+            run_test(
+                onek_asserts,
+                [
+                    "-X",
+                    "jit-max-code-size=1024",
+                    "-X",
+                    "jit-multiple-code-sections=1",
+                    "-X",
+                    "jit-hot-code-section-size=1048576",
+                    "-X",
+                    "jit-cold-code-section-size=1048576",
+                ],
+            )
 
     def test_max_code_size_fast(self):
         code = textwrap.dedent(
