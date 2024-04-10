@@ -183,6 +183,7 @@ asmjit::Error MultipleSectionCodeAllocator::addCode(
   *dst = nullptr;
 
   size_t potential_code_size = code->codeSize();
+  used_bytes_ += potential_code_size;
   // We fall back to the default size of code allocation if the
   // code doesn't fit into either section, and we can make this check more
   // granular by comparing sizes section-by-section.

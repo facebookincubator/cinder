@@ -35,6 +35,7 @@
 #include "cinderx/Jit/type_profiler.h"
 
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <climits>
 #include <cstddef>
@@ -257,6 +258,49 @@ static std::string jl_fn;
 
 static void warnJITOff(const char* flag) {
   JIT_LOG("Warning: JIT disabled; {} has no effect", flag);
+}
+
+static size_t parse_sized_argument(const std::string& val) {
+  std::string parsed;
+  // " 1024 k" should parse OK - so remove the space.
+  std::remove_copy_if(
+      val.begin(), val.end(), std::back_inserter(parsed), ::isspace);
+  JIT_CHECK(!parsed.empty(), "Input string is empty");
+  static_assert(
+      sizeof(decltype(std::stoull(parsed))) == sizeof(size_t),
+      "stoull parses to size_t size");
+  size_t scale = 1;
+  // "1024k" and "1024K" are the same - so upper case.
+  char lastChar = std::toupper(parsed.back());
+  switch (lastChar) {
+    case 'K':
+      scale = 1024;
+      parsed.pop_back();
+      break;
+    case 'M':
+      scale = 1024 * 1024;
+      parsed.pop_back();
+      break;
+    case 'G':
+      scale = 1024 * 1024 * 1024;
+      parsed.pop_back();
+      break;
+    default:
+      JIT_CHECK(
+          std::isdigit(lastChar), "Invalid character in input string: {}", val);
+  }
+  size_t ret_value{0};
+  auto p_last = parsed.data() + parsed.size();
+  auto int_ok = std::from_chars(parsed.data(), p_last, ret_value);
+  JIT_CHECK(
+      int_ok.ec == std::errc() && int_ok.ptr == p_last,
+      "Invalid unsigned integer in input string: '{}'",
+      val);
+  JIT_CHECK(
+      ret_value <= (std::numeric_limits<size_t>::max() / scale),
+      "Unsigned Integer overflow in input string: '{}'",
+      val);
+  return ret_value * scale;
 }
 
 void initFlagProcessor() {
@@ -743,6 +787,20 @@ void initFlagProcessor() {
         "PERFTRAMPOLINEPREFORKCOMPILATION",
         getMutableConfig().compile_perf_trampoline_prefork,
         "Compile perf trampoline pre-fork");
+
+    xarg_flag_processor.addOption(
+        "jit-max-code-size",
+        "",
+        [](const std::string& val) {
+          if (use_jit) {
+            getMutableConfig().max_code_size = parse_sized_argument(val);
+          } else {
+            warnJITOff("jit-max-code-size");
+          }
+        },
+        "Set the maximum code size for JIT in bytes (no suffix). For kilobytes "
+        "use k or K as a suffix. "
+        "Megabytes is m or M and gigabytes is g or G. 0 implies no limit.");
   }
 
   xarg_flag_processor.setFlags(PySys_GetXOptions());
@@ -1454,20 +1512,32 @@ static PyObject* jit_suppress(PyObject*, PyObject* func_obj) {
 }
 
 static PyObject* get_allocator_stats(PyObject*, PyObject*) {
-  auto allocator = dynamic_cast<CodeAllocatorCinder*>(CodeAllocator::get());
-  if (allocator == nullptr) {
+  auto base_allocator = CodeAllocator::get();
+  if (base_allocator == nullptr) {
     Py_RETURN_NONE;
   }
+
   auto stats = Ref<>::steal(PyDict_New());
   if (stats == nullptr) {
     return nullptr;
   }
 
-  auto used_bytes = Ref<>::steal(PyLong_FromLong(allocator->usedBytes()));
+  auto used_bytes = Ref<>::steal(PyLong_FromLong(base_allocator->usedBytes()));
   if (used_bytes == nullptr ||
       PyDict_SetItemString(stats, "used_bytes", used_bytes) < 0) {
     return nullptr;
   }
+  auto max_bytes = Ref<>::steal(PyLong_FromLong(getConfig().max_code_size));
+  if (max_bytes == nullptr ||
+      PyDict_SetItemString(stats, "max_bytes", max_bytes) < 0) {
+    return nullptr;
+  }
+
+  auto allocator = dynamic_cast<CodeAllocatorCinder*>(base_allocator);
+  if (allocator == nullptr) {
+    return stats.release();
+  }
+
   auto lost_bytes = Ref<>::steal(PyLong_FromLong(allocator->lostBytes()));
   if (lost_bytes == nullptr ||
       PyDict_SetItemString(stats, "lost_bytes", lost_bytes) < 0) {
@@ -2145,7 +2215,13 @@ int _PyJIT_RegisterFunction(PyFunctionObject* func) {
     return 1;
   }
 
-  if (!_PyJIT_IsEnabled()) {
+  bool skip = !_PyJIT_IsEnabled();
+  auto max_code_size = getConfig().max_code_size;
+  if ((!skip) && max_code_size) {
+    skip = CodeAllocator::get()->usedBytes() >= max_code_size;
+  }
+
+  if (skip) {
     if (_PyPerfTrampoline_IsPreforkCompilationEnabled()) {
       perf_trampoline_reg_units.emplace(reinterpret_cast<PyObject*>(func));
     }

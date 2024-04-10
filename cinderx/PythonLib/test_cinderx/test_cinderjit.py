@@ -4323,6 +4323,149 @@ class CinderJitModuleTests(StaticTestBase):
 
             self.assertEqual(cinderjit.get_num_inlined_functions(g), 1)
 
+    def test_max_code_size_slow(self):
+        code = textwrap.dedent(
+            """
+            import cinderjit
+            for i in range(2000):
+                exec(f'''
+            def junk{i}(j):
+                j = j + 1
+                s = f'dogs {i} ' + str(j)
+                if s == '23':
+                    j += 2
+                return j*2+{i}
+            ''')
+            x = 0
+            for i in range(2000):
+                exec(f'x *= junk{i}(i)')
+            max_bytes = cinderjit.get_allocator_stats()["max_bytes"]
+            used_bytes = cinderjit.get_allocator_stats()["used_bytes"]
+            print(f'max_size: {max_bytes}')
+            print(f'used_size: {used_bytes}')
+        """
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            dirpath = Path(tmp)
+            codepath = dirpath / "mod.py"
+            codepath.write_text(code)
+
+            def run_test(asserts_func, params=[]):
+                args = [sys.executable, "-X", "jit"]
+                args.extend(params)
+                args.append("mod.py")
+                proc = subprocess.run(
+                    args, cwd=tmp, stdout=subprocess.PIPE, encoding=sys.stdout.encoding
+                )
+                self.assertEqual(proc.returncode, 0, proc)
+                actual_stdout = [x.strip() for x in proc.stdout.split("\n")]
+                asserts_func(actual_stdout)
+
+            def zero_asserts(actual_stdout):
+                expected_stdout = "max_size: 0"
+                self.assertEqual(actual_stdout[0], expected_stdout)
+                self.assertIn("used_size", actual_stdout[1])
+                used_size = int(actual_stdout[1].split(" ")[1])
+                self.assertGreater(used_size, 0)
+
+            def onek_asserts(actual_stdout):
+                expected_stdout = "max_size: 1024"
+                self.assertEqual(actual_stdout[0], expected_stdout)
+                self.assertIn("used_size", actual_stdout[1])
+                used_size = int(actual_stdout[1].split(" ")[1])
+                self.assertGreater(used_size, 1024)
+                # This is a bit fragile because it depends on what the initial 'zeroth'
+                # allocation is; we assume < 200K.
+                self.assertLess(used_size, 1024 * 200)
+
+            run_test(zero_asserts, ["-X", f"jit-max-code-size=0"])
+            run_test(onek_asserts, ["-X", f"jit-max-code-size=1024"])
+
+    def test_max_code_size_fast(self):
+        code = textwrap.dedent(
+            """
+            import cinderjit
+            max_bytes = cinderjit.get_allocator_stats()["max_bytes"]
+            print(f'max_size: {max_bytes}')
+        """
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            dirpath = Path(tmp)
+            codepath = dirpath / "mod.py"
+            codepath.write_text(code)
+
+            def run_proc():
+                proc = subprocess.run(
+                    args, cwd=tmp, stdout=subprocess.PIPE, encoding=sys.stdout.encoding
+                )
+                self.assertEqual(proc.returncode, 0, proc)
+                actual_stdout = [x.strip() for x in proc.stdout.split("\n")]
+                return actual_stdout[0]
+
+            args = [sys.executable, "-X", "jit", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 0")
+            args = [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-max-code-size=1234567",
+                "mod.py",
+            ]
+            self.assertEqual(run_proc(), "max_size: 1234567")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1k", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1024")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1K", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1024")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1m", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1048576")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1M", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1048576")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1g", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1073741824")
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=1G", "mod.py"]
+            self.assertEqual(run_proc(), "max_size: 1073741824")
+
+            def run_proc():
+                proc = subprocess.run(
+                    args, cwd=tmp, stderr=subprocess.PIPE, encoding=sys.stdout.encoding
+                )
+                self.assertEqual(proc.returncode, -6, proc)
+                return proc.stderr
+
+            args = [sys.executable, "-X", "jit", "-X", "jit-max-code-size=-1", "mod.py"]
+            self.assertIn("Invalid unsigned integer in input string: '-1'", run_proc())
+            args = [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-max-code-size=1.1",
+                "mod.py",
+            ]
+            self.assertIn("Invalid unsigned integer in input string: '1.1'", run_proc())
+            args = [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-max-code-size=dogs",
+                "mod.py",
+            ]
+            self.assertIn("Invalid character in input string", run_proc())
+            args = [
+                sys.executable,
+                "-X",
+                "jit",
+                "-X",
+                "jit-max-code-size=1152921504606846976g",
+                "mod.py",
+            ]
+            self.assertIn(
+                "Unsigned Integer overflow in input string: '1152921504606846976g'",
+                run_proc(),
+            )
+
 
 @cinder_support.failUnlessJITCompiled
 def _outer(inner):

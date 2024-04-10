@@ -8,6 +8,7 @@
 
 #include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -42,17 +43,24 @@ class CodeAllocator {
 
   static void freeGlobalCodeAllocator();
 
+  size_t usedBytes() const {
+    return used_bytes_;
+  }
+
   const asmjit::Environment& asmJitEnvironment() {
     return runtime_->environment();
   }
 
   virtual asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept {
+    used_bytes_ += code->codeSize();
     return runtime_->add(dst, code);
   }
 
  protected:
   std::unique_ptr<asmjit::JitRuntime> runtime_{
       std::make_unique<asmjit::JitRuntime>()};
+
+  std::atomic<size_t> used_bytes_{0};
 
  private:
   static CodeAllocator* s_global_code_allocator_;
@@ -64,10 +72,6 @@ class CodeAllocatorCinder : public CodeAllocator {
   virtual ~CodeAllocatorCinder();
 
   asmjit::Error addCode(void** dst, asmjit::CodeHolder* code) noexcept override;
-
-  size_t usedBytes() const {
-    return used_bytes_;
-  }
 
   size_t lostBytes() const {
     return lost_bytes_;
@@ -90,7 +94,6 @@ class CodeAllocatorCinder : public CodeAllocator {
   // Free space in the current chunk
   size_t current_alloc_free_{0};
 
-  size_t used_bytes_{0};
   // Number of bytes in total lost when allocations didn't fit neatly into
   // the bytes remaining in a chunk so a new one was allocated.
   size_t lost_bytes_{0};

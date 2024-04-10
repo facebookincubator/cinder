@@ -55,6 +55,8 @@ struct Config {
   // multiple code sections are enabled.
   size_t cold_code_section_size{0};
   size_t hot_code_section_size{0};
+  // Memory threshold after which we stop jitting.
+  size_t max_code_size{0};
   // Size (in number of entries) of the LoadAttrCached and StoreAttrCached
   // inline caches used by the JIT.
   uint32_t attr_cache_size{1};
