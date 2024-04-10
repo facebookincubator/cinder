@@ -181,7 +181,7 @@ void TranslateGuard(Environ* env, const Instruction* instr) {
   //   * kind
   //   * deopt meta id
   //   * guard var (physical register) (0 for AlwaysFail)
-  //   * target (for GuardIs, and 0 for all others)
+  //   * target (for GuardIs and GuardType, and 0 for all others)
 
   auto deopt_label = as->newLabel();
   auto kind = instr->getInput(0)->getConstant();
