@@ -1095,7 +1095,6 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kReturn: {
-        // TODO support constant operand to Return
         bbb.appendInstr(Instruction::kReturn, i.GetOperand(0));
         break;
       }
