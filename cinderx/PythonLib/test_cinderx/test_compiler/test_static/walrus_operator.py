@@ -73,7 +73,9 @@ class WalrusOperatorTests(StaticTestBase):
         def fn() -> None:
             return (b:= 2)
         """
-        with self.assertRaisesRegex(TypedSyntaxError, r"return type must be None, not"):
+        with self.assertRaisesRegex(
+            TypedSyntaxError, r"return type must be Literal\[2\], not None"
+        ):
             self.compile(codestr)
 
     def test_walrus_operator_post_type_primitive(self):

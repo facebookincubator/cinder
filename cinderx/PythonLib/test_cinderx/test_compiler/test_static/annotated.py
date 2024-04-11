@@ -26,7 +26,7 @@ class AnnotatedTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            r"return type must be str, not Literal\[0\]",
+            r"return type must be Literal\[0\], not str",
         ):
             self.compile(codestr)
 

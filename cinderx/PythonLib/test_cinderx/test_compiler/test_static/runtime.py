@@ -2301,7 +2301,7 @@ class StaticRuntimeTests(StaticTestBase):
             prod_assert(x)
             return x
         """
-        self.type_error(codestr, "return type must be str, not int")
+        self.type_error(codestr, "return type must be int, not str")
 
     def test_prod_assert_raises(self):
         codestr = """

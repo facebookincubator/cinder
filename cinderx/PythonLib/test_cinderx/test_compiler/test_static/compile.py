@@ -3374,6 +3374,19 @@ class StaticCompilationTests(StaticTestBase):
         ):
             self.compile(codestr, modname="foo")
 
+    def test_and_in_return(self):
+        codestr = """
+            from typing import Optional
+
+            def f(x: Optional[int]) -> None:
+                return x and None
+        """
+        with self.assertRaisesRegex(
+            TypedSyntaxError,
+            bad_ret_type("Optional[int]", "None"),
+        ):
+            self.compile(codestr, modname="foo")
+
     def test_none_compare(self):
         codestr = """
             def f(x: int | None):

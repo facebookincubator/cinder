@@ -11,7 +11,9 @@ class LiteralsTests(StaticTestBase):
             def f(x: bool) -> Literal[False]:
                 return x
         """
-        self.type_error(codestr, r"return type must be Literal\[False\]", "return x")
+        self.type_error(
+            codestr, r"return type must be bool, not Literal\[False\]", "return x"
+        )
 
     def test_literal_bool_annotation_runtime_cast(self) -> None:
         codestr = """
@@ -72,7 +74,9 @@ class LiteralsTests(StaticTestBase):
             def f(x: int) -> Literal[1]:
                 return x
         """
-        self.type_error(codestr, r"return type must be Literal\[1\]", "return x")
+        self.type_error(
+            codestr, r"return type must be int, not Literal\[1\]", "return x"
+        )
 
     def test_literal_int_annotation_runtime_cast(self) -> None:
         codestr = """

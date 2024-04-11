@@ -277,7 +277,7 @@ class StaticObjCreationTests(StaticTestBase):
                 return C(x)
         """
         with self.assertRaisesRegex(
-            TypedSyntaxError, "return type must be str, not int"
+            TypedSyntaxError, "return type must be int, not str"
         ):
             self.compile(codestr)
 
@@ -335,7 +335,7 @@ class StaticObjCreationTests(StaticTestBase):
         """
         with self.assertRaisesRegex(
             TypedSyntaxError,
-            "return type must be <module>.C, not object",
+            "return type must be object, not <module>.C",
         ):
             self.compile(codestr)
 

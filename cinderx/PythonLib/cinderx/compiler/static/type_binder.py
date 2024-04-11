@@ -1719,7 +1719,7 @@ class TypeBinder(GenericVisitor[Optional[NarrowingEffect]]):
                 and not expected.klass.can_assign_from(returned)
             ):
                 reason = resolve_assign_error_msg(
-                    expected.klass, returned, "return type must be {1}, not {0}"
+                    expected.klass, returned, "return type must be {0}, not {1}"
                 )
                 self.syntax_error(reason, node)
 
