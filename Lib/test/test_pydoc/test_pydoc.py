@@ -22,6 +22,7 @@ import textwrap
 from io import StringIO
 from collections import namedtuple
 from urllib.request import urlopen, urlcleanup
+from test import support
 from test.support import import_helper
 from test.support import os_helper
 from test.support.script_helper import (assert_python_ok,
@@ -31,7 +32,8 @@ from test.support import (reap_children, captured_output, captured_stdout,
                           captured_stderr, is_emscripten, is_wasi,
                           requires_docstrings, MISSING_C_DOCSTRINGS)
 from test.support.os_helper import (TESTFN, rmtree, unlink)
-from test import pydoc_mod
+from test.test_pydoc import pydoc_mod
+from test.test_pydoc import pydocfodder
 
 
 class nonascii:
@@ -48,7 +50,7 @@ else:
 
 expected_text_pattern = """
 NAME
-    test.pydoc_mod - This is a test module for test_pydoc
+    test.test_pydoc.pydoc_mod - This is a test module for test_pydoc
 %s
 CLASSES
     builtins.object
@@ -99,7 +101,7 @@ CLASSES
      |  ----------------------------------------------------------------------
      |  Class methods defined here:
      |
-     |  __class_getitem__(item) from builtins.type
+     |  __class_getitem__(item)
      |
      |  ----------------------------------------------------------------------
      |  Data descriptors defined here:
@@ -121,7 +123,7 @@ FUNCTIONS
 
 DATA
     __xyz__ = 'X, Y and Z'
-    c_alias = test.pydoc_mod.C[int]
+    c_alias = test.test_pydoc.pydoc_mod.C[int]
     list_alias1 = typing.List[int]
     list_alias2 = list[int]
     type_union1 = typing.Union[int, str]
@@ -144,7 +146,7 @@ expected_text_data_docstrings = tuple('\n     |      ' + s if s else ''
                                       for s in expected_data_docstrings)
 
 html2text_of_expected = """
-test.pydoc_mod (version 1.2.3.4)
+test.test_pydoc.pydoc_mod (version 1.2.3.4)
 This is a test module for test_pydoc
 
 Modules
@@ -163,7 +165,7 @@ class A(builtins.object)
     Methods defined here:
         __init__()
             Wow, I have no function!
-
+    ----------------------------------------------------------------------
     Data descriptors defined here:
         __dict__
             dictionary for instance variables
@@ -176,6 +178,7 @@ class B(builtins.object)
             dictionary for instance variables
         __weakref__
             list of weak references to the object
+    ----------------------------------------------------------------------
     Data and other attributes defined here:
         NO_MEANING = 'eggs'
         __annotations__ = {'NO_MEANING': <class 'str'>}
@@ -188,8 +191,10 @@ class C(builtins.object)
         is_it_true(self)
             Return self.get_answer()
         say_no(self)
+    ----------------------------------------------------------------------
     Class methods defined here:
-        __class_getitem__(item) from builtins.type
+        __class_getitem__(item)
+    ----------------------------------------------------------------------
     Data descriptors defined here:
         __dict__
             dictionary for instance variables
@@ -206,7 +211,7 @@ Functions
 
 Data
     __xyz__ = 'X, Y and Z'
-    c_alias = test.pydoc_mod.C[int]
+    c_alias = test.test_pydoc.pydoc_mod.C[int]
     list_alias1 = typing.List[int]
     list_alias2 = list[int]
     type_union1 = typing.Union[int, str]
@@ -327,11 +332,15 @@ def get_pydoc_html(module):
         loc = "<br><a href=\"" + loc + "\">Module Docs</a>"
     return output.strip(), loc
 
+def clean_text(doc):
+    # clean up the extra text formatting that pydoc performs
+    return re.sub('\b.', '', doc)
+
 def get_pydoc_link(module):
     "Returns a documentation web link of a module"
     abspath = os.path.abspath
     dirname = os.path.dirname
-    basedir = dirname(dirname(abspath(__file__)))
+    basedir = dirname(dirname(dirname(abspath(__file__))))
     doc = pydoc.TextDoc()
     loc = doc.getdocloc(module, basedir=basedir)
     return loc
@@ -344,10 +353,7 @@ def get_pydoc_text(module):
         loc = "\nMODULE DOCS\n    " + loc + "\n"
 
     output = doc.docmodule(module)
-
-    # clean up the extra text formatting that pydoc performs
-    patt = re.compile('\b.')
-    output = patt.sub('', output)
+    output = clean_text(output)
     return output.strip(), loc
 
 def get_html_title(text):
@@ -364,6 +370,7 @@ def html2text(html):
     Tailored for pydoc tests only.
     """
     html = html.replace("<dd>", "\n")
+    html = html.replace("<hr>", "-"*70)
     html = re.sub("<.*?>", "", html)
     html = pydoc.replace(html, "&nbsp;", " ", "&gt;", ">", "&lt;", "<")
     return html
@@ -480,7 +487,7 @@ class PydocDocTest(unittest.TestCase):
 
     @requires_docstrings
     def test_not_ascii(self):
-        result = run_pydoc('test.test_pydoc.nonascii', PYTHONIOENCODING='ascii')
+        result = run_pydoc('test.test_pydoc.test_pydoc.nonascii', PYTHONIOENCODING='ascii')
         encoded = nonascii.__doc__.encode('ascii', 'backslashreplace')
         self.assertIn(encoded, result)
 
@@ -660,9 +667,9 @@ class PydocDocTest(unittest.TestCase):
         buf = StringIO()
         helper = pydoc.Helper(output=buf)
         unused, doc_loc = get_pydoc_text(pydoc_mod)
-        module = "test.pydoc_mod"
+        module = "test.test_pydoc.pydoc_mod"
         help_header = """
-        Help on module test.pydoc_mod in test:
+        Help on module test.test_pydoc.pydoc_mod in test.test_pydoc:
 
         """.lstrip()
         help_header = textwrap.dedent(help_header)
@@ -683,6 +690,30 @@ class PydocDocTest(unittest.TestCase):
                 self.assertEqual(expected_text, result)
         finally:
             pydoc.getpager = getpager_old
+
+    def test_lambda_with_return_annotation(self):
+        func = lambda a, b, c: 1
+        func.__annotations__ = {"return": int}
+        with captured_output('stdout') as help_io:
+            pydoc.help(func)
+        helptext = help_io.getvalue()
+        self.assertIn("lambda (a, b, c) -> int", helptext)
+
+    def test_lambda_without_return_annotation(self):
+        func = lambda a, b, c: 1
+        func.__annotations__ = {"a": int, "b": int, "c": int}
+        with captured_output('stdout') as help_io:
+            pydoc.help(func)
+        helptext = help_io.getvalue()
+        self.assertIn("lambda (a: int, b: int, c: int)", helptext)
+
+    def test_lambda_with_return_and_params_annotation(self):
+        func = lambda a, b, c: 1
+        func.__annotations__ = {"a": int, "b": int, "c": int, "return": int}
+        with captured_output('stdout') as help_io:
+            pydoc.help(func)
+        helptext = help_io.getvalue()
+        self.assertIn("lambda (a: int, b: int, c: int) -> int", helptext)
 
     def test_namedtuple_fields(self):
         Person = namedtuple('Person', ['nickname', 'firstname'])
@@ -791,8 +822,7 @@ class PydocDocTest(unittest.TestCase):
             b_size = A.a_size
 
         doc = pydoc.render_doc(B)
-        # clean up the extra text formatting that pydoc performs
-        doc = re.sub('\b.', '', doc)
+        doc = clean_text(doc)
         self.assertEqual(doc, '''\
 Python Library Documentation: class B in module %s
 
@@ -1044,7 +1074,6 @@ class TestDescriptions(unittest.TestCase):
 
     def test_module(self):
         # Check that pydocfodder module can be described
-        from test import pydocfodder
         doc = pydoc.render_doc(pydocfodder)
         self.assertIn("pydocfodder", doc)
 
@@ -1147,7 +1176,7 @@ class TestDescriptions(unittest.TestCase):
     @requires_docstrings
     def test_unbound_builtin_method(self):
         self.assertEqual(self._get_summary_line(_pickle.Pickler.dump),
-            "dump(self, obj, /)")
+            "dump(self, obj, /) unbound _pickle.Pickler method")
 
     # these no longer include "self"
     def test_bound_python_method(self):
@@ -1183,6 +1212,14 @@ class TestDescriptions(unittest.TestCase):
         self.assertEqual(self._get_summary_line(os.stat),
             "stat(path, *, dir_fd=None, follow_symlinks=True)")
 
+    def test_unbound_builtin_method_noargs(self):
+        self.assertEqual(self._get_summary_line(str.lower),
+            "lower(self, /) unbound builtins.str method")
+
+    def test_bound_builtin_method_noargs(self):
+        self.assertEqual(self._get_summary_line(''.lower),
+            "lower() method of builtins.str instance")
+
     @requires_docstrings
     def test_staticmethod(self):
         class X:
@@ -1215,13 +1252,13 @@ sm(x, y)
                          'cm(...)\n'
                          '    A class method\n')
         self.assertEqual(self._get_summary_lines(X.cm), """\
-cm(x) method of builtins.type instance
+cm(x) class method of test.test_pydoc.test_pydoc.X
     A class method
 """)
         self.assertIn("""
  |  Class methods defined here:
  |
- |  cm(x) from builtins.type
+ |  cm(x)
  |      A class method
 """, pydoc.plain(pydoc.render_doc(X)))
 
@@ -1376,6 +1413,128 @@ foo
             '<a href="https://localhost/">https://localhost/</a>',
             html
         )
+
+
+class PydocFodderTest(unittest.TestCase):
+
+    def getsection(self, text, beginline, endline):
+        lines = text.splitlines()
+        beginindex, endindex = 0, None
+        if beginline is not None:
+            beginindex = lines.index(beginline)
+        if endline is not None:
+            endindex = lines.index(endline, beginindex)
+        return lines[beginindex:endindex]
+
+    def test_text_doc_routines_in_class(self, cls=pydocfodder.B):
+        doc = pydoc.TextDoc()
+        result = doc.docclass(cls)
+        result = clean_text(result)
+        where = 'defined here' if cls is pydocfodder.B else 'inherited from B'
+        lines = self.getsection(result, f' |  Methods {where}:', ' |  ' + '-'*70)
+        self.assertIn(' |  A_method_alias = A_method(self)', lines)
+        self.assertIn(' |  B_method_alias = B_method(self)', lines)
+        self.assertIn(' |  A_staticmethod(x, y) from test.test_pydoc.pydocfodder.A', lines)
+        self.assertIn(' |  A_staticmethod_alias = A_staticmethod(x, y)', lines)
+        self.assertIn(' |  global_func(x, y) from test.test_pydoc.pydocfodder', lines)
+        self.assertIn(' |  global_func_alias = global_func(x, y)', lines)
+        self.assertIn(' |  global_func2_alias = global_func2(x, y) from test.test_pydoc.pydocfodder', lines)
+        self.assertIn(' |  __repr__(self, /) from builtins.object', lines)
+        self.assertIn(' |  object_repr = __repr__(self, /)', lines)
+
+        lines = self.getsection(result, f' |  Static methods {where}:', ' |  ' + '-'*70)
+        self.assertIn(' |  A_classmethod_ref = A_classmethod(x) class method of test.test_pydoc.pydocfodder.A', lines)
+        note = '' if cls is pydocfodder.B else ' class method of test.test_pydoc.pydocfodder.B'
+        self.assertIn(' |  B_classmethod_ref = B_classmethod(x)' + note, lines)
+        self.assertIn(' |  A_method_ref = A_method() method of test.test_pydoc.pydocfodder.A instance', lines)
+        self.assertIn(' |  get(key, default=None, /) method of builtins.dict instance', lines)
+        self.assertIn(' |  dict_get = get(key, default=None, /) method of builtins.dict instance', lines)
+
+        lines = self.getsection(result, f' |  Class methods {where}:', ' |  ' + '-'*70)
+        self.assertIn(' |  B_classmethod(x)', lines)
+        self.assertIn(' |  B_classmethod_alias = B_classmethod(x)', lines)
+
+    def test_html_doc_routines_in_class(self, cls=pydocfodder.B):
+        doc = pydoc.HTMLDoc()
+        result = doc.docclass(cls)
+        result = html2text(result)
+        where = 'defined here' if cls is pydocfodder.B else 'inherited from B'
+        lines = self.getsection(result, f'Methods {where}:', '-'*70)
+        self.assertIn('A_method_alias = A_method(self)', lines)
+        self.assertIn('B_method_alias = B_method(self)', lines)
+        self.assertIn('A_staticmethod(x, y) from test.test_pydoc.pydocfodder.A', lines)
+        self.assertIn('A_staticmethod_alias = A_staticmethod(x, y)', lines)
+        self.assertIn('global_func(x, y) from test.test_pydoc.pydocfodder', lines)
+        self.assertIn('global_func_alias = global_func(x, y)', lines)
+        self.assertIn('global_func2_alias = global_func2(x, y) from test.test_pydoc.pydocfodder', lines)
+        self.assertIn('__repr__(self, /) from builtins.object', lines)
+        self.assertIn('object_repr = __repr__(self, /)', lines)
+
+        lines = self.getsection(result, f'Static methods {where}:', '-'*70)
+        self.assertIn('A_classmethod_ref = A_classmethod(x) class method of test.test_pydoc.pydocfodder.A', lines)
+        note = '' if cls is pydocfodder.B else ' class method of test.test_pydoc.pydocfodder.B'
+        self.assertIn('B_classmethod_ref = B_classmethod(x)' + note, lines)
+        self.assertIn('A_method_ref = A_method() method of test.test_pydoc.pydocfodder.A instance', lines)
+
+        lines = self.getsection(result, f'Class methods {where}:', '-'*70)
+        self.assertIn('B_classmethod(x)', lines)
+        self.assertIn('B_classmethod_alias = B_classmethod(x)', lines)
+
+    def test_text_doc_inherited_routines_in_class(self):
+        self.test_text_doc_routines_in_class(pydocfodder.D)
+
+    def test_html_doc_inherited_routines_in_class(self):
+        self.test_html_doc_routines_in_class(pydocfodder.D)
+
+    def test_text_doc_routines_in_module(self):
+        doc = pydoc.TextDoc()
+        result = doc.docmodule(pydocfodder)
+        result = clean_text(result)
+        lines = self.getsection(result, 'FUNCTIONS', 'FILE')
+        # function alias
+        self.assertIn('    global_func_alias = global_func(x, y)', lines)
+        self.assertIn('    A_staticmethod(x, y)', lines)
+        self.assertIn('    A_staticmethod_alias = A_staticmethod(x, y)', lines)
+        # bound class methods
+        self.assertIn('    A_classmethod(x) class method of A', lines)
+        self.assertIn('    A_classmethod2 = A_classmethod(x) class method of A', lines)
+        self.assertIn('    A_classmethod3 = A_classmethod(x) class method of B', lines)
+        # bound methods
+        self.assertIn('    A_method() method of A instance', lines)
+        self.assertIn('    A_method2 = A_method() method of A instance', lines)
+        self.assertIn('    A_method3 = A_method() method of B instance', lines)
+        self.assertIn('    A_staticmethod_ref = A_staticmethod(x, y)', lines)
+        self.assertIn('    A_staticmethod_ref2 = A_staticmethod(y) method of B instance', lines)
+        self.assertIn('    get(key, default=None, /) method of builtins.dict instance', lines)
+        self.assertIn('    dict_get = get(key, default=None, /) method of builtins.dict instance', lines)
+        # unbound methods
+        self.assertIn('    B_method(self)', lines)
+        self.assertIn('    B_method2 = B_method(self)', lines)
+
+    def test_html_doc_routines_in_module(self):
+        doc = pydoc.HTMLDoc()
+        result = doc.docmodule(pydocfodder)
+        result = html2text(result)
+        lines = self.getsection(result, ' Functions', None)
+        # function alias
+        self.assertIn(' global_func_alias = global_func(x, y)', lines)
+        self.assertIn(' A_staticmethod(x, y)', lines)
+        self.assertIn(' A_staticmethod_alias = A_staticmethod(x, y)', lines)
+        # bound class methods
+        self.assertIn('A_classmethod(x) class method of A', lines)
+        self.assertIn(' A_classmethod2 = A_classmethod(x) class method of A', lines)
+        self.assertIn(' A_classmethod3 = A_classmethod(x) class method of B', lines)
+        # bound methods
+        self.assertIn(' A_method() method of A instance', lines)
+        self.assertIn(' A_method2 = A_method() method of A instance', lines)
+        self.assertIn(' A_method3 = A_method() method of B instance', lines)
+        self.assertIn(' A_staticmethod_ref = A_staticmethod(x, y)', lines)
+        self.assertIn(' A_staticmethod_ref2 = A_staticmethod(y) method of B instance', lines)
+        self.assertIn(' get(key, default=None, /) method of builtins.dict instance', lines)
+        self.assertIn(' dict_get = get(key, default=None, /) method of builtins.dict instance', lines)
+        # unbound methods
+        self.assertIn(' B_method(self)', lines)
+        self.assertIn(' B_method2 = B_method(self)', lines)
 
 
 @unittest.skipIf(

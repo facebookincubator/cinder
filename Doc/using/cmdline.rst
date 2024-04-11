@@ -242,12 +242,13 @@ Miscellaneous options
 
 .. option:: -b
 
-   Issue a warning when comparing :class:`bytes` or :class:`bytearray` with
-   :class:`str` or :class:`bytes` with :class:`int`.  Issue an error when the
-   option is given twice (:option:`!-bb`).
+   Issue a warning when converting :class:`bytes` or :class:`bytearray` to
+   :class:`str` without specifying encoding or comparing :class:`!bytes` or
+   :class:`!bytearray` with :class:`!str` or :class:`!bytes` with :class:`int`.
+   Issue an error when the option is given twice (:option:`!-bb`).
 
    .. versionchanged:: 3.5
-      Affects comparisons of :class:`bytes` with :class:`int`.
+      Affects also comparisons of :class:`bytes` with :class:`int`.
 
 .. option:: -B
 
@@ -380,16 +381,18 @@ Miscellaneous options
    :envvar:`PYTHONHASHSEED` allows you to set a fixed value for the hash
    seed secret.
 
+   .. versionadded:: 3.2.3
+
    .. versionchanged:: 3.7
       The option is no longer ignored.
-
-   .. versionadded:: 3.2.3
 
 
 .. option:: -s
 
    Don't add the :data:`user site-packages directory <site.USER_SITE>` to
    :data:`sys.path`.
+
+   See also :envvar:`PYTHONNOUSERSITE`.
 
    .. seealso::
 
@@ -522,7 +525,7 @@ Miscellaneous options
      asyncio'``.  See also :envvar:`PYTHONPROFILEIMPORTTIME`.
    * ``-X dev``: enable :ref:`Python Development Mode <devmode>`, introducing
      additional runtime checks that are too expensive to be enabled by
-     default.
+     default.  See also :envvar:`PYTHONDEVMODE`.
    * ``-X utf8`` enables the :ref:`Python UTF-8 Mode <utf8-mode>`.
      ``-X utf8=0`` explicitly disables :ref:`Python UTF-8 Mode <utf8-mode>`
      (even when it would otherwise activate automatically).
@@ -555,23 +558,22 @@ Miscellaneous options
    It also allows passing arbitrary values and retrieving them through the
    :data:`sys._xoptions` dictionary.
 
-   .. versionchanged:: 3.2
-      The :option:`-X` option was added.
+   .. versionadded:: 3.2
 
-   .. versionadded:: 3.3
-      The ``-X faulthandler`` option.
+   .. versionchanged:: 3.3
+      Added the ``-X faulthandler`` option.
 
-   .. versionadded:: 3.4
-      The ``-X showrefcount`` and ``-X tracemalloc`` options.
+   .. versionchanged:: 3.4
+      Added the ``-X showrefcount`` and ``-X tracemalloc`` options.
 
-   .. versionadded:: 3.6
-      The ``-X showalloccount`` option.
+   .. versionchanged:: 3.6
+      Added the ``-X showalloccount`` option.
 
-   .. versionadded:: 3.7
-      The ``-X importtime``, ``-X dev`` and ``-X utf8`` options.
+   .. versionchanged:: 3.7
+      Added the ``-X importtime``, ``-X dev`` and ``-X utf8`` options.
 
-   .. versionadded:: 3.8
-      The ``-X pycache_prefix`` option. The ``-X dev`` option now logs
+   .. versionchanged:: 3.8
+      Added the ``-X pycache_prefix`` option. The ``-X dev`` option now logs
       ``close()`` exceptions in :class:`io.IOBase` destructor.
 
    .. versionchanged:: 3.9
@@ -580,21 +582,16 @@ Miscellaneous options
 
       The ``-X showalloccount`` option has been removed.
 
-   .. versionadded:: 3.10
-      The ``-X warn_default_encoding`` option.
+   .. versionchanged:: 3.10
+      Added the ``-X warn_default_encoding`` option.
       Removed the ``-X oldparser`` option.
 
-   .. versionadded:: 3.11
-      The ``-X no_debug_ranges`` option.
+   .. versionchanged:: 3.11
+      Added the ``-X no_debug_ranges``, ``-X frozen_modules`` and
+      ``-X int_max_str_digits`` options.
 
-   .. versionadded:: 3.11
-      The ``-X frozen_modules`` option.
-
-   .. versionadded:: 3.11
-      The ``-X int_max_str_digits`` option.
-
-   .. versionadded:: 3.12
-      The ``-X perf`` option.
+   .. versionchanged:: 3.12
+      Added the ``-X perf`` option.
 
 
 Options you shouldn't use
@@ -914,10 +911,10 @@ conflict.
    * ``malloc_debug``: same as ``malloc`` but also install debug hooks.
    * ``pymalloc_debug``: same as ``pymalloc`` but also install debug hooks.
 
+   .. versionadded:: 3.6
+
    .. versionchanged:: 3.7
       Added the ``"default"`` allocator.
-
-   .. versionadded:: 3.6
 
 
 .. envvar:: PYTHONMALLOCSTATS

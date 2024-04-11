@@ -1007,18 +1007,14 @@ class AST_Tests(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             ast.parse('lambda x=1, /: ...', feature_version=(3, 7))
 
-    def test_parenthesized_with_feature_version(self):
-        ast.parse('with (CtxManager() as example): ...', feature_version=(3, 10))
-        # While advertised as a feature in Python 3.10, this was allowed starting 3.9
-        ast.parse('with (CtxManager() as example): ...', feature_version=(3, 9))
-        with self.assertRaises(SyntaxError):
-            ast.parse('with (CtxManager() as example): ...', feature_version=(3, 8))
-        ast.parse('with CtxManager() as example: ...', feature_version=(3, 8))
-
     def test_assignment_expression_feature_version(self):
         ast.parse('(x := 0)', feature_version=(3, 8))
         with self.assertRaises(SyntaxError):
             ast.parse('(x := 0)', feature_version=(3, 7))
+
+    def test_conditional_context_managers_parse_with_low_feature_version(self):
+        # regression test for gh-115881
+        ast.parse('with (x() if y else z()): ...', feature_version=(3, 8))
 
     def test_exception_groups_feature_version(self):
         code = dedent('''
@@ -1087,9 +1083,9 @@ class AST_Tests(unittest.TestCase):
     @unittest.skipIf(support.is_wasi, "exhausts limited stack on WASI")
     @support.cpython_only
     def test_ast_recursion_limit(self):
-        fail_depth = support.EXCEEDS_RECURSION_LIMIT
+        fail_depth = support.C_RECURSION_LIMIT + 1
         crash_depth = 100_000
-        success_depth = 1200
+        success_depth = int(support.C_RECURSION_LIMIT * 0.9)
 
         def check_limit(prefix, repeated):
             expect_ok = prefix + repeated * success_depth

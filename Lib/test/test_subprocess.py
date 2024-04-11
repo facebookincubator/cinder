@@ -1626,6 +1626,22 @@ class ProcessTestCase(BaseTestCase):
                 subprocess.run([sys.executable, "-c", "pass"])
             self.assertFalse(mock_fork_exec.call_args_list[-1].args[-1])
 
+    @unittest.skipUnless(hasattr(subprocess, '_winapi'),
+                         'need subprocess._winapi')
+    def test_wait_negative_timeout(self):
+        proc = subprocess.Popen(ZERO_RETURN_CMD)
+        with proc:
+            patch = mock.patch.object(
+                subprocess._winapi,
+                'WaitForSingleObject',
+                return_value=subprocess._winapi.WAIT_OBJECT_0)
+            with patch as mock_wait:
+                proc.wait(-1)  # negative timeout
+                mock_wait.assert_called_once_with(proc._handle, 0)
+                proc.returncode = None
+
+            self.assertEqual(proc.wait(), 0)
+
 
 class RunFuncTestCase(BaseTestCase):
     def run_python(self, code, **kwargs):
@@ -3401,14 +3417,15 @@ class POSIXProcessTestCase(BaseTestCase):
         def dummy():
             pass
 
-        def exit_handler():
-            subprocess.Popen({ZERO_RETURN_CMD}, preexec_fn=dummy)
-            print("shouldn't be printed")
-
-        atexit.register(exit_handler)
+        class AtFinalization:
+            def __del__(self):
+                print("OK")
+                subprocess.Popen({ZERO_RETURN_CMD}, preexec_fn=dummy)
+                print("shouldn't be printed")
+        at_finalization = AtFinalization()
         """
         _, out, err = assert_python_ok("-c", code)
-        self.assertEqual(out, b'')
+        self.assertEqual(out.strip(), b"OK")
         self.assertIn(b"preexec_fn not supported at interpreter shutdown", err)
 
 

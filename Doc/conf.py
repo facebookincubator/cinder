@@ -58,6 +58,10 @@ copyright = f"2001-{time.strftime('%Y')}, Python Software Foundation"
 import patchlevel
 version, release = patchlevel.get_version_info()
 
+rst_epilog = f"""
+.. |python_version_literal| replace:: ``Python {version}``
+"""
+
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
 today = ''
@@ -89,10 +93,13 @@ nitpick_ignore = [
     ('c:func', 'dlopen'),
     ('c:func', 'exec'),
     ('c:func', 'fcntl'),
+    ('c:func', 'flock'),
     ('c:func', 'fork'),
     ('c:func', 'free'),
     ('c:func', 'gettimeofday'),
     ('c:func', 'gmtime'),
+    ('c:func', 'grantpt'),
+    ('c:func', 'ioctl'),
     ('c:func', 'localeconv'),
     ('c:func', 'localtime'),
     ('c:func', 'main'),
@@ -255,6 +262,7 @@ nitpick_ignore += [
     ('py:attr', '__annotations__'),
     ('py:meth', '__missing__'),
     ('py:attr', '__wrapped__'),
+    ('py:attr', 'decimal.Context.clamp'),
     ('py:meth', 'index'),  # list.index, tuple.index, etc.
 ]
 
