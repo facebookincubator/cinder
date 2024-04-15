@@ -7,6 +7,7 @@
 
 #include <cstring>
 #include <ostream>
+#include <span>
 
 namespace jit {
 
@@ -38,12 +39,19 @@ constexpr uint8_t kGlobal = 0x10;
 constexpr uint8_t kFunc = 0x02;
 
 // Section header indices / ordering.
-constexpr uint32_t kNullSectionHeaderIndex = 0;
-constexpr uint32_t kTextSectionHeaderIndex = 1;
-constexpr uint32_t kSymbolSectionHeaderIndex = 2;
-constexpr uint32_t kSymbolStringSectionHeaderIndex = 3;
-constexpr uint32_t kSectionStringSectionHeaderIndex = 4;
-constexpr uint32_t kNumSections = 5;
+enum class SectionIdx : uint32_t {
+  // Null section is index 0.
+
+  kText = 1,
+  kSymtab,
+  kStrtab,
+  kShstrtab,
+  kTotal,
+};
+
+constexpr uint32_t raw(SectionIdx idx) {
+  return static_cast<uint32_t>(idx);
+}
 
 // Header that describes a memory segment loaded from an ELF file.
 struct ElfProgramHeader {
@@ -170,7 +178,11 @@ struct ElfFileHeader {
 struct ElfHeader {
   ElfFileHeader file_header;
   ElfProgramHeader prog_header;
-  std::array<ElfSectionHeader, kNumSections> section_headers;
+  std::array<ElfSectionHeader, raw(SectionIdx::kTotal)> section_headers;
+
+  ElfSectionHeader& getSectionHeader(SectionIdx idx) {
+    return section_headers[raw(idx)];
+  }
 };
 
 // String table encoded for ELF.
@@ -192,12 +204,8 @@ class ElfStringTable {
     return static_cast<uint32_t>(start_off);
   }
 
-  const uint8_t* start() const {
-    return bytes_.data();
-  }
-
-  size_t size() const {
-    return bytes_.size();
+  std::span<const std::byte> bytes() const {
+    return std::as_bytes(std::span<const uint8_t>{bytes_});
   }
 
  private:
@@ -234,12 +242,8 @@ class ElfSymbolTable {
     syms_.emplace_back(std::forward<T&&>(sym));
   }
 
-  const uint8_t* start() const {
-    return reinterpret_cast<const uint8_t*>(syms_.data());
-  }
-
-  size_t size() const {
-    return syms_.size() * sizeof(syms_[0]);
+  std::span<const std::byte> bytes() const {
+    return std::as_bytes(std::span{syms_});
   }
 
  private:
@@ -255,6 +259,10 @@ template <class T>
 void write(std::ostream& os, T* data, size_t size) {
   os.write(reinterpret_cast<const char*>(data), size);
   JIT_CHECK(!os.bad(), "Failed to write {} bytes of ELF output", size);
+}
+
+void write(std::ostream& os, std::span<const std::byte> bytes) {
+  write(os, bytes.data(), bytes.size());
 }
 
 } // namespace
@@ -274,7 +282,7 @@ void writeElfEntries(
   for (const ElfCodeEntry& entry : entries) {
     ElfSymbol sym;
     sym.name_offset = symbol_names.insert(entry.func_name);
-    sym.section_index = kTextSectionHeaderIndex;
+    sym.section_index = raw(SectionIdx::kText);
     sym.address = text_end_address;
     sym.size = entry.code.size();
     symbols.insert(std::move(sym));
@@ -292,8 +300,8 @@ void writeElfEntries(
   file_header.program_header_offset = offsetof(ElfHeader, prog_header);
   file_header.program_header_count = 1;
   file_header.section_header_offset = offsetof(ElfHeader, section_headers);
-  file_header.section_header_count = kNumSections;
-  file_header.section_name_index = kSectionStringSectionHeaderIndex;
+  file_header.section_header_count = raw(SectionIdx::kTotal);
+  file_header.section_name_index = raw(SectionIdx::kShstrtab);
 
   // The memory segment loaded into memory immediately follows all the ELF
   // headers.
@@ -313,7 +321,7 @@ void writeElfEntries(
 
   // Program bits. Occupies memory and is executable.  Text immediately follows
   // the section header table.
-  ElfSectionHeader& text_header = elf.section_headers[kTextSectionHeaderIndex];
+  ElfSectionHeader& text_header = elf.getSectionHeader(SectionIdx::kText);
   text_header.name_offset = section_names.insert(".text");
   text_header.type = kProgram;
   text_header.flags = kSectionAlloc | kSectionExecutable;
@@ -323,14 +331,13 @@ void writeElfEntries(
   text_header.align = 0x1000;
   section_offset += text_header.size;
 
-  ElfSectionHeader& symbol_header =
-      elf.section_headers[kSymbolSectionHeaderIndex];
+  ElfSectionHeader& symbol_header = elf.getSectionHeader(SectionIdx::kSymtab);
   symbol_header.name_offset = section_names.insert(".symtab");
   symbol_header.type = kSymbolTable;
   symbol_header.flags = kSectionInfoLink;
   symbol_header.offset = section_offset;
-  symbol_header.size = symbols.size();
-  symbol_header.link = kSymbolStringSectionHeaderIndex;
+  symbol_header.size = symbols.bytes().size();
+  symbol_header.link = raw(SectionIdx::kStrtab);
   // This is the index of the first global symbol, i.e. the first symbol after
   // the null symbol.
   symbol_header.info = 1;
@@ -338,21 +345,21 @@ void writeElfEntries(
   section_offset += symbol_header.size;
 
   ElfSectionHeader& symbol_string_header =
-      elf.section_headers[kSymbolStringSectionHeaderIndex];
+      elf.getSectionHeader(SectionIdx::kStrtab);
   symbol_string_header.name_offset = section_names.insert(".strtab");
   symbol_string_header.type = kStringTable;
   symbol_string_header.flags = kSectionStrings;
   symbol_string_header.offset = section_offset;
-  symbol_string_header.size = symbol_names.size();
+  symbol_string_header.size = symbol_names.bytes().size();
   section_offset += symbol_string_header.size;
 
   ElfSectionHeader& section_string_header =
-      elf.section_headers[kSectionStringSectionHeaderIndex];
+      elf.getSectionHeader(SectionIdx::kShstrtab);
   section_string_header.name_offset = section_names.insert(".shstrtab");
   section_string_header.type = kStringTable;
   section_string_header.flags = kSectionStrings;
   section_string_header.offset = section_offset;
-  section_string_header.size = section_names.size();
+  section_string_header.size = section_names.bytes().size();
   section_offset += section_string_header.size;
 
   // Write out all the headers.
@@ -362,9 +369,9 @@ void writeElfEntries(
   for (const ElfCodeEntry& entry : entries) {
     write(os, entry.code.data(), entry.code.size());
   }
-  write(os, symbols.start(), symbols.size());
-  write(os, symbol_names.start(), symbol_names.size());
-  write(os, section_names.start(), section_names.size());
+  write(os, symbols.bytes());
+  write(os, symbol_names.bytes());
+  write(os, section_names.bytes());
 }
 
 } // namespace jit
