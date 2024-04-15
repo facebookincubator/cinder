@@ -1154,12 +1154,12 @@ static PyObject* dump_elf(PyObject* /* self */, PyObject* arg) {
   Py_ssize_t filename_size = 0;
   const char* filename = PyUnicode_AsUTF8AndSize(arg, &filename_size);
 
-  std::vector<ElfCodeEntry> entries;
+  std::vector<elf::CodeEntry> entries;
   for (BorrowedRef<PyFunctionObject> func : jit_ctx->compiledFuncs()) {
     BorrowedRef<PyCodeObject> code{func->func_code};
     CompiledFunction* compiled_func = jit_ctx->lookupFunc(func);
 
-    ElfCodeEntry entry;
+    elf::CodeEntry entry;
     // TODO: What about the staticEntry?
     entry.code = {
         reinterpret_cast<uint8_t*>(compiled_func->vectorcallEntry()),
@@ -1174,7 +1174,7 @@ static PyObject* dump_elf(PyObject* /* self */, PyObject* arg) {
   }
 
   std::ofstream out{filename};
-  writeElfEntries(out, entries);
+  elf::writeEntries(out, entries);
 
   Py_RETURN_NONE;
 }
