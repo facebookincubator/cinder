@@ -111,9 +111,8 @@ class alignas(16) CodeRuntime {
   explicit CodeRuntime(
       PyCodeObject* code,
       PyObject* builtins,
-      PyObject* globals,
-      jit::FrameMode frame_mode)
-      : frame_state_(code, builtins, globals), frame_mode_(frame_mode) {
+      PyObject* globals)
+      : frame_state_(code, builtins, globals) {
     // TODO(T88040922): Until we work out something smarter, force code,
     // globals, and builtins objects for compiled functions to live as long as
     // the JIT is initialized.
@@ -122,12 +121,11 @@ class alignas(16) CodeRuntime {
     addReference(globals);
   }
 
-  CodeRuntime(PyFunctionObject* func, jit::FrameMode frame_mode)
+  CodeRuntime(PyFunctionObject* func)
       : CodeRuntime(
             reinterpret_cast<PyCodeObject*>(func->func_code),
             func->func_builtins,
-            func->func_globals,
-            frame_mode) {}
+            func->func_globals) {}
 
   template <typename... Args>
   RuntimeFrameState* allocateRuntimeFrameState(Args&&... args) {
@@ -136,10 +134,6 @@ class alignas(16) CodeRuntime {
     inlined_frame_states_.emplace_back(
         std::make_unique<RuntimeFrameState>(std::forward<Args>(args)...));
     return inlined_frame_states_.back().get();
-  }
-
-  jit::FrameMode frameMode() const {
-    return frame_mode_;
   }
 
   const RuntimeFrameState* frameState() const {
@@ -188,7 +182,6 @@ class alignas(16) CodeRuntime {
  private:
   RuntimeFrameState frame_state_;
   std::vector<std::unique_ptr<RuntimeFrameState>> inlined_frame_states_;
-  jit::FrameMode frame_mode_;
 
   std::unordered_set<Ref<PyObject>> references_;
 

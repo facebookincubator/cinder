@@ -279,9 +279,8 @@ void* NativeGenerator::getVectorcallEntry() {
   auto func = GetFunction();
 
   env_.rt = Runtime::get();
-  PyCodeObject* code_obj = func->code;
-  env_.code_rt = env_.rt->allocateCodeRuntime(
-      code_obj, func->builtins, func->globals, func->frameMode);
+  env_.code_rt =
+      env_.rt->allocateCodeRuntime(func->code, func->builtins, func->globals);
 
   for (auto& ref : func->env.references()) {
     env_.code_rt->addReference(ref);

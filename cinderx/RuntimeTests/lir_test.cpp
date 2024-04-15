@@ -29,18 +29,18 @@ using namespace jit::lir;
 
 class LIRGeneratorTest : public RuntimeTest {
  public:
-  std::string getLIRString(PyObject* func) {
+  std::string getLIRString(PyObject* func_obj) {
     JIT_CHECK(
-        PyFunction_Check(func),
+        PyFunction_Check(func_obj),
         "Trying to compile something that isn't a function");
+    BorrowedRef<PyFunctionObject> func{func_obj};
 
-    PyObject* globals = PyFunction_GetGlobals(func);
+    PyObject* globals = PyFunction_GetGlobals(func_obj);
     if (!PyDict_CheckExact(globals)) {
       return nullptr;
     }
 
-    if (!PyDict_CheckExact(
-            reinterpret_cast<PyFunctionObject*>(func)->func_builtins)) {
+    if (!PyDict_CheckExact(func->func_builtins)) {
       return nullptr;
     }
 
@@ -56,7 +56,7 @@ class LIRGeneratorTest : public RuntimeTest {
 
     env.rt = &rt;
 
-    CodeRuntime runtime{(PyFunctionObject*)func, FrameMode::kNormal};
+    CodeRuntime runtime{func};
     env.code_rt = &runtime;
 
     LIRGenerator lir_gen(irfunc.get(), &env);
