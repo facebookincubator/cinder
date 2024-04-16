@@ -49,6 +49,8 @@ struct Config {
   // Assume that globals and builtins dictionaries, but not their contents, are
   // unchanged across Python function calls.
   bool stable_globals{true};
+  // Use inline caches for attribute accesses.
+  bool attr_caches{true};
   HIROptimizations hir_opts;
   size_t batch_compile_workers{0};
   // Sizes (in bytes) of the hot and cold code sections. Only applicable if

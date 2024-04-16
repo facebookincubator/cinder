@@ -2188,7 +2188,7 @@ void HIRBuilder::emitLoadAttr(
     const jit::BytecodeInstruction& bc_instr) {
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<LoadAttrCached>(result, receiver, bc_instr.oparg(), tc.frame);
+  tc.emit<LoadAttr>(result, receiver, bc_instr.oparg(), tc.frame);
   tc.frame.stack.push(result);
 }
 
@@ -2199,7 +2199,7 @@ void HIRBuilder::emitLoadMethod(
   Register* receiver = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
   Register* method_instance = temps_.AllocateStack();
-  tc.emit<LoadMethodCached>(result, receiver, bc_instr.oparg(), tc.frame);
+  tc.emit<LoadMethod>(result, receiver, bc_instr.oparg(), tc.frame);
   tc.emit<GetSecondOutput>(method_instance, TOptObject, result);
   tc.frame.stack.push(result);
   tc.frame.stack.push(method_instance);
@@ -3045,7 +3045,7 @@ void HIRBuilder::emitStoreAttr(
   Register* receiver = tc.frame.stack.pop();
   Register* value = tc.frame.stack.pop();
   Register* result = temps_.AllocateStack();
-  tc.emit<StoreAttrCached>(result, receiver, value, bc_instr.oparg(), tc.frame);
+  tc.emit<StoreAttr>(result, receiver, value, bc_instr.oparg(), tc.frame);
 }
 
 void HIRBuilder::moveOverwrittenStackRegisters(

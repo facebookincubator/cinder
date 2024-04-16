@@ -450,14 +450,14 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: os'
     }
     Snapshot
-    v16:Object = LoadAttrCached<1; "argv"> v15 {
+    v41:Object = LoadAttrCached<1; "argv"> v15 {
       FrameState {
         NextInstrOffset 4
         Locals<2> v13 v13
       }
     }
     Snapshot
-    v17:CInt32 = IsTruthy v16 {
+    v17:CInt32 = IsTruthy v41 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v13 v13
@@ -486,14 +486,14 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: os'
     }
     Snapshot
-    v28:Object = LoadAttrCached<1; "argv"> v27 {
+    v42:Object = LoadAttrCached<1; "argv"> v27 {
       FrameState {
         NextInstrOffset 18
         Locals<2> v22 v13
       }
     }
     Snapshot
-    v29:CInt32 = IsTruthy v28 {
+    v29:CInt32 = IsTruthy v42 {
       FrameState {
         NextInstrOffset 20
         Locals<2> v22 v13
@@ -519,27 +519,27 @@ fun jittestmodule:test {
     Snapshot
     UseType<UnicodeExact> v22
     UseType<LongExact> v34
-    v41:CInt64 = IndexUnbox<IndexError> v34
-    v42:CInt64 = IsNegativeAndErrOccurred v41 {
+    v43:CInt64 = IndexUnbox<IndexError> v34
+    v44:CInt64 = IsNegativeAndErrOccurred v43 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v22 v34
       }
     }
-    v43:CInt64 = CheckSequenceBounds v22 v41 {
+    v45:CInt64 = CheckSequenceBounds v22 v43 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v22 v34
       }
     }
-    v44:UnicodeExact = UnicodeSubscr v22 v43 {
+    v46:UnicodeExact = UnicodeSubscr v22 v45 {
       FrameState {
         NextInstrOffset 34
         Locals<2> v22 v34
       }
     }
     Snapshot
-    Return v44
+    Return v46
   }
 }
 ---
@@ -813,13 +813,13 @@ fun jittestmodule:test {
       Descr 'LOAD_GLOBAL: sys'
     }
     Snapshot
-    v4:Object = LoadAttrCached<1; "path"> v3 {
+    v5:Object = LoadAttrCached<1; "path"> v3 {
       FrameState {
         NextInstrOffset 4
       }
     }
     Snapshot
-    Return v4
+    Return v5
   }
 }
 ---
@@ -2970,14 +2970,14 @@ fun jittestmodule:test {
       }
     }
     Snapshot
-    v8:Object = LoadMethodCached<1; "hello"> v7 {
+    v11:Object = LoadMethodCached<1; "hello"> v7 {
       FrameState {
         NextInstrOffset 6
       }
     }
-    v9:OptObject = GetSecondOutput<OptObject> v8
+    v9:OptObject = GetSecondOutput<OptObject> v11
     Snapshot
-    v10:Object = CallMethod<2> v8 v9 {
+    v10:Object = CallMethod<2> v11 v9 {
       FrameState {
         NextInstrOffset 8
       }

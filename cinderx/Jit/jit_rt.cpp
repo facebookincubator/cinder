@@ -815,6 +815,20 @@ PyObject* JITRT_UnaryNot(PyObject* value) {
   return nullptr;
 }
 
+JITRT_LoadMethodResult JITRT_GetMethod(PyObject* obj, PyObject* name) {
+  PyObject* method = nullptr;
+  int found = _PyObject_GetMethod(obj, name, &method);
+  if (method == nullptr) {
+    return {nullptr, nullptr};
+  }
+  if (!found) {
+    Py_INCREF(Py_None);
+    return {Py_None, method};
+  }
+  Py_INCREF(obj);
+  return {method, obj};
+}
+
 JITRT_LoadMethodResult JITRT_GetMethodFromSuper(
     PyObject* global_super,
     PyObject* type,

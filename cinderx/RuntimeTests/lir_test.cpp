@@ -597,3 +597,33 @@ def func3(x):
       << "Should be calling out to JITRT_LoadGlobalsDict as globals "
          "aren't stable";
 }
+
+TEST_F(LIRGeneratorTest, AttrCachesOff) {
+  getMutableConfig().attr_caches = false;
+
+  const char* src = R"(
+import sys
+
+def func():
+  return sys.argv
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(src, "func"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto lir_str = getLIRString(pyfunc.get());
+
+  auto fast_path =
+      fmt::format("{}", reinterpret_cast<uint64_t>(LoadAttrCache::invoke));
+  auto slow_path =
+      fmt::format("{}", reinterpret_cast<uint64_t>(PyObject_GetAttr));
+
+  EXPECT_FALSE(getConfig().attr_caches);
+
+  EXPECT_NE(lir_str.find(slow_path), std::string::npos)
+      << "Should be calling out to PyObject_GetAttr as inline caches are "
+         "disabled";
+  EXPECT_EQ(lir_str.find(fast_path), std::string::npos)
+      << "Should not be calling out to LoadAttrCache::invoke as inline caches "
+         "are disabled";
+}

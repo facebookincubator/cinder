@@ -486,6 +486,7 @@ static std::string format_immediates(const Instr& instr) {
       _Py_Identifier* id = load.id();
       return fmt::format("\"{}\"", id->string);
     }
+    case Opcode::kLoadMethod:
     case Opcode::kLoadMethodCached:
     case Opcode::kLoadModuleMethodCached: {
       const auto& load = static_cast<const LoadMethodBase&>(instr);
@@ -585,7 +586,9 @@ static std::string format_immediates(const Instr& instr) {
       return ss.str();
     }
     case Opcode::kDeleteAttr:
+    case Opcode::kLoadAttr:
     case Opcode::kLoadAttrCached:
+    case Opcode::kStoreAttr:
     case Opcode::kStoreAttrCached: {
       const auto& named = static_cast<const DeoptBaseWithNameIdx&>(instr);
       return format_name(named, named.name_idx());

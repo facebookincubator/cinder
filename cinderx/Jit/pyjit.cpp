@@ -751,6 +751,18 @@ void initFlagProcessor() {
         "Enable emitting code into multiple code sections.");
 
     xarg_flag_processor.addOption(
+        "jit-attr-caches",
+        "PYTHONJITATTRCACHES",
+        [](int val) {
+          if (use_jit) {
+            getMutableConfig().attr_caches = !!val;
+          } else {
+            warnJITOff("jit-attr-caches");
+          }
+        },
+        "Use inline caches for attribute access instructions");
+
+    xarg_flag_processor.addOption(
         "jit-attr-cache-size",
         "PYTHONJITATTRCACHESIZE",
         [](uint32_t entries) {

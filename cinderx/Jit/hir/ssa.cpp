@@ -392,10 +392,12 @@ Type outputType(
     case Opcode::kInPlaceOp:
     case Opcode::kInvokeIterNext:
     case Opcode::kInvokeMethod:
+    case Opcode::kLoadAttr:
     case Opcode::kLoadAttrCached:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadGlobal:
+    case Opcode::kLoadMethod:
     case Opcode::kLoadMethodCached:
     case Opcode::kLoadModuleMethodCached:
     case Opcode::kLoadMethodSuper:
@@ -537,6 +539,7 @@ Type outputType(
     // respectively. At some point we should get rid of this extra layer and
     // deal with the int return value directly.
     case Opcode::kListExtend:
+    case Opcode::kStoreAttr:
     case Opcode::kStoreAttrCached:
       return TNoneType;
 

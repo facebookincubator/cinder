@@ -2437,7 +2437,15 @@ class DeoptBaseWithNameIdx : public DeoptBase {
   int name_idx_;
 };
 
-// Load an attribute from an object, using an inline cache.
+// Load an attribute from an object.
+DEFINE_SIMPLE_INSTR(
+    LoadAttr,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    DeoptBaseWithNameIdx);
+
+// Variant of LoadAttr that uses an inline cache.
 DEFINE_SIMPLE_INSTR(
     LoadAttrCached,
     (TObject),
@@ -2445,9 +2453,17 @@ DEFINE_SIMPLE_INSTR(
     Operands<1>,
     DeoptBaseWithNameIdx);
 
-// Set the attribute of an object, using an inline cache.
+// Set the attribute of an object.
 //
 // Places NULL in dst if an error occurred or a non-NULL value otherwise
+DEFINE_SIMPLE_INSTR(
+    StoreAttr,
+    (TObject, TObject),
+    HasOutput,
+    Operands<2>,
+    DeoptBaseWithNameIdx);
+
+// Variant of StoreAttr that uses an inline cache.
 DEFINE_SIMPLE_INSTR(
     StoreAttrCached,
     (TObject, TObject),
@@ -2582,6 +2598,14 @@ class LoadMethodBase : public DeoptBaseWithNameIdx {
 
 // Like LoadAttr, but when we know that we're loading an attribute that will be
 // used for a method call.
+DEFINE_SIMPLE_INSTR(
+    LoadMethod,
+    (TObject),
+    HasOutput,
+    Operands<1>,
+    LoadMethodBase);
+
+// Variant of LoadMethod that uses an inline cache.
 DEFINE_SIMPLE_INSTR(
     LoadMethodCached,
     (TObject),

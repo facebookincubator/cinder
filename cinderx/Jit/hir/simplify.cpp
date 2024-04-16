@@ -499,16 +499,14 @@ Register* simplifyLoadVarObjectSize(Env& env, const LoadVarObjectSize* instr) {
 
 Register* simplifyLoadModuleMethodCached(
     Env& env,
-    const LoadMethodCached* load_meth) {
+    const LoadMethod* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
   int name_idx = load_meth->name_idx();
   return env.emit<LoadModuleMethodCached>(
       receiver, name_idx, *load_meth->frameState());
 }
 
-Register* simplifyLoadTypeMethodCached(
-    Env& env,
-    const LoadMethodCached* load_meth) {
+Register* simplifyLoadTypeMethodCached(Env& env, const LoadMethod* load_meth) {
   Register* receiver = load_meth->GetOperand(0);
   const int cache_id = env.func.env.allocateLoadTypeMethodCache();
   env.emit<UseType>(receiver, TType);
@@ -529,7 +527,10 @@ Register* simplifyLoadTypeMethodCached(
       });
 }
 
-Register* simplifyLoadMethod(Env& env, const LoadMethodCached* load_meth) {
+Register* simplifyLoadMethod(Env& env, const LoadMethod* load_meth) {
+  if (!getConfig().attr_caches) {
+    return nullptr;
+  }
   Register* receiver = load_meth->GetOperand(0);
   Type ty = receiver->type();
   if (receiver->isA(TType)) {
@@ -539,7 +540,10 @@ Register* simplifyLoadMethod(Env& env, const LoadMethodCached* load_meth) {
   if (type == &PyModule_Type || type == &Ci_StrictModule_Type) {
     return simplifyLoadModuleMethodCached(env, load_meth);
   }
-  return nullptr;
+  return env.emit<LoadMethodCached>(
+      load_meth->GetOperand(0),
+      load_meth->name_idx(),
+      *load_meth->frameState());
 }
 
 Register* simplifyBinaryOp(Env& env, const BinaryOp* instr) {
@@ -798,7 +802,7 @@ Register* simplifyUnbox(Env& env, const Instr* instr) {
 // - The type doesn't have a descriptor at the attribute name.
 Register* simplifyLoadAttrSplitDict(
     Env& env,
-    const LoadAttrCached* load_attr,
+    const LoadAttr* load_attr,
     BorrowedRef<PyTypeObject> type,
     BorrowedRef<PyUnicodeObject> name) {
   if (!PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) ||
@@ -985,7 +989,7 @@ Register* simplifyLoadAttrGenericDescriptor(Env& env, const DescrInfo& info) {
 // instances (not types).
 Register* simplifyLoadAttrInstanceReceiver(
     Env& env,
-    const LoadAttrCached* load_attr) {
+    const LoadAttr* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   Type type = receiver->type();
   BorrowedRef<PyTypeObject> py_type{type.runtimePyType()};
@@ -1026,9 +1030,7 @@ Register* simplifyLoadAttrInstanceReceiver(
   return nullptr;
 }
 
-Register* simplifyLoadAttrTypeReceiver(
-    Env& env,
-    const LoadAttrCached* load_attr) {
+Register* simplifyLoadAttrTypeReceiver(Env& env, const LoadAttr* load_attr) {
   Register* receiver = load_attr->GetOperand(0);
   if (!receiver->isA(TType)) {
     return nullptr;
@@ -1053,12 +1055,18 @@ Register* simplifyLoadAttrTypeReceiver(
       });
 }
 
-Register* simplifyLoadAttrCached(Env& env, const LoadAttrCached* load_attr) {
+Register* simplifyLoadAttr(Env& env, const LoadAttr* load_attr) {
   if (Register* reg = simplifyLoadAttrInstanceReceiver(env, load_attr)) {
     return reg;
   }
-  if (Register* reg = simplifyLoadAttrTypeReceiver(env, load_attr)) {
-    return reg;
+  if (getConfig().attr_caches) {
+    if (Register* reg = simplifyLoadAttrTypeReceiver(env, load_attr)) {
+      return reg;
+    }
+    return env.emit<LoadAttrCached>(
+        load_attr->GetOperand(0),
+        load_attr->name_idx(),
+        *load_attr->frameState());
   }
   return nullptr;
 }
@@ -1097,6 +1105,17 @@ Register* simplifyIsNegativeAndErrOccurred(
   // still have access to the result. Otherwise, DCE will take care of this.
   Type output_type = instr->GetOutput()->type();
   return env.emit<LoadConst>(Type::fromCInt(0, output_type));
+}
+
+Register* simplifyStoreAttr(Env& env, const StoreAttr* store_attr) {
+  if (getConfig().attr_caches) {
+    return env.emit<StoreAttrCached>(
+        store_attr->GetOperand(0),
+        store_attr->GetOperand(1),
+        store_attr->name_idx(),
+        *store_attr->frameState());
+  }
+  return nullptr;
 }
 
 static bool isBuiltin(PyMethodDef* meth, const char* name) {
@@ -1321,12 +1340,10 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIsTruthy:
       return simplifyIsTruthy(env, static_cast<const IsTruthy*>(instr));
 
-    case Opcode::kLoadAttrCached:
-      return simplifyLoadAttrCached(
-          env, static_cast<const LoadAttrCached*>(instr));
-    case Opcode::kLoadMethodCached:
-      return simplifyLoadMethod(
-          env, static_cast<const LoadMethodCached*>(instr));
+    case Opcode::kLoadAttr:
+      return simplifyLoadAttr(env, static_cast<const LoadAttr*>(instr));
+    case Opcode::kLoadMethod:
+      return simplifyLoadMethod(env, static_cast<const LoadMethod*>(instr));
     case Opcode::kLoadField:
       return simplifyLoadField(env, static_cast<const LoadField*>(instr));
     case Opcode::kLoadTupleItem:
@@ -1359,6 +1376,9 @@ Register* simplifyInstr(Env& env, const Instr* instr) {
     case Opcode::kIsNegativeAndErrOccurred:
       return simplifyIsNegativeAndErrOccurred(
           env, static_cast<const IsNegativeAndErrOccurred*>(instr));
+
+    case Opcode::kStoreAttr:
+      return simplifyStoreAttr(env, static_cast<const StoreAttr*>(instr));
 
     case Opcode::kVectorCall:
       return simplifyVectorCall(env, static_cast<const VectorCall*>(instr));

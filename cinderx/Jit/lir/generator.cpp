@@ -1200,15 +1200,25 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         appendGuard(bbb, InstrGuardKind::kNotNegative, *instr, call);
         break;
       }
-      case Opcode::kLoadAttrCached: {
+      case Opcode::kLoadAttr: {
         auto instr = static_cast<const LoadAttrCached*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->GetOperand(0);
         Instruction* name = getNameFromIdx(bbb, instr);
+        bbb.appendCallInstruction(dst, PyObject_GetAttr, base, name);
+        break;
+      }
+      case Opcode::kLoadAttrCached: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use LoadAttrCached");
+        auto instr = static_cast<const LoadAttrCached*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->GetOperand(0);
+        Instruction* name = getNameFromIdx(bbb, instr);
+        auto cache = Runtime::get()->allocateLoadAttrCache();
         bbb.appendCallInstruction(
-            instr->dst(),
-            jit::LoadAttrCache::invoke,
-            Runtime::get()->allocateLoadAttrCache(),
-            instr->GetOperand(0),
-            name);
+            dst, jit::LoadAttrCache::invoke, cache, base, name);
         break;
       }
       case Opcode::kLoadAttrSpecial: {
@@ -1222,6 +1232,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadTypeAttrCacheItem: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use LoadTypeAttrCacheItem");
         auto instr = static_cast<const LoadTypeAttrCacheItem*>(&i);
         LoadTypeAttrCache* cache = load_type_attr_caches_.at(instr->cache_id());
         PyObject** addr = &cache->items[instr->item_idx()];
@@ -1229,6 +1242,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kFillTypeAttrCache: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use FillTypeAttrCacheItem");
         auto instr = static_cast<const FillTypeAttrCache*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
         bbb.appendCallInstruction(
@@ -1240,6 +1256,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kFillTypeMethodCache: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use FillTypeMethodCache");
         auto instr = static_cast<const FillTypeMethodCache*>(&i);
         PyCodeObject* code = instr->frameState()->code;
         Instruction* name = getNameFromIdx(bbb, instr);
@@ -1258,6 +1277,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadTypeMethodCacheEntryType: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use "
+            "LoadTypeMethodCacheEntryType");
         auto instr = static_cast<const LoadTypeMethodCacheEntryType*>(&i);
         LoadTypeMethodCache* cache =
             load_type_method_caches_.at(instr->cache_id());
@@ -1266,6 +1289,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadTypeMethodCacheEntryValue: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use "
+            "LoadTypeMethodCacheEntryValue");
         auto instr = static_cast<const LoadTypeMethodCacheEntryValue*>(&i);
         LoadTypeMethodCache* cache =
             load_type_method_caches_.at(instr->cache_id());
@@ -1276,27 +1303,37 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->receiver());
         break;
       }
-      case Opcode::kLoadMethodCached: {
-        auto instr = static_cast<const LoadMethodCached*>(&i);
-
-        PyCodeObject* code = instr->frameState()->code;
+      case Opcode::kLoadMethod: {
+        auto instr = static_cast<const LoadMethod*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->receiver();
         Instruction* name = getNameFromIdx(bbb, instr);
-        auto cache_entry = Runtime::get()->allocateLoadMethodCache();
+        bbb.appendCallInstruction(dst, JITRT_GetMethod, base, name);
+        break;
+      }
+      case Opcode::kLoadMethodCached: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use LoadMethodCached");
+        auto instr = static_cast<const LoadMethodCached*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->receiver();
+        Instruction* name = getNameFromIdx(bbb, instr);
+        auto cache = Runtime::get()->allocateLoadMethodCache();
         if (g_collect_inline_cache_stats) {
-          cache_entry->initCacheStats(
+          BorrowedRef<PyCodeObject> code = instr->frameState()->code;
+          cache->initCacheStats(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
         }
         bbb.appendCallInstruction(
-            instr->dst(),
-            LoadMethodCache::lookupHelper,
-            cache_entry,
-            instr->receiver(),
-            name);
-
+            dst, LoadMethodCache::lookupHelper, cache, base, name);
         break;
       }
       case Opcode::kLoadModuleMethodCached: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use LoadModuleMethodCached");
         auto instr = static_cast<const LoadModuleMethodCached*>(&i);
         Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = Runtime::get()->allocateLoadModuleMethodCache();
@@ -1697,16 +1734,33 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             instr->GetOutput(), JITRT_LoadGlobal, globals, builtins, name);
         break;
       }
-      case Opcode::kStoreAttrCached: {
+      case Opcode::kStoreAttr: {
         auto instr = static_cast<const StoreAttrCached*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->GetOperand(0);
         Instruction* name = getNameFromIdx(bbb, instr);
+        hir::Register* value = instr->GetOperand(1);
+        Instruction* result = bbb.appendCallInstruction(
+            OutVReg{OperandBase::k32bit}, PyObject_SetAttr, base, name, value);
+        // TODO(T140174965): This should be MemImm.
+        Instruction* null =
+            bbb.appendInstr(OutVReg{}, Instruction::kMove, Imm{0});
+        auto none = reinterpret_cast<uint64_t>(Py_None);
+        bbb.appendInstr(dst, Instruction::kSelect, result, null, Imm{none});
+        break;
+      }
+      case Opcode::kStoreAttrCached: {
+        JIT_DCHECK(
+            getConfig().attr_caches,
+            "Inline caches must be enabled to use StoreAttrCached");
+        auto instr = static_cast<const StoreAttrCached*>(&i);
+        hir::Register* dst = instr->dst();
+        hir::Register* base = instr->GetOperand(0);
+        Instruction* name = getNameFromIdx(bbb, instr);
+        hir::Register* value = instr->GetOperand(1);
+        auto cache = Runtime::get()->allocateStoreAttrCache();
         bbb.appendCallInstruction(
-            instr->dst(),
-            jit::StoreAttrCache::invoke,
-            Runtime::get()->allocateStoreAttrCache(),
-            instr->GetOperand(0),
-            name,
-            instr->GetOperand(1));
+            dst, jit::StoreAttrCache::invoke, cache, base, name, value);
         break;
       }
       case Opcode::kVectorCall: {

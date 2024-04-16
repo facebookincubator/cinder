@@ -634,7 +634,7 @@ fun jittestmodule:test {
   bb 0 {
     v4:Object = LoadArg<0; "x">
     v5:Object = LoadArg<1; "val">
-    v8:NoneType = StoreAttrCached<0; "foo"> v4 v5 {
+    v10:NoneType = StoreAttrCached<0; "foo"> v4 v5 {
       LiveValues<2> b:v4 b:v5
       FrameState {
         NextInstrOffset 6
@@ -764,7 +764,7 @@ fun jittestmodule:test {
       }
     }
     Incref v16
-    v17:Object = LoadMethodCached<0; "foo"> v16 {
+    v26:Object = LoadMethodCached<0; "foo"> v16 {
       LiveValues<3> unc:v13 o:v14 o:v16
       FrameState {
         NextInstrOffset 4
@@ -773,18 +773,18 @@ fun jittestmodule:test {
       }
     }
     Decref v16
-    v18:OptObject = GetSecondOutput<OptObject> v17
-    v19:Object = CallMethod<2> v17 v18 {
-      LiveValues<4> unc:v13 o:v14 o:v17 o:v18
+    v18:OptObject = GetSecondOutput<OptObject> v26
+    v19:Object = CallMethod<2> v26 v18 {
+      LiveValues<4> unc:v13 o:v14 o:v18 o:v26
       FrameState {
         NextInstrOffset 6
         Locals<2> v13 v13
         Cells<1> v14
       }
     }
-    Decref v17
     XDecref v18
     Decref v19
+    Decref v26
     Incref v14
     v20:MortalTupleExact = MakeTuple<1> v14 {
       LiveValues<2> unc:v13 o:v14

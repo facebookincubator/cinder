@@ -122,7 +122,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadAttrCached<0; "foo"> v0 {
+    v1 = LoadAttr<0; "foo"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<1> v0
@@ -533,7 +533,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v2 = StoreAttrCached<0; "foo"> v0 v1 {
+    v2 = StoreAttr<0; "foo"> v0 v1 {
       FrameState {
         NextInstrOffset 6
         Locals<2> v0 v1
@@ -643,7 +643,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v3 = LoadAttrCached<0; "input"> v0 {
+    v3 = LoadAttr<0; "input"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<3> v0 v1 v2
@@ -677,7 +677,7 @@ fun jittestmodule:test {
         Stack<1> v1
       }
     }
-    v8 = StoreAttrCached<0; "input"> v0 v1 {
+    v8 = StoreAttr<0; "input"> v0 v1 {
       FrameState {
         NextInstrOffset 16
         Locals<3> v0 v1 v2
@@ -692,7 +692,7 @@ fun jittestmodule:test {
         Stack<1> v9
       }
     }
-    v10 = StoreAttrCached<1; "packet_pending"> v0 v9 {
+    v10 = StoreAttr<1; "packet_pending"> v0 v9 {
       FrameState {
         NextInstrOffset 22
         Locals<3> v0 v1 v2
@@ -705,7 +705,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v11 = LoadAttrCached<2; "priority"> v0 {
+    v11 = LoadAttr<2; "priority"> v0 {
       FrameState {
         NextInstrOffset 26
         Locals<3> v0 v1 v2
@@ -719,7 +719,7 @@ fun jittestmodule:test {
         Stack<1> v11
       }
     }
-    v12 = LoadAttrCached<2; "priority"> v2 {
+    v12 = LoadAttr<2; "priority"> v2 {
       FrameState {
         NextInstrOffset 30
         Locals<3> v0 v1 v2
@@ -773,7 +773,7 @@ fun jittestmodule:test {
         Locals<3> v0 v1 v2
       }
     }
-    v15 = LoadMethodCached<3; "append_to"> v1 {
+    v15 = LoadMethod<3; "append_to"> v1 {
       FrameState {
         NextInstrOffset 46
         Locals<3> v0 v1 v2
@@ -788,7 +788,7 @@ fun jittestmodule:test {
         Stack<2> v15 v16
       }
     }
-    v17 = LoadAttrCached<0; "input"> v0 {
+    v17 = LoadAttr<0; "input"> v0 {
       FrameState {
         NextInstrOffset 50
         Locals<3> v0 v1 v2
@@ -3642,7 +3642,7 @@ fun jittestmodule:test {
         Locals<1> v0
       }
     }
-    v1 = LoadAttrCached<0; "a\nrea\\lly\n\"weird\"\nname"> v0 {
+    v1 = LoadAttr<0; "a\nrea\\lly\n\"weird\"\nname"> v0 {
       FrameState {
         NextInstrOffset 4
         Locals<1> v0

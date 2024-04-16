@@ -228,10 +228,12 @@ bool Instr::isReplayable() const {
     case Opcode::kIsTruthy:
     case Opcode::kListAppend:
     case Opcode::kListExtend:
+    case Opcode::kLoadAttr:
     case Opcode::kLoadAttrCached:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadGlobal:
+    case Opcode::kLoadMethod:
     case Opcode::kLoadMethodCached:
     case Opcode::kLoadModuleMethodCached:
     case Opcode::kLoadMethodSuper:
@@ -261,6 +263,7 @@ bool Instr::isReplayable() const {
     case Opcode::kStoreField:
     case Opcode::kSnapshot:
     case Opcode::kStoreArrayItem:
+    case Opcode::kStoreAttr:
     case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
     case Opcode::kTpAlloc:

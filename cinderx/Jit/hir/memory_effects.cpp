@@ -130,10 +130,12 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kInvokeStaticFunction:
     case Opcode::kIsInstance:
     case Opcode::kIsTruthy:
+    case Opcode::kLoadAttr:
     case Opcode::kLoadAttrCached:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
     case Opcode::kLoadGlobal:
+    case Opcode::kLoadMethod:
     case Opcode::kLoadMethodCached:
     case Opcode::kLoadModuleMethodCached:
     case Opcode::kLoadMethodSuper:
@@ -162,6 +164,7 @@ MemoryEffects memoryEffects(const Instr& inst) {
     case Opcode::kSetDictItem:
     case Opcode::kSetSetItem:
     case Opcode::kSetUpdate:
+    case Opcode::kStoreAttr:
     case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
       return {true, AEmpty, {}, AManagedHeapAny};

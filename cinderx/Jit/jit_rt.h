@@ -203,6 +203,11 @@ PyObject* JITRT_CallMethodAwaited(
     PyObject* kwnames);
 
 /*
+ * Perform a method lookup on an object.
+ */
+JITRT_LoadMethodResult JITRT_GetMethod(PyObject* obj, PyObject* name);
+
+/*
  * Perform an attribute lookup in a super class
  *
  * This is used to avoid bound method creation for attribute lookups that

@@ -84,6 +84,7 @@ namespace jit::hir {
   V(LoadArrayItem)                     \
   V(LoadFieldAddress)                  \
   V(LoadArg)                           \
+  V(LoadAttr)                          \
   V(LoadAttrCached)                    \
   V(LoadAttrSpecial)                   \
   V(LoadAttrSuper)                     \
@@ -95,6 +96,7 @@ namespace jit::hir {
   V(LoadFunctionIndirect)              \
   V(LoadGlobalCached)                  \
   V(LoadGlobal)                        \
+  V(LoadMethod)                        \
   V(LoadMethodCached)                  \
   V(LoadModuleMethodCached)            \
   V(LoadMethodSuper)                   \
@@ -134,6 +136,7 @@ namespace jit::hir {
   V(Snapshot)                          \
   V(StealCellItem)                     \
   V(StoreArrayItem)                    \
+  V(StoreAttr)                         \
   V(StoreAttrCached)                   \
   V(StoreField)                        \
   V(StoreSubscr)                       \

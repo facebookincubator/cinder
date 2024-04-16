@@ -98,6 +98,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kListExtend:
     case Opcode::kLoadArg:
     case Opcode::kLoadArrayItem:
+    case Opcode::kLoadAttr:
     case Opcode::kLoadAttrCached:
     case Opcode::kLoadAttrSpecial:
     case Opcode::kLoadAttrSuper:
@@ -110,6 +111,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kLoadFunctionIndirect:
     case Opcode::kLoadGlobal:
     case Opcode::kLoadGlobalCached:
+    case Opcode::kLoadMethod:
     case Opcode::kLoadMethodCached:
     case Opcode::kLoadMethodSuper:
     case Opcode::kLoadModuleMethodCached:
@@ -146,6 +148,7 @@ bool isPassthrough(const Instr& instr) {
     case Opcode::kSetUpdate:
     case Opcode::kStealCellItem:
     case Opcode::kStoreArrayItem:
+    case Opcode::kStoreAttr:
     case Opcode::kStoreAttrCached:
     case Opcode::kStoreSubscr:
     case Opcode::kTpAlloc:
