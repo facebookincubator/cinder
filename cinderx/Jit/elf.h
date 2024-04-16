@@ -25,7 +25,6 @@ constexpr uint32_t kStringTable = 0x03;
 // Section header flags.
 constexpr uint64_t kSectionAlloc = 0x02;
 constexpr uint64_t kSectionExecutable = 0x04;
-constexpr uint64_t kSectionStrings = 0x20;
 constexpr uint64_t kSectionInfoLink = 0x40;
 
 // Segment header types.
@@ -44,8 +43,8 @@ enum class SectionIdx : uint32_t {
   // Null section is index 0.
 
   kText = 1,
-  kSymtab,
-  kStrtab,
+  kDynsym,
+  kDynstr,
   kShstrtab,
   kTotal,
 };
@@ -53,6 +52,7 @@ enum class SectionIdx : uint32_t {
 // Segment header indices / ordering.
 enum class SegmentIdx : uint32_t {
   kText,
+  kReadonly,
   kTotal,
 };
 
@@ -261,8 +261,8 @@ struct Object {
   // headers stop.
   char header_stop[0];
 
-  SymbolTable symtab;
-  StringTable strtab;
+  SymbolTable dynsym;
+  StringTable dynstr;
   StringTable shstrtab;
 
   uint32_t section_offset{0};
