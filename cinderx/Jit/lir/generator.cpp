@@ -1260,10 +1260,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
             getConfig().attr_caches,
             "Inline caches must be enabled to use FillTypeMethodCache");
         auto instr = static_cast<const FillTypeMethodCache*>(&i);
-        PyCodeObject* code = instr->frameState()->code;
         Instruction* name = getNameFromIdx(bbb, instr);
         auto cache_entry = load_type_method_caches_.at(instr->cache_id());
         if (g_collect_inline_cache_stats) {
+          BorrowedRef<PyCodeObject> code = instr->frameState()->code;
           cache_entry->initCacheStats(
               PyUnicode_AsUTF8(code->co_filename),
               PyUnicode_AsUTF8(code->co_name));
@@ -1697,6 +1697,10 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kLoadGlobalCached: {
+        JIT_DCHECK(
+            getConfig().stable_code,
+            "Can only use LoadGlobalCached when code objects are stable across "
+            "function calls");
         JIT_DCHECK(
             getConfig().stable_globals,
             "Can only use LoadGlobalCached when globals dictionaries are "
@@ -2541,6 +2545,9 @@ LIRGenerator::TranslatedBlock LIRGenerator::TranslateOneBasicBlock(
         break;
       }
       case Opcode::kBeginInlinedFunction: {
+        JIT_DCHECK(
+            getConfig().stable_code,
+            "Inlined code stores references to code objects");
         // TODO(T109706798): Support calling from generators and inlining
         // generators.
         // TODO(emacs): Link all shadow frame prev pointers in function
@@ -2892,6 +2899,15 @@ void LIRGenerator::resolvePhiOperands(
 Instruction* LIRGenerator::getNameFromIdx(
     BasicBlockBuilder& bbb,
     const hir::DeoptBaseWithNameIdx* instr) {
+  if (!getConfig().stable_code) {
+    return bbb.appendInstr(
+        OutVReg{},
+        Instruction::kCall,
+        JITRT_LoadName,
+        env_->asm_tstate,
+        instr->name_idx());
+  }
+
   BorrowedRef<PyUnicodeObject> name = instr->name();
   return bbb.appendInstr(
       OutVReg{},

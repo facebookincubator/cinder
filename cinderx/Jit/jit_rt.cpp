@@ -1864,3 +1864,8 @@ PyObject* JITRT_CopyDictWithoutKeys(PyObject* subject, PyObject* keys) {
   }
   return rest.release();
 }
+
+PyObject* JITRT_LoadName(PyThreadState* tstate, int name_idx) {
+  jit::RuntimeFrameState rtfs = jit::runtimeFrameStateFromThreadState(tstate);
+  return PyTuple_GET_ITEM(rtfs.code()->co_names, name_idx);
+}

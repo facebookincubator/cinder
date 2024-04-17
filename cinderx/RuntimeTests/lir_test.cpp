@@ -627,3 +627,28 @@ def func():
       << "Should not be calling out to LoadAttrCache::invoke as inline caches "
          "are disabled";
 }
+
+TEST_F(LIRGeneratorTest, StableCode) {
+  getMutableConfig().stable_code = false;
+
+  const char* src = R"(
+import sys
+
+def func():
+  return sys.argv
+)";
+
+  Ref<PyObject> pyfunc(compileAndGet(src, "func"));
+  ASSERT_NE(pyfunc.get(), nullptr) << "Failed compiling func";
+
+  auto lir_str = getLIRString(pyfunc.get());
+
+  auto slow_path =
+      fmt::format("{}", reinterpret_cast<uint64_t>(JITRT_LoadName));
+
+  EXPECT_FALSE(getConfig().stable_code);
+
+  EXPECT_NE(lir_str.find(slow_path), std::string::npos)
+      << "Should be calling out to JITRT_LoadName as code objects aren't "
+         "stable";
+}

@@ -589,6 +589,20 @@ void initFlagProcessor() {
         "enable shadow frame mode");
 
     xarg_flag_processor.addOption(
+        "jit-stable-code",
+        "PYTHONJITSTABLECODE",
+        [](int val) {
+          if (use_jit) {
+            getMutableConfig().stable_code = !!val;
+          } else {
+            warnJITOff("jit-stable-code");
+          }
+        },
+        "Assume that code objects will remain stable across function calls. "
+        "Enables loading values directly from code object fields like "
+        "co_names.");
+
+    xarg_flag_processor.addOption(
         "jit-stable-globals",
         "PYTHONJITSTABLEGLOBALS",
         [](int val) {

@@ -46,6 +46,8 @@ struct Config {
   bool multiple_code_sections{false};
   bool multithreaded_compile_test{false};
   bool use_huge_pages{true};
+  // Assume that code objects are unchanged across Python function calls.
+  bool stable_code{true};
   // Assume that globals and builtins dictionaries, but not their contents, are
   // unchanged across Python function calls.
   bool stable_globals{true};

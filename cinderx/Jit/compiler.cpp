@@ -168,7 +168,8 @@ PassConfig createConfig() {
   set(hir_opts.clean_cfg, PassConfig::kCleanCFG);
   set(hir_opts.dynamic_comparison_elim, PassConfig::kDynamicComparisonElim);
   set(hir_opts.guard_type_removal, PassConfig::kGuardTypeRemoval);
-  set(hir_opts.inliner, PassConfig::kInliner);
+  // Inliner currently depends on code objects being stable.
+  set(hir_opts.inliner && getConfig().stable_code, PassConfig::kInliner);
   set(hir_opts.phi_elim, PassConfig::kPhiElim);
   set(hir_opts.simplify, PassConfig::kSimplify);
 

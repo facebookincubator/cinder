@@ -573,3 +573,7 @@ int JITRT_DictMerge(
 /* Returns nullptr on error and an exact dict otherwise. Used by
  * COPY_DICT_WITHOUT_KEYS implementation. */
 PyObject* JITRT_CopyDictWithoutKeys(PyObject* subject, PyObject* keys);
+
+/* Load a name from a Python thread's code object.
+ */
+PyObject* JITRT_LoadName(PyThreadState* tstate, int name_idx);
