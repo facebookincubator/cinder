@@ -3,6 +3,10 @@
 
 #include "Python.h"
 
+#ifdef BUCK_BUILD
+#include "cinderx/_cinderx-lib.h"
+#endif
+
 #include "cinderx/RuntimeTests/fixtures.h"
 #include "cinderx/RuntimeTests/testutil.h"
 
@@ -101,8 +105,22 @@ static void register_json_test(const char* path) {
 #define QUOTE(x) _QUOTE(x)
 #define _BAKED_IN_PYTHONPATH QUOTE(BAKED_IN_PYTHONPATH)
 
+#ifdef BUCK_BUILD
+PyMODINIT_FUNC PyInit__cinderx() {
+  return _cinderx_lib_init();
+}
+#endif
+
 int main(int argc, char* argv[]) {
   setenv("PYTHONPATH", _BAKED_IN_PYTHONPATH, 1);
+
+#ifdef BUCK_BUILD
+  if (PyImport_AppendInittab("_cinderx", PyInit__cinderx) != 0) {
+    PyErr_Print();
+    std::cerr << "Error: could not add to inittab\n";
+    return 1;
+  }
+#endif
 
   ::testing::InitGoogleTest(&argc, argv);
   register_test("RuntimeTests/hir_tests/clean_cfg_test.txt");

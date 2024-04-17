@@ -38,6 +38,7 @@ INCLUDE_DEPS_DIRS = [
 
 CINDERX_SRCS = [
     "_cinderx.cpp",
+    "_cinderx-lib.cpp",
     "Common/log.cpp",
     "Common/util.cpp",
     "Common/watchers.cpp",

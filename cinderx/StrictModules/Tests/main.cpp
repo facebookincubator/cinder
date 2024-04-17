@@ -1,4 +1,8 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
+#ifdef BUCK_BUILD
+#include "cinderx/_cinderx-lib.h"
+#endif
+
 #include "cinderx/StrictModules/Tests/test.h"
 #include "cinderx/StrictModules/py_headers.h"
 #include "gtest/gtest.h"
@@ -47,8 +51,22 @@ static void register_test(std::string&& path, const char* ignorePath) {
 #define QUOTE(x) _QUOTE(x)
 #define _BAKED_IN_PYTHONPATH QUOTE(BAKED_IN_PYTHONPATH)
 
+#ifdef BUCK_BUILD
+PyMODINIT_FUNC PyInit__cinderx() {
+  return _cinderx_lib_init();
+}
+#endif
+
 int main(int argc, char* argv[]) {
   setenv("PYTHONPATH", _BAKED_IN_PYTHONPATH, 1);
+
+#ifdef BUCK_BUILD
+  if (PyImport_AppendInittab("_cinderx", PyInit__cinderx) != 0) {
+    PyErr_Print();
+    std::cerr << "Error: could not add to inittab\n";
+    return 1;
+  }
+#endif
 
   ::testing::InitGoogleTest(&argc, argv);
   wchar_t* argv0 = Py_DecodeLocale(argv[0], nullptr);
