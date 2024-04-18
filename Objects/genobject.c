@@ -982,6 +982,7 @@ gen_new_with_qualname(PyTypeObject *type, PyFrameObject *f,
         gen->gi_qualname = Py_NewRef(qualname);
     else
         gen->gi_qualname = Py_NewRef(_PyGen_GetCode(gen)->co_qualname);
+    gen->gi_ci_awaiter = NULL;
     _PyObject_GC_TRACK(gen);
     return (PyObject *)gen;
 }

@@ -21,6 +21,9 @@ extern "C" {
     PyObject *prefix##_qualname;                                            \
     _PyErr_StackItem prefix##_exc_state;                                    \
     PyObject *prefix##_origin_or_finalizer;                                 \
+    /* The awaiter (a coroutine or async generator), if any, if this is a   \
+       coroutine or async generator */                                      \
+    PyObject *prefix##_ci_awaiter;                                          \
     char prefix##_hooks_inited;                                             \
     char prefix##_closed;                                                   \
     char prefix##_running_async;                                            \
