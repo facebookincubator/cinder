@@ -5,13 +5,11 @@
 #include "cinderx/Jit/codegen/environ.h"
 #include "cinderx/Jit/lir/rewrite.h"
 
-using namespace jit::codegen;
-
 namespace jit::lir {
 // Rewrites after LIR generation
 class PostGenerationRewrite : public Rewrite {
  public:
-  PostGenerationRewrite(lir::Function* func, Environ* env)
+  PostGenerationRewrite(lir::Function* func, codegen::Environ* env)
       : Rewrite(func, env) {
     // rewriteInlineHelper should occur before other rewrites.
     registerOneRewriteFunction(rewriteInlineHelper, 0);
@@ -45,7 +43,9 @@ class PostGenerationRewrite : public Rewrite {
       instr_iter_t instr_iter);
 
   // Rewrite LoadArg to Bind and allocate a physical register for its input.
-  static RewriteResult rewriteLoadArg(instr_iter_t instr_iter, Environ* env);
+  static RewriteResult rewriteLoadArg(
+      instr_iter_t instr_iter,
+      codegen::Environ* env);
 
   // rewrite BatchDecref instructions
   static RewriteResult rewriteBatchDecrefInstrs(instr_iter_t instr_iter);
