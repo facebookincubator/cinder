@@ -192,6 +192,7 @@ RUNTIME_TESTS_OBJS= \
 	${RUNTIME_TESTS_BUILD_DIR}/live_type_map_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/main.o \
 	${RUNTIME_TESTS_BUILD_DIR}/profile_runtime_test.o \
+	${RUNTIME_TESTS_BUILD_DIR}/pyjit_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/ref_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/regalloc_test.o \
 	${RUNTIME_TESTS_BUILD_DIR}/sanity_test.o \
