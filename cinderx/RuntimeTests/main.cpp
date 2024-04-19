@@ -14,6 +14,8 @@
 #include "tools/cxx/Resources.h"
 #endif
 
+#include <sys/resource.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -187,6 +189,12 @@ int main(int argc, char* argv[]) {
 
   // Prevent any test failures due to transient pointer values.
   jit::setUseStablePointers(true);
+
+  // Particularly with ASAN, we might need a really large stack size.
+  struct rlimit rl;
+  rl.rlim_cur = RLIM_INFINITY;
+  rl.rlim_max = RLIM_INFINITY;
+  setrlimit(RLIMIT_STACK, &rl);
 
   int result = RUN_ALL_TESTS();
 

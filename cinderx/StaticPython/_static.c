@@ -1340,7 +1340,6 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
 
     // remove the kwarg dict and add the kwargs
     PyObject *call_args[kwarg_count + nargs - 1];
-    PyObject *call_names[kwarg_count];
     call_args[0] = args[0]; // func
     call_args[1] = args[1]; // name
 
@@ -1349,17 +1348,15 @@ _static___build_cinder_class__(PyObject *self, PyObject *const *args, Py_ssize_t
         call_args[i - extra_args] = args[i];
     }
 
-    if (mkw != NULL) {
+    PyObject *call_names_tuple = NULL;
+    if (mkw != NULL && kwarg_count != 0) {
+        PyObject *call_names[kwarg_count];
         Py_ssize_t i = 0, cur = 0;
         PyObject *key, *value;
         while (PyDict_Next(mkw, &i, &key, &value)) {
             call_args[nargs - extra_args + cur] = value;
             call_names[cur++] = key;
         }
-    }
-
-    PyObject *call_names_tuple = NULL;
-    if (kwarg_count != 0) {
         call_names_tuple = _PyTuple_FromArray(call_names, kwarg_count);
         if (call_names_tuple == NULL) {
             goto error;

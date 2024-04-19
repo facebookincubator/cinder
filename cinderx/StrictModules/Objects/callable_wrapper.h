@@ -245,7 +245,7 @@ class PythonWrappedCallableByName {
       const std::vector<std::shared_ptr<BaseStrictObject>>& args,
       const CallerContext& caller,
       std::index_sequence<Is...>) {
-    Ref<> pyArgs[args.size()];
+    Ref<> pyArgs[args.size() < 1 ? 1 : args.size()];
 
     for (std::size_t i = 0; i < args.size(); ++i) {
       Ref<> val = args[i]->getPyObject();

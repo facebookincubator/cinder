@@ -406,12 +406,21 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__floordiv__(
   return NotImplemented();
 }
 
+// This function and its use is to keep UBSAN quiet.
+template <typename T>
+static bool shift_more_than_64bits(T shift_amount) {
+  return shift_amount <= -64 || shift_amount >= 64;
+}
+
 std::shared_ptr<BaseStrictObject> StrictInt::int__lshift__(
     std::shared_ptr<StrictInt> self,
     const CallerContext& caller,
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
+    if (shift_more_than_64bits(rhsInt->value_)) {
+      return caller.makeInt(0);
+    }
     INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, <<, PyNumber_Lshift);
   }
   return NotImplemented();
@@ -456,6 +465,9 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rshift__(
     std::shared_ptr<BaseStrictObject> rhs) {
   auto rhsInt = std::dynamic_pointer_cast<StrictInt>(rhs);
   if (rhsInt) {
+    if (shift_more_than_64bits(rhsInt->value_)) {
+      return caller.makeInt(0);
+    }
     INT_OP_BOTH_VALUE(self, rhsInt, caller.makeInt, >>, PyNumber_Rshift);
   }
   return NotImplemented();
@@ -541,6 +553,9 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rlshift__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
+    if (shift_more_than_64bits(self->value_)) {
+      return caller.makeInt(0);
+    }
     INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, <<, PyNumber_Lshift);
   }
   return NotImplemented();
@@ -585,6 +600,9 @@ std::shared_ptr<BaseStrictObject> StrictInt::int__rrshift__(
     std::shared_ptr<BaseStrictObject> lhs) {
   auto lhsInt = std::dynamic_pointer_cast<StrictInt>(lhs);
   if (lhsInt) {
+    if (shift_more_than_64bits(self->value_)) {
+      return caller.makeInt(0);
+    }
     INT_OP_BOTH_VALUE(lhsInt, self, caller.makeInt, >>, PyNumber_Rshift);
   }
   return NotImplemented();
