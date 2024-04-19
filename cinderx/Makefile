@@ -267,7 +267,7 @@ strict_module_tests: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests
 
 STRICTM_ASAN_SKIP_TESTS=
 ifneq ($(strip $(ASAN_TEST_ENV)),)
-	STRICTM_ASAN_SKIP_TESTS = $(CURDIR)/TestScripts/strictm_asan_skip_tests.txt
+	STRICTM_ASAN_SKIP_TESTS = asan_skip_tests.txt
 endif
 
 test_strict_module: $(STRICTM_TESTS_BUILD_DIR)/strict_module_tests

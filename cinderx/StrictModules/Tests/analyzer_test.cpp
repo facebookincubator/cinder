@@ -6,8 +6,7 @@
 using namespace strictmod;
 
 TEST_F(AnalyzerTest, SanityCheck) {
-  std::string name =
-      sourceRelativePath("StrictModules/Tests/python_tests/simple_assign.py");
+  std::string name = sourceRelativePath("python_tests/simple_assign.py");
   EXPECT_EQ(analyzeFile(name.c_str()), true);
 }
 

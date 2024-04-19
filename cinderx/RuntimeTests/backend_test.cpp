@@ -23,14 +23,29 @@
 #include <fstream>
 #include <regex>
 
+#ifdef BUCK_BUILD
+#include "tools/cxx/Resources.h"
+#endif
+
 using namespace jit;
 using namespace jit::lir;
 
 namespace jit::codegen {
 
-static std::filesystem::path sourceRelativePath(const char* path) {
-  return std::filesystem::path(__FILE__).parent_path().parent_path().append(
-      path);
+static std::string readCHelperTranslationLIR(const std::string& filename) {
+#ifdef BUCK_BUILD
+  boost::filesystem::path path =
+      build::getResourcePath("cinderx/RuntimeTests/c_helper_translations")
+#else
+  std::filesystem::path path =
+      std::filesystem::path(__FILE__).parent_path().parent_path() / "Jit" /
+      "lir" / "c_helper_translations"
+#endif
+      / filename;
+  std::ifstream file(path);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
 }
 
 class BackendTest : public RuntimeTest {
@@ -693,24 +708,16 @@ TEST_F(BackendTest, CastTest) {
 }
 
 TEST_F(BackendTest, ParserGetI32FromArrayTest) {
-  std::ifstream t(sourceRelativePath(
-      "Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir"));
-  std::stringstream buffer;
-  buffer << t.rdbuf();
   Parser parser;
-  auto parsed_func = parser.parse(buffer.str());
+  auto parsed_func =
+      parser.parse(readCHelperTranslationLIR("JITRT_GetI64_FromArray.lir"));
 
   CheckFromArray(parsed_func.get());
 }
 
 TEST_F(BackendTest, ParserCastTest) {
-  std::ifstream t(
-      sourceRelativePath("Jit/lir/c_helper_translations/JITRT_Cast.lir"));
-  std::stringstream buffer;
-  buffer << t.rdbuf();
-
   Parser parser;
-  auto parsed_func = parser.parse(buffer.str());
+  auto parsed_func = parser.parse(readCHelperTranslationLIR("JITRT_Cast.lir"));
 
   CheckCast(parsed_func.get());
 }
@@ -802,12 +809,9 @@ TEST_F(BackendTest, SplitBasicBlockTest) {
 }
 
 TEST_F(BackendTest, CopyFromArrayTest) {
-  std::ifstream t(sourceRelativePath(
-      "Jit/lir/c_helper_translations/JITRT_GetI64_FromArray.lir"));
-  std::stringstream buffer;
-  buffer << t.rdbuf();
   Parser parser;
-  auto parsed_func = parser.parse(buffer.str());
+  auto parsed_func =
+      parser.parse(readCHelperTranslationLIR("JITRT_GetI64_FromArray.lir"));
 
   auto caller = std::make_unique<Function>();
   auto bb1 = caller->allocateBasicBlock();
@@ -856,13 +860,8 @@ BB %1 - preds: %3
 }
 
 TEST_F(BackendTest, CopyCastTest) {
-  std::ifstream t(
-      sourceRelativePath("Jit/lir/c_helper_translations/JITRT_Cast.lir"));
-  std::stringstream buffer;
-  buffer << t.rdbuf();
-
   Parser parser;
-  auto parsed_func = parser.parse(buffer.str());
+  auto parsed_func = parser.parse(readCHelperTranslationLIR("JITRT_Cast.lir"));
 
   auto caller = std::make_unique<Function>();
   auto bb1 = caller->allocateBasicBlock();

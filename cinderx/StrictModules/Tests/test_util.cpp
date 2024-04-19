@@ -1,6 +1,10 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 #include "test_util.h"
 
+#ifdef BUCK_BUILD
+#include "tools/cxx/Resources.h"
+#endif
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,12 +19,16 @@ static const std::string kVarDelim = " ";
 static const std::string kExcDelim = "\n";
 
 std::string sourceRelativePath(const char* path) {
+#ifdef BUCK_BUILD
+  return (build::getResourcePath("cinderx/StrictModules/Tests/TestFiles") /
+          path)
+      .string();
+#else
   return std::filesystem::path(__FILE__)
-      .parent_path()
-      .parent_path()
       .parent_path()
       .append(path)
       .string();
+#endif
 }
 
 static std::ostream& err(const std::string& path) {

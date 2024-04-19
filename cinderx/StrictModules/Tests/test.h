@@ -14,6 +14,10 @@ avoid macro naming conflict between gtest and python ast.h
 #include "cinderx/StrictModules/py_headers.h"
 #include "gtest/gtest.h"
 
+#ifdef BUCK_BUILD
+#include "tools/cxx/Resources.h"
+#endif
+
 #include <codecvt>
 #include <memory>
 #include <vector>
@@ -110,9 +114,9 @@ class ModuleLoaderTest : public PythonTest {
       const char* importPath,
       const char* stubPath) {
     static const std::string defaultImportPath =
-        sourceRelativePath("StrictModules/Tests/python_tests");
+        sourceRelativePath("python_tests");
     static const std::string defaultStubPath =
-        sourceRelativePath("StrictModules/Tests/python_tests/stubs");
+        sourceRelativePath("python_tests/stubs");
     if (importPath == nullptr) {
       importPath = defaultImportPath.c_str();
     }
@@ -135,9 +139,9 @@ class ModuleLoaderTest : public PythonTest {
       strictmod::compiler::ModuleLoader::ForceStrictFunc func,
       strictmod::compiler::ModuleLoader::ErrorSinkFactory factory) {
     static const std::string defaultImportPath =
-        sourceRelativePath("StrictModules/Tests/python_tests");
+        sourceRelativePath("python_tests");
     static const std::string defaultStubPath =
-        sourceRelativePath("StrictModules/Tests/python_tests/stubs");
+        sourceRelativePath("python_tests/stubs");
     if (importPath == nullptr) {
       importPath = defaultImportPath.c_str();
     }
@@ -212,14 +216,28 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     auto errorSink = std::make_shared<strictmod::CollectingErrorSink>();
     auto loader = getLoader(
         nullptr,
+#ifdef BUCK_BUILD
+        (build::getResourcePath("cinderx/StrictModules/Tests/python_install") /
+         "lib" / "python3.10" / "cinderx" / "compiler" / "strict" / "stubs")
+            .string()
+            .c_str(),
+#else
         "cinderx/PythonLib/cinderx/compiler/strict/stubs",
+#endif
         [](const std::string&, const std::string&) { return true; },
         [errorSink] { return errorSink; });
-    loader->setImportPath(
-        {sourceRelativePath("StrictModules/Tests/comparison_tests/imports")
-             .c_str(),
-         "Lib",
-         "cinderx/PythonLib"});
+    loader->setImportPath({
+        sourceRelativePath("comparison_tests/imports").c_str(),
+#ifdef BUCK_BUILD
+        (build::getResourcePath("cinderx/StrictModules/Tests/python_install") /
+         "lib" / "python3.10")
+            .string()
+            .c_str(),
+#else
+        "Lib",
+        "cinderx/PythonLib",
+#endif
+    });
     loader->loadStrictModuleModule();
     const char* modname = "<string>";
     strictmod::compiler::AnalyzedModule* mod =
@@ -230,9 +248,14 @@ class ModuleLoaderComparisonTest : public ModuleLoaderTest {
     ASSERT_NE(modValue.get(), nullptr);
 
     std::wstring path{Py_GetPath()};
-    path.append(L":cinderx/PythonLib/:");
+    if (path.size() > 0) {
+      path.append(L":");
+    }
+#ifndef BUCK_BUILD
+    path.append(L"cinderx/PythonLib/:");
+#endif
     path.append(std::wstring_convert<std::codecvt_utf8<wchar_t>>().from_bytes(
-        sourceRelativePath("StrictModules/Tests/comparison_tests/imports")));
+        sourceRelativePath("comparison_tests/imports")));
     PySys_SetPath(path.c_str());
 
     PyObject* code = Py_CompileString(source_.c_str(), modname, Py_file_input);

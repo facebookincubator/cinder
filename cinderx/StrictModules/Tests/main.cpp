@@ -7,10 +7,25 @@
 #include "cinderx/StrictModules/py_headers.h"
 #include "gtest/gtest.h"
 
+#ifdef BUCK_BUILD
+#include "tools/cxx/Resources.h"
+#endif
+
 #include <filesystem>
 #include <iostream>
 
+static void remap_txt_path(std::string& path) {
+#ifdef BUCK_BUILD
+  boost::filesystem::path tests_path =
+      build::getResourcePath("cinderx/StrictModules/Tests/TestFiles");
+  path = (tests_path / "comparison_tests" / path).string();
+#else
+  path = "cinderx/StrictModules/Tests/comparison_tests/" + path;
+#endif
+}
+
 static void register_test(std::string&& path, const char* ignorePath) {
+  remap_txt_path(path);
   auto suite = ReadStrictMTestSuite(path);
   if (suite == nullptr) {
     std::exit(1);
@@ -18,6 +33,7 @@ static void register_test(std::string&& path, const char* ignorePath) {
   std::unordered_set<std::string> ignores;
   if (ignorePath != nullptr) {
     std::string ignorePathS(ignorePath);
+    remap_txt_path(ignorePathS);
     ignores = ReadStrictMIgnoreList(ignorePathS);
   }
 
@@ -44,12 +60,11 @@ static void register_test(std::string&& path, const char* ignorePath) {
   }
 }
 
-#ifndef BAKED_IN_PYTHONPATH
-#error "BAKED_IN_PYTHONPATH must be defined"
-#endif
+#ifdef BAKED_IN_PYTHONPATH
 #define _QUOTE(x) #x
 #define QUOTE(x) _QUOTE(x)
 #define _BAKED_IN_PYTHONPATH QUOTE(BAKED_IN_PYTHONPATH)
+#endif
 
 #ifdef BUCK_BUILD
 PyMODINIT_FUNC PyInit__cinderx() {
@@ -58,7 +73,21 @@ PyMODINIT_FUNC PyInit__cinderx() {
 #endif
 
 int main(int argc, char* argv[]) {
+#ifdef BAKED_IN_PYTHONPATH
   setenv("PYTHONPATH", _BAKED_IN_PYTHONPATH, 1);
+#endif
+
+#ifdef BUCK_BUILD
+  boost::filesystem::path python_install =
+      build::getResourcePath("cinderx/StrictModules/Tests/python_install");
+  {
+    std::string python_install_str =
+        (python_install / "lib" / "python3.10").string() + ":" +
+        (python_install / "lib" / "python3.10" / "lib-dynload").string();
+    std::cout << "PYTHONPATH=" << python_install_str << std::endl;
+    setenv("PYTHONPATH", python_install_str.c_str(), 1);
+  }
+#endif
 
 #ifdef BUCK_BUILD
   if (PyImport_AppendInittab("_cinderx", PyInit__cinderx) != 0) {
@@ -76,15 +105,9 @@ int main(int argc, char* argv[]) {
   }
   Py_SetProgramName(argv0);
   if (argc > 1) {
-    register_test(
-        sourceRelativePath(
-            "StrictModules/Tests/comparison_tests/interpreter_test.txt"),
-        argv[1]);
+    register_test("interpreter_test.txt", argv[1]);
   } else {
-    register_test(
-        sourceRelativePath(
-            "StrictModules/Tests/comparison_tests/interpreter_test.txt"),
-        nullptr);
+    register_test("interpreter_test.txt", nullptr);
   }
 
   int result = RUN_ALL_TESTS();

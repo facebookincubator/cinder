@@ -6,8 +6,7 @@
 class ParserTest : public PythonTest {};
 
 TEST_F(ParserTest, CanParseByFilename) {
-  std::string name =
-      sourceRelativePath("StrictModules/Tests/python_tests/simple_assign.py");
+  std::string name = sourceRelativePath("python_tests/simple_assign.py");
   PyArena* arena = _PyArena_New();
 
   std::optional<strictmod::AstAndSymbols> result =
