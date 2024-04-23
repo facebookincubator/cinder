@@ -30,9 +30,19 @@ void DeoptBase::sortLiveRegs() {
       live_regs_.begin(),
       live_regs_.end(),
       [](const RegState& a, const RegState& b) {
-        JIT_DCHECK(a.reg != b.reg, "Same register should not be live twice");
         return a.reg->id() < b.reg->id();
       });
+
+  if (kPyDebug) {
+    // Check for uniqueness after sorting rather than inside the predicate
+    // passed to std::sort(), in case sort() performs extra comparisons to
+    // sanity-check our predicate.
+    auto it = std::adjacent_find(
+        live_regs_.begin(),
+        live_regs_.end(),
+        [](const RegState& a, const RegState& b) { return a.reg == b.reg; });
+    JIT_DCHECK(it == live_regs_.end(), "Register {} is live twice", *it->reg);
+  }
 }
 
 void Phi::setArgs(const std::unordered_map<BasicBlock*, Register*>& args) {
