@@ -60,6 +60,10 @@ typedef struct {
      */
 } PyFunctionObject;
 
+// START META PATCH (undef COMMON_FIELDS to avoid leaking into C++ code)
+#undef COMMON_FIELDS
+// END META PATCH
+
 PyAPI_DATA(PyTypeObject) PyFunction_Type;
 
 #define PyFunction_Check(op) Py_IS_TYPE((op), &PyFunction_Type)
