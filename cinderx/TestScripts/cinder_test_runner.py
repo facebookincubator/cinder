@@ -843,6 +843,15 @@ class UserSelectedCinderRegrtest(Regrtest):
         runtest._runtest_inner2 = _patched_runtest_inner2
 
         self.ns.fail_env_changed = True
+
+        cinderx_dir = get_cinderx_dir()
+        test_cinderx_dir = get_test_cinderx_dir(cinderx_dir)
+
+        # Added to sys.path for test modules.  `test_cinderx_dir.parent` is just
+        # `cinderx_dir` in the Git repository, but it can be different for
+        # internal builds.
+        self.ns.testdir = str(test_cinderx_dir.parent)
+
         setup_tests(self.ns)
 
         _setupCinderIgnoredTests(self.ns, False)
