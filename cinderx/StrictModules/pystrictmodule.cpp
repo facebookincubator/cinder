@@ -4,6 +4,8 @@
 #include "cinderx/StrictModules/pycore_dependencies.h"
 #include "structmember.h"
 
+#include <vector>
+
 #ifndef Py_LIMITED_API
 #ifdef __cplusplus
 extern "C" {
@@ -343,7 +345,8 @@ static int StrictModuleLoaderObject_init(
 
   // Import paths
   Py_ssize_t import_size = PyList_GET_SIZE(import_paths_obj);
-  const char* import_paths_arr[import_size];
+  std::vector<const char*> import_paths_vec(import_size);
+  const char** import_paths_arr = import_paths_vec.data();
   if (PyListToCharArray(import_paths_obj, import_paths_arr, import_size) < 0) {
     return -1;
   }
@@ -357,7 +360,8 @@ static int StrictModuleLoaderObject_init(
   }
   // allowlist for module names
   Py_ssize_t allow_list_size = PyList_GET_SIZE(allow_list_obj);
-  const char* allow_list_arr[allow_list_size];
+  std::vector<const char*> allow_list_vec(allow_list_size);
+  const char** allow_list_arr = allow_list_vec.data();
   if (PyListToCharArray(allow_list_obj, allow_list_arr, allow_list_size) < 0) {
     return -1;
   }
@@ -371,7 +375,8 @@ static int StrictModuleLoaderObject_init(
   }
   // allowlist for exact module names
   Py_ssize_t allow_list_exact_size = PyList_GET_SIZE(allow_list_exact_obj);
-  const char* allow_list_exact_arr[allow_list_exact_size];
+  std::vector<const char*> allow_list_exact_vec(allow_list_exact_size);
+  const char** allow_list_exact_arr = allow_list_exact_vec.data();
   if (PyListToCharArray(
           allow_list_exact_obj, allow_list_exact_arr, allow_list_exact_size) <
       0) {
@@ -388,7 +393,8 @@ static int StrictModuleLoaderObject_init(
 
   if (allow_list_regex_obj != nullptr) {
     Py_ssize_t allow_list_regex_size = PyList_GET_SIZE(allow_list_regex_obj);
-    const char* allow_list_regex_arr[allow_list_regex_size];
+    std::vector<const char*> allow_list_regex_vec(allow_list_regex_size);
+    const char** allow_list_regex_arr = allow_list_regex_vec.data();
     if (PyListToCharArray(
             allow_list_regex_obj, allow_list_regex_arr, allow_list_regex_size) <
         0) {
@@ -509,9 +515,10 @@ static PyObject* StrictModuleLoader_check(
   StrictAnalyzedModule* mod = StrictModuleChecker_Check(
       self->checker, mod_name, &error_count, &is_strict);
   errors = PyList_New(error_count);
-  ErrorInfo error_infos[error_count];
+  std::vector<ErrorInfo> error_infos(error_count);
+  ErrorInfo* error_infos_ptr = error_infos.data();
   if (error_count > 0 && mod != nullptr) {
-    if (StrictModuleChecker_GetErrors(mod, error_infos, error_count) < 0) {
+    if (StrictModuleChecker_GetErrors(mod, error_infos_ptr, error_count) < 0) {
       goto err_cleanup;
     }
     for (int i = 0; i < error_count; ++i) {
@@ -576,9 +583,10 @@ static PyObject* StrictModuleLoader_check_source(
     return nullptr;
   }
   Py_ssize_t search_list_size = PyList_GET_SIZE(submodule_search_locations);
-  const char* search_list[search_list_size];
+  std::vector<const char*> search_list(search_list_size);
+  const char** search_list_ptr = search_list.data();
   if (PyListToCharArray(
-          submodule_search_locations, search_list, search_list_size) < 0) {
+          submodule_search_locations, search_list_ptr, search_list_size) < 0) {
     return nullptr;
   }
 
@@ -599,15 +607,16 @@ static PyObject* StrictModuleLoader_check_source(
       source_str,
       mod_name,
       file_name,
-      search_list,
+      search_list_ptr,
       search_list_size,
       &error_count,
       &is_strict);
 
   errors = PyList_New(error_count);
-  ErrorInfo error_infos[error_count];
+  std::vector<ErrorInfo> error_infos(error_count);
   if (error_count > 0 && mod != nullptr) {
-    if (StrictModuleChecker_GetErrors(mod, error_infos, error_count) < 0) {
+    if (StrictModuleChecker_GetErrors(mod, error_infos.data(), error_count) <
+        0) {
       goto err_cleanup;
     }
     for (int i = 0; i < error_count; ++i) {

@@ -280,6 +280,9 @@ static inline void try_profile_next_instr(PyFrameObject* f,
     }
 }
 
+// Disable UBSAN integer overflow checks etc. as these are not compatible with
+// some tests for Static Python which are asserting overflow behavior.
+__attribute__((no_sanitize("integer")))
 PyObject* _Py_HOT_FUNCTION
 Ci_EvalFrame(PyThreadState *tstate, PyFrameObject *f, int throwflag)
 {
