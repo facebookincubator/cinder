@@ -1,5 +1,6 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
+import ctypes
 import multiprocessing
 import sys
 import tempfile
@@ -102,9 +103,17 @@ def failUnlessJITCompiled(func):
     return func
 
 
-# This is pretty long because ASAN + JIT + subprocess + the Python compiler can
-# be pretty slow in CI.
-SUBPROCESS_TIMEOUT_SEC = 5
+def is_asan_build():
+    try:
+        ctypes.pythonapi.__asan_init
+        return True
+    except AttributeError:
+        return False
+
+
+# This is long because ASAN + JIT + subprocess + the Python compiler can be
+# pretty slow in CI.
+SUBPROCESS_TIMEOUT_SEC = 100 if is_asan_build() else 5
 
 
 @contextmanager

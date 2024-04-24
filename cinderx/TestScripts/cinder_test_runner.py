@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from test import support
+from test.cinder_support import is_asan_build
 from test.support import os_helper
 from test.libregrtest.cmdline import Namespace
 from test.libregrtest.main import Regrtest
@@ -950,8 +951,13 @@ if __name__ == "__main__":
     # runaway loops. This 8GiB number is arbitrary but seems to be enough at
     # the time of writing.
     mem_limit_default = (
-        8192 * 1024 * 1024 if os.environ.get('ASAN_OPTIONS') is None else -1
+        -1 if is_asan_build() else 8192 * 1024 * 1024
     )
+
+    # Increase default stack size for threads in ASAN builds as this can use
+    # a lot more stack space.
+    if is_asan_build():
+        threading.stack_size(1024 * 1024 * 10)
 
     parser.add_argument(
         "--memory-limit",
