@@ -346,7 +346,7 @@ void emitStoreGenYieldPoint(
       yield->isYieldFromHandleStopAsyncIteration();
 
   auto calc_spill_offset = [&](size_t live_input_n) {
-    int mem_loc = yield->getInput(live_input_n)->getPhyRegOrStackSlot();
+    int mem_loc = yield->getInput(live_input_n)->getStackSlot();
     JIT_CHECK(mem_loc < 0, "Expected variable to have memory location");
     return mem_loc / kPointerSize;
   };
@@ -382,21 +382,31 @@ void emitLoadResumedYieldInputs(
     const Instruction* instr,
     PhyLocation sent_in_source_loc,
     x86::Gp tstate_reg) {
-  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  int tstate_loc = instr->getInput(0)->getStackSlot();
   JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::ptr(x86::rbp, tstate_loc), tstate_reg);
 
   const lir::Operand* target = instr->output();
-  if (target->type() != OperandBase::kNone) {
-    PhyLocation target_loc = target->getPhyRegOrStackSlot();
-    if (target_loc.is_register()) {
-      if (target_loc != sent_in_source_loc) {
-        as->mov(x86::gpq(target_loc), x86::gpq(sent_in_source_loc));
-      }
-    } else {
-      as->mov(x86::ptr(x86::rbp, target_loc), x86::gpq(sent_in_source_loc));
-    }
+
+  if (target->isStack()) {
+    as->mov(
+        x86::ptr(x86::rbp, target->getStackSlot()),
+        x86::gpq(sent_in_source_loc));
+    return;
   }
+
+  if (target->isReg()) {
+    PhyLocation target_loc = target->getPhyRegister();
+    if (target_loc != sent_in_source_loc) {
+      as->mov(x86::gpq(target_loc), x86::gpq(sent_in_source_loc));
+    }
+    return;
+  }
+
+  JIT_CHECK(
+      target->isNone(),
+      "Have an output that isn't a register or a stack slot, {}",
+      target->type());
 }
 
 void translateYieldInitial(Environ* env, const Instruction* instr) {
@@ -406,7 +416,7 @@ void translateYieldInitial(Environ* env, const Instruction* instr) {
   // TODO(jbower) Avoid reloading tstate in from memory if it was already in a
   // register before spilling. Still needs to be in memory though so it can be
   // recovered after calling JITRT_MakeGenObject* which will trash it.
-  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  int tstate_loc = instr->getInput(0)->getStackSlot();
   JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::rsi, x86::ptr(x86::rbp, tstate_loc));
 
@@ -472,7 +482,7 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
   asmjit::x86::Builder* as = env->as;
 
   // Make sure tstate is in RDI for use in epilogue.
-  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  int tstate_loc = instr->getInput(0)->getStackSlot();
   JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
   as->mov(x86::rdi, x86::ptr(x86::rbp, tstate_loc));
 
@@ -480,7 +490,7 @@ void translateYieldValue(Environ* env, const Instruction* instr) {
   if (instr->getInput(1)->isImm()) {
     as->mov(x86::rax, instr->getInput(1)->getConstant());
   } else {
-    int value_out_loc = instr->getInput(1)->getPhyRegOrStackSlot();
+    int value_out_loc = instr->getInput(1)->getStackSlot();
     JIT_CHECK(value_out_loc < 0, "value to send out should be spilled");
     as->mov(x86::rax, x86::ptr(x86::rbp, value_out_loc));
   }
@@ -505,7 +515,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   bool skip_initial_send = instr->isYieldFromSkipInitialSend();
 
   // Make sure tstate is in RDI for use in epilogue and here.
-  int tstate_loc = instr->getInput(0)->getPhyRegOrStackSlot();
+  int tstate_loc = instr->getInput(0)->getStackSlot();
   JIT_CHECK(tstate_loc < 0, "__asm_tstate should be spilled");
   auto tstate_phys_reg = x86::rdi;
   as->mov(tstate_phys_reg, x86::ptr(x86::rbp, tstate_loc));
@@ -514,7 +524,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   // value to yield and so needs to go into RAX to be returned. Otherwise,
   // put initial send value in RSI, the same location future send values will
   // be on resume.
-  int send_value_loc = instr->getInput(1)->getPhyRegOrStackSlot();
+  int send_value_loc = instr->getInput(1)->getStackSlot();
   JIT_CHECK(send_value_loc < 0, "value to send out should be spilled");
   const auto send_value_phys_reg =
       skip_initial_send ? PhyLocation::RAX : PhyLocation::RSI;
@@ -547,7 +557,7 @@ void translateYieldFrom(Environ* env, const Instruction* instr) {
   // point args.
 
   // Load sub-iterator into RDI
-  int iter_loc = instr->getInput(2)->getPhyRegOrStackSlot();
+  int iter_loc = instr->getInput(2)->getStackSlot();
   JIT_CHECK(
       iter_loc < 0,
       "Iter should be spilled. Instead it's in {}",

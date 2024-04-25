@@ -796,7 +796,7 @@ bool PostRegAllocRewrite::insertMoveToRegister(
     } else if (op->isImm()) {
       move->addOperands(Imm(op->getConstant()));
     } else if (op->isStack()) {
-      move->addOperands(Stk(op->getPhyRegOrStackSlot(), op->dataType()));
+      move->addOperands(Stk(op->getStackSlot(), op->dataType()));
     } else if (op->isMem()) {
       JIT_ABORT("Unsupported: div from mem");
     } else {
@@ -830,17 +830,18 @@ void PostRegAllocRewrite::insertMoveToMemoryLocation(
     return;
   }
 
-  PhyLocation loc = operand->getPhyRegOrStackSlot();
-  if (loc.is_memory()) {
+  if (operand->isReg()) {
+    PhyLocation loc = operand->getPhyRegister();
     block->allocateInstrBefore(
-        instr_iter, Instruction::kMove, OutPhyReg(temp), Stk(loc));
-    block->allocateInstrBefore(
-        instr_iter, Instruction::kMove, OutInd(base, index), PhyReg(temp));
+        instr_iter, Instruction::kMove, OutInd(base, index), PhyReg(loc));
     return;
   }
 
+  PhyLocation loc = operand->getStackSlot();
   block->allocateInstrBefore(
-      instr_iter, Instruction::kMove, OutInd(base, index), PhyReg(loc));
+      instr_iter, Instruction::kMove, OutPhyReg(temp), Stk(loc));
+  block->allocateInstrBefore(
+      instr_iter, Instruction::kMove, OutInd(base, index), PhyReg(temp));
 }
 
 // record register-to-memory moves and map between them.
