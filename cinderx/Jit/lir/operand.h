@@ -290,8 +290,11 @@ class Operand : public OperandBase {
   }
 
   int getPhyRegister() const override {
-    JIT_DCHECK(
-        type_ == kReg, "Unable to get physical register from the operand.");
+    JIT_CHECK(
+        type_ == kReg,
+        "Trying to treat operand [type={},val={:#x}] as a physical register",
+        type_,
+        rawValue());
     return std::get<int>(value_);
   }
 
@@ -301,7 +304,11 @@ class Operand : public OperandBase {
   }
 
   int getStackSlot() const override {
-    JIT_DCHECK(type_ == kStack, "Unable to get a memory stack slot.");
+    JIT_CHECK(
+        type_ == kStack,
+        "Trying to treat operand [type={},val={:#x}] as a stack slot",
+        type_,
+        rawValue());
     return std::get<int>(value_);
   }
 
@@ -325,17 +332,21 @@ class Operand : public OperandBase {
       case kStack:
         return getStackSlot();
       default:
-        JIT_DCHECK(
-            false,
-            "Unable to get a physical register or a memory stack slot from the "
-            "operand");
-        break;
+        JIT_ABORT(
+            "Trying to treat operand [type={},val={:#x} as a physical register "
+            "or a stack slot",
+            type_,
+            rawValue());
     }
     return -1;
   }
 
   void* getMemoryAddress() const override {
-    JIT_DCHECK(type_ == kMem, "Unable to get a memory address.");
+    JIT_CHECK(
+        type_ == kMem,
+        "Trying to treat operand [type={},val={:#x}] as a memory address",
+        type_,
+        rawValue());
     return std::get<void*>(value_);
   }
 
@@ -345,7 +356,11 @@ class Operand : public OperandBase {
   }
 
   MemoryIndirect* getMemoryIndirect() const override {
-    JIT_DCHECK(type_ == kInd, "Unable to get a memory indirect.");
+    JIT_CHECK(
+        type_ == kInd,
+        "Trying to treat operand [type={},val={:#x}] as a memory indirect",
+        type_,
+        rawValue());
     return std::get<std::unique_ptr<MemoryIndirect>>(value_).get();
   }
 
@@ -362,7 +377,11 @@ class Operand : public OperandBase {
   }
 
   BasicBlock* getBasicBlock() const override {
-    JIT_DCHECK(type_ == kLabel, "Unable to get a basic block address.");
+    JIT_CHECK(
+        type_ == kLabel,
+        "Trying to treat operand [type={},val={:#x}] as a basic block address",
+        type_,
+        rawValue());
     return std::get<BasicBlock*>(value_);
   }
 
@@ -412,6 +431,24 @@ class Operand : public OperandBase {
   void removeUse(LinkedOperand* use);
 
  private:
+  uint64_t rawValue() const {
+    if (const auto ptr = std::get_if<uint64_t>(&value_)) {
+      return *ptr;
+    } else if (const auto ptr = std::get_if<int>(&value_)) {
+      return static_cast<uint64_t>(*ptr);
+    } else if (const auto ptr = std::get_if<void*>(&value_)) {
+      return reinterpret_cast<uint64_t>(*ptr);
+    } else if (const auto ptr = std::get_if<BasicBlock*>(&value_)) {
+      return reinterpret_cast<uint64_t>(*ptr);
+    } else if (
+        const auto ptr =
+            std::get_if<std::unique_ptr<MemoryIndirect>>(&value_)) {
+      return reinterpret_cast<uint64_t>(ptr->get());
+    }
+
+    JIT_ABORT("Unknown operand value type, has index {}", value_.index());
+  }
+
   Type type_{kNone};
   DataType data_type_{kObject};
 
