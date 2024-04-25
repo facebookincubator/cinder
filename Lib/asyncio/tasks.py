@@ -380,6 +380,11 @@ class Task(futures._PyFuture):  # Inherit Python Task implementation
         finally:
             self = None  # Needed to break cycles when an exception occurs.
 
+    # START META PATCH (Task._step override)
+    # Needed to be compatible with the C version
+    _step = __step
+    # END META PATCH
+
     def __wakeup(self, future):
         try:
             future.result()

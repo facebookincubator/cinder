@@ -1856,6 +1856,21 @@ TaskStepMethWrapper_dealloc(TaskStepMethWrapper *o)
     Py_DECREF(tp);
 }
 
+// START META PATCH (Task._step override)
+static inline PyObject *
+task_call_step(asyncio_state *state, TaskObj *task, PyObject *arg)
+{
+    if (Task_CheckExact(state, task)) {
+        return task_step(state, task, arg);
+    }
+    else {
+        // `task` is a subclass of asyncio.Task
+        return PyObject_CallMethodObjArgs(
+            (PyObject*)task, &_Py_ID(_step), arg, NULL);
+    }
+}
+// END META PATCH
+
 static PyObject *
 TaskStepMethWrapper_call(TaskStepMethWrapper *o,
                          PyObject *args, PyObject *kwds)
@@ -1869,7 +1884,9 @@ TaskStepMethWrapper_call(TaskStepMethWrapper *o,
         return NULL;
     }
     asyncio_state *state = get_asyncio_state_by_def((PyObject *)o);
-    return task_step(state, o->sw_task, o->sw_arg);
+    // START META PATCH (Task._step override)
+    return task_call_step(state, o->sw_task, o->sw_arg);
+    // END META PATCH
 }
 
 static int
@@ -2487,6 +2504,22 @@ _asyncio_Task_set_exception(TaskObj *self, PyObject *exception)
     return NULL;
 }
 
+// START META PATCH (Task._step override)
+/*[clinic input]
+_asyncio.Task._step
+
+    exc: object = None
+[clinic start generated code]*/
+
+static PyObject *
+_asyncio_Task__step_impl(TaskObj *self, PyObject *exc)
+/*[clinic end generated code: output=7ed23f0cefd5ae42 input=1e19a985ace87ca4]*/
+{
+    asyncio_state *state = get_asyncio_state_by_def((PyObject *)self);
+    return task_step(state, self, exc == Py_None ? NULL : exc);
+}
+// END META PATCH
+
 /*[clinic input]
 _asyncio.Task.get_coro
 [clinic start generated code]*/
@@ -2637,6 +2670,9 @@ static PyMethodDef TaskType_methods[] = {
     _ASYNCIO_TASK_SET_NAME_METHODDEF
     _ASYNCIO_TASK_GET_CORO_METHODDEF
     _ASYNCIO_TASK_GET_CONTEXT_METHODDEF
+    // START META PATCH (Task._step override)
+    _ASYNCIO_TASK__STEP_METHODDEF
+    // END META PATCH
     {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS, PyDoc_STR("See PEP 585")},
     {NULL, NULL}        /* Sentinel */
 };
@@ -3219,10 +3255,14 @@ task_wakeup(TaskObj *task, PyObject *o)
             break; /* exception raised */
         case 0:
             Py_DECREF(fut_result);
-            return task_step(state, task, NULL);
+            // START META PATCH (Task._step override)
+            return task_call_step(state, task, NULL);
+            // END META PATCH
         default:
             assert(res == 1);
-            result = task_step(state, task, fut_result);
+            // START META PATCH (Task._step override)
+            result = task_call_step(state, task, fut_result);
+            // END META PATCH
             Py_DECREF(fut_result);
             return result;
         }
@@ -3231,7 +3271,9 @@ task_wakeup(TaskObj *task, PyObject *o)
         PyObject *fut_result = PyObject_CallMethod(o, "result", NULL);
         if (fut_result != NULL) {
             Py_DECREF(fut_result);
-            return task_step(state, task, NULL);
+            // START META PATCH (Task._step override)
+            return task_call_step(state, task, NULL);
+            // END META PATCH
         }
         /* exception raised */
     }
@@ -3239,7 +3281,9 @@ task_wakeup(TaskObj *task, PyObject *o)
     PyObject *exc = PyErr_GetRaisedException();
     assert(exc);
 
-    result = task_step(state, task, exc);
+    // START META PATCH (Task._step override)
+    result = task_call_step(state, task, exc);
+    // END META PATCH
 
     Py_DECREF(exc);
 

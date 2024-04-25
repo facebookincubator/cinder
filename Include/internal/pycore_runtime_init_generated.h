@@ -768,6 +768,7 @@ extern "C" {
     INIT_ID(_showwarnmsg), \
     INIT_ID(_shutdown), \
     INIT_ID(_slotnames), \
+    INIT_ID(_step), \
     INIT_ID(_strptime_datetime), \
     INIT_ID(_swappedbytes_), \
     INIT_ID(_type_), \
@@ -908,6 +909,7 @@ extern "C" {
     INIT_ID(errors), \
     INIT_ID(event), \
     INIT_ID(eventmask), \
+    INIT_ID(exc), \
     INIT_ID(exc_type), \
     INIT_ID(exc_value), \
     INIT_ID(excepthook), \

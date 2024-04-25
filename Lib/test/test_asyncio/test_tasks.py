@@ -3365,6 +3365,75 @@ class SleepTests(test_utils.TestCase):
         self.assertEqual(result, 11)
 
 
+# START META PATCH (Task._step override tests)
+class MetaAsyncio(test_utils.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.loop = asyncio.new_event_loop()
+        self.set_event_loop(self.loop)
+
+    def tearDown(self):
+        self.loop.close()
+        self.loop = None
+        super().tearDown()
+
+    def test_override_step_no_exc(self):
+        result = ""
+
+        async def f():
+            nonlocal result
+            result += "2"
+
+        class CustomTask(asyncio.Task):
+            def _step(self, exn=None):
+                nonlocal result
+                result += "1"
+                super()._step(exn)
+                result += "3"
+
+        self.loop.run_until_complete(CustomTask(f(), loop=self.loop))
+        self.assertEqual(result, "123")
+
+    def test_override_step_has_exc(self):
+        result = ""
+
+        # we want 'await fut' to not be finished synchronously
+        # in order to enter '_step' for the second time with exception.
+        # If we just do 'set_exception' and then await - it will be finished
+        # eagerly since future is fulfiled at th suspension point.
+        # What we want is to set error after the point when asyncio infrastructure
+        # will decide to suspend execution. Simplest way to do it is to  set error at the point
+        # when done callback is set.
+        class F(asyncio.Future):
+            def add_done_callback(self, callback, *, context=None):
+                super().add_done_callback(callback, context=context)
+                self.set_exception(ValueError("ERROR!"))
+
+        fut = F(loop=self.loop)
+
+        async def f():
+            nonlocal result
+            result += "|f"
+            result += await fut
+
+        class CustomTask(asyncio.Task):
+            def _step(self, exn=None):
+                nonlocal result
+                result += "|before"
+                result += "|" + str(exn)
+                super()._step(exn)
+                result += "|after"
+
+        try:
+            self.loop.run_until_complete(CustomTask(f(), loop=self.loop))
+        except ValueError as e:
+            self.assertEqual(e.args[0], "ERROR!")
+        else:
+            self.fail("ValueError expected")
+        self.assertEqual(result, "|before|None|f|after|before|ERROR!|after")
+# END META PATCH
+
+
 class CompatibilityTests(test_utils.TestCase):
     # Tests for checking a bridge between old-styled coroutines
     # and async/await syntax
