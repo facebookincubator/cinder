@@ -20,20 +20,42 @@ constexpr uint64_t kPageSize = 0x1000;
 
 constexpr uint64_t kTextStartAddress = kPageSize;
 
-constexpr uint64_t alignUp(uint64_t n) {
-  uint64_t mask = kPageSize - 1;
-  return (n + mask) & ~mask;
+constexpr uint64_t alignUp(uint64_t n, uint64_t align) {
+  if (align == 0) {
+    return n;
+  }
+  uint64_t raised = n + align - 1;
+  return raised - (raised % align);
 }
 
-constexpr bool isAligned(uint64_t n) {
-  return n == alignUp(n);
+constexpr bool isAligned(uint64_t n, uint64_t align) {
+  return n == alignUp(n, align);
 }
 
-uint64_t alignOffset(Object& elf) {
-  uint64_t new_offset = alignUp(elf.section_offset);
+uint64_t alignOffset(Object& elf, uint64_t align) {
+  uint64_t new_offset = alignUp(elf.section_offset, align);
   uint64_t delta = new_offset - elf.section_offset;
   elf.section_offset = new_offset;
   return delta;
+}
+
+void checkAlignedSection(const SectionHeader& header, std::string_view name) {
+  JIT_CHECK(
+      isAligned(header.offset, header.align),
+      "{} section has offset {:#x} which doesn't match alignment of {:#x}",
+      name,
+      header.offset,
+      header.align);
+}
+
+void checkAlignedSegment(const SegmentHeader& header) {
+  JIT_CHECK(
+      isAligned(header.address - header.offset, header.align),
+      "Segment with address {:#x} and offset {:#x} doesn't match alignment of "
+      "{:#x}",
+      header.address,
+      header.offset,
+      header.align);
 }
 
 void initFileHeader(Object& elf) {
@@ -49,11 +71,6 @@ void initTextSection(Object& elf, uint64_t text_size) {
   // Program bits. Occupies memory and is executable.  Text follows the section
   // header table after some padding.
 
-  JIT_CHECK(
-      isAligned(elf.section_offset),
-      "Text section starts at unaligned address {:#x}",
-      elf.section_offset);
-
   SectionHeader& header = elf.getSectionHeader(SectionIdx::kText);
   header.name_offset = elf.shstrtab.insert(".text");
   header.type = kProgram;
@@ -63,15 +80,12 @@ void initTextSection(Object& elf, uint64_t text_size) {
   header.size = text_size;
   header.align = 0x10;
 
+  checkAlignedSection(header, ".text");
+
   elf.section_offset += header.size;
 }
 
 void initDynsymSection(Object& elf) {
-  JIT_CHECK(
-      isAligned(elf.section_offset),
-      "Dynsym section starts at unaligned address {:#x}",
-      elf.section_offset);
-
   SectionHeader& header = elf.getSectionHeader(SectionIdx::kDynsym);
   header.name_offset = elf.shstrtab.insert(".dynsym");
   header.type = kSymbolTable;
@@ -83,7 +97,10 @@ void initDynsymSection(Object& elf) {
   // This is the index of the first global symbol, i.e. the first symbol after
   // the null symbol.
   header.info = 1;
+  header.align = 0x8;
   header.entry_size = sizeof(Symbol);
+
+  checkAlignedSection(header, ".dynsym");
 
   elf.section_offset += header.size;
 }
@@ -96,6 +113,9 @@ void initDynstrSection(Object& elf) {
   header.address = elf.section_offset;
   header.offset = elf.section_offset;
   header.size = elf.dynstr.bytes().size();
+  header.align = 0x1;
+
+  checkAlignedSection(header, ".dynstr");
 
   elf.section_offset += header.size;
 }
@@ -106,6 +126,9 @@ void initShstrtabSection(Object& elf) {
   header.type = kStringTable;
   header.offset = elf.section_offset;
   header.size = elf.shstrtab.bytes().size();
+  header.align = 0x1;
+
+  checkAlignedSection(header, ".shstrtab");
 
   elf.section_offset += header.size;
 }
@@ -122,6 +145,8 @@ void initTextSegment(Object& elf) {
   header.file_size = section.size;
   header.mem_size = header.file_size;
   header.align = 0x1000;
+
+  checkAlignedSegment(header);
 }
 
 void initReadonlySegment(Object& elf) {
@@ -139,6 +164,8 @@ void initReadonlySegment(Object& elf) {
   header.file_size = dynsym.size + dynstr.size;
   header.mem_size = header.file_size;
   header.align = 0x1000;
+
+  checkAlignedSegment(header);
 }
 
 template <class T>
@@ -183,7 +210,7 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
   // The headers are all limited to the zeroth page, sections begin on the next
   // page.
   elf.section_offset = offsetof(Object, header_stop);
-  uint64_t header_padding = alignOffset(elf);
+  uint64_t header_padding = alignOffset(elf, kPageSize);
   JIT_CHECK(
       elf.section_offset == kTextStartAddress,
       "ELF headers were too big and went past the zeroth page: {:#x}",
@@ -192,7 +219,7 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
   // Null section needs no extra initialization.
 
   initTextSection(elf, text_size);
-  uint64_t text_padding = alignOffset(elf);
+  uint64_t text_padding = alignOffset(elf, kPageSize);
 
   initDynsymSection(elf);
   initDynstrSection(elf);
