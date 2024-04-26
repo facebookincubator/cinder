@@ -248,7 +248,7 @@ PyFrameState getPyFrameStateForJITGen(PyGenObject* gen) {
 BorrowedRef<PyFrameObject> materializePyFrame(
     PyThreadState* tstate,
     _PyShadowFrame* shadow_frame,
-    int last_instr_offset,
+    BCOffset last_instr_offset,
     std::optional<BorrowedRef<PyFrameObject>> cursor) {
   // Make sure a PyFrameObject exists at the correct location in the call
   // stack.
@@ -276,7 +276,7 @@ BorrowedRef<PyFrameObject> materializePyFrame(
     }
   }
   // Update the PyFrameObject to refect the state of the JIT function
-  py_frame->f_lasti = last_instr_offset / sizeof(_Py_CODEUNIT);
+  py_frame->f_lasti = last_instr_offset.asIndex().value();
   if (is_shadow_frame_for_gen(shadow_frame)) {
     PyGenObject* gen = _PyShadowFrame_GetGen(shadow_frame);
     py_frame->f_state = getPyFrameStateForJITGen(gen);
@@ -411,7 +411,8 @@ UnitState getUnitState(_PyShadowFrame* shadow_frame) {
     JIT_DABORT("No debug info for addr {:x}", ip);
     for (std::size_t i = 0; i < unit_frames.size(); i++) {
       _PyShadowFrame* sf = unit_frames[i];
-      unit_state.emplace_back(sf, CodeObjLoc{_PyShadowFrame_GetCode(sf), -1});
+      unit_state.emplace_back(
+          sf, CodeObjLoc{_PyShadowFrame_GetCode(sf), BCOffset{-1}});
     }
   }
 

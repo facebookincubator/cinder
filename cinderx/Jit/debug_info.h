@@ -27,17 +27,18 @@ class Instr;
 // A location in a code object
 struct CodeObjLoc {
   CodeObjLoc(BorrowedRef<PyFrameObject> py_frame)
-      : code(py_frame->f_code),
-        instr_offset(py_frame->f_lasti * int{sizeof(_Py_CODEUNIT)}) {}
-  CodeObjLoc(BorrowedRef<PyCodeObject> code_, int lasti)
-      : code(code_), instr_offset(lasti) {}
+      : code{py_frame->f_code},
+        instr_offset{BCIndex{py_frame->f_lasti}.asOffset()} {}
+  CodeObjLoc(BorrowedRef<PyCodeObject> code, BCOffset instr_offset)
+      : code{code}, instr_offset{instr_offset} {}
+
   BorrowedRef<PyCodeObject> code;
 
   // Bytecode offset. A value less than 0 indicates the position is unknown.
-  int instr_offset{-1};
+  BCOffset instr_offset{-1};
 
   int lineNo() const {
-    return PyCode_Addr2Line(code, instr_offset);
+    return PyCode_Addr2Line(code, instr_offset.value());
   }
 };
 
@@ -86,7 +87,7 @@ class DebugInfo {
   // Given a node, the location information for its call stack is specified
   // by the node and the chain of inlined calls reachable from it.
   struct LocNode {
-    LocNode(uint16_t cobj_id, uint16_t clr_id, int bco)
+    LocNode(uint16_t cobj_id, uint16_t clr_id, BCOffset bco)
         : code_obj_id(cobj_id), caller_id(clr_id), bc_off(bco) {}
     // Index into code_objs of the PyCodeObject for this entry.
     uint16_t code_obj_id;
@@ -96,20 +97,14 @@ class DebugInfo {
     uint16_t caller_id;
 
     // Current bytecode offset.
-    int bc_off;
+    BCOffset bc_off;
 
     bool hasCaller() const {
       return caller_id != kNoCallerID;
     }
 
-    bool operator==(const LocNode& other) const {
-      return (code_obj_id == other.code_obj_id) &&
-          (caller_id == other.caller_id) && (bc_off == other.bc_off);
-    }
-
-    bool operator!=(const LocNode& other) const {
-      return !(*this == other);
-    }
+    bool operator==(const LocNode& other) const = default;
+    bool operator!=(const LocNode& other) const = default;
   };
 
   static const uint16_t kNoCallerID = UINT16_MAX;

@@ -135,7 +135,7 @@ void DebugInfo::addUnitCallStack(
     const jit::hir::FrameState* caller_frame_state) {
   uint16_t caller_id = getCallerID(caller_frame_state);
   uint16_t code_obj_id = getCodeObjID(code);
-  addr_locs_.emplace(addr, LocNode{code_obj_id, caller_id, bc_off.value()});
+  addr_locs_.emplace(addr, LocNode{code_obj_id, caller_id, bc_off});
 }
 
 uint16_t DebugInfo::getCodeObjID(BorrowedRef<PyCodeObject> code_obj) {
@@ -162,7 +162,7 @@ uint16_t DebugInfo::getCallerID(const jit::hir::FrameState* caller) {
   LocNode node{
       getCodeObjID(caller->code),
       getCallerID(caller->parent),
-      caller->instr_offset().value()};
+      caller->instr_offset()};
   for (uint16_t i = 0; i < inlined_calls_.size(); i++) {
     if (inlined_calls_[i] == node) {
       return i;
