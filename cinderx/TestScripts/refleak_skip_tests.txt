@@ -11,3 +11,9 @@ test_cinderx.test_compiler.test_strict.test_strict_codegen.StrictCheckedCompilat
 test_cinderx.test_compiler.test_strict.test_definite_assignment.*
 # TODO(T130986700) Fix refleaks in test_compiler
 test_cinderx.test_compiler.*
+
+# These take excessive time, particularly when combined with ASAN + UBSAN.
+test.test_audit.*
+test.test_concurrent_futures.*
+test.test_importlib.*
+test.test_multiprocessing_spawn.*
