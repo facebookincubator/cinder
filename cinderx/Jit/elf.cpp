@@ -120,6 +120,25 @@ void initDynstrSection(Object& elf) {
   elf.section_offset += header.size;
 }
 
+void initDynamicSection(Object& elf) {
+  JIT_CHECK(
+      isAligned(elf.section_offset, kPageSize),
+      "Dynamic section starts at unaligned address {:#x}",
+      elf.section_offset);
+
+  SectionHeader& header = elf.getSectionHeader(SectionIdx::kDynamic);
+  header.name_offset = elf.shstrtab.insert(".dynamic");
+  header.type = kDynamic;
+  header.flags = kSectionAlloc | kSectionWritable;
+  header.address = elf.section_offset;
+  header.offset = elf.section_offset;
+  header.size = elf.dynamic.bytes().size();
+  header.link = raw(SectionIdx::kDynstr);
+  header.entry_size = sizeof(Dyn);
+
+  elf.section_offset += header.size;
+}
+
 void initShstrtabSection(Object& elf) {
   SectionHeader& header = elf.getSectionHeader(SectionIdx::kShstrtab);
   header.name_offset = elf.shstrtab.insert(".shstrtab");
@@ -138,7 +157,7 @@ void initTextSegment(Object& elf) {
 
   // The .text section immediately follows all the ELF headers.
   SegmentHeader& header = elf.getSegmentHeader(SegmentIdx::kText);
-  header.type = kLoadableSegment;
+  header.type = kSegmentLoadable;
   header.flags = kSegmentExecutable | kSegmentReadable;
   header.offset = section.offset;
   header.address = section.address;
@@ -157,7 +176,7 @@ void initReadonlySegment(Object& elf) {
       "Expecting sections to be in a specific order");
 
   SegmentHeader& header = elf.getSegmentHeader(SegmentIdx::kReadonly);
-  header.type = kLoadableSegment;
+  header.type = kSegmentLoadable;
   header.flags = kSegmentReadable;
   header.offset = dynsym.offset;
   header.address = dynsym.address;
@@ -166,6 +185,48 @@ void initReadonlySegment(Object& elf) {
   header.align = 0x1000;
 
   checkAlignedSegment(header);
+}
+
+void initReadwriteSegment(Object& elf) {
+  SectionHeader& dynamic = elf.getSectionHeader(SectionIdx::kDynamic);
+
+  SegmentHeader& header = elf.getSegmentHeader(SegmentIdx::kReadwrite);
+  header.type = kSegmentLoadable;
+  header.flags = kSegmentReadable | kSegmentWritable;
+  header.offset = dynamic.offset;
+  header.address = dynamic.address;
+  header.file_size = dynamic.size;
+  header.mem_size = header.file_size;
+  header.align = 0x1000;
+
+  checkAlignedSegment(header);
+}
+
+void initDynamicSegment(Object& elf) {
+  SectionHeader& dynamic = elf.getSectionHeader(SectionIdx::kDynamic);
+
+  SegmentHeader& header = elf.getSegmentHeader(SegmentIdx::kDynamic);
+  header.type = kSegmentDynamic;
+  header.flags = kSegmentReadable | kSegmentWritable;
+  header.offset = dynamic.offset;
+  header.address = dynamic.address;
+  header.file_size = dynamic.size;
+  header.mem_size = header.file_size;
+  header.align = 0x1000;
+}
+
+void initDynamics(Object& elf) {
+  // Has to be run after .dynsym and .dynstr are mapped out.
+  SectionHeader& dynsym = elf.getSectionHeader(SectionIdx::kDynsym);
+  SectionHeader& dynstr = elf.getSectionHeader(SectionIdx::kDynstr);
+
+  // TODO(T183002717): kNeeded for _cinderx.so and kHash for .hash.
+  elf.dynamic.insert(DynTag::kNeeded, elf.libpython_name);
+
+  elf.dynamic.insert(DynTag::kStrtab, dynstr.address);
+  elf.dynamic.insert(DynTag::kStrSz, dynstr.size);
+  elf.dynamic.insert(DynTag::kSymtab, dynsym.address);
+  elf.dynamic.insert(DynTag::kSymEnt, sizeof(Symbol));
 }
 
 template <class T>
@@ -207,6 +268,8 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
   }
   uint64_t text_size = text_end_address - kTextStartAddress;
 
+  elf.libpython_name = elf.dynstr.insert("libpython3.10.so");
+
   // The headers are all limited to the zeroth page, sections begin on the next
   // page.
   elf.section_offset = offsetof(Object, header_stop);
@@ -223,10 +286,17 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
 
   initDynsymSection(elf);
   initDynstrSection(elf);
+  uint64_t dynsym_padding = alignOffset(elf, kPageSize);
+
+  initDynamics(elf);
+
+  initDynamicSection(elf);
   initShstrtabSection(elf);
 
   initTextSegment(elf);
   initReadonlySegment(elf);
+  initReadwriteSegment(elf);
+  initDynamicSegment(elf);
 
   // Write out all the headers.
   write(os, &elf.file_header, sizeof(elf.file_header));
@@ -242,6 +312,9 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
 
   write(os, elf.dynsym.bytes());
   write(os, elf.dynstr.bytes());
+  pad(os, dynsym_padding);
+
+  write(os, elf.dynamic.bytes());
   write(os, elf.shstrtab.bytes());
 }
 

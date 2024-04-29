@@ -21,17 +21,21 @@ namespace jit::elf {
 constexpr uint32_t kProgram = 0x01;
 constexpr uint32_t kSymbolTable = 0x02;
 constexpr uint32_t kStringTable = 0x03;
+constexpr uint32_t kDynamic = 0x06;
 
 // Section header flags.
+constexpr uint64_t kSectionWritable = 0x01;
 constexpr uint64_t kSectionAlloc = 0x02;
 constexpr uint64_t kSectionExecutable = 0x04;
 constexpr uint64_t kSectionInfoLink = 0x40;
 
 // Segment header types.
-constexpr uint32_t kLoadableSegment = 0x1;
+constexpr uint32_t kSegmentLoadable = 0x1;
+constexpr uint32_t kSegmentDynamic = 0x2;
 
 // Segment header flags.
 constexpr uint32_t kSegmentExecutable = 0x1;
+constexpr uint32_t kSegmentWritable = 0x2;
 constexpr uint32_t kSegmentReadable = 0x4;
 
 // Symbol flags.
@@ -45,6 +49,7 @@ enum class SectionIdx : uint32_t {
   kText = 1,
   kDynsym,
   kDynstr,
+  kDynamic,
   kShstrtab,
   kTotal,
 };
@@ -53,6 +58,8 @@ enum class SectionIdx : uint32_t {
 enum class SegmentIdx : uint32_t {
   kText,
   kReadonly,
+  kReadwrite,
+  kDynamic,
   kTotal,
 };
 
@@ -248,6 +255,48 @@ class SymbolTable {
   std::vector<Symbol> syms_;
 };
 
+enum class DynTag : uint64_t {
+  kNull = 0,
+  kNeeded = 1,
+  kHash = 4,
+  kStrtab = 5,
+  kSymtab = 6,
+  kStrSz = 10,
+  kSymEnt = 11,
+};
+
+struct Dyn {
+  Dyn() = default;
+  Dyn(DynTag tag, uint64_t val) : tag{tag}, val{val} {}
+
+  DynTag tag{DynTag::kNull};
+  uint64_t val{0};
+};
+
+class DynamicTable {
+ public:
+  DynamicTable() {
+    // Table must always end with a null dynamic item.
+    dyns_.emplace_back();
+  }
+
+  template <class... Args>
+  void insert(Args&&... args) {
+    dyns_.emplace_back(std::forward<Args>(args)...);
+    // Always swap the null item back to the end.
+    auto const len = dyns_.size();
+    JIT_DCHECK(len >= 2, "DynamicTable missing its required null item");
+    std::swap(dyns_[len - 1], dyns_[len - 2]);
+  }
+
+  std::span<const std::byte> bytes() const {
+    return std::as_bytes(std::span{dyns_});
+  }
+
+ private:
+  std::vector<Dyn> dyns_;
+};
+
 // Represents an ELF object/file.
 //
 // The headers are laid out in the exact order that they will appear in the
@@ -263,9 +312,11 @@ struct Object {
 
   SymbolTable dynsym;
   StringTable dynstr;
+  DynamicTable dynamic;
   StringTable shstrtab;
 
   uint32_t section_offset{0};
+  uint32_t libpython_name{0};
 
   SectionHeader& getSectionHeader(SectionIdx idx) {
     return section_headers[raw(idx)];
