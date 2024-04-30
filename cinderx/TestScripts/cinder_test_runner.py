@@ -291,10 +291,10 @@ class ASANLogManipulator:
         self._log_path_base = None
         self._base_asan_options = None
 
-        asan_options = os.environ.get('ASAN_OPTIONS')
-        if asan_options is None:
+        if not is_asan_build():
             return
 
+        asan_options = os.environ.get('ASAN_OPTIONS', '')
         log_path_base = None
         for option in asan_options.split(','):
             if option.startswith('log_path='):
