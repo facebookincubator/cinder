@@ -892,7 +892,55 @@ def worker_main(args):
         WorkReceiver(pipe).run(ns)
 
 
+# TODO(T184566736) Remove this work around for a bug in Buck2 which causes
+# us to be the parent of fire-and-forget logging processes.
+def fix_env_always_changed_issue():
+    # Build a list of our already existing child-processes.
+    current_pid = os.getpid()
+    result = subprocess.run(
+        ["pgrep", "-P", str(current_pid)], capture_output=True, text=True)
+    pids = result.stdout.strip().split("\n")
+    child_pids_ignore = {int(pid) for pid in pids if pid}
+
+
+    # This is a copy of test.support.reap_children() altered to ignore our
+    # initial children. We monkey-patch this version in below.
+    def reap_children():
+        """Use this function at the end of test_main() whenever sub-processes
+        are started.  This will help ensure that no extra children (zombies)
+        stick around to hog resources and create problems when looking
+        for refleaks.
+        """
+
+        # Need os.waitpid(-1, os.WNOHANG): Windows is not supported
+        if not (hasattr(os, 'waitpid') and hasattr(os, 'WNOHANG')):
+            return
+
+        # Reap all our dead child processes so we don't leave zombies around.
+        # These hog resources and might be causing some of the buildbots to die.
+        while True:
+            try:
+                # Read the exit status of any child process which already completed
+                pid, status = os.waitpid(-1, os.WNOHANG)
+            except OSError:
+                break
+
+            # *CINDER CHANGE HERE*
+            if pid in child_pids_ignore:
+                continue
+
+            if pid == 0:
+                break
+
+            support.print_warning(f"reap_children() reaped child process {pid}")
+            support.environment_altered = True
+
+
+    support.reap_children = reap_children
+
+
 def user_selected_main(args):
+    fix_env_always_changed_issue()
     test_runner = UserSelectedCinderRegrtest()
     sys.argv[1:] = args.rest[1:]
     test_runner.main(args.test)
