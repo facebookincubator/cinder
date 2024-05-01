@@ -397,7 +397,7 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
 // form when we're invoking from the interpreter or somewhere that can't use
 // the native calling convention.
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__x86_64__)
-#define VTABLE_THUNK(name)                                                          \
+#define VTABLE_THUNK(name, _arg1_type)                                              \
     __attribute__((naked)) void name##_dont_bolt(void) {  \
         __asm__(                                                                    \
                 /* static_entry: */                                                 \
@@ -447,9 +447,9 @@ invoke_from_native(PyObject *original, PyObject *func, void **args)
         );                                                                          \
     }
 #else
-#define VTABLE_THUNK(name)                                                          \
-    PyObject *name##_dont_bolt(PyObject *state,                                     \
-                    PyObject *const *args,                                          \
+#define VTABLE_THUNK(name, arg1_type)                                               \
+    PyObject *name##_dont_bolt(arg1_type *state,                                    \
+                    PyObject **args,                                          \
                     size_t nargsf) {                                                \
         return name##_vectorcall(state, args, nargsf);                              \
     }
@@ -545,7 +545,7 @@ type_vtable_coroutine_property_native(_PyClassLoader_TypeCheckState *state, void
     return res;
 }
 
-VTABLE_THUNK(type_vtable_coroutine_property)
+VTABLE_THUNK(type_vtable_coroutine_property, _PyClassLoader_TypeCheckState)
 
 __attribute__((__used__)) PyObject *
 type_vtable_coroutine_classmethod_vectorcall(_PyClassLoader_TypeCheckState *state,
@@ -628,7 +628,7 @@ type_vtable_coroutine_classmethod_native(_PyClassLoader_TypeCheckState *state, v
     return res;
 }
 
-VTABLE_THUNK(type_vtable_coroutine_classmethod)
+VTABLE_THUNK(type_vtable_coroutine_classmethod, _PyClassLoader_TypeCheckState)
 
 __attribute__((__used__)) PyObject *
 type_vtable_coroutine_vectorcall(_PyClassLoader_TypeCheckState *state,
@@ -702,7 +702,7 @@ type_vtable_coroutine_native(_PyClassLoader_TypeCheckState *state, void **args) 
     return res;
 }
 
-VTABLE_THUNK(type_vtable_coroutine)
+VTABLE_THUNK(type_vtable_coroutine, _PyClassLoader_TypeCheckState)
 
 
 __attribute__((__used__)) PyObject *
@@ -783,7 +783,7 @@ type_vtable_nonfunc_property_native(_PyClassLoader_TypeCheckState *state, void *
     return return_to_native(obj, ((_PyClassLoader_RetTypeInfo *)state)->rt_expected);
 }
 
-VTABLE_THUNK(type_vtable_nonfunc_property)
+VTABLE_THUNK(type_vtable_nonfunc_property, _PyClassLoader_TypeCheckState)
 
 __attribute__((__used__)) PyObject *
 type_vtable_nonfunc_vectorcall(_PyClassLoader_TypeCheckState *state,
@@ -857,7 +857,7 @@ type_vtable_nonfunc_native(_PyClassLoader_TypeCheckState *state, void **args)
     return return_to_native(obj, ((_PyClassLoader_RetTypeInfo *)state)->rt_expected);
 }
 
-VTABLE_THUNK(type_vtable_nonfunc)
+VTABLE_THUNK(type_vtable_nonfunc, _PyClassLoader_TypeCheckState)
 
 __attribute__((__used__)) PyObject *
 type_vtable_descr_vectorcall(PyObject *descr,
@@ -876,7 +876,7 @@ type_vtable_descr_native(PyObject *descr, void **args)
     return res;
 }
 
-VTABLE_THUNK(type_vtable_descr)
+VTABLE_THUNK(type_vtable_descr, PyObject)
 
 
 __attribute__((__used__)) PyObject *
@@ -891,7 +891,7 @@ vtable_static_function_native(PyObject *state, void **args) {
     return invoke_from_native(state, state, args);
 }
 
-VTABLE_THUNK(vtable_static_function)
+VTABLE_THUNK(vtable_static_function, PyObject)
 
 __attribute__((__used__)) _PyClassLoader_StaticCallReturn
 vtable_arg_thunk_ret_primitive_non_jitted_native(PyObject *state, void **args) {
@@ -925,7 +925,7 @@ vtable_arg_thunk_ret_primitive_non_jitted_vectorcall(PyObject *state, PyObject *
     return func->vectorcall((PyObject *)func, args, nargsf, NULL);
 }
 
-VTABLE_THUNK(vtable_arg_thunk_ret_primitive_non_jitted)
+VTABLE_THUNK(vtable_arg_thunk_ret_primitive_non_jitted, PyObject)
 
 __attribute__((__used__)) void *
 vtable_arg_thunk_vectorcall_only_vectorcall(PyObject *state, PyObject **args, Py_ssize_t nargsf) {
@@ -938,7 +938,7 @@ vtable_arg_thunk_vectorcall_only_native(PyObject *state, void **args) {
     return NULL;
 }
 
-VTABLE_THUNK(vtable_arg_thunk_vectorcall_only)
+VTABLE_THUNK(vtable_arg_thunk_vectorcall_only, PyObject)
 
 PyObject *
 _PyClassLoader_InvokeMethod(_PyType_VTable *vtable, Py_ssize_t slot, PyObject ** args, Py_ssize_t nargsf)
@@ -997,7 +997,7 @@ type_vtable_func_overridable_native(_PyClassLoader_TypeCheckState *state, void *
     return return_to_native(obj, ((_PyClassLoader_RetTypeInfo *)state)->rt_expected);
 }
 
-VTABLE_THUNK(type_vtable_func_overridable)
+VTABLE_THUNK(type_vtable_func_overridable, _PyClassLoader_TypeCheckState)
 
 static inline int
 is_static_entry(vectorcallfunc func)
@@ -1142,7 +1142,7 @@ type_vtable_func_lazyinit_native(PyObject *state, void **args)
 }
 
 
-VTABLE_THUNK(type_vtable_func_lazyinit)
+VTABLE_THUNK(type_vtable_func_lazyinit, PyObject)
 
 __attribute__((__used__)) PyObject *
 type_vtable_staticmethod_vectorcall(PyObject *method, PyObject **args, Py_ssize_t nargsf) {
@@ -1171,7 +1171,7 @@ type_vtable_staticmethod_native(PyObject *method, void **args) {
     return return_to_native(res, type);
 }
 
-VTABLE_THUNK(type_vtable_staticmethod)
+VTABLE_THUNK(type_vtable_staticmethod, PyObject)
 
 
 __attribute__((__used__)) PyObject *
@@ -1192,7 +1192,7 @@ type_vtable_staticmethod_overridable_native(PyObject *thunk, void **args) {
 }
 
 
-VTABLE_THUNK(type_vtable_staticmethod_overridable)
+VTABLE_THUNK(type_vtable_staticmethod_overridable, PyObject)
 
 #define _PyClassMethod_Check(op) (Py_TYPE(op) == &PyClassMethod_Type)
 
@@ -1242,7 +1242,7 @@ type_vtable_classmethod_native(PyObject *state, void **args)
 }
 
 
-VTABLE_THUNK(type_vtable_classmethod)
+VTABLE_THUNK(type_vtable_classmethod, PyObject)
 
 
 __attribute__((__used__)) PyObject *
@@ -1296,7 +1296,7 @@ type_vtable_classmethod_overridable_native(_PyClassLoader_TypeCheckState *state,
     return return_to_native(obj, ((_PyClassLoader_RetTypeInfo *)state)->rt_expected);
 }
 
-VTABLE_THUNK(type_vtable_classmethod_overridable)
+VTABLE_THUNK(type_vtable_classmethod_overridable, _PyClassLoader_TypeCheckState)
 
 __attribute__((__used__)) _PyClassLoader_StaticCallReturn
 type_vtable_func_missing_native(PyObject *state, void **args) {
@@ -1330,7 +1330,7 @@ type_vtable_func_missing_vectorcall(PyObject *state, PyObject **args, Py_ssize_t
     return NULL;
 }
 
-VTABLE_THUNK(type_vtable_func_missing)
+VTABLE_THUNK(type_vtable_func_missing, PyObject)
 
 /**
     This does the initialization of the vectorcall entrypoint for the v-table for
@@ -3062,7 +3062,7 @@ type_vtable_lazyinit_native(PyObject *thunk, void **args) {
 }
 
 
-VTABLE_THUNK(type_vtable_lazyinit)
+VTABLE_THUNK(type_vtable_lazyinit, PyObject)
 
 void
 _PyClassLoader_ClearCache()
@@ -3760,7 +3760,7 @@ classloader_init_slot(PyObject *path)
     if (new_index == NULL) {
         PyErr_Format(
             PyExc_RuntimeError, "unable to resolve v-table slot %R in %s for %s (%R) is_static: %s used: %s",
-                slot_name, target_type->tp_name, Py_TYPE(cur)->tp_name, cur, 
+                slot_name, target_type->tp_name, Py_TYPE(cur)->tp_name, cur,
                 is_static_type(target_type) ? "true" : "false", used_in_vtable(cur) ? "true" : "false");
         Py_DECREF(target_type);
         Py_DECREF(cur);
