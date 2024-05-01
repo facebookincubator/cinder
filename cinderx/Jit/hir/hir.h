@@ -2090,7 +2090,7 @@ const std::array<binaryfunc, kNumBinaryOpKinds> kLongBinaryOpSlotMethods = {
 
     PyLong_Type.tp_as_number->nb_floor_divide,
     PyLong_Type.tp_as_number->nb_lshift,
-    0, // unsupported: matrix multiply
+    nullptr, // unsupported: matrix multiply
     PyLong_Type.tp_as_number->nb_remainder,
     PyLong_Type.tp_as_number->nb_multiply,
     PyLong_Type.tp_as_number->nb_or,
