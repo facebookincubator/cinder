@@ -335,7 +335,7 @@ int copyJitFile(const std::string& parent_filename) {
           std::get<0>(jit_entry),
           std::get<1>(jit_entry),
           std::get<2>(jit_entry));
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
       JIT_LOG("Error: Invalid JIT entry: {} \n", buf);
     }
   }
@@ -367,7 +367,7 @@ int copyJitEntries(const std::string& parent_filename) {
             std::get<0>(jit_entry),
             std::get<1>(jit_entry),
             std::get<2>(jit_entry));
-      } catch (const std::invalid_argument& e) {
+      } catch (const std::invalid_argument&) {
         JIT_LOG("Error: Invalid JIT entry: {} \n", buf);
       }
     }

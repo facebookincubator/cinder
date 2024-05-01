@@ -1106,7 +1106,7 @@ void Analyzer::visitTry(const stmt_ty stmt) {
     if (!caughtException) {
       visitStmtSeq(tryStmt.orelse);
     }
-  } catch (StrictModuleUserException<BaseStrictObject>& e) {
+  } catch (StrictModuleUserException<BaseStrictObject>&) {
     visitStmtSeq(tryStmt.finalbody);
     throw;
   }
