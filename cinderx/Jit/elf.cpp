@@ -135,6 +135,26 @@ void initDynamicSection(Object& elf) {
   header.size = elf.dynamic.bytes().size();
   header.link = raw(SectionIdx::kDynstr);
   header.entry_size = sizeof(Dyn);
+  header.align = 0x8;
+
+  elf.section_offset += header.size;
+}
+
+void initHashSection(Object& elf) {
+  JIT_CHECK(
+      isAligned(elf.section_offset, 0x8),
+      "Hash section starts at unaligned address {:#x}",
+      elf.section_offset);
+
+  SectionHeader& header = elf.getSectionHeader(SectionIdx::kHash);
+  header.name_offset = elf.shstrtab.insert(".hash");
+  header.type = kHash;
+  header.flags = kSectionAlloc;
+  header.address = elf.section_offset;
+  header.offset = elf.section_offset;
+  header.size = elf.hash.size_bytes();
+  header.link = raw(SectionIdx::kDynsym);
+  header.align = 0x8;
 
   elf.section_offset += header.size;
 }
@@ -169,10 +189,11 @@ void initTextSegment(Object& elf) {
 }
 
 void initReadonlySegment(Object& elf) {
+  // Starts at .dynsym and ends at .dynamic.
   SectionHeader& dynsym = elf.getSectionHeader(SectionIdx::kDynsym);
-  SectionHeader& dynstr = elf.getSectionHeader(SectionIdx::kDynstr);
+  SectionHeader& dynamic = elf.getSectionHeader(SectionIdx::kDynamic);
   JIT_CHECK(
-      dynsym.address < dynstr.address,
+      dynsym.address < dynamic.address,
       "Expecting sections to be in a specific order");
 
   SegmentHeader& header = elf.getSegmentHeader(SegmentIdx::kReadonly);
@@ -180,7 +201,7 @@ void initReadonlySegment(Object& elf) {
   header.flags = kSegmentReadable;
   header.offset = dynsym.offset;
   header.address = dynsym.address;
-  header.file_size = dynsym.size + dynstr.size;
+  header.file_size = dynamic.offset - dynsym.offset;
   header.mem_size = header.file_size;
   header.align = 0x1000;
 
@@ -216,13 +237,15 @@ void initDynamicSegment(Object& elf) {
 }
 
 void initDynamics(Object& elf) {
-  // Has to be run after .dynsym and .dynstr are mapped out.
+  // Has to be run after .dynsym, .dynstr, and .hash are mapped out.
   SectionHeader& dynsym = elf.getSectionHeader(SectionIdx::kDynsym);
   SectionHeader& dynstr = elf.getSectionHeader(SectionIdx::kDynstr);
+  SectionHeader& hash = elf.getSectionHeader(SectionIdx::kHash);
 
-  // TODO(T183002717): kNeeded for _cinderx.so and kHash for .hash.
+  // TODO(T183002717): kNeeded for _cinderx.so.
   elf.dynamic.insert(DynTag::kNeeded, elf.libpython_name);
 
+  elf.dynamic.insert(DynTag::kHash, hash.address);
   elf.dynamic.insert(DynTag::kStrtab, dynstr.address);
   elf.dynamic.insert(DynTag::kStrSz, dynstr.size);
   elf.dynamic.insert(DynTag::kSymtab, dynsym.address);
@@ -243,6 +266,45 @@ void pad(std::ostream& os, size_t size) {
   for (size_t i = 0; i < size; ++i) {
     os.put(0);
   }
+}
+
+void writeHash(std::ostream& os, const HashTable& hash) {
+  uint32_t nbuckets = hash.buckets().size();
+  uint32_t nchains = hash.chains().size();
+
+  write(os, &nbuckets, sizeof(nbuckets));
+  write(os, &nchains, sizeof(nchains));
+  write(os, std::as_bytes(hash.buckets()));
+  write(os, std::as_bytes(hash.chains()));
+}
+
+void writeElf(
+    std::ostream& os,
+    const Object& elf,
+    const std::vector<CodeEntry>& entries) {
+  // Write out all the headers.
+  write(os, &elf.file_header, sizeof(elf.file_header));
+  write(os, &elf.section_headers, sizeof(elf.section_headers));
+  write(os, &elf.segment_headers, sizeof(elf.segment_headers));
+  pad(os, elf.header_padding);
+
+  // Write out the actual sections themselves.
+  for (const CodeEntry& entry : entries) {
+    write(os, entry.code.data(), entry.code.size());
+  }
+  pad(os, elf.text_padding);
+
+  write(os, elf.dynsym.bytes());
+  write(os, elf.dynstr.bytes());
+  pad(os, elf.dynsym_padding);
+
+  writeHash(os, elf.hash);
+  pad(os, elf.hash_padding);
+
+  write(os, elf.dynamic.bytes());
+  pad(os, elf.dynamic_padding);
+
+  write(os, elf.shstrtab.bytes());
 }
 
 } // namespace
@@ -272,8 +334,8 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
 
   // The headers are all limited to the zeroth page, sections begin on the next
   // page.
-  elf.section_offset = offsetof(Object, header_stop);
-  uint64_t header_padding = alignOffset(elf, kPageSize);
+  elf.section_offset = offsetof(Object, header_padding);
+  elf.header_padding = alignOffset(elf, kPageSize);
   JIT_CHECK(
       elf.section_offset == kTextStartAddress,
       "ELF headers were too big and went past the zeroth page: {:#x}",
@@ -282,15 +344,21 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
   // Null section needs no extra initialization.
 
   initTextSection(elf, text_size);
-  uint64_t text_padding = alignOffset(elf, kPageSize);
+  elf.text_padding = alignOffset(elf, kPageSize);
 
   initDynsymSection(elf);
   initDynstrSection(elf);
-  uint64_t dynsym_padding = alignOffset(elf, kPageSize);
+  elf.dynsym_padding = alignOffset(elf, 0x8);
+
+  elf.hash.build(elf.dynsym, elf.dynstr);
+  initHashSection(elf);
+  elf.hash_padding = alignOffset(elf, kPageSize);
 
   initDynamics(elf);
 
   initDynamicSection(elf);
+  elf.dynamic_padding = alignOffset(elf, 0x8);
+
   initShstrtabSection(elf);
 
   initTextSegment(elf);
@@ -298,24 +366,7 @@ void writeEntries(std::ostream& os, const std::vector<CodeEntry>& entries) {
   initReadwriteSegment(elf);
   initDynamicSegment(elf);
 
-  // Write out all the headers.
-  write(os, &elf.file_header, sizeof(elf.file_header));
-  write(os, &elf.section_headers, sizeof(elf.section_headers));
-  write(os, &elf.segment_headers, sizeof(elf.segment_headers));
-  pad(os, header_padding);
-
-  // Write out the actual sections themselves.
-  for (const CodeEntry& entry : entries) {
-    write(os, entry.code.data(), entry.code.size());
-  }
-  pad(os, text_padding);
-
-  write(os, elf.dynsym.bytes());
-  write(os, elf.dynstr.bytes());
-  pad(os, dynsym_padding);
-
-  write(os, elf.dynamic.bytes());
-  write(os, elf.shstrtab.bytes());
+  writeElf(os, elf, entries);
 }
 
 } // namespace jit::elf

@@ -21,6 +21,7 @@ namespace jit::elf {
 constexpr uint32_t kProgram = 0x01;
 constexpr uint32_t kSymbolTable = 0x02;
 constexpr uint32_t kStringTable = 0x03;
+constexpr uint32_t kHash = 0x05;
 constexpr uint32_t kDynamic = 0x06;
 
 // Section header flags.
@@ -49,6 +50,7 @@ enum class SectionIdx : uint32_t {
   kText = 1,
   kDynsym,
   kDynstr,
+  kHash,
   kDynamic,
   kShstrtab,
   kTotal,
@@ -211,6 +213,10 @@ class StringTable {
     return static_cast<uint32_t>(start_off);
   }
 
+  std::string_view string_at(size_t idx) const {
+    return reinterpret_cast<const char*>(&bytes_[idx]);
+  }
+
   std::span<const std::byte> bytes() const {
     return std::as_bytes(std::span<const uint8_t>{bytes_});
   }
@@ -247,8 +253,16 @@ class SymbolTable {
     syms_.emplace_back(std::forward<T&&>(sym));
   }
 
+  const Symbol& operator[](size_t idx) const {
+    return syms_[idx];
+  }
+
   std::span<const std::byte> bytes() const {
     return std::as_bytes(std::span{syms_});
+  }
+
+  size_t size() const {
+    return syms_.size();
   }
 
  private:
@@ -297,22 +311,110 @@ class DynamicTable {
   std::vector<Dyn> dyns_;
 };
 
-// Represents an ELF object/file.
+// This is the hash function defined by the ELF standard.
+inline uint32_t hash(const char* name) {
+  uint32_t h = 0;
+  for (; *name; name++) {
+    h = (h << 4) + *name;
+    uint32_t g = h & 0xf0000000;
+    if (g) {
+      h ^= g >> 24;
+    }
+    h &= ~g;
+  }
+  return h;
+}
+
+// Hash table of symbols.  The table is split into two arrays: the buckets array
+// and the chains array.  The buckets array holds symbol table indices, and if
+// those don't match, then the lookup starts chasing through the chains array,
+// trying each index until it hits 0, which is always the undefined symbol.
 //
-// The headers are laid out in the exact order that they will appear in the
-// file.
+// See
+// https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-48031.html#scrolltoc
+class HashTable {
+ public:
+  void build(const SymbolTable& syms, const StringTable& strings) {
+    // Use a load factor of 2 for the hash table.  It will never be resized
+    // after it is created.
+    buckets_.reserve(syms.size() / 2);
+    buckets_.resize(syms.size() / 2);
+
+    chains_.reserve(syms.size());
+    chains_.resize(syms.size());
+
+    // Skip element zero as that's the undefined symbol.
+    for (size_t i = 1; i < syms.size(); ++i) {
+      auto const bucket_idx =
+          hash(strings.string_at(syms[i].name_offset).data()) % buckets_.size();
+      auto first_chain_idx = buckets_[bucket_idx];
+      if (first_chain_idx == 0) {
+        buckets_[bucket_idx] = i;
+      } else {
+        chains_[chaseChainIdx(first_chain_idx)] = i;
+      }
+    }
+  }
+
+  constexpr std::span<const uint32_t> buckets() const {
+    return std::span{buckets_};
+  }
+
+  constexpr std::span<const uint32_t> chains() const {
+    return std::span{chains_};
+  }
+
+  constexpr size_t size_bytes() const {
+    // Hash table serializes the lengths of both tables as uint32_t values
+    // before writing out the tables.
+    return (sizeof(uint32_t) * 2) + buckets().size_bytes() +
+        chains().size_bytes();
+  }
+
+ private:
+  uint32_t chaseChainIdx(uint32_t idx) const {
+    const uint32_t limit = chains_.size();
+
+    uint32_t count;
+    for (count = 0; chains_[idx] != 0 && count < limit; ++count) {
+      idx = chains_[idx];
+    }
+    JIT_CHECK(
+        count < limit,
+        "Can't find end of hash table chain, infinite loop, last index {}",
+        idx);
+
+    return idx;
+  }
+
+  std::vector<uint32_t> buckets_;
+  std::vector<uint32_t> chains_;
+};
+
+// Represents an ELF object/file.
 struct Object {
   FileHeader file_header;
   std::array<SectionHeader, raw(SectionIdx::kTotal)> section_headers;
   std::array<SegmentHeader, raw(SegmentIdx::kTotal)> segment_headers;
 
-  // Zero-length field that gives the offset into the ELF object where the
-  // headers stop.
-  char header_stop[0];
+  // Amount of padding to put after the headers.  When used with offsetof, tells
+  // us the total size of the headers.
+  uint32_t header_padding{0};
+
+  // This is the padding for the text section, which doesn't show up in this
+  // struct.  It's the vector of CodeEntry objects passed to writeEntries().
+  uint32_t text_padding{0};
 
   SymbolTable dynsym;
   StringTable dynstr;
+  uint32_t dynsym_padding{0};
+
+  HashTable hash;
+  uint32_t hash_padding{0};
+
   DynamicTable dynamic;
+  uint32_t dynamic_padding{0};
+
   StringTable shstrtab;
 
   uint32_t section_offset{0};
