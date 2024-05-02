@@ -9,12 +9,6 @@
 namespace jit::lir {
 
 void Operand::addUse(LinkedOperand* use) {
-  auto prev_linked = use->getLinkedOperand();
-  if (prev_linked != nullptr) {
-    prev_linked->uses_.erase(use);
-  }
-
-  uses_.insert(use);
   use->def_opnd_ = this;
 }
 
@@ -22,8 +16,6 @@ void Operand::removeUse(LinkedOperand* use) {
   JIT_DCHECK(
       use->getLinkedOperand() == this,
       "Unable to remove use of another operand.");
-
-  uses_.erase(use);
   use->def_opnd_ = nullptr;
 }
 

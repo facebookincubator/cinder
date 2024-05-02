@@ -4,7 +4,6 @@
 
 #include "cinderx/Common/log.h"
 
-#include "cinderx/Jit/containers.h"
 #include "cinderx/Jit/lir/x86_64.h"
 
 #include <cstdint>
@@ -424,9 +423,6 @@ class Operand : public OperandBase {
     return false;
   }
 
-  int numUses() const {
-    return uses_.size();
-  }
   void addUse(LinkedOperand* use);
   void removeUse(LinkedOperand* use);
 
@@ -459,8 +455,6 @@ class Operand : public OperandBase {
       BasicBlock*,
       std::unique_ptr<MemoryIndirect>>
       value_;
-
-  UnorderedSet<LinkedOperand*> uses_;
 };
 
 // Linked operand
