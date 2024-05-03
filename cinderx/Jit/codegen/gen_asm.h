@@ -16,7 +16,9 @@
 #include "cinderx/ThirdParty/asmjit/src/asmjit/asmjit.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <list>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -68,9 +70,24 @@ class NativeGenerator {
   }
 
   std::string GetFunctionName() const;
+
+  // Get the buffer containing the compiled machine code.  The start of this
+  // buffer is not guaranteed to be a valid entry point.
+  //
+  // Note: getVectorcallEntry() **must** be called before this is called.
+  std::span<const std::byte> getCodeBuffer() const;
+
+  // Get the entry point of the compiled function if it is called via a
+  // vectorcall.
+  //
+  // Note: This is where the function is actually compiled, it is done the first
+  // time this method is called.
   void* getVectorcallEntry();
+
+  // Get the entry point of the compiled function if it is called via a Static
+  // Python call.
   void* getStaticEntry();
-  int GetCompiledFunctionSize() const;
+
   int GetCompiledFunctionStackSize() const;
   int GetCompiledFunctionSpillStackSize() const;
   const hir::Function* GetFunction() const {
@@ -90,6 +107,7 @@ class NativeGenerator {
 #endif
  private:
   const hir::Function* func_;
+  void* code_start_{nullptr};
   void* vectorcall_entry_{nullptr};
   asmjit::x86::Builder* as_{nullptr};
   CodeHolderMetadata metadata_{CodeSection::kHot};
@@ -97,7 +115,7 @@ class NativeGenerator {
   void* deopt_trampoline_generators_{nullptr};
   void* const failed_deferred_compile_trampoline_;
 
-  int compiled_size_{-1};
+  size_t compiled_size_{0};
   int spill_stack_size_{-1};
   int frame_header_size_;
   int max_inline_depth_;

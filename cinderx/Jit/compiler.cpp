@@ -266,11 +266,11 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     ngen->SetJSONOutput(json.get());
   }
 
-  void* entry = nullptr;
+  vectorcallfunc entry = nullptr;
   COMPILE_TIMER(
       irfunc->compilation_phase_timer,
       "Native code Generation",
-      entry = ngen->getVectorcallEntry())
+      entry = reinterpret_cast<vectorcallfunc>(ngen->getVectorcallEntry()))
   if (entry == nullptr) {
     JIT_DLOG("Generating native code for {} failed", fullname);
     return nullptr;
@@ -282,7 +282,6 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     irfunc->setCompilationPhaseTimer(nullptr);
   }
 
-  int func_size = ngen->GetCompiledFunctionSize();
   int stack_size = ngen->GetCompiledFunctionStackSize();
   int spill_stack_size = ngen->GetCompiledFunctionSpillStackSize();
 
@@ -301,6 +300,7 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
   // Grab some fields off of irfunc and ngen before moving them.
   hir::Function::InlineFunctionStats inline_stats =
       std::move(irfunc->inline_function_stats);
+  std::span<const std::byte> code = ngen->getCodeBuffer();
   void* static_entry = ngen->getStaticEntry();
   CodeRuntime* code_runtime = ngen->codeRuntime();
 
@@ -309,25 +309,24 @@ std::unique_ptr<CompiledFunction> Compiler::Compile(
     return std::make_unique<CompiledFunctionDebug>(
         std::move(irfunc),
         std::move(ngen),
-        reinterpret_cast<vectorcallfunc>(entry),
+        code,
+        entry,
         static_entry,
         code_runtime,
-        func_size,
-        stack_size,
-        spill_stack_size,
-        std::move(inline_stats),
-        hir_opcode_counts);
-  } else {
-    return std::make_unique<CompiledFunction>(
-        reinterpret_cast<vectorcallfunc>(entry),
-        static_entry,
-        code_runtime,
-        func_size,
         stack_size,
         spill_stack_size,
         std::move(inline_stats),
         hir_opcode_counts);
   }
+  return std::make_unique<CompiledFunction>(
+      code,
+      entry,
+      static_entry,
+      code_runtime,
+      stack_size,
+      spill_stack_size,
+      std::move(inline_stats),
+      hir_opcode_counts);
 }
 
 } // namespace jit

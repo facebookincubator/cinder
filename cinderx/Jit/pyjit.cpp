@@ -1186,10 +1186,7 @@ static PyObject* dump_elf(PyObject* /* self */, PyObject* arg) {
     CompiledFunction* compiled_func = jit_ctx->lookupFunc(func);
 
     elf::CodeEntry entry;
-    // TODO: What about the staticEntry?
-    entry.code = {
-        reinterpret_cast<uint8_t*>(compiled_func->vectorcallEntry()),
-        static_cast<size_t>(compiled_func->codeSize())};
+    entry.code = compiled_func->codeBuffer();
     entry.func_name = funcFullname(func);
     if (code->co_filename != nullptr && PyUnicode_Check(code->co_filename)) {
       entry.file_name = unicodeAsString(code->co_filename);

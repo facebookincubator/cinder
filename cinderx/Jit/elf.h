@@ -5,6 +5,7 @@
 #include "cinderx/Common/log.h"
 #include "cinderx/Common/util.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <iosfwd>
@@ -431,7 +432,7 @@ struct Object {
 
 // Code entry to add to an ELF file.
 struct CodeEntry {
-  std::span<uint8_t> code;
+  std::span<const std::byte> code;
   std::string func_name;
   std::string file_name;
   size_t lineno{0};

@@ -208,6 +208,11 @@ PhyLocation get_arg_location_phy_location(int arg) {
   return 0;
 }
 
+std::span<const std::byte> NativeGenerator::getCodeBuffer() const {
+  return std::span{
+      reinterpret_cast<const std::byte*>(code_start_), compiled_size_};
+}
+
 void* NativeGenerator::getVectorcallEntry() {
   if (vectorcall_entry_ != nullptr) {
     // already compiled
@@ -397,7 +402,7 @@ void* NativeGenerator::getVectorcallEntry() {
    */
 
   JIT_DCHECK(code.codeSize() < INT_MAX, "Code size is larger than INT_MAX");
-  compiled_size_ = static_cast<int>(code.codeSize());
+  compiled_size_ = code.codeSize();
   env_.code_rt->set_frame_size(env_.stack_frame_size);
   return vectorcall_entry_;
 }
@@ -411,10 +416,6 @@ void* NativeGenerator::getStaticEntry() {
   return reinterpret_cast<void*>(
       reinterpret_cast<uintptr_t>(vectorcall_entry_) +
       JITRT_STATIC_ENTRY_OFFSET);
-}
-
-int NativeGenerator::GetCompiledFunctionSize() const {
-  return compiled_size_;
 }
 
 int NativeGenerator::GetCompiledFunctionStackSize() const {
@@ -1392,10 +1393,9 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   generateDeoptExits(codeholder);
 
   ASM_CHECK_THROW(as_->finalize());
-  void* code_top;
-  ASM_CHECK_THROW(CodeAllocator::get()->addCode(&code_top, &codeholder));
+  ASM_CHECK_THROW(CodeAllocator::get()->addCode(&code_start_, &codeholder));
 
-  // ------------- code_top
+  // ------------- code_start_
   // ^
   // | JITRT_STATIC_ENTRY_OFFSET (2 bytes, optional)
   // | JITRT_CALL_REENTRY_OFFSET (6 bytes)
@@ -1420,7 +1420,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   env_.code_rt->debug_info()->resolvePending(
       env_.pending_debug_locs, *GetFunction(), codeholder);
 
-  vectorcall_entry_ = static_cast<char*>(code_top) +
+  vectorcall_entry_ = static_cast<char*>(code_start_) +
       codeholder.labelOffsetFromBase(vectorcall_entry_label);
 
   for (auto& entry : env_.unresolved_gen_entry_labels) {
@@ -1437,14 +1437,14 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   compiled_size_ = codeholder.codeSize();
 
   if (!g_dump_hir_passes_json.empty()) {
-    env_.annotations.disassembleJSON(*json, code_top, codeholder);
+    env_.annotations.disassembleJSON(*json, code_start_, codeholder);
   }
 
   JIT_LOGIF(
       g_dump_asm,
       "Disassembly for {}\n{}",
       GetFunction()->fullname,
-      env_.annotations.disassemble(code_top, codeholder));
+      env_.annotations.disassemble(code_start_, codeholder));
   {
     ThreadedCompileSerialize guard;
     for (auto& x : env_.function_indirections) {
@@ -1468,7 +1468,7 @@ void NativeGenerator::generateCode(CodeHolder& codeholder) {
   // For perf, we want only the size of the code, so we get that directly from
   // the text sections.
   std::vector<std::pair<void*, std::size_t>> code_sections;
-  populateCodeSections(code_sections, codeholder, code_top);
+  populateCodeSections(code_sections, codeholder, code_start_);
   perf::registerFunction(code_sections, func->fullname, prefix);
 }
 

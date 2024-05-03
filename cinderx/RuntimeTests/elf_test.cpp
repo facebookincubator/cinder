@@ -27,7 +27,7 @@ TEST_F(ElfTest, OneEntry) {
   std::stringstream ss;
 
   elf::CodeEntry entry;
-  entry.code = {reinterpret_cast<uint8_t*>(elf::writeEntries), 0x40};
+  entry.code = {reinterpret_cast<const std::byte*>(elf::writeEntries), 0x40};
   entry.func_name = "funcABC";
   entry.file_name = "spaghetti.exe";
   entry.lineno = 15;

@@ -19,14 +19,14 @@ class DeoptPatcherTest : public RuntimeTest {
     if (entry == nullptr) {
       return nullptr;
     }
-    int func_size = ngen.GetCompiledFunctionSize();
+    std::span<const std::byte> code = ngen.getCodeBuffer();
     int stack_size = ngen.GetCompiledFunctionStackSize();
     int spill_stack_size = ngen.GetCompiledFunctionSpillStackSize();
     return std::make_unique<jit::CompiledFunction>(
+        code,
         reinterpret_cast<vectorcallfunc>(entry),
         ngen.getStaticEntry(),
         ngen.codeRuntime(),
-        func_size,
         stack_size,
         spill_stack_size,
         jit::hir::Function::InlineFunctionStats{},

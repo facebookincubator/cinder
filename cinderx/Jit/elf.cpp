@@ -290,7 +290,7 @@ void writeElf(
 
   // Write out the actual sections themselves.
   for (const CodeEntry& entry : entries) {
-    write(os, entry.code.data(), entry.code.size());
+    write(os, entry.code);
   }
   pad(os, elf.text_padding);
 
