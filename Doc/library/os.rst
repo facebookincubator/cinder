@@ -1,5 +1,5 @@
-:mod:`os` --- Miscellaneous operating system interfaces
-=======================================================
+:mod:`!os` --- Miscellaneous operating system interfaces
+========================================================
 
 .. module:: os
    :synopsis: Miscellaneous operating system interfaces.
@@ -918,10 +918,10 @@ as internal buffering of data.
 
    Copy *count* bytes from file descriptor *src*, starting from offset
    *offset_src*, to file descriptor *dst*, starting from offset *offset_dst*.
-   If *offset_src* is None, then *src* is read from the current position;
+   If *offset_src* is ``None``, then *src* is read from the current position;
    respectively for *offset_dst*.
 
-   In Linux kernel older than 5.3, the files pointed by *src* and *dst*
+   In Linux kernel older than 5.3, the files pointed to by *src* and *dst*
    must reside in the same filesystem, otherwise an :exc:`OSError` is
    raised with :attr:`~OSError.errno` set to :const:`errno.EXDEV`.
 
@@ -1664,9 +1664,9 @@ or `the MSDN <https://msdn.microsoft.com/en-us/library/z0kc8e3z.aspx>`_ on Windo
    Transfer *count* bytes from file descriptor *src*, starting from offset
    *offset_src*, to file descriptor *dst*, starting from offset *offset_dst*.
    At least one of the file descriptors must refer to a pipe. If *offset_src*
-   is None, then *src* is read from the current position; respectively for
+   is ``None``, then *src* is read from the current position; respectively for
    *offset_dst*. The offset associated to the file descriptor that refers to a
-   pipe must be ``None``. The files pointed by *src* and *dst* must reside in
+   pipe must be ``None``. The files pointed to by *src* and *dst* must reside in
    the same filesystem, otherwise an :exc:`OSError` is raised with
    :attr:`~OSError.errno` set to :const:`errno.EXDEV`.
 
@@ -2068,7 +2068,7 @@ features:
 
    .. audit-event:: os.chmod path,mode,dir_fd os.chmod
 
-   .. versionadded:: 3.3
+   .. versionchanged:: 3.3
       Added support for specifying *path* as an open file descriptor,
       and the *dir_fd* and *follow_symlinks* arguments.
 
@@ -2095,7 +2095,7 @@ features:
       The function is limited on Emscripten and WASI, see
       :ref:`wasm-availability` for more information.
 
-   .. versionadded:: 3.3
+   .. versionchanged:: 3.3
       Added support for specifying *path* as an open file descriptor,
       and the *dir_fd* and *follow_symlinks* arguments.
 
@@ -2236,7 +2236,7 @@ features:
    .. versionchanged:: 3.2
       The *path* parameter became optional.
 
-   .. versionadded:: 3.3
+   .. versionchanged:: 3.3
       Added support for specifying *path* as an open file descriptor.
 
    .. versionchanged:: 3.6
@@ -2356,6 +2356,10 @@ features:
    platform-dependent.  On some platforms, they are ignored and you should call
    :func:`chmod` explicitly to set them.
 
+   On Windows, a *mode* of ``0o700`` is specifically handled to apply access
+   control to the new directory such that only the current user and
+   administrators have access. Other values of *mode* are ignored.
+
    This function can also support :ref:`paths relative to directory descriptors
    <dir_fd>`.
 
@@ -2369,6 +2373,9 @@ features:
 
    .. versionchanged:: 3.6
       Accepts a :term:`path-like object`.
+
+   .. versionchanged:: 3.12.4
+      Windows now handles a *mode* of ``0o700``.
 
 
 .. function:: makedirs(name, mode=0o777, exist_ok=False)

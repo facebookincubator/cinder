@@ -662,15 +662,15 @@ class HandlerTest(BaseTest):
         self.assertFalse(h.shouldFlush(r))
         h.close()
 
-    def test_path_objects(self):
+    def test_pathlike_objects(self):
         """
-        Test that Path objects are accepted as filename arguments to handlers.
+        Test that path-like objects are accepted as filename arguments to handlers.
 
         See Issue #27493.
         """
         fn = make_temp_file()
         os.unlink(fn)
-        pfn = pathlib.Path(fn)
+        pfn = os_helper.FakePath(fn)
         cases = (
                     (logging.FileHandler, (pfn, 'w')),
                     (logging.handlers.RotatingFileHandler, (pfn, 'a')),
@@ -3050,6 +3050,30 @@ class ConfigDictTest(BaseTest):
         },
     }
 
+    config18  = {
+        "version": 1,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+            },
+            "buffering": {
+                "class": "logging.handlers.MemoryHandler",
+                "capacity": 5,
+                "target": "console",
+                "level": "DEBUG",
+                "flushLevel": "ERROR"
+            }
+        },
+        "loggers": {
+            "mymodule": {
+                "level": "DEBUG",
+                "handlers": ["buffering"],
+                "propagate": "true"
+            }
+        }
+    }
+
     bad_format = {
         "version": 1,
         "formatters": {
@@ -3536,6 +3560,11 @@ class ConfigDictTest(BaseTest):
         h = logging._handlers['hand1']
         self.assertEqual(h.formatter.custom_property, 'value')
 
+    def test_config18_ok(self):
+        self.apply_config(self.config18)
+        handler = logging.getLogger('mymodule').handlers[0]
+        self.assertEqual(handler.flushLevel, logging.ERROR)
+
     def setup_via_listener(self, text, verify=None):
         text = text.encode("utf-8")
         # Ask for a randomly assigned port (by using port 0)
@@ -3865,6 +3894,36 @@ class ConfigDictTest(BaseTest):
             msg = str(ctx.exception)
             self.assertEqual(msg, "Unable to configure handler 'ah'")
 
+    def test_multiprocessing_queues(self):
+        # See gh-119819
+
+        # will skip test if it's not available
+        import_helper.import_module('_multiprocessing')
+
+        cd = copy.deepcopy(self.config_queue_handler)
+        from multiprocessing import Queue as MQ, Manager as MM
+        q1 = MQ()  # this can't be pickled
+        q2 = MM().Queue()  # a proxy queue for use when pickling is needed
+        q3 = MM().JoinableQueue()  # a joinable proxy queue
+        for qspec in (q1, q2, q3):
+            fn = make_temp_file('.log', 'test_logging-cmpqh-')
+            cd['handlers']['h1']['filename'] = fn
+            cd['handlers']['ah']['queue'] = qspec
+            qh = None
+            try:
+                self.apply_config(cd)
+                qh = logging.getHandlerByName('ah')
+                self.assertEqual(sorted(logging.getHandlerNames()), ['ah', 'h1'])
+                self.assertIsNotNone(qh.listener)
+                self.assertIs(qh.queue, qspec)
+                self.assertIs(qh.listener.queue, qspec)
+            finally:
+                h = logging.getHandlerByName('h1')
+                if h:
+                    self.addCleanup(closeFileHandler, h, fn)
+                else:
+                    self.addCleanup(os.remove, fn)
+
     def test_90195(self):
         # See gh-90195
         config = {
@@ -3914,6 +3973,35 @@ class ConfigDictTest(BaseTest):
             },
         }
         logging.config.dictConfig(config)
+
+    # gh-118868: check if kwargs are passed to logging QueueHandler
+    def test_kwargs_passing(self):
+        class CustomQueueHandler(logging.handlers.QueueHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(queue.Queue())
+                self.custom_kwargs = kwargs
+
+        custom_kwargs = {'foo': 'bar'}
+
+        config = {
+            'version': 1,
+            'handlers': {
+                'custom': {
+                    'class': CustomQueueHandler,
+                    **custom_kwargs
+                },
+            },
+            'root': {
+                'level': 'DEBUG',
+                'handlers': ['custom']
+            }
+        }
+
+        logging.config.dictConfig(config)
+
+        handler = logging.getHandlerByName('custom')
+        self.assertEqual(handler.custom_kwargs, custom_kwargs)
+
 
 class ManagerTest(BaseTest):
     def test_manager_loggerclass(self):

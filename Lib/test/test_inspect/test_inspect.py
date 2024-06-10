@@ -3,6 +3,7 @@ import builtins
 import collections
 import datetime
 import functools
+import gc
 import importlib
 import inspect
 import io
@@ -20,6 +21,7 @@ import unicodedata
 import unittest
 import unittest.mock
 import warnings
+import weakref
 
 try:
     from concurrent.futures import ThreadPoolExecutor
@@ -2131,6 +2133,13 @@ class TestGetattrStatic(unittest.TestCase):
         self.assertEqual(inspect.getattr_static(foo, 'a'), 3)
         self.assertFalse(test.called)
 
+        class Bar(Foo): pass
+
+        bar = Bar()
+        bar.a = 5
+        self.assertEqual(inspect.getattr_static(bar, 'a'), 3)
+        self.assertFalse(test.called)
+
     def test_mutated_mro(self):
         test = self
         test.called = False
@@ -2234,6 +2243,21 @@ class TestGetattrStatic(unittest.TestCase):
             inspect.getattr_static(Foo(), 'really_could_be_anything')
 
         self.assertFalse(test.called)
+
+    def test_cache_does_not_cause_classes_to_persist(self):
+        # regression test for gh-118013:
+        # check that the internal _shadowed_dict cache does not cause
+        # dynamically created classes to have extended lifetimes even
+        # when no other strong references to those classes remain.
+        # Since these classes can themselves hold strong references to
+        # other objects, this can cause unexpected memory consumption.
+        class Foo: pass
+        Foo.instance = Foo()
+        weakref_to_class = weakref.ref(Foo)
+        inspect.getattr_static(Foo.instance, 'whatever', 'irrelevant')
+        del Foo
+        gc.collect()
+        self.assertIsNone(weakref_to_class())
 
 
 class TestGetGeneratorState(unittest.TestCase):
@@ -4317,6 +4341,16 @@ class TestSignatureObject(unittest.TestCase):
 
         self.assertEqual(inspect.signature(D2), inspect.signature(D1))
 
+    def test_signature_on_non_comparable(self):
+        class NoncomparableCallable:
+            def __call__(self, a):
+                pass
+            def __eq__(self, other):
+                1/0
+        self.assertEqual(self.signature(NoncomparableCallable()),
+                         ((('a', ..., ..., 'positional_or_keyword'),),
+                          ...))
+
 
 class TestParameterObject(unittest.TestCase):
     def test_signature_parameter_kinds(self):
@@ -4657,14 +4691,29 @@ class TestSignatureBind(unittest.TestCase):
         self.assertEqual(self.call(test, 1, 2, foo=4, bar=5),
                          (1, 2, 3, 4, 5, {}))
 
-        with self.assertRaisesRegex(TypeError, "but was passed as a keyword"):
-            self.call(test, 1, 2, foo=4, bar=5, c_po=10)
+        self.assertEqual(self.call(test, 1, 2, foo=4, bar=5, c_po=10),
+                         (1, 2, 3, 4, 5, {'c_po': 10}))
 
-        with self.assertRaisesRegex(TypeError, "parameter is positional only"):
-            self.call(test, 1, 2, c_po=4)
+        self.assertEqual(self.call(test, 1, 2, 30, c_po=31, foo=4, bar=5),
+                         (1, 2, 30, 4, 5, {'c_po': 31}))
 
-        with self.assertRaisesRegex(TypeError, "parameter is positional only"):
+        self.assertEqual(self.call(test, 1, 2, 30, foo=4, bar=5, c_po=31),
+                         (1, 2, 30, 4, 5, {'c_po': 31}))
+
+        self.assertEqual(self.call(test, 1, 2, c_po=4),
+                         (1, 2, 3, 42, 50, {'c_po': 4}))
+
+        with self.assertRaisesRegex(TypeError, "missing 2 required positional arguments"):
             self.call(test, a_po=1, b_po=2)
+
+        def without_var_kwargs(c_po=3, d_po=4, /):
+            return c_po, d_po
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "positional-only arguments passed as keyword arguments: 'c_po, d_po'",
+        ):
+            self.call(without_var_kwargs, c_po=33, d_po=44)
 
     def test_signature_bind_with_self_arg(self):
         # Issue #17071: one of the parameters is named "self

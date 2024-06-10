@@ -1,5 +1,5 @@
-:mod:`statistics` --- Mathematical statistics functions
-=======================================================
+:mod:`!statistics` --- Mathematical statistics functions
+========================================================
 
 .. module:: statistics
    :synopsis: Mathematical statistics functions
@@ -218,7 +218,7 @@ However, for reading convenience, most of the examples show sorted sequences.
 .. function:: harmonic_mean(data, weights=None)
 
    Return the harmonic mean of *data*, a sequence or iterable of
-   real-valued numbers.  If *weights* is omitted or *None*, then
+   real-valued numbers.  If *weights* is omitted or ``None``, then
    equal weighting is assumed.
 
    The harmonic mean is the reciprocal of the arithmetic :func:`mean` of the
@@ -449,9 +449,9 @@ However, for reading convenience, most of the examples show sorted sequences.
    variance indicates that the data is spread out; a small variance indicates
    it is clustered closely around the mean.
 
-   If the optional second argument *mu* is given, it is typically the mean of
-   the *data*.  It can also be used to compute the second moment around a
-   point that is not the mean.  If it is missing or ``None`` (the default),
+   If the optional second argument *mu* is given, it should be the *population*
+   mean of the *data*.  It can also be used to compute the second moment around
+   a point that is not the mean.  If it is missing or ``None`` (the default),
    the arithmetic mean is automatically calculated.
 
    Use this function to calculate the variance from the entire population.  To
@@ -521,8 +521,8 @@ However, for reading convenience, most of the examples show sorted sequences.
    the data is spread out; a small variance indicates it is clustered closely
    around the mean.
 
-   If the optional second argument *xbar* is given, it should be the mean of
-   *data*.  If it is missing or ``None`` (the default), the mean is
+   If the optional second argument *xbar* is given, it should be the *sample*
+   mean of *data*.  If it is missing or ``None`` (the default), the mean is
    automatically calculated.
 
    Use this function when your data is a sample from a population. To calculate
@@ -538,8 +538,8 @@ However, for reading convenience, most of the examples show sorted sequences.
       >>> variance(data)
       1.3720238095238095
 
-   If you have already calculated the mean of your data, you can pass it as the
-   optional second argument *xbar* to avoid recalculation:
+   If you have already calculated the sample mean of your data, you can pass it
+   as the optional second argument *xbar* to avoid recalculation:
 
    .. doctest::
 
@@ -1089,7 +1089,7 @@ The final prediction goes to the largest posterior. This is known as the
 Kernel density estimation
 *************************
 
-It is possible to estimate a continuous probability density function
+It is possible to estimate a continuous probability distribution
 from a fixed number of discrete samples.
 
 The basic idea is to smooth the data using `a kernel function such as a
@@ -1100,14 +1100,27 @@ which is called the *bandwidth*.
 
 .. testcode::
 
-   def kde_normal(sample, h):
-       "Create a continuous probability density function from a sample."
-       # Smooth the sample with a normal distribution kernel scaled by h.
-       kernel_h = NormalDist(0.0, h).pdf
-       n = len(sample)
+   from random import choice, random
+
+   def kde_normal(data, h):
+       "Create a continuous probability distribution from discrete samples."
+
+       # Smooth the data with a normal distribution kernel scaled by h.
+       K_h = NormalDist(0.0, h)
+
        def pdf(x):
-           return sum(kernel_h(x - x_i) for x_i in sample) / n
-       return pdf
+           'Probability density function.  P(x <= X < x+dx) / dx'
+           return sum(K_h.pdf(x - x_i) for x_i in data) / len(data)
+
+       def cdf(x):
+           'Cumulative distribution function.  P(X <= x)'
+           return sum(K_h.cdf(x - x_i) for x_i in data) / len(data)
+
+       def rand():
+           'Random selection from the probability distribution.'
+           return choice(data) + K_h.inv_cdf(random())
+
+       return pdf, cdf, rand
 
 `Wikipedia has an example
 <https://en.wikipedia.org/wiki/Kernel_density_estimation#Example>`_
@@ -1117,14 +1130,37 @@ a probability density function estimated from a small sample:
 .. doctest::
 
    >>> sample = [-2.1, -1.3, -0.4, 1.9, 5.1, 6.2]
-   >>> f_hat = kde_normal(sample, h=1.5)
+   >>> pdf, cdf, rand = kde_normal(sample, h=1.5)
    >>> xarr = [i/100 for i in range(-750, 1100)]
-   >>> yarr = [f_hat(x) for x in xarr]
+   >>> yarr = [pdf(x) for x in xarr]
 
 The points in ``xarr`` and ``yarr`` can be used to make a PDF plot:
 
 .. image:: kde_example.png
    :alt: Scatter plot of the estimated probability density function.
+
+`Resample <https://en.wikipedia.org/wiki/Resampling_(statistics)>`_
+the data to produce 100 new selections:
+
+.. doctest::
+
+    >>> new_selections = [rand() for i in range(100)]
+
+Determine the probability of a new selection being below ``2.0``:
+
+.. doctest::
+
+   >>> round(cdf(2.0), 4)
+   0.5794
+
+Add a new sample data point and find the new CDF at ``2.0``:
+
+.. doctest::
+
+   >>> sample.append(4.9)
+   >>> round(cdf(2.0), 4)
+   0.5005
+
 
 ..
    # This modelines must appear within the last ten lines of the file.

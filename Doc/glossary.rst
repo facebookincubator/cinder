@@ -433,11 +433,11 @@ Glossary
       An object that tries to find the :term:`loader` for a module that is
       being imported.
 
-      Since Python 3.3, there are two types of finder: :term:`meta path finders
+      There are two types of finder: :term:`meta path finders
       <meta path finder>` for use with :data:`sys.meta_path`, and :term:`path
       entry finders <path entry finder>` for use with :data:`sys.path_hooks`.
 
-      See :pep:`302`, :pep:`420` and :pep:`451` for much more detail.
+      See :ref:`importsystem` and :mod:`importlib` for much more detail.
 
    floor division
       Mathematical division that rounds down to nearest integer.  The floor
@@ -799,8 +799,7 @@ Glossary
 
    method resolution order
       Method Resolution Order is the order in which base classes are searched
-      for a member during lookup. See `The Python 2.3 Method Resolution Order
-      <https://www.python.org/download/releases/2.3/mro/>`_ for details of the
+      for a member during lookup. See :ref:`python_2.3_mro` for details of the
       algorithm used by the Python interpreter since the 2.3 release.
 
    module

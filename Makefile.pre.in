@@ -579,7 +579,9 @@ LIBEXPAT_HEADERS= \
 		Modules/expat/utf8tab.h \
 		Modules/expat/xmlrole.h \
 		Modules/expat/xmltok.h \
-		Modules/expat/xmltok_impl.h
+		Modules/expat/xmltok_impl.h \
+		Modules/expat/xmltok_impl.c \
+		Modules/expat/xmltok_ns.c
 
 ##########################################################################
 # hashlib's HACL* library
@@ -2166,6 +2168,8 @@ TESTSUBDIRS=	idlelib/idle_test \
 		test/test_import/data/circular_imports/subpkg2/parent \
 		test/test_import/data/package \
 		test/test_import/data/package2 \
+		test/test_import/data/package3 \
+		test/test_import/data/package4 \
 		test/test_import/data/unwritable \
 		test/test_importlib \
 		test/test_importlib/builtin \

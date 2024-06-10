@@ -39,7 +39,7 @@ they can also be more complex. The :mod:`typing` module provides a vocabulary of
 more advanced type hints.
 
 New features are frequently added to the ``typing`` module.
-The `typing_extensions <https://pypi.org/project/typing-extensions/>`_ package
+The :pypi:`typing_extensions` package
 provides backports of these new features to older versions of Python.
 
 .. seealso::
@@ -842,14 +842,25 @@ using ``[]``.
    .. versionadded:: 3.11
 
 .. data:: Never
+          NoReturn
 
-   The `bottom type <https://en.wikipedia.org/wiki/Bottom_type>`_,
+   :data:`!Never` and :data:`!NoReturn` represent the
+   `bottom type <https://en.wikipedia.org/wiki/Bottom_type>`_,
    a type that has no members.
 
-   This can be used to define a function that should never be
-   called, or a function that never returns::
+   They can be used to indicate that a function never returns,
+   such as :func:`sys.exit`::
 
-      from typing import Never
+      from typing import Never  # or NoReturn
+
+      def stop() -> Never:
+          raise RuntimeError('no way')
+
+   Or to define a function that should never be
+   called, as there are no valid arguments, such as
+   :func:`assert_never`::
+
+      from typing import Never  # or NoReturn
 
       def never_call_me(arg: Never) -> None:
           pass
@@ -862,31 +873,18 @@ using ``[]``.
               case str():
                   print("It's a str")
               case _:
-                  never_call_me(arg)  # OK, arg is of type Never
+                  never_call_me(arg)  # OK, arg is of type Never (or NoReturn)
+
+   :data:`!Never` and :data:`!NoReturn` have the same meaning in the type system
+   and static type checkers treat both equivalently.
+
+   .. versionadded:: 3.6.2
+
+      Added :data:`NoReturn`.
 
    .. versionadded:: 3.11
 
-      On older Python versions, :data:`NoReturn` may be used to express the
-      same concept. ``Never`` was added to make the intended meaning more explicit.
-
-.. data:: NoReturn
-
-   Special type indicating that a function never returns.
-
-   For example::
-
-      from typing import NoReturn
-
-      def stop() -> NoReturn:
-          raise RuntimeError('no way')
-
-   ``NoReturn`` can also be used as a
-   `bottom type <https://en.wikipedia.org/wiki/Bottom_type>`_, a type that
-   has no values. Starting in Python 3.11, the :data:`Never` type should
-   be used for this concept instead. Type checkers should treat the two
-   equivalently.
-
-   .. versionadded:: 3.6.2
+      Added :data:`Never`.
 
 .. data:: Self
 
@@ -1870,7 +1868,7 @@ without the dedicated syntax, as documented below.
       * :ref:`annotating-callables`
 
 .. data:: ParamSpecArgs
-.. data:: ParamSpecKwargs
+          ParamSpecKwargs
 
    Arguments and keyword arguments attributes of a :class:`ParamSpec`. The
    ``P.args`` attribute of a ``ParamSpec`` is an instance of ``ParamSpecArgs``,
@@ -2205,9 +2203,9 @@ types.
 
       Point2D = TypedDict('Point2D', x=int, y=int, label=str)
 
-   .. deprecated-removed:: 3.11 3.13
-      The keyword-argument syntax is deprecated in 3.11 and will be removed
-      in 3.13. It may also be unsupported by static type checkers.
+     .. deprecated-removed:: 3.11 3.13
+        The keyword-argument syntax is deprecated in 3.11 and will be removed
+        in 3.13. It may also be unsupported by static type checkers.
 
    The functional syntax should also be used when any of the keys are not valid
    :ref:`identifiers <identifiers>`, for example because they are keywords or contain hyphens.
@@ -2336,7 +2334,7 @@ types.
 
       This attribute reflects *only* the value of the ``total`` argument
       to the current ``TypedDict`` class, not whether the class is semantically
-      total. For example, a ``TypedDict`` with ``__total__`` set to True may
+      total. For example, a ``TypedDict`` with ``__total__`` set to ``True`` may
       have keys marked with :data:`NotRequired`, or it may inherit from another
       ``TypedDict`` with ``total=False``. Therefore, it is generally better to use
       :attr:`__required_keys__` and :attr:`__optional_keys__` for introspection.
@@ -2885,33 +2883,37 @@ Introspection helpers
    Return a dictionary containing type hints for a function, method, module
    or class object.
 
-   This is often the same as ``obj.__annotations__``. In addition,
-   forward references encoded as string literals are handled by evaluating
-   them in ``globals`` and ``locals`` namespaces. For a class ``C``, return
-   a dictionary constructed by merging all the ``__annotations__`` along
-   ``C.__mro__`` in reverse order.
+   This is often the same as ``obj.__annotations__``, but this function makes
+   the following changes to the annotations dictionary:
 
-   The function recursively replaces all ``Annotated[T, ...]`` with ``T``,
-   unless ``include_extras`` is set to ``True`` (see :class:`Annotated` for
-   more information). For example:
+   * Forward references encoded as string literals or :class:`ForwardRef`
+     objects are handled by evaluating them in *globalns*, *localns*, and
+     (where applicable) *obj*'s :ref:`type parameter <type-params>` namespace.
+     If *globalns* or *localns* is not given, appropriate namespace
+     dictionaries are inferred from *obj*.
+   * ``None`` is replaced with :class:`types.NoneType`.
+   * If :func:`@no_type_check <no_type_check>` has been applied to *obj*, an
+     empty dictionary is returned.
+   * If *obj* is a class ``C``, the function returns a dictionary that merges
+     annotations from ``C``'s base classes with those on ``C`` directly. This
+     is done by traversing ``C.__mro__`` and iteratively combining
+     ``__annotations__`` dictionaries. Annotations on classes appearing
+     earlier in the :term:`method resolution order` always take precedence over
+     annotations on classes appearing later in the method resolution order.
+   * The function recursively replaces all occurrences of ``Annotated[T, ...]``
+     with ``T``, unless *include_extras* is set to ``True`` (see
+     :class:`Annotated` for more information).
 
-   .. testcode::
-
-       class Student(NamedTuple):
-           name: Annotated[str, 'some marker']
-
-       assert get_type_hints(Student) == {'name': str}
-       assert get_type_hints(Student, include_extras=False) == {'name': str}
-       assert get_type_hints(Student, include_extras=True) == {
-           'name': Annotated[str, 'some marker']
-       }
+   See also :func:`inspect.get_annotations`, a lower-level function that
+   returns annotations more directly.
 
    .. note::
 
-      :func:`get_type_hints` does not work with imported
-      :ref:`type aliases <type-aliases>` that include forward references.
-      Enabling postponed evaluation of annotations (:pep:`563`) may remove
-      the need for most forward references.
+      If any forward references in the annotations of *obj* are not resolvable
+      or are not valid Python code, this function will raise an exception
+      such as :exc:`NameError`. For example, this can happen with imported
+      :ref:`type aliases <type-aliases>` that include forward references,
+      or with names imported under :data:`if TYPE_CHECKING <TYPE_CHECKING>`.
 
    .. versionchanged:: 3.9
       Added ``include_extras`` parameter as part of :pep:`593`.

@@ -846,7 +846,7 @@ searchPath(SearchInfo *search, const wchar_t *shebang, int shebangLength)
     }
 
     wchar_t filename[MAXLEN];
-    if (wcsncpy_s(filename, MAXLEN, command, lastDot)) {
+    if (wcsncpy_s(filename, MAXLEN, command, commandLength)) {
         return RC_BAD_VIRTUAL_PATH;
     }
 
@@ -857,6 +857,8 @@ searchPath(SearchInfo *search, const wchar_t *shebang, int shebangLength)
             return RC_BAD_VIRTUAL_PATH;
         }
     }
+
+    debug(L"# Search PATH for %s\n", filename);
 
     wchar_t pathVariable[MAXLEN];
     int n = GetEnvironmentVariableW(L"PATH", pathVariable, MAXLEN);
@@ -2681,6 +2683,11 @@ process(int argc, wchar_t ** argv)
     DWORD len = GetEnvironmentVariableW(L"PYLAUNCHER_LIMIT_TO_COMPANY", NULL, 0);
     if (len > 1) {
         wchar_t *limitToCompany = allocSearchInfoBuffer(&search, len);
+        if (!limitToCompany) {
+            exitCode = RC_NO_MEMORY;
+            winerror(0, L"Failed to allocate internal buffer");
+            goto abort;
+        }
         search.limitToCompany = limitToCompany;
         if (0 == GetEnvironmentVariableW(L"PYLAUNCHER_LIMIT_TO_COMPANY", limitToCompany, len)) {
             exitCode = RC_INTERNAL_ERROR;
