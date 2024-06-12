@@ -1,4 +1,0 @@
-try:
-    a
-except:
-    b

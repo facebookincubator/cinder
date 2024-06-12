@@ -1,0 +1,15 @@
+{
+  extern "C" {
+    /* Functions defined by Python's C-API */
+    Py*;
+    _Py*;
+    /* Functions defined by Cinder's C-API */
+    Ci*;
+    /* Export strobe symbols needed for pyperf */
+    __strobe_*;
+    /* Things to be used by CinderX only */
+    builtin_next;
+    _pydict_global_version;
+    strictmodule_is_unassigned;
+  };
+};

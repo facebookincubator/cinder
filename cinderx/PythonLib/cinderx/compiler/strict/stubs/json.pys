@@ -1,4 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-def dumps(obj, **kwargs):
-    return _known_unknown_obj("<json.dumps result>")

@@ -1,8 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-class Lock:
-    def acquire(self, *args, **kwargs):
-        return _known_unknown_callable("threading.Lock.acquire", args, kwargs)
-
-    def release(self, *args, **kwargs):
-        return _known_unknown_callable("threading.Lock.release", args, kwargs)

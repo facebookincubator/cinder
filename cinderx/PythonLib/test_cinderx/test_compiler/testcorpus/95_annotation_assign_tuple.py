@@ -1,1 +1,0 @@
-lst[a, b]: int

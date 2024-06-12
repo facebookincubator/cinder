@@ -1,3 +1,0 @@
-"docstring"
-
-a = 1

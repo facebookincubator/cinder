@@ -1,5 +1,0 @@
-None
-False
-True
-Ellipsis
-...

@@ -1,4 +1,0 @@
-super
-
-def foo():
-    super

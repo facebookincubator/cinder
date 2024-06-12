@@ -1,4 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-from asyncio.locks import Lock
-from asyncio.coroutines import iscoroutinefunction
