@@ -1,4 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-def warn(*args, **kwargs):
-    pass

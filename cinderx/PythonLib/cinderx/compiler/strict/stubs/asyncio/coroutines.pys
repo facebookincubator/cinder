@@ -1,9 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-import inspect
-
-_is_coroutine = object()
-
-@implicit
-def iscoroutinefunction(func):
-    ...

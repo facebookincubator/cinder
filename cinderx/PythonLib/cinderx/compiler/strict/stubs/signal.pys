@@ -1,9 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-SIGALRM = _known_unknown_obj("SIGALRM")
-
-def signal(*args):
-    return _known_unknown_callable("signal", *args)
-
-def alarm(arg):
-    return _known_unknown_callable("alarm", arg)

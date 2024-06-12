@@ -1,4 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-def join(a, *p):
-    return _known_unknown_obj("<os.join path>")

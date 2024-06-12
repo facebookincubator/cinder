@@ -1,6 +1,0 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-
-def compile(pattern, flags=0):
-    return _known_unknown_callable("re.compile", pattern)
-
-VERBOSE = _known_unknown_obj("re.VERBOSE")
