@@ -67,13 +67,17 @@ is_lazy_import = _imp.is_lazy_import
 hydrate_lazy_objects = _imp.hydrate_lazy_objects
 
 
-def set_lazy_imports(enable = True, *, excluding = None):
+def set_lazy_imports(enable = True, /, excluding = None, eager = None):
     """Programmatic API for enabling lazy imports at runtime.
 
-    The optional argument `excluding` can be any container of strings; all imports
-    within modules whose full name is present in the container will be eager.
+    The optional argument `excluding` can be any container of strings; all the
+    modules whose full name is present in the container will be excluded from
+    having any lazy imports, so all the imports within such modules will be eager.
+
+    The optional argument `eager` can be any container of strings; all imports for
+    which the import full name is present in the container will be imported eagerly.
     """
-    _imp._set_lazy_imports(enable, excluding=excluding)
+    return _imp._set_lazy_imports(enable, excluding=excluding, eager=eager)
 
 
 def enable_lazy_imports_in_module(enable = True):

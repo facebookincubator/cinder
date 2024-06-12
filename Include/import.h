@@ -59,7 +59,7 @@ PyAPI_FUNC(PyObject *) PyImport_ImportModuleLevel(
 #if !defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03050000
 CiAPI_FUNC(int) PyImport_IsLazyImportsEnabled(void);
 PyAPI_FUNC(PyObject *) PyImport_SetLazyImports(
-    PyObject *enabled, PyObject *excluding);
+    PyObject *enabled, PyObject *excluding, PyObject *eager);
 PyAPI_FUNC(PyObject *) PyImport_SetLazyImportsInModule(
     PyObject *enabled);
 PyObject *

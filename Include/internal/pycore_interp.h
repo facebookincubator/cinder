@@ -251,6 +251,7 @@ struct _is {
     PyObject *builtins;
     // importlib module
     PyObject *importlib;
+    PyObject *excluding_modules;
     PyObject *eager_imports;
 
     /* Used in Modules/_threadmodule.c. */

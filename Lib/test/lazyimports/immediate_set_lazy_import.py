@@ -9,9 +9,14 @@ import importlib
 
 from test.lazyimports.data.metasyntactic import foo
 
+importlib.set_lazy_imports(eager=["test.lazyimports.data.metasyntactic.plugh"])
+
+from test.lazyimports.data.metasyntactic import plugh
+
 importlib.set_lazy_imports(excluding=["test.lazyimports.immediate_set_lazy_import"])
 
 from test.lazyimports.data.metasyntactic import waldo
 
 self.assertTrue(importlib.is_lazy_import(globals(), "foo"))
+self.assertFalse(importlib.is_lazy_import(globals(), "plugh"))
 self.assertFalse(importlib.is_lazy_import(globals(), "waldo"))

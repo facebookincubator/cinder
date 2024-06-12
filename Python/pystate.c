@@ -275,6 +275,7 @@ PyInterpreterState_New(void)
 
     interp->audit_hooks = NULL;
     interp->lazy_imports = 0;
+    interp->excluding_modules = NULL;
     interp->eager_imports = NULL;
     interp->lazy_modules = NULL;
 
@@ -316,6 +317,7 @@ interpreter_clear(PyInterpreterState *interp, PyThreadState *tstate)
     Py_CLEAR(interp->builtins_copy);
     Py_CLEAR(interp->importlib);
     Py_CLEAR(interp->import_func);
+    Py_CLEAR(interp->excluding_modules);
     Py_CLEAR(interp->eager_imports);
     Py_CLEAR(interp->lazy_modules);
     Py_CLEAR(interp->dict);

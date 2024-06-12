@@ -488,7 +488,8 @@ exit:
 }
 
 PyDoc_STRVAR(_imp__set_lazy_imports__doc__,
-"_set_lazy_imports($module, enabled=True, /, excluding=<unrepresentable>)\n"
+"_set_lazy_imports($module, enabled=True, /,\n"
+"                  excluding=<unrepresentable>, eager=<unrepresentable>)\n"
 "--\n"
 "\n"
 "Programmatic API for enabling lazy imports at runtime.\n"
@@ -501,20 +502,21 @@ PyDoc_STRVAR(_imp__set_lazy_imports__doc__,
 
 static PyObject *
 _imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
-                            PyObject *excluding);
+                            PyObject *excluding, PyObject *eager);
 
 static PyObject *
 _imp__set_lazy_imports(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
     PyObject *return_value = NULL;
-    static const char * const _keywords[] = {"", "excluding", NULL};
+    static const char * const _keywords[] = {"", "excluding", "eager", NULL};
     static _PyArg_Parser _parser = {NULL, _keywords, "_set_lazy_imports", 0};
-    PyObject *argsbuf[2];
+    PyObject *argsbuf[3];
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 0;
     PyObject *enabled = Py_True;
     PyObject *excluding = NULL;
+    PyObject *eager = NULL;
 
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 2, 0, argsbuf);
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 0, 3, 0, argsbuf);
     if (!args) {
         goto exit;
     }
@@ -527,9 +529,15 @@ skip_optional_posonly:
     if (!noptargs) {
         goto skip_optional_pos;
     }
-    excluding = args[1];
+    if (args[1]) {
+        excluding = args[1];
+        if (!--noptargs) {
+            goto skip_optional_pos;
+        }
+    }
+    eager = args[2];
 skip_optional_pos:
-    return_value = _imp__set_lazy_imports_impl(module, enabled, excluding);
+    return_value = _imp__set_lazy_imports_impl(module, enabled, excluding, eager);
 
 exit:
     return return_value;
@@ -700,4 +708,4 @@ _imp_hydrate_lazy_objects(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef _IMP_EXEC_DYNAMIC_METHODDEF
     #define _IMP_EXEC_DYNAMIC_METHODDEF
 #endif /* !defined(_IMP_EXEC_DYNAMIC_METHODDEF) */
-/*[clinic end generated code: output=c844b9883a2d4a98 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=205e94ef323bb334 input=a9049054013a1b77]*/

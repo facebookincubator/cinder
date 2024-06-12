@@ -1624,7 +1624,7 @@ add_lazy_submodule(PyObject *module, PyObject *name)
 }
 
 static int
-add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
+add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name, PyObject *fromlist)
 {
     int ret = 1;
     assert(tstate->interp->lazy_modules != NULL);
@@ -1634,7 +1634,41 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
     PyObject *child = NULL;
     PyObject *parent_module = NULL;
     PyObject *parent_dict = NULL;
-    PyObject *lazy_submodules = PyDict_GetItemWithError(lazy_modules, name);
+    PyObject *lazy_submodules;
+
+    if (tstate->interp->eager_imports != NULL) {
+        int found = PySequence_Contains(tstate->interp->eager_imports, name);
+        if (found < 0) {
+            goto error;
+        }
+        if (found) {
+            ret = 0; /* If the module is flagged as eager import, load eagerly */
+            goto end;
+        }
+        if (fromlist != NULL && fromlist != Py_None) {
+            assert(PyTuple_CheckExact(fromlist));
+            Py_ssize_t size = PyTuple_GET_SIZE(fromlist);
+            for (Py_ssize_t i = 0; i < size; ++i) {
+                PyObject* item = PyTuple_GET_ITEM(fromlist, i);
+                assert(PyUnicode_Check(item));
+                PyObject *from_name = PyUnicode_FromFormat("%U.%U", name, item);
+                if (from_name == NULL) {
+                    goto error;
+                }
+                found = PySequence_Contains(tstate->interp->eager_imports, from_name);
+                Py_DECREF(from_name);
+                if (found < 0) {
+                    goto error;
+                }
+                if (found) {
+                    ret = 0; /* If the module is flagged as eager import, load eagerly */
+                    goto end;
+                }
+            }
+        }
+    }
+
+    lazy_submodules = PyDict_GetItemWithError(lazy_modules, name);
     if (lazy_submodules == NULL) {
         if (PyErr_Occurred()) {
             goto error;
@@ -1649,7 +1683,7 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
         }
         Py_DECREF(lazy_submodules);
     }
-    PyObject *filter = tstate->interp->eager_imports;
+    PyObject *filter = tstate->interp->excluding_modules;
     while (1) {
         Py_ssize_t dot = PyUnicode_FindChar(name, '.', 0, PyUnicode_GET_LENGTH(name), -1);
         if (dot < 0) {
@@ -1659,9 +1693,15 @@ add_lazy_modules(PyThreadState *tstate, PyObject *builtins, PyObject *name)
         if (parent == NULL) {
             goto error;
         }
-        if (filter != NULL && PySequence_Contains(filter, parent)) {
-            ret = 0; /* If the direct parent is eager, load eagerly */
-            goto end;
+        if (filter != NULL) {
+            int found = PySequence_Contains(filter, parent);
+            if (found < 0) {
+                goto error;
+            }
+            if (found) {
+                ret = 0; /* If the direct parent is eager, load eagerly */
+                goto end;
+            }
         }
         filter = NULL;
         Py_XDECREF(child);
@@ -1808,7 +1848,7 @@ _PyImport_LazyImportName(PyObject *builtins, PyObject *globals, PyObject *locals
         Py_INCREF(abs_name);
     }
 
-    int lazy = add_lazy_modules(tstate, builtins, abs_name);
+    int lazy = add_lazy_modules(tstate, builtins, abs_name, fromlist);
     if (lazy < 0) {
         goto error;
     }
@@ -2657,7 +2697,7 @@ closest_module_frame(PyFrameObject *frame)
 }
 
 PyObject *
-PyImport_SetLazyImports(PyObject *enabled, PyObject *excluding)
+PyImport_SetLazyImports(PyObject *enabled, PyObject *excluding, PyObject *eager)
 {
     PyObject *result = NULL;
     PyInterpreterState *interp = _PyInterpreterState_GET();
@@ -2665,8 +2705,9 @@ PyImport_SetLazyImports(PyObject *enabled, PyObject *excluding)
     assert(interp->lazy_imports != -1);
 
     result = PyTuple_Pack(
-        2,
+        3,
         interp->lazy_imports ? Py_True : Py_False,
+        interp->excluding_modules == NULL ? Py_None : interp->excluding_modules,
         interp->eager_imports == NULL ? Py_None : interp->eager_imports
     );
     if (result == NULL) {
@@ -2680,8 +2721,8 @@ PyImport_SetLazyImports(PyObject *enabled, PyObject *excluding)
 
     if (excluding != NULL) {
         if (Py_IsNone(excluding)) {
-            Py_XDECREF(interp->eager_imports);
-            interp->eager_imports = NULL;
+            Py_XDECREF(interp->excluding_modules);
+            interp->excluding_modules = NULL;
         } else {
             PyObject *empty = PyUnicode_New(0, 0);
             if (empty == NULL) {
@@ -2692,8 +2733,27 @@ PyImport_SetLazyImports(PyObject *enabled, PyObject *excluding)
                 goto error;
             }
             Py_DECREF(empty);
+            Py_XDECREF(interp->excluding_modules);
+            interp->excluding_modules = Py_NewRef(excluding);
+        }
+    }
+
+    if (eager != NULL) {
+        if (Py_IsNone(eager)) {
             Py_XDECREF(interp->eager_imports);
-            interp->eager_imports = Py_NewRef(excluding);
+            interp->eager_imports = NULL;
+        } else {
+            PyObject *empty = PyUnicode_New(0, 0);
+            if (empty == NULL) {
+                goto error;
+            }
+            if (PySequence_Contains(eager, empty) == -1) {
+                Py_DECREF(empty);
+                goto error;
+            }
+            Py_DECREF(empty);
+            Py_XDECREF(interp->eager_imports);
+            interp->eager_imports = Py_NewRef(eager);
         }
     }
 
@@ -2777,6 +2837,7 @@ _imp._set_lazy_imports
     enabled: object = True
     /
     excluding: object = NULL
+    eager: object = NULL
 
 Programmatic API for enabling lazy imports at runtime.
 
@@ -2786,10 +2847,10 @@ within which all imports will remain eager.
 
 static PyObject *
 _imp__set_lazy_imports_impl(PyObject *module, PyObject *enabled,
-                            PyObject *excluding)
-/*[clinic end generated code: output=bb6e4196f8cf4569 input=c16f11904690a50f]*/
+                            PyObject *excluding, PyObject *eager)
+/*[clinic end generated code: output=77575489d11f5806 input=6fbccf14b8258afb]*/
 {
-    return PyImport_SetLazyImports(enabled, excluding);
+    return PyImport_SetLazyImports(enabled, excluding, eager);
 }
 
 /*[clinic input]
@@ -3293,7 +3354,7 @@ _PyImport_IsLazyImportsEnabled(PyThreadState *tstate)
                 if (lazy_imports) {
                     PyObject *modname = _PyDict_GetItemIdWithError(frame->f_globals, &PyId___name__);
                     if (modname != NULL && modname != Py_None) {
-                        PyObject *filter = tstate->interp->eager_imports;
+                        PyObject *filter = tstate->interp->excluding_modules;
                         if (filter != NULL && PySequence_Contains(filter, modname)) {
                             lazy_imports = 0;  /* Check imports explicitely set as eager */
                         }
