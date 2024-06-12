@@ -710,6 +710,7 @@ init_interpreter(PyInterpreterState *interp,
     interp->f_opcode_trace_set = false;
     interp->lazy_imports = -1;
     interp->lazy_import_verbose_seen = NULL;
+    interp->excluding_modules = NULL;
     interp->eager_imports = NULL;
     interp->lazy_modules = NULL;
 
@@ -881,6 +882,7 @@ interpreter_clear(PyInterpreterState *interp, PyThreadState *tstate)
     Py_CLEAR(interp->sysdict_copy);
     Py_CLEAR(interp->builtins_copy);
     Py_CLEAR(interp->lazy_import_verbose_seen);
+    Py_CLEAR(interp->excluding_modules);
     Py_CLEAR(interp->eager_imports);
     Py_CLEAR(interp->lazy_modules);
     Py_CLEAR(interp->dict);

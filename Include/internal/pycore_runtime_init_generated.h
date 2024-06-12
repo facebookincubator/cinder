@@ -895,6 +895,7 @@ extern "C" {
     INIT_ID(dst_dir_fd), \
     INIT_ID(duration), \
     INIT_ID(e), \
+    INIT_ID(eager), \
     INIT_ID(eager_start), \
     INIT_ID(effective_ids), \
     INIT_ID(element_factory), \

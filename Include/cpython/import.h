@@ -31,7 +31,7 @@ PyAPI_FUNC(int) _PyImport_IsLazyImportsActive(PyThreadState *tstate);
 
 PyAPI_FUNC(int) PyImport_IsLazyImportsEnabled(void);
 PyAPI_FUNC(PyObject *) PyImport_SetLazyImports(
-    PyObject *enabled, PyObject *excluding);
+    PyObject *enabled, PyObject *excluding, PyObject *eager);
 PyAPI_FUNC(PyObject *) _PyImport_SetLazyImportsInModule(
     PyObject *enabled);
 

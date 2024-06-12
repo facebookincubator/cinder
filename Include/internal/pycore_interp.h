@@ -234,6 +234,7 @@ struct _is {
     // Lazy Imports
     int lazy_imports;  /* whether lazy imports was enabled at runtime */
     PyObject *lazy_import_verbose_seen;
+    PyObject *excluding_modules;
     PyObject *eager_imports;
     PyObject *lazy_modules;
 };

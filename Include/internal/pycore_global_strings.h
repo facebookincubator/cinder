@@ -389,6 +389,7 @@ struct _Py_global_strings {
         STRUCT_FOR_ID(dst_dir_fd)
         STRUCT_FOR_ID(duration)
         STRUCT_FOR_ID(e)
+        STRUCT_FOR_ID(eager)
         STRUCT_FOR_ID(eager_start)
         STRUCT_FOR_ID(effective_ids)
         STRUCT_FOR_ID(element_factory)
