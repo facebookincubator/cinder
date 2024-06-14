@@ -2042,11 +2042,18 @@ class PyNext(gdb.Command):
         global _PyRunningTargetFrameBackAddress
 
         frame = Frame.get_selected_python_frame()
+        # Aparently this frame is not actually a Python frame, so we need to
+        # walk to find it. This is based on the implementation around the 
+        # PyUp/PyDown commands.
+        while frame:
+            if frame.is_python_frame():
+                pyop_frame = frame.get_pyop()
+                if pyop_frame:
+                    break
+            frame = frame.older()
         if not frame:
             print('Unable to locate python frame')
             return
-
-        pyop_frame = frame.get_pyop()
         if not pyop_frame:
             print(UNABLE_READ_INFO_PYTHON_FRAME)
             return
@@ -2066,4 +2073,3 @@ PyNext("py-rnext", "reverse-cont")
 #     gdb.execute('call (void*)dlopen("gdb_dbg.cpython-312-x86_64-linux-gnu.so", 2)')
 
 # PyRunningInit()
-
