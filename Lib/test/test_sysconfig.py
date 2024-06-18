@@ -512,7 +512,9 @@ class TestSysConfig(unittest.TestCase):
         srcdir = sysconfig.get_config_var('srcdir')
 
         self.assertTrue(os.path.isabs(srcdir), srcdir)
-        self.assertTrue(os.path.isdir(srcdir), srcdir)
+        # START META PATCH (not applicable to our internal build)
+        # self.assertTrue(os.path.isdir(srcdir), srcdir)
+        # END META PATCH
 
         if sysconfig._PYTHON_BUILD:
             # The python executable has not been installed so srcdir
@@ -589,6 +591,9 @@ class MakefileTests(unittest.TestCase):
     @unittest.skipIf(is_wasi, "Incompatible with WASI mapdir and OOT builds")
     @unittest.skipIf(is_apple_mobile,
                      f"{sys.platform} doesn't include config folder at runtime")
+    # START META PATCH (skip test in the internal build)
+    @unittest.skipIf("+meta" in sys.version, "Incompatible with how we run tests internally")
+    # END META PATCH
     def test_get_makefile_filename(self):
         makefile = sysconfig.get_makefile_filename()
         self.assertTrue(os.path.isfile(makefile), makefile)
