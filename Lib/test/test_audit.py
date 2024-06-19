@@ -140,6 +140,9 @@ class AuditTest(unittest.TestCase):
         )
 
 
+    # START META PATCH: https://github.com/python/cpython/issues/120373
+    @support.requires_resource('network')
+    # END META PATCH
     def test_http(self):
         import_helper.import_module("http.client")
         returncode, events, stderr = self.run_python("test_http_client")
