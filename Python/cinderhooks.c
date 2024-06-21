@@ -55,6 +55,8 @@ Ci_HookType_PyJIT_GetBuiltins Ci_hook_PyJIT_GetBuiltins = NULL;
 Ci_HookType_PyJIT_GetGlobals Ci_hook_PyJIT_GetGlobals = NULL;
 Ci_HookType_PyJIT_GetCurrentCodeFlags Ci_hook_PyJIT_GetCurrentCodeFlags = NULL;
 
+PyObject* CiExc_StaticTypeError = NULL;
+
 // For backward compatibility, we need this in libpython rather than the
 // CinderX module.
 int _PyShadowFrame_WalkAndPopulate(
