@@ -173,8 +173,6 @@ CiAPI_DATA(Ci_HookType_PyJIT_GetCurrentCodeFlags)
 CiAPI_DATA(int64_t) __strobe_RuntimeFrameState_py_code;
 CiAPI_DATA(int64_t) __strobe_CodeRuntime_py_code;
 
-CiAPI_DATA(PyObject*) CiExc_StaticTypeError;
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
