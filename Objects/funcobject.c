@@ -541,6 +541,8 @@ func_set_qualname(PyFunctionObject *op, PyObject *value, void *Py_UNUSED(ignored
                         "__qualname__ must be set to a string object");
         return -1;
     }
+    handle_func_event(PyFunction_EVENT_MODIFY_QUALNAME,
+                      (PyFunctionObject *)op, value);
     Py_XSETREF(op->func_qualname, Py_NewRef(value));
     return 0;
 }
