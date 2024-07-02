@@ -1788,7 +1788,7 @@ def run_in_subinterp_with_config(code, *, own_gil=None, **config):
             config['gil'] = 'shared'
         elif gil == 2:
             config['gil'] = 'own'
-        else:
+        elif not isinstance(gil, str):
             raise NotImplementedError(gil)
     config = types.SimpleNamespace(**config)
     return _testinternalcapi.run_in_subinterp_with_config(code, config)
@@ -2607,3 +2607,9 @@ def force_not_colorized(func):
                 if value is not None:
                     os.environ[key] = value
     return wrapper
+
+
+def initialized_with_pyrepl():
+    """Detect whether PyREPL was used during Python initialization."""
+    # If the main module has a __file__ attribute it's a Python module, which means PyREPL.
+    return hasattr(sys.modules["__main__"], "__file__")
