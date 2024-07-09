@@ -71,7 +71,7 @@ def is_lazy_import(dictionary, key):
 
 
 def hydrate_lazy_objects():
-    _imp.hydrate_lazy_objects()
+    return _imp.hydrate_lazy_objects()
 
 
 def set_lazy_imports(enable = True, /, excluding = None, eager = None):
