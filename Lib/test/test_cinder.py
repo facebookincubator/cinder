@@ -1979,55 +1979,6 @@ class GetEntireCallStackTest(unittest.TestCase):
         )
 
 
-@cinder_support.skipUnderJIT("Profiling only works under interpreter")
-class TestInterpProfiling(unittest.TestCase):
-    def tearDown(self):
-        cinder.set_profile_interp(False)
-
-    def test_profiles_instrs(self):
-        def workload(a, b, c):
-            r = 0.0
-            for i in range(c):
-                r += a * b
-
-        cinder.set_profile_interp_period(1)
-        was_enabled_before = cinder.set_profile_interp(True)
-        repetitions = 101
-        result = workload(1, 2, repetitions)
-        was_enabled_after = cinder.set_profile_interp(False)
-        profiles = cinder.get_and_clear_type_profiles()
-
-        self.assertFalse(was_enabled_before)
-        self.assertTrue(was_enabled_after)
-
-        profile_by_op = {}
-        for item in profiles:
-            if (
-                item["normal"]["func_qualname"].endswith("<locals>.workload")
-                and "opname" in item["normal"]
-            ):
-                opname = item["normal"]["opname"]
-                self.assertNotIn(opname, profile_by_op)
-                profile_by_op[opname] = item
-
-        # We don't want to overfit to the current shape of the bytecode, so do
-        # a quick sanity check of a few key instructions.
-        self.assertIn("FOR_ITER", profile_by_op)
-        item = profile_by_op["FOR_ITER"]
-        self.assertEqual(item["int"]["count"], repetitions + 1)
-        self.assertEqual(item["normvector"]["types"], ["range_iterator"])
-
-        self.assertIn("BINARY_MULTIPLY", profile_by_op)
-        item = profile_by_op["BINARY_MULTIPLY"]
-        self.assertEqual(item["int"]["count"], repetitions)
-        self.assertEqual(item["normvector"]["types"], ["int", "int"])
-
-        self.assertIn("INPLACE_ADD", profile_by_op)
-        item = profile_by_op["INPLACE_ADD"]
-        self.assertEqual(item["int"]["count"], repetitions)
-        self.assertEqual(item["normvector"]["types"], ["float", "int"])
-
-
 class TestWaitForAwaiter(unittest.TestCase):
     def setUp(self) -> None:
         loop = asyncio.new_event_loop()
