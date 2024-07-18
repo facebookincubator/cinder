@@ -1657,14 +1657,6 @@ FutureIter_am_send(futureiterobject *it,
     return PYGEN_ERROR;
 }
 
-static int
-FutureIter_set_awaiter(futureiterobject *it, PyObject *awaiter) {
-    if (it->future != NULL) {
-        _PyAwaitable_SetAwaiter((PyObject *)it->future, awaiter);
-    }
-    return 0;
-}
-
 static PyObject *
 FutureIter_iternext(futureiterobject *it)
 {
@@ -1806,7 +1798,6 @@ static PyType_Slot FutureIter_slots[] = {
 
     // async methods
     {Py_am_send, (sendfunc)FutureIter_am_send},
-    {Py_am_set_awaiter, (setawaiterfunc) FutureIter_set_awaiter},
     {0, NULL},
 };
 
@@ -2674,15 +2665,6 @@ done:
 
 static void TaskObj_dealloc(PyObject *);  /* Needs Task_CheckExact */
 
-static int
-TaskObj_set_awaiter(TaskObj *task, PyObject *awaiter)
-{
-    if (task->task_coro == NULL) {
-        return 0;
-    }
-    return _PyAwaitable_SetAwaiter(task->task_coro, awaiter);
-}
-
 static PyMethodDef TaskType_methods[] = {
     _ASYNCIO_FUTURE_RESULT_METHODDEF
     _ASYNCIO_FUTURE_EXCEPTION_METHODDEF
@@ -2741,7 +2723,6 @@ static PyType_Slot Task_slots[] = {
 
     // async slots
     {Py_am_await, (unaryfunc)future_new_iter},
-    {Py_am_set_awaiter, (setawaiterfunc) TaskObj_set_awaiter},
     {0, NULL},
 };
 
