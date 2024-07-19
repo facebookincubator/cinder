@@ -45,13 +45,6 @@ struct _ceval_state {
 #ifdef EXPERIMENTAL_ISOLATED_SUBINTERPRETERS
     struct _gil_runtime_state gil;
 #endif
-
-    /* TODO(T123968561): Put remaining fields somewhere CinderX-specific. */
-
-    /* Global instruction counter used by interpreter type profiling. */
-    long profile_instr_counter;
-    /* Configurable period for interpreter type profiling. */
-    long profile_instr_period;
 };
 
 /* fs_codec.encoding is initialized to NULL.

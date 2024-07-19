@@ -50,8 +50,7 @@ _Py_ThreadCanHandlePendingCalls(void)
 static inline int
 _Py_ThreadStateHasTracing(PyThreadState* ts)
 {
-    return ts->c_tracefunc != NULL || ts->c_profilefunc != NULL ||
-        ts->profile_interp;
+    return ts->c_tracefunc != NULL || ts->c_profilefunc != NULL;
 }
 
 /* Variable and macro for in-line access to current thread

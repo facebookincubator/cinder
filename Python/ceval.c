@@ -862,10 +862,6 @@ _PyEval_InitState(struct _ceval_state *ceval)
     _gil_initialize(&ceval->gil);
 #endif
 
-    // Added for Cinder
-    ceval->profile_instr_counter = 0;
-    ceval->profile_instr_period = 0;
-
     return 0;
 }
 

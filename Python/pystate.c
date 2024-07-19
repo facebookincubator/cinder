@@ -687,11 +687,6 @@ new_threadstate(PyInterpreterState *interp, int init)
     interp->tstate_head = tstate;
     HEAD_UNLOCK(runtime);
 
-    tstate->profile_interp = 0;
-    if (Ci_hook_JIT_GetProfileNewInterpThread != NULL && Ci_hook_JIT_GetProfileNewInterpThread()) {
-        Ci_ThreadState_SetProfileInterp(tstate, 1);
-    }
-
     return tstate;
 }
 
@@ -1331,33 +1326,6 @@ fail:
 done:
     HEAD_UNLOCK(runtime);
     return result;
-}
-
-void Ci_ThreadState_SetProfileInterpAll(int enabled) {
-    PyThreadState *tstate;
-    _PyRuntimeState *runtime = &_PyRuntime;
-
-    HEAD_LOCK(runtime);
-    for (tstate = _PyThreadState_GET()->interp->tstate_head;
-         tstate != NULL;
-         tstate = tstate->next) {
-        Ci_ThreadState_SetProfileInterp(tstate, enabled);
-    }
-    HEAD_UNLOCK(runtime);
-}
-
-void
-Ci_ThreadState_SetProfileInterp(PyThreadState *tstate, int enabled) {
-    if (!tstate->profile_interp == !enabled) {
-        return;
-    }
-    tstate->profile_interp = !!enabled;
-    tstate->cframe->use_tracing = _Py_ThreadStateHasTracing(tstate);
-}
-
-void
-Ci_RuntimeState_SetProfileInterpPeriod(long period) {
-    PyThreadState_Get()->interp->ceval.profile_instr_period = period;
 }
 
 /* Python "auto thread state" API. */

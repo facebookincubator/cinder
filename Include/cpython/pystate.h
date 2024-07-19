@@ -152,13 +152,6 @@ struct _ts {
     /* The current top of the shadow frame stack; analogous to the frame member
      * up above. */
     struct _PyShadowFrame *shadow_frame;
-
-    /* TODO(T123968561): Put remaining fields somewhere CinderX-specific. */
-
-    /* 0 or 1 to indicate if this thread has interpreter type profiling
-     * enabled. */
-    char profile_interp;
-
 };
 
 // Alias for backward compatibility with Python 3.8

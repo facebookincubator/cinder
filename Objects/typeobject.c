@@ -3469,9 +3469,6 @@ type_new_impl(type_new_ctx *ctx)
     }
 
     assert(_PyType_CheckConsistency(type));
-    if (Ci_hook_type_created) {
-        Ci_hook_type_created(type);
-    }
     return (PyObject *)type;
 
 error:
@@ -6909,11 +6906,6 @@ PyType_Ready(PyTypeObject *type)
     /* All done -- set the ready flag */
     type->tp_flags = (type->tp_flags & ~Py_TPFLAGS_READYING) | Py_TPFLAGS_READY;
     assert(_PyType_CheckConsistency(type));
-    if (Ci_hook_type_created && !PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)) {
-      /* type_new_impl() has more work to do on heap types; only tell the callback
-       * about static types right here. */
-      Ci_hook_type_created(type);
-    }
     return 0;
 }
 

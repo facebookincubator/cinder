@@ -20,13 +20,8 @@ CiAPI_DATA(int8_t) Ci_cinderx_initialized;
 /* Hooks for JIT type profiling. */
 
 typedef void(*Ci_TypeCallback)(PyTypeObject *type);
-CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_created;
 CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_destroyed;
 CiAPI_DATA(Ci_TypeCallback) Ci_hook_type_name_modified;
-
-typedef int (*Ci_HookType_JIT_GetProfileNewInterpThread)(void);
-CiAPI_DATA(Ci_HookType_JIT_GetProfileNewInterpThread)
-    Ci_hook_JIT_GetProfileNewInterpThread;
 
 /* Hooks for JIT Shadow frames*/
 
