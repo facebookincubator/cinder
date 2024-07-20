@@ -582,20 +582,6 @@ def execusercustomize():
                 (err.__class__.__name__, err))
 
 
-# TODO(T172877814) remove
-def init_cinder():
-    # ensure the CinderX pure-Python code is importable (only needed for in-repo
-    # builds; Buck installs CinderX alongside the stdlib)
-    cinderx_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'cinderx/PythonLib'))
-    if os.path.isdir(cinderx_dir):
-        sys.path.append(cinderx_dir)
-    try:
-        import cinderx
-        cinderx.init()
-    except (ImportError, AttributeError):
-        pass
-
-
 def main():
     """Add standard site-specific directories to the module search path.
 
@@ -621,7 +607,8 @@ def main():
     sethelper()
     if not sys.flags.isolated:
         enablerlcompleter()
-    init_cinder()
+    import cinderx
+    cinderx.init()
     execsitecustomize()
     if ENABLE_USER_SITE:
         execusercustomize()
