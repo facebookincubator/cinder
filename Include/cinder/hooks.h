@@ -130,26 +130,6 @@ CiAPI_DATA(Ci_HookType_PyJIT_GenMaterializeFrame)
 typedef PyObject *(*Ci_HookType_MaybeStrictModule_Dict)(PyObject *op);
 CiAPI_DATA(Ci_HookType_MaybeStrictModule_Dict) Ci_hook_MaybeStrictModule_Dict;
 
-CiAPI_FUNC(PyObject *)
-    Cix_method_get_doc(PyMethodDescrObject *descr, void *closure);
-
-CiAPI_FUNC(PyObject *)
-    Cix_method_get_text_signature(PyMethodDescrObject *descr, void *closure);
-
-CiAPI_FUNC(PyObject *) Cix_meth_get__doc__(PyCFunctionObject *m, void *closure);
-
-CiAPI_FUNC(PyObject *)
-    Cix_meth_get__name__(PyCFunctionObject *m, void *closure);
-
-CiAPI_FUNC(PyObject *)
-    Cix_meth_get__qualname__(PyCFunctionObject *m, void *closure);
-
-CiAPI_FUNC(PyObject *)
-    Cix_meth_get__self__(PyCFunctionObject *m, void *closure);
-
-CiAPI_FUNC(PyObject *)
-    Cix_meth_get__text_signature__(PyCFunctionObject *m, void *closure);
-
 CiAPI_DATA(_PyFrameEvalFunction) Ci_hook_EvalFrame;
 
 typedef PyFrameObject *(*Ci_HookType_PyJIT_GetFrame)(PyThreadState *tstate);

@@ -1924,26 +1924,8 @@ PyTypeObject PyProperty_Type = {
     PyObject_GC_Del,                            /* tp_free */
 };
 
-PyObject *
-Cix_descr_get_qualname(PyDescrObject *descr, void *closure)
-{
-    return descr_get_qualname(descr, closure);
-}
-
 funcptr
 Cix_method_enter_call(PyThreadState *tstate, PyObject *func)
 {
     return method_enter_call(tstate, func);
-}
-
-PyObject *
-Cix_method_get_doc(PyMethodDescrObject *descr, void *closure)
-{
-    return method_get_doc(descr, closure);
-}
-
-PyObject *
-Cix_method_get_text_signature(PyMethodDescrObject *descr, void *closure)
-{
-    return method_get_text_signature(descr, closure);
 }

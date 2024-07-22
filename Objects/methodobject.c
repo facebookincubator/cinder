@@ -570,33 +570,3 @@ funcptr
 Cix_cfunction_enter_call(PyThreadState *tstate, PyObject *func) {
     return cfunction_enter_call(tstate, func);
 }
-
-PyObject *
-Cix_meth_get__doc__(PyCFunctionObject *m, void *closure)
-{
-    return meth_get__doc__(m, closure);
-}
-
-PyObject *
-Cix_meth_get__name__(PyCFunctionObject *m, void *closure)
-{
-    return meth_get__name__(m, closure);
-}
-
-PyObject *
-Cix_meth_get__qualname__(PyCFunctionObject *m, void *closure)
-{
-    return meth_get__qualname__(m, closure);
-}
-
-PyObject *
-Cix_meth_get__self__(PyCFunctionObject *m, void *closure)
-{
-    return meth_get__self__(m, closure);
-}
-
-PyObject *
-Cix_meth_get__text_signature__(PyCFunctionObject *m, void *closure)
-{
-    return meth_get__text_signature__(m, closure);
-}
