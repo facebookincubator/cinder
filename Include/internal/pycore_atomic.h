@@ -62,6 +62,12 @@ typedef struct _Py_atomic_int {
 #define _Py_atomic_load_explicit(ATOMIC_VAL, ORDER) \
     atomic_load_explicit(&((ATOMIC_VAL)->_value), ORDER)
 
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+    atomic_fetch_add_explicit(&((ATOMIC_VAL)->_value), VAL, ORDER)
+
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+    atomic_fetch_sub_explicit(&((ATOMIC_VAL)->_value), VAL, ORDER)
+
 // Use builtin atomic operations in GCC >= 4.7 and clang
 #elif defined(HAVE_BUILTIN_ATOMIC)
 
@@ -99,6 +105,20 @@ typedef struct _Py_atomic_int {
             || (ORDER) == __ATOMIC_ACQUIRE                    \
             || (ORDER) == __ATOMIC_CONSUME),                  \
      __atomic_load_n(&((ATOMIC_VAL)->_value), ORDER))
+
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+    (assert((ORDER) == __ATOMIC_RELAXED                       \
+            || (ORDER) == __ATOMIC_SEQ_CST                    \
+            || (ORDER) == __ATOMIC_ACQUIRE                    \
+            || (ORDER) == __ATOMIC_CONSUME),                  \
+     __atomic_fetch_add(&((ATOMIC_VAL)->_value), VAL, ORDER))
+
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+    (assert((ORDER) == __ATOMIC_RELAXED                       \
+            || (ORDER) == __ATOMIC_SEQ_CST                    \
+            || (ORDER) == __ATOMIC_ACQUIRE                    \
+            || (ORDER) == __ATOMIC_CONSUME),                  \
+     __atomic_fetch_sub(&((ATOMIC_VAL)->_value), VAL, ORDER))
 
 /* Only support GCC (for expression statements) and x86 (for simple
  * atomic semantics) and MSVC x86/x64/ARM */
@@ -229,6 +249,46 @@ _Py_ANNOTATE_MEMORY_ORDER(const volatile void *address, _Py_memory_order order)
         _Py_ANNOTATE_IGNORE_READS_END(); \
         result; \
     })
+
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+    __extension__ ({ \
+        __typeof__(ATOMIC_VAL) atomic_val = ATOMIC_VAL; \
+        __typeof__(atomic_val->_value) val = VAL;\
+        _Py_memory_order order = ORDER; \
+        _Py_ANNOTATE_MEMORY_ORDER(atomic_val, order); \
+        \
+        /* Perform the operation. */ \
+        _Py_ANNOTATE_IGNORE_WRITES_BEGIN(); \
+        switch(order) { \
+        case _Py_memory_order_release: \
+        case _Py_memory_order_acq_rel: \
+        case _Py_memory_order_seq_cst: \
+            _Py_atomic_signal_fence(_Py_memory_order_acquire); \
+            break; \
+        default: \
+            /* No fence */ \
+            break; \
+        } \
+        __asm__ volatile("lock ; xaddq %0, %1" \
+                      : "+r"(val), "+m"(atomic_val->_value) \
+                      : \
+                      : "cc"); \
+        switch(order) { \
+        case _Py_memory_order_acquire: \
+        case _Py_memory_order_acq_rel: \
+        case _Py_memory_order_seq_cst: \
+            _Py_atomic_signal_fence(_Py_memory_order_acquire); \
+            break; \
+        default: \
+            /* No fence */ \
+            break; \
+        } \
+        _Py_ANNOTATE_IGNORE_WRITES_END(); \
+        val; \
+    })
+
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_add_explicit(ATOMIC_VAL, -(VAL), ORDER)
 
 #elif defined(_MSC_VER)
 /*  _Interlocked* functions provide a full memory barrier and are therefore
@@ -363,6 +423,114 @@ inline int _Py_atomic_load_32bit_impl(volatile int* value, int order) {
 #define _Py_atomic_load_32bit(ATOMIC_VAL, ORDER) \
     _Py_atomic_load_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (ORDER))
 
+#if defined(_M_X64)
+inline uintptr_t _Py_atomic_fetch_add_64bit_impl(volatile uintptr_t* value, uintptr_t val, int order) {
+    __int64 old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd64_HLEAcquire((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd64_HLERelease((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd64((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_add_64bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_add_64bit_impl((volatile uintptr_t*)&((ATOMIC_VAL)->_value), (uintptr_t)(VAL), (ORDER))
+#else
+#define _Py_atomic_fetch_add_64bit(ATOMIC_VAL, VAL, ORDER) ((void)0)
+#endif
+
+inline int _Py_atomic_fetch_add_32bit_impl(volatile int* value, int val, int order) {
+    long old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd_HLEAcquire((volatile long*)value, (long)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd_HLERelease((volatile long*)value, (long)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd((volatile long*)value, (long)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_add_32bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_add_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (int)(VAL), (ORDER))
+
+#if defined(_M_X64)
+inline uintptr_t _Py_atomic_fetch_sub_64bit_impl(volatile uintptr_t* value, uintptr_t val, int order) {
+    __int64 old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd64_HLEAcquire((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd64_HLERelease((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd64((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_sub_64bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_sub_64bit_impl((volatile uintptr_t*)&((ATOMIC_VAL)->_value), (uintptr_t)(VAL), (ORDER))
+#else
+#define _Py_atomic_fetch_sub_64bit(ATOMIC_VAL, VAL, ORDER) ((void)0)
+#endif
+
+inline int _Py_atomic_fetch_sub_32bit_impl(volatile int* value, int val, int order) {
+    long old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd_HLEAcquire((volatile long*)value, -(long)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd_HLERelease((volatile long*)value, -(long)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd((volatile long*)value, -(long)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_sub_32bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_sub_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (int)(VAL), (ORDER))
+
 #define _Py_atomic_store_explicit(ATOMIC_VAL, NEW_VAL, ORDER) \
   if (sizeof((ATOMIC_VAL)->_value) == 8) { \
     _Py_atomic_store_64bit((ATOMIC_VAL), NEW_VAL, ORDER) } else { \
@@ -373,6 +541,20 @@ inline int _Py_atomic_load_32bit_impl(volatile int* value, int order) {
     sizeof((ATOMIC_VAL)->_value) == 8 ? \
     _Py_atomic_load_64bit((ATOMIC_VAL), ORDER) : \
     _Py_atomic_load_32bit((ATOMIC_VAL), ORDER) \
+  )
+
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+  ( \
+    sizeof((ATOMIC_VAL)->_value) == 8 ? \
+    _Py_atomic_fetch_add_64bit((ATOMIC_VAL), (VAL), (ORDER)) : \
+    _Py_atomic_fetch_add_32bit((ATOMIC_VAL), (VAL), (ORDER)) \
+  )
+
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+  ( \
+    sizeof((ATOMIC_VAL)->_value) == 8 ? \
+    _Py_atomic_fetch_sub_64bit((ATOMIC_VAL), (VAL), (ORDER)) : \
+    _Py_atomic_fetch_sub_32bit((ATOMIC_VAL), (VAL), (ORDER)) \
   )
 #elif defined(_M_ARM) || defined(_M_ARM64)
 typedef enum _Py_memory_order {
@@ -499,6 +681,114 @@ inline int _Py_atomic_load_32bit_impl(volatile int* value, int order) {
 #define _Py_atomic_load_32bit(ATOMIC_VAL, ORDER) \
     _Py_atomic_load_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (ORDER))
 
+#if defined(_M_X64)
+inline uintptr_t _Py_atomic_fetch_add_64bit_impl(volatile uintptr_t* value, uintptr_t val, int order) {
+    __int64 old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd64_acq((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd64_rel((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd64((volatile __int64*)value, (__int64)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_add_64bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_add_64bit_impl((volatile uintptr_t*)&((ATOMIC_VAL)->_value), (uintptr_t)(VAL), (ORDER))
+#else
+#define _Py_atomic_fetch_add_64bit(ATOMIC_VAL, VAL, ORDER) ((void)0)
+#endif
+
+inline int _Py_atomic_fetch_add_32bit_impl(volatile int* value, int val, int order) {
+    long old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd_acq((volatile long*)value, (long)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd_rel((volatile long*)value, (long)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd((volatile long*)value, (long)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_add_32bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_add_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (int)(VAL), (ORDER))
+
+#if defined(_M_X64)
+inline uintptr_t _Py_atomic_fetch_sub_64bit_impl(volatile uintptr_t* value, uintptr_t val, int order) {
+    __int64 old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd64_acq((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd64_rel((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd64((volatile __int64*)value, -(__int64)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_sub_64bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_sub_64bit_impl((volatile uintptr_t*)&((ATOMIC_VAL)->_value), (uintptr_t)(VAL), (ORDER))
+#else
+#define _Py_atomic_fetch_sub_64bit(ATOMIC_VAL, VAL, ORDER) ((void)0)
+#endif
+
+inline int _Py_atomic_fetch_sub_32bit_impl(volatile int* value, int val, int order) {
+    long old;
+    switch (order) {
+    case _Py_memory_order_acquire:
+    {
+      old = _InterlockedExchangeAdd_acq((volatile long*)value, -(long)val);
+      break;
+    }
+    case _Py_memory_order_release:
+    {
+      old = _InterlockedExchangeAdd_rel((volatile long*)value, -(long)val);
+      break;
+    }
+    default:
+    {
+      old = _InterlockedExchangeAdd((volatile long*)value, -(long)val);
+      break;
+    }
+    }
+    return old;
+}
+
+#define _Py_atomic_fetch_sub_32bit(ATOMIC_VAL, VAL, ORDER) \
+    _Py_atomic_fetch_sub_32bit_impl((volatile int*)&((ATOMIC_VAL)->_value), (int)(VAL), (ORDER))
+
 #define _Py_atomic_store_explicit(ATOMIC_VAL, NEW_VAL, ORDER) \
   if (sizeof((ATOMIC_VAL)->_value) == 8) { \
     _Py_atomic_store_64bit((ATOMIC_VAL), (NEW_VAL), (ORDER)) } else { \
@@ -509,6 +799,20 @@ inline int _Py_atomic_load_32bit_impl(volatile int* value, int order) {
     sizeof((ATOMIC_VAL)->_value) == 8 ? \
     _Py_atomic_load_64bit((ATOMIC_VAL), (ORDER)) : \
     _Py_atomic_load_32bit((ATOMIC_VAL), (ORDER)) \
+  )
+
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+  ( \
+    sizeof((ATOMIC_VAL)->_value) == 8 ? \
+    _Py_atomic_fetch_add_64bit((ATOMIC_VAL), (VAL), (ORDER)) : \
+    _Py_atomic_fetch_add_32bit((ATOMIC_VAL), (VAL), (ORDER)) \
+  )
+
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+  ( \
+    sizeof((ATOMIC_VAL)->_value) == 8 ? \
+    _Py_atomic_fetch_sub_64bit((ATOMIC_VAL), (VAL), (ORDER)) : \
+    _Py_atomic_fetch_sub_32bit((ATOMIC_VAL), (VAL), (ORDER)) \
   )
 #endif
 #else  /* !gcc x86  !_msc_ver */
@@ -536,6 +840,10 @@ typedef struct _Py_atomic_int {
     ((ATOMIC_VAL)->_value = NEW_VAL)
 #define _Py_atomic_load_explicit(ATOMIC_VAL, ORDER) \
     ((ATOMIC_VAL)->_value)
+#define _Py_atomic_fetch_add_explicit(ATOMIC_VAL, VAL, ORDER) \
+    ((ATOMIC_VAL)->_value += VAL)
+#define _Py_atomic_fetch_sub_explicit(ATOMIC_VAL, VAL, ORDER) \
+    ((ATOMIC_VAL)->_value -= VAL)
 #endif
 
 /* Standardized shortcuts. */
@@ -543,6 +851,10 @@ typedef struct _Py_atomic_int {
     _Py_atomic_store_explicit((ATOMIC_VAL), (NEW_VAL), _Py_memory_order_seq_cst)
 #define _Py_atomic_load(ATOMIC_VAL) \
     _Py_atomic_load_explicit((ATOMIC_VAL), _Py_memory_order_seq_cst)
+#define _Py_atomic_fetch_add(ATOMIC_VAL, VAL) \
+    _Py_atomic_fetch_add_explicit((ATOMIC_VAL), (VAL), _Py_memory_order_seq_cst)
+#define _Py_atomic_fetch_sub(ATOMIC_VAL, VAL) \
+    _Py_atomic_fetch_sub_explicit((ATOMIC_VAL), (VAL), _Py_memory_order_seq_cst)
 
 /* Python-local extensions */
 
@@ -550,6 +862,10 @@ typedef struct _Py_atomic_int {
     _Py_atomic_store_explicit((ATOMIC_VAL), (NEW_VAL), _Py_memory_order_relaxed)
 #define _Py_atomic_load_relaxed(ATOMIC_VAL) \
     _Py_atomic_load_explicit((ATOMIC_VAL), _Py_memory_order_relaxed)
+#define _Py_atomic_fetch_add_relaxed(ATOMIC_VAL, VAL) \
+    _Py_atomic_fetch_add_explicit((ATOMIC_VAL), (VAL), _Py_memory_order_relaxed)
+#define _Py_atomic_fetch_sub_relaxed(ATOMIC_VAL, VAL) \
+    _Py_atomic_fetch_sub_explicit((ATOMIC_VAL), (VAL), _Py_memory_order_relaxed)
 
 #ifdef __cplusplus
 }

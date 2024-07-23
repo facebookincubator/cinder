@@ -1916,6 +1916,21 @@ sys_getallocatedblocks_impl(PyObject *module)
 }
 
 /*[clinic input]
+sys.getallocatedbytes -> Py_ssize_t
+
+Return the number of memory bytes currently allocated.
+[clinic start generated code]*/
+
+static Py_ssize_t
+sys_getallocatedbytes_impl(PyObject *module)
+/*[clinic end generated code: output=0a3da1951d3cde0d input=9dd91dc935be81e9]*/
+{
+    // It might make sense to return the bytes
+    // for just the current interpreter.
+    return _Py_GetGlobalAllocatedBytes();
+}
+
+/*[clinic input]
 sys.getunicodeinternedsize -> Py_ssize_t
 
 Return the number of elements of the unicode interned dictionary
@@ -2376,6 +2391,7 @@ static PyMethodDef sys_methods[] = {
     SYS_GETDEFAULTENCODING_METHODDEF
     SYS_GETDLOPENFLAGS_METHODDEF
     SYS_GETALLOCATEDBLOCKS_METHODDEF
+    SYS_GETALLOCATEDBYTES_METHODDEF
     SYS_GETUNICODEINTERNEDSIZE_METHODDEF
     SYS_GETFILESYSTEMENCODING_METHODDEF
     SYS_GETFILESYSTEMENCODEERRORS_METHODDEF

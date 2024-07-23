@@ -1,6 +1,7 @@
 /* Python's malloc wrappers (see pymem.h) */
 
 #include "Python.h"
+#include "pycore_atomic.h"        // _Py_atomic_int
 #include "pycore_code.h"          // stats
 #include "pycore_pystate.h"       // _PyInterpreterState_GET
 
@@ -26,6 +27,29 @@ static void set_up_debug_hooks_unlocked(void);
 static void get_allocator_unlocked(PyMemAllocatorDomain, PyMemAllocatorEx *);
 static void set_allocator_unlocked(PyMemAllocatorDomain, PyMemAllocatorEx *);
 
+#ifdef MS_WINDOWS
+#  include <malloc.h>
+#elif defined(__linux__)
+#  include <malloc.h>
+#elif defined(__APPLE__)
+#  include <malloc/malloc.h>
+#endif
+
+static inline size_t
+raw_malloc_size(void *p) {
+    if (p != NULL) {
+#ifdef MS_WINDOWS
+        return _msize(p);
+#elif defined(__linux__)
+        return malloc_usable_size(p);
+#elif defined(__APPLE__)
+        return malloc_size(p);
+#endif
+    }
+    return 0;
+}
+
+static _Py_atomic_int raw_allocated_bytes;
 
 /***************************************/
 /* low-level allocator implementations */
@@ -42,7 +66,11 @@ _PyMem_RawMalloc(void *Py_UNUSED(ctx), size_t size)
        To solve these problems, allocate an extra byte. */
     if (size == 0)
         size = 1;
-    return malloc(size);
+    void* ptr = malloc(size);
+    if (ptr != NULL) {
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+    }
+    return ptr;
 }
 
 void *
@@ -56,7 +84,11 @@ _PyMem_RawCalloc(void *Py_UNUSED(ctx), size_t nelem, size_t elsize)
         nelem = 1;
         elsize = 1;
     }
-    return calloc(nelem, elsize);
+    void* ptr = calloc(nelem, elsize);
+    if (ptr != NULL) {
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+    }
+    return ptr;
 }
 
 void *
@@ -64,13 +96,21 @@ _PyMem_RawRealloc(void *Py_UNUSED(ctx), void *ptr, size_t size)
 {
     if (size == 0)
         size = 1;
-    return realloc(ptr, size);
+    size_t oldsize = raw_malloc_size(ptr);
+    ptr = realloc(ptr, size);
+    if (ptr != NULL) {
+        _Py_atomic_fetch_add_relaxed(&raw_allocated_bytes, raw_malloc_size(ptr));
+        _Py_atomic_fetch_sub_relaxed(&raw_allocated_bytes, oldsize);
+    }
+    return ptr;
 }
 
 void
 _PyMem_RawFree(void *Py_UNUSED(ctx), void *ptr)
 {
+    size_t size = raw_malloc_size(ptr);
     free(ptr);
+    _Py_atomic_fetch_sub_relaxed(&raw_allocated_bytes, size);
 }
 
 #define MALLOC_ALLOC {NULL, _PyMem_RawMalloc, _PyMem_RawCalloc, _PyMem_RawRealloc, _PyMem_RawFree}
@@ -915,6 +955,39 @@ _PyInterpreterState_GetAllocatedBlocks(PyInterpreterState *interp)
     return n;
 }
 
+Py_ssize_t
+_PyInterpreterState_GetAllocatedBytes(PyInterpreterState *interp)
+{
+#ifdef Py_DEBUG
+    assert(has_own_state(interp));
+#else
+    if (!has_own_state(interp)) {
+        _Py_FatalErrorFunc(__func__,
+                           "the interpreter doesn't have its own allocator");
+    }
+#endif
+    OMState *state = &interp->obmalloc;
+
+    Py_ssize_t n = 0;
+    /* add up allocated blocks for used pools */
+    for (uint i = 0; i < maxarenas; ++i) {
+        /* Skip arenas which are not allocated. */
+        if (allarenas[i].address == 0) {
+            continue;
+        }
+
+        uintptr_t base = (uintptr_t)_Py_ALIGN_UP(allarenas[i].address, POOL_SIZE);
+
+        /* visit every pool in the arena */
+        assert(base <= (uintptr_t) allarenas[i].pool_address);
+        for (; base < (uintptr_t) allarenas[i].pool_address; base += POOL_SIZE) {
+            poolp p = (poolp)base;
+            n += (p->ref.count * INDEX2SIZE(p->szidx));
+        }
+    }
+    return n;
+}
+
 void
 _PyInterpreterState_FinalizeAllocatedBlocks(PyInterpreterState *interp)
 {
@@ -993,6 +1066,59 @@ Py_ssize_t
 _Py_GetGlobalAllocatedBlocks(void)
 {
     return get_num_global_allocated_blocks(&_PyRuntime);
+}
+
+static Py_ssize_t
+get_global_allocated_bytes(_PyRuntimeState *runtime)
+{
+    Py_ssize_t total = _Py_atomic_load_relaxed(&raw_allocated_bytes);
+    if (_PyRuntimeState_GetFinalizing(runtime) != NULL) {
+        PyInterpreterState *interp = _PyInterpreterState_Main();
+        if (interp == NULL) {
+            /* We are at the very end of runtime finalization.
+               We can't rely on finalizing->interp since that thread
+               state is probably already freed, so we don't worry
+               about it. */
+            assert(PyInterpreterState_Head() == NULL);
+        }
+        else {
+            assert(interp != NULL);
+            /* It is probably the last interpreter but not necessarily. */
+            assert(PyInterpreterState_Next(interp) == NULL);
+            total += _PyInterpreterState_GetAllocatedBytes(interp);
+        }
+    }
+    else {
+        HEAD_LOCK(runtime);
+        PyInterpreterState *interp = PyInterpreterState_Head();
+        assert(interp != NULL);
+#ifdef Py_DEBUG
+        int got_main = 0;
+#endif
+        for (; interp != NULL; interp = PyInterpreterState_Next(interp)) {
+#ifdef Py_DEBUG
+            if (_Py_IsMainInterpreter(interp)) {
+                assert(!got_main);
+                got_main = 1;
+                assert(has_own_state(interp));
+            }
+#endif
+            if (has_own_state(interp)) {
+                total += _PyInterpreterState_GetAllocatedBytes(interp);
+            }
+        }
+        HEAD_UNLOCK(runtime);
+#ifdef Py_DEBUG
+        assert(got_main);
+#endif
+    }
+    return total;
+}
+
+Py_ssize_t
+_Py_GetGlobalAllocatedBytes(void)
+{
+    return get_global_allocated_bytes(&_PyRuntime);
 }
 
 #if WITH_PYMALLOC_RADIX_TREE
@@ -1957,9 +2083,21 @@ _PyInterpreterState_GetAllocatedBlocks(PyInterpreterState *Py_UNUSED(interp))
 }
 
 Py_ssize_t
+_PyInterpreterState_GetAllocatedBytes(PyInterpreterState *interp)
+{
+    return 0;
+}
+
+Py_ssize_t
 _Py_GetGlobalAllocatedBlocks(void)
 {
     return 0;
+}
+
+Py_ssize_t
+_Py_GetGlobalAllocatedBytes(void)
+{
+    return _Py_atomic_load_relaxed(&raw_allocated_bytes);
 }
 
 void
