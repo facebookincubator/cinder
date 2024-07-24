@@ -1349,8 +1349,6 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
     }
 
     if (ix == DKIX_EMPTY) {
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_ADDED, mp, key, value);
         /* Insert into new slot. */
         assert(old_value == NULL);
         if (mp->ma_keys->dk_usable <= 0) {
@@ -1358,6 +1356,8 @@ insertdict(PyDictObject *mp, PyObject *key, Py_hash_t hash, PyObject *value)
             if (insertion_resize(mp) < 0)
                 goto Fail;
         }
+        uint64_t new_version = _PyDict_NotifyEvent(
+            PyDict_EVENT_ADDED, mp, key, value);
         if (!PyUnicode_CheckExact(key)) {
             if (mp->ma_keys->dk_lookup == lookdict_with_lazy_imports_unicode) {
                 mp->ma_keys->dk_lookup = lookdict_with_lazy_imports;
@@ -1428,13 +1428,13 @@ insert_to_emptydict(PyDictObject *mp, PyObject *key, Py_hash_t hash,
 {
     assert(mp->ma_keys == Py_EMPTY_KEYS);
 
-    uint64_t new_version = _PyDict_NotifyEvent(
-        PyDict_EVENT_ADDED, mp, key, value);
-
     PyDictKeysObject *newkeys = new_keys_object(PyDict_MINSIZE);
     if (newkeys == NULL) {
         return -1;
     }
+    uint64_t new_version = _PyDict_NotifyEvent(
+        PyDict_EVENT_ADDED, mp, key, value);
+
     dictkeys_decref(Py_EMPTY_KEYS);
     mp->ma_keys = newkeys;
     mp->ma_values = NULL;
@@ -3517,14 +3517,14 @@ PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *defaultobj)
 
     if (ix == DKIX_EMPTY) {
         PyDictKeyEntry *ep, *ep0;
-        uint64_t new_version = _PyDict_NotifyEvent(
-            PyDict_EVENT_ADDED, mp, key, defaultobj);
         value = defaultobj;
         if (mp->ma_keys->dk_usable <= 0) {
             if (insertion_resize(mp) < 0) {
                 return NULL;
             }
         }
+        uint64_t new_version = _PyDict_NotifyEvent(
+            PyDict_EVENT_ADDED, mp, key, defaultobj);
         if (!PyUnicode_CheckExact(key) && mp->ma_keys->dk_lookup != lookdict) {
             mp->ma_keys->dk_lookup = lookdict;
         }
