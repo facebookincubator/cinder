@@ -4553,6 +4553,10 @@ type_dealloc(PyTypeObject *type)
     Py_XDECREF(type->tp_mro);
     Py_XDECREF(type->tp_cache);
     Py_XDECREF(type->tp_subclasses);
+    /* A type's tp_doc is heap allocated, unlike the tp_doc slots
+        * of most other objects.  It's okay to cast it to char *.
+        */
+    PyObject_Free((char *)type->tp_doc);
     Py_XDECREF(et->ht_name);
     Py_XDECREF(et->ht_qualname);
     Py_XDECREF(et->ht_slots);
@@ -4560,13 +4564,6 @@ type_dealloc(PyTypeObject *type)
         _PyDictKeys_DecRef(et->ht_cached_keys);
     }
     Py_XDECREF(et->ht_module);
-
-    if (!(Ci_hook_type_dealloc && Ci_hook_type_dealloc(type))) {
-        /* A type's tp_doc is heap allocated, unlike the tp_doc slots
-         * of most other objects.  It's okay to cast it to char *.
-         */
-        PyObject_Free((char *)type->tp_doc);
-    }
 
     Py_TYPE(type)->tp_free((PyObject *)type);
 }
@@ -4761,10 +4758,6 @@ type_traverse(PyTypeObject *type, visitproc visit, void *arg)
        ((PyHeapTypeObject *)type)->ht_slots, because they can't be involved
        in cycles; tp_subclasses is a list of weak references,
        and slots is a tuple of strings. */
-
-    if (Ci_hook_type_traverse) {
-        Ci_hook_type_traverse(type, visit, arg);
-    }
     return 0;
 }
 
@@ -4817,10 +4810,6 @@ type_clear(PyTypeObject *type)
     Py_CLEAR(((PyHeapTypeObject *)type)->ht_module);
 
     Py_CLEAR(type->tp_mro);
-
-    if (Ci_hook_type_clear) {
-        Ci_hook_type_clear(type);
-    }
 
     return 0;
 }
