@@ -98,7 +98,7 @@ _PyGen_Finalize(PyObject *self)
          * target awaitable. */
         PyObject *yf = _PyGen_yf(gen);
         if (yf) {
-            _PyAwaitable_SetAwaiter(yf, NULL);
+            Ci_PyAwaitable_SetAwaiter(yf, NULL);
             Py_DECREF(yf);
         }
     }

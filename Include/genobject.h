@@ -91,7 +91,7 @@ CiAPI_FUNC(PyObject *) _PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
     PyObject *name, PyObject *qualname);
 
-static inline void _PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter) {
+static inline void Ci_PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter) {
     PyTypeObject *ty = Py_TYPE(receiver);
     if (!PyType_HasFeature(ty, Py_TPFLAGS_HAVE_AM_EXTRA)) {
         return;

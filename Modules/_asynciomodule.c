@@ -424,9 +424,9 @@ typedef struct {
 
     // This may be set if someone tries to set the awaiter before we've started
     // running the computation. This happens during non-eager execution because
-    // we call _PyAwaitable_SetAwaiter in both the JIT/interpreter before
+    // we call Ci_PyAwaitable_SetAwaiter in both the JIT/interpreter before
     // starting the compute object. We'll check for this when we start the computation
-    // and call _PyAwaitable_SetAwaiter with the stored value on the awaitable
+    // and call Ci_PyAwaitable_SetAwaiter with the stored value on the awaitable
     // that is created.
     //
     // Stores a borrowed reference.
@@ -3417,7 +3417,7 @@ FutureIter_am_send(futureiterobject *it,
 static void
 FutureIter_setawaiter(futureiterobject *it, PyObject *awaiter) {
     if (it->future != NULL) {
-        _PyAwaitable_SetAwaiter((PyObject *)it->future, awaiter);
+        Ci_PyAwaitable_SetAwaiter((PyObject *)it->future, awaiter);
     }
 }
 
@@ -4413,7 +4413,7 @@ done:
 static void TaskObj_dealloc(PyObject *);  /* Needs Task_CheckExact */
 
 static void TaskObj_set_awaiter(TaskObj *self, PyObject *awaiter) {
-    _PyAwaitable_SetAwaiter(self->task_coro, awaiter);
+    Ci_PyAwaitable_SetAwaiter(self->task_coro, awaiter);
 }
 
 // clang-format off
@@ -6102,7 +6102,7 @@ forward_and_clear_pending_awaiter(AsyncLazyValueComputeObj *self)
     if (self->alvc_pending_awaiter == NULL) {
         return;
     }
-    _PyAwaitable_SetAwaiter(self->alvc_coroobj, self->alvc_pending_awaiter);
+    Ci_PyAwaitable_SetAwaiter(self->alvc_coroobj, self->alvc_pending_awaiter);
     self->alvc_pending_awaiter = NULL;
 }
 
@@ -6224,7 +6224,7 @@ AsyncLazyValueCompute_handle_error(AsyncLazyValueComputeObj *self,
 static void
 AsyncLazyValueCompute_set_awaiter(AsyncLazyValueComputeObj *self, PyObject *awaiter) {
     if (self->alvc_coroobj != NULL) {
-        _PyAwaitable_SetAwaiter(self->alvc_coroobj, awaiter);
+        Ci_PyAwaitable_SetAwaiter(self->alvc_coroobj, awaiter);
     } else {
         self->alvc_pending_awaiter = awaiter;
     }
@@ -7027,7 +7027,7 @@ _GatheringFutureObj_set_awaiter(_GatheringFutureObj *self, PyObject *awaiter) {
 
     FOREACH_INDEX(self->gf_datamap, i) {
         PyObject* fut = PyList_GET_ITEM(list, i);
-        _PyAwaitable_SetAwaiter(fut, awaiter);
+        Ci_PyAwaitable_SetAwaiter(fut, awaiter);
     }
     FOREACH_INDEX_END()
 }
@@ -7613,7 +7613,7 @@ _gather_multiple(PyObject *const*items,
     for (Py_ssize_t i = 0; i < nitems; ++i) {
         PyObject *arg = items[i];
         if (awaiter) {
-            _PyAwaitable_SetAwaiter(arg, awaiter);
+            Ci_PyAwaitable_SetAwaiter(arg, awaiter);
         }
 
         Py_hash_t arg_hash = -1;
@@ -8645,7 +8645,7 @@ _asyncio__AwaitingFuture_cancel_impl(_AwaitingFutureObj *self, PyObject *msg)
 
     // Awaited may continue running while whatever awaited us may finish.
     // Clear awaiter in case awaited outlives us.
-    _PyAwaitable_SetAwaiter(self->af_awaited, NULL);
+    Ci_PyAwaitable_SetAwaiter(self->af_awaited, NULL);
 
     PyObject *res = FutureLike_remove_done_callback(self->af_awaited, self->af_done_callback);
     if (res == NULL) {
@@ -8753,7 +8753,7 @@ _AwaitingFutureObj_dealloc(PyObject *self)
 
 static void
 _AwaitingFutureObj_set_awaiter(_AwaitingFutureObj *self, PyObject *awaiter) {
-    _PyAwaitable_SetAwaiter(self->af_awaited, awaiter);
+    Ci_PyAwaitable_SetAwaiter(self->af_awaited, awaiter);
 }
 
 static PyAsyncMethodsWithExtra _AwaitingFutureType_as_async = {

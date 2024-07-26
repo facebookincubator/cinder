@@ -323,7 +323,7 @@ PyEval_ThreadsInitialized(void)
         if (((Ci_PyWaitHandleObject*)r)->wh_waiter) {                          \
             f->f_state = FRAME_SUSPENDED;                                   \
             if (f->f_gen != NULL && (co->co_flags & CO_COROUTINE)) {        \
-                _PyAwaitable_SetAwaiter(coro_or_result, f->f_gen);          \
+                Ci_PyAwaitable_SetAwaiter(coro_or_result, f->f_gen);          \
             }                                                               \
             f->f_stackdepth = (int)(stack_pointer - f->f_valuestack);         \
             retval = ((Ci_PyWaitHandleObject*)r)->wh_waiter;                   \
@@ -1241,7 +1241,7 @@ _PyEval_EvalEagerCoro(PyThreadState *tstate, struct _frame *f, PyObject *name, P
         PyObject *yf = _PyGen_yf((PyGenObject *)coro);
         f->f_state = FRAME_SUSPENDED;
         if (yf) {
-            _PyAwaitable_SetAwaiter(yf, (PyObject *)coro);
+            Ci_PyAwaitable_SetAwaiter(yf, (PyObject *)coro);
             Py_DECREF(yf);
         }
         return Ci_PyWaitHandle_New((PyObject *)coro, retval);
@@ -2635,7 +2635,7 @@ main_loop:
             PyObject *receiver = TOP();
             PySendResult gen_status;
             if (f->f_gen && (co->co_flags & CO_COROUTINE)) {
-                _PyAwaitable_SetAwaiter(receiver, f->f_gen);
+                Ci_PyAwaitable_SetAwaiter(receiver, f->f_gen);
             }
             if (tstate->c_tracefunc == NULL) {
                 gen_status = PyIter_Send(receiver, v, &retval);
