@@ -132,6 +132,18 @@ typedef struct {
     sendfunc am_send;
 } PyAsyncMethods;
 
+typedef void (*setawaiterfunc)(PyObject *receiver, PyObject *awaiter);
+
+typedef struct {
+    PyAsyncMethods ame_async_methods;
+    setawaiterfunc ame_setawaiter;
+} Ci_AsyncMethodsWithExtra;
+
+#define Ci_HeapType_AM_EXTRA(etype) \
+    ((Ci_AsyncMethodsWithExtra *)(((char *)etype) +  \
+      Py_TYPE(etype)->tp_basicsize + \
+      Py_SIZE(etype) * sizeof(PyMemberDef)))
+
 typedef struct {
      getbufferproc bf_getbuffer;
      releasebufferproc bf_releasebuffer;

@@ -3318,21 +3318,45 @@ type_new_alloc(type_new_ctx *ctx)
     PyTypeObject *metatype = ctx->metatype;
     PyTypeObject *type;
 
+    /* If the base class has Ci_AsyncMethodsWithExtra, we allocate space at the
+     * end of this type so it can also have it. The extra slots in
+     * Ci_AsyncMethodsWithExtra aren't added to slotdefs and don't have managed
+     * counterparts, so this has no implications on slotptr() or the relative
+     * order of the various *Methods members of PyHeapTypeObject. */
+    int have_am_extra = PyType_HasFeature(ctx->base, Ci_TPFLAGS_HAVE_AM_EXTRA);
+
+    /* Allocate the type object */
+    Py_ssize_t extra_bytes =
+        (have_am_extra ? sizeof(Ci_AsyncMethodsWithExtra) : 0);
+    Py_ssize_t extra_slots =
+        (extra_bytes + sizeof(PyMemberDef) - 1) / sizeof(PyMemberDef);
+
     // Allocate the type object
-    type = (PyTypeObject *)metatype->tp_alloc(metatype, ctx->nslot);
+    type = (PyTypeObject *)metatype->tp_alloc(metatype, ctx->nslot + extra_slots);
     if (type == NULL) {
         return NULL;
     }
+    Py_SET_SIZE(type, Py_SIZE(type) - extra_slots);
+
     PyHeapTypeObject *et = (PyHeapTypeObject *)type;
 
     // Initialize tp_flags.
     // All heap types need GC, since we can create a reference cycle by storing
     // an instance on one of its parents.
     type->tp_flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HEAPTYPE |
-                      Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC);
+                      Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC |
+                      (ctx->base->tp_flags & Ci_TPFLAGS_HAVE_AM_EXTRA));
 
     // Initialize essential fields
-    type->tp_as_async = &et->as_async;
+    if (have_am_extra) {
+        type->tp_as_async = (PyAsyncMethods *)Ci_HeapType_AM_EXTRA(type);
+        /* Only ame_setawaiter is inherited and it has no managed counterpart,
+         * so it's special-cased here. */
+        ((Ci_AsyncMethodsWithExtra *)type->tp_as_async)->ame_setawaiter =
+            ((Ci_AsyncMethodsWithExtra *)ctx->base->tp_as_async)->ame_setawaiter;
+    } else {
+        type->tp_as_async = &et->as_async;
+    }
     type->tp_as_number = &et->as_number;
     type->tp_as_sequence = &et->as_sequence;
     type->tp_as_mapping = &et->as_mapping;
