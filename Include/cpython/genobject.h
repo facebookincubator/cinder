@@ -7,6 +7,17 @@
 extern "C" {
 #endif
 
+static inline void Ci_PyAwaitable_SetAwaiter(PyObject *receiver, PyObject *awaiter) {
+    PyTypeObject *ty = Py_TYPE(receiver);
+    if (!PyType_HasFeature(ty, Ci_TPFLAGS_HAVE_AM_EXTRA)) {
+        return;
+    }
+    Ci_AsyncMethodsWithExtra *ame = (Ci_AsyncMethodsWithExtra *)ty->tp_as_async;
+    if ((ame != NULL) && (ame->ame_setawaiter != NULL)) {
+        ame->ame_setawaiter(receiver, awaiter);
+    }
+}
+
 /* --- Generators --------------------------------------------------------- */
 
 /* _PyGenObject_HEAD defines the initial segment of generator

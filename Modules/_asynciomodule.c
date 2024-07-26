@@ -24,9 +24,12 @@ typedef struct futureiterobject futureiterobject;
 /* State of the _asyncio module */
 typedef struct {
     PyTypeObject *FutureIterType;
+    Ci_AsyncMethodsWithExtra FutureIterType_ame;
     PyTypeObject *TaskStepMethWrapper_Type;
     PyTypeObject *FutureType;
+    Ci_AsyncMethodsWithExtra FutureType_ame;
     PyTypeObject *TaskType;
+    Ci_AsyncMethodsWithExtra TaskType_ame;
 
     PyObject *asyncio_mod;
     PyObject *context_kwname;
@@ -1408,6 +1411,28 @@ FutureObj_repr(FutureObj *fut)
     return PyObject_CallOneArg(state->asyncio_future_repr_func, (PyObject *)fut);
 }
 
+static void
+Ci_FutureObj_set_awaiter(PyObject *self, PyObject *awaiter)
+{
+    PyObject *set_awaiter_func = PyObject_GetAttrString(self, "__set_awaiter__");
+    if (set_awaiter_func == NULL) {
+        PyErr_Clear();
+        return;
+    }
+    PyObject *args[] = {awaiter};
+    PyObject *res = PyObject_Vectorcall(set_awaiter_func, args, 1, NULL);
+    if (res == NULL) {
+        PyErr_WarnFormat(
+            PyExc_RuntimeWarning,
+            1,
+            "__set_awaiter__ on %R failed for awaiter %R",
+            self,
+            awaiter);
+        return;
+    }
+    Py_DECREF(res);
+}
+
 /*[clinic input]
 _asyncio.Future._make_cancelled_error
 
@@ -1551,7 +1576,7 @@ static PyType_Spec Future_spec = {
     .name = "_asyncio.Future",
     .basicsize = sizeof(FutureObj),
     .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
-              Py_TPFLAGS_IMMUTABLETYPE),
+              Py_TPFLAGS_IMMUTABLETYPE | Ci_TPFLAGS_HAVE_AM_EXTRA),
     .slots = Future_slots,
 };
 
@@ -1655,6 +1680,22 @@ FutureIter_am_send(futureiterobject *it,
 
     Py_DECREF(fut);
     return PYGEN_ERROR;
+}
+
+static void
+Ci_FutureIter_set_awaiter(PyObject *it, PyObject *awaiter)
+{
+    FutureObj* future = ((futureiterobject *)it)->future;
+    if (future != NULL) {
+        Ci_PyAwaitable_SetAwaiter((PyObject *)future, awaiter);
+    }
+}
+
+static PyObject*
+Ci_PyCWrapper_FutureIter_set_awaiter(PyObject *self, PyObject *awaiter)
+{
+    Ci_FutureIter_set_awaiter(self, awaiter);
+    Py_RETURN_NONE;
 }
 
 static PyObject *
@@ -1784,6 +1825,7 @@ static PyMethodDef FutureIter_methods[] = {
     {"send",  (PyCFunction)FutureIter_send, METH_O, NULL},
     {"throw", _PyCFunction_CAST(FutureIter_throw), METH_FASTCALL, NULL},
     {"close", (PyCFunction)FutureIter_close, METH_NOARGS, NULL},
+    {"__set_awaiter__", Ci_PyCWrapper_FutureIter_set_awaiter, METH_O, NULL},
     {NULL, NULL}        /* Sentinel */
 };
 
@@ -1805,7 +1847,7 @@ static PyType_Spec FutureIter_spec = {
     .name = "_asyncio.FutureIter",
     .basicsize = sizeof(futureiterobject),
     .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-              Py_TPFLAGS_IMMUTABLETYPE),
+              Py_TPFLAGS_IMMUTABLETYPE | Ci_TPFLAGS_HAVE_AM_EXTRA),
     .slots = FutureIter_slots,
 };
 
@@ -2665,6 +2707,23 @@ done:
 
 static void TaskObj_dealloc(PyObject *);  /* Needs Task_CheckExact */
 
+static void
+Ci_TaskObj_set_awaiter(PyObject *self, PyObject *awaiter)
+{
+    TaskObj *task = (TaskObj*)self;
+    if (task->task_coro == NULL) {
+        return;
+    }
+    Ci_PyAwaitable_SetAwaiter(task->task_coro, awaiter);
+}
+
+static PyObject*
+Ci_PyCWrapper_TaskObj_set_awaiter(PyObject *self, PyObject *awaiter)
+{
+    Ci_TaskObj_set_awaiter(self, awaiter);
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef TaskType_methods[] = {
     _ASYNCIO_FUTURE_RESULT_METHODDEF
     _ASYNCIO_FUTURE_EXCEPTION_METHODDEF
@@ -2688,6 +2747,7 @@ static PyMethodDef TaskType_methods[] = {
     _ASYNCIO_TASK__STEP_METHODDEF
     // END META PATCH
     {"__class_getitem__", Py_GenericAlias, METH_O|METH_CLASS, PyDoc_STR("See PEP 585")},
+    {"__set_awaiter__", Ci_PyCWrapper_TaskObj_set_awaiter, METH_O, NULL},
     {NULL, NULL}        /* Sentinel */
 };
 
@@ -2730,7 +2790,7 @@ static PyType_Spec Task_spec = {
     .name = "_asyncio.Task",
     .basicsize = sizeof(TaskObj),
     .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE |
-              Py_TPFLAGS_IMMUTABLETYPE),
+              Py_TPFLAGS_IMMUTABLETYPE | Ci_TPFLAGS_HAVE_AM_EXTRA),
     .slots = Task_slots,
 };
 
@@ -3813,11 +3873,23 @@ module_exec(PyObject *mod)
         }                                                               \
     } while (0)
 
+#define ADD_SET_AWAITER(type_name, func) \
+    do { \
+        memcpy(&state->type_name ## _ame.ame_async_methods, state->type_name->tp_as_async, sizeof(PyAsyncMethods)); \
+        state->type_name->tp_as_async = &state->type_name ## _ame; \
+        state->type_name ## _ame.ame_setawaiter = func; \
+        Ci_HeapType_AM_EXTRA(state->FutureIterType)->ame_setawaiter = func; \
+    } while (0)
+
     CREATE_TYPE(mod, state->TaskStepMethWrapper_Type, &TaskStepMethWrapper_spec, NULL);
     CREATE_TYPE(mod, state->FutureIterType, &FutureIter_spec, NULL);
+    ADD_SET_AWAITER(FutureIterType, Ci_FutureIter_set_awaiter);
     CREATE_TYPE(mod, state->FutureType, &Future_spec, NULL);
+    ADD_SET_AWAITER(FutureType, Ci_FutureObj_set_awaiter);
     CREATE_TYPE(mod, state->TaskType, &Task_spec, state->FutureType);
+    ADD_SET_AWAITER(TaskType, Ci_TaskObj_set_awaiter);
 
+#undef ADD_SET_AWAITER
 #undef CREATE_TYPE
 
     if (PyModule_AddType(mod, state->FutureType) < 0) {
