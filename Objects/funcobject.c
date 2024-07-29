@@ -1280,15 +1280,3 @@ PyStaticMethod_New(PyObject *callable)
     }
     return (PyObject *)sm;
 }
-
-PyObject *
-Ci_PyClassMethod_GetFunc(PyObject *method) {
-    classmethod *class_method = (classmethod *) method;
-    return class_method->cm_callable;
-}
-
-PyObject *
-Ci_PyStaticMethod_GetFunc(PyObject *sm) {
-    staticmethod *method = (staticmethod *)sm;
-    return method->sm_callable;
-}
