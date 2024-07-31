@@ -600,6 +600,18 @@ def execusercustomize():
                 (err.__class__.__name__, err))
 
 
+def init_cinder():
+    import importlib.util
+    if importlib.util.find_spec("cinderx") is None:
+        return
+    try:
+        import cinderx
+
+        cinderx.init()
+    except Exception as e:
+        raise RuntimeError("Failed to initialize CinderX module") from e
+
+
 def main():
     """Add standard site-specific directories to the module search path.
 
@@ -625,6 +637,7 @@ def main():
     sethelper()
     if not sys.flags.isolated:
         enablerlcompleter()
+    init_cinder()
     execsitecustomize()
     if ENABLE_USER_SITE:
         execusercustomize()
