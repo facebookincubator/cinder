@@ -22,7 +22,6 @@ Ci_HookType_ShadowFrame_GetModuleName_JIT Ci_hook_ShadowFrame_GetModuleName_JIT 
 Ci_HookType_ShadowFrame_WalkAndPopulate Ci_hook_ShadowFrame_WalkAndPopulate = NULL;
 
 /* Static Python. */
-Ci_TypeRaisingCallback Ci_hook_type_pre_setattr = NULL;
 Ci_TypeAttrRaisingCallback Ci_hook_type_setattr = NULL;
 Ci_HookType_PyCMethod_New Ci_hook_PyCMethod_New = NULL;
 Ci_HookType_PyDescr_NewMethod Ci_hook_PyDescr_NewMethod = NULL;

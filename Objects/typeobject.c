@@ -4398,9 +4398,6 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         existing = PyDict_GetItem(type->tp_dict, name);
         Py_XINCREF(existing);
     }
-    if (Ci_hook_type_pre_setattr) {
-        Ci_hook_type_pre_setattr(type);
-    }
     res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL);
     if (res == 0) {
         /* Clear the VALID_VERSION flag of 'type' and all its

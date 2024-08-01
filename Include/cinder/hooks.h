@@ -48,9 +48,6 @@ CiAPI_DATA(Ci_HookType_ShadowFrame_WalkAndPopulate)
     Ci_hook_ShadowFrame_WalkAndPopulate;
 
 /* Hooks for Static Python. */
-typedef int(*Ci_TypeRaisingCallback)(PyTypeObject *type);
-CiAPI_DATA(Ci_TypeRaisingCallback) Ci_hook_type_pre_setattr;
-
 typedef int(*Ci_TypeAttrRaisingCallback)(PyTypeObject *type, PyObject *name, PyObject *value);
 CiAPI_DATA(Ci_TypeAttrRaisingCallback) Ci_hook_type_setattr;
 
