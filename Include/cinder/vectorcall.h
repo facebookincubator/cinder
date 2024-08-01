@@ -13,14 +13,3 @@
 /* Same as PyVectorcall_Call but allows passing extra flags to function being called */
 CiAPI_FUNC(PyObject *) Ci_PyVectorcall_Call_WithFlags(
     PyObject *callable, PyObject *tuple, PyObject *kwargs, size_t flags);
-
-
-CiAPI_FUNC(PyObject *)
-Ci_StaticFunction_Vectorcall(PyObject *func, PyObject* const* stack,
-                       size_t nargsf, PyObject *kwnames);
-
-CiAPI_FUNC(PyObject *)
-Ci_PyFunction_CallStatic(PyFunctionObject *func,
-                                 PyObject* const* args,
-                                 Py_ssize_t nargsf,
-                                 PyObject *kwnames);
