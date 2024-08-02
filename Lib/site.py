@@ -602,7 +602,14 @@ def execusercustomize():
 
 def init_cinder():
     import importlib.util
-    if importlib.util.find_spec("cinderx") is None:
+
+    # `cinderx` is the Python module in fbcode/cinderx/PythonLib which wraps the
+    # `_cinderx` C++ extension in fbcode/cinderx/_cinderx.cpp.  Both need to be
+    # available to load CinderX.
+    if (
+        importlib.util.find_spec("cinderx") is None
+        or importlib.util.find_spec("_cinderx") is None
+    ):
         return
     try:
         import cinderx
