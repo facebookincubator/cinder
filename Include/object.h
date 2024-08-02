@@ -527,14 +527,14 @@ given type object has a specified feature.
 /* Objects behave like an unbound method */
 #define Py_TPFLAGS_METHOD_DESCRIPTOR (1UL << 17)
 
-/* Set if type's tp_as_async slot points to Ci_AsyncMethodsWithExtra */
-#define Ci_TPFLAGS_HAVE_AM_EXTRA (1UL << 18)
-
 /* Object has up-to-date type attribute cache */
 #define Py_TPFLAGS_VALID_VERSION_TAG  (1UL << 19)
 
 /* Type is abstract and cannot be instantiated */
 #define Py_TPFLAGS_IS_ABSTRACT (1UL << 20)
+
+/* Set if type's tp_as_async slot points to Ci_AsyncMethodsWithExtra */
+#define Ci_TPFLAGS_HAVE_AM_EXTRA (1UL << 21)
 
 // This undocumented flag gives certain built-ins their unique pattern-matching
 // behavior, which allows a single positional subpattern to match against the
