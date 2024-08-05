@@ -64,7 +64,7 @@ PyObject *_PyDict_FromKeys(PyObject *, PyObject *, PyObject *);
 CiAPI_FUNC(Py_ssize_t) _PyDictKeys_GetSplitIndex(PyDictKeysObject *keys, PyObject *key);
 /* facebook end t39538061 */
 
-CiAPI_FUNC(void) _PyDictKeys_DecRef(PyDictKeysObject *keys);
+void _PyDictKeys_DecRef(PyDictKeysObject *keys);
 CiAPI_FUNC(PyDictKeysObject *) _PyDict_MakeKeysShared(PyObject *dict);
 
 CiAPI_FUNC(PyDictKeyEntry *) _PyDictKeys_GetEntries(PyDictKeysObject *keys);
