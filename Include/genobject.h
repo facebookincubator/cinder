@@ -87,7 +87,7 @@ PyAPI_DATA(PyTypeObject) _PyCoroWrapper_Type;
 PyAPI_DATA(int) CiGen_FreeListEnabled;
 
 #define PyCoro_CheckExact(op) Py_IS_TYPE(op, &PyCoro_Type)
-CiAPI_FUNC(PyObject *) _PyCoro_GetAwaitableIter(PyObject *o);
+PyObject * _PyCoro_GetAwaitableIter(PyObject *o);
 PyAPI_FUNC(PyObject *) PyCoro_New(PyFrameObject *,
     PyObject *name, PyObject *qualname);
 
