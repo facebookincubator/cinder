@@ -962,12 +962,6 @@ restore:
     return 0;
 }
 
-int
-Ci_set_attribute_error_context(PyObject *v, PyObject *name)
-{
-    return set_attribute_error_context(v, name);
-}
-
 PyObject *
 PyObject_GetAttr(PyObject *v, PyObject *name)
 {

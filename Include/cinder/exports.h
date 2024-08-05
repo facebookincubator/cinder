@@ -39,8 +39,6 @@ CiAPI_FUNC(void) Ci_ThreadState_SetProfileInterp(PyThreadState *, int);
    instructions. */
 CiAPI_FUNC(void) Ci_RuntimeState_SetProfileInterpPeriod(long);
 
-CiAPI_FUNC(int) Ci_set_attribute_error_context(PyObject *v, PyObject *name);
-
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleLoader_Type;
 CiAPI_DATA(PyTypeObject) Ci_StrictModuleAnalysisResult_Type;
 
