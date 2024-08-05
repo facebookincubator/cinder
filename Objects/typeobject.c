@@ -4393,11 +4393,6 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         /* Will fail in _PyObject_GenericSetAttrWithDict. */
         Py_INCREF(name);
     }
-    PyObject *existing = NULL;
-    if (type->tp_dict) {
-        existing = PyDict_GetItem(type->tp_dict, name);
-        Py_XINCREF(existing);
-    }
     res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, value, NULL);
     if (res == 0) {
         /* Clear the VALID_VERSION flag of 'type' and all its
@@ -4412,20 +4407,7 @@ type_setattro(PyTypeObject *type, PyObject *name, PyObject *value)
         }
         _PyType_ClearNoShadowingInstances(type, value);
        assert(_PyType_CheckConsistency(type));
-       if (Ci_hook_type_setattr && existing != value) {
-            int slotupdate_res = Ci_hook_type_setattr(type, name, value);
-            if (slotupdate_res == -1) {
-                // We failed to update the slot, so restore the existing value
-                int revert_res = _PyObject_GenericSetAttrWithDict((PyObject *)type, name, existing, NULL);
-                if (revert_res == 0) {
-                    PyType_Modified(type);
-                }
-                slotupdate_res = slotupdate_res || revert_res;
-            }
-            res = res || slotupdate_res;
-        }
     }
-    Py_XDECREF(existing);
     Py_DECREF(name);
     return res;
 }
