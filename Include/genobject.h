@@ -137,7 +137,7 @@ PyAPI_FUNC(PyObject *) PyAsyncGen_New(PyFrameObject *,
 
 #define PyAsyncGen_CheckExact(op) Py_IS_TYPE(op, &PyAsyncGen_Type)
 
-CiAPI_FUNC(PyObject *) _PyAsyncGenValueWrapperNew(PyObject *);
+PyObject * _PyAsyncGenValueWrapperNew(PyObject *);
 
 PyAPI_FUNC(int) CiGen_ClearFreeList(void);
 
