@@ -202,6 +202,10 @@ struct PyCodeObject _PyCode_DEF(1);
 #define CO_FUTURE_GENERATOR_STOP  0x800000
 #define CO_FUTURE_ANNOTATIONS    0x1000000
 
+// See also extra-py-flags.h in CinderX. This still needs to be defined here as
+// we will (T198117958) use this flag in the Python compiler.
+#define CI_CO_SUPPRESS_JIT       0x40000000
+
 /* This should be defined if a future statement modifies the syntax.
    For example, when a keyword is added.
 */
