@@ -7130,7 +7130,7 @@ compute_code_flags(struct compiler *c)
         if (ste->ste_varkeywords)
             flags |= CO_VARKEYWORDS;
         if (c->u->u_suppress_jit) {
-            flags |= CO_SUPPRESS_JIT;
+            flags |= CI_CO_SUPPRESS_JIT;
         }
     }
 

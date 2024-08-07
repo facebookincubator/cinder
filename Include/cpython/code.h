@@ -94,10 +94,9 @@ struct PyCodeObject {
 #define CO_FUTURE_GENERATOR_STOP  0x800000
 #define CO_FUTURE_ANNOTATIONS    0x1000000
 
-/* Cinder */
-#define CO_STATICALLY_COMPILED   0x4000000
-#define CO_SUPPRESS_JIT          0x40000000
-/* end Cinder */
+// See also extra-py-flags.h in CinderX. This still needs to be defined here as
+// we use this flag in the Python compiler.
+#define CI_CO_SUPPRESS_JIT       0x40000000
 
 /* This value is found in the co_cell2arg array when the associated cell
    variable does not correspond to an argument. */
