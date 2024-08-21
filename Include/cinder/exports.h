@@ -173,8 +173,6 @@ CiAPI_FUNC(PyObject *)
                                 PyTypeObject *type, PyObject *self,
                                 PyObject *name, int call_no_args,
                                 int *meth_found);
-CiAPI_FUNC(int)
-    Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause);
 CiAPI_FUNC(void) Cix_format_exc_check_arg(PyThreadState *, PyObject *,
                                           const char *, PyObject *);
 CiAPI_FUNC(PyObject *)

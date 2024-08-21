@@ -6484,11 +6484,6 @@ Cix_SuperLookupMethodOrAttr(PyThreadState *tstate,
 }
 
 int
-Cix_do_raise(PyThreadState *tstate, PyObject *exc, PyObject *cause) {
-    return do_raise(tstate, exc, cause);
-}
-
-int
 Cix_eval_frame_handle_pending(PyThreadState *tstate) {
     return eval_frame_handle_pending(tstate);
 }
