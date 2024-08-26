@@ -11,5 +11,7 @@
     builtin_next;
     _pydict_global_version;
     strictmodule_is_unassigned;
+    /* CinderX's test runner uses this to redirect ASAN output */
+    __sanitizer_set_report_fd;
   };
 };
