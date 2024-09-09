@@ -75,7 +75,6 @@ static const char* _Py_stdlib_module_names[] = {
 "_sre",
 "_ssl",
 "_stat",
-"_static",
 "_statistics",
 "_strictmodule",
 "_string",
