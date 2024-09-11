@@ -6,11 +6,11 @@ import unittest
 from _asyncio import AsyncLazyValue
 from functools import wraps
 from time import time
-from test import cinder_support
+import cinderx.test_support as cinder_support
 
 
 if cinder_support.hasCinderX():
-    from test.cinder_support import get_await_stack
+    from cinderx.test_support import get_await_stack
 
 
 def async_test(f):

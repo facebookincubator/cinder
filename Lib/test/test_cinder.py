@@ -35,8 +35,10 @@ from unittest.mock import patch
 
 import _testcindercapi
 
-from test import cinder_support, libregrtest
-from test.cinder_support import CINDERJIT_ENABLED, get_await_stack, verify_stack
+import cinderx.test_support as cinder_support
+from cinderx.test_support import CINDERJIT_ENABLED, get_await_stack, verify_stack
+
+from test import libregrtest
 from test.support.script_helper import assert_python_ok, make_script
 
 from test.test_asyncio.test_futures import CFutureTests
@@ -2132,7 +2134,7 @@ asyncio.run(g0())
         code = """
 from cinder import _get_entire_call_stack_as_qualnames_with_lineno_and_frame
 from cinderjit import jit_suppress
-from test import cinder_support
+import cinderx.test_support as cinder_support
 
 import asyncio
 
@@ -2169,7 +2171,7 @@ asyncio.run(g0())
         code = """
 from cinder import _get_entire_call_stack_as_qualnames_with_lineno_and_frame
 from cinderjit import jit_suppress
-from test import cinder_support
+import cinderx.test_support as cinder_support
 
 import asyncio
 

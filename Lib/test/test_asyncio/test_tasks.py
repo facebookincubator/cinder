@@ -26,7 +26,8 @@ from asyncio import coroutines
 from asyncio import futures
 from asyncio import tasks
 from test.test_asyncio import utils as test_utils
-from test import cinder_support, support
+import cinderx.test_support as cinder_support
+from test import support
 from test.support.script_helper import assert_python_ok
 from _testcapi import (
     AcquireContextPtr,

@@ -21,6 +21,8 @@ from test.libregrtest.runtest import (
 from test.libregrtest.setup import setup_tests
 from test.libregrtest.utils import format_duration, print_warning
 
+from cinderx.test_support import get_cinderjit_xargs
+
 
 # Display the running tests if nothing happened last N seconds
 PROGRESS_UPDATE = 30.0   # seconds
@@ -36,18 +38,6 @@ assert MAIN_PROCESS_TIMEOUT >= PROGRESS_UPDATE
 JOIN_TIMEOUT = 30.0   # seconds
 
 USE_PROCESS_GROUP = (hasattr(os, "setsid") and hasattr(os, "killpg"))
-
-
-def get_cinderjit_xargs():
-    args = []
-    for k, v in sys._xoptions.items():
-        if not k.startswith("jit"):
-            continue
-        elif v is True:
-            args.extend(["-X", k])
-        else:
-            args.extend(["-X", f"{k}={v}"])
-    return args
 
 
 def must_stop(result: TestResult, ns: Namespace) -> bool:

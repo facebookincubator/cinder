@@ -4,7 +4,8 @@ import re
 import sys
 import warnings
 from inspect import isabstract
-from test import cinder_support, support
+import cinderx.test_support as cinder_support
+from test import support
 from test.support import os_helper
 from test.libregrtest.utils import clear_caches
 from types import CodeType, FunctionType, ModuleType

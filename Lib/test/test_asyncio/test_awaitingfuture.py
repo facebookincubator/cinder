@@ -4,11 +4,11 @@ import asyncio
 from _asyncio import _AwaitingFuture
 from functools import wraps
 import unittest
-from test import cinder_support
+import cinderx.test_support as cinder_support
 from test.test_asyncio import utils as test_utils
 
 if cinder_support.hasCinderX():
-    from test.cinder_support import get_await_stack
+    from cinderx.test_support import get_await_stack
 
 
 def tearDownModule():

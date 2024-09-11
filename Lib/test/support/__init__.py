@@ -15,7 +15,7 @@ import types
 import unittest
 import warnings
 
-from test import cinder_support
+import cinderx.test_support as cinder_support
 from .testresult import get_test_runner
 
 
