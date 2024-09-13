@@ -644,7 +644,10 @@ def main():
     sethelper()
     if not sys.flags.isolated:
         enablerlcompleter()
-    init_cinder()
+    # Do not attempt to initialize cinder *by default*, as it's not relevant
+    # for regular MetaPython users (and cinderx is not even available).
+    # This gets enabled at build-time when cinderx is enabled (see D62604340).
+    # init_cinder()
     execsitecustomize()
     if ENABLE_USER_SITE:
         execusercustomize()
