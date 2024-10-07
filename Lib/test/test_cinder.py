@@ -167,7 +167,7 @@ class CinderTest(unittest.TestCase):
             del D.foo
 
     def test_type_freeze_bad_arg(self):
-        with self.assertRaisesRegex(TypeError, "freeze_type requires a type"):
+        with self.assertRaisesRegex(TypeError, "freeze_type requires a type, got int"):
             cinder.freeze_type(42)
 
     def test_cached_class_prop(self):

@@ -88,9 +88,11 @@ static PyObject *
 cinder_freeze_type(PyObject *self, PyObject *o)
 {
     if (!PyType_Check(o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_TypeError,
-            "freeze_type requires a type");
+            "freeze_type requires a type, got %s",
+            Py_TYPE(o)->tp_name
+        );
         return NULL;
     }
     ((PyTypeObject*)o)->tp_flags |= Ci_Py_TPFLAGS_FROZEN;
@@ -109,9 +111,11 @@ static PyObject *
 cinder_warn_on_inst_dict(PyObject *self, PyObject *o)
 {
     if (!PyType_Check(o)) {
-        PyErr_SetString(
+        PyErr_Format(
             PyExc_TypeError,
-            "warn_on_inst_dict requires a type");
+            "warn_on_inst_dict requires a type, got %s",
+            Py_TYPE(o)->tp_name
+        );
         return NULL;
     } else if (((PyTypeObject *)o)->tp_flags & Ci_Py_TPFLAGS_FROZEN) {
         PyErr_SetString(
