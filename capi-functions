@@ -5,6 +5,7 @@
     _Py*;
     /* Additional Meta (Cinder) C-API functions to export */
     _Ci*;
+    Ci_*;
     /* Export strobe symbols needed for pyperf */
     __strobe_*;
     /* CinderX's test runner uses this to redirect ASAN output */

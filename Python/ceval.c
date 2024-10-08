@@ -33,8 +33,11 @@
 #include "setobject.h"
 #include "structmember.h"         // struct PyMemberDef, T_OFFSET_EX
 
+#include "cinder/hooks.h"
+
 #include <ctype.h>
 #include <stdbool.h>
+
 
 #ifdef Py_DEBUG
    /* For debugging the interpreter: */
@@ -629,7 +632,6 @@ static inline void _Py_LeaveRecursiveCallPy(PyThreadState *tstate)  {
     tstate->py_recursion_remaining++;
 }
 
-
 /* Disable unused label warnings.  They are handy for debugging, even
    if computed gotos aren't used. */
 
@@ -650,6 +652,12 @@ static inline void _Py_LeaveRecursiveCallPy(PyThreadState *tstate)  {
 PyObject* _Py_HOT_FUNCTION
 _PyEval_EvalFrameDefault(PyThreadState *tstate, _PyInterpreterFrame *frame, int throwflag)
 {
+    // TODO(T170700384): We need to teach a few things to treat
+    // tstate->interp->eval_frame as a stack before we can de-hookify this.
+    if (Ci_hook_EvalFrame != NULL) {
+       return Ci_hook_EvalFrame(tstate, frame, throwflag);
+    }
+
     _Py_EnsureTstateNotNULL(tstate);
     CALL_STAT_INC(pyeval_calls);
 
