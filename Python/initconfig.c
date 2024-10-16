@@ -972,6 +972,7 @@ _PyConfig_Copy(PyConfig *config, const PyConfig *config2)
     COPY_ATTR(_isolated_interpreter);
     COPY_WSTRLIST(orig_argv);
     COPY_ATTR(lazy_imports);
+    COPY_ATTR(enable_patching);
     COPY_ATTR(use_py_compiler);
     COPY_ATTR(install_strict_loader);
 
@@ -1919,6 +1920,11 @@ config_read_complex_options(PyConfig *config)
     if (config_get_env(config, "PYTHONINSTALLSTRICTLOADER")
        || config_get_xoption(config, L"install-strict-loader")) {
         config->install_strict_loader = 1;
+    }
+
+    if (config_get_env(config, "PYTHONENABLEPATCHING")
+       || config_get_xoption(config, L"enable-patching")) {
+        config->enable_patching = 1;
     }
 
     PyStatus status;

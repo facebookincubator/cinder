@@ -1,6 +1,7 @@
 /* Python interpreter top-level routines, including init/exit */
 
 #include "Python.h"
+#include <stdbool.h>
 
 #include "cinder/hooks.h"
 
@@ -263,7 +264,7 @@ init_importlib_external(PyThreadState *tstate)
 
 
 static int
-_install_importlib_pycompile_helper(const char* loader_installer) {
+_install_importlib_pycompile_helper(const char* loader_installer, PyObject *arg) {
     // need to ensure global lazy imports are off while importing python
     // compiler; it needs to be fully eagerly imported while we are still under
     // the C compiler, since it won't be able to compile itself later.
@@ -272,14 +273,20 @@ _install_importlib_pycompile_helper(const char* loader_installer) {
     interp->lazy_imports = 0;
     PyObject* value;
     PyObject *py_loader_module = PyImport_ImportModule("cinderx.compiler.pysourceloader");
+    PyObject *name = PyUnicode_FromString(loader_installer);
     if (py_loader_module == NULL) {
         return -1;
     }
-    value = PyObject_CallMethod(py_loader_module, loader_installer, "");
+    if (arg) {
+        value = PyObject_CallMethodOneArg(py_loader_module, name, arg);
+    } else {
+        value = PyObject_CallMethodNoArgs(py_loader_module, name);
+    }
     if (value == NULL) {
         PyErr_Print();
         return -1;
     }
+    Py_CLEAR(name);
     Py_XDECREF(value);
     Py_XDECREF(py_loader_module);
     interp->lazy_imports = orig_lazy_imports;
@@ -289,13 +296,14 @@ _install_importlib_pycompile_helper(const char* loader_installer) {
 static int
 install_importlib_pycompile()
 {
-    return _install_importlib_pycompile_helper("_install_py_loader");
+    return _install_importlib_pycompile_helper("_install_py_loader", NULL);
 }
 
 static int
-install_importlib_strict_compile()
+install_importlib_strict_compile(bool enable_patching)
 {
-    return _install_importlib_pycompile_helper("_install_strict_loader");
+    PyObject *arg = enable_patching ? Py_True : Py_False;
+    return _install_importlib_pycompile_helper("_install_strict_loader", arg);
 }
 
 /* Helper functions to better handle the legacy C locale
@@ -1259,7 +1267,7 @@ init_interp_main(PyThreadState *tstate)
     }
     if (config->install_strict_loader) {
         /* install the strict/static loader */
-        if(install_importlib_strict_compile()) {
+        if(install_importlib_strict_compile(config->enable_patching)) {
             fprintf(stderr, "installing strict/static compiler failed, traceback:\n");
             PyErr_Print();
             return _PyStatus_ERR("can't install strict/static compiler");

@@ -177,6 +177,7 @@ typedef struct PyConfig {
     int lazy_imports;
     int use_py_compiler;
     int install_strict_loader;
+    int enable_patching;
 
     /* --- Path configuration inputs ------------ */
     int pathconfig_warnings;

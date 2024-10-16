@@ -1011,8 +1011,7 @@ class CinderTest(unittest.TestCase):
 
     def test_strictmodule_setattr_with_patch_enabled(self):
         foo = create_strict_module(x=1, enable_patching=True)
-        with self.assertRaises(AttributeError):
-            foo.x = 2
+        foo.x = 2
 
     def test_strictmodule_patch_disabled(self):
         foo = create_strict_module(x=1)
