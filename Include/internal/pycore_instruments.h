@@ -65,39 +65,39 @@ PyObject *_PyMonitoring_RegisterCallback(int tool_id, int event_id, PyObject *ob
 
 int _PyMonitoring_SetEvents(int tool_id, _PyMonitoringEventSet events);
 
-extern int
+PyAPI_FUNC(int)
 _Py_call_instrumentation(PyThreadState *tstate, int event,
     _PyInterpreterFrame *frame, _Py_CODEUNIT *instr);
 
-extern int
+PyAPI_FUNC(int)
 _Py_call_instrumentation_line(PyThreadState *tstate, _PyInterpreterFrame* frame,
                               _Py_CODEUNIT *instr, _Py_CODEUNIT *prev);
 
-extern int
+PyAPI_FUNC(int)
 _Py_call_instrumentation_instruction(
     PyThreadState *tstate, _PyInterpreterFrame* frame, _Py_CODEUNIT *instr);
 
-_Py_CODEUNIT *
+PyAPI_FUNC(_Py_CODEUNIT *)
 _Py_call_instrumentation_jump(
     PyThreadState *tstate, int event,
     _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, _Py_CODEUNIT *target);
 
-extern int
+PyAPI_FUNC(int)
 _Py_call_instrumentation_arg(PyThreadState *tstate, int event,
     _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, PyObject *arg);
 
-extern int
+PyAPI_FUNC(int)
 _Py_call_instrumentation_2args(PyThreadState *tstate, int event,
     _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, PyObject *arg0, PyObject *arg1);
 
-extern void
+PyAPI_FUNC(void)
 _Py_call_instrumentation_exc2(PyThreadState *tstate, int event,
     _PyInterpreterFrame *frame, _Py_CODEUNIT *instr, PyObject *arg0, PyObject *arg1);
 
 extern int
 _Py_Instrumentation_GetLine(PyCodeObject *code, int index);
 
-extern PyObject _PyInstrumentation_MISSING;
+PyAPI_DATA(PyObject) _PyInstrumentation_MISSING;
 extern PyObject _PyInstrumentation_DISABLE;
 
 #ifdef __cplusplus

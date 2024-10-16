@@ -19,6 +19,9 @@ this type and there is exactly one in existence.
 #include "pycore_object.h"        // _PyObject_GC_TRACK()
 #include "structmember.h"         // PyMemberDef
 
+// Needed to export _PyBuildSlice_ConsumeRefs() for cinderx
+#include "pycore_sliceobject.h"
+
 static PyObject *
 ellipsis_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
 {

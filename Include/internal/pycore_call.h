@@ -116,7 +116,7 @@ _PyObject_FastCallTstate(PyThreadState *tstate, PyObject *func, PyObject *const 
     return _PyObject_VectorcallTstate(tstate, func, args, (size_t)nargs, NULL);
 }
 
-PyObject *const *
+PyAPI_FUNC(PyObject *const *)
 _PyStack_UnpackDict(PyThreadState *tstate,
     PyObject *const *args, Py_ssize_t nargs,
     PyObject *kwargs, PyObject **p_kwnames);
@@ -125,7 +125,7 @@ void
 _PyStack_UnpackDict_Free(PyObject *const *stack, Py_ssize_t nargs,
     PyObject *kwnames);
 
-void _PyStack_UnpackDict_FreeNoDecRef(PyObject *const *stack, PyObject *kwnames);
+PyAPI_FUNC(void) _PyStack_UnpackDict_FreeNoDecRef(PyObject *const *stack, PyObject *kwnames);
 
 #ifdef __cplusplus
 }
