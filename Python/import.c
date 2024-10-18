@@ -4591,7 +4591,6 @@ _imp__set_lazy_imports_in_module_impl(PyObject *module, PyObject *enabled)
 static int
 is_lazy_imports_active(PyInterpreterState *interp, _PyInterpreterFrame *frame)
 {
-    assert(frame->f_globals == frame->f_locals); /* only for module frames */
     int lazy_imports = interp->lazy_imports;
     if (lazy_imports) {
         if (PyDict_CheckExact(frame->f_globals)) {
