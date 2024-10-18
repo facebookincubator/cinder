@@ -4,6 +4,8 @@
 #include "boolobject.h"
 #include "cinder/hooks.h"
 #include "internal/pycore_shadow_frame.h"
+#include "pycore_interp.h"
+#include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "frameobject.h"
 
 
@@ -95,7 +97,12 @@ cinder_freeze_type(PyObject *self, PyObject *o)
         );
         return NULL;
     }
-    ((PyTypeObject*)o)->tp_flags |= Ci_Py_TPFLAGS_FROZEN;
+
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    assert(interp != NULL);
+    if (!interp->config.enable_patching) {
+        ((PyTypeObject*)o)->tp_flags |= Ci_Py_TPFLAGS_FROZEN;
+    }
     Py_INCREF(o);
     return o;
 }
