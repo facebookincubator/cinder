@@ -452,7 +452,7 @@ set_tp_bases(PyTypeObject *self, PyObject *bases, int initial)
             assert(PyTuple_GET_SIZE(bases) == 1);
             assert(PyTuple_GET_ITEM(bases, 0) == (PyObject *)self->tp_base);
             assert(self->tp_base->tp_flags & _Py_TPFLAGS_STATIC_BUILTIN);
-            assert(_Py_IsImmortal(self->tp_base));
+            assert(_Py_IsImmortalLoose(self->tp_base));
         }
         _Py_SetImmortal(bases);
     }
@@ -469,7 +469,7 @@ clear_tp_bases(PyTypeObject *self, int final)
                     Py_CLEAR(self->tp_bases);
                 }
                 else {
-                    assert(_Py_IsImmortal(self->tp_bases));
+                    assert(_Py_IsImmortalLoose(self->tp_bases));
                     _Py_ClearImmortal(self->tp_bases);
                 }
             }
@@ -534,7 +534,7 @@ clear_tp_mro(PyTypeObject *self, int final)
                     Py_CLEAR(self->tp_mro);
                 }
                 else {
-                    assert(_Py_IsImmortal(self->tp_mro));
+                    assert(_Py_IsImmortalLoose(self->tp_mro));
                     _Py_ClearImmortal(self->tp_mro);
                 }
             }
@@ -999,6 +999,8 @@ type_modified_unlocked(PyTypeObject *type)
     if (type->tp_version_tag == 0) {
         return;
     }
+    // Cannot modify static builtin types.
+    assert((type->tp_flags & _Py_TPFLAGS_STATIC_BUILTIN) == 0);
 
     PyObject *subclasses = lookup_tp_subclasses(type);
     if (subclasses != NULL) {
@@ -1349,6 +1351,9 @@ type_set_module(PyTypeObject *type, PyObject *value, void *context)
     PyType_Modified(type);
 
     PyObject *dict = lookup_tp_dict(type);
+    if (PyDict_Pop(dict, &_Py_ID(__firstlineno__), NULL) < 0) {
+        return -1;
+    }
     return PyDict_SetItem(dict, &_Py_ID(__module__), value);
 }
 
@@ -5069,15 +5074,10 @@ find_name_in_mro(PyTypeObject *type, PyObject *name, int *error)
 {
     ASSERT_TYPE_LOCK_HELD();
 
-    Py_hash_t hash;
-    if (!PyUnicode_CheckExact(name) ||
-        (hash = _PyASCIIObject_CAST(name)->hash) == -1)
-    {
-        hash = PyObject_Hash(name);
-        if (hash == -1) {
-            *error = -1;
-            return NULL;
-        }
+    Py_hash_t hash = _PyObject_HashFast(name);
+    if (hash == -1) {
+        *error = -1;
+        return NULL;
     }
 
     /* Look in tp_dict of types in MRO */
@@ -5210,7 +5210,7 @@ _PyType_LookupRef(PyTypeObject *type, PyObject *name)
 #ifdef Py_GIL_DISABLED
     // synchronize-with other writing threads by doing an acquire load on the sequence
     while (1) {
-        int sequence = _PySeqLock_BeginRead(&entry->sequence);
+        uint32_t sequence = _PySeqLock_BeginRead(&entry->sequence);
         uint32_t entry_version = _Py_atomic_load_uint32_relaxed(&entry->version);
         uint32_t type_version = _Py_atomic_load_uint32_acquire(&type->tp_version_tag);
         if (entry_version == type_version &&
@@ -5660,7 +5660,7 @@ fini_static_type(PyInterpreterState *interp, PyTypeObject *type,
                  int isbuiltin, int final)
 {
     assert(type->tp_flags & _Py_TPFLAGS_STATIC_BUILTIN);
-    assert(_Py_IsImmortal((PyObject *)type));
+    assert(_Py_IsImmortalLoose((PyObject *)type));
 
     type_dealloc_common(type);
 
@@ -6374,28 +6374,11 @@ differs:
     return 0;
 }
 
+
+
 static int
-object_set_class(PyObject *self, PyObject *value, void *closure)
+object_set_class_world_stopped(PyObject *self, PyTypeObject *newto)
 {
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "can't delete __class__ attribute");
-        return -1;
-    }
-    if (!PyType_Check(value)) {
-        PyErr_Format(PyExc_TypeError,
-          "__class__ must be set to a class, not '%s' object",
-          Py_TYPE(value)->tp_name);
-        return -1;
-    }
-    PyTypeObject *newto = (PyTypeObject *)value;
-
-    if (PySys_Audit("object.__setattr__", "OsO",
-                    self, "__class__", value) < 0) {
-        return -1;
-    }
-
     PyTypeObject *oldto = Py_TYPE(self);
 
     /* In versions of CPython prior to 3.5, the code in
@@ -6461,39 +6444,66 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
         /* Changing the class will change the implicit dict keys,
          * so we must materialize the dictionary first. */
         if (oldto->tp_flags & Py_TPFLAGS_INLINE_VALUES) {
-            PyDictObject *dict = _PyObject_MaterializeManagedDict(self);
+            PyDictObject *dict = _PyObject_GetManagedDict(self);
             if (dict == NULL) {
-                return -1;
+                dict = _PyObject_MaterializeManagedDict_LockHeld(self);
+                if (dict == NULL) {
+                    return -1;
+                }
             }
 
-            bool error = false;
-
-            Py_BEGIN_CRITICAL_SECTION2(self, dict);
-
-            // If we raced after materialization and replaced the dict
-            // then the materialized dict should no longer have the
-            // inline values in which case detach is a nop.
-            assert(_PyObject_GetManagedDict(self) == dict ||
-                   dict->ma_values != _PyObject_InlineValues(self));
+            assert(_PyObject_GetManagedDict(self) == dict);
 
             if (_PyDict_DetachFromObject(dict, self) < 0) {
-                error = true;
-            }
-
-            Py_END_CRITICAL_SECTION2();
-            if (error) {
                 return -1;
             }
+
         }
         if (newto->tp_flags & Py_TPFLAGS_HEAPTYPE) {
             Py_INCREF(newto);
         }
-        Py_BEGIN_CRITICAL_SECTION(self);
-        // The real Py_TYPE(self) (`oldto`) may have changed from
-        // underneath us in another thread, so we re-fetch it here.
-        oldto = Py_TYPE(self);
+
         Py_SET_TYPE(self, newto);
-        Py_END_CRITICAL_SECTION();
+
+        return 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+static int
+object_set_class(PyObject *self, PyObject *value, void *closure)
+{
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "can't delete __class__ attribute");
+        return -1;
+    }
+    if (!PyType_Check(value)) {
+        PyErr_Format(PyExc_TypeError,
+          "__class__ must be set to a class, not '%s' object",
+          Py_TYPE(value)->tp_name);
+        return -1;
+    }
+    PyTypeObject *newto = (PyTypeObject *)value;
+
+    if (PySys_Audit("object.__setattr__", "OsO",
+                    self, "__class__", value) < 0) {
+        return -1;
+    }
+
+#ifdef Py_GIL_DISABLED
+    PyInterpreterState *interp = _PyInterpreterState_GET();
+    _PyEval_StopTheWorld(interp);
+#endif
+    PyTypeObject *oldto = Py_TYPE(self);
+    int res = object_set_class_world_stopped(self, newto);
+#ifdef Py_GIL_DISABLED
+    _PyEval_StartTheWorld(interp);
+#endif
+    if (res == 0) {
         if (oldto->tp_flags & Py_TPFLAGS_HEAPTYPE) {
             Py_DECREF(oldto);
         }
@@ -6501,9 +6511,7 @@ object_set_class(PyObject *self, PyObject *value, void *closure)
         RARE_EVENT_INC(set_class);
         return 0;
     }
-    else {
-        return -1;
-    }
+    return res;
 }
 
 static PyGetSetDef object_getsets[] = {
@@ -10859,6 +10867,84 @@ recurse_down_subclasses(PyTypeObject *type, PyObject *attr_name,
     return 0;
 }
 
+static int
+expect_manually_inherited(PyTypeObject *type, void **slot)
+{
+    PyObject *typeobj = (PyObject *)type;
+    if (slot == (void *)&type->tp_init) {
+        /* This is a best-effort list of builtin exception types
+           that have their own tp_init function. */
+        if (typeobj != PyExc_BaseException
+            && typeobj != PyExc_BaseExceptionGroup
+            && typeobj != PyExc_ImportError
+            && typeobj != PyExc_NameError
+            && typeobj != PyExc_OSError
+            && typeobj != PyExc_StopIteration
+            && typeobj != PyExc_SyntaxError
+            && typeobj != PyExc_UnicodeDecodeError
+            && typeobj != PyExc_UnicodeEncodeError
+
+            && type != &PyBool_Type
+            && type != &PyBytes_Type
+            && type != &PyMemoryView_Type
+            && type != &PyComplex_Type
+            && type != &PyEnum_Type
+            && type != &PyFilter_Type
+            && type != &PyFloat_Type
+            && type != &PyFrozenSet_Type
+            && type != &PyLong_Type
+            && type != &PyMap_Type
+            && type != &PyRange_Type
+            && type != &PyReversed_Type
+            && type != &PySlice_Type
+            && type != &PyTuple_Type
+            && type != &PyUnicode_Type
+            && type != &PyZip_Type)
+
+        {
+            return 1;
+        }
+    }
+    else if (slot == (void *)&type->tp_str) {
+        /* This is a best-effort list of builtin exception types
+           that have their own tp_str function. */
+        if (typeobj == PyExc_AttributeError || typeobj == PyExc_NameError) {
+            return 1;
+        }
+    }
+    else if (slot == (void *)&type->tp_getattr
+             || slot == (void *)&type->tp_getattro)
+    {
+        /* This is a best-effort list of builtin types
+           that have their own tp_getattr function. */
+        if (typeobj == PyExc_BaseException
+            || type == &PyByteArray_Type
+            || type == &PyBytes_Type
+            || type == &PyComplex_Type
+            || type == &PyDict_Type
+            || type == &PyEnum_Type
+            || type == &PyFilter_Type
+            || type == &PyLong_Type
+            || type == &PyList_Type
+            || type == &PyMap_Type
+            || type == &PyMemoryView_Type
+            || type == &PyProperty_Type
+            || type == &PyRange_Type
+            || type == &PyReversed_Type
+            || type == &PySet_Type
+            || type == &PySlice_Type
+            || type == &PySuper_Type
+            || type == &PyTuple_Type
+            || type == &PyZip_Type)
+        {
+            return 1;
+        }
+    }
+
+    /* It must be inherited (see type_ready_inherit()).. */
+    return 0;
+}
+
 /* This function is called by PyType_Ready() to populate the type's
    dictionary with method descriptors for function slots.  For each
    function slot (like tp_repr) that's defined in the type, one or more
@@ -10903,6 +10989,26 @@ add_operators(PyTypeObject *type)
         ptr = slotptr(type, p->offset);
         if (!ptr || !*ptr)
             continue;
+        if (type->tp_flags & _Py_TPFLAGS_STATIC_BUILTIN
+            && type->tp_base != NULL)
+        {
+            /* Also ignore when the type slot has been inherited. */
+            void **ptr_base = slotptr(type->tp_base, p->offset);
+            if (ptr_base && *ptr == *ptr_base) {
+                /* Ideally we would always ignore any manually inherited
+                   slots, Which would mean inheriting the slot wrapper
+                   using normal attribute lookup rather than keeping
+                   a distinct copy.  However, that would introduce
+                   a slight change in behavior that could break
+                   existing code.
+
+                   In the meantime, look the other way when the definition
+                   explicitly inherits the slot. */
+                if (!expect_manually_inherited(type, ptr)) {
+                    continue;
+                }
+            }
+        }
         int r = PyDict_Contains(dict, p->name_strobj);
         if (r > 0)
             continue;

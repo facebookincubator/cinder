@@ -389,7 +389,7 @@ _Py_COMP_DIAG_IGNORE_DEPR_DECLS
    Note that we initialize "initial" relative to _PyRuntime,
    to ensure pre-initialized pointers point to the active
    runtime state (and not "initial"). */
-static const _PyRuntimeState initial = _PyRuntimeState_INIT(_PyRuntime);
+static const _PyRuntimeState initial = _PyRuntimeState_INIT(_PyRuntime, "");
 _Py_COMP_DIAG_POP
 
 #define LOCKS_INIT(runtime) \
@@ -454,6 +454,8 @@ _PyRuntimeState_Init(_PyRuntimeState *runtime)
         // Py_Initialize() must be running again.
         // Reset to _PyRuntimeState_INIT.
         memcpy(runtime, &initial, sizeof(*runtime));
+        // Preserve the cookie from the original runtime.
+        memcpy(runtime->debug_offsets.cookie, _Py_Debug_Cookie, 8);
         assert(!runtime->_initialized);
     }
 
@@ -1499,6 +1501,8 @@ init_threadstate(_PyThreadStateImpl *_tstate,
     tstate->previous_executor = NULL;
     tstate->dict_global_version = 0;
 
+    _tstate->asyncio_running_loop = NULL;
+
     tstate->delete_later = NULL;
 
     llist_init(&_tstate->mem_free_queue);
@@ -1699,6 +1703,11 @@ PyThreadState_Clear(PyThreadState *tstate)
     // XXX Deal with the possibility of problematic finalizers.
 
     /* Don't clear tstate->pyframe: it is a borrowed reference */
+
+    Py_CLEAR(tstate->threading_local_key);
+    Py_CLEAR(tstate->threading_local_sentinel);
+
+    Py_CLEAR(((_PyThreadStateImpl *)tstate)->asyncio_running_loop);
 
     Py_CLEAR(tstate->dict);
     Py_CLEAR(tstate->async_exc);

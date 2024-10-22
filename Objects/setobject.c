@@ -184,14 +184,14 @@ set_add_entry(PySetObject *so, PyObject *key, Py_hash_t hash)
   found_unused_or_dummy:
     if (freeslot == NULL)
         goto found_unused;
-    so->used++;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, so->used + 1);
     freeslot->key = key;
     freeslot->hash = hash;
     return 0;
 
   found_unused:
     so->fill++;
-    so->used++;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, so->used + 1);
     entry->key = key;
     entry->hash = hash;
     if ((size_t)so->fill*5 < mask*3)
@@ -357,7 +357,7 @@ set_discard_entry(PySetObject *so, PyObject *key, Py_hash_t hash)
     old_key = entry->key;
     entry->key = dummy;
     entry->hash = -1;
-    so->used--;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, so->used - 1);
     Py_DECREF(old_key);
     return DISCARD_FOUND;
 }
@@ -365,13 +365,9 @@ set_discard_entry(PySetObject *so, PyObject *key, Py_hash_t hash)
 static int
 set_add_key(PySetObject *so, PyObject *key)
 {
-    Py_hash_t hash;
-
-    if (!PyUnicode_CheckExact(key) ||
-        (hash = _PyASCIIObject_CAST(key)->hash) == -1) {
-        hash = PyObject_Hash(key);
-        if (hash == -1)
-            return -1;
+    Py_hash_t hash = _PyObject_HashFast(key);
+    if (hash == -1) {
+        return -1;
     }
     return set_add_entry(so, key, hash);
 }
@@ -379,13 +375,9 @@ set_add_key(PySetObject *so, PyObject *key)
 static int
 set_contains_key(PySetObject *so, PyObject *key)
 {
-    Py_hash_t hash;
-
-    if (!PyUnicode_CheckExact(key) ||
-        (hash = _PyASCIIObject_CAST(key)->hash) == -1) {
-        hash = PyObject_Hash(key);
-        if (hash == -1)
-            return -1;
+    Py_hash_t hash = _PyObject_HashFast(key);
+    if (hash == -1) {
+        return -1;
     }
     return set_contains_entry(so, key, hash);
 }
@@ -393,13 +385,9 @@ set_contains_key(PySetObject *so, PyObject *key)
 static int
 set_discard_key(PySetObject *so, PyObject *key)
 {
-    Py_hash_t hash;
-
-    if (!PyUnicode_CheckExact(key) ||
-        (hash = _PyASCIIObject_CAST(key)->hash) == -1) {
-        hash = PyObject_Hash(key);
-        if (hash == -1)
-            return -1;
+    Py_hash_t hash = _PyObject_HashFast(key);
+    if (hash == -1) {
+        return -1;
     }
     return set_discard_entry(so, key, hash);
 }
@@ -409,7 +397,7 @@ set_empty_to_minsize(PySetObject *so)
 {
     memset(so->smalltable, 0, sizeof(so->smalltable));
     so->fill = 0;
-    so->used = 0;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, 0);
     so->mask = PySet_MINSIZE - 1;
     so->table = so->smalltable;
     so->hash = -1;
@@ -627,7 +615,7 @@ set_merge_lock_held(PySetObject *so, PyObject *otherset)
             }
         }
         so->fill = other->fill;
-        so->used = other->used;
+        FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, other->used);
         return 0;
     }
 
@@ -636,7 +624,7 @@ set_merge_lock_held(PySetObject *so, PyObject *otherset)
         setentry *newtable = so->table;
         size_t newmask = (size_t)so->mask;
         so->fill = other->used;
-        so->used = other->used;
+        FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, other->used);
         for (i = other->mask + 1; i > 0 ; i--, other_entry++) {
             key = other_entry->key;
             if (key != NULL && key != dummy) {
@@ -690,7 +678,7 @@ set_pop_impl(PySetObject *so)
     key = entry->key;
     entry->key = dummy;
     entry->hash = -1;
-    so->used--;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(so->used, so->used - 1);
     so->finger = entry - so->table + 1;   /* next place to start */
     return key;
 }
@@ -1045,14 +1033,13 @@ set_update_internal(PySetObject *so, PyObject *other)
 set.update
     so: setobject
     *others as args: object
-    /
 
 Update the set, adding elements from all others.
 [clinic start generated code]*/
 
 static PyObject *
 set_update_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=34f6371704974c8a input=eb47c4fbaeb3286e]*/
+/*[clinic end generated code: output=34f6371704974c8a input=df4fe486e38cd337]*/
 {
     Py_ssize_t i;
 
@@ -1185,7 +1172,9 @@ set_swap_bodies(PySetObject *a, PySetObject *b)
     Py_hash_t h;
 
     t = a->fill;     a->fill   = b->fill;        b->fill  = t;
-    t = a->used;     a->used   = b->used;        b->used  = t;
+    t = a->used;
+    FT_ATOMIC_STORE_SSIZE_RELAXED(a->used, b->used);
+    FT_ATOMIC_STORE_SSIZE_RELAXED(b->used, t);
     t = a->mask;     a->mask   = b->mask;        b->mask  = t;
 
     u = a->table;
@@ -1273,14 +1262,13 @@ set_clear_impl(PySetObject *so)
 set.union
     so: setobject
     *others as args: object
-    /
 
 Return a new set with elements from the set and all others.
 [clinic start generated code]*/
 
 static PyObject *
 set_union_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=2c83d05a446a1477 input=2e2024fa1e40ac84]*/
+/*[clinic end generated code: output=2c83d05a446a1477 input=ddf088706e9577b2]*/
 {
     PySetObject *result;
     PyObject *other;
@@ -1423,14 +1411,13 @@ set_intersection(PySetObject *so, PyObject *other)
 set.intersection as set_intersection_multi
     so: setobject
     *others as args: object
-    /
 
 Return a new set with elements common to the set and all others.
 [clinic start generated code]*/
 
 static PyObject *
 set_intersection_multi_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=2406ef3387adbe2f input=04108ea6d7f0532b]*/
+/*[clinic end generated code: output=2406ef3387adbe2f input=0d9f3805ccbba6a4]*/
 {
     Py_ssize_t i;
 
@@ -1471,14 +1458,13 @@ set_intersection_update(PySetObject *so, PyObject *other)
 set.intersection_update as set_intersection_update_multi
     so: setobject
     *others as args: object
-    /
 
 Update the set, keeping only elements found in it and all others.
 [clinic start generated code]*/
 
 static PyObject *
 set_intersection_update_multi_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=251c1f729063609d input=ff8f119f97458d16]*/
+/*[clinic end generated code: output=251c1f729063609d input=223c1e086aa669a9]*/
 {
     PyObject *tmp;
 
@@ -1659,14 +1645,13 @@ set_difference_update_internal(PySetObject *so, PyObject *other)
 set.difference_update
     so: setobject
     *others as args: object
-    /
 
 Update the set, removing elements found in others.
 [clinic start generated code]*/
 
 static PyObject *
 set_difference_update_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=28685b2fc63e41c4 input=e7abb43c9f2c5a73]*/
+/*[clinic end generated code: output=28685b2fc63e41c4 input=024e6baa6fbcbb3d]*/
 {
     Py_ssize_t i;
 
@@ -1777,14 +1762,13 @@ set_difference(PySetObject *so, PyObject *other)
 set.difference as set_difference_multi
     so: setobject
     *others as args: object
-    /
 
 Return a new set with elements in the set that are not in the others.
 [clinic start generated code]*/
 
 static PyObject *
 set_difference_multi_impl(PySetObject *so, PyObject *args)
-/*[clinic end generated code: output=3130c3bb3cac873d input=d8ae9bb6d518ab95]*/
+/*[clinic end generated code: output=3130c3bb3cac873d input=ba78ea5f099e58df]*/
 {
     Py_ssize_t i;
     PyObject *result, *other;

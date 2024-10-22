@@ -3416,10 +3416,12 @@ def bœr():
             print("hello")
         """
 
+        # the time.sleep is needed for low-resolution filesystems like HFS+
         commands = """
             filename = $_frame.f_code.co_filename
             f = open(filename, "w")
             f.write("print('goodbye')")
+            import time; time.sleep(1)
             f.close()
             ll
         """
@@ -3429,10 +3431,12 @@ def bœr():
         self.assertIn("was edited", stdout)
 
     def test_file_modified_after_execution_with_multiple_instances(self):
+        # the time.sleep is needed for low-resolution filesystems like HFS+
         script = """
             import pdb; pdb.Pdb().set_trace()
             with open(__file__, "w") as f:
                 f.write("print('goodbye')\\n" * 5)
+                import time; time.sleep(1)
             import pdb; pdb.Pdb().set_trace()
         """
 
@@ -3491,6 +3495,23 @@ def bœr():
         # The file was edited, but restart should clear the state and consider
         # the file as up to date
         self.assertNotIn("WARNING:", stdout)
+
+    def test_post_mortem_restart(self):
+        script = """
+            def foo():
+                raise ValueError("foo")
+            foo()
+        """
+
+        commands = """
+            continue
+            restart
+            continue
+            quit
+        """
+
+        stdout, stderr = self.run_pdb_script(script, commands)
+        self.assertIn("Restarting", stdout)
 
     def test_relative_imports(self):
         self.module_name = 't_main'

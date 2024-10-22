@@ -5954,7 +5954,7 @@ os_wait(PyObject *module, PyObject *Py_UNUSED(ignored))
 
 #endif /* defined(HAVE_WAIT) */
 
-#if (defined(__linux__) && defined(__NR_pidfd_open))
+#if (defined(__linux__) && defined(__NR_pidfd_open) && !(defined(__ANDROID__) && __ANDROID_API__ < 31))
 
 PyDoc_STRVAR(os_pidfd_open__doc__,
 "pidfd_open($module, /, pid, flags=0)\n"
@@ -6013,7 +6013,7 @@ exit:
     return return_value;
 }
 
-#endif /* (defined(__linux__) && defined(__NR_pidfd_open)) */
+#endif /* (defined(__linux__) && defined(__NR_pidfd_open) && !(defined(__ANDROID__) && __ANDROID_API__ < 31)) */
 
 #if defined(HAVE_SETNS)
 
@@ -6348,7 +6348,7 @@ PyDoc_STRVAR(os_times__doc__,
 "\n"
 "The object returned behaves like a named tuple with these fields:\n"
 "  (utime, stime, cutime, cstime, elapsed_time)\n"
-"All fields are floating point numbers.");
+"All fields are floating-point numbers.");
 
 #define OS_TIMES_METHODDEF    \
     {"times", (PyCFunction)os_times, METH_NOARGS, os_times__doc__},
@@ -12819,4 +12819,4 @@ os__is_inputhook_installed(PyObject *module, PyObject *Py_UNUSED(ignored))
 #ifndef OS__SUPPORTS_VIRTUAL_TERMINAL_METHODDEF
     #define OS__SUPPORTS_VIRTUAL_TERMINAL_METHODDEF
 #endif /* !defined(OS__SUPPORTS_VIRTUAL_TERMINAL_METHODDEF) */
-/*[clinic end generated code: output=cebab1ef718b4878 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=b2ffb856bcada7c9 input=a9049054013a1b77]*/

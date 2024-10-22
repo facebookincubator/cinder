@@ -59,7 +59,8 @@ __all__ = [
     "Py_DEBUG", "exceeds_recursion_limit", "get_c_recursion_limit",
     "skip_on_s390x",
     "without_optimizer",
-    "force_not_colorized"
+    "force_not_colorized",
+    "BrokenIter",
     ]
 
 
@@ -388,7 +389,7 @@ def skip_if_buildbot(reason=None):
         reason = 'not suitable for buildbots'
     try:
         isbuildbot = getpass.getuser().lower() == 'buildbot'
-    except (KeyError, EnvironmentError) as err:
+    except (KeyError, OSError) as err:
         warnings.warn(f'getpass.getuser() failed {err}.', RuntimeWarning)
         isbuildbot = False
     return unittest.skipIf(isbuildbot, reason)
@@ -863,6 +864,15 @@ def check_cflags_pgo():
     if PGO_PROF_USE_FLAG:
         pgo_options.append(PGO_PROF_USE_FLAG)
     return any(option in cflags_nodist for option in pgo_options)
+
+
+def check_bolt_optimized():
+    # Always return false, if the platform is WASI,
+    # because BOLT optimization does not support WASM binary.
+    if is_wasi:
+        return False
+    config_args = sysconfig.get_config_var('CONFIG_ARGS') or ''
+    return '--enable-bolt' in config_args
 
 
 Py_GIL_DISABLED = bool(sysconfig.get_config_var('Py_GIL_DISABLED'))
@@ -2589,20 +2599,79 @@ def copy_python_src_ignore(path, names):
     return ignored
 
 
+def iter_builtin_types():
+    for obj in __builtins__.values():
+        if not isinstance(obj, type):
+            continue
+        cls = obj
+        if cls.__module__ != 'builtins':
+            continue
+        yield cls
+
+
+def iter_slot_wrappers(cls):
+    assert cls.__module__ == 'builtins', cls
+
+    def is_slot_wrapper(name, value):
+        if not isinstance(value, types.WrapperDescriptorType):
+            assert not repr(value).startswith('<slot wrapper '), (cls, name, value)
+            return False
+        assert repr(value).startswith('<slot wrapper '), (cls, name, value)
+        assert callable(value), (cls, name, value)
+        assert name.startswith('__') and name.endswith('__'), (cls, name, value)
+        return True
+
+    ns = vars(cls)
+    unused = set(ns)
+    for name in dir(cls):
+        if name in ns:
+            unused.remove(name)
+
+        try:
+            value = getattr(cls, name)
+        except AttributeError:
+            # It's as though it weren't in __dir__.
+            assert name in ('__annotate__', '__annotations__', '__abstractmethods__'), (cls, name)
+            if name in ns and is_slot_wrapper(name, ns[name]):
+                unused.add(name)
+            continue
+
+        if not name.startswith('__') or not name.endswith('__'):
+            assert not is_slot_wrapper(name, value), (cls, name, value)
+        if not is_slot_wrapper(name, value):
+            if name in ns:
+                assert not is_slot_wrapper(name, ns[name]), (cls, name, value, ns[name])
+        else:
+            if name in ns:
+                assert ns[name] is value, (cls, name, value, ns[name])
+                yield name, True
+            else:
+                yield name, False
+
+    for name in unused:
+        value = ns[name]
+        if is_slot_wrapper(cls, name, value):
+            yield name, True
+
+
 def force_not_colorized(func):
     """Force the terminal not to be colorized."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         import _colorize
         original_fn = _colorize.can_colorize
-        variables = {"PYTHON_COLORS": None, "FORCE_COLOR": None}
+        variables: dict[str, str | None] = {
+            "PYTHON_COLORS": None, "FORCE_COLOR": None, "NO_COLOR": None
+        }
         try:
             for key in variables:
                 variables[key] = os.environ.pop(key, None)
+            os.environ["NO_COLOR"] = "1"
             _colorize.can_colorize = lambda: False
             return func(*args, **kwargs)
         finally:
             _colorize.can_colorize = original_fn
+            del os.environ["NO_COLOR"]
             for key, value in variables.items():
                 if value is not None:
                     os.environ[key] = value
@@ -2613,3 +2682,20 @@ def initialized_with_pyrepl():
     """Detect whether PyREPL was used during Python initialization."""
     # If the main module has a __file__ attribute it's a Python module, which means PyREPL.
     return hasattr(sys.modules["__main__"], "__file__")
+
+
+class BrokenIter:
+    def __init__(self, init_raises=False, next_raises=False, iter_raises=False):
+        if init_raises:
+            1/0
+        self.next_raises = next_raises
+        self.iter_raises = iter_raises
+
+    def __next__(self):
+        if self.next_raises:
+            1/0
+
+    def __iter__(self):
+        if self.iter_raises:
+            1/0
+        return self

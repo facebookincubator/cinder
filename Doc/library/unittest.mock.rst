@@ -239,7 +239,7 @@ the *new_callable* argument to :func:`patch`.
       Accessing any attribute not in this list will raise an :exc:`AttributeError`.
 
       If *spec* is an object (rather than a list of strings) then
-      :attr:`~instance.__class__` returns the class of the spec object. This
+      :attr:`~object.__class__` returns the class of the spec object. This
       allows mocks to pass :func:`isinstance` tests.
 
     * *spec_set*: A stricter variant of *spec*. If used, attempting to *set*
@@ -859,6 +859,20 @@ object::
     >>> m.foo
     3
     >>> p.assert_called_once_with()
+
+.. caution::
+
+    If an :exc:`AttributeError` is raised by :class:`PropertyMock`,
+    it will be interpreted as a missing descriptor and
+    :meth:`~object.__getattr__` will be called on the parent mock::
+
+        >>> m = MagicMock()
+        >>> no_attribute = PropertyMock(side_effect=AttributeError)
+        >>> type(m).my_property = no_attribute
+        >>> m.my_property
+        <MagicMock name='mock.my_property' id='140165240345424'>
+
+    See :meth:`~object.__getattr__` for details.
 
 
 .. class:: AsyncMock(spec=None, side_effect=None, return_value=DEFAULT, wraps=None, name=None, spec_set=None, unsafe=False, **kwargs)

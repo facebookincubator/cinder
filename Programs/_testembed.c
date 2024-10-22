@@ -8,6 +8,7 @@
 #include <Python.h>
 #include "pycore_initconfig.h"    // _PyConfig_InitCompatConfig()
 #include "pycore_runtime.h"       // _PyRuntime
+#include "pycore_pythread.h"      // PyThread_start_joinable_thread()
 #include "pycore_import.h"        // _PyImport_FrozenBootstrap
 #include <inttypes.h>
 #include <stdio.h>
@@ -93,6 +94,14 @@ static void _testembed_Py_Initialize(void)
 }
 
 
+static int test_import_in_subinterpreters(void)
+{
+    _testembed_Py_InitializeFromConfig();
+    PyThreadState_Swap(Py_NewInterpreter());
+    return PyRun_SimpleString("import readline"); // gh-124160
+}
+
+
 /*****************************************************
  * Test repeated initialisation and subinterpreters
  *****************************************************/
@@ -170,14 +179,22 @@ PyInit_embedded_ext(void)
 static int test_repeated_init_exec(void)
 {
     if (main_argc < 3) {
-        fprintf(stderr, "usage: %s test_repeated_init_exec CODE\n", PROGRAM);
+        fprintf(stderr,
+                "usage: %s test_repeated_init_exec CODE ...\n", PROGRAM);
         exit(1);
     }
     const char *code = main_argv[2];
+    int loops = main_argc > 3
+        ? main_argc - 2
+        : INIT_LOOPS;
 
-    for (int i=1; i <= INIT_LOOPS; i++) {
-        fprintf(stderr, "--- Loop #%d ---\n", i);
+    for (int i=0; i < loops; i++) {
+        fprintf(stderr, "--- Loop #%d ---\n", i+1);
         fflush(stderr);
+
+        if (main_argc > 3) {
+            code = main_argv[i+2];
+        }
 
         _testembed_Py_InitializeFromConfig();
         int err = PyRun_SimpleString(code);
@@ -2014,6 +2031,22 @@ static int test_init_main_interpreter_settings(void)
     return 0;
 }
 
+static void do_init(void *unused)
+{
+    _testembed_Py_Initialize();
+    Py_Finalize();
+}
+
+static int test_init_in_background_thread(void)
+{
+    PyThread_handle_t handle;
+    PyThread_ident_t ident;
+    if (PyThread_start_joinable_thread(&do_init, NULL, &ident, &handle) < 0) {
+        return -1;
+    }
+    return PyThread_join_thread(handle);
+}
+
 
 #ifndef MS_WINDOWS
 #include "test_frozenmain.h"      // M_test_frozenmain
@@ -2159,6 +2192,7 @@ static struct TestCase TestCases[] = {
     {"test_repeated_init_exec", test_repeated_init_exec},
     {"test_repeated_simple_init", test_repeated_simple_init},
     {"test_forced_io_encoding", test_forced_io_encoding},
+    {"test_import_in_subinterpreters", test_import_in_subinterpreters},
     {"test_repeated_init_and_subinterpreters", test_repeated_init_and_subinterpreters},
     {"test_repeated_init_and_inittab", test_repeated_init_and_inittab},
     {"test_pre_initialization_api", test_pre_initialization_api},
@@ -2203,6 +2237,7 @@ static struct TestCase TestCases[] = {
     {"test_get_argc_argv", test_get_argc_argv},
     {"test_init_use_frozen_modules", test_init_use_frozen_modules},
     {"test_init_main_interpreter_settings", test_init_main_interpreter_settings},
+    {"test_init_in_background_thread", test_init_in_background_thread},
 
     // Audit
     {"test_open_code_hook", test_open_code_hook},

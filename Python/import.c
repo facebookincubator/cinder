@@ -814,6 +814,8 @@ static int clear_singlephase_extension(PyInterpreterState *interp,
 
 // Currently, this is only used for testing.
 // (See _testinternalcapi.clear_extension().)
+// If adding another use, be careful about modules that import themselves
+// recursively (see gh-123880).
 int
 _PyImport_ClearExtension(PyObject *name, PyObject *filename)
 {
@@ -1048,7 +1050,7 @@ del_cached_def(struct extensions_cache_value *value)
        However, this decref would be problematic if the module def were
        dynamically allocated, it were the last ref, and this function
        were called with an interpreter other than the def's owner. */
-    assert(value->def == NULL || _Py_IsImmortal(value->def));
+    assert(value->def == NULL || _Py_IsImmortalLoose(value->def));
 
     Py_XDECREF(value->def->m_base.m_copy);
     value->def->m_base.m_copy = NULL;
@@ -1321,12 +1323,16 @@ _extensions_cache_set(PyObject *path, PyObject *name,
     value = entry == NULL
         ? NULL
         : (struct extensions_cache_value *)entry->value;
-    /* We should never be updating an existing cache value. */
-    assert(value == NULL);
     if (value != NULL) {
-        PyErr_Format(PyExc_SystemError,
-                     "extension module %R is already cached", name);
-        goto finally;
+        /* gh-123880: If there's an existing cache value, it means a module is
+         * being imported recursively from its PyInit_* or Py_mod_* function.
+         * (That function presumably handles returning a partially
+         *  constructed module in such a case.)
+         * We can reuse the existing cache value; it is owned by the cache.
+         * (Entries get removed from it in exceptional circumstances,
+         *  after interpreter shutdown, and in runtime shutdown.)
+         */
+        goto finally_oldvalue;
     }
     newvalue = alloc_extensions_cache_value();
     if (newvalue == NULL) {
@@ -1391,6 +1397,7 @@ finally:
         cleanup_old_cached_def(&olddefbase);
     }
 
+finally_oldvalue:
     extensions_lock_release();
     if (key != NULL) {
         hashtable_destroy_str(key);
@@ -1530,6 +1537,35 @@ switch_to_main_interpreter(PyThreadState *tstate)
     (void)PyThreadState_Swap(main_tstate);
 #endif
     return main_tstate;
+}
+
+static void
+switch_back_from_main_interpreter(PyThreadState *tstate,
+                                  PyThreadState *main_tstate,
+                                  PyObject *tempobj)
+{
+    assert(main_tstate == PyThreadState_GET());
+    assert(_Py_IsMainInterpreter(main_tstate->interp));
+    assert(tstate->interp != main_tstate->interp);
+
+    /* Handle any exceptions, which we cannot propagate directly
+     * to the subinterpreter. */
+    if (PyErr_Occurred()) {
+        if (PyErr_ExceptionMatches(PyExc_MemoryError)) {
+            /* We trust it will be caught again soon. */
+            PyErr_Clear();
+        }
+        else {
+            /* Printing the exception should be sufficient. */
+            PyErr_PrintEx(0);
+        }
+    }
+
+    Py_XDECREF(tempobj);
+
+    PyThreadState_Clear(main_tstate);
+    (void)PyThreadState_Swap(tstate);
+    PyThreadState_Delete(main_tstate);
 }
 
 static PyObject *
@@ -2015,7 +2051,7 @@ import_run_extension(PyThreadState *tstate, PyModInitFunction p0,
                 singlephase.m_init = p0;
             }
             cached = update_global_state_for_extension(
-                    tstate, info->path, info->name, def, &singlephase);
+                    main_tstate, info->path, info->name, def, &singlephase);
             if (cached == NULL) {
                 assert(PyErr_Occurred());
                 goto main_finally;
@@ -2027,27 +2063,10 @@ main_finally:
     /* Switch back to the subinterpreter. */
     if (switched) {
         assert(main_tstate != tstate);
-
-        /* Handle any exceptions, which we cannot propagate directly
-         * to the subinterpreter. */
-        if (PyErr_Occurred()) {
-            if (PyErr_ExceptionMatches(PyExc_MemoryError)) {
-                /* We trust it will be caught again soon. */
-                PyErr_Clear();
-            }
-            else {
-                /* Printing the exception should be sufficient. */
-                PyErr_PrintEx(0);
-            }
-        }
-
+        switch_back_from_main_interpreter(tstate, main_tstate, mod);
         /* Any module we got from the init function will have to be
          * reloaded in the subinterpreter. */
-        Py_CLEAR(mod);
-
-        PyThreadState_Clear(main_tstate);
-        (void)PyThreadState_Swap(tstate);
-        PyThreadState_Delete(main_tstate);
+        mod = NULL;
     }
 
     /*****************************************************************/
@@ -2115,6 +2134,7 @@ error:
 }
 
 
+// Used in _PyImport_ClearExtension; see notes there.
 static int
 clear_singlephase_extension(PyInterpreterState *interp,
                             PyObject *name, PyObject *path)
@@ -2141,8 +2161,20 @@ clear_singlephase_extension(PyInterpreterState *interp,
         }
     }
 
+    /* We must use the main interpreter to clean up the cache.
+     * See the note in import_run_extension(). */
+    PyThreadState *tstate = PyThreadState_GET();
+    PyThreadState *main_tstate = switch_to_main_interpreter(tstate);
+    if (main_tstate == NULL) {
+        return -1;
+    }
+
     /* Clear the cached module def. */
     _extensions_cache_delete(path, name);
+
+    if (main_tstate != tstate) {
+        switch_back_from_main_interpreter(tstate, main_tstate, NULL);
+    }
 
     return 0;
 }

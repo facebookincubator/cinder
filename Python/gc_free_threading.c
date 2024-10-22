@@ -456,6 +456,30 @@ mark_reachable(PyObject *op)
 
 #ifdef GC_DEBUG
 static bool
+validate_refcounts(const mi_heap_t *heap, const mi_heap_area_t *area,
+                   void *block, size_t block_size, void *args)
+{
+    PyObject *op = op_from_block(block, args, false);
+    if (op == NULL) {
+        return true;
+    }
+
+    _PyObject_ASSERT_WITH_MSG(op, !gc_is_unreachable(op),
+                              "object should not be marked as unreachable yet");
+
+    if (_Py_REF_IS_MERGED(op->ob_ref_shared)) {
+        _PyObject_ASSERT_WITH_MSG(op, op->ob_tid == 0,
+                                  "merged objects should have ob_tid == 0");
+    }
+    else if (!_Py_IsImmortal(op)) {
+        _PyObject_ASSERT_WITH_MSG(op, op->ob_tid != 0,
+                                  "unmerged objects should have ob_tid != 0");
+    }
+
+    return true;
+}
+
+static bool
 validate_gc_objects(const mi_heap_t *heap, const mi_heap_area_t *area,
                     void *block, size_t block_size, void *args)
 {
@@ -495,6 +519,19 @@ mark_heap_visitor(const mi_heap_t *heap, const mi_heap_area_t *area,
         }
     }
 
+    return true;
+}
+
+static bool
+restore_refs(const mi_heap_t *heap, const mi_heap_area_t *area,
+             void *block, size_t block_size, void *args)
+{
+    PyObject *op = op_from_block(block, args, false);
+    if (op == NULL) {
+        return true;
+    }
+    gc_restore_tid(op);
+    gc_clear_unreachable(op);
     return true;
 }
 
@@ -549,6 +586,13 @@ static int
 deduce_unreachable_heap(PyInterpreterState *interp,
                         struct collection_state *state)
 {
+
+#ifdef GC_DEBUG
+    // Check that all objects are marked as unreachable and that the computed
+    // reference count difference (stored in `ob_tid`) is non-negative.
+    gc_visit_heaps(interp, &validate_refcounts, &state->base);
+#endif
+
     // Identify objects that are directly reachable from outside the GC heap
     // by computing the difference between the refcount and the number of
     // incoming references.
@@ -563,6 +607,8 @@ deduce_unreachable_heap(PyInterpreterState *interp,
     // Transitively mark reachable objects by clearing the
     // _PyGC_BITS_UNREACHABLE flag.
     if (gc_visit_heaps(interp, &mark_heap_visitor, &state->base) < 0) {
+        // On out-of-memory, restore the refcounts and bail out.
+        gc_visit_heaps(interp, &restore_refs, &state->base);
         return -1;
     }
 
@@ -698,7 +744,7 @@ void
 _PyGC_InitState(GCState *gcstate)
 {
     // TODO: move to pycore_runtime_init.h once the incremental GC lands.
-    gcstate->young.threshold = 2000;
+    gcstate->generations[0].threshold = 2000;
 }
 
 
@@ -996,8 +1042,8 @@ cleanup_worklist(struct worklist *worklist)
 static bool
 gc_should_collect(GCState *gcstate)
 {
-    int count = _Py_atomic_load_int_relaxed(&gcstate->young.count);
-    int threshold = gcstate->young.threshold;
+    int count = _Py_atomic_load_int_relaxed(&gcstate->generations[0].count);
+    int threshold = gcstate->generations[0].threshold;
     if (count <= threshold || threshold == 0 || !gcstate->enabled) {
         return false;
     }
@@ -1005,7 +1051,7 @@ gc_should_collect(GCState *gcstate)
     // objects. A few tests rely on immediate scheduling of the GC so we ignore
     // the scaled threshold if generations[1].threshold is set to zero.
     return (count > gcstate->long_lived_total / 4 ||
-            gcstate->old[0].threshold == 0);
+            gcstate->generations[1].threshold == 0);
 }
 
 static void
@@ -1019,7 +1065,7 @@ record_allocation(PyThreadState *tstate)
     if (gc->alloc_count >= LOCAL_ALLOC_COUNT_THRESHOLD) {
         // TODO: Use Py_ssize_t for the generation count.
         GCState *gcstate = &tstate->interp->gc;
-        _Py_atomic_add_int(&gcstate->young.count, (int)gc->alloc_count);
+        _Py_atomic_add_int(&gcstate->generations[0].count, (int)gc->alloc_count);
         gc->alloc_count = 0;
 
         if (gc_should_collect(gcstate) &&
@@ -1038,7 +1084,7 @@ record_deallocation(PyThreadState *tstate)
     gc->alloc_count--;
     if (gc->alloc_count <= -LOCAL_ALLOC_COUNT_THRESHOLD) {
         GCState *gcstate = &tstate->interp->gc;
-        _Py_atomic_add_int(&gcstate->young.count, (int)gc->alloc_count);
+        _Py_atomic_add_int(&gcstate->generations[0].count, (int)gc->alloc_count);
         gc->alloc_count = 0;
     }
 }
@@ -1050,12 +1096,10 @@ gc_collect_internal(PyInterpreterState *interp, struct collection_state *state, 
 
     // update collection and allocation counters
     if (generation+1 < NUM_GENERATIONS) {
-        state->gcstate->old[generation].count += 1;
+        state->gcstate->generations[generation+1].count += 1;
     }
-
-    state->gcstate->young.count = 0;
-    for (int i = 1; i <= generation; ++i) {
-        state->gcstate->old[i-1].count = 0;
+    for (int i = 0; i <= generation; i++) {
+        state->gcstate->generations[i].count = 0;
     }
 
     // merge refcounts for all queued objects
@@ -1066,7 +1110,8 @@ gc_collect_internal(PyInterpreterState *interp, struct collection_state *state, 
     int err = deduce_unreachable_heap(interp, state);
     if (err < 0) {
         _PyEval_StartTheWorld(interp);
-        goto error;
+        PyErr_NoMemory();
+        return;
     }
 
     // Print debugging information.
@@ -1100,7 +1145,12 @@ gc_collect_internal(PyInterpreterState *interp, struct collection_state *state, 
     _PyEval_StartTheWorld(interp);
 
     if (err < 0) {
-        goto error;
+        cleanup_worklist(&state->unreachable);
+        cleanup_worklist(&state->legacy_finalizers);
+        cleanup_worklist(&state->wrcb_to_call);
+        cleanup_worklist(&state->objs_to_decref);
+        PyErr_NoMemory();
+        return;
     }
 
     // Call tp_clear on objects in the unreachable set. This will cause
@@ -1110,15 +1160,6 @@ gc_collect_internal(PyInterpreterState *interp, struct collection_state *state, 
 
     // Append objects with legacy finalizers to the "gc.garbage" list.
     handle_legacy_finalizers(state);
-    return;
-
-error:
-    cleanup_worklist(&state->unreachable);
-    cleanup_worklist(&state->legacy_finalizers);
-    cleanup_worklist(&state->wrcb_to_call);
-    cleanup_worklist(&state->objs_to_decref);
-    PyErr_NoMemory();
-    PyErr_FormatUnraisable("Out of memory during garbage collection");
 }
 
 /* This is the main function.  Read this to understand how the
