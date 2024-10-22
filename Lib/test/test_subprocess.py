@@ -494,6 +494,8 @@ class ProcessTestCase(BaseTestCase):
                      'Test is not venv-compatible')
     @unittest.skipIf(sysconfig.is_python_build(),
                      "need an installed Python. See #7774")
+    @unittest.skipIf(getattr(sys.implementation, '_is_cinder', False),
+                     "Cinder tests aren't installed Python")
     def test_executable_without_cwd(self):
         # For a normal installation, it should work without 'cwd'
         # argument.  For test runs in the build directory, see #7774.
