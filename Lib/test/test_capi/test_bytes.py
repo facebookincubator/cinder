@@ -1,5 +1,6 @@
 import sys
 import unittest
+from test import support
 from test.support import import_helper
 
 _testlimitedcapi = import_helper.import_module('_testlimitedcapi')
@@ -388,6 +389,25 @@ class BaseWriterTest:
         writer.resize(len(b'number=123'), b'123')
         writer.resize(len(b'number=123456'), b'456')
         self.assertEqual(writer.finish(), self.result_type(b'number=123456'))
+
+    @support.nomemtest
+    def test_resize_error(self):
+        small_buffer = _testcapi.PyBytesWriter_small_buffer
+        init = b'x' * (small_buffer * 2)
+        writer = self.create_writer(len(init), init)
+        size = len(init) + 100
+        try:
+            with self.assertRaises(MemoryError):
+                _testcapi.set_nomemory(0)
+                writer.resize(size, b'')
+        finally:
+            _testcapi.remove_mem_hooks()
+        suffix = b'still working'
+        writer.write_bytes(suffix, -1)
+        self.assertEqual(writer.finish(), self.result_type(init + suffix))
+
+        # Note: PyBytesWriter_Resize() leaves the buffer unchanged (no resize)
+        # if the new size is smaller than the allocated size
 
     def test_format_i(self):
         # Test PyBytesWriter_Format()
