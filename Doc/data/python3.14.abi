@@ -1817,7 +1817,7 @@
     <elf-symbol name='_PyNotImplemented_Type' size='416' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='_PyOS_ReadlineTState' size='8' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='_PyParser_TokenNames' size='560' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
-    <elf-symbol name='_PyRuntime' size='316904' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+    <elf-symbol name='_PyRuntime' size='316912' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='_PySet_Dummy' size='8' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='_PyUnion_Type' size='416' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='_PyWeakref_CallableProxyType' size='416' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
@@ -21537,7 +21537,7 @@
         <var-decl name='last_resort_memory_error' type-id='type-id-1035' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='723' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='_is' size-in-bits='1807296' is-struct='yes' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='788' column='1' id='type-id-1295'>
+    <class-decl name='_is' size-in-bits='1807360' is-struct='yes' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='788' column='1' id='type-id-1295'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='ceval' type-id='type-id-1245' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='793' column='1'/>
       </data-member>
@@ -21798,6 +21798,9 @@
       </data-member>
       <data-member access='public' layout-offset-in-bits='1807232'>
         <var-decl name='lazy_imports_mutex' type-id='type-id-983' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='1009' column='1'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='1807296'>
+        <var-decl name='jit_executable_type' type-id='type-id-1' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='1012' column='1'/>
       </data-member>
     </class-decl>
     <class-decl name='pythreads' size-in-bits='384' is-struct='yes' visibility='default' filepath='./Include/internal/pycore_interp_structs.h' line='816' column='1' id='type-id-1296'>
@@ -22286,7 +22289,7 @@
         <var-decl name='eos' type-id='type-id-67' visibility='default' filepath='./Include/internal/pycore_runtime_structs.h' line='126' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='pyruntimestate' size-in-bits='2535232' is-struct='yes' visibility='default' filepath='./Include/internal/pycore_runtime_structs.h' line='146' column='1' id='type-id-1353'>
+    <class-decl name='pyruntimestate' size-in-bits='2535296' is-struct='yes' visibility='default' filepath='./Include/internal/pycore_runtime_structs.h' line='146' column='1' id='type-id-1353'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='debug_offsets' type-id='type-id-1164' visibility='default' filepath='./Include/internal/pycore_runtime_structs.h' line='159' column='1'/>
       </data-member>
