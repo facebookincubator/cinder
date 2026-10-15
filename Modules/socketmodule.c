@@ -754,7 +754,9 @@ set_herror(socket_state *state, int h_error)
     PyObject *v;
 
 #ifdef HAVE_HSTRERROR
-    v = Py_BuildValue("(iN)", h_error, decode_error_message(hstrerror(h_error)));
+    const char *errmsg = hstrerror(h_error);
+    _Py_MSAN_UNPOISON_STRING(errmsg);
+    v = Py_BuildValue("(iN)", h_error, decode_error_message(errmsg));
 #else
     v = Py_BuildValue("(is)", h_error, "host not found");
 #endif
@@ -781,7 +783,9 @@ set_gaierror(socket_state *state, int error)
 #endif
 
 #ifdef HAVE_GAI_STRERROR
-    v = Py_BuildValue("(iN)", error, decode_error_message(gai_strerror(error)));
+    const char *errmsg = gai_strerror(error);
+    _Py_MSAN_UNPOISON_STRING(errmsg);
+    v = Py_BuildValue("(iN)", error, decode_error_message(errmsg));
 #else
     v = Py_BuildValue("(is)", error, "getaddrinfo failed");
 #endif
@@ -4921,9 +4925,9 @@ sock_sendmsg_impl(PySocketSockObject *s, void *data)
 _socket.socket.sendmsg
     self as s: self(type="PySocketSockObject *")
     buffers as data_arg: object
-    ancdata as cmsg_arg: object = NULL
+    ancdata as cmsg_arg: object(c_default="NULL") = ()
     flags: int = 0
-    address as addr_arg: object = NULL
+    address as addr_arg: object(c_default="NULL") = None
     /
 
 Send normal and ancillary data to the socket.
@@ -4947,7 +4951,7 @@ static PyObject *
 _socket_socket_sendmsg_impl(PySocketSockObject *s, PyObject *data_arg,
                             PyObject *cmsg_arg, int flags,
                             PyObject *addr_arg)
-/*[clinic end generated code: output=3b4cb1110644ce39 input=8ae408971a3aa329]*/
+/*[clinic end generated code: output=3b4cb1110644ce39 input=5fdf9b49bed3848b]*/
 
 {
     Py_ssize_t i, ndatabufs = 0, ncmsgs, ncmsgbufs = 0;
@@ -6420,6 +6424,7 @@ socket_getservbyport(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_OSError, "port/proto not found");
         return NULL;
     }
+    _Py_MSAN_UNPOISON_STRING(sp->s_name);
     return PyUnicode_FromString(sp->s_name);
 }
 

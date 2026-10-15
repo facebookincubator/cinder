@@ -709,16 +709,8 @@ codegen_enter_scope(compiler *c, identifier name, int scope_type,
 }
 
 static int
-codegen_setup_annotations_scope(compiler *c, location loc,
-                                void *key, PyObject *name)
+codegen_emit_annotations_prologue(compiler *c, location loc)
 {
-    _PyCompile_CodeUnitMetadata umd = {
-        .u_posonlyargcount = 1,
-    };
-    RETURN_IF_ERROR(
-        codegen_enter_scope(c, name, COMPILE_SCOPE_ANNOTATIONS,
-                            key, loc.lineno, NULL, &umd));
-
     // if .format > VALUE_WITH_FAKE_GLOBALS: raise NotImplementedError
     PyObject *value_with_fake_globals = PyLong_FromLong(_Py_ANNOTATE_FORMAT_VALUE_WITH_FAKE_GLOBALS);
     if (value_with_fake_globals == NULL) {
@@ -739,10 +731,26 @@ codegen_setup_annotations_scope(compiler *c, location loc,
 }
 
 static int
-codegen_leave_annotations_scope(compiler *c, location loc)
+codegen_setup_annotations_scope(compiler *c, location loc,
+                                void *key, PyObject *name)
+{
+    _PyCompile_CodeUnitMetadata umd = {
+        .u_posonlyargcount = 1,
+    };
+    RETURN_IF_ERROR(
+        codegen_enter_scope(c, name, COMPILE_SCOPE_ANNOTATIONS,
+                            key, loc.lineno, NULL, &umd));
+
+    RETURN_IF_ERROR_IN_SCOPE(c, codegen_emit_annotations_prologue(c, loc));
+    return SUCCESS;
+}
+
+static int
+codegen_finish_annotations_scope(compiler *c, location loc)
 {
     ADDOP_IN_SCOPE(c, loc, RETURN_VALUE);
     PyCodeObject *co = _PyCompile_OptimizeAndAssemble(c, 1);
+    _PyCompile_ExitScope(c);
     if (co == NULL) {
         return ERROR;
     }
@@ -776,7 +784,6 @@ codegen_leave_annotations_scope(compiler *c, location loc)
     }
     Py_SETREF(co->co_localsplusnames, new_names);
 
-    _PyCompile_ExitScope(c);
     int ret = codegen_make_closure(c, loc, co, 0);
     Py_DECREF(co);
     RETURN_IF_ERROR(ret);
@@ -879,7 +886,7 @@ codegen_process_deferred_annotations(compiler *c, location loc)
     Py_DECREF(deferred_anno);
     Py_DECREF(conditional_annotation_indices);
 
-    RETURN_IF_ERROR(codegen_leave_annotations_scope(c, loc));
+    RETURN_IF_ERROR(codegen_finish_annotations_scope(c, loc));
     RETURN_IF_ERROR(codegen_nameop(
         c, loc,
         ste->ste_type == ClassBlock ? &_Py_ID(__annotate_func__) : &_Py_ID(__annotate__),
@@ -1185,7 +1192,7 @@ codegen_function_annotations(compiler *c, location loc,
             c, codegen_annotations_in_scope(c, loc, args, returns, &annotations_len)
         );
         ADDOP_I_IN_SCOPE(c, loc, BUILD_MAP, annotations_len);
-        RETURN_IF_ERROR(codegen_leave_annotations_scope(c, loc));
+        RETURN_IF_ERROR(codegen_finish_annotations_scope(c, loc));
         return MAKE_FUNCTION_ANNOTATE;
     }
     else {
@@ -4961,6 +4968,34 @@ pop_inlined_comprehension_state(compiler *c, location loc,
 }
 
 static int
+codegen_comprehension_init_container(compiler *c, location loc, int type,
+                                     int is_inlined)
+{
+    int op;
+    switch (type) {
+    case COMP_LISTCOMP:
+        op = BUILD_LIST;
+        break;
+    case COMP_SETCOMP:
+        op = BUILD_SET;
+        break;
+    case COMP_DICTCOMP:
+        op = BUILD_MAP;
+        break;
+    default:
+        PyErr_Format(PyExc_SystemError,
+                     "unknown comprehension type %d", type);
+        return ERROR;
+    }
+
+    ADDOP_I(c, loc, op, 0);
+    if (is_inlined) {
+        ADDOP_I(c, loc, SWAP, 2);
+    }
+    return SUCCESS;
+}
+
+static int
 codegen_comprehension(compiler *c, expr_ty e, int type,
                       identifier name, asdl_comprehension_seq *generators, expr_ty elt,
                       expr_ty val)
@@ -4998,19 +5033,22 @@ codegen_comprehension(compiler *c, expr_ty e, int type,
         if (type == COMP_GENEXP) {
             /* Insert GET_ITER before RETURN_GENERATOR.
                https://docs.python.org/3/reference/expressions.html#generator-expressions */
-            RETURN_IF_ERROR(
-                _PyInstructionSequence_InsertInstruction(
+            if (_PyInstructionSequence_InsertInstruction(
                     INSTR_SEQUENCE(c), 0,
-                    RESUME, RESUME_AT_GEN_EXPR_START, NO_LOCATION));
-            RETURN_IF_ERROR(
-                _PyInstructionSequence_InsertInstruction(
+                    RESUME, RESUME_AT_GEN_EXPR_START, NO_LOCATION) < 0) {
+                goto error_in_scope;
+            }
+            if (_PyInstructionSequence_InsertInstruction(
                     INSTR_SEQUENCE(c), 1,
-                    LOAD_FAST, 0, LOC(outermost->iter)));
-            RETURN_IF_ERROR(
-                _PyInstructionSequence_InsertInstruction(
+                    LOAD_FAST, 0, LOC(outermost->iter)) < 0) {
+                goto error_in_scope;
+            }
+            if (_PyInstructionSequence_InsertInstruction(
                     INSTR_SEQUENCE(c), 2,
                     outermost->is_async ? GET_AITER : GET_ITER,
-                    0, LOC(outermost->iter)));
+                    0, LOC(outermost->iter)) < 0) {
+                goto error_in_scope;
+            }
             iter_state = ITERATOR_ON_STACK;
         }
         else {
@@ -5020,26 +5058,8 @@ codegen_comprehension(compiler *c, expr_ty e, int type,
     Py_CLEAR(entry);
 
     if (type != COMP_GENEXP) {
-        int op;
-        switch (type) {
-        case COMP_LISTCOMP:
-            op = BUILD_LIST;
-            break;
-        case COMP_SETCOMP:
-            op = BUILD_SET;
-            break;
-        case COMP_DICTCOMP:
-            op = BUILD_MAP;
-            break;
-        default:
-            PyErr_Format(PyExc_SystemError,
-                         "unknown comprehension type %d", type);
+        if (codegen_comprehension_init_container(c, loc, type, is_inlined) < 0) {
             goto error_in_scope;
-        }
-
-        ADDOP_I(c, loc, op, 0);
-        if (is_inlined) {
-            ADDOP_I(c, loc, SWAP, 2);
         }
     }
     if (codegen_comprehension_generator(c, loc, generators, 0, 0,
@@ -5055,7 +5075,7 @@ codegen_comprehension(compiler *c, expr_ty e, int type,
     }
 
     if (type != COMP_GENEXP) {
-        ADDOP(c, LOC(e), RETURN_VALUE);
+        ADDOP_IN_SCOPE(c, LOC(e), RETURN_VALUE);
     }
     if (type == COMP_GENEXP) {
         if (codegen_wrap_in_stopiteration_handler(c) < 0) {
