@@ -246,6 +246,21 @@ class EmbeddingTests(EmbeddingTestsMixin, unittest.TestCase):
         lines = "\n".join(lines) + "\n"
         self.assertEqual(out, lines)
 
+    def test_create_module_from_initfunc(self):
+        out, err = self.run_embedded_interpreter("test_create_module_from_initfunc")
+        self.assertEqual(self._nogil_filtered_err(err, "embedded_ext"), "")
+        self.assertEqual(out,
+                         "<module 'my_test_extension' (static-extension)>\n"
+                         "my_test_extension.executed='yes'\n"
+                         "my_test_extension.exec_slot_ran='yes'\n"
+                         "<module 'embedded_ext' (static-extension)>\n"
+                         "embedded_ext.executed='yes'\n"
+                         "<module 'sp_pkg.sp_submod' (static-extension)>\n"
+                         "sp_pkg.sp_submod.__name__='sp_pkg.sp_submod'\n"
+                         "sys.modules[\"sp_pkg.sp_submod\"] is sp_pkg.sp_submod=True\n"
+                         "\"sp_submod\" in sys.modules=False\n"
+                         )
+
     def test_inittab_submodule_multiphase(self):
         out, err = self.run_embedded_interpreter("test_inittab_submodule_multiphase")
         self.assertEqual(err, "")

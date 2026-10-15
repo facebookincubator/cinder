@@ -367,6 +367,10 @@ Importing Modules
    ``PyInit_<name>`` function and *spec* is the
    :class:`~importlib.machinery.ModuleSpec` describing the module.
 
+   If the spec's name is dotted and *initfunc* creates the module using only
+   the last component of the name, the module's :attr:`~module.__name__`
+   is set to the full name from the spec.
+
 
 .. _lazy-imports:
 
