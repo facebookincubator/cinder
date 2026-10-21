@@ -1252,6 +1252,7 @@ class BaseEventLoop(events.AbstractEventLoop):
             await waiter
         except:
             transport.close()
+            waiter = None
             raise
 
         return transport, protocol
@@ -1386,6 +1387,7 @@ class BaseEventLoop(events.AbstractEventLoop):
             transport.close()
             conmade_cb.cancel()
             resume_cb.cancel()
+            waiter = None
             raise
 
         return ssl_protocol._app_transport
