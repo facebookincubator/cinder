@@ -18907,6 +18907,18 @@
             int err = _PyList_AppendTakeRef((PyListObject *)self_o, PyStackRef_AsPyObjectSteal(arg));
             UNLOCK_OBJECT(self_o);
             if (err) {
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                _PyStackRef tmp = self;
+                self = PyStackRef_NULL;
+                stack_pointer[-2] = self;
+                PyStackRef_CLOSE(tmp);
+                tmp = callable;
+                callable = PyStackRef_NULL;
+                stack_pointer[-3] = callable;
+                PyStackRef_CLOSE(tmp);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                stack_pointer += -3;
+                ASSERT_WITHIN_STACK_BOUNDS(__FILE__, __LINE__);
                 SET_CURRENT_CACHED_VALUES(0);
                 JUMP_TO_ERROR();
             }
@@ -18949,7 +18961,17 @@
             int err = _PyList_AppendTakeRef((PyListObject *)self_o, PyStackRef_AsPyObjectSteal(arg));
             UNLOCK_OBJECT(self_o);
             if (err) {
-                stack_pointer += 1;
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                _PyStackRef tmp = self;
+                self = PyStackRef_NULL;
+                stack_pointer[-1] = self;
+                PyStackRef_CLOSE(tmp);
+                tmp = callable;
+                callable = PyStackRef_NULL;
+                stack_pointer[-2] = callable;
+                PyStackRef_CLOSE(tmp);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                stack_pointer += -2;
                 ASSERT_WITHIN_STACK_BOUNDS(__FILE__, __LINE__);
                 SET_CURRENT_CACHED_VALUES(0);
                 JUMP_TO_ERROR();
@@ -18995,8 +19017,17 @@
             int err = _PyList_AppendTakeRef((PyListObject *)self_o, PyStackRef_AsPyObjectSteal(arg));
             UNLOCK_OBJECT(self_o);
             if (err) {
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                _PyStackRef tmp = self;
+                self = PyStackRef_NULL;
                 stack_pointer[0] = self;
-                stack_pointer += 2;
+                PyStackRef_CLOSE(tmp);
+                tmp = callable;
+                callable = PyStackRef_NULL;
+                stack_pointer[-1] = callable;
+                PyStackRef_CLOSE(tmp);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
+                stack_pointer += -1;
                 ASSERT_WITHIN_STACK_BOUNDS(__FILE__, __LINE__);
                 SET_CURRENT_CACHED_VALUES(0);
                 JUMP_TO_ERROR();
@@ -19044,10 +19075,17 @@
             int err = _PyList_AppendTakeRef((PyListObject *)self_o, PyStackRef_AsPyObjectSteal(arg));
             UNLOCK_OBJECT(self_o);
             if (err) {
+                _PyFrame_SetStackPointer(frame, stack_pointer);
+                _PyStackRef tmp = self;
+                self = PyStackRef_NULL;
                 stack_pointer[0] = callable;
                 stack_pointer[1] = self;
-                stack_pointer += 3;
-                ASSERT_WITHIN_STACK_BOUNDS(__FILE__, __LINE__);
+                PyStackRef_CLOSE(tmp);
+                tmp = callable;
+                callable = PyStackRef_NULL;
+                stack_pointer[0] = callable;
+                PyStackRef_CLOSE(tmp);
+                stack_pointer = _PyFrame_GetStackPointer(frame);
                 SET_CURRENT_CACHED_VALUES(0);
                 JUMP_TO_ERROR();
             }
